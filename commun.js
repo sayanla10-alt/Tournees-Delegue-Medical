@@ -1,15 +1,22 @@
 /* =============================================================================
-   commun.js : référentiel et fonctions partagées
-   Ce fichier est IDENTIQUE dans l'application (pwa/js/commun.js)
-   et dans Google Apps Script (Commun.gs). Toute modification doit être
-   reportée dans les deux.
+   commun.js : référentiel, modèle de données et fonctions partagées (version 3)
+   Ce fichier est IDENTIQUE dans l'application (commun.js) et dans Google Apps
+   Script (Commun.gs). Toute modification doit être reportée dans les deux.
+
+   Modèle de données
+   - Praticiens : une ligne par médecin ou pharmacie (note de potentiel 1 à 3,
+     3 = fort potentiel ; conventionné Oui/Non ; suivi des visites).
+   - Présences  : une ligne par lieu d'exercice d'un praticien, avec une colonne
+     par jour (Lundi à Vendredi) contenant « Matin », « Soir » ou « Matin et soir »,
+     et les horaires du matin et du soir propres à ce lieu.
    ============================================================================= */
 
+var VERSION_DONNEES = 3;
 var JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
-var CRENEAUX = ['Matin', 'Après-midi'];
+var JOURS_CLES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
+var CRENEAUX = ['Matin', 'Soir'];
+var DISPOS = ['Matin', 'Soir', 'Matin et soir'];
 
-// Statuts proposés et indication "compte comme visite effective"
-// (modifiables dans la feuille Listes du Google Sheet)
 var STATUTS_DEFAUT = [
   { nom: 'Présent', visite: true },
   { nom: 'Absent', visite: false },
@@ -20,20 +27,34 @@ var STATUTS_DEFAUT = [
 ];
 
 // Clé interne -> en-tête de colonne dans le Google Sheet
-var CHAMPS_BASE = [
-  ['id', 'ID'], ['code', 'CodeContact'], ['type', 'Type'], ['nom', 'Nom'],
-  ['specialite', 'Spécialité'], ['priorite', 'Priorité'], ['zone', 'Zone'],
-  ['commune', 'Commune'], ['quartier', 'Quartier'], ['lieu', 'Lieu/Etablissement'],
-  ['jour', 'Jour'], ['creneau', 'Créneau'], ['heure', 'Heure'],
-  ['derniere', 'DateDerniereVisite'], ['statut', 'DernierStatut'],
-  ['commentaire', 'DernierCommentaire'], ['nbVisites', 'NbVisites']
+var CHAMPS_PRATICIENS = [
+  ['code', 'CodeContact'], ['type', 'Type'], ['nom', 'Nom'], ['specialite', 'Spécialité'],
+  ['note', 'Note'], ['conventionne', 'Conventionné'], ['telephone', 'Téléphone'],
+  ['derniere', 'DateDerniereVisite'], ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'],
+  ['nbVisites', 'NbVisites'], ['actif', 'Actif']
+];
+
+var CHAMPS_PRESENCES = [
+  ['id', 'IdPresence'], ['code', 'CodeContact'], ['nom', 'Nom'], ['lieu', 'Lieu/Etablissement'],
+  ['quartier', 'Quartier'], ['commune', 'Commune'], ['zone', 'Zone'],
+  ['lundi', 'Lundi'], ['mardi', 'Mardi'], ['mercredi', 'Mercredi'], ['jeudi', 'Jeudi'], ['vendredi', 'Vendredi'],
+  ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude']
 ];
 
 var CHAMPS_HIST = [
-  ['date', 'DateVisite'], ['horodatage', 'Horodatage'], ['id', 'ID'], ['code', 'CodeContact'],
-  ['nom', 'Nom'], ['type', 'Type'], ['specialite', 'Spécialité'], ['priorite', 'Priorité'],
-  ['commune', 'Commune'], ['quartier', 'Quartier'], ['lieu', 'Lieu/Etablissement'],
-  ['creneau', 'Créneau'], ['statut', 'Statut'], ['commentaire', 'Commentaire'], ['uid', 'IdSync']
+  ['date', 'DateVisite'], ['horodatage', 'Horodatage'], ['idPresence', 'IdPresence'], ['code', 'CodeContact'],
+  ['nom', 'Nom'], ['type', 'Type'], ['specialite', 'Spécialité'], ['note', 'Note'],
+  ['commune', 'Commune'], ['quartier', 'Quartier'], ['lieu', 'Lieu/Etablissement'], ['creneau', 'Créneau'],
+  ['statut', 'Statut'], ['commentaire', 'Commentaire'], ['uid', 'IdSync'], ['delegue', 'Délégué']
+];
+
+// Tournées publiées par les délégués (visibles par toute l'équipe)
+var CHAMPS_PLAN = [
+  ['delegue', 'Délégué'], ['date', 'Date'], ['heure', 'HeurePrevue'], ['creneau', 'Créneau'],
+  ['debut', 'Debut'], ['fin', 'Fin'], ['idPresence', 'IdPresence'], ['code', 'CodeContact'], ['nom', 'Nom'],
+  ['specialite', 'Spécialité'], ['note', 'Note'], ['quartier', 'Quartier'], ['commune', 'Commune'],
+  ['lieu', 'Lieu/Etablissement'], ['statut', 'Statut'], ['etat', 'Etat'], ['programme', 'Programme'],
+  ['maj', 'MiseAJour'], ['uid', 'IdArret'], ['depuis', 'CibleDepuis']
 ];
 
 // Commune, Quartier, Zone, Latitude, Longitude (coordonnées approximatives)
@@ -85,86 +106,113 @@ var QUARTIERS_DEFAUT = [
 
 // Paramètres du moteur (ajustables)
 var REGLAGES_MOTEUR = {
-  penaliteKm: 25,          // points de score retirés par km d'écart à la cible "ancre"
-  rayonRattrapageKm: 6,    // rayon de recherche des cibles de remplacement
-  nbPropositions: 10,
-  detourRoutier: 1.3,      // coefficient vol d'oiseau -> distance routière
-  minutesParKm: 3,         // vitesse moyenne en ville (~20 km/h, trafic d'Abidjan)
-  dureeVisite: 20,         // minutes passées par visite
-  finMatin: 13 * 60,       // fin du créneau du matin
-  finApresMidi: 18 * 60 + 30,
-  cadence: { 1: 14, 2: 30, 3: 60 }   // jours entre deux visites selon la priorité
+  penaliteKm: 25,              // points de score retirés par km de détour ajouté à la tournée
+  rayonAutourKm: 5,            // rayon par défaut de « Autour de moi »
+  nbPropositions: 15,
+  detourRoutier: 1.3,          // coefficient vol d'oiseau -> distance routière
+  minutesParKm: 3,             // vitesse moyenne en ville (~20 km/h, trafic d'Abidjan)
+  dureeVisite: 20,             // minutes passées par visite
+  toleranceRdv: 10,            // minutes de retard tolérées sur un RDV fixé
+  horaireMatinDefaut: '08:00-12:00',
+  horaireSoirDefaut: '15:00-19:00',
+  cadence: { 3: 14, 2: 30, 1: 60 }   // jours visés entre deux visites selon la note (3 = fort potentiel)
 };
+
+// ---------------------------------------------------------------- Texte
+function sansAccents(s) {
+  return String(s === undefined || s === null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+function normaliser(s) { return sansAccents(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
 // ---------------------------------------------------------------- Dates (AAAA-MM-JJ, sans fuseau)
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
-
 function isoVersJours(iso) {
   var p = String(iso).split('-');
   return Math.round(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000);
 }
-
 function joursVersIso(n) {
   var d = new Date(n * 86400000);
   return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate());
 }
-
 function ajouterJours(iso, n) { return joursVersIso(isoVersJours(iso) + n); }
-
 // 0 = lundi ... 6 = dimanche
-function jourSemaineIndex(iso) {
-  var d = new Date(isoVersJours(iso) * 86400000).getUTCDay();
-  return (d + 6) % 7;
-}
-
+function jourSemaineIndex(iso) { return (new Date(isoVersJours(iso) * 86400000).getUTCDay() + 6) % 7; }
 function lundiDe(iso) { return ajouterJours(iso, -jourSemaineIndex(iso)); }
-
 function nomJour(iso) {
   var i = jourSemaineIndex(iso);
   return i < 5 ? JOURS[i] : (i === 5 ? 'Samedi' : 'Dimanche');
 }
-
-// Prochaine date tombant sur "jour" (strict : exclut la date de départ)
-function prochaineDate(depuisIso, jour, strict) {
-  var delta = JOURS.indexOf(jour) - jourSemaineIndex(depuisIso);
-  if (delta < 0 || (delta === 0 && strict)) delta += 7;
-  return ajouterJours(depuisIso, delta);
-}
-
+function joursOuvres(lundi) { var r = []; for (var i = 0; i < 5; i++) r.push(ajouterJours(lundi, i)); return r; }
 function joursEcoules(derniereIso, refIso) {
   if (!derniereIso) return 365;
   var n = isoVersJours(refIso) - isoVersJours(derniereIso);
   return n < 0 ? 0 : n;
 }
 
-// "08:30", "8h30", "8:00" -> minutes depuis minuit (null si vide)
+// ---------------------------------------------------------------- Heures
+// "08:30", "8h30", "8" -> minutes depuis minuit (null si vide ou illisible)
 function heureVersMinutes(h) {
   if (h === null || h === undefined || h === '') return null;
-  var m = String(h).match(/(\d{1,2})\s*[:hH]\s*(\d{2})?/);
+  var m = String(h).match(/(\d{1,2})\s*(?:[:hH]\s*(\d{2}))?/);
   if (!m) return null;
-  return (+m[1]) * 60 + (+(m[2] || 0));
+  var v = (+m[1]) * 60 + (+(m[2] || 0));
+  return v >= 0 && v < 24 * 60 ? v : null;
+}
+function minutesVersHeure(m) {
+  m = Math.round(m);
+  return pad2(Math.floor(m / 60) % 24) + ':' + pad2(m % 60);
+}
+// "08:00-12:00" -> [480, 720] ; valeur par défaut si illisible
+function lireHoraire(texte, defaut) {
+  var t = String(texte || '');
+  var m = t.match(/(\d{1,2}\s*(?:[:hH]\s*(?:\d{2})?)?)\s*(?:-|–|à|a|\/)\s*(\d{1,2}\s*(?:[:hH]\s*(?:\d{2})?)?)/);
+  if (m) {
+    var a = heureVersMinutes(m[1]), b = heureVersMinutes(m[2]);
+    if (a !== null && b !== null && b > a) return [a, b];
+  }
+  return defaut ? lireHoraire(defaut) : null;
 }
 
+// Contenu d'une case jour -> { matin, soir }. Accepte « Matin », « Soir », « Matin et soir »,
+// ainsi que les saisies rapides M, S, MS, M+S, M/S, X (journée entière).
+function lireDispo(v) {
+  var t = normaliser(v);
+  if (!t || t === 'non' || t === 'absent' || t === '0') return { matin: false, soir: false };
+  if (t === 'x' || t === 'oui' || t === 'journee' || t === 'tous' || t === 'ms' || t === 'sm') return { matin: true, soir: true };
+  var matin = t.indexOf('matin') >= 0 || t === 'm' || t.charAt(0) === 'm' && t.length <= 2;
+  var soir = t.indexOf('soir') >= 0 || t.indexOf('apres') >= 0 || t === 's' || /^m.?s$/.test(t);
+  return { matin: matin, soir: soir };
+}
+function ecrireDispo(d) { return d.matin && d.soir ? 'Matin et soir' : (d.matin ? 'Matin' : (d.soir ? 'Soir' : '')); }
+
 // ---------------------------------------------------------------- Score et distances
-// Score = poids de priorité + retard sur la cadence (plafonné à 3x) + bonus de statut
-function calcScore(prio, jours, dernierStatut) {
-  prio = +prio;
-  if (!(prio >= 1 && prio <= 3)) prio = 3;
-  var retard = jours / REGLAGES_MOTEUR.cadence[prio];
+function lireNote(n) { n = Math.round(+n); return n >= 1 && n <= 3 ? n : 2; }
+function estConventionne(v) { var t = normaliser(v); return t === 'oui' || t === 'o' || t === 'x' || t === 'true' || t === '1' || t === 'yes'; }
+
+// Score = potentiel (note x 100) + retard sur la cadence (plafonné à 3x) + bonus de suivi
+function calcScore(note, jours, dernierStatut) {
+  note = lireNote(note);
+  var retard = jours / REGLAGES_MOTEUR.cadence[note];
   if (retard > 3) retard = 3;
   var bonus = dernierStatut === 'À rappeler' ? 50 : (dernierStatut === 'Intéressé' ? 30 : 0);
-  return Math.round(((4 - prio) * 100 + retard * 100 + bonus) * 10) / 10;
+  return Math.round((note * 100 + retard * 100 + bonus) * 10) / 10;
 }
 
 // a, b : objets { lat, lon }. Distance routière estimée en km.
 function distanceKm(a, b) {
-  if (!a || !b) return 99;
-  if (a === b) return 0;
+  if (!a || !b || !isFinite(a.lat) || !isFinite(b.lat)) return 99;
+  if (a.lat === b.lat && a.lon === b.lon) return 0;
   var R = 6371, rad = Math.PI / 180;
   var dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
   var h = Math.pow(Math.sin(dLat / 2), 2) +
           Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.pow(Math.sin(dLon / 2), 2);
   return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * REGLAGES_MOTEUR.detourRoutier;
+}
+
+function quartiersDefautObjets() {
+  return QUARTIERS_DEFAUT.map(function (q) {
+    return { commune: q[0], quartier: q[1], zone: q[2], lat: q[3], lon: q[4] };
+  });
 }
 
 // ---------------------------------------------------------------- Générateur pseudo-aléatoire
@@ -179,25 +227,34 @@ function creerAlea(graine) {
   };
 }
 
-// ---------------------------------------------------------------- Base fictive (~245 lignes)
+// ---------------------------------------------------------------- Base fictive (environ 600 praticiens)
+// Chaque médecin exerce dans 1 à 3 lieux répartis dans toute la ville (hôpital public le
+// matin, clinique ou cabinet privé le soir le plus souvent), certains jours seulement.
 function genererBaseFictive(dateRefIso, options) {
   options = options || {};
-  var nbMed = options.nbMedecins || 140;
-  var nbPha = options.nbPharmacies || 45;
+  var nbMed = options.nbMedecins || 500;     // dimensionné pour une équipe d'une dizaine de délégués
+  var nbPha = options.nbPharmacies || 100;
   var rnd = creerAlea(options.graine || 2026);
   function pioche(arr) { return arr[Math.floor(rnd() * arr.length)]; }
+  function melange(arr) { var a = arr.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(rnd() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
-  var Q = QUARTIERS_DEFAUT.map(function (q) {
-    return { commune: q[0], quartier: q[1], zone: q[2], lat: q[3], lon: q[4] };
-  });
-  // Pondération : plus de structures de santé à Cocody et au Plateau
+  var Q = quartiersDefautObjets();
+  var parNom = {};
+  Q.forEach(function (q, i) { parNom[q.quartier] = i; });
   var pool = [];
   Q.forEach(function (q, i) {
     var w = (q.commune === 'Cocody' || q.commune === 'Plateau') ? 3 :
-            (['Marcory', 'Yopougon', 'Treichville', 'Adjamé'].indexOf(q.commune) >= 0 ? 2 : 1);
+            (['Marcory', 'Yopougon', 'Treichville', 'Adjamé', 'Koumassi'].indexOf(q.commune) >= 0 ? 2 : 1);
     for (var k = 0; k < w; k++) pool.push(i);
   });
 
+  var hopitaux = [
+    ['CHU de Cocody', 'Cocody Centre'], ['CHU de Treichville', 'Treichville Arras'],
+    ['CHU de Yopougon', 'Sicogi'], ["CHU d'Angré", 'Angré'], ["Institut de Cardiologie d'Abidjan", 'Treichville Arras'],
+    ["Hôpital Général d'Abobo", 'Abobo Gare'], ['Hôpital Général de Port-Bouët', 'Port-Bouët Centre'],
+    ["Hôpital Général d'Anyama", 'Anyama Centre'], ['Hôpital Général de Bingerville', 'Bingerville Centre'],
+    ['Hôpital Général de Koumassi', 'Remblais'], ['Hôpital Général de Marcory', 'Anoumabo']
+  ];
   var noms = ('Kouassi,Koné,Traoré,Yao,Kouadio,Konan,N\'Guessan,Ouattara,Bamba,Coulibaly,Diabaté,' +
     'Touré,Kouamé,Aka,Assi,Brou,Djédjé,Gnagne,Séka,Tanoh,Ehui,Amon,Dosso,Fofana,Cissé,Soro,Silué,' +
     'Yéo,Tuo,Zadi,Gnahoré,Dago,Kacou,Koffi,Adou,Atta,Loukou,Méité,Kra,Ahoussou,Boni,Anoh,' +
@@ -216,102 +273,109 @@ function genererBaseFictive(dateRefIso, options) {
     'Bel Air,de la Paix,Les Rosiers,Notre Dame,du Carrefour,Les Cocotiers,de la Gare,Emmanuel,' +
     'Grâce Divine,Belle Vue,du Rond-Point,Saint Michel,Les Flamboyants,de la Cité,Siloé,' +
     'Le Jourdain,de l\'Avenir,Les Acacias,Sainte Rita').split(',');
-  var fortPotentiel = ['Cardiologue', 'Diabétologue', 'Endocrinologue', 'Interniste'];
+  var fortPotentiel = ['Cardiologue', 'Diabétologue', 'Endocrinologue', 'Interniste', 'Néphrologue'];
+  var horairesMatin = ['08:00-12:00', '08:30-12:30', '09:00-13:00', '07:30-11:30'];
+  var horairesSoir = ['15:00-18:00', '16:00-19:00', '17:00-20:00', '15:30-19:00'];
 
-  function tirerPriorite(fort) {
+  function tirerNote(fort) {
     var r = rnd();
-    if (fort) return r < 0.45 ? 1 : (r < 0.85 ? 2 : 3);
-    return r < 0.2 ? 1 : (r < 0.6 ? 2 : 3);
-  }
-  function tirerTypeLieu() { var r = rnd(); return r < 0.45 ? 'Cabinet' : (r < 0.8 ? 'Clinique' : 'Polyclinique'); }
-  function nomLieu(type, nom) {
-    if (type === 'Cabinet') return 'Cabinet médical ' + nom;
-    return type + ' ' + pioche(etabs);
-  }
-  function tirerHeure(cren) {
-    var h = (cren === 'Matin' ? 8 : 14) + Math.floor(rnd() * 4);
-    return pad2(h) + ':' + (rnd() < 0.5 ? '00' : '30');
+    if (fort) return r < 0.45 ? 3 : (r < 0.85 ? 2 : 1);
+    return r < 0.2 ? 3 : (r < 0.6 ? 2 : 1);
   }
   function tirerDerniere() {
     if (rnd() < 0.1) return '';
     return ajouterJours(dateRefIso, -(1 + Math.floor(rnd() * 120)));
   }
-  function autreJour(j) { var r; do { r = pioche(JOURS); } while (r === j); return r; }
-  function voisin(qi, rayon) {
-    for (var t = 0; t < 30; t++) {
-      var k = Math.floor(rnd() * Q.length);
-      if (distanceKm(Q[qi], Q[k]) <= rayon) return k;
-    }
-    return qi;
-  }
 
-  var lignes = [];
-  function ajouter(code, type, nom, spec, prio, qi, lieu, jour, cren, derniere) {
+  var praticiens = [], presences = [];
+  function ajouterPresence(code, nom, lieu, qi, grille, hM, hS) {
     var q = Q[qi];
-    lignes.push({
-      id: lignes.length + 1, code: code, type: type, nom: nom, specialite: spec, priorite: prio,
-      zone: q.zone, commune: q.commune, quartier: q.quartier, lieu: lieu, jour: jour,
-      creneau: cren, heure: tirerHeure(cren), derniere: derniere, statut: '', commentaire: '',
-      nbVisites: 0
-    });
+    var p = { id: presences.length + 1, code: code, nom: nom, lieu: lieu, quartier: q.quartier,
+              commune: q.commune, zone: q.zone, horaireMatin: hM, horaireSoir: hS, lat: '', lon: '' };
+    JOURS_CLES.forEach(function (j, i) { p[j] = ecrireDispo(grille[i]); });
+    presences.push(p);
   }
 
-  var m, code, nom, spec, prio, qi, type, jour, cren, derniere;
-  // Médecins : 35 % exercent aussi dans un second lieu, proche du premier
+  var m, code, nom, spec;
+  // Médecins
   for (m = 1; m <= nbMed; m++) {
     code = 'MED-' + ('00' + m).slice(-3);
     nom = 'Dr ' + pioche(noms) + ' ' + pioche(prenoms);
     spec = pioche(specs);
-    prio = tirerPriorite(fortPotentiel.indexOf(spec) >= 0);
-    derniere = tirerDerniere();
-    qi = pool[Math.floor(rnd() * pool.length)];
-    type = tirerTypeLieu();
-    jour = pioche(JOURS);
-    cren = rnd() < 0.55 ? 'Matin' : 'Après-midi';
-    ajouter(code, 'Médecin', nom, spec, prio, qi, nomLieu(type, nom), jour, cren, derniere);
-    if (rnd() < 0.35) {
-      var qi2 = voisin(qi, 6);
-      type = type === 'Cabinet' ? (rnd() < 0.6 ? 'Clinique' : 'Polyclinique') : 'Cabinet';
-      var jour2, cren2;
-      if (rnd() < 0.5) { jour2 = jour; cren2 = cren === 'Matin' ? 'Après-midi' : 'Matin'; }
-      else { jour2 = autreJour(jour); cren2 = rnd() < 0.5 ? 'Matin' : 'Après-midi'; }
-      ajouter(code, 'Médecin', nom, spec, prio, qi2, nomLieu(type, nom), jour2, cren2, derniere);
+    praticiens.push({ code: code, type: 'Médecin', nom: nom, specialite: spec,
+      note: tirerNote(fortPotentiel.indexOf(spec) >= 0), conventionne: rnd() < 0.55 ? 'Oui' : 'Non', telephone: '',
+      derniere: tirerDerniere(), statut: '', commentaire: '', nbVisites: 0, actif: 'Oui' });
+
+    var r = rnd(), nbLieux = r < 0.3 ? 1 : (r < 0.75 ? 2 : 3);
+    var occ = JOURS.map(function () { return { matin: false, soir: false }; });
+    var dejaLieux = {};
+    for (var l = 0; l < nbLieux; l++) {
+      var hopital = (l === 0 && rnd() < 0.45) || (l > 0 && rnd() < 0.2);
+      var lieu, qi, motif;
+      if (hopital) {
+        var hsp = spec === 'Cardiologue' && rnd() < 0.5 ? hopitaux[4] : pioche(hopitaux);
+        lieu = hsp[0]; qi = parNom[hsp[1]];
+        motif = rnd() < 0.8 ? 'Matin' : 'Matin et soir';
+      } else {
+        var t = rnd();
+        lieu = t < 0.45 ? 'Cabinet médical ' + nom : (t < 0.8 ? 'Clinique ' : 'Polyclinique ') + pioche(etabs);
+        if (t < 0.45) lieu = 'Cabinet médical ' + nom.replace('Dr ', 'du Dr ');
+        qi = pool[Math.floor(rnd() * pool.length)];
+        var s = rnd();
+        motif = s < 0.55 ? 'Soir' : (s < 0.8 ? 'Matin' : 'Matin et soir');
+      }
+      if (dejaLieux[lieu]) continue;
+      dejaLieux[lieu] = true;
+      var nbJours = nbLieux === 1 ? 3 + Math.floor(rnd() * 3) : 1 + Math.floor(rnd() * 3);
+      var grille = JOURS.map(function () { return { matin: false, soir: false }; });
+      var veut = lireDispo(motif), poses = 0;
+      melange([0, 1, 2, 3, 4]).forEach(function (j) {
+        if (poses >= nbJours) return;
+        var d = { matin: veut.matin && !occ[j].matin, soir: veut.soir && !occ[j].soir };
+        if (!d.matin && !d.soir) return;
+        grille[j] = d; occ[j].matin = occ[j].matin || d.matin; occ[j].soir = occ[j].soir || d.soir; poses++;
+      });
+      if (!poses) continue;
+      ajouterPresence(code, nom, lieu, qi, grille, pioche(horairesMatin), pioche(horairesSoir));
+    }
+    if (!presences.length || presences[presences.length - 1].code !== code) {
+      // garantit au moins une présence
+      var g = JOURS.map(function () { return { matin: false, soir: false }; });
+      g[Math.floor(rnd() * 5)] = { matin: true, soir: false };
+      ajouterPresence(code, nom, 'Clinique ' + pioche(etabs), pool[Math.floor(rnd() * pool.length)], g, '08:00-12:00', '15:00-19:00');
     }
   }
-  // Pharmacies : 25 % ont un second créneau de disponibilité du titulaire
+  // Pharmacies : le titulaire est disponible certains jours, matin et/ou soir
   for (m = 1; m <= nbPha; m++) {
     code = 'PHA-' + ('00' + m).slice(-3);
-    qi = pool[Math.floor(rnd() * pool.length)];
+    var qp = pool[Math.floor(rnd() * pool.length)];
     nom = 'Dr ' + pioche(noms) + ' ' + pioche(prenoms);
-    var lieu = 'Pharmacie ' + pharmas[(m - 1) % pharmas.length] + ' ' + Q[qi].quartier;
-    prio = tirerPriorite(rnd() < 0.4);
-    derniere = tirerDerniere();
-    jour = pioche(JOURS);
-    cren = rnd() < 0.5 ? 'Matin' : 'Après-midi';
-    ajouter(code, 'Pharmacie', nom, 'Pharmacien', prio, qi, lieu, jour, cren, derniere);
-    if (rnd() < 0.25) {
-      ajouter(code, 'Pharmacie', nom, 'Pharmacien', prio, qi, lieu, autreJour(jour),
-              cren === 'Matin' ? 'Après-midi' : 'Matin', derniere);
-    }
+    praticiens.push({ code: code, type: 'Pharmacie', nom: nom, specialite: 'Pharmacien',
+      note: tirerNote(rnd() < 0.4), conventionne: rnd() < 0.7 ? 'Oui' : 'Non', telephone: '',
+      derniere: tirerDerniere(), statut: '', commentaire: '', nbVisites: 0, actif: 'Oui' });
+    var gp = JOURS.map(function () { return { matin: false, soir: false }; });
+    var nj = 2 + Math.floor(rnd() * 4);
+    melange([0, 1, 2, 3, 4]).slice(0, nj).forEach(function (j) {
+      var x = rnd(); gp[j] = x < 0.5 ? { matin: true, soir: true } : (x < 0.75 ? { matin: true, soir: false } : { matin: false, soir: true });
+    });
+    ajouterPresence(code, nom, 'Pharmacie ' + pharmas[(m - 1) % pharmas.length] + ' ' + Q[qp].quartier, qp, gp,
+                    '08:00-12:30', '15:00-19:30');
   }
-  return lignes;
-}
-
-function quartiersDefautObjets() {
-  return QUARTIERS_DEFAUT.map(function (q) {
-    return { commune: q[0], quartier: q[1], zone: q[2], lat: q[3], lon: q[4] };
-  });
+  return { praticiens: praticiens, presences: presences };
 }
 
 // Export pour les tests sous Node (sans effet dans le navigateur et dans Apps Script)
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    JOURS: JOURS, CRENEAUX: CRENEAUX, STATUTS_DEFAUT: STATUTS_DEFAUT, CHAMPS_BASE: CHAMPS_BASE,
-    CHAMPS_HIST: CHAMPS_HIST, QUARTIERS_DEFAUT: QUARTIERS_DEFAUT, REGLAGES_MOTEUR: REGLAGES_MOTEUR,
+    VERSION_DONNEES: VERSION_DONNEES, JOURS: JOURS, JOURS_CLES: JOURS_CLES, CRENEAUX: CRENEAUX, DISPOS: DISPOS,
+    STATUTS_DEFAUT: STATUTS_DEFAUT, CHAMPS_PRATICIENS: CHAMPS_PRATICIENS, CHAMPS_PRESENCES: CHAMPS_PRESENCES,
+    CHAMPS_HIST: CHAMPS_HIST, CHAMPS_PLAN: CHAMPS_PLAN, QUARTIERS_DEFAUT: QUARTIERS_DEFAUT,
+    REGLAGES_MOTEUR: REGLAGES_MOTEUR, sansAccents: sansAccents, normaliser: normaliser, pad2: pad2,
     isoVersJours: isoVersJours, joursVersIso: joursVersIso, ajouterJours: ajouterJours,
-    jourSemaineIndex: jourSemaineIndex, lundiDe: lundiDe, nomJour: nomJour, prochaineDate: prochaineDate,
-    joursEcoules: joursEcoules, heureVersMinutes: heureVersMinutes, calcScore: calcScore,
-    distanceKm: distanceKm, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
-    quartiersDefautObjets: quartiersDefautObjets, pad2: pad2
+    jourSemaineIndex: jourSemaineIndex, lundiDe: lundiDe, nomJour: nomJour, joursOuvres: joursOuvres,
+    joursEcoules: joursEcoules, heureVersMinutes: heureVersMinutes, minutesVersHeure: minutesVersHeure,
+    lireHoraire: lireHoraire, lireDispo: lireDispo, ecrireDispo: ecrireDispo, lireNote: lireNote,
+    estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
+    quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
   };
 }

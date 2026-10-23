@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Tournées</title>
-  <meta name="description" content="Organisation des tournées de visites médicales à Abidjan">
+  <meta name="description" content="Tournées de visites médicales à Abidjan, construites sur le planning de chaque praticien">
   <meta name="theme-color" content="#0E3B43">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
@@ -37,9 +37,9 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="5" r="2.2"/><circle cx="18" cy="12" r="2.2"/><circle cx="6" cy="19" r="2.2"/><path d="M8 5h6a4 4 0 0 1 0 8H10a3 3 0 0 0 0 6h-2"/></svg>
       <span>Tournée</span>
     </button>
-    <button data-a="nav" data-tab="rattrapage" type="button">
+    <button data-a="nav" data-tab="autour" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
-      <span>Rattrapage</span>
+      <span>Autour</span>
     </button>
     <button data-a="nav" data-tab="equipe" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7 7.5l3.6 8.4M17 7.5l-3.6 8.4M7.2 6h9.6"/></svg>
@@ -54,6 +54,8 @@
       <span>Historique</span>
     </button>
   </nav>
+
+  <div id="feuille" hidden></div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

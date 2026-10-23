@@ -1,7 +1,7 @@
 /* Service worker : met l'application en cache pour un fonctionnement hors ligne.
    Les appels au Google Sheet (script.google.com) ne sont jamais mis en cache.
    Après une mise à jour des fichiers, incrémenter VERSION. */
-var VERSION = 'tournees-v3';
+var VERSION = 'tournees-v4';
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-700-normal.woff2'

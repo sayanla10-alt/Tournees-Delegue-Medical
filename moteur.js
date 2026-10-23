@@ -1,256 +1,333 @@
 /* =============================================================================
-   moteur.js : planification, ordre de tournée, rattrapage, validation locale
-   Tourne entièrement sur le téléphone (fonctionne hors ligne).
-   Dépend de commun.js.
+   moteur.js : planification sous contraintes horaires (version 3)
+   Tourne entièrement sur le téléphone (fonctionne hors ligne). Dépend de commun.js.
+
+   Principe
+   - Chaque présence d'un praticien (lieu x jour x Matin/Soir) devient un « créneau »
+     avec une fenêtre horaire [début, fin].
+   - Une journée est construite par insertion : on part des arrêts imposés ou conservés,
+     puis on insère à chaque étape le praticien qui apporte le plus de valeur
+     (score de potentiel et de retard, moins le détour en km), à la meilleure place
+     de la tournée, à condition que toutes les visites restent réalisables dans
+     leurs fenêtres horaires (trajet + attente + 20 min de visite).
    ============================================================================= */
 
 var Moteur = (function () {
+  var R = REGLAGES_MOTEUR;
 
-  function indexQuartiers(quartiers) {
-    var m = {};
-    (quartiers || []).forEach(function (q) { m[String(q.quartier).toLowerCase()] = q; });
-    return m;
-  }
+  function bas(s) { return String(s || '').trim().toLowerCase(); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function inactif(p) { var t = normaliser(p.actif); return t === 'non' || t === 'n' || t === '0'; }
 
-  function distQ(idx, q1, q2) {
-    var a = String(q1 || '').toLowerCase(), b = String(q2 || '').toLowerCase();
-    if (a && a === b) return 0;
-    return distanceKm(idx[a], idx[b]);
-  }
-
-  function uid() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  }
-
-  // Transforme une ligne de la base en arrêt de tournée
-  function creerArret(row, date, score, dist) {
-    return {
-      uid: uid(), date: date, jour: row.jour, creneau: row.creneau, heure: row.heure || '',
-      rowId: row.id, code: row.code, nom: row.nom, type: row.type, specialite: row.specialite,
-      priorite: +row.priorite || 3, commune: row.commune, quartier: row.quartier, lieu: row.lieu,
-      derniere: row.derniere || '', joursEcoules: joursEcoules(row.derniere, date),
-      score: score, dist: Math.round(dist * 10) / 10,
-      statut: '', commentaire: '', etat: ''
-    };
-  }
-
-  // ------------------------------------------------------------------ Planning
-  // p : { mode: 'jour'|'semaine', dateRef, commune, maxJour, regroup, delai, exclusCodes: {} }
-  function genererPlanning(base, quartiers, p) {
-    var idx = indexQuartiers(quartiers);
-    var dates = [];
-    if (p.mode === 'jour') {
-      if (jourSemaineIndex(p.dateRef) < 5) dates.push(p.dateRef);
-    } else {
-      var lundi = lundiDe(p.dateRef);
-      for (var d = 0; d < 5; d++) dates.push(ajouterJours(lundi, d));
-    }
-    var dejaSemaine = {};
-    Object.keys(p.exclusCodes || {}).forEach(function (c) { dejaSemaine[c] = true; });
-    var plan = [];
-    dates.forEach(function (date) {
-      plan = plan.concat(planifierJour(base, idx, date, p, dejaSemaine));
+  // ------------------------------------------------------------------ Contexte
+  // data : { praticiens, presences, quartiers }
+  function preparer(data) {
+    var idxQ = {};
+    (data.quartiers || []).forEach(function (q) { idxQ[bas(q.quartier)] = q; });
+    var prat = {};
+    (data.praticiens || []).forEach(function (p) {
+      if (!p.code || inactif(p)) return;
+      p.note = lireNote(p.note);
+      p.conv = estConventionne(p.conventionne);
+      prat[p.code] = p;
     });
-    return plan;
-  }
-
-  function planifierJour(base, idx, date, p, dejaSemaine) {
-    var jour = nomJour(date);
-    var commune = p.commune || 'Toutes';
-    var cand = [];
-
-    // 1. Candidats présents ce jour, dans la commune filtrée, non vus récemment
-    base.forEach(function (row) {
-      if (row.jour !== jour) return;
-      if (commune !== 'Toutes' && row.commune !== commune) return;
-      if (dejaSemaine[row.code]) return;
-      var je = joursEcoules(row.derniere, date);
-      if (je < (p.delai || 0)) return;
-      var sc = calcScore(row.priorite, je, row.statut);
-      cand.push({ row: row, score: sc, adj: sc });
-    });
-    if (!cand.length) return [];
-
-    // 2. Regroupement : pénalité selon la distance à la cible au meilleur score
-    if (p.regroup !== false) {
-      var ancre = cand.reduce(function (a, b) { return b.score > a.score ? b : a; });
-      cand.forEach(function (c) {
-        c.adj = c.score - REGLAGES_MOTEUR.penaliteKm * distQ(idx, ancre.row.quartier, c.row.quartier);
-      });
-    }
-
-    // 3. Sélection des meilleures cibles, un seul passage par praticien
-    cand.sort(function (a, b) { return b.adj - a.adj; });
-    var sel = [], vus = {};
-    for (var i = 0; i < cand.length && sel.length < (p.maxJour || 8); i++) {
-      if (vus[cand[i].row.code]) continue;
-      vus[cand[i].row.code] = true;
-      dejaSemaine[cand[i].row.code] = true;
-      sel.push(cand[i]);
-    }
-
-    // 4. Ordre de tournée : matin puis après-midi
-    var matin = sel.filter(function (c) { return c.row.creneau === 'Matin'; });
-    var apm = sel.filter(function (c) { return c.row.creneau !== 'Matin'; });
-    var etat = { qPrev: '' };
-    return ordonner(matin, idx, date, etat).concat(ordonner(apm, idx, date, etat));
-  }
-
-  // Ordre de tournée par simulation d'horloge : l'heure indiquée est l'heure à partir
-  // de laquelle le praticien est présent. À chaque étape, on choisit l'arrêt qui permet
-  // de commencer la visite le plus tôt (trajet + attente), à égalité le plus proche.
-  function ordonner(liste, idx, date, etat) {
-    var R = REGLAGES_MOTEUR, reste = liste.slice(), res = [];
-    if (!reste.length) return res;
-    var matin = reste[0].row.creneau === 'Matin';
-    var fin = matin ? R.finMatin : R.finApresMidi;
-    var horloge = null;
-    while (reste.length) {
-      var best = -1, bestDebut = Infinity, bestTrajet = Infinity;
-      for (var k = 0; k < reste.length; k++) {
-        var h = heureVersMinutes(reste[k].row.heure);
-        if (h === null) h = matin ? 8 * 60 : 14 * 60;
-        var trajet = etat.qPrev ? distQ(idx, etat.qPrev, reste[k].row.quartier) * R.minutesParKm : 0;
-        var debut = horloge === null ? h : Math.max(horloge + trajet, h);
-        if (debut < bestDebut - 1 || (Math.abs(debut - bestDebut) <= 1 && trajet < bestTrajet)) {
-          best = k; bestDebut = debut; bestTrajet = trajet;
-        }
-      }
-      var c = reste.splice(best, 1)[0];
-      var dist = etat.qPrev ? distQ(idx, etat.qPrev, c.row.quartier) : 0;
-      var a = creerArret(c.row, date, c.score, dist);
-      a.heurePrevue = minutesVersHeure(bestDebut);
-      a.horsCreneau = bestDebut > fin;
-      res.push(a);
-      etat.qPrev = c.row.quartier;
-      horloge = bestDebut + R.dureeVisite;
-    }
-    return res;
-  }
-
-  function minutesVersHeure(m) {
-    m = Math.round(m);
-    return pad2(Math.floor(m / 60) % 24) + ':' + pad2(m % 60);
-  }
-
-  // Insère un arrêt dans le plan, à sa place selon la date, le créneau et l'heure,
-  // puis recalcule les distances entre arrêts du jour
-  function insererArret(plan, arret, quartiers) {
-    var cle = function (a) {
-      var h = heureVersMinutes(a.heure);
-      return a.date + (a.creneau === 'Matin' ? '0' : '1') + ('000' + (h === null ? 720 : h)).slice(-4);
-    };
-    var k = cle(arret), pos = plan.length;
-    for (var i = 0; i < plan.length; i++) {
-      if (plan[i].date === arret.date && cle(plan[i]) > k) { pos = i; break; }
-      if (plan[i].date > arret.date) { pos = i; break; }
-    }
-    plan.splice(pos, 0, arret);
-    recalculerDistances(plan, quartiers);
-    return plan;
-  }
-
-  function recalculerDistances(plan, quartiers) {
-    var idx = indexQuartiers(quartiers), prev = null;
-    plan.forEach(function (a) {
-      if (!prev || prev.date !== a.date) a.dist = 0;
-      else a.dist = Math.round(distQ(idx, prev.quartier, a.quartier) * 10) / 10;
-      prev = a;
-    });
-  }
-
-  // ------------------------------------------------------------------ Rattrapage
-  // ref : { quartier, date, creneau, heure ('HH:MM' ou ''), code, rowId }
-  function proposerRattrapage(base, quartiers, plan, ref, delai) {
-    var idx = indexQuartiers(quartiers);
-    var jour = nomJour(ref.date);
-    var hRef = heureVersMinutes(ref.heure);
-    var exclus = {};
-    (plan || []).forEach(function (a) { if (a.date === ref.date) exclus[a.code] = true; });
-    if (ref.code) exclus[ref.code] = true;
-
-    // A. Même praticien : autres lieux ou créneaux, et même créneau la semaine suivante
-    var meme = [];
-    if (ref.code) {
-      base.forEach(function (row) {
-        if (row.code !== ref.code) return;
-        var date, source;
-        if (String(row.id) === String(ref.rowId)) {
-          date = ajouterJours(ref.date, 7); source = 'Même lieu, semaine suivante';
-        } else {
-          var strict = !(row.jour === jour && ref.creneau === 'Matin' && row.creneau !== 'Matin');
-          date = prochaineDate(ref.date, row.jour, strict); source = 'Autre lieu du praticien';
-        }
-        meme.push({
-          row: row, date: date, source: source, dist: distQ(idx, ref.quartier, row.quartier),
-          score: calcScore(row.priorite, joursEcoules(row.derniere, date), row.statut)
+    var parJour = [[], [], [], [], []], parCode = {}, presencesParCode = {};
+    (data.presences || []).forEach(function (pr) {
+      var p = prat[pr.code];
+      if (!p) return;
+      (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(pr);
+      var q = idxQ[bas(pr.quartier)];
+      var lat = parseFloat(String(pr.lat).replace(',', '.')), lon = parseFloat(String(pr.lon).replace(',', '.'));
+      var coord = isFinite(lat) && isFinite(lon) && lat !== 0 ? { lat: lat, lon: lon } : (q ? { lat: q.lat, lon: q.lon } : null);
+      var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
+      JOURS_CLES.forEach(function (cle, j) {
+        var d = lireDispo(pr[cle]);
+        [['Matin', d.matin, hM], ['Soir', d.soir, hS]].forEach(function (x) {
+          if (!x[1]) return;
+          var c = {
+            cle: pr.id + '|' + j + '|' + x[0], idPresence: pr.id, code: pr.code, jourIdx: j, jour: JOURS[j],
+            creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu, quartier: pr.quartier,
+            commune: pr.commune || (q && q.commune) || '', zone: pr.zone || (q && q.zone) || '', coord: coord, prat: p
+          };
+          parJour[j].push(c);
+          (parCode[pr.code] = parCode[pr.code] || []).push(c);
         });
       });
-      meme.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-    }
-
-    // B. Cibles disponibles le même jour, à proximité
-    var proches = [];
-    base.forEach(function (row) {
-      if (row.jour !== jour || exclus[row.code]) return;
-      if (ref.creneau !== 'Matin' && row.creneau === 'Matin') return;
-      var h = heureVersMinutes(row.heure);
-      if (hRef !== null && h !== null && h < hRef - 60) return;
-      var je = joursEcoules(row.derniere, ref.date);
-      if (je < (delai || 0)) return;
-      var d = distQ(idx, ref.quartier, row.quartier);
-      if (d > REGLAGES_MOTEUR.rayonRattrapageKm) return;
-      var sc = calcScore(row.priorite, je, row.statut);
-      proches.push({ row: row, date: ref.date, dist: d, score: sc,
-                     source: d === 0 ? 'Même quartier' : 'À proximité',
-                     cle: Math.floor(d / 1.5) * 1000 - sc });
     });
-    proches.sort(function (a, b) { return a.cle - b.cle; });
-    var vus = {}, top = [];
-    for (var i = 0; i < proches.length && top.length < REGLAGES_MOTEUR.nbPropositions; i++) {
-      if (vus[proches[i].row.code]) continue;
-      vus[proches[i].row.code] = true;
-      top.push(proches[i]);
-    }
-    return { memePraticien: meme, proches: top };
+    Object.keys(parCode).forEach(function (k) {
+      parCode[k].sort(function (a, b) { return a.jourIdx - b.jourIdx || a.debut - b.debut; });
+    });
+    return { prat: prat, parJour: parJour, parCode: parCode, presencesParCode: presencesParCode, idxQ: idxQ,
+             quartiers: data.quartiers || [] };
   }
 
-  // Quartier le plus proche d'une position GPS
+  function creneauParCle(ctx, cle) {
+    var code = null;
+    for (var j = 0; j < 5; j++) {
+      for (var i = 0; i < ctx.parJour[j].length; i++) if (ctx.parJour[j][i].cle === cle) return ctx.parJour[j][i];
+    }
+    return code;
+  }
+
+  function scoreDe(p, date) { return calcScore(p.note, joursEcoules(p.derniere, date), p.statut); }
+
+  // Arrêt de tournée (objet simple, enregistrable sur le téléphone)
+  function arretDepuisCreneau(c, date) {
+    var p = c.prat;
+    return {
+      uid: uid(), date: date, jour: c.jour, creneau: c.creneau, cle: c.cle, idPresence: c.idPresence,
+      debut: minutesVersHeure(c.debut), fin: minutesVersHeure(c.fin), heure: minutesVersHeure(c.debut),
+      code: p.code, nom: p.nom, type: p.type, specialite: p.specialite, note: p.note, conventionne: p.conv ? 'Oui' : 'Non',
+      lieu: c.lieu, quartier: c.quartier, commune: c.commune, zone: c.zone,
+      lat: c.coord ? c.coord.lat : null, lon: c.coord ? c.coord.lon : null,
+      derniere: p.derniere || '', joursEcoules: joursEcoules(p.derniere, date), score: scoreDe(p, date),
+      dist: 0, statut: '', commentaire: '', etat: '', garde: false, impose: false, rdv: '', retard: false
+    };
+  }
+
+  // ------------------------------------------------------------------ Simulation horaire
+  function item(a) {
+    var rdv = heureVersMinutes(a.rdv);
+    return { a: a, coord: a.lat !== null && a.lat !== undefined && a.lat !== '' ? { lat: +a.lat, lon: +a.lon } : null,
+             tot: rdv !== null ? rdv : heureVersMinutes(a.debut),
+             tard: rdv !== null ? rdv + R.toleranceRdv : heureVersMinutes(a.fin) - R.dureeVisite };
+  }
+  function dist(x, y) { return x && y ? distanceKm(x.coord, y.coord) : 0; }
+
+  // Retourne pour chaque arrêt l'heure de début de visite et un indicateur de retard
+  function simuler(items) {
+    var t = null, prev = null, debuts = [], retards = [], nbRetards = 0;
+    items.forEach(function (it) {
+      var trajet = prev ? dist(prev, it) * R.minutesParKm : 0;
+      var arrivee = t === null ? it.tot : t + trajet;
+      var deb = Math.max(arrivee, it.tot);
+      var enRetard = deb > it.tard;
+      debuts.push(deb); retards.push(enRetard); if (enRetard) nbRetards++;
+      t = deb + R.dureeVisite; prev = it;
+    });
+    return { debuts: debuts, retards: retards, nbRetards: nbRetards };
+  }
+
+  function delta(route, i, it, depart) {
+    var prev = i > 0 ? route[i - 1] : depart, next = i < route.length ? route[i] : null;
+    return (prev ? dist(prev, it) : 0) + (next ? dist(it, next) : 0) - (prev && next ? dist(prev, next) : 0);
+  }
+
+  // Insère un élément à la meilleure place réalisable (ou, à défaut, à la moins mauvaise)
+  function insererAuMieux(route, it, depart) {
+    var base = simuler(route).nbRetards, best = null;
+    for (var i = 0; i <= route.length; i++) {
+      var essai = route.slice(0, i).concat([it], route.slice(i));
+      var s = simuler(essai), d = delta(route, i, it, depart);
+      var cout = (s.nbRetards - base) * 1000 + d;
+      if (!best || cout < best.cout) best = { cout: cout, route: essai };
+    }
+    return best.route;
+  }
+
+  // Ordonne une liste d'arrêts d'une même journée (après ajout, retrait, nouveau tirage)
+  function ordonnerJour(arrets, depart) {
+    var its = arrets.map(item).sort(function (a, b) { return a.tot - b.tot || a.tard - b.tard; });
+    var route = [];
+    its.forEach(function (it) { route = insererAuMieux(route, it, depart); });
+    return finaliser(route);
+  }
+
+  function finaliser(route) {
+    var s = simuler(route);
+    return route.map(function (it, i) {
+      var a = it.a;
+      a.heure = minutesVersHeure(s.debuts[i]);
+      a.retard = s.retards[i];
+      a.dist = i > 0 ? Math.round(dist(route[i - 1], it) * 10) / 10 : 0;
+      return a;
+    });
+  }
+
+  // ------------------------------------------------------------------ Construction d'une journée
+  // o : { communes: [..] | null, maxJour, delai, exclus: {code}, rejetes: {code}, fixes: [arrêts], depart: {lat,lon} | null }
+  function planifierJour(ctx, date, o, utilises) {
+    var j = jourSemaineIndex(date);
+    var depart = o.depart ? { coord: o.depart } : null;
+    var route = [];
+    (o.fixes || []).slice().sort(function (a, b) { return item(a).tot - item(b).tot; })
+      .forEach(function (a) { route = insererAuMieux(route, item(a), depart); });
+    if (j > 4) return finaliser(route);
+
+    var dans = null;
+    if (o.communes && o.communes.length) { dans = {}; o.communes.forEach(function (c) { dans[c] = true; }); }
+    var cands = [];
+    ctx.parJour[j].forEach(function (c) {
+      if (utilises[c.code] || (o.exclus && o.exclus[c.code])) return;
+      if (dans && !dans[c.commune]) return;
+      var je = joursEcoules(c.prat.derniere, date);
+      if (je < (o.delai || 0)) return;
+      var a = arretDepuisCreneau(c, date);
+      cands.push({ a: a, it: item(a), score: a.score, rejete: !!(o.rejetes && o.rejetes[c.code]) });
+    });
+
+    var max = o.maxJour || 8;
+    function passe(avecRejetes) {
+      while (route.length < max) {
+        var dansRoute = {};
+        route.forEach(function (it) { dansRoute[it.a.code] = true; });
+        var base = simuler(route).nbRetards, options = [];
+        cands.forEach(function (cd) {
+          if (dansRoute[cd.a.code] || (cd.rejete && !avecRejetes)) return;
+          for (var i = 0; i <= route.length; i++) {
+            options.push({ v: cd.score - R.penaliteKm * delta(route, i, cd.it, depart), cd: cd, i: i });
+          }
+        });
+        if (!options.length) return;
+        options.sort(function (x, y) { return y.v - x.v; });
+        var pris = false;
+        for (var k = 0; k < options.length && k < 4000; k++) {
+          var op = options[k];
+          var essai = route.slice(0, op.i).concat([op.cd.it], route.slice(op.i));
+          var s = simuler(essai);
+          if (!s.retards[op.i] && s.nbRetards <= base) { route = essai; pris = true; break; }
+        }
+        if (!pris) return;
+      }
+    }
+    passe(false);
+    if (route.length < max) passe(true);
+    route.forEach(function (it) { utilises[it.a.code] = true; });
+    return finaliser(route);
+  }
+
+  // ------------------------------------------------------------------ Planning d'une période
+  // p : { dates, communesPour(date), maxJour, delai, exclus, rejetes, conserves: [arrêts],
+  //       imposes: [{ code, date?, cle?, rdv? }], depart }
+  function genererPlanning(ctx, p) {
+    var utilises = {}, fixes = {}, nonPlaces = [];
+    p.dates.forEach(function (d) { fixes[d] = []; });
+    (p.conserves || []).forEach(function (a) {
+      utilises[a.code] = true;
+      if (fixes[a.date]) fixes[a.date].push(a);
+    });
+
+    (p.imposes || []).forEach(function (im) {
+      if (utilises[im.code]) return;
+      var rdv = heureVersMinutes(im.rdv), options = [];
+      p.dates.forEach(function (d) {
+        var j = jourSemaineIndex(d);
+        if (j > 4 || (im.date && im.date !== d)) return;
+        (ctx.parCode[im.code] || []).forEach(function (c) {
+          if (c.jourIdx === j && (!im.cle || im.cle === c.cle)) options.push({ d: d, c: c });
+        });
+      });
+      if (!options.length) { nonPlaces.push(im); return; }
+      options.sort(function (x, y) {
+        var cx = rdv !== null && x.c.debut <= rdv && rdv <= x.c.fin ? 0 : 1;
+        var cy = rdv !== null && y.c.debut <= rdv && rdv <= y.c.fin ? 0 : 1;
+        return cx - cy || fixes[x.d].length - fixes[y.d].length || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0) || x.c.debut - y.c.debut;
+      });
+      var o = options[0], a = arretDepuisCreneau(o.c, o.d);
+      a.impose = true; a.garde = true;
+      if (rdv !== null) a.rdv = minutesVersHeure(rdv);
+      fixes[o.d].push(a);
+      utilises[im.code] = true;
+    });
+
+    var arrets = [];
+    p.dates.forEach(function (d) {
+      arrets = arrets.concat(planifierJour(ctx, d, {
+        communes: p.communesPour ? p.communesPour(d) : null, maxJour: p.maxJour, delai: p.delai,
+        exclus: p.exclus, rejetes: p.rejetes, fixes: fixes[d], depart: p.depart
+      }, utilises));
+    });
+    return { arrets: arrets, nonPlaces: nonPlaces };
+  }
+
+  // ------------------------------------------------------------------ Autour de moi
+  // Praticiens présents autour d'une position un jour donné, selon leur propre planning.
+  // minute : heure courante en minutes (null = toute la journée)
+  function autourDe(ctx, pos, date, minute, rayon) {
+    var j = jourSemaineIndex(date);
+    if (j > 4 || !pos) return [];
+    var meilleurs = {};
+    ctx.parJour[j].forEach(function (c) {
+      var d = distanceKm(pos, c.coord);
+      if (d > rayon) return;
+      var etat = minute === null ? (c.creneau === 'Matin' ? 'matin' : 'soir') :
+        (c.debut <= minute && minute <= c.fin - R.dureeVisite ? 'present' : (c.debut > minute ? 'plustard' : 'termine'));
+      if (etat === 'termine') return;
+      var ordre = etat === 'present' || etat === 'matin' ? 0 : 1;
+      var x = { c: c, dist: d, etat: etat, score: scoreDe(c.prat, date), ordre: ordre };
+      var k = c.code, m = meilleurs[k];
+      if (!m || x.ordre < m.ordre || (x.ordre === m.ordre && x.dist < m.dist)) meilleurs[k] = x;
+    });
+    return Object.keys(meilleurs).map(function (k) { return meilleurs[k]; }).sort(function (a, b) {
+      return a.ordre - b.ordre || (a.ordre === 1 && minute !== null ? a.c.debut - b.c.debut : 0) ||
+        Math.floor(a.dist) - Math.floor(b.dist) || b.score - a.score;
+    });
+  }
+
   function quartierLePlusProche(lat, lon, quartiers) {
     var best = null, bestD = Infinity, p = { lat: lat, lon: lon };
     (quartiers || []).forEach(function (q) {
-      var d = distanceKm(p, q) / REGLAGES_MOTEUR.detourRoutier;
+      var d = distanceKm(p, q) / R.detourRoutier;
       if (d < bestD) { bestD = d; best = q; }
     });
     return best ? { quartier: best, km: bestD } : null;
   }
 
-  // ------------------------------------------------------------------ Validation locale
+  // ------------------------------------------------------------------ Couverture géographique
+  // mesArrets / arretsEquipe : arrêts sur les dates considérées
+  function couverture(ctx, dates, mesArrets, arretsEquipe) {
+    var jours = {};
+    dates.forEach(function (d) { var j = jourSemaineIndex(d); if (j < 5) jours[j] = d; });
+    var communes = {}, ordreZones = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest'];
+    ctx.quartiers.forEach(function (q) {
+      if (!communes[q.commune]) communes[q.commune] = { commune: q.commune, zone: q.zone, moi: 0, equipe: {}, dispo: {}, prioritaires: {} };
+    });
+    mesArrets.forEach(function (a) { if (communes[a.commune]) communes[a.commune].moi++; });
+    arretsEquipe.forEach(function (a) {
+      var c = communes[a.commune]; if (!c) return;
+      c.equipe[a.delegue] = (c.equipe[a.delegue] || 0) + 1;
+    });
+    Object.keys(jours).forEach(function (j) {
+      ctx.parJour[j].forEach(function (cr) {
+        var c = communes[cr.commune]; if (!c) return;
+        c.dispo[cr.code] = true;
+        if (cr.prat.note === 3 && joursEcoules(cr.prat.derniere, jours[j]) >= R.cadence[3]) c.prioritaires[cr.code] = true;
+      });
+    });
+    return Object.keys(communes).map(function (k) {
+      var c = communes[k];
+      return { commune: c.commune, zone: c.zone, moi: c.moi, equipe: c.equipe,
+               nbEquipe: Object.keys(c.equipe).reduce(function (s, n) { return s + c.equipe[n]; }, 0),
+               dispo: Object.keys(c.dispo).length, prioritaires: Object.keys(c.prioritaires).length };
+    }).sort(function (a, b) {
+      return ordreZones.indexOf(a.zone) - ordreZones.indexOf(b.zone) || a.commune.localeCompare(b.commune, 'fr');
+    });
+  }
+
+  // ------------------------------------------------------------------ Visites
   function estVisite(statut, statuts) {
     var s = (statuts && statuts.length ? statuts : STATUTS_DEFAUT);
     for (var i = 0; i < s.length; i++) if (s[i].nom === statut) return !!s[i].visite;
     return false;
   }
-
-  // Applique une visite validée à toutes les lignes du même praticien
-  function appliquerVisite(base, v, statuts) {
+  function appliquerVisite(praticiens, v, statuts) {
     var compte = estVisite(v.statut, statuts);
-    base.forEach(function (row) {
-      if (row.code !== v.code) return;
+    praticiens.forEach(function (p) {
+      if (p.code !== v.code) return;
       if (compte) {
-        if (!row.derniere || v.date > row.derniere) row.derniere = v.date;
-        row.nbVisites = (+row.nbVisites || 0) + 1;
+        if (!p.derniere || v.date > p.derniere) p.derniere = v.date;
+        p.nbVisites = (+p.nbVisites || 0) + 1;
       }
-      row.statut = v.statut;
-      row.commentaire = v.commentaire || '';
+      p.statut = v.statut;
+      p.commentaire = v.commentaire || '';
     });
   }
 
   return {
-    genererPlanning: genererPlanning, insererArret: insererArret, creerArret: creerArret,
-    recalculerDistances: recalculerDistances, proposerRattrapage: proposerRattrapage,
-    quartierLePlusProche: quartierLePlusProche, estVisite: estVisite,
-    appliquerVisite: appliquerVisite, indexQuartiers: indexQuartiers, distQ: distQ
+    preparer: preparer, creneauParCle: creneauParCle, arretDepuisCreneau: arretDepuisCreneau, scoreDe: scoreDe,
+    simuler: simuler, ordonnerJour: ordonnerJour, planifierJour: planifierJour, genererPlanning: genererPlanning,
+    autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture,
+    estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid
   };
 })();
 
