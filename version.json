@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "edition": "Enterprise",
+  "date": "2026-10-23",
+  "notes": [
+    "Nouveau nom : MediPlanner, avec un écran d'accueil et l'état de la base",
+    "Onglet Statistiques : couverture, objectifs, activité par commune et par spécialité",
+    "Filtres avancés cumulables : spécialités, communes, potentiel A/B/C, dernière visite",
+    "Tournée : choix des spécialités, pharmacies oui/non, durée estimée et itinéraire du jour",
+    "Fiche praticien en 4 étapes, depuis le téléphone, même hors ligne",
+    "Appeler, SMS, Waze ou Google Maps depuis chaque fiche",
+    "Mode sombre et mises à jour signalées par un bandeau"
+  ]
+}

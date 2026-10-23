@@ -186,7 +186,20 @@ function lireDispo(v) {
 function ecrireDispo(d) { return d.matin && d.soir ? 'Matin et soir' : (d.matin ? 'Matin' : (d.soir ? 'Soir' : '')); }
 
 // ---------------------------------------------------------------- Score et distances
-function lireNote(n) { n = Math.round(+n); return n >= 1 && n <= 3 ? n : 2; }
+// Potentiel de prescription : A (fort) = 3, B (moyen) = 2, C (faible) = 1. Accepte A/B/C ou 3/2/1.
+function lireNote(n) {
+  var t = String(n === undefined || n === null ? '' : n).trim().toUpperCase();
+  if (t === 'A') return 3;
+  if (t === 'B') return 2;
+  if (t === 'C') return 1;
+  n = Math.round(+t);
+  return n >= 1 && n <= 3 ? n : 2;
+}
+function lettrePotentiel(n) { return ['C', 'B', 'A'][lireNote(n) - 1]; }
+
+var SPECIALITES_DEFAUT = ['Généraliste', 'Cardiologue', 'Diabétologue', 'Endocrinologue', 'Pédiatre', 'Gynécologue',
+  'Interniste', 'Néphrologue', 'Pneumologue', 'Dermatologue', 'Gastro-entérologue', 'Neurologue', 'Rhumatologue',
+  'Ophtalmologue', 'ORL', 'Psychiatre', 'Urologue', 'Chirurgien', 'Pharmacien'];
 function estConventionne(v) { var t = normaliser(v); return t === 'oui' || t === 'o' || t === 'x' || t === 'true' || t === '1' || t === 'yes'; }
 
 // Score = potentiel (note x 100) + retard sur la cadence (plafonné à 3x) + bonus de suivi
@@ -375,6 +388,7 @@ if (typeof module !== 'undefined' && module.exports) {
     jourSemaineIndex: jourSemaineIndex, lundiDe: lundiDe, nomJour: nomJour, joursOuvres: joursOuvres,
     joursEcoules: joursEcoules, heureVersMinutes: heureVersMinutes, minutesVersHeure: minutesVersHeure,
     lireHoraire: lireHoraire, lireDispo: lireDispo, ecrireDispo: ecrireDispo, lireNote: lireNote,
+    lettrePotentiel: lettrePotentiel, SPECIALITES_DEFAUT: SPECIALITES_DEFAUT,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
   };

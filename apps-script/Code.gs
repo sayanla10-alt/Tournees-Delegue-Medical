@@ -1,9 +1,9 @@
 /* =============================================================================
-   Code.gs : serveur de l'application "Tournées" (version 3)
+   Code.gs : serveur de l'application MediPlanner (v2.0.0, anciennement « Tournées »)
    À coller dans Extensions > Apps Script du Google Sheet, avec Commun.gs.
 
    Feuilles
-   - Praticiens  : une ligne par médecin / pharmacie (note 1 à 3, conventionné)
+   - Praticiens  : une ligne par médecin / pharmacie (potentiel 3/2/1 = A/B/C, conventionné)
    - Presences   : une ligne par lieu d'exercice, colonnes Lundi..Vendredi
                    (Matin / Soir / Matin et soir) et horaires propres au lieu
    - Quartiers, Listes, Historique, Plannings (tournées publiées par l'équipe)
@@ -11,18 +11,22 @@
    API (application Web, protégée par jeton)
    - GET  action=ping | data | equipe
    - POST action=valider (visites) | planning (publication d'une tournée)
+          | fiche (création ou modification d'un praticien et de ses lieux depuis l'application)
    ============================================================================= */
 
 var FEUILLES = {
   praticiens: 'Praticiens', presences: 'Presences', hist: 'Historique', quartiers: 'Quartiers',
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees'
 };
-var NB_HISTORIQUE_RENVOYE = 400;
-var COULEUR_ENTETE = '#0E3B43';
+var VERSION_SERVEUR = '2.0.0';
+var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
+var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
+var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
+var COULEUR_ENTETE = '#0B4F6C';
 
 // ---------------------------------------------------------------- Menu
 function onOpen() {
-  SpreadsheetApp.getUi().createMenu('Tournées')
+  SpreadsheetApp.getUi().createMenu('MediPlanner')
     .addItem('Initialiser le classeur (structure + base fictive)', 'initialiser')
     .addItem('Régénérer la base fictive', 'regenererBaseFictive')
     .addItem('Convertir l\'ancienne feuille BaseDonnees', 'convertirAncienneBase')
@@ -264,7 +268,7 @@ function doGet(e) {
   var p = (e && e.parameter) || {};
   try {
     if (!jetonValide(p.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
-    if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES });
+    if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR });
     if (p.action === 'data') return json(lireTout());
     if (p.action === 'equipe') return json(lireEquipe());
     return json({ ok: false, erreur: 'Action inconnue.' });
@@ -279,6 +283,7 @@ function doPost(e) {
     if (!jetonValide(body.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
     if (body.action === 'valider') return json(enregistrerVisites(body.visites || []));
     if (body.action === 'planning') return json(publierPlanning(body));
+    if (body.action === 'fiche') return json(enregistrerFiche(body));
     return json({ ok: false, erreur: 'Action inconnue.' });
   } catch (err) {
     return json({ ok: false, erreur: String(err.message || err) });
@@ -315,18 +320,20 @@ function lireTout() {
     historique = lireObjets(shH, CHAMPS_HIST, tz, Math.max(2, shH.getLastRow() - NB_HISTORIQUE_RENVOYE + 1)).reverse();
   }
   return { ok: true, version: VERSION_DONNEES, praticiens: praticiens, presences: presences, quartiers: quartiers,
-           statuts: lireStatuts(ss), historique: historique, plannings: lirePlannings(ss, tz),
+           statuts: lireStatuts(ss), historique: historique, plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA),
            serveur: new Date().toISOString() };
 }
 
 function lireEquipe() {
   var ss = SpreadsheetApp.getActive();
   assurerStructure(ss);
-  return { ok: true, plannings: lirePlannings(ss, ss.getSpreadsheetTimeZone()), serveur: new Date().toISOString() };
+  return { ok: true, plannings: lirePlannings(ss, ss.getSpreadsheetTimeZone(), JOURS_PLANNINGS_EQUIPE),
+           depuis: ajouterJours(Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd'), -JOURS_PLANNINGS_EQUIPE),
+           serveur: new Date().toISOString() };
 }
 
-function lirePlannings(ss, tz) {
-  var depuis = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -14);
+function lirePlannings(ss, tz, jours) {
+  var depuis = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -(jours || JOURS_PLANNINGS_EQUIPE));
   return lireObjets(ss.getSheetByName(FEUILLES.plannings), CHAMPS_PLAN, tz).filter(function (p) {
     return p.delegue !== '' && p.date >= depuis;
   });
@@ -481,7 +488,7 @@ function publierPlanning(b) {
     assurerStructure(ss);
     var sh = ss.getSheetByName(FEUILLES.plannings);
     var nbCol = CHAMPS_PLAN.length, n = Math.max(sh.getLastRow() - 1, 0);
-    var limite = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -30);
+    var limite = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -(JOURS_PLANNINGS_DATA + 8));
     var iDel = indexChamp(CHAMPS_PLAN, 'delegue'), iDate = indexChamp(CHAMPS_PLAN, 'date'), iCode = indexChamp(CHAMPS_PLAN, 'code');
     var iProg = indexChamp(CHAMPS_PLAN, 'programme'), iDepuis = indexChamp(CHAMPS_PLAN, 'depuis');
     var garde = [], moi = delegue.toLowerCase(), mesDepuis = {};
@@ -545,6 +552,91 @@ function marquerArretsValides(ss, visites) {
     if (v) { l[cSt] = v.statut; l[cEt] = 'valide'; change = true; }
   });
   if (change) sh.getRange(2, 1, n, nbCol).setNumberFormat('@').setValues(data);
+}
+
+// ---------------------------------------------------------------- Fiche praticien saisie dans l'application
+// b.praticien : { code ('' ou 'TMP-…' pour une création), type, nom, specialite, note, conventionne, telephone, actif }
+// b.presences : [{ id ('' ou 'TMP…' pour un nouveau lieu), lieu, quartier, lundi..vendredi, horaireMatin, horaireSoir, lat, lon }]
+// Les lieux du praticien absents de la liste sont supprimés. Renvoie le code définitif et les identifiants des lieux.
+function enregistrerFiche(b) {
+  var p = b.praticien || {}, lieux = b.presences || [];
+  var nom = String(p.nom || '').trim();
+  if (nom.length < 3) return { ok: false, erreur: 'Nom du praticien manquant.' };
+  var type = p.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin';
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    var ss = SpreadsheetApp.getActive();
+    assurerStructure(ss);
+    var shP = ss.getSheetByName(FEUILLES.praticiens), shR = ss.getSheetByName(FEUILLES.presences);
+
+    // --- Praticiens : mise à jour de la ligne existante ou ajout avec un nouveau code
+    var entP = shP.getRange(1, 1, 1, shP.getLastColumn()).getValues()[0].map(normaliser);
+    var posP = CHAMPS_PRATICIENS.map(function (c) { return entP.indexOf(normaliser(c[1])); });
+    var cCode = posP[indexChamp(CHAMPS_PRATICIENS, 'code')];
+    var nP = Math.max(shP.getLastRow() - 1, 0);
+    var dataP = nP ? shP.getRange(2, 1, nP, entP.length).getValues() : [];
+    var code = String(p.code || ''), ligne = -1, max = { MED: 0, PHA: 0 };
+    dataP.forEach(function (l, i) {
+      var c = String(l[cCode]), m = c.match(/^(MED|PHA)-(\d+)$/);
+      if (m && +m[2] > max[m[1]]) max[m[1]] = +m[2];
+      if (code && c === code) ligne = i;
+    });
+    if (ligne < 0) {
+      var pre = type === 'Pharmacie' ? 'PHA' : 'MED';
+      code = pre + '-' + ('00' + (max[pre] + 1)).slice(-3);
+    }
+    var valeurs = ligne >= 0 ? dataP[ligne].slice() : entP.map(function () { return ''; });
+    var modif = { code: code, type: type, nom: nom, specialite: String(p.specialite || ''), note: lireNote(p.note),
+                  conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non', telephone: String(p.telephone || ''),
+                  actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui' };
+    if (ligne < 0) modif.nbVisites = 0;
+    CHAMPS_PRATICIENS.forEach(function (c, k) { if (posP[k] >= 0 && modif[c[0]] !== undefined) valeurs[posP[k]] = modif[c[0]]; });
+    if (ligne >= 0) shP.getRange(ligne + 2, 1, 1, entP.length).setValues([valeurs]);
+    else shP.getRange(shP.getLastRow() + 1, 1, 1, entP.length).setValues([valeurs]);
+
+    // --- Presences : lieux du praticien remplacés (mêmes lignes réutilisées, identifiants conservés)
+    var refQ = {};
+    var shQ = ss.getSheetByName(FEUILLES.quartiers);
+    if (shQ && shQ.getLastRow() > 1) {
+      shQ.getRange(2, 1, shQ.getLastRow() - 1, 3).getValues().forEach(function (v) { refQ[normaliser(v[1])] = v; });
+    }
+    var entR = shR.getRange(1, 1, 1, shR.getLastColumn()).getValues()[0].map(normaliser);
+    var posR = CHAMPS_PRESENCES.map(function (c) { return entR.indexOf(normaliser(c[1])); });
+    var rCode = posR[indexChamp(CHAMPS_PRESENCES, 'code')], rId = posR[indexChamp(CHAMPS_PRESENCES, 'id')];
+    var nR = Math.max(shR.getLastRow() - 1, 0);
+    var dataR = nR ? shR.getRange(2, 1, nR, entR.length).getValues() : [];
+    var mesLignes = [], maxId = 0, anciensCode = String(p.code || '');
+    dataR.forEach(function (l, i) {
+      if (+l[rId] > maxId) maxId = +l[rId];
+      if (anciensCode && String(l[rCode]) === anciensCode) mesLignes.push(i);
+    });
+    var ids = {};
+    var lignesR = lieux.map(function (x) {
+      var id = x.id && !/^TMP/.test(String(x.id)) ? x.id : ++maxId;
+      if (x.id) ids[x.id] = id;
+      var q = refQ[normaliser(x.quartier)] || ['', '', ''];
+      var o = { id: id, code: code, nom: nom, lieu: String(x.lieu || ''), quartier: String(x.quartier || ''),
+                commune: q[0] || String(x.commune || ''), zone: q[2] || String(x.zone || ''),
+                horaireMatin: String(x.horaireMatin || ''), horaireSoir: String(x.horaireSoir || ''),
+                lat: x.lat === undefined ? '' : x.lat, lon: x.lon === undefined ? '' : x.lon };
+      JOURS_CLES.forEach(function (j) { o[j] = String(x[j] || ''); });
+      var v = entR.map(function () { return ''; });
+      CHAMPS_PRESENCES.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
+      return v;
+    });
+    var k = 0;
+    for (; k < Math.min(mesLignes.length, lignesR.length); k++) {
+      shR.getRange(mesLignes[k] + 2, 1, 1, entR.length).setValues([lignesR[k]]);
+    }
+    if (k < lignesR.length) {
+      shR.getRange(shR.getLastRow() + 1, 1, lignesR.length - k, entR.length).setValues(lignesR.slice(k));
+    }
+    for (var s = mesLignes.length - 1; s >= k; s--) shR.deleteRow(mesLignes[s] + 2);
+    return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ---------------------------------------------------------------- Saisie sur ordinateur

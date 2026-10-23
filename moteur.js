@@ -160,6 +160,7 @@ var Moteur = (function () {
     ctx.parJour[j].forEach(function (c) {
       if (utilises[c.code] || (o.exclus && o.exclus[c.code])) return;
       if (dans && !dans[c.commune]) return;
+      if (o.accepte && !o.accepte(c.prat)) return;
       var je = joursEcoules(c.prat.derniere, date);
       if (je < (o.delai || 0)) return;
       var a = arretDepuisCreneau(c, date);
@@ -198,7 +199,7 @@ var Moteur = (function () {
 
   // ------------------------------------------------------------------ Planning d'une période
   // p : { dates, communesPour(date), maxJour, delai, exclus, rejetes, conserves: [arrêts],
-  //       imposes: [{ code, date?, cle?, rdv? }], depart }
+  //       imposes: [{ code, date?, cle?, rdv? }], depart, accepte(praticien) : filtre spécialités / types }
   function genererPlanning(ctx, p) {
     var utilises = {}, fixes = {}, nonPlaces = [];
     p.dates.forEach(function (d) { fixes[d] = []; });
@@ -234,7 +235,7 @@ var Moteur = (function () {
     p.dates.forEach(function (d) {
       arrets = arrets.concat(planifierJour(ctx, d, {
         communes: p.communesPour ? p.communesPour(d) : null, maxJour: p.maxJour, delai: p.delai,
-        exclus: p.exclus, rejetes: p.rejetes, fixes: fixes[d], depart: p.depart
+        exclus: p.exclus, rejetes: p.rejetes, fixes: fixes[d], depart: p.depart, accepte: p.accepte
       }, utilises));
     });
     return { arrets: arrets, nonPlaces: nonPlaces };

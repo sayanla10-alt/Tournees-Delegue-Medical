@@ -3,21 +3,26 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Tournées</title>
-  <meta name="description" content="Tournées de visites médicales à Abidjan, construites sur le planning de chaque praticien">
-  <meta name="theme-color" content="#0E3B43">
+  <title>MediPlanner</title>
+  <meta name="description" content="MediPlanner : tournées de visites médicales à Abidjan, construites sur le planning de chaque praticien">
+  <meta name="theme-color" content="#0B4F6C">
+  <meta name="color-scheme" content="light dark">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Tournées">
+  <meta name="apple-mobile-web-app-title" content="MediPlanner">
+  <script>
+    // Thème choisi (Auto, Clair, Sombre) appliqué avant l'affichage pour éviter un flash
+    try { var t = JSON.parse(localStorage.getItem('tournees.theme') || '"auto"'); if (t === 'clair' || t === 'sombre') document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
   <header class="entete">
     <div class="entete-titre">
-      <span class="marque">Tournées</span>
+      <span class="marque">MediPlanner</span>
       <span class="entete-date" id="enteteDate"></span>
     </div>
     <button class="pastille-sync" id="pastilleSync" data-a="sync" type="button"></button>
@@ -25,6 +30,8 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
     </button>
   </header>
+
+  <div class="bandeau-maj" id="bandeauMaj" role="status" aria-live="polite" hidden></div>
 
   <main id="vue" tabindex="-1"></main>
 
@@ -41,13 +48,17 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>
       <span>Autour</span>
     </button>
-    <button data-a="nav" data-tab="equipe" type="button">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7 7.5l3.6 8.4M17 7.5l-3.6 8.4M7.2 6h9.6"/></svg>
-      <span>Équipe</span>
-    </button>
     <button data-a="nav" data-tab="contacts" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 4.5a3.2 3.2 0 0 1 0 6.2M18 14.5a5.5 5.5 0 0 1 2.5 5.5"/></svg>
       <span>Contacts</span>
+    </button>
+    <button data-a="nav" data-tab="stats" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M7 16v-5M12 16V6M17 16v-8"/></svg>
+      <span>Stats</span>
+    </button>
+    <button data-a="nav" data-tab="equipe" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="6" r="2.2"/><circle cx="19" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M7 7.5l3.6 8.4M17 7.5l-3.6 8.4M7.2 6h9.6"/></svg>
+      <span>Équipe</span>
     </button>
     <button data-a="nav" data-tab="historique" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
@@ -56,6 +67,8 @@
   </nav>
 
   <div id="feuille" hidden></div>
+  <div id="lancement" hidden></div>
+  <div class="infobulle" id="infobulle" role="tooltip" hidden></div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
