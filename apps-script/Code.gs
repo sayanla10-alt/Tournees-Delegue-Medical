@@ -149,11 +149,16 @@ function formaterHistorique(sh) {
   sh.setColumnWidth(5, 200); sh.setColumnWidth(11, 230); sh.setColumnWidth(14, 280);
 }
 
+// Recrée la feuille à neuf (supprime aussi un éventuel « tableau » Google Sheets à colonnes typées,
+// qui empêcherait d'écrire les formats et les listes déroulantes)
 function preparerFeuille(ss, nom, entetes) {
-  var sh = ss.getSheetByName(nom) || ss.insertSheet(nom);
-  sh.clear();
-  sh.clearConditionalFormatRules();
-  sh.getDataRange().clearDataValidations();
+  var sh = ss.getSheetByName(nom), tmp = null;
+  if (sh) {
+    if (ss.getSheets().length === 1) tmp = ss.insertSheet('_tmp_tournees');
+    ss.deleteSheet(sh);
+  }
+  sh = ss.insertSheet(nom);
+  if (tmp) ss.deleteSheet(tmp);
   sh.getRange(1, 1, 1, entetes.length).setValues([entetes])
     .setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
   sh.setFrozenRows(1);
