@@ -1,8 +1,9 @@
 {
-  "version": "2.0.1",
+  "version": "2.0.2",
   "edition": "Enterprise",
   "date": "2026-10-23",
   "notes": [
+    "Message WhatsApp simplifié : titre, date, votre nom, puis chaque établissement avec ses médecins",
     "Potentiel de prescription de nouveau affiché en étoiles (★ à ★★★)",
     "Nouveau nom : MediPlanner, avec un écran d'accueil et l'état de la base",
     "Onglet Statistiques : couverture, objectifs, activité par commune et par spécialité",

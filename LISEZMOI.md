@@ -1,4 +1,4 @@
-# MediPlanner v2.0.1 Enterprise (anciennement « Tournées »)
+# MediPlanner v2.0.2 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -70,7 +70,7 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
    - ils sont regroupés géographiquement ;
    - l'ordre de passage respecte leurs fenêtres de présence (trajet d'environ 3 min/km, visite de 20 min).
 4. **Nouveau tirage** : épinglez les médecins à conserver, puis touchez **Nouveau tirage** (jour) ou **Semaine entière**. Les médecins non épinglés sont remplacés par d'autres.
-5. **Valider le programme** : le programme est publié auprès de l'équipe et la fenêtre d'envoi s'ouvre. **Envoyer sur WhatsApp** l'envoie à votre numéro (Réglages), avec WhatsApp Web sur ordinateur et l'application WhatsApp sur téléphone. Le message est court : pour chaque jour, le médecin, sa spécialité, l'établissement et le secteur.
+5. **Valider le programme** : le programme est publié auprès de l'équipe et la fenêtre d'envoi s'ouvre. **Envoyer sur WhatsApp** l'envoie à votre numéro (Réglages), avec WhatsApp Web sur ordinateur et l'application WhatsApp sur téléphone. Le message est simple : pour chaque jour, « Planning du vendredi 23/10/2026 (votre nom) », puis chaque établissement dans l'ordre de passage, suivi de ses médecins.
 6. **Sur le terrain** : touchez un médecin, choisissez le résultat de la visite et ajoutez un commentaire, puis **Enregistrer les comptes rendus**. Si le médecin est absent, **Absent : remplacer** ouvre « Autour de moi » centré sur ce lieu.
 7. **Couverture** : sous la tournée, une carte et la liste des communes couvertes et non couvertes (par vous ou par un collègue), avec un bouton pour passer de **Jour** à **Semaine**.
 

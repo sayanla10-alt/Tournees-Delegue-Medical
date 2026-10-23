@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.1', EDITION = 'Enterprise';
+  var APP_VERSION = '2.0.2', EDITION = 'Enterprise';
   var NOUVEAUTES = [
     'Écran d\'accueil avec l\'état de la base et les chiffres clés',
     'Onglet Stats : couverture, objectifs, activité par commune et par spécialité',
@@ -1663,18 +1663,30 @@
     }
     return liens;
   }
-  // Message court : pour chaque jour, le médecin, sa spécialité, l'établissement et le secteur
+  // Message WhatsApp : pour chaque jour, un titre puis les établissements dans l'ordre de passage,
+  // chacun suivi de ses médecins
+  //   Planning du vendredi 23/10/2026 (Serge Alain)
+  //
+  //   HMA
+  //   Dr Assie Augustin
+  //   ...
   function texteProgramme(dates) {
-    var lignes = ['*Programme ' + (dates.length > 1 ? 'du ' + dateCourte(dates[0]) + ' au ' + dateCourte(dates[dates.length - 1]) : 'du ' + dateCourte(dates[0])) + '*'];
+    var blocs = [];
     dates.forEach(function (d) {
       var l = S.plan.filter(function (a) { return a.date === d; });
       if (!l.length) return;
-      lignes.push('', '*' + majuscule(dateCourte(d)) + '*');
+      var p = d.split('-');
+      var lignes = ['Planning du ' + nomJour(d).toLowerCase() + ' ' + p[2] + '/' + p[1] + '/' + p[0] + (moi() ? ' (' + moi() + ')' : '')];
+      var ordre = [], parLieu = {};
       l.forEach(function (a) {
-        lignes.push('- ' + a.nom + ', ' + a.specialite + ', ' + a.lieu + ', ' + a.quartier);
+        var k = String(a.lieu || a.quartier || '').trim() || 'Autre lieu';
+        if (!parLieu[k]) { parLieu[k] = []; ordre.push(k); }
+        if (parLieu[k].indexOf(a.nom) < 0) parLieu[k].push(a.nom);
       });
+      ordre.forEach(function (k) { lignes.push(''); lignes.push(k); parLieu[k].forEach(function (n) { lignes.push(n); }); });
+      blocs.push(lignes.join('\n'));
     });
-    return lignes.join('\n');
+    return blocs.join('\n\n');
   }
   function urlWhatsapp(texte) {
     var num = normaliserNumero(S.config.whatsapp), t = encodeURIComponent(texte);
