@@ -9,16 +9,27 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.2', EDITION = 'Enterprise';
-  var NOUVEAUTES = [
-    'Écran d\'accueil avec l\'état de la base et les chiffres clés',
-    'Onglet Stats : couverture, objectifs, activité par commune et par spécialité',
-    'Filtres avancés cumulables dans Contacts (spécialités, communes, potentiel ★ à ★★★, dernière visite)',
-    'Tournée : spécialités ciblées, pharmacies oui/non, durée estimée et itinéraire du jour',
-    'Fiche praticien en 4 étapes depuis le téléphone, même hors ligne',
-    'Appeler, SMS, Waze ou Google Maps depuis chaque fiche',
-    'Mode sombre (Réglages) et mises à jour signalées par un bandeau'
+  var APP_VERSION = '2.0.3', EDITION = 'Enterprise';
+  // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
+  // publiées depuis la dernière ouverture du téléphone
+  var JOURNAL = [
+    ['2.0.3', ['Les nouveautés ne s\'affichent qu\'une fois par mise à jour', 'L\'application se lance seule quelques secondes après l\'écran d\'accueil']],
+    ['2.0.2', ['Message WhatsApp simplifié : titre, date, votre nom, puis chaque établissement avec ses médecins']],
+    ['2.0.1', ['Potentiel de prescription de nouveau affiché en étoiles (★ à ★★★)']],
+    ['2.0.0', ['Nouveau nom : MediPlanner, avec un écran d\'accueil et les chiffres clés',
+               'Onglet Stats : couverture, objectifs, activité par commune et par spécialité',
+               'Filtres avancés cumulables dans Contacts (spécialités, communes, potentiel ★ à ★★★, dernière visite)',
+               'Tournée : spécialités ciblées, pharmacies oui/non, durée estimée et itinéraire du jour',
+               'Fiche praticien en 4 étapes depuis le téléphone, même hors ligne',
+               'Appeler, SMS, Waze ou Google Maps depuis chaque fiche',
+               'Mode sombre (Réglages) et mises à jour signalées par un bandeau']]
   ];
+  function compVersion(a, b) {
+    var x = String(a || '0').split('.'), y = String(b || '0').split('.');
+    for (var i = 0; i < 3; i++) { var d = (+x[i] || 0) - (+y[i] || 0); if (d) return d; }
+    return 0;
+  }
+  var DELAI_LANCEMENT = 5, DELAI_LANCEMENT_NOUVEAUTES = 10;   // secondes avant le lancement automatique
 
   // ------------------------------------------------------------------ Stockage local
   var PREFIXE = 'tournees.';
@@ -2125,12 +2136,12 @@
     // Apparence, lancement, mises à jour
     theme: function (el) { appliquerTheme(el.dataset.v); rendre(); },
     fermerLancement: function (el) {
-      S.ui.lancement = false; LS.set('versionVue', APP_VERSION);
+      S.ui.lancement = false; S.ui.lancementAuto = false;
       if (el.dataset.tab && pret()) S.ui.tab = el.dataset.tab;
       rendre(); window.scrollTo(0, 0);
       if (S.ui.tab === 'equipe') rafraichirEquipe().then(function (ok) { if (ok) rendreSiPossible(); });
     },
-    ouvrirLancement: function () { S.ui.lancement = true; rendre(); },
+    ouvrirLancement: function () { S.ui.lancement = true; S.ui.lancementAuto = false; rendre(); },
     appliquerMaj: appliquerMaj,
     plusTardMaj: function () { $('bandeauMaj').hidden = true; },
     verifierMaj: function () {
@@ -2189,7 +2200,7 @@
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
     if (S.ui.feuille) { S.ui.feuille = null; rendre(); }
-    else if (S.ui.lancement) { S.ui.lancement = false; LS.set('versionVue', APP_VERSION); rendre(); }
+    else if (S.ui.lancement) { S.ui.lancement = false; S.ui.lancementAuto = false; rendre(); }
   });
 
   // Saisie dans l'assistant : mise à jour du brouillon, validation dynamique au changement de champ
@@ -2302,15 +2313,47 @@
         '<div class="metrique"><b>' + sem.length + '</b><span>visites planifiées, semaine du ' + dateCourte(l).slice(5) + (S.config.demo ? '' : ' (équipe)') + '</span></div>' +
         '<div class="metrique"><b>' + (S.config.demo ? vus : Object.keys(del).length) + '</b><span>' + (S.config.demo ? 'visites réalisées cette semaine' : 'délégués avec une tournée') + '</span></div></div>';
     }
-    if (LS.get('versionVue', '') !== APP_VERSION && pret()) {
-      h += '<div class="nouveautes"><b>Nouveautés de la version 2</b><ul>' + NOUVEAUTES.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
+    if (S.ui.nouveautes && S.ui.nouveautes.length) {
+      h += '<div class="nouveautes"><b>Nouveautés de la mise à jour ' + APP_VERSION + '</b><ul>' + S.ui.nouveautes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
+    }
+    if (pret() && S.ui.lancementAuto) {
+      h += '<div class="decompte"><span id="decompteTexte">Lancement automatique dans ' + Math.max(0, Math.ceil((S.ui.lancementFin - Date.now()) / 1000)) + ' s</span>' +
+        '<div class="jauge"><i id="decompteBarre" style="width:0%"></i></div></div>';
     }
     h += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="stats">Accéder au tableau de bord</button>' +
         '<button class="bouton" type="button" data-a="fermerLancement" data-tab="tournee" style="margin-top:10px">Lancer l\'application</button>'
       : '<button class="bouton bouton-plein" type="button" data-a="fermerLancement">Lancer l\'application</button>';
     el.innerHTML = h + '</div></div>';
     el.hidden = false;
+    if (pret() && S.ui.lancementAuto) demarrerDecompte();
   }
+  // Lancement automatique : l'écran d'accueil se ferme seul et ouvre la tournée.
+  // Un toucher sur l'écran d'accueil arrête le décompte.
+  var minuteurLancement = null;
+  function demarrerDecompte() {
+    if (minuteurLancement) return;
+    var total = S.ui.lancementFin - Date.now();
+    minuteurLancement = setInterval(function () {
+      if (!S.ui.lancement || !S.ui.lancementAuto) { clearInterval(minuteurLancement); minuteurLancement = null; return; }
+      var reste = S.ui.lancementFin - Date.now(), t = $('decompteTexte'), b = $('decompteBarre');
+      if (t) t.textContent = 'Lancement automatique dans ' + Math.max(0, Math.ceil(reste / 1000)) + ' s';
+      if (b) b.style.width = Math.min(100, 100 * (1 - reste / total)) + '%';
+      if (reste <= 0) {
+        clearInterval(minuteurLancement); minuteurLancement = null;
+        S.ui.lancement = false; S.ui.lancementAuto = false;
+        if (S.ui.tab === 'accueil' || !VUES[S.ui.tab] || S.ui.tab === 'reglages') S.ui.tab = 'tournee';
+        rendre(); window.scrollTo(0, 0);
+      }
+    }, 200);
+  }
+  function arreterDecompte() {
+    if (!S.ui.lancementAuto) return;
+    S.ui.lancementAuto = false;
+    var d = document.querySelector('#lancement .decompte'); if (d) d.remove();
+  }
+  document.addEventListener('pointerdown', function (e) {
+    if (S.ui.lancementAuto && e.target.closest && e.target.closest('.lancement') && !e.target.closest('[data-a]')) arreterDecompte();
+  }, true);
 
   // ------------------------------------------------------------------ Mises à jour (service worker)
   // Une nouvelle version s'installe en arrière-plan puis attend : le bandeau propose « Mise à jour ».
@@ -2382,6 +2425,22 @@
   var configureParLien = lireConfigLien();
   try { if (!sessionStorage.getItem('mediplanner.lancement')) { S.ui.lancement = true; sessionStorage.setItem('mediplanner.lancement', '1'); } }
   catch (e) { S.ui.lancement = true; }
+  // Nouveautés : celles des versions publiées depuis la dernière ouverture, affichées une seule fois
+  (function () {
+    var vue = LS.get('versionVue', '');
+    if (vue === APP_VERSION) return;
+    if (pret() || vue) {
+      var notes = [];
+      JOURNAL.forEach(function (v) { if (compVersion(v[0], vue) > 0 && compVersion(v[0], APP_VERSION) <= 0) notes = notes.concat(v[1]); });
+      S.ui.nouveautes = notes;
+      if (notes.length) S.ui.lancement = true;   // après une mise à jour, l'accueil s'affiche même dans la même session
+    }
+    LS.set('versionVue', APP_VERSION);
+  })();
+  if (S.ui.lancement) {
+    S.ui.lancementAuto = true;
+    S.ui.lancementFin = Date.now() + 1000 * (S.ui.nouveautes && S.ui.nouveautes.length ? DELAI_LANCEMENT_NOUVEAUTES : DELAI_LANCEMENT);
+  }
   rendre();
   if (configureParLien) toast('Application configurée. Synchronisation…');
   if (connecte()) synchroniser(!configureParLien).then(function () {

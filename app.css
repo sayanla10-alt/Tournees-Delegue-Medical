@@ -584,6 +584,9 @@ body.avec-barre main { padding-bottom: 90px; }
 .nouveautes { margin: 0 0 16px; padding: 12px 14px; border-radius: 12px; background: var(--primaire-pale); font-size: 13.5px; }
 .nouveautes b { font: 700 15px var(--titre); }
 .nouveautes ul { margin: 6px 0 0; padding-left: 18px; }
+.decompte { margin: 0 0 12px; font-size: 13px; color: var(--gris); }
+.decompte .jauge { margin-top: 6px; height: 4px; }
+.decompte .jauge i { transition: width .2s linear; }
 .lancement .bouton { width: 100%; min-height: 50px; font-size: 16px; }
 
 /* ------------------------------------------------------------- Accueil (premier lancement) */
