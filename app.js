@@ -9,11 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.0', EDITION = 'Enterprise';
+  var APP_VERSION = '2.0.1', EDITION = 'Enterprise';
   var NOUVEAUTES = [
     'Écran d\'accueil avec l\'état de la base et les chiffres clés',
     'Onglet Stats : couverture, objectifs, activité par commune et par spécialité',
-    'Filtres avancés cumulables dans Contacts (spécialités, communes, potentiel A/B/C, dernière visite)',
+    'Filtres avancés cumulables dans Contacts (spécialités, communes, potentiel ★ à ★★★, dernière visite)',
     'Tournée : spécialités ciblées, pharmacies oui/non, durée estimée et itinéraire du jour',
     'Fiche praticien en 4 étapes depuis le téléphone, même hors ligne',
     'Appeler, SMS, Waze ou Google Maps depuis chaque fiche',
@@ -129,11 +129,13 @@
     var j = joursEcoules(derniere, ref || aujourdhui());
     return j === 0 ? 'Vu aujourd\'hui' : 'Vu il y a ' + j + ' j';
   }
+  // Potentiel de prescription affiché en étoiles : 3 = ★★★ (fort), 2 = ★★ (moyen), 1 = ★ (faible)
   var LIB_POTENTIEL = { A: 'fort', B: 'moyen', C: 'faible' };
+  var ETOILES = { A: '★★★', B: '★★', C: '★' };
   function etoiles(n) {
-    var l = lettrePotentiel(n);
-    return '<span class="pot pot-' + l + '" title="Potentiel de prescription ' + l + ' (' + LIB_POTENTIEL[l] + ')" aria-label="Potentiel ' +
-      l + ', ' + LIB_POTENTIEL[l] + '">' + l + '</span>';
+    var k = lireNote(n), l = lettrePotentiel(n);
+    return '<span class="note" title="Potentiel de prescription ' + k + ' sur 3 (' + LIB_POTENTIEL[l] + ')" aria-label="Potentiel ' + k + ' sur 3">' +
+      '★★★'.slice(0, k) + '<i>' + '★★★'.slice(0, 3 - k) + '</i></span>';
   }
   function badgeConv(v) { return estConventionne(v) ? '<span class="etiquette conv">Conventionné</span>' : '<span class="etiquette">Non conventionné</span>'; }
   function lienCarte(o) {
@@ -182,7 +184,7 @@
     if (p.typeCibles === 'medecins') l.push('sans pharmacies');
     if (p.typeCibles === 'pharmacies') l.push('pharmacies seules');
     if (p.typeCibles !== 'pharmacies' && p.specialites.length) l.push(libelleListe(p.specialites, ''));
-    if (p.potentiels.length) l.push('potentiel ' + p.potentiels.slice().sort().join('/'));
+    if (p.potentiels.length) l.push(p.potentiels.slice().sort().map(function (x) { return ETOILES[x]; }).join(' / '));
     return l.join(', ');
   }
   function specialitesListe() {
@@ -519,7 +521,7 @@
     var n3 = duJour.filter(function (a) { return +a.note === 3; }).length;
     var com = Array.from(new Set(duJour.map(function (a) { return a.commune; })));
     h += '<p class="bilan-jour"><b>' + majuscule(dateLongue(S.ui.jour)) + '</b> : ' + duJour.length + ' visite' +
-      (duJour.length > 1 ? 's' : '') + ', environ ' + km(totalKm) + ' de trajet' + (n3 ? ', dont ' + n3 + ' de potentiel A' : '') +
+      (duJour.length > 1 ? 's' : '') + ', environ ' + km(totalKm) + ' de trajet' + (n3 ? ', dont ' + n3 + ' ★★★' : '') +
       '. ' + esc(com.join(', ')) + '.</p>';
     var est = estimationJour(duJour);
     if (est) {
@@ -597,7 +599,7 @@
       (p.typeCibles !== 'pharmacies' ? '<div class="champ"><span>Spécialités ciblées</span><button type="button" class="selecteur" data-a="choisirSpecialites">' +
         esc(libelleListe(p.specialites, 'Toutes les spécialités')) + '<b>▾</b></button></div>' : '') +
       '<div class="champ"><span>Potentiel de prescription</span><div class="puces">' + ['A', 'B', 'C'].map(function (l) {
-        return '<button type="button" class="puce" data-a="paramPotentiel" data-v="' + l + '" aria-pressed="' + (p.potentiels.indexOf(l) >= 0) + '">' + l + '<small>' + LIB_POTENTIEL[l] + '</small></button>';
+        return '<button type="button" class="puce" data-a="paramPotentiel" data-v="' + l + '" aria-pressed="' + (p.potentiels.indexOf(l) >= 0) + '">' + ETOILES[l] + '<small>' + LIB_POTENTIEL[l] + '</small></button>';
       }).join('') + '</div><span class="aide-champ">Aucun choix = tous les potentiels.</span></div></div>';
     h += '<div class="grille-2">' +
         '<label class="champ"><span>Visites par jour</span><input type="number" min="1" max="20" inputmode="numeric" data-f="param" data-k="maxJour" value="' + p.maxJour + '"></label>' +
@@ -713,7 +715,7 @@
         '<div><b>' + esc(c.commune) + '</b><span class="discret bloc-texte">' +
         (c.moi ? c.moi + ' visite' + (c.moi > 1 ? 's' : '') + ' prévue' + (c.moi > 1 ? 's' : '') : 'Non couverte') +
         (eqNoms.length ? ' ; équipe : ' + eqNoms.map(function (n) { return esc(n) + ' (' + c.equipe[n] + ')'; }).join(', ') : '') +
-        '</span></div><span class="couv-dispo">' + c.dispo + ' dispo.' + (c.prioritaires ? '<small>' + c.prioritaires + ' potentiel A en retard</small>' : '') + '</span></li>';
+        '</span></div><span class="couv-dispo">' + c.dispo + ' dispo.' + (c.prioritaires ? '<small>' + c.prioritaires + ' ★★★ en retard</small>' : '') + '</span></li>';
     }).join('') + '</ul></section>';
     return h;
   }
@@ -917,7 +919,7 @@
   function criteresActifs(f) {
     var l = [];
     if (f.type !== 'tous') l.push(['type', f.type, f.type === 'Pharmacie' ? 'Pharmacies' : 'Médecins']);
-    f.potentiels.forEach(function (x) { l.push(['potentiels', x, 'Potentiel ' + x]); });
+    f.potentiels.forEach(function (x) { l.push(['potentiels', x, ETOILES[x]]); });
     f.specialites.forEach(function (x) { l.push(['specialites', x, x]); });
     f.communes.forEach(function (x) { l.push(['communes', x, x]); });
     if (f.visite !== 'tous') l.push(['visite', f.visite, LIB_VISITE[f.visite]]);
@@ -1092,7 +1094,7 @@
       kpi(txt(couv), 'Taux de couverture', r.faits.length + ' faites sur ' + r.echus.length + ' prévues' + (aVenir > 0 ? ', ' + aVenir + ' à venir' : ''), couv) +
       kpi(String(r.effectives.length), 'Visites réalisées', r.visites.length + ' compte' + (r.visites.length > 1 ? 's' : '') + ' rendu' + (r.visites.length > 1 ? 's' : '') + ', présence ' + txt(pres)) +
       kpi(txt(att), 'Objectif atteint', r.effectives.length + ' / ' + r.objectif + ' visites (' + st.objectif + ' par semaine' + (r.equipe ? ' et par délégué' : '') + ')', att) +
-      kpi(txt(taux(r.nAok, r.nA)), 'Potentiel A à jour', r.nAok + ' sur ' + r.nA + ' vus depuis moins de ' + REGLAGES_MOTEUR.cadence[3] + ' j', taux(r.nAok, r.nA)) +
+      kpi(txt(taux(r.nAok, r.nA)), 'Praticiens ★★★ à jour', r.nAok + ' sur ' + r.nA + ' vus depuis moins de ' + REGLAGES_MOTEUR.cadence[3] + ' j', taux(r.nAok, r.nA)) +
       '</div>';
 
     // Activité dans le temps
@@ -1443,7 +1445,7 @@
       }).join('') + '</div></div>';
     }
     var h = groupe('Type', 'type', [['tous', 'Tous'], ['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies']]) +
-      groupe('Potentiel de prescription', 'potentiels', [['A', 'A', 'fort'], ['B', 'B', 'moyen'], ['C', 'C', 'faible']], true) +
+      groupe('Potentiel de prescription', 'potentiels', [['A', '★★★', 'fort'], ['B', '★★', 'moyen'], ['C', '★', 'faible']], true) +
       groupe('Dernière visite', 'visite', [['tous', 'Toutes'], ['30', 'Non visité depuis +30 j'], ['revoir', 'À revoir'], ['jamais', 'Jamais visité'],
         ['retard', 'En retard sur la cadence'], ['recent', 'Visité il y a moins de 30 j']]) +
       groupe('Conventionné', 'conv', [['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) +
@@ -1551,8 +1553,8 @@
       h += '<div class="champ"><span class="requis">Potentiel de prescription</span><div class="segment" role="group" aria-label="Potentiel" style="margin:0">' +
         [3, 2, 1].map(function (n) {
           var l = lettrePotentiel(n);
-          return '<button type="button" data-a="ficheVal" data-k="note" data-v="' + n + '" aria-pressed="' + (+d.note === n) + '">' + l + ' · ' + LIB_POTENTIEL[l] + '</button>';
-        }).join('') + '</div><span class="aide-champ">A : à voir tous les ' + REGLAGES_MOTEUR.cadence[3] + ' jours, B : ' + REGLAGES_MOTEUR.cadence[2] + ' jours, C : ' + REGLAGES_MOTEUR.cadence[1] + ' jours.</span></div>' +
+          return '<button type="button" data-a="ficheVal" data-k="note" data-v="' + n + '" aria-pressed="' + (+d.note === n) + '">' + ETOILES[l] + ' ' + LIB_POTENTIEL[l] + '</button>';
+        }).join('') + '</div><span class="aide-champ">★★★ : à voir tous les ' + REGLAGES_MOTEUR.cadence[3] + ' jours, ★★ : ' + REGLAGES_MOTEUR.cadence[2] + ' jours, ★ : ' + REGLAGES_MOTEUR.cadence[1] + ' jours.</span></div>' +
         '<label class="interrupteur"><span>Conventionné</span><input type="checkbox" data-f="fiche" data-k="conventionne"' + (d.conventionne === 'Oui' ? ' checked' : '') + '></label>';
     }
     if (e === 2) {
@@ -2289,7 +2291,7 @@
         '<div class="metrique"><b>' + (S.config.demo ? vus : Object.keys(del).length) + '</b><span>' + (S.config.demo ? 'visites réalisées cette semaine' : 'délégués avec une tournée') + '</span></div></div>';
     }
     if (LS.get('versionVue', '') !== APP_VERSION && pret()) {
-      h += '<div class="nouveautes"><b>Nouveautés de la version ' + APP_VERSION + '</b><ul>' + NOUVEAUTES.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
+      h += '<div class="nouveautes"><b>Nouveautés de la version 2</b><ul>' + NOUVEAUTES.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
     }
     h += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="stats">Accéder au tableau de bord</button>' +
         '<button class="bouton" type="button" data-a="fermerLancement" data-tab="tournee" style="margin-top:10px">Lancer l\'application</button>'

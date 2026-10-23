@@ -1,4 +1,4 @@
-# MediPlanner v2.0.0 Enterprise (anciennement « Tournées »)
+# MediPlanner v2.0.1 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -17,14 +17,14 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 
 | Feuille | Contenu |
 |---|---|
-| **Praticiens** | Une ligne par médecin ou pharmacie : CodeContact, Type, Nom, Spécialité, **Note** (3, 2 ou 1, affichée A, B ou C dans l'application ; les lettres A/B/C sont aussi acceptées), **Conventionné** (Oui/Non), Téléphone, suivi des visites, Actif |
+| **Praticiens** | Une ligne par médecin ou pharmacie : CodeContact, Type, Nom, Spécialité, **Note** (3, 2 ou 1, affichée ★★★, ★★ ou ★ dans l'application), **Conventionné** (Oui/Non), Téléphone, suivi des visites, Actif |
 | **Presences** | Une ligne par **lieu d'exercice** d'un praticien : lieu, quartier, une colonne par jour (**Lundi** à **Vendredi**) contenant *Matin*, *Soir* ou *Matin et soir*, et les horaires du lieu (**HoraireMatin**, ex. `08:00-12:00` ; **HoraireSoir**, ex. `16:00-19:00`). Latitude et Longitude facultatives. |
 | **Plannings** | Tournées publiées par chaque délégué (tenue à jour par l'application, ne pas modifier) |
 | **Historique** | Une ligne par compte rendu de visite, avec le nom du délégué |
 | **Quartiers** | Quartiers, communes, zones et coordonnées GPS |
 | **Listes** | Statuts de visite et ceux qui comptent comme visite effective |
 
-**Potentiel de prescription** : A = fort (note 3, à voir tous les 14 jours), B = moyen (note 2, 30 jours), C = faible (note 1, 60 jours).
+**Potentiel de prescription** : ★★★ = fort (note 3, à voir tous les 14 jours), ★★ = moyen (note 2, 30 jours), ★ = faible (note 1, 60 jours).
 
 **Exemple** : le Dr Kouassi est au CHU de Cocody les mardis et jeudis matin, et dans son cabinet de Marcory les lundis et mercredis soir. Il occupe une ligne dans Praticiens et deux lignes dans Presences :
 
@@ -51,8 +51,8 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 ## Nouveautés de la version 2.0.0
 
 - **Écran d'accueil** à l'ouverture : version, état de la base (« Base de données opérationnelle », « Hors ligne : données locales »…), nombre de médecins et de pharmacies, visites planifiées de la semaine. Boutons **Accéder au tableau de bord** et **Lancer l'application**.
-- **Stats** (nouvel onglet) : taux de couverture (visites faites sur visites prévues échues), visites réalisées et taux de présence, atteinte de l'objectif (visites par semaine, réglable), part des praticiens de potentiel A vus dans les 14 jours, activité par jour, par commune et par spécialité. Filtres Jour, Semaine, Mois, Personnalisé, et Moi / Équipe. Chaque graphique a son tableau de données.
-- **Filtres avancés cumulables** (Contacts > Filtres) : type, potentiel A/B/C, dernière visite (non visité depuis +30 j, à revoir, jamais visité, en retard, visité récemment), conventionné, ciblé par un collègue, spécialités, communes. La recherche couvre nom, spécialité, établissement et quartier. Tri par potentiel, priorité, dernière visite ou nom.
+- **Stats** (nouvel onglet) : taux de couverture (visites faites sur visites prévues échues), visites réalisées et taux de présence, atteinte de l'objectif (visites par semaine, réglable), part des praticiens ★★★ vus dans les 14 jours, activité par jour, par commune et par spécialité. Filtres Jour, Semaine, Mois, Personnalisé, et Moi / Équipe. Chaque graphique a son tableau de données.
+- **Filtres avancés cumulables** (Contacts > Filtres) : type, potentiel ★ à ★★★, dernière visite (non visité depuis +30 j, à revoir, jamais visité, en retard, visité récemment), conventionné, ciblé par un collègue, spécialités, communes. La recherche couvre nom, spécialité, établissement et quartier. Tri par potentiel, priorité, dernière visite ou nom.
 - **Fiche praticien en 4 étapes** (Contacts > + Praticien, ou Modifier la fiche) : informations, spécialité et potentiel, disponibilités par lieu, localisation (quartier et GPS facultatif). Les erreurs sont signalées champ par champ. La fiche s'enregistre hors ligne et part dans le Google Sheet au retour du réseau (code MED-/PHA- attribué par le serveur).
 - **Tournée** : praticiens ciblés (avec ou sans pharmacies, ou pharmacies seules), spécialités ciblées en choix multiple, potentiels ciblés. Pour chaque jour : premier RDV, fin estimée, durée de la journée et temps de route, et un bouton **Itinéraire du jour dans l'ordre optimal** (Google Maps).
 - **Actions rapides** sur chaque visite et chaque contact : Appeler, SMS (si le téléphone est renseigné), Waze, Google Maps.

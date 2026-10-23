@@ -273,12 +273,9 @@ h3 { font: 700 18px/1.2 var(--titre); margin: 18px 0 8px; }
 .etiquette.ko, .etiquette.alerte { background: var(--rouge-pale); color: var(--rouge); border-color: transparent; }
 .etiquette.equipe, .etiquette.conv { background: var(--bleu-pale); color: var(--bleu); border-color: transparent; }
 
-/* Potentiel A / B / C */
-.pot { display: inline-grid; place-items: center; min-width: 22px; height: 20px; padding: 0 5px; border-radius: 6px;
-  font: 700 13px/1 var(--titre); vertical-align: 1px; margin-left: 4px; border: 1.5px solid currentColor; }
-.pot-A { color: var(--ambre); background: var(--ambre-pale); }
-.pot-B { color: var(--bleu); background: var(--bleu-pale); }
-.pot-C { color: var(--gris); background: var(--papier-2); }
+/* Potentiel de prescription en étoiles */
+.note { color: var(--d-objectif); letter-spacing: 1px; font-size: 14px; white-space: nowrap; margin-left: 2px; }
+.note i { font-style: normal; color: var(--trait); }
 
 .arret-detail { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--trait); }
 .statuts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
