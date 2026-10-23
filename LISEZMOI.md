@@ -1,4 +1,4 @@
-# MediPlanner v2.0.3 Enterprise (anciennement « Tournées »)
+# MediPlanner v2.0.4 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -56,7 +56,9 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 - **Fiche praticien en 4 étapes** (Contacts > + Praticien, ou Modifier la fiche) : informations, spécialité et potentiel, disponibilités par lieu, localisation (quartier et GPS facultatif). Les erreurs sont signalées champ par champ. La fiche s'enregistre hors ligne et part dans le Google Sheet au retour du réseau (code MED-/PHA- attribué par le serveur).
 - **Tournée** : praticiens ciblés (avec ou sans pharmacies, ou pharmacies seules), spécialités ciblées en choix multiple, potentiels ciblés. Pour chaque jour : premier RDV, fin estimée, durée de la journée et temps de route, et un bouton **Itinéraire du jour dans l'ordre optimal** (Google Maps).
 - **Actions rapides** sur chaque visite et chaque contact : Appeler, SMS (si le téléphone est renseigné), Waze, Google Maps.
-- **Apparence** (Réglages) : Auto, Clair ou Sombre.
+- **Apparence** (Réglages) : Clair (par défaut), Sombre ou Auto.
+- **Filtres** : puces cochées, recherche dans les longues listes (spécialités, communes), groupes repliables, boutons Tout / Effacer / Toute la zone, filtres rapides en un toucher dans Contacts (★★★, non visité +30 j, à revoir, jamais visité, conventionnés, pharmacies). Sur tablette, les fenêtres de choix s'ouvrent au centre de l'écran.
+- **Tournée** : par défaut sans pharmacies.
 - **Mises à jour** : quand une nouvelle version est publiée, un bandeau « Mise à jour disponible » avec les nouveautés apparaît ; **Mise à jour** recharge l'application dans la nouvelle version. Les données du téléphone (tournée, comptes rendus en attente, réglages) sont conservées. Les téléphones encore sur l'ancienne application passent automatiquement en 2.0.0 à leur prochaine ouverture.
 
 ## Utilisation sur le téléphone

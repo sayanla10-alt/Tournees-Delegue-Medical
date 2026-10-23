@@ -1,8 +1,10 @@
 {
-  "version": "2.0.3",
+  "version": "2.0.4",
   "edition": "Enterprise",
   "date": "2026-10-23",
   "notes": [
+    "Filtres modernisés : puces cochées, recherche dans les listes, groupes repliables, filtres rapides en un toucher",
+    "Thème clair et tournée sans pharmacies par défaut",
     "Nouveautés affichées une seule fois par mise à jour",
     "Lancement automatique de l'application après l'écran d'accueil",
     "Message WhatsApp simplifié : titre, date, votre nom, puis chaque établissement avec ses médecins",

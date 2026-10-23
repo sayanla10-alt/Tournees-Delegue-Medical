@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="MediPlanner">
   <script>
     // Thème choisi (Auto, Clair, Sombre) appliqué avant l'affichage pour éviter un flash
-    try { var t = JSON.parse(localStorage.getItem('tournees.theme') || '"auto"'); if (t === 'clair' || t === 'sombre') document.documentElement.dataset.theme = t; } catch (e) {}
+    try { var t = JSON.parse(localStorage.getItem('tournees.theme') || '"clair"'); if (t === 'clair' || t === 'sombre') document.documentElement.dataset.theme = t; } catch (e) {}
   </script>
   <link rel="stylesheet" href="app.css">
 </head>
