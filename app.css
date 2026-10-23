@@ -422,3 +422,5 @@ body.feuille-ouverte { overflow: hidden; }
   background: var(--lagune); color: #fff; font: 700 12px var(--titre);
 }
 .grille-pres .dispo button + button { background: #4D8FB0; }
+.rangee-tirage .bouton { font-size: 14px; padding: 0 10px; white-space: nowrap; }
+.rangee-tirage .bouton svg { width: 16px; height: 16px; }
