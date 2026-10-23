@@ -37,18 +37,20 @@
   }
 
   var S = {
-    config: LS.get('config', { url: '', token: '', demo: false }),
+    config: LS.get('config', { url: '', token: '', demo: false, delegue: '' }),
     data: LS.get('data', null),          // { base, quartiers, statuts, historique, syncedAt }
     plan: LS.get('plan', []),
     params: LS.get('params', {
       mode: 'semaine', dateRef: semaineParDefaut(aujourdhui()), commune: 'Toutes',
-      maxJour: 8, regroup: true, delai: 7
+      maxJour: 8, regroup: true, delai: 7, eviterCollegues: true
     }),
     queue: LS.get('queue', []),
     ui: {
       tab: 'tournee', jour: null, ouvert: null, voirParams: false, ref: null, props: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
-      sync: 'idle', erreur: '', installEvt: null, enCours: false
+      sync: 'idle', erreur: '', installEvt: null, enCours: false,
+      collegue: null, jourEquipe: null, histFiltre: 'moi',
+      aPublier: LS.get('aPublier', false), portee: LS.get('portee', null)
     }
   };
 
@@ -60,6 +62,41 @@
   function pret() { return !!(S.data && S.data.base && S.data.base.length); }
   function statuts() { return (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : STATUTS_DEFAUT; }
   function quartiers() { return (S.data && S.data.quartiers && S.data.quartiers.length) ? S.data.quartiers : quartiersDefautObjets(); }
+
+  // ------------------------------------------------------------------ Équipe
+  function moi() { return String(S.config.delegue || '').trim(); }
+  function estMoi(nom) { return String(nom || '').trim().toLowerCase() === moi().toLowerCase(); }
+  function arretsCollegues() {
+    return ((S.data && S.data.plannings) || []).filter(function (p) { return p.delegue && !estMoi(p.delegue); });
+  }
+  function prevuParCollegues(code, depuis) {
+    return arretsCollegues().filter(function (p) { return p.code === code && p.date >= depuis; });
+  }
+  function etiquetteCollegues(code, depuis) {
+    var l = prevuParCollegues(code, depuis);
+    if (!l.length) return '';
+    return '<span class="etiquette equipe">Prévu par ' + esc(l[0].delegue) + ', ' + dateCourte(l[0].date) +
+      (l.length > 1 ? ' (+' + (l.length - 1) + ')' : '') + '</span>';
+  }
+  function porteePlan() {
+    var d = S.plan.map(function (a) { return a.date; }).sort();
+    return d.length ? { debut: d[0], fin: d[d.length - 1] } : null;
+  }
+  // Tournée envoyée au Google Sheet : remplace la précédente sur toute la période concernée
+  function chargePlan() {
+    var p = porteePlan() || { debut: aujourdhui(), fin: aujourdhui() }, ancien = S.ui.portee;
+    if (ancien) { if (ancien.debut < p.debut) p.debut = ancien.debut; if (ancien.fin > p.fin) p.fin = ancien.fin; }
+    return { delegue: moi(), debut: p.debut, fin: p.fin, arrets: S.plan.map(function (a) {
+      return { date: a.date, heure: a.heure, heurePrevue: a.heurePrevue || '', creneau: a.creneau, id: a.rowId,
+               code: a.code, nom: a.nom, specialite: a.specialite, priorite: a.priorite, quartier: a.quartier,
+               commune: a.commune, lieu: a.lieu, statut: a.statut, etat: a.etat, uid: a.uid };
+    }) };
+  }
+  function publierPlan() {
+    if (S.config.demo || !S.config.url) return;
+    S.ui.aPublier = true; LS.set('aPublier', true);
+    synchroniser(true);
+  }
 
   // ------------------------------------------------------------------ Mise en forme
   var JOURS_COURTS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
@@ -140,9 +177,17 @@
       S.queue = S.queue.filter(function (v) { return !recus[v.uid]; });
       LS.set('queue', S.queue);
     }) : Promise.resolve();
-    return envoi.then(function () { return apiGet('data'); }).then(function (d) {
+    var tentePub = false;
+    return envoi.then(function () {
+      if (!S.ui.aPublier || !moi()) return;
+      tentePub = true;
+      return apiPost('planning', chargePlan()).then(function () {
+        S.ui.aPublier = false; LS.set('aPublier', false);
+        S.ui.portee = porteePlan(); LS.set('portee', S.ui.portee);
+      });
+    }).then(function () { return apiGet('data'); }).then(function (d) {
       S.data = { base: d.base, quartiers: d.quartiers, statuts: d.statuts, historique: d.historique,
-                 syncedAt: new Date().toISOString() };
+                 plannings: d.plannings || [], syncedAt: new Date().toISOString() };
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.base, v, S.data.statuts); });
       LS.set('data', S.data);
       S.ui.sync = 'ok'; S.ui.erreur = '';
@@ -153,6 +198,7 @@
     }).then(function () {
       S.ui.enCours = false;
       rendreSiPossible();
+      if (S.ui.aPublier && !tentePub && navigator.onLine) setTimeout(function () { synchroniser(true); }, 300);
     });
   }
 
@@ -195,6 +241,7 @@
     var vue = $('vue');
     var tab = S.ui.tab;
     if (!pret() && tab !== 'reglages') tab = 'accueil';
+    else if (pret() && S.config.url && !S.config.demo && !moi() && tab !== 'reglages') tab = 'identite';
     vue.innerHTML = (VUES[tab] || VUES.tournee)();
     afficherEntete(); afficherBarre(); afficherNav();
   }
@@ -223,6 +270,14 @@
       '</section>';
   };
 
+  // ------------------------------------------------------------------ Vue : identité
+  VUES.identite = function () {
+    return '<section class="accueil"><h1>Qui êtes-vous ?</h1>' +
+      '<p>Votre nom apparaît auprès de vos collègues, sur votre tournée et vos visites. Il permet aussi à chacun de savoir quels praticiens sont déjà prévus.</p>' +
+      '<label class="champ"><span>Votre nom</span><input type="text" id="nomDelegue" autocomplete="name" placeholder="Ex. Koffi Yao"></label>' +
+      '<button class="bouton bouton-plein" data-a="enregistrerNom" type="button">Continuer</button></section>';
+  };
+
   // ------------------------------------------------------------------ Vue : tournée
   VUES.tournee = function () {
     var p = S.params, h = '';
@@ -246,6 +301,8 @@
         '</div>' +
         '<label class="interrupteur"><span>Regrouper les visites par secteur</span>' +
           '<input type="checkbox" data-f="param" data-k="regroup"' + (p.regroup ? ' checked' : '') + '></label>' +
+        (S.config.demo ? '' : '<label class="interrupteur"><span>Éviter les praticiens prévus par un collègue</span>' +
+          '<input type="checkbox" data-f="param" data-k="eviterCollegues"' + (p.eviterCollegues !== false ? ' checked' : '') + '></label>') +
         '<button class="bouton bouton-plein bouton-large" data-a="generer" type="button">Générer la tournée</button>' +
         (S.plan.length ? '<p class="discret" style="margin:10px 0 0">Les visites déjà validées sont conservées.</p>' : '') +
         '</section>';
@@ -309,6 +366,7 @@
       (verrou ? ', validé' : '') + '</span>';
     if (a.etat === 'ajoute') etiquettes += '<span class="etiquette">Ajouté</span>';
     if (a.horsCreneau) etiquettes += '<span class="etiquette alerte">Hors créneau</span>';
+    etiquettes += etiquetteCollegues(a.code, lundiDe(a.date));
 
     var h = '<li class="' + cls + '" data-p="' + a.priorite + '">' +
       '<div class="arret-heure"><b>' + esc(a.heure || '--:--') + '</b>' +
@@ -388,7 +446,8 @@
     if (!r.quartier) return h + '<div class="vide"><strong>Indiquez où vous êtes</strong>Choisissez un quartier ou utilisez votre position.</div>';
     if (jourSemaineIndex(r.date) > 4) return h + '<div class="vide"><strong>Pas de visites le week-end</strong>Choisissez un jour de semaine.</div>';
 
-    var res = Moteur.proposerRattrapage(S.data.base, quartiers(), S.plan, r, S.params.delai);
+    var occupes = S.plan.concat(arretsCollegues().filter(function (p) { return p.date === r.date; }));
+    var res = Moteur.proposerRattrapage(S.data.base, quartiers(), occupes, r, S.params.delai);
     S.ui.props = res;
     if (res.memePraticien.length) {
       h += '<h3>Revoir ' + esc(r.nom) + '</h3><ul class="liste">' +
@@ -413,13 +472,66 @@
       ' dès ' + esc(row.heure) + '</div>' +
       '<div class="etiquettes"><span class="etiquette' + (+row.priorite === 1 ? ' p1' : '') + '">Priorité ' + row.priorite + '</span>' +
       '<span class="etiquette">' + esc(vuDepuis(row.derniere, x.date)) + '</span>' +
-      '<span class="etiquette">' + esc(x.source) + ', ' + dateCourte(x.date) + '</span></div></div>' +
+      '<span class="etiquette">' + esc(x.source) + ', ' + dateCourte(x.date) + '</span>' + etiquetteCollegues(row.code, aujourdhui()) + '</div></div>' +
       '<div class="element-mesure">' + km(x.dist) + '<small>score ' + Math.round(x.score) + '</small></div></div>' +
       (deja ? '<p class="discret" style="margin:8px 0 0">Déjà dans la tournée de ce jour.</p>' :
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="ajouterProp" data-s="' + section + '" data-i="' + i +
         '">Ajouter à la tournée du ' + dateCourte(x.date) + '</button>') +
       '</li>';
   }
+
+  // ------------------------------------------------------------------ Vue : équipe
+  VUES.equipe = function () {
+    var h = '<h2 class="titre-vue">Équipe</h2>';
+    if (S.config.demo) return h + '<div class="vide"><strong>Disponible avec le Google Sheet</strong>Les tournées de vos collègues s\'affichent ici une fois l\'application connectée.</div>';
+    var depuis = lundiDe(aujourdhui());
+    var arrets = arretsCollegues().filter(function (p) { return p.date >= depuis; });
+    var noms = Array.from(new Set(arrets.map(function (p) { return p.delegue; }))).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+    h += '<p class="sous-titre">Tournées publiées par vos collègues, mises à jour à chaque synchronisation.</p>';
+    if (!noms.length) return h + '<div class="vide"><strong>Aucune tournée publiée</strong>Les tournées apparaissent ici dès qu\'un collègue génère la sienne.</div>';
+    if (noms.indexOf(S.ui.collegue) < 0) S.ui.collegue = noms[0];
+    h += '<div class="filtres" role="group" aria-label="Collègue">' + noms.map(function (n) {
+      return '<button type="button" data-a="collegue" data-v="' + esc(n) + '" aria-pressed="' + (n === S.ui.collegue) + '">' + esc(n) + '</button>';
+    }).join('') + '</div>';
+    var siens = arrets.filter(function (p) { return p.delegue === S.ui.collegue; });
+    var dates = Array.from(new Set(siens.map(function (p) { return p.date; }))).sort();
+    if (!S.ui.jourEquipe || dates.indexOf(S.ui.jourEquipe) < 0) {
+      var t = aujourdhui();
+      S.ui.jourEquipe = dates.indexOf(t) >= 0 ? t : (dates.filter(function (d) { return d >= t; })[0] || dates[0]);
+    }
+    h += '<div class="jours" role="group" aria-label="Jour">' + dates.map(function (d) {
+      var n = siens.filter(function (p) { return p.date === d; }).length;
+      return '<button type="button" class="jour" data-a="jourEquipe" data-v="' + d + '" aria-pressed="' + (d === S.ui.jourEquipe) +
+        '"><b>' + JOURS_COURTS[jourSemaineIndex(d)].replace('.', '') + ' ' + (+d.slice(8)) + '</b><small>' + n + ' visite' + (n > 1 ? 's' : '') + '</small></button>';
+    }).join('') + '</div>';
+    var duJour = siens.filter(function (p) { return p.date === S.ui.jourEquipe; });
+    var maj = duJour.reduce(function (m, p) { return p.maj > m ? p.maj : m; }, '');
+    h += '<p class="bilan-jour"><b>' + esc(S.ui.collegue) + '</b>, ' + dateLongue(S.ui.jourEquipe) + ' : ' + duJour.length +
+      ' visite' + (duJour.length > 1 ? 's' : '') + (maj ? '. Mise à jour le ' + esc(maj.slice(8, 10) + '/' + maj.slice(5, 7) + ' à ' + maj.slice(11, 16)) : '') + '.</p>';
+    var idx = Moteur.indexQuartiers(quartiers());
+    ['Matin', 'Après-midi'].forEach(function (cren) {
+      var liste = duJour.filter(function (p) { return (p.creneau === 'Matin') === (cren === 'Matin'); });
+      if (!liste.length) return;
+      h += '<div class="creneau-titre">' + cren + '</div><ol class="ligne">';
+      liste.forEach(function (p, i) {
+        if (i > 0) {
+          var d = Moteur.distQ(idx, liste[i - 1].quartier, p.quartier);
+          if (d > 0) h += '<li class="troncon" aria-hidden="true"><div></div><div class="arret-rail"></div><span>' + km(d) + '</span></li>';
+        }
+        var ko = p.statut && estKo(p.statut);
+        h += '<li class="arret' + (p.statut ? (ko ? ' absent' : ' fait') : '') + '" data-p="' + (+p.priorite || 3) + '">' +
+          '<div class="arret-heure"><b>' + esc(p.heure || '--:--') + '</b></div>' +
+          '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
+          '<div><div class="arret-carte"><span class="arret-nom">' + esc(p.nom) + '</span>' +
+          '<span class="arret-lieu">' + esc(p.specialite) + ', ' + esc(p.lieu) + '</span>' +
+          '<span class="arret-lieu">' + esc(p.quartier) + ', ' + esc(p.commune) + '</span>' +
+          (p.statut ? '<span class="etiquettes"><span class="etiquette ' + (ko ? 'ko' : 'ok') + '">' + esc(p.statut) + (p.etat === 'valide' ? ', validé' : '') + '</span></span>' : '') +
+          '</div></div></li>';
+      });
+      h += '</ol>';
+    });
+    return h;
+  };
 
   // ------------------------------------------------------------------ Vue : contacts
   VUES.contacts = function () {
@@ -463,6 +575,7 @@
         '<span class="etiquettes"><span class="etiquette' + (+r.priorite === 1 ? ' p1' : '') + '">Priorité ' + r.priorite + '</span>' +
         '<span class="etiquette">' + esc(vuDepuis(r.derniere)) + '</span>' +
         (r.statut ? '<span class="etiquette ' + (estKo(r.statut) ? 'ko' : 'ok') + '">' + esc(r.statut) + '</span>' : '') +
+        etiquetteCollegues(r.code, aujourdhui()) +
         '</span></button>';
       if (ouvert) {
         if (r.commentaire) h += '<p class="discret" style="margin:10px 0 0">Dernier commentaire : ' + esc(r.commentaire) + '</p>';
@@ -483,9 +596,10 @@
   // ------------------------------------------------------------------ Vue : historique
   VUES.historique = function () {
     var enAttente = S.queue.slice().reverse().map(function (v) { v = Object.assign({}, v); v.attente = true; return v; });
-    var hist = enAttente.concat((S.data.historique || []).filter(function (v) {
+    var tout = enAttente.concat((S.data.historique || []).filter(function (v) {
       return !S.queue.some(function (q) { return q.uid === v.uid; });
     }));
+    var hist = tout.filter(function (v) { return !v.delegue || estMoi(v.delegue); });
     var t = aujourdhui(), lundi = lundiDe(t), mois = t.slice(0, 7), il30 = ajouterJours(t, -30);
     var compte = function (v) { return Moteur.estVisite(v.statut, statuts()); };
     var sem = hist.filter(function (v) { return v.date >= lundi && compte(v); }).length;
@@ -501,14 +615,21 @@
       h += '<div class="bandeau"><p>' + S.queue.length + ' visite' + (S.queue.length > 1 ? 's' : '') +
         ' en attente d\'envoi. Elles partiront automatiquement dès que le réseau revient.</p></div>';
     }
-    if (!hist.length) return h + '<div class="vide"><strong>Aucune visite enregistrée</strong>Les visites validées depuis la tournée apparaîtront ici.</div>';
-    h += '<ul class="liste">' + hist.slice(0, 150).map(function (v) {
+    if (!S.config.demo) {
+      h += '<div class="filtres" role="group" aria-label="Visites affichées">' +
+        '<button type="button" data-a="histFiltre" data-v="moi" aria-pressed="' + (S.ui.histFiltre !== 'equipe') + '">Mes visites</button>' +
+        '<button type="button" data-a="histFiltre" data-v="equipe" aria-pressed="' + (S.ui.histFiltre === 'equipe') + '">Toute l\'équipe</button></div>';
+    }
+    var liste = S.ui.histFiltre === 'equipe' ? tout : hist;
+    if (!liste.length) return h + '<div class="vide"><strong>Aucune visite enregistrée</strong>Les visites validées depuis la tournée apparaîtront ici.</div>';
+    h += '<ul class="liste">' + liste.slice(0, 150).map(function (v) {
       return '<li class="element"><div class="element-tete"><div>' +
         '<div class="element-titre">' + esc(v.nom) + '</div>' +
         '<div class="discret">' + esc(v.lieu) + ', ' + esc(v.quartier) + '</div>' +
         (v.commentaire ? '<div style="margin-top:4px">' + esc(v.commentaire) + '</div>' : '') +
         '<div class="etiquettes"><span class="etiquette ' + (compte(v) ? 'ok' : 'ko') + '">' + esc(v.statut) + '</span>' +
-        (v.attente ? '<span class="etiquette p1">En attente d\'envoi</span>' : '') + '</div></div>' +
+        (v.attente ? '<span class="etiquette p1">En attente d\'envoi</span>' : '') +
+        (v.delegue && !estMoi(v.delegue) ? '<span class="etiquette equipe">' + esc(v.delegue) + '</span>' : '') + '</div></div>' +
         '<div class="element-mesure">' + (v.date ? dateCourte(v.date) : '') + '<small>' + esc(v.creneau) + '</small></div></div></li>';
     }).join('') + '</ul>';
     return h;
@@ -523,6 +644,7 @@
       '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" ' +
         'placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
       '<label class="champ"><span>Jeton d\'accès</span><input type="text" id="cfgToken" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(c.token) + '"></label>' +
+      '<label class="champ"><span>Votre nom (visible par vos collègues)</span><input type="text" id="cfgNom" autocomplete="name" value="' + esc(c.delegue || '') + '"></label>' +
       '<div class="rangee"><button class="bouton" type="button" data-a="tester">Tester</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="enregistrer">Enregistrer</button></div>' +
       (S.ui.erreur ? '<p class="discret" style="color:var(--rouge);margin-bottom:0">' + esc(S.ui.erreur) + '</p>' : '') +
@@ -559,13 +681,14 @@
     var dates = p.mode === 'jour' ? [p.dateRef] : [0, 1, 2, 3, 4].map(function (i) { return ajouterJours(lundiDe(p.dateRef), i); });
     var garder = conserves.filter(function (a) { return dates.indexOf(a.date) >= 0; });
     var exclus = {}; garder.forEach(function (a) { exclus[a.code] = true; });
+    if (p.eviterCollegues !== false) arretsCollegues().forEach(function (c) { if (dates.indexOf(c.date) >= 0) exclus[c.code] = true; });
     var nouveau = Moteur.genererPlanning(S.data.base, quartiers(), {
       mode: p.mode, dateRef: p.dateRef, commune: p.commune, maxJour: +p.maxJour || 8,
       regroup: p.regroup, delai: +p.delai || 0, exclusCodes: exclus
     });
     garder.forEach(function (a) { Moteur.insererArret(nouveau, a, quartiers()); });
     S.plan = nouveau; S.ui.voirParams = false; S.ui.jour = null; S.ui.ouvert = null;
-    sauver(); rendre();
+    sauver(); rendre(); publierPlan();
     toast(nouveau.length ? nouveau.length + ' visites planifiées.' : 'Aucun praticien ne correspond à ces critères.');
   }
 
@@ -576,7 +699,7 @@
     aValider.forEach(function (a) {
       var v = { uid: a.uid, date: a.date > t ? t : a.date, id: a.rowId, code: a.code, nom: a.nom, type: a.type,
                 specialite: a.specialite, priorite: a.priorite, commune: a.commune, quartier: a.quartier,
-                lieu: a.lieu, creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '' };
+                lieu: a.lieu, creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '', delegue: moi() };
       Moteur.appliquerVisite(S.data.base, v, statuts());
       if (S.config.demo) {
         v.horodatage = new Date().toISOString();
@@ -591,7 +714,7 @@
     sauver(); rendre();
     toast(aValider.length + ' visite' + (aValider.length > 1 ? 's validées' : ' validée') +
       (ko ? '. ' + ko + ' non réalisée(s) : pensez au rattrapage.' : '.'));
-    synchroniser(true);
+    publierPlan();
   }
 
   function ajouterArret(row, date, score, dist, etat) {
@@ -601,7 +724,7 @@
     var a = Moteur.creerArret(row, date, score, dist || 0);
     a.etat = etat || 'ajoute';
     Moteur.insererArret(S.plan, a, quartiers());
-    sauver();
+    sauver(); publierPlan();
     toast('Ajouté à la tournée du ' + dateCourte(date) + '.');
     return true;
   }
@@ -632,7 +755,8 @@
   }
 
   function lireConfigFormulaire() {
-    return { url: ($('cfgUrl').value || '').trim(), token: ($('cfgToken').value || '').trim(), demo: false };
+    return { url: ($('cfgUrl').value || '').trim(), token: ($('cfgToken').value || '').trim(), demo: false,
+             delegue: (($('cfgNom') && $('cfgNom').value) || '').trim() };
   }
 
   var ACTIONS = {
@@ -654,7 +778,7 @@
     retirer: function (el) {
       S.plan = S.plan.filter(function (a) { return a.uid !== el.dataset.uid; });
       Moteur.recalculerDistances(S.plan, quartiers());
-      S.ui.ouvert = null; LS.set('plan', S.plan); rendre();
+      S.ui.ouvert = null; LS.set('plan', S.plan); rendre(); publierPlan();
     },
     rattraper: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -673,6 +797,16 @@
     contact: function (el) { S.ui.contactOuvert = S.ui.contactOuvert === el.dataset.v ? null : el.dataset.v; rendre(); },
     filtre: function (el) { S.ui.filtre = el.dataset.v; S.ui.limite = 40; rendre(); },
     plus: function () { S.ui.limite += 40; rendre(); },
+    collegue: function (el) { S.ui.collegue = el.dataset.v; S.ui.jourEquipe = null; rendre(); },
+    jourEquipe: function (el) { S.ui.jourEquipe = el.dataset.v; rendre(); },
+    histFiltre: function (el) { S.ui.histFiltre = el.dataset.v; rendre(); },
+    enregistrerNom: function () {
+      var n = ($('nomDelegue').value || '').trim();
+      if (n.length < 2) { toast('Indiquez votre nom.'); return; }
+      S.config.delegue = n; LS.set('config', S.config);
+      S.ui.tab = 'tournee'; rendre(); publierPlan();
+      toast('Bienvenue ' + n + '.');
+    },
     planifier: function (el) {
       var row = S.data.base.filter(function (r) { return String(r.id) === el.dataset.v; })[0]; if (!row) return;
       var date = prochaineDate(prochainJourOuvre(aujourdhui()), row.jour, false);
@@ -770,7 +904,7 @@
       var cfg = JSON.parse(decodeURIComponent(escape(atob(b64))));
       if (!cfg.url || !cfg.token) return false;
       if (S.config.demo || S.config.url !== cfg.url) { S.plan = []; S.queue = S.config.url === cfg.url ? S.queue : []; S.data = null; }
-      S.config = { url: cfg.url, token: cfg.token, demo: false };
+      S.config = { url: cfg.url, token: cfg.token, demo: false, delegue: S.config.delegue || '' };
       sauver();
       history.replaceState(null, '', location.pathname + location.search);
       return true;
