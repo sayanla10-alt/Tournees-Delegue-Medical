@@ -362,6 +362,11 @@
       if (r.ids) remplacerIds(r.ids);
       LS.set('fiches', S.fiches); LS.set('plan', S.plan); LS.set('imposes', S.imposes); LS.set('queue', S.queue);
       return envoyerFiches();
+    }, function (e) {
+      // Serveur pas encore mis à jour (pas d'action « fiche ») : les fiches restent en attente sur le téléphone,
+      // sans bloquer l'envoi des comptes rendus ni la tournée
+      if (/Action inconnue/i.test(e.message)) { S.ui.serveurAncien = true; return; }
+      throw e;
     });
   }
   function remplacerCode(ancien, code) {
@@ -1311,7 +1316,7 @@
         (S.data && S.data.syncedAt ? 'Dernière synchronisation : ' + new Date(S.data.syncedAt).toLocaleString('fr-FR') + '.' : 'Pas encore synchronisé.')) +
       (pret() ? ' ' + S.data.praticiens.length + ' praticiens, ' + S.data.presences.length + ' lieux de présence.' : '') +
       (S.queue.length ? ' ' + S.queue.length + ' compte(s) rendu(s) en attente.' : '') +
-      (S.fiches.length ? ' ' + S.fiches.length + ' fiche(s) praticien en attente.' : '') + '</p>' +
+      (S.fiches.length ? ' ' + S.fiches.length + ' fiche(s) praticien en attente' + (S.ui.serveurAncien ? ' : le serveur Apps Script doit être mis à jour en version 2.0.0 pour les recevoir.' : '.') : '') + '</p>' +
       (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="partager" style="margin-bottom:6px">Partager l\'application avec un collègue</button>' +
         '<p class="discret" style="margin-top:0">Le lien donne accès à la base : envoyez-le uniquement à vos collègues.</p>' : '') +
