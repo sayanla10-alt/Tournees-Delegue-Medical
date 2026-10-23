@@ -968,33 +968,16 @@
     }
     return liens;
   }
+  // Message court : pour chaque jour, le médecin, sa spécialité, l'établissement et le secteur
   function texteProgramme(dates) {
-    var lignes = [];
-    lignes.push('*Programme ' + (dates.length > 1 ? 'du ' + dateCourte(dates[0]) + ' au ' + dateCourte(dates[dates.length - 1]) : 'du ' + dateLongue(dates[0])) + '*' +
-      (moi() ? ' (' + moi() + ')' : ''));
-    if (S.programme.etat !== 'valide') lignes.push('_Proposition non encore validée_');
+    var lignes = ['*Programme ' + (dates.length > 1 ? 'du ' + dateCourte(dates[0]) + ' au ' + dateCourte(dates[dates.length - 1]) : 'du ' + dateCourte(dates[0])) + '*'];
     dates.forEach(function (d) {
       var l = S.plan.filter(function (a) { return a.date === d; });
       if (!l.length) return;
-      var k = l.reduce(function (s, a) { return s + (a.dist || 0); }, 0);
-      lignes.push('');
-      lignes.push('*' + majuscule(dateLongue(d)) + '* : ' + l.length + ' visite' + (l.length > 1 ? 's' : '') + ', ~' + km(k) + ', ' +
-        Array.from(new Set(l.map(function (a) { return a.commune; }))).join(', '));
-      var n = 0;
-      ['Matin', 'Soir'].forEach(function (cren) {
-        var lc = l.filter(function (a) { return a.creneau === cren; });
-        if (!lc.length) return;
-        lignes.push('_' + cren + '_');
-        lc.forEach(function (a) {
-          n++;
-          lignes.push(n + '. ' + a.heure + ' ' + a.nom + ' ' + '★★★'.slice(0, lireNote(a.note)) + (estConventionne(a.conventionne) ? ' (conv.)' : '') +
-            (a.rdv ? ' RDV ' + a.rdv : ''));
-          lignes.push('    ' + a.specialite + ', ' + a.lieu + ', ' + a.quartier + ' (présent ' + a.debut + '-' + a.fin + ')');
-        });
+      lignes.push('', '*' + majuscule(dateCourte(d)) + '*');
+      l.forEach(function (a) {
+        lignes.push('- ' + a.nom + ', ' + a.specialite + ', ' + a.lieu + ', ' + a.quartier);
       });
-      var liens = lienItineraire(l);
-      if (liens.length === 1) lignes.push('Itinéraire : ' + liens[0]);
-      else liens.forEach(function (u, i) { lignes.push('Itinéraire (' + (i + 1) + '/' + liens.length + ') : ' + u); });
     });
     return lignes.join('\n');
   }
