@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.2.3', EDITION = 'Enterprise';
+  var APP_VERSION = '2.2.4', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.2.4', ['Filtres : les spécialités ne concernent que les médecins ; elles sont ignorées (mais conservées) en choisissant Pharmacies']],
     ['2.2.3', ['Autour : pharmacies affichées du lundi au vendredi, sur toute leur plage horaire']],
     ['2.2.1', ['Titre « Tournée » affiché en haut de l\'onglet, comme les autres onglets']],
     ['2.2.0', ['Message WhatsApp : une puce devant chaque médecin',
@@ -113,6 +114,8 @@
   var FILTRES_VIDES = { specialites: [], communes: [], potentiels: [], visite: 'tous', conv: 'tous', type: 'tous', equipe: 'tous' };
   S.ui.filtres = Object.assign({}, FILTRES_VIDES, LS.get('filtres', {}));
   S.ui.filtresAutour = Object.assign({}, FILTRES_VIDES, LS.get('filtresAutour', {}));
+  // « Pharmacien » n'est plus une spécialité filtrable (2.2.4)
+  [S.ui.filtres, S.ui.filtresAutour].forEach(function (f) { f.specialites = (f.specialites || []).filter(function (x) { return x !== 'Pharmacien'; }); });
   // 2.2.0 : nouveaux réglages par défaut (une seule fois)
   if (!LS.get('defauts220', false)) {
     S.ui.autour.moment = 'maintenant'; S.ui.autour.rayon = 2; LS.set('autour', S.ui.autour);
@@ -1221,7 +1224,8 @@
     var sp = ensemble(f.specialites), co = ensemble(f.communes), po = ensemble(f.potentiels);
     return Object.keys(c.prat).map(function (k) { return c.prat[k]; }).filter(function (p) {
       if (f.type !== 'tous' && p.type !== f.type) return false;
-      if (f.specialites.length && !sp[p.specialite]) return false;
+      // spécialités médicales : appliquées aux médecins seulement, sans effet sur les pharmacies (conservées pour « Médecins »)
+      if (f.specialites.length && p.type !== 'Pharmacie' && !sp[p.specialite]) return false;
       if (f.potentiels.length && !po[lettrePotentiel(p.note)]) return false;
       if (f.conv === 'oui' && !p.conv) return false;
       if (f.conv === 'non' && p.conv) return false;
@@ -1248,7 +1252,7 @@
     var l = [];
     if (f.type !== 'tous') l.push(['type', f.type, f.type === 'Pharmacie' ? 'Pharmacies' : 'Médecins']);
     f.potentiels.forEach(function (x) { l.push(['potentiels', x, ETOILES[x]]); });
-    f.specialites.forEach(function (x) { l.push(['specialites', x, x]); });
+    if (f.type !== 'Pharmacie') f.specialites.forEach(function (x) { l.push(['specialites', x, x]); });
     f.communes.forEach(function (x) { l.push(['communes', x, x]); });
     if (f.visite !== 'tous') l.push(['visite', f.visite, LIB_VISITE[f.visite]]);
     if (f.conv !== 'tous') l.push(['conv', f.conv, f.conv === 'oui' ? 'Conventionnés' : 'Non conventionnés']);
@@ -1795,7 +1799,8 @@
       groupeChoix(f, { id: 'conv', titre: 'Conventionné', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }) +
       (S.config.demo ? '' : groupeChoix(f, { id: 'equipe', titre: 'Ciblé par un collègue cette semaine', chemin: 'brouillon.equipe', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) })) +
       groupeChoix(f, { id: 'spec', titre: 'Spécialités', chemin: 'brouillon.specialites', multiple: true, repliable: true, recherche: true, resume: 'Toutes',
-        options: specialitesListe().map(function (x) { return { v: x.nom, lib: x.nom, n: x.n }; }).concat([{ v: 'Pharmacien', lib: 'Pharmacien' }]) }) +
+        options: specialitesListe().map(function (x) { return { v: x.nom, lib: x.nom, n: x.n }; }),
+        aide: b.type === 'Pharmacie' ? 'Ignorées pour les pharmacies ; elles restent mémorisées et s\'appliquent de nouveau en choisissant Médecins ou Tout.' : 'S\'appliquent aux médecins seulement ; les pharmacies ne sont pas concernées.' }) +
       groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: true, recherche: true, resume: 'Toutes', sections: sectionsCommunes(),
         aide: 'Lieux d\'exercice du praticien. Pour un établissement ou un quartier, utilisez la recherche de la liste.' });
     return { corps: h, pied: '<button class="bouton" type="button" data-a="filtresReinit">Réinitialiser</button>' +

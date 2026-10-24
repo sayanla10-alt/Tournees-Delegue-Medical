@@ -1,8 +1,9 @@
 {
-  "version": "2.2.3",
+  "version": "2.2.4",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Filtres : les spécialités ne concernent que les médecins ; elles sont ignorées (mais conservées) en choisissant Pharmacies",
     "Autour : pharmacies affichées du lundi au vendredi, sur toute leur plage horaire",
     "Titre « Tournée » affiché en haut de l'onglet, comme les autres onglets",
     "Message WhatsApp : une puce devant chaque médecin",
