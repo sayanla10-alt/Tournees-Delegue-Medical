@@ -1,4 +1,4 @@
-# MediPlanner v2.2.7 Enterprise (anciennement « Tournées »)
+# MediPlanner v3.0.0 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -94,35 +94,42 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 - **Historique** regroupé dans l'onglet Stats ; 5 onglets au lieu de 6.
 - **Synchronisation allégée** : si la base n'a pas changé, seules les nouvelles visites et les tournées sont téléchargées.
 
-## Utilisation sur le téléphone
+## Utilisation sur le téléphone (version 3)
 
-**Tournée**
+L'application suit la journée du délégué, en 5 onglets.
 
-1. **Préparer** : une journée ou une semaine ; **communes ciblées en choix multiple** (et, en semaine, des secteurs différents selon les jours) ; nombre de visites par jour ; délai minimum depuis la dernière visite.
-2. **À voir absolument** : recherchez un médecin et ajoutez-le, avec un jour de présence et une heure de RDV facultatifs. La tournée est construite autour de lui.
-3. **Lancer le tirage** : l'application récupère d'abord les tournées des collègues, écarte les médecins qu'ils ciblent déjà cette semaine, puis construit chaque journée :
-   - les médecins sont choisis selon leur note et leur retard de visite ;
-   - ils sont regroupés géographiquement ;
-   - l'ordre de passage respecte leurs fenêtres de présence (trajet d'environ 3 min/km, visite de 20 min).
-4. **Nouveau tirage** : épinglez les médecins à conserver, puis touchez **Nouveau tirage** (jour) ou **Semaine entière**. Les médecins non épinglés sont remplacés par d'autres.
-5. **Valider le programme** : le programme est publié auprès de l'équipe et la fenêtre d'envoi s'ouvre. **Envoyer sur WhatsApp** l'envoie à votre numéro (Réglages), avec WhatsApp Web sur ordinateur et l'application WhatsApp sur téléphone. Le message est simple : pour chaque jour, « Planning du vendredi 23/10/2026 (votre nom) », puis chaque établissement dans l'ordre de passage, suivi de ses médecins.
-6. **Sur le terrain** : touchez un médecin, choisissez le résultat de la visite et ajoutez un commentaire, puis **Enregistrer les comptes rendus**. Si le médecin est absent, **Absent : remplacer** ouvre « Autour de moi » centré sur ce lieu.
-7. **Couverture** : sous la tournée, une carte et la liste des communes couvertes et non couvertes (par vous ou par un collègue), avec un bouton pour passer de **Jour** à **Semaine**.
+**1. Aujourd'hui** (sur le terrain)
+- Les visites du jour dans l'ordre de passage, l'heure de la première visite, la fin estimée et l'**itinéraire de la journée**.
+- Touchez une visite : **Appeler, SMS, WhatsApp, Maps** en premier, puis le compte rendu en deux temps :
+  1. le résultat (**Visite faite** : Présent, Intéressé… ; **Visite non faite** : Absent, Refus…) ;
+  2. le détail : activité, produits présentés, commentaire, **prochain RDV** (le praticien est placé d'office ce jour-là dans la tournée).
+- **Enregistrer le compte rendu** ; un compte rendu enregistré se **modifie** à tout moment.
+- Visite non faite : **Trouver un remplaçant à proximité** ouvre « Autour de moi » centré sur ce lieu.
+- **Autour de moi** (bouton en haut) : qui est présent maintenant ou à un autre moment, près de vous ou d'un quartier, avec les mêmes filtres que Praticiens.
 
-**Autour de moi** : les médecins présents **maintenant** (ou à l'heure choisie) autour de votre position GPS ou d'un quartier, dans un rayon de 2 à 20 km, d'après leur propre planning, avec un bouton pour les ajouter à la tournée.
+**2. Ma semaine** (la préparation)
+- **Réglages de la tournée** : une journée ou une semaine, communes (différentes selon le jour si besoin), Tout / Médecins / Pharmacies, spécialités, potentiel, visites par jour, « ne pas revoir avant », éviter les médecins prévus par un collègue.
+- **RDV et médecins prioritaires** : placés d'office, la tournée se construit autour d'eux.
+- **Proposer ma tournée**, puis jour par jour : **Garder** un médecin, le **retirer**, **Recalculer ce jour** ou **la semaine** (les médecins gardés, les RDV et les visites faites restent).
+- **Confirmer la tournée** : elle devient visible par l'équipe ; elle reste modifiable et chaque changement est publié. **Envoyer sur WhatsApp** : « Planning du … (votre nom) », puis chaque établissement et ses médecins, précédés d'une puce.
+- **Communes visitées** : carte et liste des communes visitées ou non (par vous et par l'équipe), au jour ou à la semaine.
 
-**Équipe** : la tournée de chaque collègue (proposition ou programme validé), rafraîchie toutes les 2 minutes.
+**3. Praticiens** : recherche, Tout / Médecins / Pharmacies, filtres rapides et avancés, tri. La fiche affiche les actions rapides, le dernier commentaire, le prochain RDV et les jours de présence (touchez M ou S pour planifier) ; **Ajouter à ma tournée** ou **Modifier la fiche** ; **Nouveau** pour créer une fiche en 4 étapes.
 
-**Contacts** : recherche et filtres avancés (voir ci-dessus). La fiche d'un médecin affiche les actions rapides et son planning de la semaine ; touchez M ou S pour planifier une visite, ajoutez-le à « À voir absolument » ou modifiez sa fiche.
+**4. Équipe** : la tournée de chaque collègue (brouillon ou confirmée), sur une carte, mise à jour chaque minute.
 
-**Réglages** : votre nom, votre numéro WhatsApp, l'option WhatsApp Web, votre point de départ habituel, et le lien d'installation à partager avec un collègue.
+**5. Bilan** : tableau de bord (taux de réalisation, visites réalisées, objectif, praticiens ★★★ à jour, activité par jour, par commune, par spécialité, par type de visite, par délégué) et **Historique** de toutes les visites.
+
+**Réglages** (roue dentée) : profil, apparence, partage, installation, mises à jour ; **Avancé** : connexion au Google Sheet, synchronisation, démonstration, effacement des données.
+
+La pastille en haut à droite indique l'état de la synchronisation ; touchez-la pour synchroniser.
 
 ---
 
 ## Travail en équipe (jusqu'à 10 délégués et plus)
 
 - Chaque tournée générée ou modifiée est publiée dans la feuille Plannings.
-- Un médecin ciblé par un collègue porte l'étiquette « Ciblé par [nom] » (programme validé) ou « Envisagé par [nom] » (proposition).
+- Un médecin prévu par un collègue porte l'étiquette « Prévu par [nom] » (tournée confirmée) ou « Envisagé par [nom] » (brouillon). Un médecin d'une tournée confirmée par un collègue n'est jamais proposé.
 - **Premier arrivé, premier servi** : si deux délégués tirent le même médecin pour la même semaine, le second voit ce médecin remplacé automatiquement. Les médecins épinglés, imposés ou déjà visités sont seulement signalés.
 - Test réalisé : 10 délégués lançant leur tirage au même instant ont obtenu 400 visites sans aucun médecin en double.
 

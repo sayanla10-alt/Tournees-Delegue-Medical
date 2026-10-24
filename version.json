@@ -1,8 +1,14 @@
 {
-  "version": "2.2.7",
+  "version": "3.0.0",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Nouvelle organisation en 5 onglets qui suivent votre journée : Aujourd'hui, Ma semaine, Praticiens, Équipe, Bilan",
+    "Aujourd'hui : vos visites dans l'ordre, contact en premier, compte rendu guidé (résultat d'abord, puis le détail)",
+    "Ma semaine : réglages, proposition, médecins gardés ou retirés, confirmation et envoi WhatsApp, communes visitées",
+    "Autour de moi s'ouvre depuis Aujourd'hui ou depuis une visite non faite (« Trouver un remplaçant »)",
+    "Vocabulaire simplifié : tournée confirmée, brouillon, RDV, prioritaire, prochain RDV, communes visitées, taux de réalisation",
+    "Réglages allégés : connexion et effacement des données rangés dans « Avancé »",
     "L'application rouvre sur l'onglet où vous étiez, après un rafraîchissement ou une mise à jour",
     "« Vu il y a … j » mis à jour dès qu'un compte rendu est validé",
     "Prochaine étape traitée comme un RDV : le praticien est placé d'office ce jour-là dans la tournée",

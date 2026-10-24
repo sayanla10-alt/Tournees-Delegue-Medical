@@ -693,3 +693,46 @@ body.avec-barre main { padding-bottom: 90px; }
 .actions-cr { margin: 4px 0 12px; }
 .actions-cr .bouton { width: 100%; justify-content: center; }
 .actions-cr .aide-champ { display: block; text-align: center; margin-top: 6px; color: var(--gris); font-size: 12.5px; }
+
+/* ------------------------------------------------------------- 3.0.0 : parcours Aujourd'hui / Ma semaine */
+.navigation button { font-size: 11px; }
+.pastille-sync span { white-space: nowrap; }
+.pastille-sync svg { width: 14px; height: 14px; opacity: .85; flex: none; }
+.retour { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--primaire); font-weight: 600; padding: 6px 0; margin-bottom: 2px; }
+.retour svg { width: 18px; height: 18px; transform: rotate(90deg); }
+.vide .bouton { display: inline-flex; }
+
+/* Carte de visite : invite et compte rendu en deux temps */
+.arret-invite { display: block; margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--primaire); }
+.etape-cr { margin: 12px 0 4px; }
+.etape-titre { display: block; font: 700 15px/1.3 var(--titre); margin-bottom: 8px; }
+.groupe-statuts { display: block; font-size: 12px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: .4px; margin: 6px 0 6px; }
+.resume-cr p { margin: 0 0 6px; }
+.arret-detail .bouton-texte { display: block; margin: 4px auto 0; color: var(--gris); font-size: 13.5px; }
+
+/* Ma semaine : lignes compactes de la tournée */
+.plan-jour { list-style: none; margin: 0 0 12px; padding: 0; background: var(--papier); border: 1px solid var(--trait); border-radius: var(--r); box-shadow: var(--ombre); overflow: hidden; }
+.ligne-plan { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 12px; border-top: 1px solid var(--trait); }
+.ligne-plan:first-child { border-top: 0; }
+.ligne-plan.gardee { background: var(--primaire-pale); }
+.ligne-plan.faite { opacity: .75; }
+.lp-heure { flex: none; width: 44px; font: 700 14px/1 var(--titre); color: var(--gris); }
+.lp-corps { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 0; color: inherit; font-size: 14.5px; }
+.lp-corps .etiquettes { margin-top: 6px; }
+.lp-actions { flex: none; display: flex; align-items: center; gap: 4px; }
+.lp-garder { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 50px; padding: 6px 4px; border: 1px solid var(--trait); border-radius: 10px; background: var(--papier); color: var(--gris); }
+.lp-garder svg { width: 17px; height: 17px; }
+.lp-garder small { font-size: 11px; font-weight: 600; }
+.lp-garder[aria-pressed="true"] { background: var(--primaire); border-color: var(--primaire); color: var(--sur-primaire); }
+.lp-retirer { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--gris-2); }
+.lp-retirer svg { width: 17px; height: 17px; }
+.lp-fait { flex: none; width: 36px; height: 36px; display: grid; place-items: center; color: var(--vert, var(--primaire)); }
+.lp-fait svg { width: 20px; height: 20px; }
+
+/* Réglages : section Avancé repliée */
+details.avance summary { list-style: none; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+details.avance summary::-webkit-details-marker { display: none; }
+details.avance summary b { font: 700 17px/1.2 var(--titre); }
+details.avance summary b::after { content: " ▾"; color: var(--gris); }
+details.avance[open] summary b::after { content: " ▴"; }
+details.avance h3 { margin-top: 18px; }

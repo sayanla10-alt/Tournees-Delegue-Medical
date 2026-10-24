@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.2.7', EDITION = 'Enterprise';
+  var APP_VERSION = '3.0.0', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.0.0', ['Nouvelle organisation en 5 onglets qui suivent votre journée : Aujourd\'hui, Ma semaine, Praticiens, Équipe, Bilan',
+               'Aujourd\'hui : vos visites dans l\'ordre, contact en premier, compte rendu guidé (résultat d\'abord, puis le détail)',
+               'Ma semaine : réglages, proposition, médecins gardés ou retirés, confirmation et envoi WhatsApp, communes visitées',
+               'Autour de moi s\'ouvre depuis Aujourd\'hui ou depuis une visite non faite (« Trouver un remplaçant »)',
+               'Vocabulaire simplifié : tournée confirmée, brouillon, RDV, prioritaire, prochain RDV, communes visitées, taux de réalisation',
+               'Réglages allégés : connexion et effacement des données rangés dans « Avancé »']],
     ['2.2.7', ['L\'application rouvre sur l\'onglet où vous étiez, après un rafraîchissement ou une mise à jour']],
     ['2.2.6', ['« Vu il y a … j » mis à jour dès qu\'un compte rendu est validé', 'Prochaine étape traitée comme un RDV : le praticien est placé d\'office ce jour-là dans la tournée']],
     ['2.2.5', ['Tournée : bouton « Valider ce compte rendu » dans chaque fiche de visite, et « Modifier le compte rendu » une fois validé']],
@@ -103,7 +109,12 @@
     queue: LS.get('queue', []),
     fiches: LS.get('fiches', []),
     ui: {
-      tab: (function () { var t = LS.get('onglet', 'tournee'); return ['tournee', 'autour', 'contacts', 'stats', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'tournee'; })(), jour: null, ouvert: null, voirParams: false, feuille: null,
+      tab: (function () {
+        // 3.0.0 : nouveaux onglets du parcours (anciens noms convertis)
+        var t = LS.get('onglet', 'jour'), anciens = { tournee: 'jour', contacts: 'praticiens', stats: 'bilan', historique: 'bilan' };
+        t = anciens[t] || t;
+        return ['jour', 'semaine', 'autour', 'praticiens', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
+      })(), jour: null, ouvert: null, voirParams: false, feuille: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
@@ -386,7 +397,7 @@
     var l = cibleParCollegues(code, date);
     if (!l.length) return '';
     var v = l.some(function (p) { return p.programme === 'Validé'; });
-    return '<span class="etiquette equipe">' + (v ? 'Ciblé par ' : 'Envisagé par ') + esc(l[0].delegue) + ', ' + dateCourte(l[0].date) +
+    return '<span class="etiquette equipe">' + (v ? 'Prévu par ' : 'Envisagé par ') + esc(l[0].delegue) + ', ' + dateCourte(l[0].date) +
       (l.length > 1 ? ' (+' + (l.length - 1) + ')' : '') + '</span>';
   }
   function exclusCollegues(dates) {
@@ -599,7 +610,9 @@
 
   // ------------------------------------------------------------------ En-tête, barre, navigation
   function afficherEntete() {
-    $('enteteDate').textContent = majuscule(dateLongue(aujourdhui())) + (moi() ? ' · ' + moi() : '');
+    var t = aujourdhui();
+    var moisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    $('enteteDate').textContent = majuscule(JOURS_COURTS[jourSemaineIndex(t)]) + ' ' + (+t.slice(8)) + ' ' + moisCourts[+t.slice(5, 7) - 1] + (moi() ? ' · ' + moi() : '');
     var p = $('pastilleSync'), etat, texte;
     if (S.config.demo) { etat = 'demo'; texte = 'Démo'; }
     else if (!S.config.url) { etat = 'erreur'; texte = 'Non connecté'; }
@@ -608,19 +621,21 @@
     else if (S.ui.sync === 'erreur') { etat = 'erreur'; texte = 'Erreur synchro'; }
     else if (enAttente()) { etat = 'attente'; texte = enAttente() + ' en attente'; }
     else { etat = 'ok'; texte = S.data && S.data.syncedAt ? 'À jour ' + new Date(S.data.syncedAt).toTimeString().slice(0, 5) : 'À jour'; }
-    p.dataset.etat = etat; p.textContent = texte;
+    p.dataset.etat = etat; p.innerHTML = '<span>' + esc(texte) + '</span>' + (etat === 'demo' ? '' : icone('relancer'));
     p.setAttribute('aria-label', 'Synchronisation : ' + texte + (S.ui.erreur ? '. ' + S.ui.erreur : ''));
   }
   function afficherBarre() {
-    var n = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }).length;
-    var visible = S.ui.tab === 'tournee' && n > 0 && !S.ui.feuille;
+    var att = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }), n = att.length;
+    // inutile si le seul compte rendu en attente est celui de la carte ouverte (qui a son propre bouton)
+    var visible = S.ui.tab === 'jour' && n > 0 && !S.ui.feuille && !(n === 1 && S.ui.ouvert === att[0].uid);
     $('barreValider').hidden = !visible;
     document.body.classList.toggle('avec-barre', visible);
-    $('boutonValider').textContent = 'Enregistrer ' + n + ' compte' + (n > 1 ? 's' : '') + ' rendu' + (n > 1 ? 's' : '') + ' de visite';
+    $('boutonValider').textContent = n > 1 ? 'Enregistrer les ' + n + ' comptes rendus' : 'Enregistrer le compte rendu';
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
-      if (b.dataset.tab === S.ui.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      var actif = S.ui.tab === 'autour' ? 'jour' : S.ui.tab;
+      if (b.dataset.tab === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
 
@@ -633,7 +648,7 @@
     else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
     cacherInfobulle();
     cartesAFaire = [];
-    $('vue').innerHTML = (VUES[tab] || VUES.tournee)();
+    $('vue').innerHTML = (VUES[tab] || VUES.jour)();
     dessinerCartes();
     rendreFeuille();
     rendreLancement();
@@ -722,53 +737,58 @@
     return q ? { lat: q.lat, lon: q.lon } : null;
   }
 
-  // ------------------------------------------------------------------ Vue : tournée
-  VUES.tournee = function () {
-    var h = '<h2 class="titre-vue">Tournée</h2><p class="sous-titre">Votre programme de visites : tirage automatique, ajustements, comptes rendus et envoi.</p>';
-    if (S.ui.voirParams || !S.plan.length) h += rendreParams();
-    else h += rendreResume();
-    if (!S.plan.length) {
-      return h + '<div class="vide"><strong>Aucune tournée pour le moment</strong>Choisissez la période et les communes, puis lancez le tirage.</div>';
-    }
-    var dates = Array.from(new Set(S.plan.map(function (a) { return a.date; }))).sort();
+  // ------------------------------------------------------------------ Vues du parcours : Aujourd'hui (terrain) et Ma semaine (préparation)
+  function datesPlan() { return Array.from(new Set(S.plan.map(function (a) { return a.date; }))).sort(); }
+  function choisirJour(dates) {
     if (!S.ui.jour || dates.indexOf(S.ui.jour) < 0) {
       var t = aujourdhui();
       S.ui.jour = dates.indexOf(t) >= 0 ? t : (dates.filter(function (d) { return d >= t; })[0] || dates[0]);
     }
-    h += rendreProgramme();
-    h += '<div class="jours" role="group" aria-label="Jour">' + dates.map(function (d) {
+  }
+  function barreJours(dates) {
+    return '<div class="jours" role="group" aria-label="Jour">' + dates.map(function (d) {
       var n = S.plan.filter(function (a) { return a.date === d; });
       var faits = n.filter(function (a) { return a.etat === 'valide'; }).length;
       return '<button type="button" class="jour' + (d === aujourdhui() ? ' aujourdhui' : '') + '" data-a="jour" data-v="' + d +
         '" aria-pressed="' + (d === S.ui.jour) + '"><b>' + JOURS_COURTS[jourSemaineIndex(d)].replace('.', '') + ' ' + (+d.slice(8)) +
         '</b><small>' + (faits ? faits + '/' : '') + n.length + ' visite' + (n.length > 1 ? 's' : '') + '</small></button>';
     }).join('') + '</div>';
+  }
+  function libelleJour(d) { return d === aujourdhui() ? 'Aujourd\'hui' : majuscule(dateLongue(d)); }
 
+  // Aujourd'hui : les visites du jour, dans l'ordre, avec contact, itinéraire et compte rendu
+  VUES.jour = function () {
+    var h = '<div class="tete-vue"><h2 class="titre-vue">Aujourd\'hui</h2>' +
+      '<button class="bouton petit" type="button" data-a="ouvrirAutour">' + icone('cible') + 'Autour de moi</button></div>' +
+      '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>';
+    if (!S.plan.length) {
+      return h + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Ma semaine ».' +
+        '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Préparer ma semaine</button></div>';
+    }
+    var dates = datesPlan(); choisirJour(dates);
+    if (S.programme.etat !== 'valide') {
+      h += '<div class="bandeau"><p><b>Tournée en brouillon.</b> Confirmez-la dans « Ma semaine » pour la partager avec l\'équipe. ' +
+        '<button type="button" class="bouton-texte" data-a="nav" data-tab="semaine">Confirmer</button></p></div>';
+    }
+    if (dates.length > 1) h += barreJours(dates);
     var duJour = S.plan.filter(function (a) { return a.date === S.ui.jour; });
-    var totalKm = duJour.reduce(function (s, a) { return s + (a.dist || 0); }, 0);
-    var n3 = duJour.filter(function (a) { return +a.note === 3; }).length;
+    var faits = duJour.filter(function (a) { return a.etat === 'valide'; }).length;
     var com = Array.from(new Set(duJour.map(function (a) { return a.commune; })));
-    h += '<p class="bilan-jour"><b>' + majuscule(dateLongue(S.ui.jour)) + '</b> : ' + duJour.length + ' visite' +
-      (duJour.length > 1 ? 's' : '') + ', environ ' + km(totalKm) + ' de trajet' + (n3 ? ', dont ' + n3 + ' ★★★' : '') +
-      '. ' + esc(com.join(', ')) + '.</p>';
+    h += '<p class="bilan-jour"><b>' + libelleJour(S.ui.jour) + '</b> : ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
+      ', ' + faits + ' compte' + (faits > 1 ? 's' : '') + ' rendu' + (faits > 1 ? 's' : '') + ' enregistré' + (faits > 1 ? 's' : '') + '. ' + esc(com.join(', ')) + '.</p>';
     var est = estimationJour(duJour);
     if (est) {
       h += '<div class="estimation" aria-label="Estimation de la journée">' +
-        '<div><b>' + minutesVersHeure(est.debut) + '</b><span>premier RDV</span></div>' +
+        '<div><b>' + minutesVersHeure(est.debut) + '</b><span>première visite</span></div>' +
         '<div><b>' + minutesVersHeure(est.fin) + '</b><span>fin estimée</span></div>' +
         '<div><b>' + duree(est.fin - est.debut) + '</b><span>dont ' + duree(est.trajet) + ' de route</span></div></div>';
       var liens = lienItineraire(duJour);
       if (liens.length) {
         h += '<div class="rangee" style="margin-bottom:12px">' + liens.map(function (u, i) {
           return '<a class="bouton petit" href="' + esc(u) + '" target="_blank" rel="noopener">' + icone('route') +
-            (liens.length > 1 ? 'Itinéraire, partie ' + (i + 1) : 'Itinéraire du jour dans l\'ordre optimal') + '</a>';
+            (liens.length > 1 ? 'Itinéraire, partie ' + (i + 1) : 'Itinéraire de la journée') + '</a>';
         }).join('') + '</div>';
       }
-    }
-    {
-      h += '<div class="rangee rangee-tirage"><button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Nouveau tirage</button>' +
-        (S.params.mode === 'semaine' && dates.length > 1 ? '<button class="bouton" type="button" data-a="tirage" data-v="semaine">' + icone('relancer') + 'Semaine entière</button>' : '') +
-        '</div><p class="discret aide">Épinglez les médecins à conserver : le nouveau tirage du jour (ou de la semaine) remplace les autres.</p>';
     }
     ['Matin', 'Soir'].forEach(function (cren) {
       var liste = duJour.filter(function (a) { return a.creneau === cren; });
@@ -783,33 +803,74 @@
       });
       h += '</ol>';
     });
+    h += '<p class="discret aide" style="text-align:center">Pour changer les médecins de ce jour : <button type="button" class="bouton-texte" data-a="nav" data-tab="semaine">Ma semaine</button></p>';
+    return h;
+  };
+
+  // Ma semaine : réglages, proposition, ajustements, confirmation et partage, communes visitées
+  VUES.semaine = function () {
+    var h = '<h2 class="titre-vue">Ma semaine</h2><p class="sous-titre">Préparez votre tournée, ajustez-la, puis confirmez-la pour l\'équipe.</p>';
+    if (S.ui.voirParams || !S.plan.length) h += rendreParams();
+    else h += rendreResume();
+    if (!S.plan.length) return h;
+    var dates = datesPlan(); choisirJour(dates);
+    h += rendreProgramme();
+    h += barreJours(dates);
+    var duJour = S.plan.filter(function (a) { return a.date === S.ui.jour; });
+    var n3 = duJour.filter(function (a) { return +a.note === 3; }).length;
+    var totalKm = duJour.reduce(function (s, a) { return s + (a.dist || 0); }, 0);
+    h += '<p class="bilan-jour"><b>' + majuscule(dateLongue(S.ui.jour)) + '</b> : ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
+      ', environ ' + km(totalKm) + ' de trajet' + (n3 ? ', dont ' + n3 + ' ★★★' : '') + '.</p>';
+    h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
+    h += '<div class="rangee rangee-tirage"><button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Recalculer ce jour</button>' +
+      (S.params.mode === 'semaine' && dates.length > 1 ? '<button class="bouton" type="button" data-a="tirage" data-v="semaine">' + icone('relancer') + 'Recalculer la semaine</button>' : '') +
+      '</div><p class="discret aide">Les médecins gardés, les RDV et les visites déjà faites sont conservés ; les autres sont remplacés.</p>';
     h += rendreCouverture(dates);
     return h;
   };
 
+  // Ligne compacte de la tournée (Ma semaine) : garder, retirer, ouvrir la visite
+  function rendreLignePlan(a) {
+    var verrou = a.etat === 'valide', e = '';
+    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV (prochaine étape)' : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
+    if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(a.statut) + '</span>';
+    if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
+    if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici</span>';
+    e += etiquetteCollegues(a.code, a.date);
+    return '<li class="ligne-plan' + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
+      '<span class="lp-heure">' + esc(a.heure) + '</span>' +
+      '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '"><b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
+        '<span class="discret bloc-texte">' + esc(a.specialite) + ', ' + esc(a.quartier) + '</span>' + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
+      (verrou ? '<span class="lp-fait" title="Compte rendu enregistré">' + icone('valider') + '</span>' :
+        '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
+          (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
+        '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
+      '</li>';
+  }
+
   function rendreResume() {
     var p = S.params, dates = datesAffichees();
-    var com = p.mode === 'semaine' && p.parJour ? 'Secteurs différents selon les jours' : libelleCommunes(p.communes);
+    var com = p.mode === 'semaine' && p.parJour ? 'Communes différentes selon le jour' : libelleCommunes(p.communes);
     return '<section class="bloc resume-params"><p><b>' +
       (p.mode === 'jour' ? 'Journée du ' + dateCourte(p.dateRef) : 'Semaine du ' + dateCourte(dates[0])) +
       '</b><span class="discret">' + esc(com) + ', ' + p.maxJour + ' visites par jour' + (libelleCibles() ? ', ' + esc(libelleCibles()) : '') +
-      (S.imposes.length ? ', ' + S.imposes.length + ' à voir absolument' : '') + '</span></p>' +
-      '<button class="bouton" data-a="voirParams" type="button">Modifier</button></section>';
+      (S.imposes.length ? ', ' + S.imposes.length + ' RDV ou prioritaire' + (S.imposes.length > 1 ? 's' : '') : '') + '</span></p>' +
+      '<button class="bouton" data-a="voirParams" type="button">Réglages</button></section>';
   }
 
   function rendreParams() {
     var p = S.params;
-    var h = '<section class="bloc"><h3 style="margin-top:0">Préparer la tournée</h3>' +
+    var h = '<section class="bloc"><h3 style="margin-top:0">Réglages de la tournée</h3>' +
       '<div class="segment" role="group" aria-label="Durée">' +
         '<button type="button" data-a="param" data-k="mode" data-v="jour" aria-pressed="' + (p.mode === 'jour') + '">Une journée</button>' +
         '<button type="button" data-a="param" data-k="mode" data-v="semaine" aria-pressed="' + (p.mode === 'semaine') + '">Une semaine</button>' +
       '</div>' +
       '<label class="champ"><span>' + (p.mode === 'jour' ? 'Date' : 'Semaine du') + '</span>' +
         '<input type="date" data-f="param" data-k="dateRef" value="' + esc(p.dateRef) + '"></label>' + bandeauFeries(datesAffichees()) +
-      '<div class="champ"><span>Communes ciblées</span>' +
+      '<div class="champ"><span>Communes</span>' +
         '<button type="button" class="selecteur" data-a="choisirCommunes" data-v="tout">' + esc(libelleCommunes(p.communes)) + '<b>▾</b></button></div>';
     if (p.mode === 'semaine') {
-      h += '<label class="interrupteur"><span>Secteurs différents selon les jours</span>' +
+      h += '<label class="interrupteur"><span>Communes différentes selon le jour</span>' +
         '<input type="checkbox" data-f="param" data-k="parJour"' + (p.parJour ? ' checked' : '') + '></label>';
       if (p.parJour) {
         h += '<div class="secteurs">' + JOURS.map(function (j, i) {
@@ -819,26 +880,23 @@
         }).join('') + '</div>';
       }
     }
-    h += '<div class="sous-bloc"><b>Praticiens ciblés</b>' +
-      '<div class="segment compact" role="group" aria-label="Pharmacies">' +
-      [['tous', 'Avec pharmacies'], ['medecins', 'Sans pharmacies'], ['pharmacies', 'Pharmacies seules']].map(function (x) {
-        return '<button type="button" data-a="param" data-k="typeCibles" data-v="' + x[0] + '" aria-pressed="' + ((p.typeCibles || 'tous') === x[0]) + '">' + x[1] + '</button>';
-      }).join('') + '</div>' +
-      (p.typeCibles !== 'pharmacies' ? '<div class="champ"><span>Spécialités ciblées</span><button type="button" class="selecteur" data-a="choisirSpecialites">' +
+    h += '<div class="sous-bloc"><b>Praticiens à visiter</b>' +
+      segment('Type de praticien', 'param" data-k="typeCibles', [['tous', 'Tout'], ['medecins', 'Médecins'], ['pharmacies', 'Pharmacies']], p.typeCibles || 'tous', 'margin:8px 0 12px') +
+      (p.typeCibles !== 'pharmacies' ? '<div class="champ"><span>Spécialités (médecins)</span><button type="button" class="selecteur" data-a="choisirSpecialites">' +
         esc(libelleListe(p.specialites, 'Toutes les spécialités')) + '<b>▾</b></button></div>' : '') +
       '<div class="champ"><span>Potentiel de prescription</span><div class="puces">' + ['A', 'B', 'C'].map(function (l) {
         return '<button type="button" class="puce" data-a="paramPotentiel" data-v="' + l + '" aria-pressed="' + (p.potentiels.indexOf(l) >= 0) + '">' + ETOILES[l] + '<small>' + LIB_POTENTIEL[l] + '</small></button>';
-      }).join('') + '</div><span class="aide-champ">Aucun choix = tous les potentiels.</span></div></div>';
+      }).join('') + '</div><span class="aide-champ">Aucun choix : tous les potentiels.</span></div></div>';
     h += '<div class="grille-2">' +
         '<label class="champ"><span>Visites par jour</span><input type="number" min="1" max="20" inputmode="numeric" data-f="param" data-k="maxJour" value="' + p.maxJour + '"></label>' +
-        '<label class="champ"><span>Délai mini (jours)</span><input type="number" min="0" max="365" inputmode="numeric" data-f="param" data-k="delai" value="' + p.delai + '"></label>' +
+        '<label class="champ"><span>Ne pas revoir avant (jours)</span><input type="number" min="0" max="365" inputmode="numeric" data-f="param" data-k="delai" value="' + p.delai + '"></label>' +
       '</div>' +
-      (S.config.demo ? '' : '<label class="interrupteur"><span>Écarter les médecins déjà ciblés par un collègue</span>' +
+      (S.config.demo ? '' : '<label class="interrupteur"><span>Éviter les médecins déjà prévus par un collègue</span>' +
         '<input type="checkbox" data-f="param" data-k="eviterCollegues"' + (p.eviterCollegues !== false ? ' checked' : '') + '></label>');
-    h += '<div class="imposes"><div class="imposes-tete"><b>À voir absolument</b>' +
+    h += '<div class="imposes"><div class="imposes-tete"><b>RDV et médecins prioritaires</b>' +
       '<button type="button" class="bouton petit" data-a="ouvrirRecherche">' + icone('plus') + 'Ajouter</button></div>';
     if (!S.imposes.length) {
-      h += '<p class="discret" style="margin:6px 0 0">RDV ou médecins incontournables : la tournée est construite autour d\'eux.</p>';
+      h += '<p class="discret" style="margin:6px 0 0">Ils sont placés d\'office dans la tournée, qui se construit autour d\'eux.</p>';
     } else {
       h += '<ul class="liste-imposes">' + S.imposes.map(function (im, i) {
         var pr = praticien(im.code);
@@ -849,8 +907,9 @@
           '<button type="button" class="bouton-icone sombre" data-a="retirerImpose" data-i="' + i + '" aria-label="Retirer">' + icone('fermer') + '</button></li>';
       }).join('') + '</ul>';
     }
-    h += '</div><button class="bouton bouton-plein bouton-large" data-a="generer" type="button">' + icone('relancer') + 'Lancer le tirage</button>' +
-      (S.plan.length ? '<p class="discret" style="margin:10px 0 0">Les visites déjà faites et les médecins épinglés sont conservés.</p>' : '') +
+    h += '</div><button class="bouton bouton-plein bouton-large" data-a="generer" type="button">' + icone('relancer') + (S.plan.length ? 'Proposer une nouvelle tournée' : 'Proposer ma tournée') + '</button>' +
+      (S.plan.length ? '<p class="discret" style="margin:10px 0 0">Les visites déjà faites, les médecins gardés et les RDV sont conservés.</p>' +
+        '<button class="bouton-texte" type="button" data-a="fermerParams" style="margin-top:6px">Fermer les réglages</button>' : '') +
       '</section>';
     return h;
   }
@@ -858,17 +917,18 @@
   function rendreProgramme() {
     var dates = datesAffichees();
     if (S.programme.etat === 'valide') {
-      return '<section class="bandeau-prog valide"><div><b>Programme validé</b><span>' +
-        (S.programme.valideLe ? 'le ' + esc(S.programme.valideLe) : '') + (S.programme.modifieLe ? ', modifié le ' + esc(S.programme.modifieLe) : '') +
-        ', visible par l\'équipe. Il reste modifiable : chaque changement est publié.</span></div>' +
-        '<div class="rangee"><button class="bouton bouton-plein" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer</button></div></section>';
+      return '<section class="bandeau-prog valide"><div><b>Tournée confirmée</b><span>' +
+        (S.programme.valideLe ? 'Le ' + esc(S.programme.valideLe) : '') + (S.programme.modifieLe ? ', modifiée le ' + esc(S.programme.modifieLe) : '') +
+        '. Visible par l\'équipe ; vos changements sont publiés automatiquement.</span></div>' +
+        '<div class="rangee"><button class="bouton bouton-plein wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer sur WhatsApp</button></div></section>';
     }
-    return '<section class="bandeau-prog"><div><b>Proposition</b><span>' +
+    return '<section class="bandeau-prog"><div><b>Brouillon</b><span>' +
       (S.params.mode === 'semaine' ? 'Semaine du ' + dateCourte(dates[0]) : 'Journée du ' + dateCourte(dates[0])) +
-      '. Ajustez, puis validez le programme.</span></div>' +
-      '<div class="rangee"><button class="bouton bouton-plein" type="button" data-a="validerProgramme">' + icone('valider') + 'Valider le programme</button></div></section>';
+      ' : gardez ou retirez des médecins, puis confirmez. L\'équipe verra votre tournée.</span></div>' +
+      '<div class="rangee"><button class="bouton bouton-plein" type="button" data-a="validerProgramme">' + icone('valider') + 'Confirmer la tournée</button></div></section>';
   }
 
+  // Carte d'une visite (Aujourd'hui) : contact d'abord, puis compte rendu en deux temps
   function rendreArret(a) {
     var ouvert = S.ui.ouvert === a.uid, verrou = a.etat === 'valide';
     var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') +
@@ -877,11 +937,11 @@
     e += badgeConv(a.conventionne);
     var pv = praticien(a.code) || {}, der = pv.derniere && (!a.derniere || pv.derniere > a.derniere) ? pv.derniere : a.derniere;
     e += '<span class="etiquette">' + esc(vuDepuis(der, a.etat !== 'valide' && a.date > aujourdhui() ? a.date : aujourdhui())) + '</span>';
-    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV : prochaine étape' : 'À voir absolument') + (a.rdv ? ', RDV ' + esc(a.rdv) : '') + '</span>';
+    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV (prochaine étape)' : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(a.statut) + (verrou ? ', enregistré' : '') + '</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
-    if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">Prochaine étape prévue le ' + dateCourte(a.prochaine) + '</span>';
+    if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">RDV prévu le ' + dateCourte(a.prochaine) + '</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';
     e += etiquetteCollegues(a.code, a.date);
 
@@ -889,52 +949,64 @@
       '<div class="arret-heure"><b>' + esc(a.heure) + '</b><small>' + esc(a.debut) + '-' + esc(a.fin) + '</small></div>' +
       '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
       '<div><div class="arret-carte">' +
-        (!verrou ? '<button type="button" class="epingle" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde +
-          '" aria-label="' + (a.garde ? 'Ne plus conserver' : 'Conserver au prochain tirage') + '">' + icone('epingle') + '</button>' : '') +
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
           '<span class="arret-nom">' + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
           '<span class="arret-lieu">' + esc(a.specialite) + ', ' + esc(a.lieu) + '</span>' +
           '<span class="arret-lieu">' + esc(a.quartier) + ', ' + esc(a.commune) + '</span>' +
           '<span class="etiquettes">' + e + '</span>' +
+          (!ouvert && !verrou ? '<span class="arret-invite">' + (a.statut ? 'Compte rendu à enregistrer' : 'Toucher pour le compte rendu') + '</span>' : '') +
         '</button>';
     if (ouvert) {
-      h += '<div class="arret-detail">';
+      var pa = praticien(a.code) || {};
+      h += '<div class="arret-detail">' +
+        actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune });
       if (!verrou) {
-        h += '<div class="statuts" role="group" aria-label="Résultat de la visite">' + statuts().map(function (s) {
+        var ok = statuts().filter(function (s) { return s.visite; }), ko = statuts().filter(function (s) { return !s.visite; });
+        var bouton = function (s) {
           return '<button type="button" class="statut' + (s.visite ? '' : ' ko') + '" data-a="statut" data-uid="' + a.uid +
             '" data-v="' + esc(s.nom) + '" aria-pressed="' + (a.statut === s.nom) + '">' + esc(s.nom) + '</button>';
-        }).join('') + '</div>' +
-        '<div class="champ"><span>Type de visite</span><div class="puces">' + activites().map(function (x) {
-          return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-        }).join('') + '</div></div>' +
-        '<div class="champ"><span>Produits présentés</span><div class="puces">' + produitsRef().map(function (x) {
-          return '<button type="button" class="puce" data-a="produit" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeProduits(a.produits).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-        }).join('') + '</div><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
-          '" value="' + esc(autresProduits(a.produits).join(', ')) + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() + '</div>' +
-        '<label class="champ"><span>Commentaire</span><textarea data-f="commentaire" data-uid="' + a.uid +
-          '" placeholder="Échantillons remis, objections, besoins…">' + esc(a.commentaire) + '</textarea></label>' +
-        '<div class="champ"><span>Prochaine étape le</span><div class="rangee-prochaine">' +
-          [7, 14, 30].map(function (n) {
-            var d = ajouterJours(a.date, n);
-            return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
-          }).join('') +
-          '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date de la prochaine étape"></div>' +
-          '<span class="aide-champ">Le praticien remonte en priorité dans les tournées à cette date.</span></div>' +
-        '<div class="actions-cr">' + (a.statut ?
-          '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + (a.corrige ? 'Enregistrer la modification' : 'Valider ce compte rendu') + '</button>' :
-          '<button class="bouton bouton-large" type="button" disabled>' + icone('valider') + 'Valider ce compte rendu</button><span class="aide-champ">Choisissez d\'abord le résultat de la visite (présent, absent…).</span>') + '</div>';
+        };
+        h += '<div class="etape-cr"><span class="etape-titre">Comment s\'est passée la visite ?</span>' +
+          '<span class="groupe-statuts">Visite faite</span><div class="statuts" role="group" aria-label="Visite faite">' + ok.map(bouton).join('') + '</div>' +
+          '<span class="groupe-statuts">Visite non faite</span><div class="statuts" role="group" aria-label="Visite non faite">' + ko.map(bouton).join('') + '</div></div>';
+        if (!a.statut) {
+          h += '<p class="aide-champ" style="text-align:center;margin:4px 0 12px">Choisissez le résultat pour compléter le compte rendu.</p>';
+        } else {
+          var faite = !estKo(a.statut);
+          if (faite) {
+            h += '<div class="champ"><span>Activité</span><div class="puces">' + activites().map(function (x) {
+              return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+            }).join('') + '</div></div>' +
+            '<div class="champ"><span>Produits présentés</span><div class="puces">' + produitsRef().map(function (x) {
+              return '<button type="button" class="puce" data-a="produit" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeProduits(a.produits).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+            }).join('') + '</div><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
+              '" value="' + esc(autresProduits(a.produits).join(', ')) + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() + '</div>';
+          } else {
+            h += '<div class="bandeau"><p>Visite non faite. ' +
+              '<button type="button" class="bouton-texte" data-a="rattraper" data-uid="' + a.uid + '">Trouver un remplaçant à proximité</button></p></div>';
+          }
+          h += '<label class="champ"><span>Commentaire</span><textarea data-f="commentaire" data-uid="' + a.uid +
+              '" placeholder="' + (faite ? 'Échantillons remis, objections, besoins…' : 'Motif, consigne laissée…') + '">' + esc(a.commentaire) + '</textarea></label>' +
+            '<div class="champ"><span>Prochain RDV</span><div class="rangee-prochaine">' +
+              [7, 14, 30].map(function (n) {
+                var d = ajouterJours(a.date, n);
+                return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
+              }).join('') +
+              '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date du prochain RDV"></div>' +
+              '<span class="aide-champ">Le praticien sera placé d\'office ce jour-là dans votre tournée.</span></div>' +
+            '<div class="actions-cr"><button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') +
+              (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button></div>';
+        }
+        h += '<button class="bouton-texte" type="button" data-a="retirer" data-uid="' + a.uid + '">Retirer de la tournée</button>';
       } else {
-        if (a.activite) h += '<p class="discret" style="margin-top:0">Type : ' + esc(listeActivites(a.activite).join(', ')) + '</p>';
-        if (a.produits) h += '<p class="discret" style="margin-top:0">Produits : ' + esc(a.produits) + '</p>';
-        if (a.commentaire) h += '<p class="discret" style="margin-top:0">' + esc(a.commentaire) + '</p>';
-        if (a.prochaine) h += '<p class="discret" style="margin-top:0">Prochaine étape le ' + dateCourte(a.prochaine) + '</p>';
-        h += '<button class="bouton bouton-large" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:10px">' + icone('crayon') + 'Modifier le compte rendu</button>';
+        h += '<div class="resume-cr">';
+        if (a.activite) h += '<p class="discret">Activité : ' + esc(listeActivites(a.activite).join(', ')) + '</p>';
+        if (a.produits) h += '<p class="discret">Produits : ' + esc(a.produits) + '</p>';
+        if (a.commentaire) h += '<p class="discret">' + esc(a.commentaire) + '</p>';
+        if (a.prochaine) h += '<p class="discret">Prochain RDV le ' + dateCourte(a.prochaine) + '</p>';
+        h += '</div><button class="bouton bouton-large" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:6px">' + icone('crayon') + 'Modifier le compte rendu</button>';
       }
-      var pa = praticien(a.code) || {};
-      h += actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune }) +
-        (verrou ? '' : '<div class="actions-arret"><button class="bouton" type="button" data-a="rattraper" data-uid="' + a.uid + '">Absent : remplacer</button></div>') +
-        (verrou ? '' : '<button class="bouton-texte" type="button" data-a="retirer" data-uid="' + a.uid + '">Retirer de la tournée</button>') +
-        '</div>';
+      h += '</div>';
     }
     return h + '</div></div></li>';
   }
@@ -948,18 +1020,18 @@
     var couv = cv.filter(function (c) { return c.moi > 0; }), non = cv.filter(function (c) { return c.moi === 0; });
     var ouverte = S.ui.couvOuverte;
     var h = '<section class="bloc couverture"><div class="couv-tete"><button type="button" class="groupe-bascule" data-a="couvOuvrir" aria-expanded="' + ouverte + '">' +
-      '<b>Couverture</b><small>' + couv.length + '/' + cv.length + ' communes</small>' + icone('chevron') + '</button>' +
+      '<b>Communes visitées</b><small>' + couv.length + '/' + cv.length + '</small>' + icone('chevron') + '</button>' +
       '<div class="segment petit" role="group" aria-label="Période">' +
         '<button type="button" data-a="couvPortee" data-v="jour" aria-pressed="' + (portee === 'jour') + '">Jour</button>' +
         '<button type="button" data-a="couvPortee" data-v="semaine" aria-pressed="' + (portee === 'semaine') + '">Semaine</button></div></div>' +
       '<p class="discret" style="margin:0 0 8px">' + (portee === 'jour' ? majuscule(dateLongue(S.ui.jour)) : 'Semaine du ' + dateCourte(dates[0])) +
-      ' : ' + couv.length + ' commune' + (couv.length > 1 ? 's' : '') + ' couverte' + (couv.length > 1 ? 's' : '') + ' sur ' + cv.length + '.</p>';
+      ' : ' + couv.length + ' commune' + (couv.length > 1 ? 's' : '') + ' visitée' + (couv.length > 1 ? 's' : '') + ' sur ' + cv.length + '.</p>';
     if (!ouverte) return h + '<button type="button" class="bouton petit bouton-large" data-a="couvOuvrir">Voir la carte et les communes</button></section>';
     h += '<div class="carte-l" id="carteCouv">' + carteCouverture(dates, mes, eq) + '</div>' +
-      '<div class="legende"><span><i class="q-moi"></i>Mes visites' + (portee === 'jour' ? ' (dans l\'ordre)' : '') + '</span><span><i class="q-equipe"></i>Équipe</span><span><i class="q-vide"></i>Commune non couverte</span></div>';
+      '<div class="legende"><span><i class="q-moi"></i>Mes visites' + (portee === 'jour' ? ' (dans l\'ordre)' : '') + '</span><span><i class="q-equipe"></i>Équipe</span><span><i class="q-vide"></i>Commune non visitée</span></div>';
     cartesAFaire.push({ id: 'carteCouv', route: portee === 'jour' ? mes : [], points: portee === 'jour' ? [] : mes, equipe: eq,
       nonCouvertes: non.map(function (c) { return c.commune; }) });
-    h += segment('Filtre', 'couvFiltre', [['toutes', 'Toutes'], ['couvertes', 'Couvertes · ' + couv.length], ['non', 'Non couvertes · ' + non.length]], S.ui.couvFiltre);
+    h += segment('Filtre', 'couvFiltre', [['toutes', 'Toutes'], ['couvertes', 'Visitées · ' + couv.length], ['non', 'Non visitées · ' + non.length]], S.ui.couvFiltre);
     var liste = S.ui.couvFiltre === 'couvertes' ? couv : (S.ui.couvFiltre === 'non' ? non : cv);
     var zone = '';
     h += '<ul class="liste-couv">' + liste.map(function (c) {
@@ -968,7 +1040,7 @@
       var eqNoms = Object.keys(c.equipe);
       return t + '<li class="couv-ligne ' + (c.moi ? 'oui' : (eqNoms.length ? 'equipe' : 'non')) + '"><span class="pastille"></span>' +
         '<div><b>' + esc(c.commune) + '</b><span class="discret bloc-texte">' +
-        (c.moi ? c.moi + ' visite' + (c.moi > 1 ? 's' : '') + ' prévue' + (c.moi > 1 ? 's' : '') : 'Non couverte') +
+        (c.moi ? c.moi + ' visite' + (c.moi > 1 ? 's' : '') + ' prévue' + (c.moi > 1 ? 's' : '') : 'Non visitée') +
         (eqNoms.length ? ' ; équipe : ' + eqNoms.map(function (n) { return esc(n) + ' (' + c.equipe[n] + ')'; }).join(', ') : '') +
         '</span></div><span class="couv-dispo">' + c.dispo + ' dispo.' + (c.prioritaires ? '<small>' + c.prioritaires + ' ★★★ en retard</small>' : '') + '</span></li>';
     }).join('') + '</ul></section>';
@@ -1039,7 +1111,7 @@
     quartiers().forEach(function (q) { var x = centres[q.commune] = centres[q.commune] || { lat: 0, lon: 0, n: 0 }; x.lat += +q.lat; x.lon += +q.lon; x.n++; });
     (c.nonCouvertes || []).forEach(function (k) {
       var x = centres[k]; if (!x) return;
-      L.circle([x.lat / x.n, x.lon / x.n], { radius: 900, color: gris, weight: 1, dashArray: '4 4', fillOpacity: 0.06 }).addTo(carte).bindTooltip(k + ' : non couverte');
+      L.circle([x.lat / x.n, x.lon / x.n], { radius: 900, color: gris, weight: 1, dashArray: '4 4', fillOpacity: 0.06 }).addTo(carte).bindTooltip(k + ' : non visitée');
     });
     (c.equipe || []).forEach(function (a) {
       var p = coordArret(a); if (!p) return;
@@ -1080,8 +1152,9 @@
 
   // ------------------------------------------------------------------ Vue : autour de moi
   VUES.autour = function () {
-    var A = S.ui.autour, h = '<h2 class="titre-vue">Autour de moi</h2>';
-    h += '<p class="sous-titre">Qui est présent près de vous maintenant ou à un autre moment, pour une visite imprévue.</p>';
+    var A = S.ui.autour, h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Aujourd\'hui</button>' +
+      '<h2 class="titre-vue">Autour de moi</h2>' +
+      '<p class="sous-titre">Médecin absent, trou dans la journée : trouvez qui est présent près de vous.</p>';
     if (A.ref) {
       h += '<div class="bandeau"><p>Remplacement de <b>' + esc(A.ref.nom) + '</b> (' + esc(A.ref.heure) + ', ' + esc(A.ref.quartier) +
         '), marqué « Absent ». <button type="button" class="bouton-texte" data-a="finRef">Terminer</button></p></div>';
@@ -1089,19 +1162,17 @@
     var parCommune = {};
     quartiers().forEach(function (q) { (parCommune[q.commune] = parCommune[q.commune] || []).push(q.quartier); });
     h += '<section class="bloc">' +
+      '<div class="segment" role="group" aria-label="Moment">' +
+        '<button type="button" data-a="autourMoment" data-v="maintenant" aria-pressed="' + (A.moment === 'maintenant') + '">Maintenant</button>' +
+        '<button type="button" data-a="autourMoment" data-v="choisir" aria-pressed="' + (A.moment === 'choisir') + '">Autre moment</button></div>' +
+      (A.moment === 'choisir' ? '<div class="grille-2"><label class="champ"><span>Date</span><input type="date" data-f="autour" data-k="date" value="' + esc(A.date || prochainJourOuvre(aujourdhui())) + '"></label>' +
+        '<label class="champ"><span>Heure (vide : toute la journée)</span><input type="time" data-f="autour" data-k="heure" value="' + esc(A.heure) + '"></label></div>' : '') +
       '<button class="bouton bouton-large" type="button" data-a="localiser" style="margin-bottom:10px">' + icone('cible') + 'Utiliser ma position</button>' +
       '<label class="champ"><span>Ou choisir un quartier</span><select data-f="autourQuartier">' +
         '<option value="">' + (A.label ? esc(A.label) : 'Choisir un quartier') + '</option>' +
         Object.keys(parCommune).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).map(function (c) {
           return '<optgroup label="' + esc(c) + '">' + parCommune[c].map(function (q) { return '<option>' + esc(q) + '</option>'; }).join('') + '</optgroup>';
-        }).join('') + '</select></label>' +
-      '<div class="segment" role="group" aria-label="Moment">' +
-        '<button type="button" data-a="autourMoment" data-v="maintenant" aria-pressed="' + (A.moment === 'maintenant') + '">Maintenant</button>' +
-        '<button type="button" data-a="autourMoment" data-v="choisir" aria-pressed="' + (A.moment === 'choisir') + '">Autre moment</button></div>';
-    if (A.moment === 'choisir') {
-      h += '<div class="grille-2"><label class="champ"><span>Date</span><input type="date" data-f="autour" data-k="date" value="' + esc(A.date || prochainJourOuvre(aujourdhui())) + '"></label>' +
-        '<label class="champ"><span>Heure (vide = journée)</span><input type="time" data-f="autour" data-k="heure" value="' + esc(A.heure) + '"></label></div>';
-    }
+        }).join('') + '</select></label>';
     h += '<div class="champ" style="margin:0"><span>Rayon</span>' + segment('Rayon', 'autourRayon', [2, 5, 10, 20].map(function (r) { return [String(r), r + ' km']; }), String(A.rayon), 'margin:0') + '</div></section>';
     h += barreFiltres(S.ui.filtresAutour, S.ui.rechercheAutour);
 
@@ -1158,7 +1229,7 @@
       '<div class="element-mesure">' + km(x.dist) + '<small>score ' + Math.round(x.score) + '</small></div></div>' +
       (deja ? '<p class="discret" style="margin:8px 0 0">Déjà dans votre tournée ce jour-là.</p>' :
         '<div class="rangee" style="margin-top:10px"><a class="bouton" href="' + lienCarte({ lat: c.coord && c.coord.lat, lon: c.coord && c.coord.lon }) + '" target="_blank" rel="noopener">' + icone('carte') + 'Y aller</a>' +
-        '<button class="bouton bouton-plein" type="button" data-a="ajouterAutour" data-i="' + i + '" data-d="' + date + '">Ajouter au ' + dateCourte(date) + '</button></div>') +
+        '<button class="bouton bouton-plein" type="button" data-a="ajouterAutour" data-i="' + i + '" data-d="' + date + '">' + icone('plus') + (date === aujourdhui() ? 'Ajouter aujourd\'hui' : 'Ajouter au ' + dateCourte(date)) + '</button></div>') +
       '</li>';
   }
 
@@ -1170,13 +1241,13 @@
     var arrets = arretsCollegues().filter(function (p) { return p.date >= depuis; });
     var noms = Array.from(new Set(arrets.map(function (p) { return p.delegue; }))).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
     h += '<p class="sous-titre">Les tournées de vos collègues, pour coordonner les visites et éviter les doublons. Mise à jour chaque minute.</p>';
-    if (!noms.length) return h + '<div class="vide"><strong>Aucune tournée publiée</strong>Les tournées apparaissent ici dès qu\'un collègue lance un tirage.</div>';
+    if (!noms.length) return h + '<div class="vide"><strong>Aucune tournée publiée</strong>Les tournées apparaissent ici dès qu\'un collègue prépare la sienne.</div>';
     h += '<ul class="liste resume-equipe">' + noms.map(function (n) {
       var l = arrets.filter(function (p) { return p.delegue === n; });
       var valide = l.some(function (p) { return p.programme === 'Validé'; });
       var com = Array.from(new Set(l.map(function (p) { return p.commune; })));
       return '<li><button type="button" data-a="collegue" data-v="' + esc(n) + '" aria-pressed="' + (n === S.ui.collegue) + '">' +
-        '<b>' + esc(n) + '</b><span class="etiquette ' + (valide ? 'ok' : '') + '">' + (valide ? 'Validé' : 'Proposition') + '</span>' +
+        '<b>' + esc(n) + '</b><span class="etiquette ' + (valide ? 'ok' : '') + '">' + (valide ? 'Tournée confirmée' : 'Brouillon') + '</span>' +
         '<span class="discret bloc-texte">' + l.length + ' visites, ' + esc(libelleCommunes(com)) + '</span></button></li>';
     }).join('') + '</ul>';
     if (noms.indexOf(S.ui.collegue) < 0) S.ui.collegue = noms[0];
@@ -1302,19 +1373,19 @@
     return h;
   }
 
-  VUES.contacts = function () {
+  VUES.praticiens = function () {
     var f = S.ui.filtres, t = aujourdhui(), c = ctx();
     var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
     // la fiche ouverte (par exemple juste créée) reste en tête de liste
     var io = liste.map(function (p) { return p.code; }).indexOf(S.ui.contactOuvert);
     if (io > 0) liste.unshift(liste.splice(io, 1)[0]);
-    var h = '<div class="tete-vue"><h2 class="titre-vue">Contacts</h2>' +
-      '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Praticien</button></div>' +
-      '<p class="sous-titre">Votre fichier de médecins et de pharmacies : recherche, filtres, fiches et contact direct.</p>' + barreFiltres(f, S.ui.recherche);
+    var h = '<div class="tete-vue"><h2 class="titre-vue">Praticiens</h2>' +
+      '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Nouveau</button></div>' +
+      '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>' + barreFiltres(f, S.ui.recherche);
     h += '<div class="tri"><span class="discret">' + liste.length + ' praticien' + (liste.length > 1 ? 's' : '') +
 '</span>' +
       '<label class="discret">Trier par <select data-f="tri">' +
-      [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Dernière visite'], ['nom', 'Nom']].map(function (x) {
+      [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite'], ['nom', 'Nom']].map(function (x) {
         return '<option value="' + x[0] + '"' + (S.ui.tri === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';
       }).join('') + '</select></label></div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères. Retirez un filtre.</div>';
@@ -1335,13 +1406,13 @@
                               lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
         if (p.telephone) h += '<p class="discret" style="margin:8px 0 0">Téléphone : ' + esc(p.telephone) + '</p>';
         if (p.commentaire) h += '<p class="discret" style="margin:8px 0 0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
-        if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochaine étape le ' + dateCourte(p.prochaine) + '</p>';
+        if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
         if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
         h += grillePresences(p.code);
         var impose = S.imposes.some(function (im) { return im.code === p.code; });
         h += '<div class="rangee" style="margin-top:10px">' +
-          (impose ? '<span class="etiquette p1">Dans « À voir absolument »</span>' :
-            '<button class="bouton bouton-plein" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">À voir absolument</button>') +
+          (impose ? '<span class="etiquette p1">Prioritaire dans ma tournée</span>' :
+            '<button class="bouton bouton-plein" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('plus') + 'Ajouter à ma tournée</button>') +
           '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + 'Modifier la fiche</button>' +
           '</div>';
       }
@@ -1429,11 +1500,11 @@
   function taux(a, b) { return b ? Math.round(100 * a / b) : null; }
   function txt(n) { return n === null || n === undefined ? 'n.d.' : n + ' %'; }
 
-  VUES.stats = function () {
+  VUES.bilan = function () {
     var vueH = S.ui.statsVue === 'historique';
-    var tete = '<h2 class="titre-vue">' + (vueH ? 'Historique' : 'Statistiques') + '</h2>' +
-      '<p class="sous-titre">' + (vueH ? 'Toutes les visites enregistrées, les vôtres ou celles de l\'équipe.' : 'Vos résultats : couverture, visites réalisées et activités par période.') + '</p>' +
-      segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique des visites']], vueH ? 'historique' : 'tableau');
+    var tete = '<h2 class="titre-vue">Bilan</h2>' +
+      '<p class="sous-titre">' + (vueH ? 'Toutes les visites enregistrées, les vôtres ou celles de l\'équipe.' : 'Vos résultats : visites réalisées, objectif, communes et activités.') + '</p>' +
+      segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique']], vueH ? 'historique' : 'tableau');
     if (vueH) return tete + VUES.historique(true);
     var st = S.ui.stats, r = calculerStats(), b = r.bornes;
     var h = tete;
@@ -1449,7 +1520,7 @@
     var couv = taux(r.faits.length, r.echus.length), pres = taux(r.effectives.length, r.visites.length), att = taux(r.effectives.length, r.objectif);
     var aVenir = r.plan.length - r.echus.length;
     h += '<div class="kpis">' +
-      kpi(txt(couv), 'Taux de couverture', r.faits.length + ' faites sur ' + r.echus.length + ' prévues' + (aVenir > 0 ? ', ' + aVenir + ' à venir' : ''), couv) +
+      kpi(txt(couv), 'Taux de réalisation', r.faits.length + ' faites sur ' + r.echus.length + ' prévues' + (aVenir > 0 ? ', ' + aVenir + ' à venir' : ''), couv) +
       kpi(String(r.effectives.length), 'Visites réalisées', r.visites.length + ' compte' + (r.visites.length > 1 ? 's' : '') + ' rendu' + (r.visites.length > 1 ? 's' : '') + ', présence ' + txt(pres)) +
       kpi(txt(att), 'Objectif atteint', r.effectives.length + ' / ' + r.objectif + ' visites (' + st.objectif + ' par semaine' + (r.equipe ? ' et par délégué' : '') + ')', att) +
       kpi(txt(taux(r.nAok, r.nA)), 'Praticiens ★★★ à jour', r.nAok + ' sur ' + r.nA + ' vus depuis moins de ' + REGLAGES_MOTEUR.cadence[3] + ' j', taux(r.nAok, r.nA)) +
@@ -1520,7 +1591,7 @@
 
     // Par délégué (équipe)
     if (r.equipe && r.delegues.length) {
-      h += '<section class="bloc"><h3>Par délégué</h3>' + tableDonnees(['Délégué', 'Planifiées', 'Réalisées', 'Couverture'], r.delegues.map(function (d) {
+      h += '<section class="bloc"><h3>Par délégué</h3>' + tableDonnees(['Délégué', 'Planifiées', 'Réalisées', 'Réalisation'], r.delegues.map(function (d) {
         var ech = r.echus.filter(function (a) { return a.delegue === d; }), ok = r.faits.filter(function (a) { return a.delegue === d; }).length;
         return [d, r.plan.filter(function (a) { return a.delegue === d; }).length, r.effectives.filter(function (v) { return v.delegue === d; }).length, txt(taux(ok, ech.length))];
       }), true) + '</section>';
@@ -1641,7 +1712,7 @@
       h += segment('Visites affichées', 'histFiltre', [['moi', 'Mes visites'], ['equipe', 'Toute l\'équipe']], S.ui.histFiltre === 'equipe' ? 'equipe' : 'moi');
     }
     var liste = S.ui.histFiltre === 'equipe' ? tout : hist;
-    if (!liste.length) return h + '<div class="vide"><strong>Aucune visite enregistrée</strong>Les comptes rendus enregistrés depuis la tournée apparaîtront ici.</div>';
+    if (!liste.length) return h + '<div class="vide"><strong>Aucune visite enregistrée</strong>Les comptes rendus enregistrés dans « Aujourd\'hui » apparaîtront ici.</div>';
     return h + '<ul class="liste">' + liste.slice(0, 150).map(function (v) {
       return '<li class="element"><div class="element-tete"><div>' +
         '<span class="element-titre">' + esc(v.nom) + '</span>' +
@@ -1649,7 +1720,7 @@
         (v.activite ? '<span class="bloc-texte discret" style="margin-top:4px">' + esc(v.activite) + '</span>' : '') +
         (v.produits ? '<span class="bloc-texte discret" style="margin-top:4px">Produits : ' + esc(v.produits) + '</span>' : '') +
         (v.commentaire ? '<span class="bloc-texte" style="margin-top:4px">' + esc(v.commentaire) + '</span>' : '') +
-        (v.prochaine ? '<span class="bloc-texte discret">Prochaine étape le ' + dateCourte(String(v.prochaine).slice(0, 10)) + '</span>' : '') +
+        (v.prochaine ? '<span class="bloc-texte discret">Prochain RDV le ' + dateCourte(String(v.prochaine).slice(0, 10)) + '</span>' : '') +
         '<span class="etiquettes"><span class="etiquette ' + (compte(v) ? 'ok' : 'ko') + '">' + esc(v.statut) + '</span>' +
         (v.attente ? '<span class="etiquette p1">En attente d\'envoi</span>' : '') +
         (v.delegue && !estMoi(v.delegue) ? '<span class="etiquette equipe">' + esc(v.delegue) + '</span>' : '') + '</span></div>' +
@@ -1660,38 +1731,26 @@
   // ------------------------------------------------------------------ Vue : réglages
   VUES.reglages = function () {
     var c = S.config;
-    var qOpts = '<option value="">Aucun (début au premier rendez-vous)</option>' + quartiers().map(function (q) {
+    var qOpts = '<option value="">Aucun (début à la première visite)</option>' + quartiers().map(function (q) {
       return '<option' + (q.quartier === c.depart ? ' selected' : '') + '>' + esc(q.quartier) + '</option>';
     }).join('');
-    var h = '<h2 class="titre-vue">Réglages</h2><p class="sous-titre">Votre profil, la connexion à la base partagée et l\'apparence de l\'application.</p>';
-    h += '<section class="bloc"><h3 style="margin-top:0">Moi</h3>' +
+    var h = '<h2 class="titre-vue">Réglages</h2><p class="sous-titre">Votre profil, l\'apparence, le partage et l\'installation de l\'application.</p>';
+    h += '<section class="bloc"><h3 style="margin-top:0">Mon profil</h3>' +
       champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)') +
       '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
       '<label class="interrupteur"><span>Toujours ouvrir WhatsApp Web</span><input type="checkbox" id="cfgWaWeb"' + (c.waWeb ? ' checked' : '') + '></label>' +
-      '<label class="champ"><span>Point de départ habituel</span><select id="cfgDepart">' + qOpts + '</select></label>' +
+      '<label class="champ"><span>Point de départ de mes tournées</span><select id="cfgDepart">' + qOpts + '</select></label>' +
       '<button class="bouton bouton-plein bouton-large" type="button" data-a="enregistrerMoi">Enregistrer</button></section>';
     var th = LS.get('theme', 'clair');
     h += '<section class="bloc"><h3>Apparence</h3><div class="segment" role="group" aria-label="Thème" style="margin:0">' +
       [['auto', 'Auto'], ['clair', 'Clair'], ['sombre', 'Sombre']].map(function (x) {
         return '<button type="button" data-a="theme" data-v="' + x[0] + '" aria-pressed="' + (th === x[0]) + '">' + x[1] + '</button>';
       }).join('') + '</div><p class="discret" style="margin:8px 0 0">Auto suit le réglage du téléphone.</p></section>';
-    h += '<section class="bloc"><h3 style="margin-top:0">Connexion au Google Sheet</h3>' +
-      '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
-      '<label class="champ"><span>Jeton d\'accès</span><input type="text" id="cfgToken" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(c.token) + '"></label>' +
-      '<div class="rangee"><button class="bouton" type="button" data-a="tester">Tester</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="enregistrerConnexion">Enregistrer</button></div>' +
-      (S.ui.erreur ? '<p class="discret" style="color:var(--rouge);margin-bottom:0">' + esc(S.ui.erreur) + '</p>' : '') + '</section>';
-    h += '<section class="bloc"><h3 style="margin-top:0">Données</h3><p class="discret" style="margin-top:0">' +
-      (S.config.demo ? 'Mode démonstration : les données restent sur ce téléphone.' :
-        (S.data && S.data.syncedAt ? 'Dernière synchronisation : ' + new Date(S.data.syncedAt).toLocaleString('fr-FR') + '.' : 'Pas encore synchronisé.')) +
-      (pret() ? ' ' + S.data.praticiens.length + ' praticiens, ' + S.data.presences.length + ' lieux de présence.' : '') +
-      (S.queue.length ? ' ' + S.queue.length + ' compte(s) rendu(s) en attente.' : '') +
-      (S.fiches.length ? ' ' + S.fiches.length + ' fiche(s) praticien en attente' + (S.ui.serveurAncien ? ' : le serveur Apps Script doit être mis à jour en version 2.0.0 pour les recevoir.' : '.') : '') + '</p>' +
-      (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' +
-        '<button class="bouton bouton-plein bouton-large" type="button" data-a="partager" style="margin-bottom:6px">Partager l\'application avec un collègue</button>' +
-        '<p class="discret" style="margin-top:0">Le lien donne accès à la base : envoyez-le uniquement à vos collègues.</p>' : '') +
-      '<button class="bouton bouton-large" type="button" data-a="demo" style="margin-bottom:10px">Charger les données de démonstration</button>' +
-      '<button class="bouton bouton-large bouton-danger" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button></section>';
+    if (connecte()) {
+      h += '<section class="bloc"><h3 style="margin-top:0">Partager avec un collègue</h3>' +
+        '<button class="bouton bouton-plein bouton-large" type="button" data-a="partager" style="margin-bottom:6px">Partager l\'application</button>' +
+        '<p class="discret" style="margin:0">Le lien donne accès à la base : envoyez-le uniquement à vos collègues.</p></section>';
+    }
     h += '<section class="bloc"><h3 style="margin-top:0">Installer sur le téléphone</h3>' +
       (S.ui.installEvt ? '<button class="bouton bouton-plein bouton-large" type="button" data-a="installer">Installer l\'application</button>' :
         '<p class="discret" style="margin:0">Android (Chrome) : menu ⋮ puis « Installer l\'application ». iPhone (Safari) : bouton Partager puis « Sur l\'écran d\'accueil ».</p>') +
@@ -1700,6 +1759,23 @@
       '. Les mises à jour sont signalées par un bandeau en haut de l\'écran ; vos données restent sur le téléphone.</p>' +
       '<div class="rangee"><button class="bouton" type="button" data-a="verifierMaj">Rechercher une mise à jour</button>' +
       '<button class="bouton" type="button" data-a="ouvrirLancement">Écran d\'accueil</button></div></section>';
+    // Avancé : connexion à la base, synchronisation, démonstration, effacement
+    h += '<details class="bloc avance"' + (!c.url || S.ui.erreur ? ' open' : '') + '><summary><b>Avancé</b><span class="discret">Connexion à la base et données du téléphone</span></summary>' +
+      '<h3>Connexion au Google Sheet</h3>' +
+      '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
+      '<label class="champ"><span>Jeton d\'accès</span><input type="text" id="cfgToken" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(c.token) + '"></label>' +
+      '<div class="rangee"><button class="bouton" type="button" data-a="tester">Tester</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="enregistrerConnexion">Enregistrer</button></div>' +
+      (S.ui.erreur ? '<p class="discret" style="color:var(--rouge);margin-bottom:0">' + esc(S.ui.erreur) + '</p>' : '') +
+      '<h3>Données</h3><p class="discret" style="margin-top:0">' +
+      (S.config.demo ? 'Mode démonstration : les données restent sur ce téléphone.' :
+        (S.data && S.data.syncedAt ? 'Dernière synchronisation : ' + new Date(S.data.syncedAt).toLocaleString('fr-FR') + '.' : 'Pas encore synchronisé.')) +
+      (pret() ? ' ' + S.data.praticiens.length + ' praticiens, ' + S.data.presences.length + ' lieux de présence.' : '') +
+      (S.queue.length ? ' ' + S.queue.length + ' compte(s) rendu(s) en attente.' : '') +
+      (S.fiches.length ? ' ' + S.fiches.length + ' fiche(s) praticien en attente' + (S.ui.serveurAncien ? ' : le serveur Apps Script doit être mis à jour pour les recevoir.' : '.') : '') + '</p>' +
+      (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' : '') +
+      '<button class="bouton bouton-large" type="button" data-a="demo" style="margin-bottom:10px">Charger les données de démonstration</button>' +
+      '<button class="bouton bouton-large bouton-danger" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button></details>';
     return h;
   };
 
@@ -1771,7 +1847,7 @@
     f.texte = texte;
     var num = normaliserNumero(S.config.whatsapp);
     return '<div class="segment" role="group" aria-label="Contenu"><button type="button" data-a="exportPortee" data-v="jour" aria-pressed="' + (f.portee === 'jour') + '">Le ' + dateCourte(S.ui.jour) + '</button>' +
-      '<button type="button" data-a="exportPortee" data-v="semaine" aria-pressed="' + (f.portee !== 'jour') + '">Tout le programme</button></div>' +
+      '<button type="button" data-a="exportPortee" data-v="semaine" aria-pressed="' + (f.portee !== 'jour') + '">Toute la tournée</button></div>' +
       '<pre class="apercu">' + esc(texte) + '</pre>' +
       (texte.length > 3500 ? '<p class="discret">Message long : si WhatsApp le coupe, envoyez jour par jour.</p>' : '') +
       (num ? '<p class="discret">Envoi vers votre numéro +' + esc(num) + (S.config.waWeb || !estMobile() ? ', avec WhatsApp Web.' : ', avec l\'application WhatsApp.') + '</p>' :
@@ -1782,7 +1858,7 @@
   };
 
   FEUILLES.valide = function () {
-    return { corps: '<p style="margin-top:0">Votre programme est enregistré et visible par l\'équipe.</p><p class="discret">Voulez-vous l\'envoyer sur WhatsApp ?</p>',
+    return { corps: '<p style="margin-top:0">Votre tournée est confirmée et visible par l\'équipe. Vous pouvez toujours la modifier.</p><p class="discret">Voulez-vous l\'envoyer sur WhatsApp ?</p>',
       pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non, merci</button>' +
         '<button class="bouton bouton-plein wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer</button>' };
   };
@@ -2139,11 +2215,11 @@
       if (S.programme.etat === 'valide' && portee !== 'nouveau') marquerModifie();
       else S.programme = { etat: 'proposition', valideLe: '' };
       S.ui.voirParams = false; S.ui.ouvert = null;
-      if (portee === 'nouveau') S.ui.jour = null;
+      if (portee === 'nouveau') { S.ui.jour = null; S.ui.tab = 'semaine'; window.scrollTo(0, 0); }
       sauver(); rendre(); publierPlan();
       var msg = r.arrets.length ? r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.' : 'Aucun praticien ne correspond à ces critères.';
       var np = r.nonPlaces.filter(function (x) { return !x.etape; });
-      if (np.length) msg += ' ' + np.length + ' médecin(s) « à voir » absent(s) sur la période.';
+      if (np.length) msg += ' ' + np.length + ' médecin(s) prioritaire(s) absent(s) sur la période.';
       var attendu = (+p.maxJour || 8) * cible.filter(function (d) { return jourSemaineIndex(d) < 5; }).length;
       if (r.arrets.length && r.arrets.length < attendu * 0.75) {
         msg += ' Moins de visites que prévu : les praticiens présents sont déjà ciblés par l\'équipe, vus récemment ou hors des critères choisis. Élargissez les communes ou les spécialités.';
@@ -2268,7 +2344,7 @@
     S.data = { version: VERSION_DONNEES, praticiens: b.praticiens, presences: b.presences, quartiers: quartiersDefautObjets(),
                statuts: STATUTS_DEFAUT, historique: [], plannings: [], syncedAt: null };
     S.plan = []; S.queue = []; S.imposes = []; S.rejetes = {}; S.programme = { etat: 'proposition', valideLe: '' };
-    S.ui.tab = 'tournee'; S.ui.voirParams = false;
+    S.ui.tab = 'semaine'; S.ui.voirParams = false;
     sauver(); rendre();
     toast('Démonstration : ' + b.praticiens.length + ' praticiens, ' + b.presences.length + ' lieux de présence.');
   }
@@ -2281,12 +2357,15 @@
   var ACTIONS = {
     nav: function (el) {
       S.ui.tab = el.dataset.tab;
-      if (S.ui.tab === 'historique') { S.ui.tab = 'stats'; S.ui.statsVue = 'historique'; } S.ui.feuille = null;
+      if (S.ui.tab === 'historique') { S.ui.tab = 'bilan'; S.ui.statsVue = 'historique'; } S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);
       if (S.ui.tab === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && S.ui.tab === 'equipe') rendreSiPossible(); });
     },
     param: function (el) { S.params[el.dataset.k] = el.dataset.v; LS.set('params', S.params); rendre(); },
     voirParams: function () { S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
+    fermerParams: function () { S.ui.voirParams = false; rendre(); window.scrollTo(0, 0); },
+    voirVisite: function (el) { S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' }); },
+    ouvrirAutour: function () { S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); },
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) { S.ui.jour = el.dataset.v; S.ui.ouvert = null; rendre(); },
@@ -2322,11 +2401,11 @@
       var d = new Date();
       S.programme = { etat: 'valide', valideLe: pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) };
       sauver(); publierPlan(true);
-      S.ui.feuille = { type: 'valide', titre: 'Programme validé' };
+      S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée' };
       rendre();
     },
     corriger: function (el) { var a = arret(el.dataset.uid); if (!a) return; a.etat = 'correction'; a.corrige = true; S.ui.ouvert = a.uid; LS.set('plan', S.plan); rendre(); },
-    ouvrirExport: function () { S.ui.feuille = { type: 'exporter', titre: 'Envoyer le programme', portee: S.params.mode === 'jour' ? 'jour' : 'semaine' }; rendre(); },
+    ouvrirExport: function () { S.ui.feuille = { type: 'exporter', titre: 'Envoyer la tournée', portee: S.params.mode === 'jour' ? 'jour' : 'semaine' }; rendre(); },
     exportPortee: function (el) { S.ui.feuille.portee = el.dataset.v; rendre(); },
     envoyerWhatsapp: function () { window.open(urlWhatsapp(S.ui.feuille.texte), '_blank', 'noopener'); },
     copierTexte: function () { copier(S.ui.feuille.texte); },
@@ -2359,7 +2438,7 @@
       LS.set('params', S.params); S.ui.feuille = null; rendre();
     },
     // À voir absolument
-    ouvrirRecherche: function () { S.ui.feuille = { type: 'recherche', titre: 'À voir absolument', q: '' }; rendre(); var i = $('rechercheImpose'); if (i) i.focus(); },
+    ouvrirRecherche: function () { S.ui.feuille = { type: 'recherche', titre: 'RDV ou médecin prioritaire', q: '' }; rendre(); var i = $('rechercheImpose'); if (i) i.focus(); },
     choisirImpose: function (el) { S.ui.feuille.code = el.dataset.v; S.ui.feuille.cle = ''; rendre(); },
     retourRecherche: function () { S.ui.feuille.code = null; rendre(); },
     ajouterImpose: function () {
@@ -2371,14 +2450,14 @@
       var place = S.plan.length ? placerImpose(im) : false;
       S.ui.feuille = null; sauver(); rendre();
       if (place) publierPlan();
-      toast(place ? 'Ajouté à la tournée du ' + dateCourte(S.ui.jour) + '.' : 'Ajouté. Il sera placé au prochain tirage.');
+      toast(place ? 'Ajouté à la tournée du ' + dateCourte(S.ui.jour) + '.' : 'Ajouté. Il sera placé à la prochaine proposition de tournée.');
     },
     retirerImpose: function (el) { S.imposes.splice(+el.dataset.i, 1); LS.set('imposes', S.imposes); rendre(); },
-    imposerDirect: function (el) { S.ui.feuille = { type: 'recherche', titre: 'À voir absolument', code: el.dataset.v, cle: '' }; rendre(); },
+    imposerDirect: function (el) { S.ui.feuille = { type: 'recherche', titre: 'Ajouter à ma tournée', code: el.dataset.v, cle: '' }; rendre(); },
     planifierCle: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v); if (!c) return;
       var d = el.dataset.d || prochaineOccurrence(c.jourIdx, prochainJourOuvre(aujourdhui()), true);
-      if (ajouterArret(c, d)) { S.ui.tab = 'tournee'; rendre(); window.scrollTo(0, 0); }
+      if (ajouterArret(c, d)) { S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0); }
     },
     // Autour de moi
     localiser: localiser,
@@ -2407,7 +2486,7 @@
       var n = lireNom('nomDelegue');
       if (n.length < 2) { toast('Indiquez votre nom.'); return; }
       S.config.delegue = n; S.config.whatsapp = normaliserNumero($('numWhatsapp').value) || '';
-      LS.set('config', S.config); S.ui.tab = 'tournee'; rendre(); publierPlan();
+      LS.set('config', S.config); S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); publierPlan();
       toast('Bienvenue ' + n + '.');
     },
     enregistrerMoi: function () {
@@ -2430,7 +2509,7 @@
       if (S.config.demo) { S.plan = []; S.queue = []; S.data = null; S.imposes = []; S.rejetes = {}; }
       S.config.url = url; S.config.token = token; S.config.demo = false; S.ui.erreur = ''; sauver();
       toast('Réglages enregistrés. Synchronisation…');
-      synchroniser(false).then(function () { if (pret()) { S.ui.tab = 'tournee'; rendre(); } });
+      synchroniser(false).then(function () { if (pret()) { S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); } });
     },
     demo: chargerDemo,
     reinitialiser: function () {
@@ -2565,7 +2644,7 @@
         if (Object.keys(e).length) { f.etape = i; f.err = e; rendre(); focusErreur(); toast('Étape ' + (i + 1) + ' à compléter.'); return; }
       }
       var nouveau = !f.d.code, code = enregistrerFiche(f.d);
-      S.ui.feuille = null; S.ui.contactOuvert = code; S.ui.tab = 'contacts'; S.ui.recherche = ''; rendre();
+      S.ui.feuille = null; S.ui.contactOuvert = code; S.ui.tab = 'praticiens'; S.ui.recherche = ''; rendre();
       toast((nouveau ? 'Praticien ajouté' : 'Fiche mise à jour') + (S.config.demo ? '.' : (navigator.onLine ? ', envoi au Google Sheet…' : ', envoyée dès le retour du réseau.')));
       if (!S.config.demo) synchroniser(true);
     },
@@ -2777,7 +2856,7 @@
       h += '<div class="decompte"><span id="decompteTexte">Lancement automatique dans ' + Math.max(0, Math.ceil((S.ui.lancementFin - Date.now()) / 1000)) + ' s</span>' +
         '<div class="jauge"><i id="decompteBarre" style="width:0%"></i></div></div>';
     }
-    h += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="stats">Accéder au tableau de bord</button>' +
+    h += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="bilan">Voir mon bilan</button>' +
         '<button class="bouton" type="button" data-a="fermerLancement" style="margin-top:10px">Lancer l\'application</button>'
       : '<button class="bouton bouton-plein" type="button" data-a="fermerLancement">Lancer l\'application</button>';
     el.innerHTML = h + '</div></div>';
@@ -2798,7 +2877,7 @@
       if (reste <= 0) {
         clearInterval(minuteurLancement); minuteurLancement = null;
         S.ui.lancement = false; S.ui.lancementAuto = false;
-        if (S.ui.tab === 'accueil' || !VUES[S.ui.tab]) S.ui.tab = 'tournee';
+        if (S.ui.tab === 'accueil' || !VUES[S.ui.tab]) S.ui.tab = 'jour';
         rendre(); window.scrollTo(0, 0);
       }
     }, 200);
@@ -2902,7 +2981,7 @@
   rendre();
   if (configureParLien) toast('Application configurée. Synchronisation…');
   if (connecte()) synchroniser(!configureParLien).then(function () {
-    if (configureParLien && pret()) { S.ui.tab = 'tournee'; rendre(); }
+    if (configureParLien && pret()) { S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); }
   });
 
   // Accès pour les tests automatisés
