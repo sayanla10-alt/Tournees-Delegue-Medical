@@ -1,4 +1,4 @@
-# MediPlanner v2.1.0 Enterprise (anciennement « Tournées »)
+# MediPlanner v2.1.1 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -69,7 +69,7 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 - **Jours fériés** signalés dans la préparation de la tournée, Autour de moi et l'écran d'accueil, d'après le calendrier officiel de la Côte d'Ivoire (date.nager.at) ; les fêtes musulmanes se saisissent dans Listes > JoursFériés.
 - **Type de visite** (routine / rappel, présentation produit, EPU, échantillons, réunion…) : liste modifiable dans Listes > Activités ; colonne Activité dans Historique ; graphique dans Stats.
 - **WhatsApp** remplace Waze dans les actions rapides.
-- **Cartes** modernes (fond de carte CARTO / OpenStreetMap) : itinéraire numéroté du jour, visites de l'équipe, communes non couvertes ; tournée d'un collègue dans Équipe.
+- **Cartes** modernes (fond OpenStreetMap épuré) : itinéraire numéroté du jour, visites de l'équipe, communes non couvertes ; tournée d'un collègue dans Équipe.
 - **Validation du programme** : l'envoi sur WhatsApp est proposé, pas imposé ; le nom de chaque établissement est en gras dans le message.
 
 ## Nouveautés de la version 2.0.6

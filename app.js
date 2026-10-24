@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.1.0', EDITION = 'Enterprise';
+  var APP_VERSION = '2.1.1', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.1.1', ['Fond de carte OpenStreetMap épuré (clair et sombre)']],
     ['2.1.0', ['Pharmacies réelles d\'Abidjan (OpenStreetMap) dans leur propre feuille, ouvertes matin et soir',
                'Jours fériés signalés, d\'après le calendrier officiel de la Côte d\'Ivoire',
                'Type de visite (routine, présentation produit, EPU…) dans le compte rendu et les statistiques',
@@ -934,7 +935,7 @@
     return s;
   }
 
-  // ------------------------------------------------------------------ Cartes (Leaflet, fond CARTO clair ou sombre)
+  // ------------------------------------------------------------------ Cartes (Leaflet, fond OpenStreetMap épuré)
   // Chargée à la demande ; sans réseau, le schéma simplifié reste affiché.
   var cartesAFaire = [], promesseLeaflet = null;
   function chargerLeaflet() {
@@ -960,8 +961,9 @@
     var el = $(c.id); if (!el) return;
     el.innerHTML = ''; el.classList.add('active');
     var carte = L.map(el, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/' + (themeSombre() ? 'dark_all' : 'light_all') + '/{z}/{x}/{y}{r}.png',
-      { maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap, © CARTO' }).addTo(carte);
+    // fond OpenStreetMap (sans clé), adouci en CSS pour un rendu épuré (inversé en thème sombre)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© contributeurs OpenStreetMap' }).addTo(carte);
+    el.classList.toggle('sombre', themeSombre());
     var prim = couleur('--primaire'), bleu = couleur('--bleu'), gris = couleur('--gris-2'), limites = [];
     // communes non couvertes : repère discret au centre de la commune
     var centres = {};
