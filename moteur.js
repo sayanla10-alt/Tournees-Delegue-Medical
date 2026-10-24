@@ -267,13 +267,11 @@ var Moteur = (function () {
   // Praticiens présents autour d'une position un jour donné, selon leur propre planning.
   // minute : heure courante en minutes (null = toute la journée)
   function autourDe(ctx, pos, date, minute, rayon) {
-    var j = jourSemaineIndex(date), weekend = j > 4;
-    if (!pos) return [];
+    var j = jourSemaineIndex(date);
+    if (j > 4 || !pos) return [];
     var meilleurs = {};
-    // le week-end, seules les pharmacies sont ouvertes (mêmes horaires qu'en semaine)
-    ctx.parJour[weekend ? 4 : j].forEach(function (c) {
+    ctx.parJour[j].forEach(function (c) {
       var pharma = c.prat && c.prat.type === 'Pharmacie';
-      if (weekend && !pharma) return;
       var d = distanceKm(pos, c.coord);
       if (d > rayon) return;
       var fin = pharma ? c.fin : c.fin - R.dureeVisite;
