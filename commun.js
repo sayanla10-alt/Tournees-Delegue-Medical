@@ -374,7 +374,66 @@ function genererBaseFictive(dateRefIso, options) {
     ajouterPresence(code, nom, 'Pharmacie ' + pharmas[(m - 1) % pharmas.length] + ' ' + Q[qp].quartier, qp, gp,
                     '08:00-12:30', '15:00-19:30');
   }
-  return { praticiens: praticiens, presences: presences };
+  var res = { praticiens: praticiens, presences: presences };
+  completerDonneesFictives(res.praticiens, res.presences, Q);
+  return res;
+}
+
+// ---------------------------------------------------------------- Compléments de la base de test
+// Comble les données manquantes d'une base FICTIVE (ne jamais l'appliquer à une vraie base) :
+// - téléphone : numéro fictif au format +225 00 .. .. .. .. (préfixe 00 non attribué en Côte d'Ivoire,
+//   aucun vrai numéro ne peut être composé par erreur) ;
+// - dernier statut, commentaire et nombre de visites, cohérents avec la date de dernière visite ;
+// - latitude et longitude de chaque établissement : coordonnées du quartier, décalées de quelques
+//   centaines de mètres (le même établissement garde toujours le même point).
+function hachage(t) {
+  var h = 2166136261;
+  t = String(t);
+  for (var i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+var COMMENTAIRES_FICTIFS = {
+  'Présent': ['Présentation du produit faite, échantillons remis', 'Bon accueil, rappel des indications', 'Échantillons remis, à revoir dans un mois',
+              'Discussion sur les cas cliniques, documentation remise', 'Visite courte, entre deux consultations'],
+  'Intéressé': ['Intéressé par la nouvelle forme, demande une étude', 'Souhaite recevoir la documentation scientifique', 'Prêt à essayer sur quelques patients'],
+  'À rappeler': ['Très occupé, rappeler pour fixer un RDV', 'Demande à être revu après ses congés', 'Rappeler en début de semaine prochaine'],
+  'Refus': ['Fidèle à un produit concurrent', 'Ne reçoit pas les délégués pour le moment']
+};
+function completerDonneesFictives(praticiens, presences, quartiers) {
+  var n = { telephone: 0, statut: 0, commentaire: 0, nbVisites: 0, gps: 0 };
+  praticiens.forEach(function (p) {
+    var h = hachage(p.code);
+    if (!String(p.telephone || '').trim()) {
+      var ch = ('00000000' + (h % 100000000)).slice(-8);
+      p.telephone = '+225 00 ' + ch.slice(0, 2) + ' ' + ch.slice(2, 4) + ' ' + ch.slice(4, 6) + ' ' + ch.slice(6, 8);
+      n.telephone++;
+    }
+    if (!p.derniere) return;                         // jamais visité : pas de statut ni de commentaire
+    var r = (h >>> 8) % 100;
+    if (!String(p.statut || '').trim()) {
+      p.statut = r < 70 ? 'Présent' : (r < 85 ? 'Intéressé' : (r < 95 ? 'À rappeler' : 'Refus'));
+      n.statut++;
+    }
+    if (!String(p.commentaire || '').trim()) {
+      var l = COMMENTAIRES_FICTIFS[p.statut] || COMMENTAIRES_FICTIFS['Présent'];
+      p.commentaire = l[(h >>> 4) % l.length];
+      n.commentaire++;
+    }
+    if (!(+p.nbVisites > 0)) { p.nbVisites = 1 + (h >>> 12) % 8; n.nbVisites++; }
+  });
+  var idx = {};
+  (quartiers || []).forEach(function (q) { idx[normaliser(q.quartier)] = q; });
+  presences.forEach(function (x) {
+    if (String(x.lat || '').trim() && String(x.lon || '').trim()) return;
+    var q = idx[normaliser(x.quartier)];
+    if (!q) return;
+    var h = hachage(normaliser(x.lieu) + '|' + normaliser(x.quartier));
+    var dLat = ((h % 1000) / 1000 - 0.5) * 0.008, dLon = (((h >>> 10) % 1000) / 1000 - 0.5) * 0.008;   // ± 450 m environ
+    x.lat = Math.round((+q.lat + dLat) * 1e5) / 1e5;
+    x.lon = Math.round((+q.lon + dLon) * 1e5) / 1e5;
+    n.gps++;
+  });
+  return n;
 }
 
 // Export pour les tests sous Node (sans effet dans le navigateur et dans Apps Script)
@@ -389,6 +448,7 @@ if (typeof module !== 'undefined' && module.exports) {
     joursEcoules: joursEcoules, heureVersMinutes: heureVersMinutes, minutesVersHeure: minutesVersHeure,
     lireHoraire: lireHoraire, lireDispo: lireDispo, ecrireDispo: ecrireDispo, lireNote: lireNote,
     lettrePotentiel: lettrePotentiel, SPECIALITES_DEFAUT: SPECIALITES_DEFAUT,
+    completerDonneesFictives: completerDonneesFictives, hachage: hachage,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
   };

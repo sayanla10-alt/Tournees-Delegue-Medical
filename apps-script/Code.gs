@@ -30,6 +30,7 @@ function onOpen() {
     .addItem('Initialiser le classeur (structure + base fictive)', 'initialiser')
     .addItem('Régénérer la base fictive', 'regenererBaseFictive')
     .addItem('Convertir l\'ancienne feuille BaseDonnees', 'convertirAncienneBase')
+    .addItem('Compléter les données manquantes (base de test)', 'completerBaseTest')
     .addSeparator()
     .addItem('Afficher le jeton d\'accès', 'afficherJeton')
     .addItem('Changer le jeton d\'accès', 'changerJeton')
@@ -552,6 +553,73 @@ function marquerArretsValides(ss, visites) {
     if (v) { l[cSt] = v.statut; l[cEt] = 'valide'; change = true; }
   });
   if (change) sh.getRange(2, 1, n, nbCol).setNumberFormat('@').setValues(data);
+}
+
+// ---------------------------------------------------------------- Données manquantes de la base de TEST
+// Comble les trous sans rien effacer ni renuméroter (voir completerDonneesFictives dans Commun.gs) :
+// téléphones fictifs (+225 00 …), dernier statut / commentaire / nombre de visites des praticiens déjà visités,
+// coordonnées GPS des établissements, et colonnes manquantes des tournées publiées par une ancienne version.
+// À NE PAS utiliser sur une vraie base (les téléphones et commentaires seraient inventés).
+function completerBaseTest() {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
+    var r = { praticiens: completerFeuille(ss, FEUILLES.praticiens, CHAMPS_PRATICIENS, ['telephone', 'statut', 'commentaire', 'nbVisites'], tz),
+              plannings: completerPlannings(ss) };
+    var quartiers = [];
+    var shQ = ss.getSheetByName(FEUILLES.quartiers);
+    shQ.getRange(2, 1, shQ.getLastRow() - 1, 5).getValues().forEach(function (v) { quartiers.push({ commune: v[0], quartier: v[1], zone: v[2], lat: +v[3], lon: +v[4] }); });
+    r.presences = completerFeuille(ss, FEUILLES.presences, CHAMPS_PRESENCES, ['lat', 'lon'], tz, quartiers);
+    var msg = 'Praticiens : ' + JSON.stringify(r.praticiens) + '\nPresences : ' + JSON.stringify(r.presences) + '\nPlannings : ' + r.plannings + ' ligne(s) complétée(s)';
+    Logger.log(msg);
+    return msg;
+  } finally {
+    lock.releaseLock();
+  }
+}
+function completerFeuille(ss, nom, champs, cles, tz, quartiers) {
+  var sh = ss.getSheetByName(nom), n = sh.getLastRow() - 1;
+  if (n < 1) return {};
+  var objets = lireObjets(sh, champs, tz);
+  var res = nom === FEUILLES.praticiens ? completerDonneesFictives(objets, [], []) : completerDonneesFictives([], objets, quartiers);
+  var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  cles.forEach(function (k) {
+    var c = ent.indexOf(normaliser(champs[indexChamp(champs, k)][1]));
+    if (c < 0) return;
+    var rng = sh.getRange(2, c + 1, n, 1);
+    if (k === 'telephone') rng.setNumberFormat('@');
+    rng.setValues(objets.map(function (o) { return [o[k] === undefined ? '' : o[k]]; }));
+  });
+  return res;
+}
+// Tournées publiées par une ancienne version : IdPresence, Debut, Fin, Note et Programme retrouvés
+function completerPlannings(ss) {
+  var sh = ss.getSheetByName(FEUILLES.plannings), n = sh ? sh.getLastRow() - 1 : 0;
+  if (n < 1) return 0;
+  var tz = ss.getSpreadsheetTimeZone();
+  var notes = {};
+  lireObjets(ss.getSheetByName(FEUILLES.praticiens), CHAMPS_PRATICIENS, tz).forEach(function (p) { notes[p.code] = lireNote(p.note); });
+  var parCode = {};
+  lireObjets(ss.getSheetByName(FEUILLES.presences), CHAMPS_PRESENCES, tz).forEach(function (p) { (parCode[p.code] = parCode[p.code] || []).push(p); });
+  var data = sh.getRange(2, 1, n, CHAMPS_PLAN.length).getDisplayValues(), modif = 0;
+  function i(k) { return indexChamp(CHAMPS_PLAN, k); }
+  data.forEach(function (l) {
+    if (!l[i('delegue')] || l[i('idPresence')]) return;
+    var j = jourSemaineIndex(versIso(l[i('date')], tz)), cren = l[i('creneau')] || 'Matin';
+    if (j > 4) return;
+    var pres = (parCode[l[i('code')]] || []).filter(function (p) { var d = lireDispo(p[JOURS_CLES[j]]); return cren === 'Soir' ? d.soir : d.matin; })[0];
+    if (pres) {
+      var h = lireHoraire(cren === 'Soir' ? pres.horaireSoir : pres.horaireMatin, cren === 'Soir' ? REGLAGES_MOTEUR.horaireSoirDefaut : REGLAGES_MOTEUR.horaireMatinDefaut);
+      l[i('idPresence')] = String(pres.id); l[i('debut')] = minutesVersHeure(h[0]); l[i('fin')] = minutesVersHeure(h[1]);
+      if (!l[i('lieu')]) l[i('lieu')] = pres.lieu;
+    }
+    if (!l[i('note')]) l[i('note')] = String(notes[l[i('code')]] || 2);
+    if (!l[i('programme')]) l[i('programme')] = 'Proposition';
+    modif++;
+  });
+  if (modif) sh.getRange(2, 1, n, CHAMPS_PLAN.length).setNumberFormat('@').setValues(data);
+  return modif;
 }
 
 // ---------------------------------------------------------------- Fiche praticien saisie dans l'application

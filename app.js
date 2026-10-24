@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.4', EDITION = 'Enterprise';
+  var APP_VERSION = '2.0.5', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.0.5', ['Filtres sélectionnés de nouveau en couleur pleine, bien visibles', 'Base de test complétée : téléphones fictifs, derniers statuts et commentaires, positions GPS des établissements']],
     ['2.0.4', ['Filtres modernisés : puces cochées, recherche dans les listes, groupes repliables, filtres rapides en un toucher',
                'Thème clair par défaut ; tournée sans pharmacies par défaut', 'Sur tablette, les fenêtres s\'ouvrent au centre de l\'écran']],
     ['2.0.3', ['Les nouveautés ne s\'affichent qu\'une fois par mise à jour', 'L\'application se lance seule quelques secondes après l\'écran d\'accueil']],

@@ -1,4 +1,4 @@
-# MediPlanner v2.0.4 Enterprise (anciennement « Tournées »)
+# MediPlanner v2.0.5 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -44,6 +44,7 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 - Initialiser le classeur
 - Régénérer la base fictive (environ 600 praticiens, pour une équipe de 10 délégués)
 - Convertir l'ancienne feuille BaseDonnees
+- Compléter les données manquantes (base de test) : téléphones fictifs en +225 00 … (aucun vrai numéro), dernier statut, commentaire et nombre de visites des praticiens déjà visités, coordonnées GPS des établissements. Ne pas utiliser sur une vraie base.
 - Afficher ou changer le jeton d'accès
 
 ---
