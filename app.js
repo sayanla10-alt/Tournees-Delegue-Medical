@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.0.0', EDITION = 'Enterprise';
+  var APP_VERSION = '3.0.1', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.0.1', ['Compte rendu complet de nouveau visible d\'emblée : vu ou non, type de visite, produits présentés, ce qui est ressorti de la discussion, prochaine étape']],
     ['3.0.0', ['Nouvelle organisation en 5 onglets qui suivent votre journée : Aujourd\'hui, Ma semaine, Praticiens, Équipe, Bilan',
                'Aujourd\'hui : vos visites dans l\'ordre, contact en premier, compte rendu guidé (résultat d\'abord, puis le détail)',
                'Ma semaine : réglages, proposition, médecins gardés ou retirés, confirmation et envoi WhatsApp, communes visitées',
@@ -966,44 +967,41 @@
           return '<button type="button" class="statut' + (s.visite ? '' : ' ko') + '" data-a="statut" data-uid="' + a.uid +
             '" data-v="' + esc(s.nom) + '" aria-pressed="' + (a.statut === s.nom) + '">' + esc(s.nom) + '</button>';
         };
-        h += '<div class="etape-cr"><span class="etape-titre">Comment s\'est passée la visite ?</span>' +
+        h += '<div class="etape-cr"><span class="etape-titre">Le médecin a-t-il été vu ?</span>' +
           '<span class="groupe-statuts">Visite faite</span><div class="statuts" role="group" aria-label="Visite faite">' + ok.map(bouton).join('') + '</div>' +
           '<span class="groupe-statuts">Visite non faite</span><div class="statuts" role="group" aria-label="Visite non faite">' + ko.map(bouton).join('') + '</div></div>';
-        if (!a.statut) {
-          h += '<p class="aide-champ" style="text-align:center;margin:4px 0 12px">Choisissez le résultat pour compléter le compte rendu.</p>';
-        } else {
-          var faite = !estKo(a.statut);
-          if (faite) {
-            h += '<div class="champ"><span>Activité</span><div class="puces">' + activites().map(function (x) {
-              return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-            }).join('') + '</div></div>' +
-            '<div class="champ"><span>Produits présentés</span><div class="puces">' + produitsRef().map(function (x) {
-              return '<button type="button" class="puce" data-a="produit" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeProduits(a.produits).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-            }).join('') + '</div><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
-              '" value="' + esc(autresProduits(a.produits).join(', ')) + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() + '</div>';
-          } else {
-            h += '<div class="bandeau"><p>Visite non faite. ' +
-              '<button type="button" class="bouton-texte" data-a="rattraper" data-uid="' + a.uid + '">Trouver un remplaçant à proximité</button></p></div>';
-          }
-          h += '<label class="champ"><span>Commentaire</span><textarea data-f="commentaire" data-uid="' + a.uid +
-              '" placeholder="' + (faite ? 'Échantillons remis, objections, besoins…' : 'Motif, consigne laissée…') + '">' + esc(a.commentaire) + '</textarea></label>' +
-            '<div class="champ"><span>Prochain RDV</span><div class="rangee-prochaine">' +
-              [7, 14, 30].map(function (n) {
-                var d = ajouterJours(a.date, n);
-                return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
-              }).join('') +
-              '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date du prochain RDV"></div>' +
-              '<span class="aide-champ">Le praticien sera placé d\'office ce jour-là dans votre tournée.</span></div>' +
-            '<div class="actions-cr"><button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') +
-              (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button></div>';
+        // Compte rendu complet, toujours visible : résultat, type de visite, produits, ce qui est ressorti, prochaine étape
+        var faite = a.statut && !estKo(a.statut);
+        if (a.statut && !faite) {
+          h += '<div class="bandeau"><p>Visite non faite. ' +
+            '<button type="button" class="bouton-texte" data-a="rattraper" data-uid="' + a.uid + '">Trouver un remplaçant à proximité</button></p></div>';
         }
+        h += '<div class="champ"><span>Type de visite</span><div class="puces">' + activites().map(function (x) {
+            return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+          }).join('') + '</div></div>' +
+          '<div class="champ"><span>Produits présentés</span><div class="puces">' + produitsRef().map(function (x) {
+            return '<button type="button" class="puce" data-a="produit" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeProduits(a.produits).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+          }).join('') + '</div><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
+            '" value="' + esc(autresProduits(a.produits).join(', ')) + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() + '</div>' +
+          '<label class="champ"><span>Ce qui est ressorti de la discussion</span><textarea data-f="commentaire" data-uid="' + a.uid +
+            '" placeholder="Besoins, objections, échantillons remis, engagement du médecin, motif d\'absence…">' + esc(a.commentaire) + '</textarea></label>' +
+          '<div class="champ"><span>Prochaine étape le</span><div class="rangee-prochaine">' +
+            [7, 14, 30].map(function (n) {
+              var d = ajouterJours(a.date, n);
+              return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
+            }).join('') +
+            '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date de la prochaine étape"></div>' +
+            '<span class="aide-champ">Comme un RDV pris : le praticien est placé d\'office ce jour-là dans vos tournées.</span></div>' +
+          '<div class="actions-cr">' + (a.statut ?
+            '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button>' :
+            '<button class="bouton bouton-large" type="button" disabled>' + icone('valider') + 'Enregistrer le compte rendu</button><span class="aide-champ">Indiquez d\'abord si le médecin a été vu (en haut).</span>') + '</div>';
         h += '<button class="bouton-texte" type="button" data-a="retirer" data-uid="' + a.uid + '">Retirer de la tournée</button>';
       } else {
         h += '<div class="resume-cr">';
-        if (a.activite) h += '<p class="discret">Activité : ' + esc(listeActivites(a.activite).join(', ')) + '</p>';
+        if (a.activite) h += '<p class="discret">Type de visite : ' + esc(listeActivites(a.activite).join(', ')) + '</p>';
         if (a.produits) h += '<p class="discret">Produits : ' + esc(a.produits) + '</p>';
         if (a.commentaire) h += '<p class="discret">' + esc(a.commentaire) + '</p>';
-        if (a.prochaine) h += '<p class="discret">Prochain RDV le ' + dateCourte(a.prochaine) + '</p>';
+        if (a.prochaine) h += '<p class="discret">Prochaine étape le ' + dateCourte(a.prochaine) + '</p>';
         h += '</div><button class="bouton bouton-large" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:6px">' + icone('crayon') + 'Modifier le compte rendu</button>';
       }
       h += '</div>';

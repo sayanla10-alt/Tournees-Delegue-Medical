@@ -1,8 +1,9 @@
 {
-  "version": "3.0.0",
+  "version": "3.0.1",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Compte rendu complet de nouveau visible d'emblée : vu ou non, type de visite, produits présentés, ce qui est ressorti de la discussion, prochaine étape",
     "Nouvelle organisation en 5 onglets qui suivent votre journée : Aujourd'hui, Ma semaine, Praticiens, Équipe, Bilan",
     "Aujourd'hui : vos visites dans l'ordre, contact en premier, compte rendu guidé (résultat d'abord, puis le détail)",
     "Ma semaine : réglages, proposition, médecins gardés ou retirés, confirmation et envoi WhatsApp, communes visitées",
