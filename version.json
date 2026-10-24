@@ -1,8 +1,9 @@
 {
-  "version": "2.2.6",
+  "version": "2.2.7",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "L'application rouvre sur l'onglet où vous étiez, après un rafraîchissement ou une mise à jour",
     "« Vu il y a … j » mis à jour dès qu'un compte rendu est validé",
     "Prochaine étape traitée comme un RDV : le praticien est placé d'office ce jour-là dans la tournée",
     "Tournée : bouton « Valider ce compte rendu » dans chaque fiche de visite, et « Modifier le compte rendu » une fois validé",

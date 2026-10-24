@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.2.6', EDITION = 'Enterprise';
+  var APP_VERSION = '2.2.7', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.2.7', ['L\'application rouvre sur l\'onglet où vous étiez, après un rafraîchissement ou une mise à jour']],
     ['2.2.6', ['« Vu il y a … j » mis à jour dès qu\'un compte rendu est validé', 'Prochaine étape traitée comme un RDV : le praticien est placé d\'office ce jour-là dans la tournée']],
     ['2.2.5', ['Tournée : bouton « Valider ce compte rendu » dans chaque fiche de visite, et « Modifier le compte rendu » une fois validé']],
     ['2.2.4', ['Filtres : les spécialités ne concernent que les médecins ; elles sont ignorées (mais conservées) en choisissant Pharmacies']],
@@ -102,7 +103,7 @@
     queue: LS.get('queue', []),
     fiches: LS.get('fiches', []),
     ui: {
-      tab: 'tournee', jour: null, ouvert: null, voirParams: false, feuille: null,
+      tab: (function () { var t = LS.get('onglet', 'tournee'); return ['tournee', 'autour', 'contacts', 'stats', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'tournee'; })(), jour: null, ouvert: null, voirParams: false, feuille: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
@@ -626,6 +627,8 @@
   // ------------------------------------------------------------------ Rendu
   function rendre() {
     var tab = S.ui.tab;
+    // onglet mémorisé : l'application rouvre là où l'on était (rafraîchissement, mise à jour, relance)
+    if (VUES[tab] && tab !== 'accueil' && tab !== 'identite' && LS.get('onglet', '') !== tab) LS.set('onglet', tab);
     if (!pret() && tab !== 'reglages') tab = 'accueil';
     else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
     cacherInfobulle();
@@ -2775,7 +2778,7 @@
         '<div class="jauge"><i id="decompteBarre" style="width:0%"></i></div></div>';
     }
     h += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="stats">Accéder au tableau de bord</button>' +
-        '<button class="bouton" type="button" data-a="fermerLancement" data-tab="tournee" style="margin-top:10px">Lancer l\'application</button>'
+        '<button class="bouton" type="button" data-a="fermerLancement" style="margin-top:10px">Lancer l\'application</button>'
       : '<button class="bouton bouton-plein" type="button" data-a="fermerLancement">Lancer l\'application</button>';
     el.innerHTML = h + '</div></div>';
     el.hidden = false;
@@ -2795,7 +2798,7 @@
       if (reste <= 0) {
         clearInterval(minuteurLancement); minuteurLancement = null;
         S.ui.lancement = false; S.ui.lancementAuto = false;
-        if (S.ui.tab === 'accueil' || !VUES[S.ui.tab] || S.ui.tab === 'reglages') S.ui.tab = 'tournee';
+        if (S.ui.tab === 'accueil' || !VUES[S.ui.tab]) S.ui.tab = 'tournee';
         rendre(); window.scrollTo(0, 0);
       }
     }, 200);
