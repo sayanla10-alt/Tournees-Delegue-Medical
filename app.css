@@ -226,6 +226,9 @@ h3 { font: 700 18px/1.2 var(--titre); margin: 18px 0 8px; }
 
 .bilan-jour { margin: 0 0 10px; color: var(--gris); }
 .bilan-jour b { color: var(--encre); }
+.rangee-prochaine { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.rangee-prochaine .puce { min-height: 36px; padding: 0 12px; }
+.rangee-prochaine input { flex: 1 1 140px; min-height: 40px; }
 .estimation { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
 .estimation div { background: var(--papier); border: 1px solid var(--trait); border-radius: 10px; padding: 7px 9px; }
 .estimation b { display: block; font: 700 18px/1.1 var(--titre); }
@@ -358,7 +361,7 @@ h3 { font: 700 18px/1.2 var(--titre); margin: 18px 0 8px; }
 
 .chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
 .chiffre { background: var(--papier); border: 1px solid var(--trait); border-radius: var(--r); padding: 10px; }
-.chiffre b { display: block; font: 700 28px/1 var(--titre); }
+.chiffre b { display: block; font: 700 24px/1.05 var(--titre); white-space: nowrap; }
 .chiffre span { font-size: 12.5px; color: var(--gris); }
 
 .bandeau {

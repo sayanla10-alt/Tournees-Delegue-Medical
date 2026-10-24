@@ -1,4 +1,4 @@
-# MediPlanner v2.0.5 Enterprise (anciennement « Tournées »)
+# MediPlanner v2.0.6 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -22,7 +22,7 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 | **Plannings** | Tournées publiées par chaque délégué (tenue à jour par l'application, ne pas modifier) |
 | **Historique** | Une ligne par compte rendu de visite, avec le nom du délégué |
 | **Quartiers** | Quartiers, communes, zones et coordonnées GPS |
-| **Listes** | Statuts de visite et ceux qui comptent comme visite effective |
+| **Listes** | Statuts de visite et ceux qui comptent comme visite effective ; **Délégués** (noms proposés dans l'application) ; **JoursFériés** (exclus des tournées ; ajoutez chaque année les fêtes musulmanes) |
 
 **Potentiel de prescription** : ★★★ = fort (note 3, à voir tous les 14 jours), ★★ = moyen (note 2, 30 jours), ★ = faible (note 1, 60 jours).
 
@@ -61,6 +61,16 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 - **Filtres** : puces cochées, recherche dans les longues listes (spécialités, communes), groupes repliables, boutons Tout / Effacer / Toute la zone, filtres rapides en un toucher dans Contacts (★★★, non visité +30 j, à revoir, jamais visité, conventionnés, pharmacies). Sur tablette, les fenêtres de choix s'ouvrent au centre de l'écran.
 - **Tournée** : par défaut sans pharmacies.
 - **Mises à jour** : quand une nouvelle version est publiée, un bandeau « Mise à jour disponible » avec les nouveautés apparaît ; **Mise à jour** recharge l'application dans la nouvelle version. Les données du téléphone (tournée, comptes rendus en attente, réglages) sont conservées. Les téléphones encore sur l'ancienne application passent automatiquement en 2.0.0 à leur prochaine ouverture.
+
+## Nouveautés de la version 2.0.6
+
+- **Compte rendu** : produits présentés (les produits déjà saisis sont proposés) et **prochaine étape** (+7 j, +14 j, +30 j ou une date). À cette date, le praticien remonte en priorité dans les tournées et apparaît dans le filtre « À revoir ». Colonnes Produits et ProchaineEtape dans Historique, ProchaineEtape dans Praticiens.
+- **Temps de trajet** : plus lents aux heures de pointe (7 h-9 h 30, 16 h 30-19 h 30) et 10 minutes de plus pour traverser la lagune (Plateau, Cocody… vers Treichville, Marcory, Koumassi, Port-Bouët).
+- **Jours fériés** (feuille Listes) exclus des tournées ; **absences des praticiens** (colonnes AbsentDu / AbsentAu, ou fiche praticien dans l'application) respectées.
+- **Fiabilité des lieux** : un lieu où le praticien a été absent à au moins 40 % des visites (sur 3 comptes rendus ou plus) est signalé « Souvent absent ici » et proposé après les autres.
+- **Nom du délégué** choisi dans la liste de la feuille Listes (colonne Délégués), pour éviter les fautes de frappe entre collègues.
+- **Historique** regroupé dans l'onglet Stats ; 5 onglets au lieu de 6.
+- **Synchronisation allégée** : si la base n'a pas changé, seules les nouvelles visites et les tournées sont téléchargées.
 
 ## Utilisation sur le téléphone
 

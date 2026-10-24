@@ -31,7 +31,8 @@ var CHAMPS_PRATICIENS = [
   ['code', 'CodeContact'], ['type', 'Type'], ['nom', 'Nom'], ['specialite', 'Spécialité'],
   ['note', 'Note'], ['conventionne', 'Conventionné'], ['telephone', 'Téléphone'],
   ['derniere', 'DateDerniereVisite'], ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'],
-  ['nbVisites', 'NbVisites'], ['actif', 'Actif']
+  ['nbVisites', 'NbVisites'], ['actif', 'Actif'],
+  ['prochaine', 'ProchaineEtape'], ['absentDu', 'AbsentDu'], ['absentAu', 'AbsentAu']
 ];
 
 var CHAMPS_PRESENCES = [
@@ -45,7 +46,8 @@ var CHAMPS_HIST = [
   ['date', 'DateVisite'], ['horodatage', 'Horodatage'], ['idPresence', 'IdPresence'], ['code', 'CodeContact'],
   ['nom', 'Nom'], ['type', 'Type'], ['specialite', 'Spécialité'], ['note', 'Note'],
   ['commune', 'Commune'], ['quartier', 'Quartier'], ['lieu', 'Lieu/Etablissement'], ['creneau', 'Créneau'],
-  ['statut', 'Statut'], ['commentaire', 'Commentaire'], ['uid', 'IdSync'], ['delegue', 'Délégué']
+  ['statut', 'Statut'], ['commentaire', 'Commentaire'], ['uid', 'IdSync'], ['delegue', 'Délégué'],
+  ['produits', 'Produits'], ['prochaine', 'ProchaineEtape']
 ];
 
 // Tournées publiées par les délégués (visibles par toute l'équipe)
@@ -111,6 +113,10 @@ var REGLAGES_MOTEUR = {
   nbPropositions: 15,
   detourRoutier: 1.3,          // coefficient vol d'oiseau -> distance routière
   minutesParKm: 3,             // vitesse moyenne en ville (~20 km/h, trafic d'Abidjan)
+  facteurPointe: 1.6,          // trajets plus lents aux heures de pointe
+  heuresPointe: [[420, 570], [990, 1170]],   // 7:00-9:30 et 16:30-19:30
+  minutesPont: 10,             // traversée de la lagune (Plateau / Treichville : ponts souvent saturés)
+  communesSud: ['Treichville', 'Marcory', 'Koumassi', 'Port-Bouët'],
   dureeVisite: 20,             // minutes passées par visite
   toleranceRdv: 10,            // minutes de retard tolérées sur un RDV fixé
   horaireMatinDefaut: '08:00-12:00',
@@ -203,6 +209,20 @@ var SPECIALITES_DEFAUT = ['Généraliste', 'Cardiologue', 'Diabétologue', 'Endo
 function estConventionne(v) { var t = normaliser(v); return t === 'oui' || t === 'o' || t === 'x' || t === 'true' || t === '1' || t === 'yes'; }
 
 // Score = potentiel (note x 100) + retard sur la cadence (plafonné à 3x) + bonus de suivi
+// Durée de trajet en minutes entre deux points, selon l'heure de départ et la traversée de la lagune
+function minutesTrajet(km, communeA, communeB, minuteDepart) {
+  var R = REGLAGES_MOTEUR, t = km * R.minutesParKm;
+  var sudA = R.communesSud.indexOf(communeA) >= 0, sudB = R.communesSud.indexOf(communeB) >= 0;
+  if (communeA && communeB && sudA !== sudB) t += R.minutesPont;
+  var pointe = R.heuresPointe.some(function (p) { return minuteDepart !== null && minuteDepart >= p[0] && minuteDepart <= p[1]; });
+  return Math.round(pointe ? t * R.facteurPointe : t);
+}
+// Jours fériés (feuille Listes, colonne JoursFériés) ; valeurs par défaut pour la Côte d'Ivoire.
+// Les fêtes musulmanes (fin du Ramadan, Tabaski, Maouloud) changent chaque année : à ajouter dans le Sheet.
+var FERIES_DEFAUT = ['2026-11-01', '2026-11-15', '2026-12-25', '2027-01-01', '2027-03-29', '2027-05-01',
+  '2027-05-06', '2027-05-17', '2027-08-07', '2027-08-15', '2027-11-01', '2027-11-15', '2027-12-25'];
+function absentLe(p, iso) { return !!(p.absentDu && p.absentDu <= iso && (!p.absentAu || iso <= p.absentAu)); }
+
 function calcScore(note, jours, dernierStatut) {
   note = lireNote(note);
   var retard = jours / REGLAGES_MOTEUR.cadence[note];
@@ -449,6 +469,7 @@ if (typeof module !== 'undefined' && module.exports) {
     lireHoraire: lireHoraire, lireDispo: lireDispo, ecrireDispo: ecrireDispo, lireNote: lireNote,
     lettrePotentiel: lettrePotentiel, SPECIALITES_DEFAUT: SPECIALITES_DEFAUT,
     completerDonneesFictives: completerDonneesFictives, hachage: hachage,
+    minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
   };

@@ -31,6 +31,15 @@ var Moteur = (function () {
       p.conv = estConventionne(p.conventionne);
       prat[p.code] = p;
     });
+    // Fiabilité de chaque lieu : part des visites où le praticien était présent (dès 3 comptes rendus)
+    var stats = {}, sts = data.statuts && data.statuts.length ? data.statuts : STATUTS_DEFAUT;
+    (data.historique || []).forEach(function (v) {
+      if (!v.idPresence) return;
+      var k = String(v.idPresence), x = stats[k] = stats[k] || { n: 0, ok: 0 };
+      x.n++; if (estVisite(v.statut, sts)) x.ok++;
+    });
+    var feries = {};
+    (data.feries && data.feries.length ? data.feries : FERIES_DEFAUT).forEach(function (d) { feries[d] = true; });
     var parJour = [[], [], [], [], []], parCode = {}, presencesParCode = {};
     (data.presences || []).forEach(function (pr) {
       var p = prat[pr.code];
@@ -40,6 +49,7 @@ var Moteur = (function () {
       var lat = parseFloat(String(pr.lat).replace(',', '.')), lon = parseFloat(String(pr.lon).replace(',', '.'));
       var coord = isFinite(lat) && isFinite(lon) && lat !== 0 ? { lat: lat, lon: lon } : (q ? { lat: q.lat, lon: q.lon } : null);
       var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
+      var st = stats[String(pr.id)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
       JOURS_CLES.forEach(function (cle, j) {
         var d = lireDispo(pr[cle]);
         [['Matin', d.matin, hM], ['Soir', d.soir, hS]].forEach(function (x) {
@@ -47,7 +57,8 @@ var Moteur = (function () {
           var c = {
             cle: pr.id + '|' + j + '|' + x[0], idPresence: pr.id, code: pr.code, jourIdx: j, jour: JOURS[j],
             creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu, quartier: pr.quartier,
-            commune: pr.commune || (q && q.commune) || '', zone: pr.zone || (q && q.zone) || '', coord: coord, prat: p
+            commune: pr.commune || (q && q.commune) || '', zone: pr.zone || (q && q.zone) || '', coord: coord, prat: p,
+            fiab: fiab, fiabTexte: st && st.n >= 3 ? st.ok + '/' + st.n : ''
           };
           parJour[j].push(c);
           (parCode[pr.code] = parCode[pr.code] || []).push(c);
@@ -58,7 +69,7 @@ var Moteur = (function () {
       parCode[k].sort(function (a, b) { return a.jourIdx - b.jourIdx || a.debut - b.debut; });
     });
     return { prat: prat, parJour: parJour, parCode: parCode, presencesParCode: presencesParCode, idxQ: idxQ,
-             quartiers: data.quartiers || [] };
+             quartiers: data.quartiers || [], feries: feries };
   }
 
   function creneauParCle(ctx, cle) {
@@ -69,7 +80,12 @@ var Moteur = (function () {
     return code;
   }
 
-  function scoreDe(p, date) { return calcScore(p.note, joursEcoules(p.derniere, date), p.statut); }
+  // Score : potentiel + retard de visite + bonus si une « prochaine étape » est arrivée à échéance
+  function scoreDe(p, date) {
+    var s = calcScore(p.note, joursEcoules(p.derniere, date), p.statut);
+    if (p.prochaine && p.prochaine <= date) s += 120;
+    return s;
+  }
 
   // Arrêt de tournée (objet simple, enregistrable sur le téléphone)
   function arretDepuisCreneau(c, date) {
@@ -81,6 +97,7 @@ var Moteur = (function () {
       lieu: c.lieu, quartier: c.quartier, commune: c.commune, zone: c.zone,
       lat: c.coord ? c.coord.lat : null, lon: c.coord ? c.coord.lon : null,
       derniere: p.derniere || '', joursEcoules: joursEcoules(p.derniere, date), score: scoreDe(p, date),
+      prochaine: p.prochaine || '', fiab: c.fiab === undefined ? 1 : c.fiab, fiabTexte: c.fiabTexte || '',
       dist: 0, statut: '', commentaire: '', etat: '', garde: false, impose: false, rdv: '', retard: false
     };
   }
@@ -95,10 +112,12 @@ var Moteur = (function () {
   function dist(x, y) { return x && y ? distanceKm(x.coord, y.coord) : 0; }
 
   // Retourne pour chaque arrêt l'heure de début de visite et un indicateur de retard
+  // (trajets : vol d'oiseau x 1,3, 3 min/km, plus lents aux heures de pointe, + traversée de la lagune)
+  function trajetMin(prev, it, t) { return prev ? minutesTrajet(dist(prev, it), prev.a.commune, it.a.commune, t) : 0; }
   function simuler(items) {
     var t = null, prev = null, debuts = [], retards = [], nbRetards = 0;
     items.forEach(function (it) {
-      var trajet = prev ? dist(prev, it) * R.minutesParKm : 0;
+      var trajet = trajetMin(prev, it, t);
       var arrivee = t === null ? it.tot : t + trajet;
       var deb = Math.max(arrivee, it.tot);
       var enRetard = deb > it.tard;
@@ -140,6 +159,7 @@ var Moteur = (function () {
       a.heure = minutesVersHeure(s.debuts[i]);
       a.retard = s.retards[i];
       a.dist = i > 0 ? Math.round(dist(route[i - 1], it) * 10) / 10 : 0;
+      a.trajet = i > 0 ? trajetMin(route[i - 1], it, s.debuts[i - 1] + R.dureeVisite) : 0;
       return a;
     });
   }
@@ -152,7 +172,7 @@ var Moteur = (function () {
     var route = [];
     (o.fixes || []).slice().sort(function (a, b) { return item(a).tot - item(b).tot; })
       .forEach(function (a) { route = insererAuMieux(route, item(a), depart); });
-    if (j > 4) return finaliser(route);
+    if (j > 4 || (ctx.feries && ctx.feries[date])) return finaliser(route);
 
     var dans = null;
     if (o.communes && o.communes.length) { dans = {}; o.communes.forEach(function (c) { dans[c] = true; }); }
@@ -161,10 +181,12 @@ var Moteur = (function () {
       if (utilises[c.code] || (o.exclus && o.exclus[c.code])) return;
       if (dans && !dans[c.commune]) return;
       if (o.accepte && !o.accepte(c.prat)) return;
+      if (absentLe(c.prat, date)) return;
       var je = joursEcoules(c.prat.derniere, date);
       if (je < (o.delai || 0)) return;
       var a = arretDepuisCreneau(c, date);
-      cands.push({ a: a, it: item(a), score: a.score, rejete: !!(o.rejetes && o.rejetes[c.code]) });
+      // un lieu où le praticien est souvent absent passe après les autres
+      cands.push({ a: a, it: item(a), score: a.score * (0.5 + 0.5 * a.fiab), rejete: !!(o.rejetes && o.rejetes[c.code]) });
     });
 
     var max = o.maxJour || 8;
@@ -213,7 +235,7 @@ var Moteur = (function () {
       var rdv = heureVersMinutes(im.rdv), options = [];
       p.dates.forEach(function (d) {
         var j = jourSemaineIndex(d);
-        if (j > 4 || (im.date && im.date !== d)) return;
+        if (j > 4 || (im.date && im.date !== d) || (ctx.feries && ctx.feries[d])) return;
         (ctx.parCode[im.code] || []).forEach(function (c) {
           if (c.jourIdx === j && (!im.cle || im.cle === c.cle)) options.push({ d: d, c: c });
         });
@@ -319,6 +341,7 @@ var Moteur = (function () {
         if (!p.derniere || v.date > p.derniere) p.derniere = v.date;
         p.nbVisites = (+p.nbVisites || 0) + 1;
       }
+      p.prochaine = v.prochaine || '';
       p.statut = v.statut;
       p.commentaire = v.commentaire || '';
     });

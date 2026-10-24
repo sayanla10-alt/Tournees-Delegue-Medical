@@ -270,7 +270,7 @@ function doGet(e) {
   try {
     if (!jetonValide(p.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
     if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR });
-    if (p.action === 'data') return json(lireTout());
+    if (p.action === 'data') return json(lireTout(p.sig || '', p.hdepuis || ''));
     if (p.action === 'equipe') return json(lireEquipe());
     return json({ ok: false, erreur: 'Action inconnue.' });
   } catch (err) {
@@ -296,7 +296,9 @@ function json(o) {
 }
 
 // ---------------------------------------------------------------- Lecture
-function lireTout() {
+// sig : empreinte des données de référence déjà présentes sur le téléphone ; si rien n'a changé,
+// seules les nouveautés (visites depuis hdepuis, tournées) sont renvoyées : moins de données mobiles.
+function lireTout(sig, hdepuis) {
   var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
   assurerStructure(ss);
   var praticiens = lireObjets(ss.getSheetByName(FEUILLES.praticiens), CHAMPS_PRATICIENS, tz).filter(function (p) {
@@ -320,9 +322,53 @@ function lireTout() {
   if (shH && shH.getLastRow() > 1) {
     historique = lireObjets(shH, CHAMPS_HIST, tz, Math.max(2, shH.getLastRow() - NB_HISTORIQUE_RENVOYE + 1)).reverse();
   }
-  return { ok: true, version: VERSION_DONNEES, praticiens: praticiens, presences: presences, quartiers: quartiers,
-           statuts: lireStatuts(ss), historique: historique, plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA),
-           serveur: new Date().toISOString() };
+  if (hdepuis) historique = historique.filter(function (v) { return String(v.horodatage) > hdepuis; });
+  var listes = lireListes(ss, tz), statuts = lireStatuts(ss);
+  var ref = { praticiens: praticiens, presences: presences, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
+  var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
+  var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis,
+            plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString() };
+  if (sig && sig === empreinte) { r.inchange = true; return r; }
+  Object.keys(ref).forEach(function (k) { r[k] = ref[k]; });
+  return r;
+}
+
+// Feuille Listes : colonnes Délégués (liste de choix des noms) et JoursFériés, créées si absentes
+function assurerListes(ss) {
+  var sh = ss.getSheetByName(FEUILLES.listes);
+  if (!sh) return;
+  var ent = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 2)).getValues()[0].map(normaliser);
+  if (ent.indexOf(normaliser('Délégués')) < 0) {
+    var noms = {}, tz = ss.getSpreadsheetTimeZone();
+    [FEUILLES.plannings, FEUILLES.hist].forEach(function (f) {
+      var champs = f === FEUILLES.plannings ? CHAMPS_PLAN : CHAMPS_HIST;
+      lireObjets(ss.getSheetByName(f), champs, tz).forEach(function (o) { var n = String(o.delegue || '').trim(); if (n) noms[n] = true; });
+    });
+    var l = Object.keys(noms).sort();
+    var c = Math.max(sh.getLastColumn(), 2) + 2;
+    sh.getRange(1, c).setValue('Délégués').setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
+    if (l.length) sh.getRange(2, c, l.length, 1).setValues(l.map(function (n) { return [n]; }));
+    ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  }
+  if (ent.indexOf(normaliser('JoursFériés')) < 0) {
+    var c2 = sh.getLastColumn() + 2;
+    sh.getRange(1, c2).setValue('JoursFériés').setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
+    sh.getRange(2, c2, FERIES_DEFAUT.length, 1).setNumberFormat('dd/mm/yyyy')
+      .setValues(FERIES_DEFAUT.map(function (d) { return [Utilities.parseDate(d, ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd')]; }));
+    sh.getRange(1, c2 + 1).setValue('Ajoutez les fêtes musulmanes (fin du Ramadan, Tabaski, Maouloud) chaque année').setFontStyle('italic');
+  }
+}
+function lireListes(ss, tz) {
+  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [] };
+  if (!sh || sh.getLastRow() < 2) return r;
+  var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  var vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés'));
+  vals.forEach(function (v) {
+    if (cD >= 0 && String(v[cD]).trim()) r.delegues.push(String(v[cD]).trim());
+    if (cF >= 0 && v[cF] !== '') { var d = versIso(v[cF], tz); if (d) r.feries.push(d); }
+  });
+  return r;
 }
 
 function lireEquipe() {
@@ -365,7 +411,7 @@ function lireObjets(sh, champs, tz, premiereLigne) {
       var j = pos[k];
       if (j < 0) { o[c[0]] = ''; return; }
       var v = ligne[j];
-      if (c[0] === 'derniere' || c[0] === 'date') o[c[0]] = versIso(v, tz);
+      if (['derniere', 'date', 'prochaine', 'absentDu', 'absentAu'].indexOf(c[0]) >= 0) o[c[0]] = versIso(v, tz);
       else if (c[0] === 'horodatage') o[c[0]] = v instanceof Date ? v.toISOString() : String(v);
       else if (v instanceof Date) o[c[0]] = aff[i][j];
       else o[c[0]] = v;
@@ -396,6 +442,8 @@ function assurerStructure(ss) {
     completerEntetes(ss.getSheetByName(FEUILLES.hist), CHAMPS_HIST);
   }
   if (!ss.getSheetByName(FEUILLES.praticiens)) preparerFeuille(ss, FEUILLES.praticiens, CHAMPS_PRATICIENS.map(function (c) { return c[1]; }));
+  else completerEntetes(ss.getSheetByName(FEUILLES.praticiens), CHAMPS_PRATICIENS);
+  assurerListes(ss);
   if (!ss.getSheetByName(FEUILLES.presences)) preparerFeuille(ss, FEUILLES.presences, CHAMPS_PRESENCES.map(function (c) { return c[1]; }));
 }
 
@@ -431,7 +479,7 @@ function enregistrerVisites(visites) {
 
     var entP = shP.getRange(1, 1, 1, shP.getLastColumn()).getValues()[0].map(normaliser);
     function col(cle) { return entP.indexOf(normaliser(CHAMPS_PRATICIENS[indexChamp(CHAMPS_PRATICIENS, cle)][1])); }
-    var cCode = col('code'), cDer = col('derniere'), cSt = col('statut'), cCom = col('commentaire'), cNb = col('nbVisites');
+    var cCode = col('code'), cDer = col('derniere'), cSt = col('statut'), cCom = col('commentaire'), cNb = col('nbVisites'), cPro = col('prochaine');
     var n = Math.max(shP.getLastRow() - 1, 0);
     var data = n ? shP.getRange(2, 1, n, shP.getLastColumn()).getValues() : [];
     var ligneDe = {};
@@ -450,6 +498,7 @@ function enregistrerVisites(visites) {
       var dateVisite = Utilities.parseDate(v.date, tz, 'yyyy-MM-dd');
       nouvelles.push(ordreH.map(function (cle) {
         if (cle === 'date') return dateVisite;
+        if (cle === 'prochaine') return v.prochaine ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
         if (cle === 'horodatage') return new Date();
         return cle && v[cle] !== undefined ? v[cle] : '';
       }));
@@ -462,9 +511,10 @@ function enregistrerVisites(visites) {
       }
       data[i][cSt] = v.statut;
       data[i][cCom] = v.commentaire || '';
+      if (cPro >= 0) data[i][cPro] = v.prochaine ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
     });
     if (n) {
-      [cDer, cSt, cCom, cNb].forEach(function (c) {
+      [cDer, cSt, cCom, cNb, cPro].forEach(function (c) {
         if (c >= 0) shP.getRange(2, c + 1, n, 1).setValues(data.map(function (l) { return [l[c]]; }));
       });
     }
@@ -658,6 +708,9 @@ function enregistrerFiche(b) {
     var modif = { code: code, type: type, nom: nom, specialite: String(p.specialite || ''), note: lireNote(p.note),
                   conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non', telephone: String(p.telephone || ''),
                   actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui' };
+    var tzF = ss.getSpreadsheetTimeZone();
+    modif.absentDu = p.absentDu ? Utilities.parseDate(p.absentDu, tzF, 'yyyy-MM-dd') : '';
+    modif.absentAu = p.absentAu ? Utilities.parseDate(p.absentAu, tzF, 'yyyy-MM-dd') : '';
     if (ligne < 0) modif.nbVisites = 0;
     CHAMPS_PRATICIENS.forEach(function (c, k) { if (posP[k] >= 0 && modif[c[0]] !== undefined) valeurs[posP[k]] = modif[c[0]]; });
     if (ligne >= 0) shP.getRange(ligne + 2, 1, 1, entP.length).setValues([valeurs]);

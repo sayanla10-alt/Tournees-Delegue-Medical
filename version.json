@@ -1,8 +1,11 @@
 {
-  "version": "2.0.5",
+  "version": "2.0.6",
   "edition": "Enterprise",
-  "date": "2026-10-23",
+  "date": "2026-10-24",
   "notes": [
+    "Compte rendu : produits présentés et prochaine étape",
+    "Trajets réalistes (heures de pointe, ponts), jours fériés et absences respectés",
+    "Lieux où le praticien est souvent absent signalés ; nom du délégué choisi dans une liste ; Historique dans Stats",
     "Filtres sélectionnés de nouveau en couleur pleine",
     "Base de test complétée : téléphones fictifs, derniers statuts, positions GPS",
     "Filtres modernisés : puces cochées, recherche dans les listes, groupes repliables, filtres rapides en un toucher",

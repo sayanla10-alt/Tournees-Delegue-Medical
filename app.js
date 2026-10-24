@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.5', EDITION = 'Enterprise';
+  var APP_VERSION = '2.0.6', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.0.6', ['Compte rendu : produits présentés et date de prochaine étape (le praticien remonte en priorité à cette date)',
+               'Temps de trajet plus réalistes : heures de pointe et traversée de la lagune',
+               'Jours fériés et absences des praticiens respectés dans les tournées',
+               'Lieux où le praticien est souvent absent signalés et proposés en dernier',
+               'Nom du délégué choisi dans une liste', 'Historique regroupé dans l\'onglet Stats', 'Synchronisation plus légère']],
     ['2.0.5', ['Filtres sélectionnés de nouveau en couleur pleine, bien visibles', 'Base de test complétée : téléphones fictifs, derniers statuts et commentaires, positions GPS des établissements']],
     ['2.0.4', ['Filtres modernisés : puces cochées, recherche dans les listes, groupes repliables, filtres rapides en un toucher',
                'Thème clair par défaut ; tournée sans pharmacies par défaut', 'Sur tablette, les fenêtres s\'ouvrent au centre de l\'écran']],
@@ -214,10 +219,10 @@
     l.forEach(function (a) {
       var h = heureVersMinutes(a.heure);
       if (h !== null) { if (deb === null || h < deb) deb = h; if (fin === null || h + R.dureeVisite > fin) fin = h + R.dureeVisite; }
-      dist += a.dist || 0;
+      dist += a.trajet !== undefined ? a.trajet : (a.dist || 0) * R.minutesParKm;
     });
     if (deb === null) return null;
-    return { debut: deb, fin: fin, trajet: Math.round(dist * R.minutesParKm) };
+    return { debut: deb, fin: fin, trajet: Math.round(dist) };
   }
   // Appeler, SMS, Waze, Google Maps
   function actionsRapides(o) {
@@ -286,6 +291,34 @@
       secs[idx[c.zone]].options.push({ v: c.commune, lib: c.commune });
     });
     return secs;
+  }
+  // Nom du délégué : choisi dans la liste de la feuille Listes (évite les fautes de frappe entre collègues)
+  function champNom(id, valeur, libelle) {
+    var l = (S.data && S.data.delegues) || [];
+    if (!l.length) return '<label class="champ"><span>' + libelle + '</span><input type="text" id="' + id + '" autocomplete="name" placeholder="Ex. Koffi Yao" value="' + esc(valeur) + '"></label>';
+    var autre = valeur && l.indexOf(valeur) < 0;
+    return '<label class="champ"><span>' + libelle + '</span><select id="' + id + '" data-f="choixNom"><option value="">Choisir mon nom…</option>' +
+      l.map(function (n) { return '<option' + (n === valeur ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') +
+      '<option value="__autre"' + (autre ? ' selected' : '') + '>Mon nom n\'est pas dans la liste</option></select></label>' +
+      '<label class="champ" id="' + id + 'Bloc"' + (autre ? '' : ' hidden') + '><span>Nom complet</span><input type="text" id="' + id + 'Autre" autocomplete="name" value="' + esc(autre ? valeur : '') + '">' +
+      '<span class="aide-champ">Demandez aussi qu\'on vous ajoute dans la feuille Listes, colonne Délégués.</span></label>';
+  }
+  function lireNom(id) {
+    var el = $(id); if (!el) return '';
+    if (el.tagName === 'SELECT') return (el.value === '__autre' ? ($(id + 'Autre').value || '') : el.value).trim();
+    return (el.value || '').trim();
+  }
+  // Produits déjà saisis : proposés à la saisie suivante
+  function datalistProduits() {
+    var l = LS.get('produits', []);
+    return '<datalist id="listeProduits">' + l.map(function (p) { return '<option value="' + esc(p) + '">'; }).join('') + '</datalist>';
+  }
+  function memoriserProduits(t) {
+    if (!t) return;
+    var l = LS.get('produits', []), n = String(t).trim();
+    if (!n) return;
+    l = [n].concat(l.filter(function (x) { return x !== n; })).slice(0, 30);
+    LS.set('produits', l);
   }
   function ficheEnAttente(code) { return S.fiches.some(function (f) { return f.praticien.code === code; }); }
 
@@ -393,9 +426,24 @@
         S.ui.portee = porteePlan(); LS.set('portee', S.ui.portee);
         S.ui.conflits = r.conflits || [];
       });
-    }).then(function () { return apiGet('data'); }).then(function (d) {
-      S.data = { version: d.version, praticiens: d.praticiens, presences: d.presences, quartiers: d.quartiers,
-                 statuts: d.statuts, historique: d.historique, plannings: d.plannings || [], syncedAt: new Date().toISOString() };
+    }).then(function () {
+      // synchro allégée : empreinte des données de référence et date de la dernière visite connue
+      var ref = S.data && S.data.sig && S.data.praticiens ? '&sig=' + encodeURIComponent(S.data.sig) : '';
+      var hd = S.data && S.data.historique && S.data.historique.length ? S.data.historique.reduce(function (m, v) { return v.horodatage > m ? v.horodatage : m; }, '') : '';
+      return apiGet('data' + ref + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
+    }).then(function (d) {
+      var ancien = S.data || {};
+      var hist = d.historique || [];
+      if (d.partiel) {
+        var vus = {}; hist.forEach(function (v) { vus[v.uid] = true; });
+        hist = hist.concat((ancien.historique || []).filter(function (v) { return !v.uid || !vus[v.uid]; }));
+        hist.sort(function (a, b) { return String(b.horodatage || b.date) < String(a.horodatage || a.date) ? -1 : 1; });
+        hist = hist.slice(0, 1500);
+      }
+      var base = d.inchange ? ancien : d;
+      S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
+                 statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [],
+                 historique: hist, plannings: d.plannings || [], syncedAt: new Date().toISOString() };
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data);
@@ -540,16 +588,17 @@
   VUES.identite = function () {
     return '<section class="accueil"><h1>Qui êtes-vous ?</h1>' +
       '<p>Votre nom apparaît auprès de vos collègues, sur votre tournée et vos visites. Il permet à chacun de savoir quels praticiens sont déjà ciblés.</p>' +
-      '<label class="champ"><span>Votre nom</span><input type="text" id="nomDelegue" autocomplete="name" placeholder="Ex. Koffi Yao"></label>' +
+      champNom('nomDelegue', moi(), 'Votre nom') +
       '<label class="champ"><span>Votre numéro WhatsApp (facultatif)</span><input type="tel" id="numWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07"></label>' +
       '<button class="bouton bouton-plein" data-a="enregistrerNom" type="button">Continuer</button></section>';
   };
 
   // ------------------------------------------------------------------ Période et paramètres
-  function datesPeriode() {
-    var p = S.params;
-    return p.mode === 'jour' ? [p.dateRef] : joursOuvres(lundiDe(p.dateRef));
-  }
+  function feries() { return (S.data && S.data.feries && S.data.feries.length) ? S.data.feries : FERIES_DEFAUT; }
+  function estFerie(d) { return feries().indexOf(d) >= 0; }
+  // Dates de la période (affichage) et dates travaillées (jours fériés exclus) pour le tirage
+  function datesAffichees() { var p = S.params; return p.mode === 'jour' ? [p.dateRef] : joursOuvres(lundiDe(p.dateRef)); }
+  function datesPeriode() { return datesAffichees().filter(function (d) { return !estFerie(d); }); }
   function communesPour(date) {
     var p = S.params, l = p.communes;
     if (p.mode === 'semaine' && p.parJour) {
@@ -618,7 +667,7 @@
       liste.forEach(function (a, i) {
         if (i > 0 && a.dist > 0) {
           h += '<li class="troncon" aria-hidden="true"><div></div><div class="arret-rail"></div><span>' +
-            km(a.dist) + ', environ ' + Math.round(a.dist * REGLAGES_MOTEUR.minutesParKm) + ' min</span></li>';
+            km(a.dist) + ', environ ' + (a.trajet !== undefined ? a.trajet : Math.round(a.dist * REGLAGES_MOTEUR.minutesParKm)) + ' min</span></li>';
         }
         h += rendreArret(a);
       });
@@ -629,7 +678,7 @@
   };
 
   function rendreResume() {
-    var p = S.params, dates = datesPeriode();
+    var p = S.params, dates = datesAffichees();
     var com = p.mode === 'semaine' && p.parJour ? 'Secteurs différents selon les jours' : libelleCommunes(p.communes);
     return '<section class="bloc resume-params"><p><b>' +
       (p.mode === 'jour' ? 'Journée du ' + dateCourte(p.dateRef) : 'Semaine du ' + dateCourte(dates[0])) +
@@ -697,7 +746,7 @@
   }
 
   function rendreProgramme() {
-    var dates = datesPeriode();
+    var dates = datesAffichees();
     if (S.programme.etat === 'valide') {
       return '<section class="bandeau-prog valide"><div><b>Programme validé</b><span>' +
         (S.programme.valideLe ? 'le ' + esc(S.programme.valideLe) : '') + ', visible par l\'équipe</span></div>' +
@@ -721,6 +770,8 @@
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(a.statut) + (verrou ? ', enregistré' : '') + '</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
+    if (a.prochaine && a.prochaine <= a.date && !a.statut) e += '<span class="etiquette p1">Prochaine étape prévue le ' + dateCourte(a.prochaine) + '</span>';
+    if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';
     e += etiquetteCollegues(a.code, a.date);
 
     var h = '<li class="' + cls + '" data-p="' + (+a.note === 3 ? 1 : 3) + '">' +
@@ -742,10 +793,21 @@
           return '<button type="button" class="statut' + (s.visite ? '' : ' ko') + '" data-a="statut" data-uid="' + a.uid +
             '" data-v="' + esc(s.nom) + '" aria-pressed="' + (a.statut === s.nom) + '">' + esc(s.nom) + '</button>';
         }).join('') + '</div>' +
+        '<label class="champ"><span>Produits présentés</span><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
+          '" value="' + esc(a.produits || '') + '" placeholder="Ex. Produit A, Produit B">' + datalistProduits() + '</label>' +
         '<label class="champ"><span>Commentaire</span><textarea data-f="commentaire" data-uid="' + a.uid +
-          '" placeholder="Échantillons remis, prochaine étape…">' + esc(a.commentaire) + '</textarea></label>';
-      } else if (a.commentaire) {
-        h += '<p class="discret" style="margin-top:0">' + esc(a.commentaire) + '</p>';
+          '" placeholder="Échantillons remis, objections, besoins…">' + esc(a.commentaire) + '</textarea></label>' +
+        '<div class="champ"><span>Prochaine étape le</span><div class="rangee-prochaine">' +
+          [7, 14, 30].map(function (n) {
+            var d = ajouterJours(a.date, n);
+            return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
+          }).join('') +
+          '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date de la prochaine étape"></div>' +
+          '<span class="aide-champ">Le praticien remonte en priorité dans les tournées à cette date.</span></div>';
+      } else {
+        if (a.produits) h += '<p class="discret" style="margin-top:0">Produits : ' + esc(a.produits) + '</p>';
+        if (a.commentaire) h += '<p class="discret" style="margin-top:0">' + esc(a.commentaire) + '</p>';
+        if (a.prochaine) h += '<p class="discret" style="margin-top:0">Prochaine étape le ' + dateCourte(a.prochaine) + '</p>';
       }
       var pa = praticien(a.code) || {};
       h += actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune }) +
@@ -951,7 +1013,10 @@
 
   // ------------------------------------------------------------------ Vue : contacts (filtres avancés cumulables)
   function ensemble(l) { var o = {}; (l || []).forEach(function (x) { o[x] = true; }); return o; }
-  function aRevoir(p) { return !!p.statut && (estKo(p.statut) || /rappeler|interess|report/.test(normaliser(p.statut))); }
+  function aRevoir(p) {
+    if (p.prochaine && p.prochaine <= ajouterJours(aujourdhui(), 7)) return true;
+    return !!p.statut && (estKo(p.statut) || /rappeler|interess|report/.test(normaliser(p.statut)));
+  }
   function filtrerPraticiens(f, texte) {
     var t = aujourdhui(), c = ctx(), q = normaliser(texte || '');
     var sp = ensemble(f.specialites), co = ensemble(f.communes), po = ensemble(f.potentiels);
@@ -1052,6 +1117,8 @@
                               lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
         if (p.telephone) h += '<p class="discret" style="margin:8px 0 0">Téléphone : ' + esc(p.telephone) + '</p>';
         if (p.commentaire) h += '<p class="discret" style="margin:8px 0 0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
+        if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochaine étape le ' + dateCourte(p.prochaine) + '</p>';
+        if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
         h += grillePresences(p.code);
         var impose = S.imposes.some(function (im) { return im.code === p.code; });
         h += '<div class="rangee" style="margin-top:10px">' +
@@ -1145,8 +1212,12 @@
   function txt(n) { return n === null || n === undefined ? 'n.d.' : n + ' %'; }
 
   VUES.stats = function () {
+    var vueH = S.ui.statsVue === 'historique';
+    var tete = '<h2 class="titre-vue">' + (vueH ? 'Historique' : 'Statistiques') + '</h2>' +
+      segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique des visites']], vueH ? 'historique' : 'tableau');
+    if (vueH) return tete + VUES.historique(true);
     var st = S.ui.stats, r = calculerStats(), b = r.bornes;
-    var h = '<h2 class="titre-vue">Statistiques</h2>';
+    var h = tete;
     h += '<div class="filtres-stats">' + segment('Période', 'statsPeriode', [['jour', 'Jour'], ['semaine', 'Semaine'], ['mois', 'Mois'], ['perso', 'Période']], st.periode) +
       (S.config.demo ? '' : segment('Portée', 'statsPortee', [['moi', 'Mes visites'], ['equipe', 'Toute l\'équipe']], st.portee)) + '</div>';
     if (st.periode === 'perso') {
@@ -1323,7 +1394,7 @@
   window.addEventListener('scroll', cacherInfobulle, { passive: true });
 
   // ------------------------------------------------------------------ Vue : historique
-  VUES.historique = function () {
+  VUES.historique = function (integre) {
     var enAttente = S.queue.slice().reverse().map(function (v) { v = Object.assign({}, v); v.attente = true; return v; });
     var tout = enAttente.concat((S.data.historique || []).filter(function (v) { return !S.queue.some(function (q) { return q.uid === v.uid; }); }));
     var hist = tout.filter(function (v) { return !v.delegue || estMoi(v.delegue); });
@@ -1333,7 +1404,7 @@
     var moisN = hist.filter(function (v) { return String(v.date).slice(0, 7) === mois && compte(v); }).length;
     var derniers = hist.filter(function (v) { return v.date >= il30; });
     var taux = derniers.length ? 100 * derniers.filter(compte).length / derniers.length : null;
-    var h = '<h2 class="titre-vue">Historique</h2><div class="chiffres">' +
+    var h = (integre ? '' : '<h2 class="titre-vue">Historique</h2>') + '<div class="chiffres">' +
       '<div class="chiffre"><b>' + sem + '</b><span>visites cette semaine</span></div>' +
       '<div class="chiffre"><b>' + moisN + '</b><span>visites ce mois-ci</span></div>' +
       '<div class="chiffre"><b>' + (taux === null ? 'n.d.' : pct(taux)) + '</b><span>présence sur 30 jours</span></div></div>';
@@ -1347,7 +1418,9 @@
       return '<li class="element"><div class="element-tete"><div>' +
         '<span class="element-titre">' + esc(v.nom) + '</span>' +
         '<span class="discret bloc-texte">' + esc(v.lieu) + ', ' + esc(v.quartier) + '</span>' +
+        (v.produits ? '<span class="bloc-texte discret" style="margin-top:4px">Produits : ' + esc(v.produits) + '</span>' : '') +
         (v.commentaire ? '<span class="bloc-texte" style="margin-top:4px">' + esc(v.commentaire) + '</span>' : '') +
+        (v.prochaine ? '<span class="bloc-texte discret">Prochaine étape le ' + dateCourte(String(v.prochaine).slice(0, 10)) + '</span>' : '') +
         '<span class="etiquettes"><span class="etiquette ' + (compte(v) ? 'ok' : 'ko') + '">' + esc(v.statut) + '</span>' +
         (v.attente ? '<span class="etiquette p1">En attente d\'envoi</span>' : '') +
         (v.delegue && !estMoi(v.delegue) ? '<span class="etiquette equipe">' + esc(v.delegue) + '</span>' : '') + '</span></div>' +
@@ -1363,7 +1436,7 @@
     }).join('');
     var h = '<h2 class="titre-vue">Réglages</h2>';
     h += '<section class="bloc"><h3 style="margin-top:0">Moi</h3>' +
-      '<label class="champ"><span>Votre nom (visible par vos collègues)</span><input type="text" id="cfgNom" autocomplete="name" value="' + esc(c.delegue || '') + '"></label>' +
+      champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)') +
       '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
       '<label class="interrupteur"><span>Toujours ouvrir WhatsApp Web</span><input type="checkbox" id="cfgWaWeb"' + (c.waWeb ? ' checked' : '') + '></label>' +
       '<label class="champ"><span>Point de départ habituel</span><select id="cfgDepart">' + qOpts + '</select></label>' +
@@ -1523,7 +1596,7 @@
     });
     return { code: code, type: p.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin', nom: p.nom || '', telephone: String(p.telephone || ''),
              specialite: p.specialite || '', autreSpec: '', note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
-             actif: 'Oui', lieux: lieux.length ? lieux : [lieuVide()] };
+             actif: 'Oui', absentDu: p.absentDu || '', absentAu: p.absentAu || '', lieux: lieux.length ? lieux : [lieuVide()] };
   }
   function horaireValide(t) {
     var m = String(t || '').match(/^\s*(\d{1,2})\s*[:hH]?\s*(\d{2})?\s*-\s*(\d{1,2})\s*[:hH]?\s*(\d{2})?\s*$/);
@@ -1544,6 +1617,8 @@
     }
     if (etape === 2) {
       if (!d.lieux.length) e.lieux = 'Ajoutez au moins un lieu d\'exercice.';
+      if (d.absentAu && !d.absentDu) e.absentDu = 'Indiquez le début de l\'absence.';
+      if (d.absentDu && d.absentAu && d.absentAu < d.absentDu) e.absentAu = 'La fin doit suivre le début.';
       d.lieux.forEach(function (l, i) {
         if (String(l.lieu).trim().length < 2) e['lieu' + i] = 'Nom de l\'établissement ou du cabinet requis.';
         var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
@@ -1623,6 +1698,11 @@
           '</div></div>';
       });
       h += '<button class="bouton bouton-large" type="button" data-a="ficheAjouterLieu">' + icone('plus') + 'Ajouter un lieu d\'exercice</button>';
+      h += '<div class="lieu-bloc" style="margin-top:12px"><div class="lieu-tete"><b>Absence (congés, formation…)</b></div>' +
+        '<div class="grille-2">' +
+        champFiche('absentDu', 'Absent du', '<input type="date" data-f="fiche" data-k="absentDu" value="' + esc(d.absentDu || '') + '"' + attrInvalide(f, 'absentDu') + '>', f, false) +
+        champFiche('absentAu', 'Au', '<input type="date" data-f="fiche" data-k="absentAu" value="' + esc(d.absentAu || '') + '"' + attrInvalide(f, 'absentAu') + '>', f, false) +
+        '</div><span class="aide-champ">Facultatif. Le praticien n\'est pas proposé dans les tournées pendant cette période.</span></div>';
     }
     if (e === 3) {
       var parCommune = {};
@@ -1665,7 +1745,8 @@
     var code = d.code || 'TMP-' + Date.now().toString(36).toUpperCase();
     var pr = { code: code, type: d.type, nom: String(d.nom).trim(), telephone: String(d.telephone || '').trim(),
                specialite: d.type === 'Pharmacie' ? 'Pharmacien' : (d.specialite === '__autre' ? String(d.autreSpec).trim() : d.specialite),
-               note: +d.note, conventionne: d.conventionne, actif: d.actif === 'Non' ? 'Non' : 'Oui' };
+               note: +d.note, conventionne: d.conventionne, actif: d.actif === 'Non' ? 'Non' : 'Oui',
+               absentDu: d.absentDu || '', absentAu: d.absentAu || '' };
     var pres = d.lieux.map(function (l) {
       var q = quartiers().filter(function (x) { return x.quartier === l.quartier; })[0] || {};
       var o = { id: l.id || 'TMP' + Math.random().toString(36).slice(2, 8), code: code, nom: pr.nom, lieu: String(l.lieu).trim(), quartier: l.quartier,
@@ -1795,6 +1876,9 @@
   function lancerTirage(portee) {
     var p = S.params;
     if (p.mode === 'jour' && jourSemaineIndex(p.dateRef) > 4) { toast('Choisissez un jour de semaine.'); return; }
+    if (p.mode === 'jour' && estFerie(p.dateRef)) { toast('Ce jour est férié. Choisissez un autre jour.'); return; }
+    var feriesSemaine = p.mode === 'semaine' ? joursOuvres(lundiDe(p.dateRef)).filter(estFerie) : [];
+    if (feriesSemaine.length) toast('Jour férié exclu de la semaine : ' + feriesSemaine.map(dateCourte).join(', ') + '.', 4000);
     var renseignees = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }).length;
     if (renseignees && !confirm(renseignees + ' compte(s) rendu(s) non enregistré(s) seront perdus. Continuer ?')) return;
     avantTirage().then(function () {
@@ -1838,7 +1922,9 @@
     aValider.forEach(function (a) {
       var v = { uid: a.uid, date: a.date > t ? t : a.date, idPresence: a.idPresence, code: a.code, nom: a.nom, type: a.type,
                 specialite: a.specialite, note: a.note, commune: a.commune, quartier: a.quartier, lieu: a.lieu,
-                creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '', delegue: moi() };
+                creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '', delegue: moi(),
+                produits: a.produits || '', prochaine: a.prochaine || '' };
+      memoriserProduits(a.produits);
       Moteur.appliquerVisite(S.data.praticiens, v, statuts());
       if (S.config.demo) { v.horodatage = new Date().toISOString(); S.data.historique = [v].concat(S.data.historique || []); }
       else S.queue.push(v);
@@ -1921,7 +2007,8 @@
 
   var ACTIONS = {
     nav: function (el) {
-      S.ui.tab = el.dataset.tab; S.ui.feuille = null;
+      S.ui.tab = el.dataset.tab;
+      if (S.ui.tab === 'historique') { S.ui.tab = 'stats'; S.ui.statsVue = 'historique'; } S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);
       if (S.ui.tab === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && S.ui.tab === 'equipe') rendreSiPossible(); });
     },
@@ -2043,14 +2130,14 @@
       synchroniser(false);
     },
     enregistrerNom: function () {
-      var n = ($('nomDelegue').value || '').trim();
+      var n = lireNom('nomDelegue');
       if (n.length < 2) { toast('Indiquez votre nom.'); return; }
       S.config.delegue = n; S.config.whatsapp = normaliserNumero($('numWhatsapp').value) || '';
       LS.set('config', S.config); S.ui.tab = 'tournee'; rendre(); publierPlan();
       toast('Bienvenue ' + n + '.');
     },
     enregistrerMoi: function () {
-      var n = ($('cfgNom').value || '').trim(), w = ($('cfgWhatsapp').value || '').trim();
+      var n = lireNom('cfgNom'), w = ($('cfgWhatsapp').value || '').trim();
       if (w && !normaliserNumero(w)) { toast('Numéro WhatsApp non reconnu. Exemple : 07 07 07 07 07.'); return; }
       var ancien = moi();
       S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); S.config.waWeb = $('cfgWaWeb').checked; S.config.depart = $('cfgDepart').value;
@@ -2091,6 +2178,11 @@
       S.ui.feuille = { type: 'multi', titre: 'Spécialités ciblées', titreGroupe: 'Spécialités', cle: 'specialites', options: specialitesListe(), sel: S.params.specialites.slice(),
                        aide: 'Aucune sélection = toutes les spécialités. Les pharmacies dépendent du choix « Avec / Sans pharmacies ».' };
       rendre();
+    },
+    prochaine: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      a.prochaine = a.prochaine === el.dataset.v ? '' : el.dataset.v;
+      LS.set('plan', S.plan); rendre();
     },
     choix: function (el) {
       var c = cheminObjet(el.dataset.chemin), v = el.dataset.v;
@@ -2193,6 +2285,7 @@
     // Statistiques
     statsPeriode: function (el) { S.ui.stats.periode = el.dataset.v; LS.set('stats', S.ui.stats); rendre(); },
     statsPortee: function (el) { S.ui.stats.portee = el.dataset.v; LS.set('stats', S.ui.stats); rendre(); },
+    statsVue: function (el) { S.ui.statsVue = el.dataset.v; rendre(); },
     statsSpec: function (el) { S.ui.stats.vueSpec = el.dataset.v; LS.set('stats', S.ui.stats); rendre(); },
     // Apparence, lancement, mises à jour
     theme: function (el) { appliquerTheme(el.dataset.v); rendre(); },
@@ -2230,6 +2323,7 @@
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
     if (f === 'fiche') majChampFiche(el, false);
+    if (f === 'produits') { var ap = arret(el.dataset.uid); if (ap) { ap.produits = el.value; LS.set('plan', S.plan); } }
     if (f === 'chercheOption') {
       var fe = S.ui.feuille; fe.q = fe.q || {}; fe.q[el.dataset.g] = el.value;
       var q = normaliser(el.value), g = el.closest('.groupe-filtre');
@@ -2253,6 +2347,8 @@
     }
     if (f === 'autour') { S.ui.autour[el.dataset.k] = el.value; LS.set('autour', S.ui.autour); rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
+    if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
+    if (f === 'choixNom') { var bloc = $(el.id + 'Bloc'); if (bloc) bloc.hidden = el.value !== '__autre'; }
     if (f === 'tri') { S.ui.tri = el.value; LS.set('tri', S.ui.tri); rendre(); }
     if (f === 'stats') {
       var k2 = el.dataset.k;
