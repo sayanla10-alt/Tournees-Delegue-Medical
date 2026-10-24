@@ -159,12 +159,27 @@ h3 { font: 700 18px/1.2 var(--titre); margin: 18px 0 8px; }
 
 .champ { display: block; margin-bottom: 12px; }
 .champ > span, .champ > .libelle { display: block; font-size: 13px; color: var(--gris); margin-bottom: 4px; }
-.champ input, .champ select, .champ textarea {
-  width: 100%; min-height: 44px; padding: 9px 12px;
-  border: 1.5px solid var(--trait); border-radius: 9px; background: var(--papier);
+/* Champs de saisie modernes : fond tonal, coins arrondis, anneau de focus, flèche personnalisée */
+:where(input[type="text"], input[type="tel"], input[type="date"], input[type="time"], input[type="number"], input[type="email"], input[type="url"], input[type="password"], select, textarea) {
+  min-height: 46px; padding: 10px 14px; border: 1px solid var(--trait); border-radius: 12px;
+  background-color: var(--papier-2); color: var(--encre); font-size: 15px; line-height: 1.3;
+  transition: border-color .15s, box-shadow .15s, background-color .15s; -webkit-appearance: none; appearance: none;
 }
-.champ textarea { min-height: 64px; resize: vertical; }
-.champ input:focus, .champ select:focus, .champ textarea:focus { border-color: var(--primaire); outline: none; }
+:where(input, select, textarea):hover { border-color: var(--gris-2); }
+:where(input, select, textarea):focus { outline: none; border-color: var(--primaire); background-color: var(--papier); box-shadow: 0 0 0 3px var(--primaire-pale); }
+:where(input, textarea)::placeholder { color: var(--gris-2); }
+select { padding-right: 40px; cursor: pointer; text-overflow: ellipsis;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237A8F99' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 18px; }
+select::-ms-expand { display: none; }
+input[type="date"], input[type="time"] { min-width: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }
+:root[data-theme="sombre"] input::-webkit-calendar-picker-indicator { filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="clair"]) input::-webkit-calendar-picker-indicator { filter: invert(1); } }
+optgroup { font-weight: 700; color: var(--gris); }
+option { color: var(--encre); background: var(--papier); font-weight: 400; }
+.champ input, .champ select, .champ textarea { width: 100%; }
+.champ textarea { min-height: 84px; resize: vertical; }
 .champ [aria-invalid="true"] { border-color: var(--rouge); }
 .champ .erreur { display: block; color: var(--rouge); font-size: 12.5px; margin-top: 4px; min-height: 0; }
 .champ .erreur:empty { display: none; }
@@ -191,8 +206,10 @@ h3 { font: 700 18px/1.2 var(--titre); margin: 18px 0 8px; }
 
 .selecteur {
   width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 9px 12px; border: 1.5px solid var(--trait); border-radius: 9px; background: var(--papier); text-align: left;
+  padding: 10px 14px; border: 1px solid var(--trait); border-radius: 12px; background: var(--papier-2); text-align: left;
+  transition: border-color .15s, box-shadow .15s;
 }
+.selecteur:focus-visible { outline: none; border-color: var(--primaire); box-shadow: 0 0 0 3px var(--primaire-pale); }
 .selecteur b { color: var(--gris); }
 
 /* ------------------------------------------------------------- Paramètres de tournée */
@@ -329,9 +346,9 @@ h3 { font: 700 18px/1.2 var(--titre); margin: 18px 0 8px; }
 .carte-bouton.element { background: var(--papier); border: 1px solid var(--trait); border-radius: var(--r); padding: 12px; margin-bottom: 8px; }
 
 .recherche { position: relative; margin-bottom: 10px; flex: 1; }
-.recherche input { width: 100%; min-height: 46px; padding: 0 14px 0 42px; border: 1.5px solid var(--trait);
+.recherche input { width: 100%; min-height: 46px; padding: 0 14px 0 42px; border: 1px solid var(--trait);
   border-radius: 23px; background: var(--papier); }
-.recherche input:focus { border-color: var(--primaire); outline: none; }
+.recherche input:focus { border-color: var(--primaire); outline: none; box-shadow: 0 0 0 3px var(--primaire-pale); }
 .recherche svg { position: absolute; left: 14px; top: 12px; color: var(--gris); }
 .barre-recherche { display: flex; gap: 8px; align-items: flex-start; }
 .barre-recherche .bouton { min-height: 46px; border-radius: 23px; padding: 0 14px; flex: none; }
@@ -354,7 +371,7 @@ h3 { font: 700 18px/1.2 var(--titre); margin: 18px 0 8px; }
 }
 .filtre-actif svg { width: 15px; height: 15px; }
 .tri { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.tri select { min-height: 34px; border: 1px solid var(--trait); border-radius: 8px; background: var(--papier); padding: 0 8px; font-size: 13px; }
+.tri select { min-height: 36px; border-radius: 18px; padding: 0 34px 0 14px; font-size: 13.5px; font-weight: 600; background-position: right 10px center; background-size: 16px; }
 
 .lignes-contact { margin: 10px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--trait); }
 .lignes-contact li { display: flex; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--trait); }
@@ -669,3 +686,6 @@ body.avec-barre main { padding-bottom: 90px; }
   .graph .serie { fill: Highlight; }
   .graph .piste { fill: GrayText; }
 }
+
+/* 2.2.0 : phrase d'introduction des onglets */
+.intro-vue { margin: 2px 0 12px; }

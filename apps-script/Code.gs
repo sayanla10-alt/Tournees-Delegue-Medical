@@ -18,7 +18,7 @@ var FEUILLES = {
   praticiens: 'Praticiens', presences: 'Presences', hist: 'Historique', quartiers: 'Quartiers',
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies'
 };
-var VERSION_SERVEUR = '2.0.0';
+var VERSION_SERVEUR = '2.2.0';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -286,11 +286,30 @@ function doPost(e) {
     if (!jetonValide(body.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
     if (body.action === 'valider') return json(enregistrerVisites(body.visites || []));
     if (body.action === 'planning') return json(publierPlanning(body));
-    if (body.action === 'fiche') return json(enregistrerFiche(body));
+    if (body.action === 'fiche') return json(ficheUnique(body));
     return json({ ok: false, erreur: 'Action inconnue.' });
   } catch (err) {
-    return json({ ok: false, erreur: String(err.message || err) });
+    var m = String(err.message || err);
+    return json({ ok: false, erreur: m, reessai: /occupé|timed out|Service|Lock|délai/i.test(m) });
   }
+}
+
+// Verrou d'écriture : si plusieurs délégués écrivent en même temps, l'appel attend jusqu'à 20 s,
+// puis renvoie une erreur « réessayable » (l'application renvoie automatiquement)
+function verrouiller() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) throw new Error('Serveur occupé, nouvel essai automatique.');
+  return lock;
+}
+
+// Une fiche renvoyée après une coupure réseau n'est pas créée deux fois (mémoire 6 h par identifiant)
+function ficheUnique(body) {
+  var cache = body.uid ? CacheService.getScriptCache() : null, cle = body.uid ? 'fiche_' + body.uid : '';
+  var connu = cache ? cache.get(cle) : null;
+  if (connu) return JSON.parse(connu);
+  var r = enregistrerFiche(body);
+  if (cache && r && r.ok) cache.put(cle, JSON.stringify(r), 21600);
+  return r;
 }
 
 function json(o) {
@@ -337,7 +356,7 @@ function lireTout(sig, hdepuis) {
   var listes = lireListes(ss, tz), statuts = lireStatuts(ss);
   var ref = { praticiens: praticiens, presences: presences, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
   var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
-  ref.activites = listes.activites;
+  ref.activites = listes.activites; ref.produits = listes.produits;
   empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis,
             plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString() };
@@ -368,6 +387,22 @@ function assurerListes(ss) {
     sh.getRange(1, cA).setValue('Activités').setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
     sh.getRange(2, cA, ACTIVITES_DEFAUT.length, 1).setValues(ACTIVITES_DEFAUT.map(function (a) { return [a]; }));
     ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  } else if (sh.getLastRow() > 1) {
+    // 2.2.0 : « Routine » remplace « Visite de routine (rappel) », Réunion et Staff séparés, Déjeuner et Garde ajoutés
+    var cX = ent.indexOf(normaliser('Activités')) + 1, rX = sh.getRange(2, cX, sh.getLastRow() - 1, 1);
+    var act = rX.getValues().map(function (v) { return String(v[0]).trim(); }).filter(Boolean);
+    if (act.some(function (a) { return ACTIVITES_RENOMMEES[a]; })) {
+      var perso = act.filter(function (a) { return !ACTIVITES_RENOMMEES[a] && ACTIVITES_DEFAUT.indexOf(a) < 0; });
+      var neuf = ACTIVITES_DEFAUT.slice(0, -1).concat(perso).concat([ACTIVITES_DEFAUT[ACTIVITES_DEFAUT.length - 1]]);
+      rX.clearContent();
+      sh.getRange(2, cX, neuf.length, 1).setValues(neuf.map(function (a) { return [a]; }));
+    }
+  }
+  if (ent.indexOf(normaliser('Produits')) < 0) {
+    var cP = sh.getLastColumn() + 2;
+    sh.getRange(1, cP).setValue('Produits').setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
+    sh.getRange(2, cP, PRODUITS_DEFAUT.length, 1).setValues(PRODUITS_DEFAUT.map(function (a) { return [a]; }));
+    ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   }
   if (ent.indexOf(normaliser('JoursFériés')) < 0) {
     var c2 = sh.getLastColumn() + 2;
@@ -381,12 +416,13 @@ function lirePharmacies(ss, tz) {
   return lireObjets(ss.getSheetByName(FEUILLES.pharmacies), CHAMPS_PHARMACIES, tz).filter(function (p) { return p.code !== '' && p.nom !== ''; });
 }
 function lireListes(ss, tz) {
-  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [] };
+  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [], produits: [] };
   if (!sh || sh.getLastRow() < 2) return r;
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   var vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
-  var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés')), cA = ent.indexOf(normaliser('Activités'));
+  var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés')), cA = ent.indexOf(normaliser('Activités')), cP = ent.indexOf(normaliser('Produits'));
   vals.forEach(function (v) {
+    if (cP >= 0 && String(v[cP]).trim()) r.produits.push(String(v[cP]).trim());
     if (cA >= 0 && String(v[cA]).trim()) r.activites.push(String(v[cA]).trim());
     if (cD >= 0 && String(v[cD]).trim()) r.delegues.push(String(v[cD]).trim());
     if (cF >= 0 && v[cF] !== '') { var d = versIso(v[cF], tz); if (d) r.feries.push(d); }
@@ -484,8 +520,7 @@ function completerEntetes(sh, champs) {
 
 // ---------------------------------------------------------------- Visites validées
 function enregistrerVisites(visites) {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(25000);
+  var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
     assurerStructure(ss);
@@ -495,10 +530,13 @@ function enregistrerVisites(visites) {
 
     // Visites déjà reçues (un renvoi après coupure réseau n'est pas dupliqué)
     var entH = shH.getRange(1, 1, 1, shH.getLastColumn()).getValues()[0].map(normaliser);
-    var colUid = entH.indexOf(normaliser('IdSync')), deja = {};
+    var colUid = entH.indexOf(normaliser('IdSync')), colStatut = entH.indexOf(normaliser('Statut')), deja = {}, ancienStatut = {};
     if (colUid >= 0 && shH.getLastRow() > 1) {
-      shH.getRange(2, colUid + 1, shH.getLastRow() - 1, 1).getValues().forEach(function (v) { deja[v[0]] = true; });
+      var nH = shH.getLastRow() - 1, uids = shH.getRange(2, colUid + 1, nH, 1).getValues();
+      var sts = colStatut >= 0 ? shH.getRange(2, colStatut + 1, nH, 1).getValues() : [];
+      uids.forEach(function (v, i) { if (v[0]) { deja[v[0]] = i + 2; ancienStatut[v[0]] = sts[i] ? sts[i][0] : ''; } });
     }
+    var corrections = [];
 
     var suivis = [shP, ss.getSheetByName(FEUILLES.pharmacies)].filter(Boolean).map(function (sh) { return suiviFeuille(sh); });
     var nouvelles = [], recus = [];
@@ -509,15 +547,18 @@ function enregistrerVisites(visites) {
     visites.forEach(function (v) {
       if (!v || !v.uid) return;
       recus.push(v.uid);
-      if (deja[v.uid]) return;
-      deja[v.uid] = true;
+      // compte rendu corrigé après enregistrement : la ligne existante est mise à jour
+      var correction = !!(v.correction && deja[v.uid] && deja[v.uid] !== true);
+      if (deja[v.uid] && !correction) return;
       var dateVisite = Utilities.parseDate(v.date, tz, 'yyyy-MM-dd');
-      nouvelles.push(ordreH.map(function (cle) {
+      var ligne = ordreH.map(function (cle) {
         if (cle === 'date') return dateVisite;
         if (cle === 'prochaine') return v.prochaine ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
         if (cle === 'horodatage') return new Date();
         return cle && v[cle] !== undefined ? v[cle] : '';
-      }));
+      });
+      var avant = correction ? !!statuts[ancienStatut[v.uid]] : false;
+      if (correction) corrections.push({ ligne: deja[v.uid], valeurs: ligne }); else { nouvelles.push(ligne); deja[v.uid] = true; }
       suivis.forEach(function (f) {
         var i = f.ligneDe[String(v.code)], data = f.data, c = f.c;
         if (i === undefined) return;
@@ -525,8 +566,8 @@ function enregistrerVisites(visites) {
         if (statuts[v.statut]) {
           var actuelle = data[i][c.derniere];
           if (!(actuelle instanceof Date) || dateVisite > actuelle) data[i][c.derniere] = dateVisite;
-          data[i][c.nbVisites] = (+data[i][c.nbVisites] || 0) + 1;
-        }
+          if (!avant) data[i][c.nbVisites] = (+data[i][c.nbVisites] || 0) + 1;
+        } else if (avant) data[i][c.nbVisites] = Math.max((+data[i][c.nbVisites] || 0) - 1, 0);
         data[i][c.statut] = v.statut;
         data[i][c.commentaire] = v.commentaire || '';
         if (c.prochaine >= 0) data[i][c.prochaine] = v.prochaine ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
@@ -540,8 +581,9 @@ function enregistrerVisites(visites) {
       });
     });
     if (nouvelles.length) shH.getRange(shH.getLastRow() + 1, 1, nouvelles.length, ordreH.length).setValues(nouvelles);
+    corrections.forEach(function (x) { shH.getRange(x.ligne, 1, 1, ordreH.length).setValues([x.valeurs]); });
     marquerArretsValides(ss, visites);
-    return { ok: true, recus: recus, ajoutes: nouvelles.length };
+    return { ok: true, recus: recus, ajoutes: nouvelles.length, corriges: corrections.length };
   } finally {
     lock.releaseLock();
   }
@@ -564,8 +606,7 @@ function suiviFeuille(sh) {
 function publierPlanning(b) {
   var delegue = String(b.delegue || '').trim();
   if (!delegue) return { ok: false, erreur: 'Indiquez votre nom dans les réglages de l\'application.' };
-  var lock = LockService.getScriptLock();
-  lock.waitLock(25000);
+  var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
     assurerStructure(ss);
@@ -612,7 +653,13 @@ function publierPlanning(b) {
     });
     var conflits = [];
     (b.arrets || []).forEach(function (a) {
-      var l = (autres[a.code + '|' + lundiDe(a.date)] || []).filter(function (o) { return !o.depuis || o.depuis < a.depuis; });
+      // un programme validé l'emporte sur une proposition ; à statut égal, le premier arrivé garde le praticien
+      var monV = a.programme === 'Validé';
+      var l = (autres[a.code + '|' + lundiDe(a.date)] || []).filter(function (o) {
+        var sonV = o.programme === 'Validé';
+        if (sonV !== monV) return sonV;
+        return !o.depuis || o.depuis < a.depuis;
+      });
       if (l.length) conflits.push({ code: a.code, nom: a.nom, date: a.date, autres: l });
     });
     var tout = garde.concat(nouvelles);
@@ -645,8 +692,7 @@ function marquerArretsValides(ss, visites) {
 // coordonnées GPS des établissements, et colonnes manquantes des tournées publiées par une ancienne version.
 // À NE PAS utiliser sur une vraie base (les téléphones et commentaires seraient inventés).
 function completerBaseTest() {
-  var lock = LockService.getScriptLock();
-  lock.waitLock(25000);
+  var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
     var r = { praticiens: completerFeuille(ss, FEUILLES.praticiens, CHAMPS_PRATICIENS, ['telephone', 'statut', 'commentaire', 'nbVisites'], tz),
@@ -729,8 +775,7 @@ function enregistrerFiche(b) {
   var nom = String(p.nom || '').trim();
   if (nom.length < 3) return { ok: false, erreur: 'Nom du praticien manquant.' };
   var type = p.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin';
-  var lock = LockService.getScriptLock();
-  lock.waitLock(25000);
+  var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive();
     assurerStructure(ss);

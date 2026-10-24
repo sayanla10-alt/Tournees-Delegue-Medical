@@ -9,10 +9,19 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.1.1', EDITION = 'Enterprise';
+  var APP_VERSION = '2.2.0', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.2.0', ['Message WhatsApp : une puce devant chaque médecin',
+               'Chaque onglet présente son rôle en une phrase',
+               'Autour : mêmes filtres que Contacts, rayon 2 km et « Maintenant » par défaut, filtre Tout / Médecins / Pharmacies',
+               'Programme validé toujours modifiable (il reste validé pour l\'équipe) ; compte rendu enregistré corrigeable',
+               'Tournée : couverture « Jour » et « Couvertes » par défaut ; vos filtres restent mémorisés',
+               'Type de visite : Routine, Réunion, Staff, Déjeuner, Garde ; produits de la gamme en un toucher',
+               'Synchronisation plus fiable : nouvelles tentatives automatiques, aucune saisie perdue',
+               'Formulaires et listes déroulantes modernisés',
+               'Un praticien d\'un programme validé par un collègue n\'est plus proposé']],
     ['2.1.1', ['Fond de carte OpenStreetMap épuré (clair et sombre)']],
     ['2.1.0', ['Pharmacies réelles d\'Abidjan (OpenStreetMap) dans leur propre feuille, ouvertes matin et soir',
                'Jours fériés signalés, d\'après le calendrier officiel de la Côte d\'Ivoire',
@@ -91,15 +100,28 @@
       tab: 'tournee', jour: null, ouvert: null, voirParams: false, feuille: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
-      collegue: null, jourEquipe: null, histFiltre: 'moi',
-      couvPortee: 'jour', couvFiltre: 'toutes', couvOuverte: LS.get('couvOuverte', false),
-      autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 5, ref: null }),
+      collegue: null, jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
+      couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: LS.get('couvOuverte', false),
+      statsVue: LS.get('statsVue', 'tableau'),
+      autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 2, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
       filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false
     }
   };
   var FILTRES_VIDES = { specialites: [], communes: [], potentiels: [], visite: 'tous', conv: 'tous', type: 'tous', equipe: 'tous' };
   S.ui.filtres = Object.assign({}, FILTRES_VIDES, LS.get('filtres', {}));
+  S.ui.filtresAutour = Object.assign({}, FILTRES_VIDES, LS.get('filtresAutour', {}));
+  // 2.2.0 : nouveaux réglages par défaut (une seule fois)
+  if (!LS.get('defauts220', false)) {
+    S.ui.autour.moment = 'maintenant'; S.ui.autour.rayon = 2; LS.set('autour', S.ui.autour);
+    S.ui.couvPortee = 'jour'; S.ui.couvFiltre = 'couvertes'; LS.set('couvPortee', 'jour'); LS.set('couvFiltre', 'couvertes');
+    LS.set('defauts220', true);
+  }
+  // Contacts et Autour ont chacun leur propre jeu de filtres, conservé jusqu'à modification
+  function cleFiltres() { return S.ui.tab === 'autour' ? 'filtresAutour' : 'filtres'; }
+  function filtresCour() { return S.ui[cleFiltres()]; }
+  function rechercheCour() { return S.ui.tab === 'autour' ? S.ui.rechercheAutour : S.ui.recherche; }
+  function majFiltres(f) { S.ui[cleFiltres()] = f; LS.set(cleFiltres(), f); S.ui.limite = 40; }
   S.ui.stats = Object.assign({ periode: 'semaine', debut: '', fin: '', portee: 'moi', objectif: 40, vueSpec: 'base' }, LS.get('stats', {}));
   // L'ancienne tournée publiée est retirée de la feuille Plannings pour ne pas bloquer les collègues
   if (ancienPlan) {
@@ -320,14 +342,18 @@
     return '<datalist id="listeProduits">' + l.map(function (p) { return '<option value="' + esc(p) + '">'; }).join('') + '</datalist>';
   }
   function memoriserProduits(t) {
-    if (!t) return;
-    var l = LS.get('produits', []), n = String(t).trim();
-    if (!n) return;
-    l = [n].concat(l.filter(function (x) { return x !== n; })).slice(0, 30);
+    var ref = produitsRef(), l = LS.get('produits', []);
+    listeProduits(t).filter(function (n) { return ref.indexOf(n) < 0; }).forEach(function (n) {
+      l = [n].concat(l.filter(function (x) { return x !== n; })).slice(0, 30);
+    });
     LS.set('produits', l);
   }
+  // Produits de la gamme (feuille Listes, colonne Produits) proposés en puces ; les autres en saisie libre
+  function produitsRef() { return (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT; }
+  function listeProduits(t) { return String(t || '').split(/\s*[,;]\s*/).map(function (x) { return x.trim(); }).filter(Boolean); }
+  function autresProduits(t) { var ref = produitsRef(); return listeProduits(t).filter(function (x) { return ref.indexOf(x) < 0; }); }
   function activites() { return (S.data && S.data.activites && S.data.activites.length) ? S.data.activites : ACTIVITES_DEFAUT; }
-  function listeActivites(t) { return String(t || '').split(/\s*;\s*/).filter(Boolean); }
+  function listeActivites(t) { return String(t || '').split(/\s*;\s*/).filter(Boolean).map(function (x) { return ACTIVITES_RENOMMEES[x] || x; }); }
   function ficheEnAttente(code) { return S.fiches.some(function (f) { return f.praticien.code === code; }); }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -361,22 +387,41 @@
     arretsCollegues().forEach(function (p) { if (semaines[lundiDe(p.date)]) ex[p.code] = true; });
     return ex;
   }
+  // Praticiens d'un programme validé par un collègue : jamais proposés, même si l'option « éviter » est désactivée
+  function exclusValides(dates) {
+    var semaines = {}, ex = {};
+    dates.forEach(function (d) { semaines[lundiDe(d)] = true; });
+    arretsCollegues().forEach(function (p) { if (p.programme === 'Validé' && semaines[lundiDe(p.date)]) ex[p.code] = true; });
+    return ex;
+  }
 
   // ------------------------------------------------------------------ API Google Apps Script
-  function appel(url, options) {
+  // Erreur « réessayable » : réseau, délai, serveur occupé ou réponse non JSON (page d'erreur Google)
+  function erreur(msg, reessai) { var e = new Error(msg); e.reessai = !!reessai; return e; }
+  function appelUnique(url, options) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var minuteur = ctrl ? setTimeout(function () { ctrl.abort(); }, 30000) : null;
-    if (ctrl) options.signal = ctrl.signal;
-    return fetch(url, options).then(function (r) {
-      if (!r.ok) throw new Error('Le serveur a répondu ' + r.status + '. Vérifiez l\'URL de l\'application Web.');
-      return r.json();
+    var minuteur = ctrl ? setTimeout(function () { ctrl.abort(); }, 45000) : null;
+    var o = Object.assign({}, options); if (ctrl) o.signal = ctrl.signal;
+    return fetch(url, o).then(function (r) {
+      if (!r.ok) throw erreur('Le serveur a répondu ' + r.status + '.', r.status >= 500 || r.status === 429);
+      return r.text().then(function (t) {
+        try { return JSON.parse(t); } catch (x) { throw erreur('Le serveur est momentanément indisponible.', true); }
+      });
     }, function (e) {
-      throw new Error(e && e.name === 'AbortError' ? 'Le serveur ne répond pas (délai dépassé).' :
-        'Connexion impossible. Vérifiez le réseau et l\'URL de l\'application Web.');
+      throw erreur(e && e.name === 'AbortError' ? 'Le serveur ne répond pas (délai dépassé).' :
+        'Connexion impossible. Vérifiez le réseau.', true);
     }).then(function (j) {
       if (minuteur) clearTimeout(minuteur);
-      if (!j || !j.ok) throw new Error((j && j.erreur) || 'Réponse inattendue du serveur.');
+      if (!j || !j.ok) throw erreur((j && j.erreur) || 'Réponse inattendue du serveur.', !!(j && j.reessai));
       return j;
+    }, function (e) { if (minuteur) clearTimeout(minuteur); throw e; });
+  }
+  // Jusqu'à 3 tentatives espacées (1,5 s puis 4 s) pour les erreurs passagères
+  function appel(url, options, essai) {
+    essai = essai || 0;
+    return appelUnique(url, options).catch(function (e) {
+      if (!e.reessai || essai >= 2 || !navigator.onLine) throw e;
+      return new Promise(function (ok) { setTimeout(ok, essai ? 4000 : 1500); }).then(function () { return appel(url, options, essai + 1); });
     });
   }
   function apiGet(action, cfg) {
@@ -406,12 +451,14 @@
                lieu: a.lieu, statut: a.statut, etat: a.etat, programme: prog, uid: a.uid };
     }) };
   }
-  function publierPlan() {
+  function publierPlan(sansModif) {
+    if (!sansModif) marquerModifie();
     if (!connecte()) return;
     S.ui.aPublier = true; LS.set('aPublier', true);
     synchroniser(true);
   }
 
+  var minuteurReprise;
   function synchroniser(silencieux) {
     if (!connecte()) return Promise.resolve();
     if (S.ui.enCours) return Promise.resolve();
@@ -450,12 +497,12 @@
       }
       var base = d.inchange ? ancien : d;
       S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
-                 statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [],
+                 statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], produits: base.produits || [],
                  historique: hist, plannings: d.plannings || [], syncedAt: new Date().toISOString() };
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data);
-      S.ui.sync = 'ok'; S.ui.erreur = '';
+      S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       if (S.ui.conflits.length) {
         var conflits = S.ui.conflits; S.ui.conflits = [];
         var remplaces = resoudreConflits(conflits);
@@ -471,7 +518,10 @@
       if (!silencieux) toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
     }).catch(function (e) {
       S.ui.sync = 'erreur'; S.ui.erreur = e.message;
-      if (!silencieux) toast(e.message);
+      if (!silencieux) toast(e.message + (enAttente() ? ' Vos saisies sont conservées et seront renvoyées automatiquement.' : ''), 5000);
+      // nouvelle tentative discrète 30 s plus tard
+      clearTimeout(minuteurReprise);
+      minuteurReprise = setTimeout(function () { if (navigator.onLine) synchroniser(true); }, 30000);
     }).then(function () {
       S.ui.enCours = false;
       rendreSiPossible();
@@ -483,7 +533,8 @@
   function envoyerFiches() {
     if (!S.fiches.length) return Promise.resolve();
     var f = S.fiches[0];
-    return apiPost('fiche', { praticien: f.praticien, presences: f.presences }).then(function (r) {
+    if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
+    return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences }).then(function (r) {
       S.fiches.shift();
       if (r.ancien && r.code && r.ancien !== r.code) remplacerCode(r.ancien, r.code);
       if (r.ids) remplacerIds(r.ids);
@@ -528,7 +579,7 @@
 
   // Mise à jour légère : tournées des collègues seulement
   function rafraichirEquipe() {
-    if (!connecte() || !navigator.onLine || !S.data) return Promise.resolve(false);
+    if (!connecte() || !navigator.onLine || !S.data || S.ui.enCours) return Promise.resolve(false);
     return apiGet('equipe').then(function (r) {
       // les tournées plus anciennes (statistiques du mois) sont conservées
       var depuis = r.depuis || ajouterJours(aujourdhui(), -14);
@@ -663,7 +714,7 @@
 
   // ------------------------------------------------------------------ Vue : tournée
   VUES.tournee = function () {
-    var h = '';
+    var h = '<p class="sous-titre intro-vue">Votre programme de visites : tirage automatique, ajustements, comptes rendus et envoi.</p>';
     if (S.ui.voirParams || !S.plan.length) h += rendreParams();
     else h += rendreResume();
     if (!S.plan.length) {
@@ -704,7 +755,7 @@
         }).join('') + '</div>';
       }
     }
-    if (S.programme.etat !== 'valide') {
+    {
       h += '<div class="rangee rangee-tirage"><button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Nouveau tirage</button>' +
         (S.params.mode === 'semaine' && dates.length > 1 ? '<button class="bouton" type="button" data-a="tirage" data-v="semaine">' + icone('relancer') + 'Semaine entière</button>' : '') +
         '</div><p class="discret aide">Épinglez les médecins à conserver : le nouveau tirage du jour (ou de la semaine) remplace les autres.</p>';
@@ -798,9 +849,9 @@
     var dates = datesAffichees();
     if (S.programme.etat === 'valide') {
       return '<section class="bandeau-prog valide"><div><b>Programme validé</b><span>' +
-        (S.programme.valideLe ? 'le ' + esc(S.programme.valideLe) : '') + ', visible par l\'équipe</span></div>' +
-        '<div class="rangee"><button class="bouton bouton-plein" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer</button>' +
-        '<button class="bouton" type="button" data-a="rouvrirProgramme">Modifier</button></div></section>';
+        (S.programme.valideLe ? 'le ' + esc(S.programme.valideLe) : '') + (S.programme.modifieLe ? ', modifié le ' + esc(S.programme.modifieLe) : '') +
+        ', visible par l\'équipe. Il reste modifiable : chaque changement est publié.</span></div>' +
+        '<div class="rangee"><button class="bouton bouton-plein" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer</button></div></section>';
     }
     return '<section class="bandeau-prog"><div><b>Proposition</b><span>' +
       (S.params.mode === 'semaine' ? 'Semaine du ' + dateCourte(dates[0]) : 'Journée du ' + dateCourte(dates[0])) +
@@ -809,7 +860,7 @@
   }
 
   function rendreArret(a) {
-    var ouvert = S.ui.ouvert === a.uid, verrou = a.etat === 'valide', proposition = S.programme.etat !== 'valide';
+    var ouvert = S.ui.ouvert === a.uid, verrou = a.etat === 'valide';
     var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') +
       (a.statut ? (estKo(a.statut) ? ' absent' : ' fait') : '');
     var e = '';
@@ -827,7 +878,7 @@
       '<div class="arret-heure"><b>' + esc(a.heure) + '</b><small>' + esc(a.debut) + '-' + esc(a.fin) + '</small></div>' +
       '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
       '<div><div class="arret-carte">' +
-        (proposition && !verrou ? '<button type="button" class="epingle" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde +
+        (!verrou ? '<button type="button" class="epingle" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde +
           '" aria-label="' + (a.garde ? 'Ne plus conserver' : 'Conserver au prochain tirage') + '">' + icone('epingle') + '</button>' : '') +
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
           '<span class="arret-nom">' + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
@@ -845,8 +896,10 @@
         '<div class="champ"><span>Type de visite</span><div class="puces">' + activites().map(function (x) {
           return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
         }).join('') + '</div></div>' +
-        '<label class="champ"><span>Produits présentés</span><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
-          '" value="' + esc(a.produits || '') + '" placeholder="Ex. Produit A, Produit B">' + datalistProduits() + '</label>' +
+        '<div class="champ"><span>Produits présentés</span><div class="puces">' + produitsRef().map(function (x) {
+          return '<button type="button" class="puce" data-a="produit" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeProduits(a.produits).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+        }).join('') + '</div><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
+          '" value="' + esc(autresProduits(a.produits).join(', ')) + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() + '</div>' +
         '<label class="champ"><span>Commentaire</span><textarea data-f="commentaire" data-uid="' + a.uid +
           '" placeholder="Échantillons remis, objections, besoins…">' + esc(a.commentaire) + '</textarea></label>' +
         '<div class="champ"><span>Prochaine étape le</span><div class="rangee-prochaine">' +
@@ -857,9 +910,11 @@
           '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date de la prochaine étape"></div>' +
           '<span class="aide-champ">Le praticien remonte en priorité dans les tournées à cette date.</span></div>';
       } else {
+        if (a.activite) h += '<p class="discret" style="margin-top:0">Type : ' + esc(listeActivites(a.activite).join(', ')) + '</p>';
         if (a.produits) h += '<p class="discret" style="margin-top:0">Produits : ' + esc(a.produits) + '</p>';
         if (a.commentaire) h += '<p class="discret" style="margin-top:0">' + esc(a.commentaire) + '</p>';
         if (a.prochaine) h += '<p class="discret" style="margin-top:0">Prochaine étape le ' + dateCourte(a.prochaine) + '</p>';
+        h += '<button class="bouton petit" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:10px">' + icone('crayon') + 'Corriger le compte rendu</button>';
       }
       var pa = praticien(a.code) || {};
       h += actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune }) +
@@ -1012,7 +1067,7 @@
   // ------------------------------------------------------------------ Vue : autour de moi
   VUES.autour = function () {
     var A = S.ui.autour, h = '<h2 class="titre-vue">Autour de moi</h2>';
-    h += '<p class="sous-titre">Les praticiens présents près de vous, d\'après leur propre planning.</p>';
+    h += '<p class="sous-titre">Qui est présent près de vous maintenant ou à un autre moment, pour une visite imprévue.</p>';
     if (A.ref) {
       h += '<div class="bandeau"><p>Remplacement de <b>' + esc(A.ref.nom) + '</b> (' + esc(A.ref.heure) + ', ' + esc(A.ref.quartier) +
         '), marqué « Absent ». <button type="button" class="bouton-texte" data-a="finRef">Terminer</button></p></div>';
@@ -1034,6 +1089,7 @@
         '<label class="champ"><span>Heure (vide = journée)</span><input type="time" data-f="autour" data-k="heure" value="' + esc(A.heure) + '"></label></div>';
     }
     h += '<div class="champ" style="margin:0"><span>Rayon</span>' + segment('Rayon', 'autourRayon', [2, 5, 10, 20].map(function (r) { return [String(r), r + ' km']; }), String(A.rayon), 'margin:0') + '</div></section>';
+    h += barreFiltres(S.ui.filtresAutour, S.ui.rechercheAutour);
 
     if (A.lat === null) return h + '<div class="vide"><strong>Où êtes-vous ?</strong>Utilisez votre position ou choisissez un quartier.</div>';
     var date, minute;
@@ -1043,8 +1099,9 @@
       return h + '<div class="vide"><strong>Pas de présences le week-end</strong>Choisissez « Autre moment » et un jour de semaine.</div>';
     }
     h += bandeauFeries([date]);
+    var fa = S.ui.filtresAutour, filtre = criteresActifs(fa).length || S.ui.rechercheAutour ? ensemble(filtrerPraticiens(fa, S.ui.rechercheAutour).map(function (p) { return p.code; })) : null;
     var res = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, A.rayon)
-      .filter(function (x) { return !A.ref || x.c.code !== A.ref.code; });
+      .filter(function (x) { return (!A.ref || x.c.code !== A.ref.code) && (!filtre || filtre[x.c.code]); });
     S.ui.resAutour = res;
     var groupes = minute === null ? [['matin', 'Le matin'], ['soir', 'Le soir']] :
       [['present', 'Présents maintenant'], ['plustard', 'Plus tard dans la journée']];
@@ -1098,7 +1155,7 @@
     var depuis = lundiDe(aujourdhui());
     var arrets = arretsCollegues().filter(function (p) { return p.date >= depuis; });
     var noms = Array.from(new Set(arrets.map(function (p) { return p.delegue; }))).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
-    h += '<p class="sous-titre">Tournées publiées par vos collègues, rafraîchies toutes les 2 minutes.</p>';
+    h += '<p class="sous-titre">Les tournées de vos collègues, pour coordonner les visites et éviter les doublons. Mise à jour chaque minute.</p>';
     if (!noms.length) return h + '<div class="vide"><strong>Aucune tournée publiée</strong>Les tournées apparaissent ici dès qu\'un collègue lance un tirage.</div>';
     h += '<ul class="liste resume-equipe">' + noms.map(function (n) {
       var l = arrets.filter(function (p) { return p.delegue === n; });
@@ -1197,7 +1254,7 @@
     return l;
   }
   var FILTRES_RAPIDES = [['potentiels', 'A', '★★★'], ['visite', '30', 'Non visité +30 j'], ['visite', 'revoir', 'À revoir'],
-                         ['visite', 'jamais', 'Jamais visité'], ['conv', 'oui', 'Conventionnés'], ['type', 'Pharmacie', 'Pharmacies']];
+                         ['visite', 'jamais', 'Jamais visité'], ['conv', 'oui', 'Conventionnés']];
   function estRapide(k, v) { return FILTRES_RAPIDES.some(function (x) { return x[0] === k && x[1] === v; }); }
   function filtreRapideActif(f, k, v) { return Array.isArray(f[k]) ? f[k].indexOf(v) >= 0 : f[k] === v; }
   function trierPraticiens(liste, tri) {
@@ -1210,20 +1267,14 @@
     });
   }
 
-  VUES.contacts = function () {
-    var f = S.ui.filtres, t = aujourdhui(), c = ctx();
-    var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
-    // la fiche ouverte (par exemple juste créée) reste en tête de liste
-    var io = liste.map(function (p) { return p.code; }).indexOf(S.ui.contactOuvert);
-    if (io > 0) liste.unshift(liste.splice(io, 1)[0]);
-    var actifs = criteresActifs(f), autres = actifs.filter(function (x) { return !estRapide(x[0], x[1]); });
-    var h = '<div class="tete-vue"><h2 class="titre-vue">Contacts</h2>' +
-      '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Praticien</button></div>' +
-      '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
-        esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div>' +
+  // Barre de recherche et de filtres commune aux onglets Contacts et Autour
+  function barreFiltres(f, q) {
+    var actifs = criteresActifs(f), autres = actifs.filter(function (x) { return !estRapide(x[0], x[1]) && x[0] !== 'type'; });
+    var h = '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
+        esc(q) + '" aria-label="Rechercher un praticien"></div>' +
       '<button class="bouton bouton-filtres' + (actifs.length ? ' actif' : '') + '" type="button" data-a="ouvrirFiltres" aria-label="Filtres avancés">' + icone('filtre') +
         '<span>Filtres</span>' + (actifs.length ? '<span class="compteur">' + actifs.length + '</span>' : '') + '</button></div>';
-    // filtres rapides : un toucher pour les critères les plus utilisés
+    h += segment('Type de praticien', 'filtreType', [['tous', 'Tout'], ['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies']], f.type, 'margin-bottom:10px');
     h += '<div class="defile" role="group" aria-label="Filtres rapides">' + FILTRES_RAPIDES.map(function (x) {
       return '<button type="button" class="puce" data-a="filtreRapide" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + filtreRapideActif(f, x[0], x[1]) + '">' + esc(x[2]) + '</button>';
     }).join('') + (actifs.length ? '<button type="button" class="puce puce-effacer" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer</button>' : '') + '</div>';
@@ -1233,6 +1284,18 @@
           esc(x[2]) + '">' + esc(x[2]) + icone('fermer') + '</button>';
       }).join('') + '</div>';
     }
+    return h;
+  }
+
+  VUES.contacts = function () {
+    var f = S.ui.filtres, t = aujourdhui(), c = ctx();
+    var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
+    // la fiche ouverte (par exemple juste créée) reste en tête de liste
+    var io = liste.map(function (p) { return p.code; }).indexOf(S.ui.contactOuvert);
+    if (io > 0) liste.unshift(liste.splice(io, 1)[0]);
+    var h = '<div class="tete-vue"><h2 class="titre-vue">Contacts</h2>' +
+      '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Praticien</button></div>' +
+      '<p class="sous-titre">Votre fichier de médecins et de pharmacies : recherche, filtres, fiches et contact direct.</p>' + barreFiltres(f, S.ui.recherche);
     h += '<div class="tri"><span class="discret">' + liste.length + ' praticien' + (liste.length > 1 ? 's' : '') +
 '</span>' +
       '<label class="discret">Trier par <select data-f="tri">' +
@@ -1354,6 +1417,7 @@
   VUES.stats = function () {
     var vueH = S.ui.statsVue === 'historique';
     var tete = '<h2 class="titre-vue">' + (vueH ? 'Historique' : 'Statistiques') + '</h2>' +
+      '<p class="sous-titre">' + (vueH ? 'Toutes les visites enregistrées, les vôtres ou celles de l\'équipe.' : 'Vos résultats : couverture, visites réalisées et activités par période.') + '</p>' +
       segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique des visites']], vueH ? 'historique' : 'tableau');
     if (vueH) return tete + VUES.historique(true);
     var st = S.ui.stats, r = calculerStats(), b = r.bornes;
@@ -1584,7 +1648,7 @@
     var qOpts = '<option value="">Aucun (début au premier rendez-vous)</option>' + quartiers().map(function (q) {
       return '<option' + (q.quartier === c.depart ? ' selected' : '') + '>' + esc(q.quartier) + '</option>';
     }).join('');
-    var h = '<h2 class="titre-vue">Réglages</h2>';
+    var h = '<h2 class="titre-vue">Réglages</h2><p class="sous-titre">Votre profil, la connexion à la base partagée et l\'apparence de l\'application.</p>';
     h += '<section class="bloc"><h3 style="margin-top:0">Moi</h3>' +
       champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)') +
       '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
@@ -1719,7 +1783,7 @@
 
   // Filtres avancés de la liste des praticiens (cumulables)
   FEUILLES.filtres = function (f) {
-    var b = f.brouillon, n = filtrerPraticiens(b, S.ui.recherche).length;
+    var b = f.brouillon, n = filtrerPraticiens(b, rechercheCour()).length;
     function opt(l) { return l.map(function (x) { return { v: x[0], lib: x[1], n: x[2] }; }); }
     var h = groupeChoix(f, { id: 'type', titre: 'Type', chemin: 'brouillon.type', options: opt([['tous', 'Tous'], ['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies']]) }) +
       groupeChoix(f, { id: 'pot', titre: 'Potentiel de prescription', chemin: 'brouillon.potentiels', multiple: true,
@@ -1733,7 +1797,7 @@
       groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: true, recherche: true, resume: 'Toutes', sections: sectionsCommunes(),
         aide: 'Lieux d\'exercice du praticien. Pour un établissement ou un quartier, utilisez la recherche de la liste.' });
     return { corps: h, pied: '<button class="bouton" type="button" data-a="filtresReinit">Réinitialiser</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="filtresOk">Afficher ' + n + ' praticien' + (n > 1 ? 's' : '') + '</button>' };
+      '<button class="bouton bouton-plein" type="button" data-a="filtresOk">' + (S.ui.tab === 'autour' ? 'Appliquer les filtres' : 'Afficher ' + n + ' praticien' + (n > 1 ? 's' : '')) + '</button>' };
   };
 
   // ------------------------------------------------------------------ Fiche praticien : assistant en 4 étapes
@@ -1965,7 +2029,7 @@
         if (!parLieu[k]) { parLieu[k] = []; ordre.push(k); }
         if (parLieu[k].indexOf(a.nom) < 0) parLieu[k].push(a.nom);
       });
-      ordre.forEach(function (k) { lignes.push(''); lignes.push('*' + k + '*'); parLieu[k].forEach(function (n) { lignes.push(n); }); });
+      ordre.forEach(function (k) { lignes.push(''); lignes.push('*' + k + '*'); parLieu[k].forEach(function (n) { lignes.push('• ' + n); }); });
       blocs.push(lignes.join('\n'));
     });
     return blocs.join('\n\n');
@@ -1997,7 +2061,6 @@
   // Premier arrivé, premier servi : les médecins qu'un collègue avait ciblés avant nous sont
   // remplacés automatiquement, sauf ceux épinglés, imposés ou déjà visités (simplement signalés).
   function resoudreConflits(conflits) {
-    if (S.programme.etat === 'valide') return 0;
     var touches = {}, dates = {}, codes = {};
     conflits.forEach(function (c) {
       codes[c.code] = true;
@@ -2035,7 +2098,7 @@
     if (p.mode === 'jour' && estFerie(p.dateRef)) { toast('Ce jour est férié. Choisissez un autre jour.'); return; }
     var feriesSemaine = p.mode === 'semaine' ? joursOuvres(lundiDe(p.dateRef)).filter(estFerie) : [];
     if (feriesSemaine.length) toast('Jour férié exclu de la semaine : ' + feriesSemaine.map(dateCourte).join(', ') + '.', 4000);
-    var renseignees = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }).length;
+    var renseignees = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide' && !a.corrige; }).length;
     if (renseignees && !confirm(renseignees + ' compte(s) rendu(s) non enregistré(s) seront perdus. Continuer ?')) return;
     avantTirage().then(function () {
       var periode = datesPeriode();
@@ -2044,12 +2107,12 @@
       // Médecins écartés au nouveau tirage : ceux qui étaient proposés et non conservés
       if (portee === 'jour' || portee === 'semaine') {
         S.plan.forEach(function (a) {
-          if (cible.indexOf(a.date) >= 0 && !a.garde && !a.impose && a.etat !== 'valide') S.rejetes[a.code] = true;
+          if (cible.indexOf(a.date) >= 0 && !a.garde && !a.impose && a.etat !== 'valide' && !a.corrige) S.rejetes[a.code] = true;
         });
       }
-      var conserves = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && (a.etat === 'valide' || a.garde); });
+      var conserves = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && (a.etat === 'valide' || a.corrige || a.garde); });
       var horsCible = portee === 'nouveau' ? [] : S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
-      var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : {};
+      var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible);
       horsCible.forEach(function (a) { exclus[a.code] = true; });
       var r = Moteur.genererPlanning(ctx(), {
         dates: cible, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0,
@@ -2057,7 +2120,8 @@
       });
       S.plan = horsCible.concat(r.arrets);
       trierPlan();
-      S.programme = { etat: 'proposition', valideLe: '' };
+      if (S.programme.etat === 'valide' && portee !== 'nouveau') marquerModifie();
+      else S.programme = { etat: 'proposition', valideLe: '' };
       S.ui.voirParams = false; S.ui.ouvert = null;
       if (portee === 'nouveau') S.ui.jour = null;
       sauver(); rendre(); publierPlan();
@@ -2071,6 +2135,9 @@
     });
   }
 
+  function horodatageCourt() { var d = new Date(); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  // Programme validé puis modifié : il reste validé pour l'équipe, avec la date de modification
+  function marquerModifie() { if (S.programme.etat === 'valide') S.programme.modifieLe = horodatageCourt(); }
   function validerVisites() {
     var aValider = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; });
     if (!aValider.length) return;
@@ -2080,18 +2147,24 @@
                 specialite: a.specialite, note: a.note, commune: a.commune, quartier: a.quartier, lieu: a.lieu,
                 creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '', delegue: moi(),
                 produits: a.produits || '', prochaine: a.prochaine || '', activite: a.activite || '' };
+      if (a.corrige) v.correction = true;
       memoriserProduits(a.produits);
       Moteur.appliquerVisite(S.data.praticiens, v, statuts());
-      if (S.config.demo) { v.horodatage = new Date().toISOString(); S.data.historique = [v].concat(S.data.historique || []); }
-      else S.queue.push(v);
+      if (S.config.demo) { v.horodatage = new Date().toISOString(); S.data.historique = [v].concat((S.data.historique || []).filter(function (x) { return x.uid !== v.uid; })); }
+      else {
+        var enFile = S.queue.filter(function (x) { return x.uid === v.uid; })[0];
+        if (enFile) { if (enFile.correction === undefined) delete v.correction; S.queue[S.queue.indexOf(enFile)] = v; } else S.queue.push(v);
+        // affichage immédiat de la correction dans l'historique local
+        if (a.corrige && S.data.historique) S.data.historique.forEach(function (x, i) { if (x.uid === v.uid) S.data.historique[i] = Object.assign({}, x, v); });
+      }
       if (estKo(a.statut)) ko++;
-      a.etat = 'valide';
+      a.etat = 'valide'; delete a.corrige;
     });
     ctxCache.data = null;
     S.ui.ouvert = null;
     sauver(); rendre();
     toast(aValider.length + ' compte(s) rendu(s) enregistré(s)' + (ko ? '. ' + ko + ' visite(s) non réalisée(s) : utilisez « Remplacer ».' : '.'));
-    publierPlan();
+    publierPlan(true);
   }
 
   function ajouterArret(c, date) {
@@ -2204,20 +2277,20 @@
     validerProgramme: function () {
       var d = new Date();
       S.programme = { etat: 'valide', valideLe: pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) };
-      sauver(); publierPlan();
+      sauver(); publierPlan(true);
       S.ui.feuille = { type: 'valide', titre: 'Programme validé' };
       rendre();
     },
-    rouvrirProgramme: function () { S.programme = { etat: 'proposition', valideLe: '' }; sauver(); publierPlan(); rendre(); },
+    corriger: function (el) { var a = arret(el.dataset.uid); if (!a) return; a.etat = 'correction'; a.corrige = true; S.ui.ouvert = a.uid; LS.set('plan', S.plan); rendre(); },
     ouvrirExport: function () { S.ui.feuille = { type: 'exporter', titre: 'Envoyer le programme', portee: S.params.mode === 'jour' ? 'jour' : 'semaine' }; rendre(); },
     exportPortee: function (el) { S.ui.feuille.portee = el.dataset.v; rendre(); },
     envoyerWhatsapp: function () { window.open(urlWhatsapp(S.ui.feuille.texte), '_blank', 'noopener'); },
     copierTexte: function () { copier(S.ui.feuille.texte); },
     partagerTexte: function () { navigator.share({ title: 'Programme de tournée', text: S.ui.feuille.texte }).catch(function () {}); },
     fermerFeuille: function () { S.ui.feuille = null; rendre(); },
-    couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; rendre(); },
+    couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; LS.set('couvPortee', S.ui.couvPortee); rendre(); },
     couvOuvrir: function () { S.ui.couvOuverte = !S.ui.couvOuverte; LS.set('couvOuverte', S.ui.couvOuverte); rendre(); },
-    couvFiltre: function (el) { S.ui.couvFiltre = el.dataset.v; rendre(); },
+    couvFiltre: function (el) { S.ui.couvFiltre = el.dataset.v; LS.set('couvFiltre', S.ui.couvFiltre); rendre(); },
     // Communes
     choisirCommunes: function (el) {
       var cle = el.dataset.v, sel = cle === 'tout' ? S.params.communes : (S.params.communesJour[cle] || []);
@@ -2251,7 +2324,7 @@
       if (choix && choix.value) { var p = choix.value.split('|'); im.date = p[0]; im.cle = p.slice(1).join('|'); }
       if (rdv) im.rdv = rdv;
       S.imposes = S.imposes.filter(function (x) { return x.code !== im.code; }).concat([im]);
-      var place = S.plan.length && S.programme.etat !== 'valide' ? placerImpose(im) : false;
+      var place = S.plan.length ? placerImpose(im) : false;
       S.ui.feuille = null; sauver(); rendre();
       if (place) publierPlan();
       toast(place ? 'Ajouté à la tournée du ' + dateCourte(S.ui.jour) + '.' : 'Ajouté. Il sera placé au prochain tirage.');
@@ -2278,7 +2351,7 @@
     plus: function () { S.ui.limite += 40; rendre(); },
     collegue: function (el) { S.ui.collegue = el.dataset.v; S.ui.jourEquipe = null; rendre(); },
     jourEquipe: function (el) { S.ui.jourEquipe = el.dataset.v; rendre(); },
-    histFiltre: function (el) { S.ui.histFiltre = el.dataset.v; rendre(); },
+    histFiltre: function (el) { S.ui.histFiltre = el.dataset.v; LS.set('histFiltre', S.ui.histFiltre); rendre(); },
     valider: validerVisites,
     sync: function () {
       if (S.config.demo) { toast('Mode démonstration : aucune synchronisation.'); return; }
@@ -2335,6 +2408,12 @@
                        aide: 'Aucune sélection = toutes les spécialités. Les pharmacies dépendent du choix « Avec / Sans pharmacies ».' };
       rendre();
     },
+    produit: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var l = listeProduits(a.produits), i = l.indexOf(el.dataset.v);
+      if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
+      a.produits = l.join(', '); LS.set('plan', S.plan); rendre();
+    },
     activite: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var l = listeActivites(a.activite), i = l.indexOf(el.dataset.v);
@@ -2367,17 +2446,18 @@
     },
     basculeGroupe: function (el) { var f = S.ui.feuille; f.ouverts = f.ouverts || {}; f.ouverts[el.dataset.v] = !f.ouverts[el.dataset.v]; rendre(); },
     filtreRapide: function (el) {
-      var f = S.ui.filtres, k = el.dataset.k, v = el.dataset.v;
+      var f = filtresCour(), k = el.dataset.k, v = el.dataset.v;
       if (Array.isArray(f[k])) { var i = f[k].indexOf(v); if (i >= 0) f[k].splice(i, 1); else f[k].push(v); }
       else f[k] = f[k] === v ? 'tous' : v;
-      LS.set('filtres', f); S.ui.limite = 40; rendre();
+      majFiltres(f); rendre();
     },
+    filtreType: function (el) { var f = filtresCour(); f.type = el.dataset.v; majFiltres(f); rendre(); },
     multiToggle: function (el) { var f = S.ui.feuille, i = f.sel.indexOf(el.dataset.v); if (i >= 0) f.sel.splice(i, 1); else f.sel.push(el.dataset.v); rendre(); },
     multiAucun: function () { S.ui.feuille.sel = []; rendre(); },
     multiOk: function () { var f = S.ui.feuille; S.params[f.cle] = f.sel.slice(); LS.set('params', S.params); S.ui.feuille = null; rendre(); },
     // Filtres avancés
     ouvrirFiltres: function () {
-      var b = JSON.parse(JSON.stringify(S.ui.filtres));
+      var b = JSON.parse(JSON.stringify(filtresCour()));
       S.ui.feuille = { type: 'filtres', titre: 'Filtres', pleine: true, brouillon: b, ouverts: { spec: b.specialites.length > 0, com: b.communes.length > 0 } };
       rendre();
     },
@@ -2388,13 +2468,13 @@
       rendre();
     },
     filtresReinit: function () { S.ui.feuille.brouillon = JSON.parse(JSON.stringify(FILTRES_VIDES)); rendre(); },
-    filtresOk: function () { S.ui.filtres = S.ui.feuille.brouillon; LS.set('filtres', S.ui.filtres); S.ui.feuille = null; S.ui.limite = 40; rendre(); },
+    filtresOk: function () { majFiltres(S.ui.feuille.brouillon); S.ui.feuille = null; rendre(); },
     retirerFiltre: function (el) {
-      var f = S.ui.filtres, k = el.dataset.k;
+      var f = filtresCour(), k = el.dataset.k;
       if (Array.isArray(f[k])) f[k] = f[k].filter(function (x) { return x !== el.dataset.v; }); else f[k] = 'tous';
-      LS.set('filtres', f); rendre();
+      majFiltres(f); rendre();
     },
-    effacerFiltres: function () { S.ui.filtres = JSON.parse(JSON.stringify(FILTRES_VIDES)); LS.set('filtres', S.ui.filtres); rendre(); },
+    effacerFiltres: function () { majFiltres(JSON.parse(JSON.stringify(FILTRES_VIDES))); rendre(); },
     // Fiche praticien
     nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau praticien', pleine: true, etape: 0, d: brouillonFiche(''), err: {} }; rendre(); },
     modifierFiche: function (el) { S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche', pleine: true, etape: 0, d: brouillonFiche(el.dataset.v), err: {} }; rendre(); },
@@ -2447,7 +2527,7 @@
     // Statistiques
     statsPeriode: function (el) { S.ui.stats.periode = el.dataset.v; LS.set('stats', S.ui.stats); rendre(); },
     statsPortee: function (el) { S.ui.stats.portee = el.dataset.v; LS.set('stats', S.ui.stats); rendre(); },
-    statsVue: function (el) { S.ui.statsVue = el.dataset.v; rendre(); },
+    statsVue: function (el) { S.ui.statsVue = el.dataset.v; LS.set('statsVue', S.ui.statsVue); rendre(); },
     statsSpec: function (el) { S.ui.stats.vueSpec = el.dataset.v; LS.set('stats', S.ui.stats); rendre(); },
     // Apparence, lancement, mises à jour
     theme: function (el) { appliquerTheme(el.dataset.v); rendre(); },
@@ -2485,7 +2565,10 @@
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
     if (f === 'fiche') majChampFiche(el, false);
-    if (f === 'produits') { var ap = arret(el.dataset.uid); if (ap) { ap.produits = el.value; LS.set('plan', S.plan); } }
+    if (f === 'produits') {
+      var ap = arret(el.dataset.uid), ref = produitsRef();
+      if (ap) { ap.produits = listeProduits(ap.produits).filter(function (x) { return ref.indexOf(x) >= 0; }).concat(listeProduits(el.value)).join(', '); LS.set('plan', S.plan); }
+    }
     if (f === 'chercheOption') {
       var fe = S.ui.feuille; fe.q = fe.q || {}; fe.q[el.dataset.g] = el.value;
       var q = normaliser(el.value), g = el.closest('.groupe-filtre');
@@ -2493,7 +2576,7 @@
       g.querySelectorAll('.section-choix').forEach(function (sec) { sec.hidden = !sec.querySelector('.puce:not([hidden])'); });
     }
     if (f === 'recherche' || f === 'rechercheImpose') {
-      if (f === 'recherche') { S.ui.recherche = el.value; S.ui.limite = 40; } else S.ui.feuille.q = el.value;
+      if (f === 'recherche') { if (S.ui.tab === 'autour') S.ui.rechercheAutour = el.value; else S.ui.recherche = el.value; S.ui.limite = 40; } else S.ui.feuille.q = el.value;
       pos = el.selectionStart; rendre();
       var champ = document.querySelector('[data-f="' + f + '"]');
       if (champ) { champ.focus(); try { champ.setSelectionRange(pos, pos); } catch (x) {} }
@@ -2590,12 +2673,12 @@
     if (enAttente() || age > 10 * 60 * 1000) synchroniser(true);
     else rafraichirEquipe().then(function (ok) { if (ok) rendreSiPossible(); });
   });
-  // Tournées de l'équipe rafraîchies toutes les 2 minutes quand l'application est ouverte
+  // Tournées de l'équipe rafraîchies chaque minute quand l'application est ouverte
   setInterval(function () {
     if (document.visibilityState !== 'visible') return;
     if (enAttente() || S.ui.aPublier) { synchroniser(true); return; }
     rafraichirEquipe().then(function (ok) { if (ok && !S.ui.feuille) rendreSiPossible(); });
-  }, 120000);
+  }, 60000);
 
   // ------------------------------------------------------------------ Thème
   function appliquerTheme(t) {

@@ -1,4 +1,4 @@
-# MediPlanner v2.1.1 Enterprise (anciennement « Tournées »)
+# MediPlanner v2.2.0 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -13,6 +13,18 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 
 ---
 
+## Nouveautés 2.2.0
+
+- Message WhatsApp : une puce devant chaque médecin
+- Chaque onglet présente son rôle en une phrase
+- Autour : mêmes filtres que Contacts, rayon 2 km et « Maintenant » par défaut, filtre Tout / Médecins / Pharmacies
+- Programme validé toujours modifiable (il reste validé pour l'équipe) ; compte rendu enregistré corrigeable
+- Tournée : couverture « Jour » et « Couvertes » par défaut ; vos filtres restent mémorisés
+- Type de visite : Routine, Réunion, Staff, Déjeuner, Garde ; produits de la gamme en un toucher
+- Synchronisation plus fiable : nouvelles tentatives automatiques, aucune saisie perdue
+- Formulaires et listes déroulantes modernisés
+- Un praticien d'un programme validé par un collègue n'est plus proposé
+
 ## La base de données (Google Sheet)
 
 | Feuille | Contenu |
@@ -23,7 +35,7 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 | **Plannings** | Tournées publiées par chaque délégué (tenue à jour par l'application, ne pas modifier) |
 | **Historique** | Une ligne par compte rendu de visite, avec le nom du délégué |
 | **Quartiers** | Quartiers, communes, zones et coordonnées GPS |
-| **Listes** | Statuts de visite et ceux qui comptent comme visite effective ; **Délégués** (noms proposés dans l'application) ; **JoursFériés** (exclus des tournées ; ajoutez chaque année les fêtes musulmanes) |
+| **Listes** | Statuts de visite et ceux qui comptent comme visite effective ; **Délégués** (noms proposés dans l'application) ; **Activités** (types de visite), **Produits** (gamme proposée en puces dans le compte rendu), **JoursFériés** (exclus des tournées ; ajoutez chaque année les fêtes musulmanes) |
 
 **Potentiel de prescription** : ★★★ = fort (note 3, à voir tous les 14 jours), ★★ = moyen (note 2, 30 jours), ★ = faible (note 1, 60 jours).
 

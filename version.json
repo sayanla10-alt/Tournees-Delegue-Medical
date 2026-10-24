@@ -1,8 +1,17 @@
 {
-  "version": "2.1.1",
+  "version": "2.2.0",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Message WhatsApp : une puce devant chaque médecin",
+    "Chaque onglet présente son rôle en une phrase",
+    "Autour : mêmes filtres que Contacts, rayon 2 km et « Maintenant » par défaut, filtre Tout / Médecins / Pharmacies",
+    "Programme validé toujours modifiable (il reste validé pour l'équipe) ; compte rendu enregistré corrigeable",
+    "Tournée : couverture « Jour » et « Couvertes » par défaut ; vos filtres restent mémorisés",
+    "Type de visite : Routine, Réunion, Staff, Déjeuner, Garde ; produits de la gamme en un toucher",
+    "Synchronisation plus fiable : nouvelles tentatives automatiques, aucune saisie perdue",
+    "Formulaires et listes déroulantes modernisés",
+    "Un praticien d'un programme validé par un collègue n'est plus proposé",
     "Pharmacies réelles d'Abidjan dans leur propre feuille",
     "Jours fériés signalés (calendrier officiel) ; type de visite dans le compte rendu",
     "WhatsApp dans les fiches, cartes modernes, envoi du programme proposé après validation",

@@ -60,7 +60,10 @@ var CHAMPS_PHARMACIES = [
   ['prochaine', 'ProchaineEtape'], ['source', 'Source']
 ];
 var HORAIRES_PHARMACIE = ['08:00-12:30', '15:00-20:00'];
-var ACTIVITES_DEFAUT = ['Visite de routine (rappel)', 'Présentation produit', 'EPU', 'Remise d\'échantillons', 'Réunion / staff', 'Autre activité'];
+var ACTIVITES_DEFAUT = ['Routine', 'Présentation produit', 'EPU', 'Remise d\'échantillons', 'Réunion', 'Staff', 'Déjeuner', 'Garde', 'Autre activité'];
+// anciens libellés (avant 2.2.0), remplacés automatiquement
+var ACTIVITES_RENOMMEES = { 'Visite de routine (rappel)': 'Routine', 'Réunion / staff': 'Réunion' };
+var PRODUITS_DEFAUT = ['Zyltan H', 'Rozukaa 10', 'Rozukaa 20', 'Lestrol 20', 'Phestal', 'Imodium'];
 
 // Tournées publiées par les délégués (visibles par toute l'équipe)
 var CHAMPS_PLAN = [
@@ -482,7 +485,7 @@ if (typeof module !== 'undefined' && module.exports) {
     lettrePotentiel: lettrePotentiel, SPECIALITES_DEFAUT: SPECIALITES_DEFAUT,
     completerDonneesFictives: completerDonneesFictives, hachage: hachage,
     minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,
-    CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT,
+    CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES, PRODUITS_DEFAUT: PRODUITS_DEFAUT,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
   };
