@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.2.1', EDITION = 'Enterprise';
+  var APP_VERSION = '3.3.0', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.3.0', ['Équipe : votre propre tournée apparaît aussi, en tête, avec celles de vos collègues', 'Planifier : « Reprendre un ancien programme » copie une semaine ou une journée passée en brouillon, point de départ pour vos modifications']],
     ['3.2.1', ['Équipe : la carte de la journée du collègue est affichée tout en bas', 'L\'onglet « Praticiens » devient « Recherche », avec une phrase qui résume les critères retenus']],
     ['3.2.0', ['Itinéraire : les praticiens d\'un même établissement s\'enchaînent, puis les établissements de proche en proche, sans dépasser les horaires de présence']],
     ['3.1.0', ['Compte rendu propre aux pharmacies : visitée oui ou non, activités en officine, produits disponibles (avec Juvamine), état des stocks (en stock, rupture, périmé…)']],
@@ -170,6 +171,20 @@
     LS.set('config', S.config); LS.set('data', S.data); LS.set('plan', S.plan); LS.set('programme', S.programme);
     LS.set('params', S.params); LS.set('queue', S.queue); LS.set('imposes', S.imposes); LS.set('rejetes', S.rejetes);
     LS.set('fiches', S.fiches);
+    archiverPlan();
+  }
+  // Archive locale des tournées (par date, 70 jours) : permet de reprendre un ancien programme, même hors ligne
+  function archiverPlan() {
+    if (!S.plan.length) return;
+    var arch = LS.get('archives', {}), limite = ajouterJours(aujourdhui(), -70);
+    var parDate = {};
+    S.plan.forEach(function (a) {
+      (parDate[a.date] = parDate[a.date] || []).push({ date: a.date, heure: a.heure, creneau: a.creneau, idPresence: a.idPresence, code: a.code,
+        nom: a.nom, specialite: a.specialite, note: a.note, quartier: a.quartier, commune: a.commune, lieu: a.lieu, statut: a.statut || '' });
+    });
+    Object.keys(parDate).forEach(function (d) { arch[d] = parDate[d]; });
+    Object.keys(arch).forEach(function (d) { if (d < limite) delete arch[d]; });
+    LS.set('archives', arch);
   }
   function enAttente() { return S.queue.length + S.fiches.length; }
 
@@ -836,6 +851,9 @@
     var h = '<h2 class="titre-vue">Planifier</h2><p class="sous-titre">Préparez votre tournée, ajustez-la, puis confirmez-la pour l\'équipe.</p>';
     if (S.ui.voirParams || !S.plan.length) h += rendreParams();
     else h += rendreResume();
+    if (anciensProgrammes().length) {
+      h += '<button class="bouton bouton-large" type="button" data-a="ouvrirAnciens" style="margin:-4px 0 14px">' + icone('relancer') + 'Reprendre un ancien programme</button>';
+    }
     if (!S.plan.length) return h;
     var dates = datesPlan(); choisirJour(dates);
     h += rendreProgramme();
@@ -856,6 +874,72 @@
     h += rendreCouverture(dates);
     return h;
   };
+
+  // ------------------------------------------------------------------ Reprendre un ancien programme
+  // Sources : mes tournées publiées (feuille Plannings, 62 jours) et l'archive du téléphone, hors jours de la tournée en cours
+  function anciensProgrammes() {
+    var parDate = {}, enCours = ensemble(S.plan.map(function (a) { return a.date; }));
+    var arch = LS.get('archives', {}), srv = {};
+    Object.keys(arch).forEach(function (d) { if (!enCours[d]) parDate[d] = arch[d]; });
+    // la version publiée (feuille Plannings) complète les jours absents de l'archive du téléphone
+    ((S.data && S.data.plannings) || []).forEach(function (p) {
+      if (p.delegue && estMoi(p.delegue) && !enCours[p.date] && !arch[p.date]) (srv[p.date] = srv[p.date] || []).push(p);
+    });
+    Object.keys(srv).forEach(function (d) { parDate[d] = srv[d]; });
+    var semaines = {};
+    Object.keys(parDate).forEach(function (d) {
+      if (!parDate[d].length) return;
+      var l = lundiDe(d); (semaines[l] = semaines[l] || {})[d] = parDate[d];
+    });
+    return Object.keys(semaines).sort().reverse().slice(0, 8).map(function (l) { return { lundi: l, jours: semaines[l] }; });
+  }
+  // Dates cibles : semaine (même jour de la semaine) ou journée choisie dans les réglages
+  function ciblesReprise(type, source) {
+    var p = S.params;
+    if (type === 'semaine') {
+      var cible = joursOuvres(lundiDe(p.dateRef)), m = {};
+      Object.keys(source).forEach(function (d) { m[d] = cible[jourSemaineIndex(d)]; });
+      return m;
+    }
+    var d0 = Object.keys(source)[0], m2 = {};
+    m2[d0] = p.mode === 'jour' ? p.dateRef : joursOuvres(lundiDe(p.dateRef))[jourSemaineIndex(d0)];
+    return m2;
+  }
+  function reprendreProgramme(type, valeur) {
+    var semaine = anciensProgrammes().filter(function (x) { return x.lundi === (type === 'semaine' ? valeur : lundiDe(valeur)); })[0];
+    if (!semaine) return;
+    var source = {};
+    if (type === 'semaine') source = semaine.jours; else source[valeur] = semaine.jours[valeur];
+    if (type === 'semaine' && S.params.mode !== 'semaine') { S.params.mode = 'semaine'; }
+    var vers = ciblesReprise(type, source), c = ctx(), nouveaux = [], manques = [];
+    Object.keys(source).forEach(function (d) {
+      var cible = vers[d];
+      if (!cible || jourSemaineIndex(cible) > 4 || estFerie(cible)) { manques = manques.concat(source[d].map(function (x) { return x.nom; })); return; }
+      var j = jourSemaineIndex(cible), vus = {};
+      source[d].slice().sort(function (a, b) { return String(a.heure).localeCompare(String(b.heure)); }).forEach(function (x) {
+        if (vus[x.code]) return; vus[x.code] = true;
+        var pr = c.prat[x.code], crs = (c.parCode[x.code] || []).filter(function (cr) { return cr.jourIdx === j; });
+        var cr = crs.filter(function (k) { return String(k.idPresence) === String(x.idPresence) && k.creneau === x.creneau; })[0] ||
+                 crs.filter(function (k) { return String(k.idPresence) === String(x.idPresence); })[0] || crs[0];
+        if (!pr || !cr || absentLe(pr, cible)) { manques.push(x.nom); return; }
+        var a = Moteur.arretDepuisCreneau(cr, cible);
+        a.garde = true; a.etat = 'repris';
+        nouveaux.push(a);
+      });
+    });
+    var cibles = ensemble(Object.keys(vers).map(function (k) { return vers[k]; }));
+    var aRemplacer = S.plan.filter(function (a) { return cibles[a.date] && a.etat !== 'valide' && !a.corrige; });
+    if (aRemplacer.some(function (a) { return a.statut; }) && !confirm('Des comptes rendus non enregistrés sur ces jours seront perdus. Continuer ?')) return;
+    var gardes = S.plan.filter(function (a) { return !cibles[a.date] || a.etat === 'valide' || a.corrige; });
+    var deja = {}; gardes.forEach(function (a) { deja[a.date + '|' + a.code] = true; });
+    S.plan = gardes.concat(nouveaux.filter(function (a) { return !deja[a.date + '|' + a.code]; }));
+    Object.keys(cibles).forEach(function (d) { if (S.plan.some(function (a) { return a.date === d; })) reordonner(d); });
+    S.programme = { etat: 'proposition', valideLe: '' };
+    S.ui.jour = Object.keys(cibles).sort()[0]; S.ui.feuille = null; S.ui.voirParams = false;
+    sauver(); rendre(); publierPlan(true); window.scrollTo(0, 0);
+    toast(nouveaux.length + ' visite' + (nouveaux.length > 1 ? 's' : '') + ' reprise' + (nouveaux.length > 1 ? 's' : '') + ' en brouillon' +
+      (manques.length ? ' ; ' + manques.length + ' praticien' + (manques.length > 1 ? 's' : '') + ' absent' + (manques.length > 1 ? 's' : '') + ' ce jour-là (non repris)' : '') + '.', 5000);
+  }
 
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
   function rendreLignePlan(a) {
@@ -969,6 +1053,7 @@
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV (prochaine étape)' : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + (verrou ? ', enregistré' : '') + '</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
+    if (a.etat === 'repris') e += '<span class="etiquette">Repris d\'un ancien programme</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">RDV prévu le ' + dateCourte(a.prochaine) + '</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';
@@ -1277,18 +1362,23 @@
   // ------------------------------------------------------------------ Vue : équipe
   VUES.equipe = function () {
     var h = '<h2 class="titre-vue">Équipe</h2>';
-    if (S.config.demo) return h + '<div class="vide"><strong>Disponible avec le Google Sheet</strong>Les tournées de vos collègues s\'affichent ici une fois l\'application connectée.</div>';
-    var depuis = lundiDe(aujourdhui());
-    var arrets = arretsCollegues().filter(function (p) { return p.date >= depuis; });
-    var noms = Array.from(new Set(arrets.map(function (p) { return p.delegue; }))).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
-    h += '<p class="sous-titre">Les tournées de vos collègues, pour coordonner les visites et éviter les doublons. Mise à jour chaque minute.</p>';
-    if (!noms.length) return h + '<div class="vide"><strong>Aucune tournée publiée</strong>Les tournées apparaissent ici dès qu\'un collègue prépare la sienne.</div>';
+    var depuis = lundiDe(aujourdhui()), nomMoi = moi() || 'Moi';
+    // ma tournée (version du téléphone, la plus récente) + celles des collègues
+    var miens = S.plan.map(function (a) {
+      return Object.assign({}, a, { delegue: nomMoi, programme: S.programme.etat === 'valide' ? 'Validé' : 'Proposition', statut: a.etat === 'valide' ? a.statut : '' });
+    });
+    var arrets = miens.concat(S.config.demo ? [] : arretsCollegues()).filter(function (p) { return p.date >= depuis; });
+    var noms = Array.from(new Set(arrets.map(function (p) { return p.delegue; }))).sort(function (a, b) {
+      return (a === nomMoi ? -1 : b === nomMoi ? 1 : a.localeCompare(b, 'fr'));
+    });
+    h += '<p class="sous-titre">Votre tournée et celles de vos collègues, pour coordonner les visites et éviter les doublons. Mise à jour chaque minute.</p>';
+    if (!noms.length) return h + '<div class="vide"><strong>Aucune tournée cette semaine</strong>Votre tournée et celles de vos collègues apparaissent ici dès qu\'elles sont préparées.</div>';
     h += '<ul class="liste resume-equipe">' + noms.map(function (n) {
       var l = arrets.filter(function (p) { return p.delegue === n; });
       var valide = l.some(function (p) { return p.programme === 'Validé'; });
       var com = Array.from(new Set(l.map(function (p) { return p.commune; })));
       return '<li><button type="button" data-a="collegue" data-v="' + esc(n) + '" aria-pressed="' + (n === S.ui.collegue) + '">' +
-        '<b>' + esc(n) + '</b><span class="etiquette ' + (valide ? 'ok' : '') + '">' + (valide ? 'Tournée confirmée' : 'Brouillon') + '</span>' +
+        '<b>' + esc(n) + (n === nomMoi ? ' (moi)' : '') + '</b><span class="etiquette ' + (valide ? 'ok' : '') + '">' + (valide ? 'Tournée confirmée' : 'Brouillon') + '</span>' +
         '<span class="discret bloc-texte">' + l.length + ' visites, ' + esc(libelleCommunes(com)) + '</span></button></li>';
     }).join('') + '</ul>';
     if (noms.indexOf(S.ui.collegue) < 0) S.ui.collegue = noms[0];
@@ -1922,6 +2012,25 @@
       (navigator.share ? '<button class="bouton" type="button" data-a="partagerTexte">Partager…</button>' : '') + '</div>';
   };
 
+  FEUILLES.anciens = function () {
+    var l = anciensProgrammes(), p = S.params;
+    if (!l.length) return '<p class="discret">Aucun ancien programme disponible.</p>';
+    var semCible = joursOuvres(lundiDe(p.dateRef))[0];
+    var h = '<p class="discret" style="margin-top:0">Le programme choisi est copié en <b>brouillon</b>, aux mêmes jours de la semaine, vers la ' +
+      (p.mode === 'jour' ? 'journée du <b>' + dateCourte(p.dateRef) + '</b> (pour une journée) ou la semaine du <b>' + dateCourte(semCible) + '</b> (pour une semaine)' : 'semaine du <b>' + dateCourte(semCible) + '</b>') +
+      '. Modifiez la date dans les réglages de la tournée pour changer de cible. Vous pourrez ensuite garder, retirer ou recalculer.</p>';
+    h += l.map(function (s2) {
+      var jours = Object.keys(s2.jours).sort(), n = jours.reduce(function (t, d) { return t + s2.jours[d].length; }, 0);
+      var com = []; jours.forEach(function (d) { s2.jours[d].forEach(function (x) { if (x.commune && com.indexOf(x.commune) < 0) com.push(x.commune); }); });
+      return '<section class="bloc ancien"><div class="ancien-tete"><div><b>Semaine du ' + dateCourte(s2.lundi) + '</b><span class="discret bloc-texte">' + n + ' visite' + (n > 1 ? 's' : '') + ', ' + esc(libelleCommunes(com)) + '</span></div>' +
+        '<button class="bouton petit bouton-plein" type="button" data-a="reprendre" data-t="semaine" data-v="' + s2.lundi + '">Reprendre la semaine</button></div>' +
+        '<div class="puces">' + jours.map(function (d) {
+          return '<button type="button" class="puce" data-a="reprendre" data-t="jour" data-v="' + d + '">' + majuscule(dateCourte(d)) + ' · ' + s2.jours[d].length + '</button>';
+        }).join('') + '</div></section>';
+    }).join('');
+    return h + '<p class="discret">Touchez un jour pour ne reprendre que celui-ci.</p>';
+  };
+
   FEUILLES.valide = function () {
     return { corps: '<p style="margin-top:0">Votre tournée est confirmée et visible par l\'équipe. Vous pouvez toujours la modifier.</p><p class="discret">Voulez-vous l\'envoyer sur WhatsApp ?</p>',
       pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non, merci</button>' +
@@ -2428,6 +2537,8 @@
     },
     param: function (el) { S.params[el.dataset.k] = el.dataset.v; LS.set('params', S.params); rendre(); },
     voirParams: function () { S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
+    ouvrirAnciens: function () { S.ui.feuille = { type: 'anciens', titre: 'Reprendre un ancien programme', pleine: true }; rendre(); },
+    reprendre: function (el) { reprendreProgramme(el.dataset.t, el.dataset.v); },
     fermerParams: function () { S.ui.voirParams = false; rendre(); window.scrollTo(0, 0); },
     voirVisite: function (el) { S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' }); },
     ouvrirAutour: function () { S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); },

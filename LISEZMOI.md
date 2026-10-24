@@ -1,4 +1,4 @@
-# MediPlanner v3.2.1 Enterprise (anciennement « Tournées »)
+# MediPlanner v3.3.0 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -109,13 +109,14 @@ L'application suit la journée du délégué, en 5 onglets.
 **2. Planifier** (la préparation)
 - **Réglages de la tournée** : une journée ou une semaine, communes (différentes selon le jour si besoin), Tout / Médecins / Pharmacies, spécialités, potentiel, visites par jour, « ne pas revoir avant », éviter les médecins prévus par un collègue.
 - **RDV et médecins prioritaires** : placés d'office, la tournée se construit autour d'eux.
+- **Reprendre un ancien programme** : choisissez une semaine ou un jour des 8 dernières semaines ; il est copié en brouillon aux mêmes jours de la semaine (vers la date choisie dans les réglages), les praticiens absents ce jour-là sont signalés. Point de départ à modifier ensuite.
 - **Proposer ma tournée**, puis jour par jour : **Garder** un médecin, le **retirer**, **Recalculer ce jour** ou **la semaine** (les médecins gardés, les RDV et les visites faites restent).
 - **Confirmer la tournée** : elle devient visible par l'équipe ; elle reste modifiable et chaque changement est publié. **Envoyer sur WhatsApp** : « Planning du … (votre nom) », puis chaque établissement et ses médecins, précédés d'une puce.
 - **Communes visitées** : carte et liste des communes visitées ou non (par vous et par l'équipe), au jour ou à la semaine.
 
 **3. Recherche** (les praticiens) : recherche, une phrase qui résume les critères retenus, Tout / Médecins / Pharmacies, filtres rapides et avancés, tri. La fiche affiche les actions rapides, le dernier commentaire, le prochain RDV et les jours de présence (touchez M ou S pour planifier) ; **Ajouter à ma tournée** ou **Modifier la fiche** ; **Nouveau** pour créer une fiche en 4 étapes.
 
-**4. Équipe** : la tournée de chaque collègue (brouillon ou confirmée), avec sa carte en bas, mise à jour chaque minute.
+**4. Équipe** : votre tournée (en tête) et celle de chaque collègue (brouillon ou confirmée), avec sa carte en bas, mise à jour chaque minute.
 
 **5. Bilan** : tableau de bord (taux de réalisation, visites réalisées, objectif, praticiens ★★★ à jour, activité par jour, par commune, par spécialité, par type de visite, par délégué) et **Historique** de toutes les visites.
 

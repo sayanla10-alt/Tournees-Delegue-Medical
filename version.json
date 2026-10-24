@@ -1,8 +1,10 @@
 {
-  "version": "3.2.1",
+  "version": "3.3.0",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Équipe : votre propre tournée apparaît aussi, en tête, avec celles de vos collègues",
+    "Planifier : « Reprendre un ancien programme » copie une semaine ou une journée passée en brouillon, point de départ pour vos modifications",
     "Équipe : la carte de la journée du collègue est affichée tout en bas",
     "L'onglet « Praticiens » devient « Recherche », avec une phrase qui résume les critères retenus",
     "Itinéraire : les praticiens d'un même établissement s'enchaînent, puis les établissements de proche en proche, sans dépasser les horaires de présence",
