@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.0.3', EDITION = 'Enterprise';
+  var APP_VERSION = '3.0.4', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.0.4', ['Planifier : « Envoyer sur WhatsApp » placé en bas, juste au-dessus de la carte']],
     ['3.0.3', ['L\'onglet « Ma semaine » s\'appelle désormais « Planifier »']],
     ['3.0.2', ['Compte rendu : les champs se déploient dès que le résultat de la visite est choisi']],
     ['3.0.1', ['Compte rendu complet de nouveau visible d\'emblée : vu ou non, type de visite, produits présentés, ce qui est ressorti de la discussion, prochaine étape']],
@@ -828,6 +829,10 @@
     h += '<div class="rangee rangee-tirage"><button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Recalculer ce jour</button>' +
       (S.params.mode === 'semaine' && dates.length > 1 ? '<button class="bouton" type="button" data-a="tirage" data-v="semaine">' + icone('relancer') + 'Recalculer la semaine</button>' : '') +
       '</div><p class="discret aide">Les médecins gardés, les RDV et les visites déjà faites sont conservés ; les autres sont remplacés.</p>';
+    // envoi WhatsApp en fin de préparation, juste au-dessus de la carte
+    if (S.programme.etat === 'valide') {
+      h += '<button class="bouton bouton-plein bouton-large wa" type="button" data-a="ouvrirExport" style="margin:14px 0">' + icone('whatsapp') + 'Envoyer sur WhatsApp</button>';
+    }
     h += rendreCouverture(dates);
     return h;
   };
@@ -922,8 +927,7 @@
     if (S.programme.etat === 'valide') {
       return '<section class="bandeau-prog valide"><div><b>Tournée confirmée</b><span>' +
         (S.programme.valideLe ? 'Le ' + esc(S.programme.valideLe) : '') + (S.programme.modifieLe ? ', modifiée le ' + esc(S.programme.modifieLe) : '') +
-        '. Visible par l\'équipe ; vos changements sont publiés automatiquement.</span></div>' +
-        '<div class="rangee"><button class="bouton bouton-plein wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer sur WhatsApp</button></div></section>';
+        '. Visible par l\'équipe ; vos changements sont publiés automatiquement.</span></div></section>';
     }
     return '<section class="bandeau-prog"><div><b>Brouillon</b><span>' +
       (S.params.mode === 'semaine' ? 'Semaine du ' + dateCourte(dates[0]) : 'Journée du ' + dateCourte(dates[0])) +
