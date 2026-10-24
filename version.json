@@ -1,8 +1,11 @@
 {
-  "version": "2.0.7",
+  "version": "2.1.0",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Pharmacies réelles d'Abidjan dans leur propre feuille",
+    "Jours fériés signalés (calendrier officiel) ; type de visite dans le compte rendu",
+    "WhatsApp dans les fiches, cartes modernes, envoi du programme proposé après validation",
     "Couverture repliée par défaut sous la tournée",
     "Compte rendu : produits présentés et prochaine étape",
     "Trajets réalistes (heures de pointe, ponts), jours fériés et absences respectés",

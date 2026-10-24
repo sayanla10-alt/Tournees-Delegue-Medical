@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.7', EDITION = 'Enterprise';
+  var APP_VERSION = '2.1.0', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.1.0', ['Pharmacies réelles d\'Abidjan (OpenStreetMap) dans leur propre feuille, ouvertes matin et soir',
+               'Jours fériés signalés, d\'après le calendrier officiel de la Côte d\'Ivoire',
+               'Type de visite (routine, présentation produit, EPU…) dans le compte rendu et les statistiques',
+               'WhatsApp à la place de Waze dans les fiches', 'Cartes modernes pour la couverture et les tournées de l\'équipe',
+               'Après validation, l\'envoi du programme est proposé ; établissements en gras dans le message']],
     ['2.0.7', ['Couverture repliée par défaut sous la tournée (un toucher pour la carte et les communes)']],
     ['2.0.6', ['Compte rendu : produits présentés et date de prochaine étape (le praticien remonte en priorité à cette date)',
                'Temps de trajet plus réalistes : heures de pointe et traversée de la lagune',
@@ -126,7 +131,7 @@
   // Contexte du moteur, reconstruit seulement quand les données changent
   var ctxCache = { data: null, ctx: null };
   function ctx() {
-    if (ctxCache.data !== S.data) ctxCache = { data: S.data, ctx: Moteur.preparer(S.data) };
+    if (ctxCache.data !== S.data) ctxCache = { data: S.data, ctx: Moteur.preparer(Object.assign({}, S.data, { feries: feries() })) };
     return ctxCache.ctx;
   }
   function praticien(code) { return ctx().prat[code]; }
@@ -230,7 +235,6 @@
     var num = normaliserNumero(o.telephone), tel = num ? '+' + num : '';
     var pos = o.lat && o.lon && isFinite(+o.lat) && isFinite(+o.lon) ? (+o.lat).toFixed(5) + ',' + (+o.lon).toFixed(5) : '';
     var q = [o.lieu, o.quartier, o.commune, 'Abidjan'].filter(Boolean).join(', ');
-    var waze = pos ? 'https://waze.com/ul?ll=' + pos + '&navigate=yes' : 'https://waze.com/ul?q=' + encodeURIComponent(q) + '&navigate=yes';
     var gmaps = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + (pos || encodeURIComponent(q));
     function lien(href, ic, lib, actif, externe) {
       return actif ? '<a class="action-rapide" href="' + esc(href) + '"' + (externe ? ' target="_blank" rel="noopener"' : '') + '>' + icone(ic) + lib + '</a>'
@@ -238,7 +242,7 @@
     }
     return '<div class="actions-rapides" role="group" aria-label="Actions rapides">' +
       lien('tel:' + tel, 'tel', 'Appeler', !!tel) + lien('sms:' + tel, 'sms', 'SMS', !!tel) +
-      lien(waze, 'waze', 'Waze', true, true) + lien(gmaps, 'carte', 'Maps', true, true) + '</div>';
+      lien('https://wa.me/' + num, 'whatsapp', 'WhatsApp', !!num, true) + lien(gmaps, 'carte', 'Maps', true, true) + '</div>';
   }
   // Contrôle segmenté (un seul choix) : [[valeur, libellé], ...]
   function segment(titre, action, options, valeur, style) {
@@ -321,6 +325,8 @@
     l = [n].concat(l.filter(function (x) { return x !== n; })).slice(0, 30);
     LS.set('produits', l);
   }
+  function activites() { return (S.data && S.data.activites && S.data.activites.length) ? S.data.activites : ACTIVITES_DEFAUT; }
+  function listeActivites(t) { return String(t || '').split(/\s*;\s*/).filter(Boolean); }
   function ficheEnAttente(code) { return S.fiches.some(function (f) { return f.praticien.code === code; }); }
 
   var $ = function (id) { return document.getElementById(id); };
@@ -564,7 +570,9 @@
     if (!pret() && tab !== 'reglages') tab = 'accueil';
     else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
     cacherInfobulle();
+    cartesAFaire = [];
     $('vue').innerHTML = (VUES[tab] || VUES.tournee)();
+    dessinerCartes();
     rendreFeuille();
     rendreLancement();
     afficherEntete(); afficherBarre(); afficherNav();
@@ -595,8 +603,47 @@
   };
 
   // ------------------------------------------------------------------ Période et paramètres
-  function feries() { return (S.data && S.data.feries && S.data.feries.length) ? S.data.feries : FERIES_DEFAUT; }
-  function estFerie(d) { return feries().indexOf(d) >= 0; }
+  // Jours fériés : calendrier officiel de la Côte d'Ivoire (date.nager.at, mis en cache sur le téléphone)
+  // + jours ajoutés dans la feuille Listes (fêtes musulmanes, ponts…)
+  var NOMS_FERIES = { "New Year's Day": 'Jour de l\'An', 'Easter Monday': 'Lundi de Pâques', 'Labour Day': 'Fête du Travail',
+    'Ascension Day': 'Ascension', 'Whit Monday': 'Lundi de Pentecôte', 'Independence Day': 'Fête de l\'Indépendance',
+    'Assumption Day': 'Assomption', 'All Saints Day': 'Toussaint', 'National Peace Day': 'Journée nationale de la Paix', 'Christmas Day': 'Noël' };
+  var memoFeries = { cle: null, m: null };
+  function feriesMap() {
+    var cal = LS.get('feriesCal', null), cle = (cal ? cal.t : 0) + '|' + ((S.data && S.data.feries) || []).join(',');
+    if (memoFeries.cle === cle) return memoFeries.m;
+    var m = {};
+    if (!cal) FERIES_DEFAUT.forEach(function (d) { m[d] = 'Jour férié'; });
+    else Object.keys(cal.m).forEach(function (d) { m[d] = cal.m[d]; });
+    ((S.data && S.data.feries) || []).forEach(function (d) { if (!m[d]) m[d] = 'Jour férié'; });
+    memoFeries = { cle: cle, m: m };
+    return m;
+  }
+  function feries() { return Object.keys(feriesMap()); }
+  function estFerie(d) { return !!feriesMap()[d]; }
+  function nomFerie(d) { return feriesMap()[d] || ''; }
+  function chargerFeriesCalendrier() {
+    var cal = LS.get('feriesCal', null);
+    if (!navigator.onLine || (cal && Date.now() - cal.t < 7 * 86400000)) return;
+    var an = +aujourdhui().slice(0, 4);
+    Promise.all([an, an + 1].map(function (y) { return fetch('https://date.nager.at/api/v3/PublicHolidays/' + y + '/CI').then(function (r) { return r.json(); }); }))
+      .then(function (l) {
+        var m = {};
+        l.forEach(function (a) { a.forEach(function (x) { m[x.date] = NOMS_FERIES[x.name] || x.localName || x.name; }); });
+        if (!Object.keys(m).length) return;
+        LS.set('feriesCal', { t: Date.now(), m: m }); ctxCache.data = null; rendreSiPossible();
+      }).catch(function () {});
+  }
+  function bandeauFeries(dates) {
+    var l = dates.filter(estFerie);
+    if (!l.length) return '';
+    return '<div class="bandeau info">' + icone('calendrier') + '<p><b>Jour' + (l.length > 1 ? 's' : '') + ' férié' + (l.length > 1 ? 's' : '') + '</b> : ' +
+      l.map(function (d) { return dateCourte(d) + ', ' + esc(nomFerie(d)); }).join(' ; ') + '. Aucune visite n\'est prévue ce' + (l.length > 1 ? 's jours-là' : ' jour-là') + '.</p></div>';
+  }
+  function prochainFerie() {
+    var t = aujourdhui(), l = feries().filter(function (d) { return d >= t; }).sort();
+    return l.length ? l[0] : '';
+  }
   // Dates de la période (affichage) et dates travaillées (jours fériés exclus) pour le tirage
   function datesAffichees() { var p = S.params; return p.mode === 'jour' ? [p.dateRef] : joursOuvres(lundiDe(p.dateRef)); }
   function datesPeriode() { return datesAffichees().filter(function (d) { return !estFerie(d); }); }
@@ -696,7 +743,7 @@
         '<button type="button" data-a="param" data-k="mode" data-v="semaine" aria-pressed="' + (p.mode === 'semaine') + '">Une semaine</button>' +
       '</div>' +
       '<label class="champ"><span>' + (p.mode === 'jour' ? 'Date' : 'Semaine du') + '</span>' +
-        '<input type="date" data-f="param" data-k="dateRef" value="' + esc(p.dateRef) + '"></label>' +
+        '<input type="date" data-f="param" data-k="dateRef" value="' + esc(p.dateRef) + '"></label>' + bandeauFeries(datesAffichees()) +
       '<div class="champ"><span>Communes ciblées</span>' +
         '<button type="button" class="selecteur" data-a="choisirCommunes" data-v="tout">' + esc(libelleCommunes(p.communes)) + '<b>▾</b></button></div>';
     if (p.mode === 'semaine') {
@@ -794,6 +841,9 @@
           return '<button type="button" class="statut' + (s.visite ? '' : ' ko') + '" data-a="statut" data-uid="' + a.uid +
             '" data-v="' + esc(s.nom) + '" aria-pressed="' + (a.statut === s.nom) + '">' + esc(s.nom) + '</button>';
         }).join('') + '</div>' +
+        '<div class="champ"><span>Type de visite</span><div class="puces">' + activites().map(function (x) {
+          return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+        }).join('') + '</div></div>' +
         '<label class="champ"><span>Produits présentés</span><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
           '" value="' + esc(a.produits || '') + '" placeholder="Ex. Produit A, Produit B">' + datalistProduits() + '</label>' +
         '<label class="champ"><span>Commentaire</span><textarea data-f="commentaire" data-uid="' + a.uid +
@@ -835,7 +885,10 @@
       '<p class="discret" style="margin:0 0 8px">' + (portee === 'jour' ? majuscule(dateLongue(S.ui.jour)) : 'Semaine du ' + dateCourte(dates[0])) +
       ' : ' + couv.length + ' commune' + (couv.length > 1 ? 's' : '') + ' couverte' + (couv.length > 1 ? 's' : '') + ' sur ' + cv.length + '.</p>';
     if (!ouverte) return h + '<button type="button" class="bouton petit bouton-large" data-a="couvOuvrir">Voir la carte et les communes</button></section>';
-    h += carteCouverture(dates, mes, eq);
+    h += '<div class="carte-l" id="carteCouv">' + carteCouverture(dates, mes, eq) + '</div>' +
+      '<div class="legende"><span><i class="q-moi"></i>Mes visites' + (portee === 'jour' ? ' (dans l\'ordre)' : '') + '</span><span><i class="q-equipe"></i>Équipe</span><span><i class="q-vide"></i>Commune non couverte</span></div>';
+    cartesAFaire.push({ id: 'carteCouv', route: portee === 'jour' ? mes : [], points: portee === 'jour' ? [] : mes, equipe: eq,
+      nonCouvertes: non.map(function (c) { return c.commune; }) });
     h += segment('Filtre', 'couvFiltre', [['toutes', 'Toutes'], ['couvertes', 'Couvertes · ' + couv.length], ['non', 'Non couvertes · ' + non.length]], S.ui.couvFiltre);
     var liste = S.ui.couvFiltre === 'couvertes' ? couv : (S.ui.couvFiltre === 'non' ? non : cv);
     var zone = '';
@@ -877,8 +930,81 @@
       var c = centres[k];
       s += '<text x="' + (c.x / c.n).toFixed(1) + '" y="' + (c.y / c.n + 3).toFixed(1) + '">' + esc(k) + '</text>';
     });
-    s += '</svg><div class="legende"><span><i class="q-moi"></i>Mes visites</span><span><i class="q-equipe"></i>Équipe</span><span><i class="q-vide"></i>Non couvert</span></div>';
+    s += '</svg>';
     return s;
+  }
+
+  // ------------------------------------------------------------------ Cartes (Leaflet, fond CARTO clair ou sombre)
+  // Chargée à la demande ; sans réseau, le schéma simplifié reste affiché.
+  var cartesAFaire = [], promesseLeaflet = null;
+  function chargerLeaflet() {
+    if (window.L) return Promise.resolve(window.L);
+    if (promesseLeaflet) return promesseLeaflet;
+    promesseLeaflet = new Promise(function (ok, ko) {
+      var css = document.createElement('link'); css.rel = 'stylesheet'; css.href = LEAFLET_CSS; document.head.appendChild(css);
+      var js = document.createElement('script'); js.src = LEAFLET_JS; js.onload = function () { ok(window.L); };
+      js.onerror = function () { promesseLeaflet = null; ko(); }; document.head.appendChild(js);
+    });
+    return promesseLeaflet;
+  }
+  var LEAFLET_JS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+  var LEAFLET_CSS = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+  function couleur(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function themeSombre() { return document.documentElement.dataset.theme === 'sombre' || (!document.documentElement.dataset.theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+  function dessinerCartes() {
+    var l = cartesAFaire.slice();
+    if (!l.length || !navigator.onLine) return;
+    chargerLeaflet().then(function (L) { l.forEach(function (c) { dessinerCarte(L, c); }); }, function () {});
+  }
+  function dessinerCarte(L, c) {
+    var el = $(c.id); if (!el) return;
+    el.innerHTML = ''; el.classList.add('active');
+    var carte = L.map(el, { zoomControl: true, attributionControl: true, scrollWheelZoom: false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/' + (themeSombre() ? 'dark_all' : 'light_all') + '/{z}/{x}/{y}{r}.png',
+      { maxZoom: 19, subdomains: 'abcd', attribution: '© OpenStreetMap, © CARTO' }).addTo(carte);
+    var prim = couleur('--primaire'), bleu = couleur('--bleu'), gris = couleur('--gris-2'), limites = [];
+    // communes non couvertes : repère discret au centre de la commune
+    var centres = {};
+    quartiers().forEach(function (q) { var x = centres[q.commune] = centres[q.commune] || { lat: 0, lon: 0, n: 0 }; x.lat += +q.lat; x.lon += +q.lon; x.n++; });
+    (c.nonCouvertes || []).forEach(function (k) {
+      var x = centres[k]; if (!x) return;
+      L.circle([x.lat / x.n, x.lon / x.n], { radius: 900, color: gris, weight: 1, dashArray: '4 4', fillOpacity: 0.06 }).addTo(carte).bindTooltip(k + ' : non couverte');
+    });
+    (c.equipe || []).forEach(function (a) {
+      var p = coordArret(a); if (!p) return;
+      L.circleMarker([p.lat, p.lon], { radius: 5, color: '#fff', weight: 1.5, fillColor: bleu, fillOpacity: 0.9 }).addTo(carte)
+        .bindTooltip(esc(a.delegue || 'Équipe') + ' : ' + esc(a.nom));
+      limites.push([p.lat, p.lon]);
+    });
+    var parQ = {};
+    (c.points || []).forEach(function (a) {
+      var p = coordArret(a); if (!p) return;
+      var k = a.quartier || (p.lat + ',' + p.lon), x = parQ[k] = parQ[k] || { lat: p.lat, lon: p.lon, n: 0, lib: a.quartier };
+      x.n++;
+    });
+    Object.keys(parQ).forEach(function (k) {
+      var x = parQ[k];
+      L.circleMarker([x.lat, x.lon], { radius: Math.min(6 + x.n * 2, 18), color: '#fff', weight: 2, fillColor: prim, fillOpacity: 0.85 }).addTo(carte)
+        .bindTooltip(esc(x.lib) + ' : ' + x.n + ' visite' + (x.n > 1 ? 's' : ''));
+      limites.push([x.lat, x.lon]);
+    });
+    var trace = [];
+    (c.route || []).forEach(function (a, i) {
+      var p = a.lat !== undefined && a.lat !== null && a.lat !== '' ? { lat: +a.lat, lon: +a.lon } : coordArret(a); if (!p) return;
+      trace.push([p.lat, p.lon]); limites.push([p.lat, p.lon]);
+      L.marker([p.lat, p.lon], { icon: L.divIcon({ className: 'pin', html: '<span>' + (i + 1) + '</span>', iconSize: [26, 26], iconAnchor: [13, 13] }) }).addTo(carte)
+        .bindTooltip((a.heure ? a.heure + ' · ' : '') + esc(a.nom) + (a.lieu ? '<br>' + esc(a.lieu) : ''));
+    });
+    if (trace.length > 1) L.polyline(trace, { color: prim, weight: 3, opacity: 0.7, dashArray: '6 6' }).addTo(carte);
+    if (limites.length) carte.fitBounds(limites, { padding: [24, 24], maxZoom: 15 });
+    else carte.setView([5.345, -4.01], 11);
+  }
+  function coordArret(a) {
+    if (a.lat && a.lon) return { lat: +a.lat, lon: +a.lon };
+    var cr = a.idPresence && ctx().parCode[a.code] ? ctx().parCode[a.code].filter(function (x) { return String(x.idPresence) === String(a.idPresence); })[0] : null;
+    if (cr && cr.coord) return cr.coord;
+    var q = quartiers().filter(function (x) { return x.quartier === a.quartier; })[0];
+    return q ? { lat: +q.lat, lon: +q.lon } : null;
   }
 
   // ------------------------------------------------------------------ Vue : autour de moi
@@ -914,6 +1040,7 @@
     if (jourSemaineIndex(date) > 4) {
       return h + '<div class="vide"><strong>Pas de présences le week-end</strong>Choisissez « Autre moment » et un jour de semaine.</div>';
     }
+    h += bandeauFeries([date]);
     var res = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, A.rayon)
       .filter(function (x) { return !A.ref || x.c.code !== A.ref.code; });
     S.ui.resAutour = res;
@@ -993,6 +1120,12 @@
     }).join('') + '</div>';
     var duJour = siens.filter(function (p) { return p.date === S.ui.jourEquipe; });
     var maj = duJour.reduce(function (m, p) { return p.maj > m ? p.maj : m; }, '');
+    var pos = duJour.map(function (p) {
+      var pr = (ctx().presencesParCode[p.code] || []).filter(function (x) { return String(x.id) === String(p.idPresence); })[0];
+      var c = pr && ctx().parCode[p.code] ? ctx().parCode[p.code].filter(function (x) { return String(x.idPresence) === String(p.idPresence); })[0] : null;
+      return c && c.coord ? { lat: c.coord.lat, lon: c.coord.lon, nom: p.nom, lieu: p.lieu, heure: p.heure } : null;
+    }).filter(Boolean);
+    if (pos.length) { h += '<div class="carte-l" id="carteEquipe"></div>'; cartesAFaire.push({ id: 'carteEquipe', route: pos }); }
     h += '<p class="bilan-jour"><b>' + esc(S.ui.collegue) + '</b>, ' + dateLongue(S.ui.jourEquipe) + ' : ' + duJour.length +
       ' visite' + (duJour.length > 1 ? 's' : '') + (maj ? '. Mise à jour le ' + esc(maj.slice(8, 10) + '/' + maj.slice(5, 7) + ' à ' + maj.slice(11, 16)) : '') + '.</p>';
     ['Matin', 'Soir'].forEach(function (cren) {
@@ -1295,6 +1428,15 @@
       : '<p class="discret">Aucune visite réalisée sur la période.</p>';
     h += '</section>';
 
+    // Par type de visite
+    var parAct = {};
+    r.effectives.forEach(function (v) { listeActivites(v.activite).forEach(function (x) { parAct[x] = (parAct[x] || 0) + 1; }); });
+    var acts = Object.keys(parAct).map(function (k) { return { lib: k, n: parAct[k] }; }).sort(function (x, y) { return y.n - x.n; });
+    if (acts.length) {
+      h += '<section class="bloc"><h3>Par type de visite</h3>' + barres(acts.map(function (x) { return { lib: x.lib, val: x.n, etiquette: String(x.n), tip: x.lib + ' : ' + x.n }; })) +
+        tableDonnees(['Type de visite', 'Visites'], acts.map(function (x) { return [x.lib, x.n]; })) + '</section>';
+    }
+
     // Par délégué (équipe)
     if (r.equipe && r.delegues.length) {
       h += '<section class="bloc"><h3>Par délégué</h3>' + tableDonnees(['Délégué', 'Planifiées', 'Réalisées', 'Couverture'], r.delegues.map(function (d) {
@@ -1423,6 +1565,7 @@
       return '<li class="element"><div class="element-tete"><div>' +
         '<span class="element-titre">' + esc(v.nom) + '</span>' +
         '<span class="discret bloc-texte">' + esc(v.lieu) + ', ' + esc(v.quartier) + '</span>' +
+        (v.activite ? '<span class="bloc-texte discret" style="margin-top:4px">' + esc(v.activite) + '</span>' : '') +
         (v.produits ? '<span class="bloc-texte discret" style="margin-top:4px">Produits : ' + esc(v.produits) + '</span>' : '') +
         (v.commentaire ? '<span class="bloc-texte" style="margin-top:4px">' + esc(v.commentaire) + '</span>' : '') +
         (v.prochaine ? '<span class="bloc-texte discret">Prochaine étape le ' + dateCourte(String(v.prochaine).slice(0, 10)) + '</span>' : '') +
@@ -1555,6 +1698,12 @@
       '<button class="bouton bouton-plein bouton-large wa" type="button" data-a="envoyerWhatsapp">' + icone('whatsapp') + 'Envoyer sur WhatsApp</button>' +
       '<div class="rangee" style="margin-top:10px"><button class="bouton" type="button" data-a="copierTexte">Copier le texte</button>' +
       (navigator.share ? '<button class="bouton" type="button" data-a="partagerTexte">Partager…</button>' : '') + '</div>';
+  };
+
+  FEUILLES.valide = function () {
+    return { corps: '<p style="margin-top:0">Votre programme est enregistré et visible par l\'équipe.</p><p class="discret">Voulez-vous l\'envoyer sur WhatsApp ?</p>',
+      pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non, merci</button>' +
+        '<button class="bouton bouton-plein wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer</button>' };
   };
 
   // Choix multiple générique (spécialités ciblées par la tournée)
@@ -1814,7 +1963,7 @@
         if (!parLieu[k]) { parLieu[k] = []; ordre.push(k); }
         if (parLieu[k].indexOf(a.nom) < 0) parLieu[k].push(a.nom);
       });
-      ordre.forEach(function (k) { lignes.push(''); lignes.push(k); parLieu[k].forEach(function (n) { lignes.push(n); }); });
+      ordre.forEach(function (k) { lignes.push(''); lignes.push('*' + k + '*'); parLieu[k].forEach(function (n) { lignes.push(n); }); });
       blocs.push(lignes.join('\n'));
     });
     return blocs.join('\n\n');
@@ -1928,7 +2077,7 @@
       var v = { uid: a.uid, date: a.date > t ? t : a.date, idPresence: a.idPresence, code: a.code, nom: a.nom, type: a.type,
                 specialite: a.specialite, note: a.note, commune: a.commune, quartier: a.quartier, lieu: a.lieu,
                 creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '', delegue: moi(),
-                produits: a.produits || '', prochaine: a.prochaine || '' };
+                produits: a.produits || '', prochaine: a.prochaine || '', activite: a.activite || '' };
       memoriserProduits(a.produits);
       Moteur.appliquerVisite(S.data.praticiens, v, statuts());
       if (S.config.demo) { v.horodatage = new Date().toISOString(); S.data.historique = [v].concat(S.data.historique || []); }
@@ -2054,9 +2203,8 @@
       var d = new Date();
       S.programme = { etat: 'valide', valideLe: pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) };
       sauver(); publierPlan();
-      S.ui.feuille = { type: 'exporter', titre: 'Envoyer le programme', portee: S.params.mode === 'jour' ? 'jour' : 'semaine' };
+      S.ui.feuille = { type: 'valide', titre: 'Programme validé' };
       rendre();
-      toast('Programme validé et partagé avec l\'équipe.');
     },
     rouvrirProgramme: function () { S.programme = { etat: 'proposition', valideLe: '' }; sauver(); publierPlan(); rendre(); },
     ouvrirExport: function () { S.ui.feuille = { type: 'exporter', titre: 'Envoyer le programme', portee: S.params.mode === 'jour' ? 'jour' : 'semaine' }; rendre(); },
@@ -2184,6 +2332,12 @@
       S.ui.feuille = { type: 'multi', titre: 'Spécialités ciblées', titreGroupe: 'Spécialités', cle: 'specialites', options: specialitesListe(), sel: S.params.specialites.slice(),
                        aide: 'Aucune sélection = toutes les spécialités. Les pharmacies dépendent du choix « Avec / Sans pharmacies ».' };
       rendre();
+    },
+    activite: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var l = listeActivites(a.activite), i = l.indexOf(el.dataset.v);
+      if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
+      a.activite = l.join(' ; '); LS.set('plan', S.plan); rendre();
     },
     prochaine: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -2418,6 +2572,7 @@
       route: '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h6a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7h6"/>',
       filtre: '<path d="M4 6h16M7 12h10M10 18h4"/>',
       chevron: '<path d="m6 9 6 6 6-6"/>',
+      calendrier: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
       crayon: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>'
     }[n] || '';
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>';
@@ -2474,6 +2629,7 @@
       var prat = ctx().prat, nMed = 0, nPha = 0;
       Object.keys(prat).forEach(function (k) { if (prat[k].type === 'Pharmacie') nPha++; else nMed++; });
       var l = lundiDe(semaineParDefaut(aujourdhui())), f = ajouterJours(l, 6);   // à partir du jeudi : semaine suivante
+      var pf = prochainFerie();
       var sem = arretsPlanifies(true).filter(function (a) { return a.date >= l && a.date <= f; });
       var del = {}; sem.forEach(function (a) { if (a.delegue) del[a.delegue] = true; });
       var vus = visitesConnues().filter(function (v) { return String(v.date).slice(0, 10) >= lundiDe(aujourdhui()) && Moteur.estVisite(v.statut, statuts()); }).length;
@@ -2481,7 +2637,8 @@
         '<div class="metrique"><b>' + nMed + '</b><span>médecins enregistrés</span></div>' +
         '<div class="metrique"><b>' + nPha + '</b><span>pharmacies</span></div>' +
         '<div class="metrique"><b>' + sem.length + '</b><span>visites planifiées, semaine du ' + dateCourte(l).slice(5) + (S.config.demo ? '' : ' (équipe)') + '</span></div>' +
-        '<div class="metrique"><b>' + (S.config.demo ? vus : Object.keys(del).length) + '</b><span>' + (S.config.demo ? 'visites réalisées cette semaine' : 'délégués avec une tournée') + '</span></div></div>';
+        '<div class="metrique"><b>' + (S.config.demo ? vus : Object.keys(del).length) + '</b><span>' + (S.config.demo ? 'visites réalisées cette semaine' : 'délégués avec une tournée') + '</span></div></div>' +
+        (pf ? '<p class="discret" style="margin:-6px 0 14px">Prochain jour férié : <b>' + esc(nomFerie(pf)) + '</b>, ' + dateLongue(pf) + '.</p>' : '');
     }
     if (S.ui.nouveautes && S.ui.nouveautes.length) {
       h += '<div class="nouveautes"><b>Nouveautés de la mise à jour ' + APP_VERSION + '</b><ul>' + S.ui.nouveautes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
@@ -2593,6 +2750,7 @@
   }
 
   var configureParLien = lireConfigLien();
+  chargerFeriesCalendrier();
   try { if (!sessionStorage.getItem('mediplanner.lancement')) { S.ui.lancement = true; sessionStorage.setItem('mediplanner.lancement', '1'); } }
   catch (e) { S.ui.lancement = true; }
   // Nouveautés : celles des versions publiées depuis la dernière ouverture, affichées une seule fois

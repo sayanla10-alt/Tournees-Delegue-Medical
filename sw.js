@@ -12,11 +12,13 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '2.0.7';
+var VERSION = '2.1.0';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
-  'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-700-normal.woff2'
+  'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-700-normal.woff2',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'
 ];
 var FICHIERS = [
   './', './index.html', './manifest.webmanifest', './app.css',

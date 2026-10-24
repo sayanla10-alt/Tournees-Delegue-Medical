@@ -16,7 +16,7 @@
 
 var FEUILLES = {
   praticiens: 'Praticiens', presences: 'Presences', hist: 'Historique', quartiers: 'Quartiers',
-  listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees'
+  listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies'
 };
 var VERSION_SERVEUR = '2.0.0';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
@@ -31,6 +31,7 @@ function onOpen() {
     .addItem('Régénérer la base fictive', 'regenererBaseFictive')
     .addItem('Convertir l\'ancienne feuille BaseDonnees', 'convertirAncienneBase')
     .addItem('Compléter les données manquantes (base de test)', 'completerBaseTest')
+    .addItem('Importer les pharmacies réelles (OpenStreetMap)', 'importerPharmacies')
     .addSeparator()
     .addItem('Afficher le jeton d\'accès', 'afficherJeton')
     .addItem('Changer le jeton d\'accès', 'changerJeton')
@@ -77,7 +78,8 @@ function regenererBaseFictive() {
 
 function ecrireBaseFictive(ss) {
   var tz = ss.getSpreadsheetTimeZone();
-  var base = genererBaseFictive(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'));
+  // les pharmacies réelles sont dans leur propre feuille : la base fictive ne contient que des médecins
+  var base = genererBaseFictive(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), { nbPharmacies: 0 });
   var shP = preparerFeuille(ss, FEUILLES.praticiens, CHAMPS_PRATICIENS.map(function (c) { return c[1]; }));
   shP.getRange(2, 1, base.praticiens.length, CHAMPS_PRATICIENS.length).setValues(base.praticiens.map(function (p) {
     return CHAMPS_PRATICIENS.map(function (c) {
@@ -171,7 +173,7 @@ function preparerFeuille(ss, nom, entetes) {
 }
 
 function ordonnerFeuilles(ss) {
-  [FEUILLES.praticiens, FEUILLES.presences, FEUILLES.plannings, FEUILLES.hist, FEUILLES.quartiers, FEUILLES.listes]
+  [FEUILLES.praticiens, FEUILLES.presences, FEUILLES.pharmacies, FEUILLES.plannings, FEUILLES.hist, FEUILLES.quartiers, FEUILLES.listes]
     .forEach(function (n, i) {
       var sh = ss.getSheetByName(n);
       if (sh) { ss.setActiveSheet(sh); ss.moveActiveSheet(i + 1); }
@@ -322,10 +324,21 @@ function lireTout(sig, hdepuis) {
   if (shH && shH.getLastRow() > 1) {
     historique = lireObjets(shH, CHAMPS_HIST, tz, Math.max(2, shH.getLastRow() - NB_HISTORIQUE_RENVOYE + 1)).reverse();
   }
+  lirePharmacies(ss, tz).forEach(function (ph) {
+    praticiens.push({ code: ph.code, type: 'Pharmacie', nom: ph.nom, specialite: 'Pharmacien', note: lireNote(ph.note),
+      conventionne: ph.conventionne, telephone: ph.telephone, derniere: ph.derniere, statut: ph.statut, commentaire: ph.commentaire,
+      nbVisites: +ph.nbVisites || 0, actif: ph.actif, prochaine: ph.prochaine, titulaire: ph.titulaire });
+    var pr = { id: 'P-' + ph.code, code: ph.code, nom: ph.nom, lieu: ph.nom, quartier: ph.quartier, commune: ph.commune, zone: ph.zone,
+      horaireMatin: ph.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: ph.horaireSoir || HORAIRES_PHARMACIE[1], lat: ph.lat, lon: ph.lon };
+    JOURS_CLES.forEach(function (j) { pr[j] = 'Matin et soir'; });
+    presences.push(pr);
+  });
   if (hdepuis) historique = historique.filter(function (v) { return String(v.horodatage) > hdepuis; });
   var listes = lireListes(ss, tz), statuts = lireStatuts(ss);
   var ref = { praticiens: praticiens, presences: presences, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
   var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
+  ref.activites = listes.activites;
+  empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis,
             plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString() };
   if (sig && sig === empreinte) { r.inchange = true; return r; }
@@ -350,6 +363,12 @@ function assurerListes(ss) {
     if (l.length) sh.getRange(2, c, l.length, 1).setValues(l.map(function (n) { return [n]; }));
     ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   }
+  if (ent.indexOf(normaliser('Activités')) < 0) {
+    var cA = sh.getLastColumn() + 2;
+    sh.getRange(1, cA).setValue('Activités').setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
+    sh.getRange(2, cA, ACTIVITES_DEFAUT.length, 1).setValues(ACTIVITES_DEFAUT.map(function (a) { return [a]; }));
+    ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  }
   if (ent.indexOf(normaliser('JoursFériés')) < 0) {
     var c2 = sh.getLastColumn() + 2;
     sh.getRange(1, c2).setValue('JoursFériés').setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
@@ -358,13 +377,17 @@ function assurerListes(ss) {
     sh.getRange(1, c2 + 1).setValue('Ajoutez les fêtes musulmanes (fin du Ramadan, Tabaski, Maouloud) chaque année').setFontStyle('italic');
   }
 }
+function lirePharmacies(ss, tz) {
+  return lireObjets(ss.getSheetByName(FEUILLES.pharmacies), CHAMPS_PHARMACIES, tz).filter(function (p) { return p.code !== '' && p.nom !== ''; });
+}
 function lireListes(ss, tz) {
-  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [] };
+  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [] };
   if (!sh || sh.getLastRow() < 2) return r;
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   var vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
-  var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés'));
+  var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés')), cA = ent.indexOf(normaliser('Activités'));
   vals.forEach(function (v) {
+    if (cA >= 0 && String(v[cA]).trim()) r.activites.push(String(v[cA]).trim());
     if (cD >= 0 && String(v[cD]).trim()) r.delegues.push(String(v[cD]).trim());
     if (cF >= 0 && v[cF] !== '') { var d = versIso(v[cF], tz); if (d) r.feries.push(d); }
   });
@@ -477,14 +500,7 @@ function enregistrerVisites(visites) {
       shH.getRange(2, colUid + 1, shH.getLastRow() - 1, 1).getValues().forEach(function (v) { deja[v[0]] = true; });
     }
 
-    var entP = shP.getRange(1, 1, 1, shP.getLastColumn()).getValues()[0].map(normaliser);
-    function col(cle) { return entP.indexOf(normaliser(CHAMPS_PRATICIENS[indexChamp(CHAMPS_PRATICIENS, cle)][1])); }
-    var cCode = col('code'), cDer = col('derniere'), cSt = col('statut'), cCom = col('commentaire'), cNb = col('nbVisites'), cPro = col('prochaine');
-    var n = Math.max(shP.getLastRow() - 1, 0);
-    var data = n ? shP.getRange(2, 1, n, shP.getLastColumn()).getValues() : [];
-    var ligneDe = {};
-    data.forEach(function (l, i) { ligneDe[String(l[cCode])] = i; });
-
+    var suivis = [shP, ss.getSheetByName(FEUILLES.pharmacies)].filter(Boolean).map(function (sh) { return suiviFeuille(sh); });
     var nouvelles = [], recus = [];
     var ordreH = entH.map(function (e) {
       for (var k = 0; k < CHAMPS_HIST.length; k++) if (normaliser(CHAMPS_HIST[k][1]) === e) return CHAMPS_HIST[k][0];
@@ -502,28 +518,44 @@ function enregistrerVisites(visites) {
         if (cle === 'horodatage') return new Date();
         return cle && v[cle] !== undefined ? v[cle] : '';
       }));
-      var i = ligneDe[String(v.code)];
-      if (i === undefined) return;
-      if (statuts[v.statut]) {
-        var actuelle = data[i][cDer];
-        if (!(actuelle instanceof Date) || dateVisite > actuelle) data[i][cDer] = dateVisite;
-        data[i][cNb] = (+data[i][cNb] || 0) + 1;
-      }
-      data[i][cSt] = v.statut;
-      data[i][cCom] = v.commentaire || '';
-      if (cPro >= 0) data[i][cPro] = v.prochaine ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
-    });
-    if (n) {
-      [cDer, cSt, cCom, cNb, cPro].forEach(function (c) {
-        if (c >= 0) shP.getRange(2, c + 1, n, 1).setValues(data.map(function (l) { return [l[c]]; }));
+      suivis.forEach(function (f) {
+        var i = f.ligneDe[String(v.code)], data = f.data, c = f.c;
+        if (i === undefined) return;
+        f.modif = true;
+        if (statuts[v.statut]) {
+          var actuelle = data[i][c.derniere];
+          if (!(actuelle instanceof Date) || dateVisite > actuelle) data[i][c.derniere] = dateVisite;
+          data[i][c.nbVisites] = (+data[i][c.nbVisites] || 0) + 1;
+        }
+        data[i][c.statut] = v.statut;
+        data[i][c.commentaire] = v.commentaire || '';
+        if (c.prochaine >= 0) data[i][c.prochaine] = v.prochaine ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
       });
-    }
+    });
+    suivis.forEach(function (f) {
+      if (!f.modif) return;
+      ['derniere', 'statut', 'commentaire', 'nbVisites', 'prochaine'].forEach(function (k) {
+        var c = f.c[k];
+        if (c >= 0) f.sh.getRange(2, c + 1, f.n, 1).setValues(f.data.map(function (l) { return [l[c]]; }));
+      });
+    });
     if (nouvelles.length) shH.getRange(shH.getLastRow() + 1, 1, nouvelles.length, ordreH.length).setValues(nouvelles);
     marquerArretsValides(ss, visites);
     return { ok: true, recus: recus, ajoutes: nouvelles.length };
   } finally {
     lock.releaseLock();
   }
+}
+
+// Colonnes de suivi d'une feuille de praticiens ou de pharmacies (repérées par leur en-tête)
+function suiviFeuille(sh) {
+  var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  var c = {};
+  [['code', 'CodeContact'], ['derniere', 'DateDerniereVisite'], ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'],
+   ['nbVisites', 'NbVisites'], ['prochaine', 'ProchaineEtape']].forEach(function (x) { c[x[0]] = ent.indexOf(normaliser(x[1])); });
+  var n = Math.max(sh.getLastRow() - 1, 0), data = n ? sh.getRange(2, 1, n, sh.getLastColumn()).getValues() : [], ligneDe = {};
+  data.forEach(function (l, i) { ligneDe[String(l[c.code])] = i; });
+  return { sh: sh, c: c, n: n, data: data, ligneDe: ligneDe, modif: false };
 }
 
 // ---------------------------------------------------------------- Tournées de l'équipe
@@ -702,6 +734,7 @@ function enregistrerFiche(b) {
   try {
     var ss = SpreadsheetApp.getActive();
     assurerStructure(ss);
+    if (type === 'Pharmacie' && ss.getSheetByName(FEUILLES.pharmacies)) return enregistrerPharmacie(ss, p, lieux[0] || {});
     var shP = ss.getSheetByName(FEUILLES.praticiens), shR = ss.getSheetByName(FEUILLES.presences);
 
     // --- Praticiens : mise à jour de la ligne existante ou ajout avec un nouveau code
@@ -774,6 +807,91 @@ function enregistrerFiche(b) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// Pharmacie créée ou modifiée depuis l'application (feuille Pharmacies)
+function enregistrerPharmacie(ss, p, lieu) {
+  var sh = ss.getSheetByName(FEUILLES.pharmacies), tz = ss.getSpreadsheetTimeZone();
+  var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  var pos = CHAMPS_PHARMACIES.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var n = Math.max(sh.getLastRow() - 1, 0), data = n ? sh.getRange(2, 1, n, ent.length).getValues() : [];
+  var cCode = pos[indexChamp(CHAMPS_PHARMACIES, 'code')], code = String(p.code || ''), ligne = -1, max = 1000;
+  data.forEach(function (l, i) {
+    var m = String(l[cCode]).match(/^PHA-(\d+)$/); if (m && +m[1] > max) max = +m[1];
+    if (code && String(l[cCode]) === code) ligne = i;
+  });
+  if (ligne < 0) code = 'PHA-' + (max + 1);
+  var q = {};
+  var shQ = ss.getSheetByName(FEUILLES.quartiers);
+  if (shQ && shQ.getLastRow() > 1) shQ.getRange(2, 1, shQ.getLastRow() - 1, 3).getValues().forEach(function (v) { if (normaliser(v[1]) === normaliser(lieu.quartier)) q = { commune: v[0], zone: v[2] }; });
+  var v = ligne >= 0 ? data[ligne].slice() : ent.map(function () { return ''; });
+  var modif = { code: code, nom: String(p.nom || '').trim(), quartier: lieu.quartier || '', commune: q.commune || lieu.commune || '', zone: q.zone || lieu.zone || '',
+    telephone: String(p.telephone || ''), note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
+    actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui', horaireMatin: lieu.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: lieu.horaireSoir || HORAIRES_PHARMACIE[1] };
+  if (lieu.lat && lieu.lon) { modif.lat = +lieu.lat; modif.lon = +lieu.lon; }
+  if (ligne < 0) { modif.nbVisites = 0; modif.source = 'Application'; }
+  CHAMPS_PHARMACIES.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
+  if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]); else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
+  var ids = {}; if (lieu.id) ids[lieu.id] = 'P-' + code;
+  return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
+}
+
+// ---------------------------------------------------------------- Pharmacies réelles (OpenStreetMap)
+// Les données brutes (PHARMACIES_OSM : [nom, lat, lon, téléphone, quartier OSM, commune OSM]) sont dans le fichier
+// DonneesPharmacies.gs. Le quartier, la commune et la zone manquants sont déduits du quartier de référence le plus proche.
+// Les pharmacies fictives (PHA-001 à PHA-100) sont retirées des feuilles Praticiens et Presences.
+function importerPharmacies() {
+  var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
+  var Q = [];
+  var shQ = ss.getSheetByName(FEUILLES.quartiers);
+  shQ.getRange(2, 1, shQ.getLastRow() - 1, 5).getValues().forEach(function (v) { if (v[1] !== '') Q.push({ commune: v[0], quartier: v[1], zone: v[2], lat: +v[3], lon: +v[4] }); });
+  var communes = {}; Q.forEach(function (q) { communes[normaliser(q.commune)] = q; });
+  var anciennes = {};
+  if (ss.getSheetByName(FEUILLES.pharmacies)) lirePharmacies(ss, tz).forEach(function (p) { anciennes[normaliser(p.nom) + '|' + p.lat] = p; });
+  var vus = {}, lignes = [], k = 1000;
+  (typeof PHARMACIES_OSM !== 'undefined' ? PHARMACIES_OSM : []).forEach(function (x) {
+    var nom = String(x[0] || '').trim(); if (!nom) return;
+    if (!/pharm/i.test(nom)) nom = 'Pharmacie ' + nom;
+    var cle = normaliser(nom) + '|' + Math.round(x[1] * 1000) + '|' + Math.round(x[2] * 1000);
+    if (vus[cle]) return; vus[cle] = true;
+    var best = null, bd = Infinity;
+    Q.forEach(function (q) { var d = distanceKm({ lat: x[1], lon: x[2] }, q); if (d < bd) { bd = d; best = q; } });
+    if (!best || bd > 12) return;                                  // hors du district d'Abidjan
+    var com = x[5] && communes[normaliser(x[5])] ? communes[normaliser(x[5])] : best;
+    var ex = anciennes[normaliser(nom) + '|' + x[1]] || {};
+    lignes.push({ code: ex.code || 'PHA-' + (++k), nom: nom, titulaire: ex.titulaire || '', quartier: x[4] || best.quartier, commune: com.commune, zone: com.zone,
+      lat: x[1], lon: x[2], telephone: x[3] || ex.telephone || '', horaireMatin: HORAIRES_PHARMACIE[0], horaireSoir: HORAIRES_PHARMACIE[1],
+      note: ex.note || 2, conventionne: ex.conventionne || '', derniere: ex.derniere || '', statut: ex.statut || '', commentaire: ex.commentaire || '',
+      nbVisites: ex.nbVisites || 0, actif: ex.actif || 'Oui', prochaine: ex.prochaine || '', source: 'OpenStreetMap' });
+  });
+  lignes.sort(function (a, b) { return a.commune.localeCompare(b.commune) || a.nom.localeCompare(b.nom); });
+  var sh = preparerFeuille(ss, FEUILLES.pharmacies, CHAMPS_PHARMACIES.map(function (c) { return c[1]; }));
+  if (lignes.length) {
+    sh.getRange(2, colonne(CHAMPS_PHARMACIES, 'telephone'), lignes.length, 1).setNumberFormat('@');
+    sh.getRange(2, colonne(CHAMPS_PHARMACIES, 'horaireMatin'), lignes.length, 2).setNumberFormat('@');
+    sh.getRange(2, 1, lignes.length, CHAMPS_PHARMACIES.length).setValues(lignes.map(function (o) {
+      return CHAMPS_PHARMACIES.map(function (c) {
+        var val = o[c[0]];
+        if ((c[0] === 'derniere' || c[0] === 'prochaine') && val) return Utilities.parseDate(val, tz, 'yyyy-MM-dd');
+        return val === undefined ? '' : val;
+      });
+    }));
+    sh.getRange(2, colonne(CHAMPS_PHARMACIES, 'note'), lignes.length, 1).setDataValidation(liste(['1', '2', '3']));
+    sh.getRange(2, colonne(CHAMPS_PHARMACIES, 'derniere'), lignes.length, 1).setNumberFormat('dd/mm/yyyy');
+    sh.setFrozenColumns(2);
+    sh.autoResizeColumns(1, CHAMPS_PHARMACIES.length);
+  }
+  // retrait des pharmacies fictives des feuilles des médecins
+  [[FEUILLES.praticiens, 'CodeContact'], [FEUILLES.presences, 'CodeContact']].forEach(function (f) {
+    var s2 = ss.getSheetByName(f[0]); if (!s2 || s2.getLastRow() < 2) return;
+    var c = s2.getRange(1, 1, 1, s2.getLastColumn()).getValues()[0].map(normaliser).indexOf(normaliser(f[1]));
+    var vals = s2.getRange(2, c + 1, s2.getLastRow() - 1, 1).getValues();
+    for (var i = vals.length - 1; i >= 0; i--) if (/^PHA-0\d\d$|^PHA-100$/.test(String(vals[i][0]))) s2.deleteRow(i + 2);
+  });
+  ordonnerFeuilles(ss);
+  var msg = lignes.length + ' pharmacies importées dans la feuille Pharmacies (source OpenStreetMap).';
+  Logger.log(msg);
+  return msg;
 }
 
 // ---------------------------------------------------------------- Saisie sur ordinateur

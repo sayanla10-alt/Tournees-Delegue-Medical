@@ -47,8 +47,20 @@ var CHAMPS_HIST = [
   ['nom', 'Nom'], ['type', 'Type'], ['specialite', 'Spécialité'], ['note', 'Note'],
   ['commune', 'Commune'], ['quartier', 'Quartier'], ['lieu', 'Lieu/Etablissement'], ['creneau', 'Créneau'],
   ['statut', 'Statut'], ['commentaire', 'Commentaire'], ['uid', 'IdSync'], ['delegue', 'Délégué'],
-  ['produits', 'Produits'], ['prochaine', 'ProchaineEtape']
+  ['produits', 'Produits'], ['prochaine', 'ProchaineEtape'], ['activite', 'Activité']
 ];
+
+// Pharmacies (feuille séparée, données réelles issues d'OpenStreetMap) : ouvertes du lundi au samedi,
+// matin et soir ; les colonnes de suivi portent les mêmes noms que dans Praticiens.
+var CHAMPS_PHARMACIES = [
+  ['code', 'CodeContact'], ['nom', 'Nom'], ['titulaire', 'Titulaire'], ['quartier', 'Quartier'], ['commune', 'Commune'],
+  ['zone', 'Zone'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['horaireMatin', 'HoraireMatin'],
+  ['horaireSoir', 'HoraireSoir'], ['note', 'Note'], ['conventionne', 'Conventionné'], ['derniere', 'DateDerniereVisite'],
+  ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'], ['nbVisites', 'NbVisites'], ['actif', 'Actif'],
+  ['prochaine', 'ProchaineEtape'], ['source', 'Source']
+];
+var HORAIRES_PHARMACIE = ['08:00-12:30', '15:00-20:00'];
+var ACTIVITES_DEFAUT = ['Visite de routine (rappel)', 'Présentation produit', 'EPU', 'Remise d\'échantillons', 'Réunion / staff', 'Autre activité'];
 
 // Tournées publiées par les délégués (visibles par toute l'équipe)
 var CHAMPS_PLAN = [
@@ -470,6 +482,7 @@ if (typeof module !== 'undefined' && module.exports) {
     lettrePotentiel: lettrePotentiel, SPECIALITES_DEFAUT: SPECIALITES_DEFAUT,
     completerDonneesFictives: completerDonneesFictives, hachage: hachage,
     minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,
+    CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
   };
