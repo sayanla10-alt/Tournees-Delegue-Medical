@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.2.1', EDITION = 'Enterprise';
+  var APP_VERSION = '2.2.2', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.2.2', ['Autour : pharmacies ouvertes affichées aussi le week-end et pendant toute leur plage horaire']],
     ['2.2.1', ['Titre « Tournée » affiché en haut de l\'onglet, comme les autres onglets']],
     ['2.2.0', ['Message WhatsApp : une puce devant chaque médecin',
                'Chaque onglet présente son rôle en une phrase',
@@ -1096,9 +1097,11 @@
     var date, minute;
     if (A.moment === 'maintenant') { date = aujourdhui(); minute = minutesMaintenant(); }
     else { date = A.date || prochainJourOuvre(aujourdhui()); minute = heureVersMinutes(A.heure); }
-    if (jourSemaineIndex(date) > 4) {
-      return h + '<div class="vide"><strong>Pas de présences le week-end</strong>Choisissez « Autre moment » et un jour de semaine.</div>';
+    var weekend = jourSemaineIndex(date) > 4;
+    if (weekend && S.ui.filtresAutour.type === 'Médecin') {
+      return h + '<div class="vide"><strong>Pas de médecins le week-end</strong>Seules les pharmacies sont ouvertes. Choisissez « Tout » ou « Pharmacies », ou un jour de semaine.</div>';
     }
+    if (weekend) h += '<p class="discret">Week-end : seules les pharmacies ouvertes sont affichées.</p>';
     h += bandeauFeries([date]);
     var fa = S.ui.filtresAutour, filtre = criteresActifs(fa).length || S.ui.rechercheAutour ? ensemble(filtrerPraticiens(fa, S.ui.rechercheAutour).map(function (p) { return p.code; })) : null;
     var res = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, A.rayon)

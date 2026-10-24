@@ -267,14 +267,18 @@ var Moteur = (function () {
   // Praticiens présents autour d'une position un jour donné, selon leur propre planning.
   // minute : heure courante en minutes (null = toute la journée)
   function autourDe(ctx, pos, date, minute, rayon) {
-    var j = jourSemaineIndex(date);
-    if (j > 4 || !pos) return [];
+    var j = jourSemaineIndex(date), weekend = j > 4;
+    if (!pos) return [];
     var meilleurs = {};
-    ctx.parJour[j].forEach(function (c) {
+    // le week-end, seules les pharmacies sont ouvertes (mêmes horaires qu'en semaine)
+    ctx.parJour[weekend ? 4 : j].forEach(function (c) {
+      var pharma = c.prat && c.prat.type === 'Pharmacie';
+      if (weekend && !pharma) return;
       var d = distanceKm(pos, c.coord);
       if (d > rayon) return;
+      var fin = pharma ? c.fin : c.fin - R.dureeVisite;
       var etat = minute === null ? (c.creneau === 'Matin' ? 'matin' : 'soir') :
-        (c.debut <= minute && minute <= c.fin - R.dureeVisite ? 'present' : (c.debut > minute ? 'plustard' : 'termine'));
+        (c.debut <= minute && minute <= fin ? 'present' : (c.debut > minute ? 'plustard' : 'termine'));
       if (etat === 'termine') return;
       var ordre = etat === 'present' || etat === 'matin' ? 0 : 1;
       var x = { c: c, dist: d, etat: etat, score: scoreDe(c.prat, date), ordre: ordre };

@@ -1,8 +1,9 @@
 {
-  "version": "2.2.1",
+  "version": "2.2.2",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Autour : pharmacies ouvertes affichées aussi le week-end et pendant toute leur plage horaire",
     "Titre « Tournée » affiché en haut de l'onglet, comme les autres onglets",
     "Message WhatsApp : une puce devant chaque médecin",
     "Chaque onglet présente son rôle en une phrase",
