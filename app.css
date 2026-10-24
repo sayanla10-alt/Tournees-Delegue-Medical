@@ -689,3 +689,7 @@ body.avec-barre main { padding-bottom: 90px; }
 
 /* 2.2.0 : phrase d'introduction des onglets */
 .intro-vue { margin: 2px 0 12px; }
+
+.actions-cr { margin: 4px 0 12px; }
+.actions-cr .bouton { width: 100%; justify-content: center; }
+.actions-cr .aide-champ { display: block; text-align: center; margin-top: 6px; color: var(--gris); font-size: 12.5px; }

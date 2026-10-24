@@ -1,8 +1,9 @@
 {
-  "version": "2.2.4",
+  "version": "2.2.5",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Tournée : bouton « Valider ce compte rendu » dans chaque fiche de visite, et « Modifier le compte rendu » une fois validé",
     "Filtres : les spécialités ne concernent que les médecins ; elles sont ignorées (mais conservées) en choisissant Pharmacies",
     "Autour : pharmacies affichées du lundi au vendredi, sur toute leur plage horaire",
     "Titre « Tournée » affiché en haut de l'onglet, comme les autres onglets",

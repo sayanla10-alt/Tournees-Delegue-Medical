@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.2.4', EDITION = 'Enterprise';
+  var APP_VERSION = '2.2.5', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.2.5', ['Tournée : bouton « Valider ce compte rendu » dans chaque fiche de visite, et « Modifier le compte rendu » une fois validé']],
     ['2.2.4', ['Filtres : les spécialités ne concernent que les médecins ; elles sont ignorées (mais conservées) en choisissant Pharmacies']],
     ['2.2.3', ['Autour : pharmacies affichées du lundi au vendredi, sur toute leur plage horaire']],
     ['2.2.1', ['Titre « Tournée » affiché en haut de l\'onglet, comme les autres onglets']],
@@ -913,13 +914,16 @@
             return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
           }).join('') +
           '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date de la prochaine étape"></div>' +
-          '<span class="aide-champ">Le praticien remonte en priorité dans les tournées à cette date.</span></div>';
+          '<span class="aide-champ">Le praticien remonte en priorité dans les tournées à cette date.</span></div>' +
+        '<div class="actions-cr">' + (a.statut ?
+          '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + (a.corrige ? 'Enregistrer la modification' : 'Valider ce compte rendu') + '</button>' :
+          '<button class="bouton bouton-large" type="button" disabled>' + icone('valider') + 'Valider ce compte rendu</button><span class="aide-champ">Choisissez d\'abord le résultat de la visite (présent, absent…).</span>') + '</div>';
       } else {
         if (a.activite) h += '<p class="discret" style="margin-top:0">Type : ' + esc(listeActivites(a.activite).join(', ')) + '</p>';
         if (a.produits) h += '<p class="discret" style="margin-top:0">Produits : ' + esc(a.produits) + '</p>';
         if (a.commentaire) h += '<p class="discret" style="margin-top:0">' + esc(a.commentaire) + '</p>';
         if (a.prochaine) h += '<p class="discret" style="margin-top:0">Prochaine étape le ' + dateCourte(a.prochaine) + '</p>';
-        h += '<button class="bouton petit" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:10px">' + icone('crayon') + 'Corriger le compte rendu</button>';
+        h += '<button class="bouton bouton-large" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:10px">' + icone('crayon') + 'Modifier le compte rendu</button>';
       }
       var pa = praticien(a.code) || {};
       h += actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune }) +
@@ -2145,8 +2149,8 @@
   function horodatageCourt() { var d = new Date(); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   // Programme validé puis modifié : il reste validé pour l'équipe, avec la date de modification
   function marquerModifie() { if (S.programme.etat === 'valide') S.programme.modifieLe = horodatageCourt(); }
-  function validerVisites() {
-    var aValider = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; });
+  function validerVisites(uid) {
+    var aValider = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide' && (!uid || a.uid === uid); });
     if (!aValider.length) return;
     var t = aujourdhui(), ko = 0;
     aValider.forEach(function (a) {
@@ -2359,7 +2363,8 @@
     collegue: function (el) { S.ui.collegue = el.dataset.v; S.ui.jourEquipe = null; rendre(); },
     jourEquipe: function (el) { S.ui.jourEquipe = el.dataset.v; rendre(); },
     histFiltre: function (el) { S.ui.histFiltre = el.dataset.v; LS.set('histFiltre', S.ui.histFiltre); rendre(); },
-    valider: validerVisites,
+    valider: function () { validerVisites(); },
+    validerUn: function (el) { validerVisites(el.dataset.uid); },
     sync: function () {
       if (S.config.demo) { toast('Mode démonstration : aucune synchronisation.'); return; }
       if (!S.config.url) { S.ui.tab = 'reglages'; rendre(); return; }
