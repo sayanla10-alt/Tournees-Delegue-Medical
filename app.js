@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.3.0', EDITION = 'Enterprise';
+  var APP_VERSION = '3.3.1', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.3.1', ['Planifier : « Reprendre un ancien programme » toujours visible, juste au-dessus de « Proposer ma tournée »']],
     ['3.3.0', ['Équipe : votre propre tournée apparaît aussi, en tête, avec celles de vos collègues', 'Planifier : « Reprendre un ancien programme » copie une semaine ou une journée passée en brouillon, point de départ pour vos modifications']],
     ['3.2.1', ['Équipe : la carte de la journée du collègue est affichée tout en bas', 'L\'onglet « Praticiens » devient « Recherche », avec une phrase qui résume les critères retenus']],
     ['3.2.0', ['Itinéraire : les praticiens d\'un même établissement s\'enchaînent, puis les établissements de proche en proche, sans dépasser les horaires de présence']],
@@ -850,10 +851,7 @@
   VUES.semaine = function () {
     var h = '<h2 class="titre-vue">Planifier</h2><p class="sous-titre">Préparez votre tournée, ajustez-la, puis confirmez-la pour l\'équipe.</p>';
     if (S.ui.voirParams || !S.plan.length) h += rendreParams();
-    else h += rendreResume();
-    if (anciensProgrammes().length) {
-      h += '<button class="bouton bouton-large" type="button" data-a="ouvrirAnciens" style="margin:-4px 0 14px">' + icone('relancer') + 'Reprendre un ancien programme</button>';
-    }
+    else h += rendreResume() + boutonAnciens('margin:-4px 0 14px');
     if (!S.plan.length) return h;
     var dates = datesPlan(); choisirJour(dates);
     h += rendreProgramme();
@@ -876,6 +874,9 @@
   };
 
   // ------------------------------------------------------------------ Reprendre un ancien programme
+  function boutonAnciens(style) {
+    return '<button class="bouton bouton-large" type="button" data-a="ouvrirAnciens" style="' + style + '">' + icone('relancer') + 'Reprendre un ancien programme</button>';
+  }
   // Sources : mes tournées publiées (feuille Plannings, 62 jours) et l'archive du téléphone, hors jours de la tournée en cours
   function anciensProgrammes() {
     var parDate = {}, enCours = ensemble(S.plan.map(function (a) { return a.date; }));
@@ -1019,7 +1020,7 @@
           '<button type="button" class="bouton-icone sombre" data-a="retirerImpose" data-i="' + i + '" aria-label="Retirer">' + icone('fermer') + '</button></li>';
       }).join('') + '</ul>';
     }
-    h += '</div><button class="bouton bouton-plein bouton-large" data-a="generer" type="button">' + icone('relancer') + (S.plan.length ? 'Proposer une nouvelle tournée' : 'Proposer ma tournée') + '</button>' +
+    h += '</div>' + boutonAnciens('margin-bottom:10px') + '<button class="bouton bouton-plein bouton-large" data-a="generer" type="button">' + icone('relancer') + (S.plan.length ? 'Proposer une nouvelle tournée' : 'Proposer ma tournée') + '</button>' +
       (S.plan.length ? '<p class="discret" style="margin:10px 0 0">Les visites déjà faites, les médecins gardés et les RDV sont conservés.</p>' +
         '<button class="bouton-texte" type="button" data-a="fermerParams" style="margin-top:6px">Fermer les réglages</button>' : '') +
       '</section>';
@@ -2014,7 +2015,7 @@
 
   FEUILLES.anciens = function () {
     var l = anciensProgrammes(), p = S.params;
-    if (!l.length) return '<p class="discret">Aucun ancien programme disponible.</p>';
+    if (!l.length) return '<p class="discret" style="margin-top:0">Aucun ancien programme pour l\'instant. Vos tournées sont mémorisées au fil de l\'eau : elles apparaîtront ici dès la semaine prochaine (8 dernières semaines).</p>';
     var semCible = joursOuvres(lundiDe(p.dateRef))[0];
     var h = '<p class="discret" style="margin-top:0">Le programme choisi est copié en <b>brouillon</b>, aux mêmes jours de la semaine, vers la ' +
       (p.mode === 'jour' ? 'journée du <b>' + dateCourte(p.dateRef) + '</b> (pour une journée) ou la semaine du <b>' + dateCourte(semCible) + '</b> (pour une semaine)' : 'semaine du <b>' + dateCourte(semCible) + '</b>') +
