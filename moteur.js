@@ -235,7 +235,7 @@ var Moteur = (function () {
       var rdv = heureVersMinutes(im.rdv), options = [];
       p.dates.forEach(function (d) {
         var j = jourSemaineIndex(d);
-        if (j > 4 || (im.date && im.date !== d) || (ctx.feries && ctx.feries[d])) return;
+        if (j > 4 || (im.date && im.date !== d) || (im.apres && d < im.apres) || (ctx.feries && ctx.feries[d])) return;
         (ctx.parCode[im.code] || []).forEach(function (c) {
           if (c.jourIdx === j && (!im.cle || im.cle === c.cle)) options.push({ d: d, c: c });
         });
@@ -247,7 +247,7 @@ var Moteur = (function () {
         return cx - cy || fixes[x.d].length - fixes[y.d].length || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0) || x.c.debut - y.c.debut;
       });
       var o = options[0], a = arretDepuisCreneau(o.c, o.d);
-      a.impose = true; a.garde = true;
+      a.impose = true; a.garde = true; if (im.etape) a.etape = true;
       if (rdv !== null) a.rdv = minutesVersHeure(rdv);
       fixes[o.d].push(a);
       utilises[im.code] = true;

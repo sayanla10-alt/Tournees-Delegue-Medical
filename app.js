@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.2.5', EDITION = 'Enterprise';
+  var APP_VERSION = '2.2.6', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.2.6', ['« Vu il y a … j » mis à jour dès qu\'un compte rendu est validé', 'Prochaine étape traitée comme un RDV : le praticien est placé d\'office ce jour-là dans la tournée']],
     ['2.2.5', ['Tournée : bouton « Valider ce compte rendu » dans chaque fiche de visite, et « Modifier le compte rendu » une fois validé']],
     ['2.2.4', ['Filtres : les spécialités ne concernent que les médecins ; elles sont ignorées (mais conservées) en choisissant Pharmacies']],
     ['2.2.3', ['Autour : pharmacies affichées du lundi au vendredi, sur toute leur plage horaire']],
@@ -183,7 +184,7 @@
   function vuDepuis(derniere, ref) {
     if (!derniere) return 'Jamais visité';
     var j = joursEcoules(derniere, ref || aujourdhui());
-    return j === 0 ? 'Vu aujourd\'hui' : 'Vu il y a ' + j + ' j';
+    return j <= 0 ? 'Vu aujourd\'hui' : 'Vu il y a ' + j + ' j';
   }
   // Potentiel de prescription affiché en étoiles : 3 = ★★★ (fort), 2 = ★★ (moyen), 1 = ★ (faible)
   var LIB_POTENTIEL = { A: 'fort', B: 'moyen', C: 'faible' };
@@ -871,12 +872,13 @@
       (a.statut ? (estKo(a.statut) ? ' absent' : ' fait') : '');
     var e = '';
     e += badgeConv(a.conventionne);
-    e += '<span class="etiquette">' + esc(vuDepuis(a.derniere, a.date)) + '</span>';
-    if (a.impose) e += '<span class="etiquette p1">À voir absolument' + (a.rdv ? ', RDV ' + esc(a.rdv) : '') + '</span>';
+    var pv = praticien(a.code) || {}, der = pv.derniere && (!a.derniere || pv.derniere > a.derniere) ? pv.derniere : a.derniere;
+    e += '<span class="etiquette">' + esc(vuDepuis(der, a.etat !== 'valide' && a.date > aujourdhui() ? a.date : aujourdhui())) + '</span>';
+    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV : prochaine étape' : 'À voir absolument') + (a.rdv ? ', RDV ' + esc(a.rdv) : '') + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(a.statut) + (verrou ? ', enregistré' : '') + '</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
-    if (a.prochaine && a.prochaine <= a.date && !a.statut) e += '<span class="etiquette p1">Prochaine étape prévue le ' + dateCourte(a.prochaine) + '</span>';
+    if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">Prochaine étape prévue le ' + dateCourte(a.prochaine) + '</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';
     e += etiquetteCollegues(a.code, a.date);
 
@@ -2127,7 +2129,7 @@
       horsCible.forEach(function (a) { exclus[a.code] = true; });
       var r = Moteur.genererPlanning(ctx(), {
         dates: cible, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0,
-        exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes, depart: departCoord(), accepte: filtreCibles()
+        exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles()
       });
       S.plan = horsCible.concat(r.arrets);
       trierPlan();
@@ -2137,7 +2139,8 @@
       if (portee === 'nouveau') S.ui.jour = null;
       sauver(); rendre(); publierPlan();
       var msg = r.arrets.length ? r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.' : 'Aucun praticien ne correspond à ces critères.';
-      if (r.nonPlaces.length) msg += ' ' + r.nonPlaces.length + ' médecin(s) « à voir » absent(s) sur la période.';
+      var np = r.nonPlaces.filter(function (x) { return !x.etape; });
+      if (np.length) msg += ' ' + np.length + ' médecin(s) « à voir » absent(s) sur la période.';
       var attendu = (+p.maxJour || 8) * cible.filter(function (d) { return jourSemaineIndex(d) < 5; }).length;
       if (r.arrets.length && r.arrets.length < attendu * 0.75) {
         msg += ' Moins de visites que prévu : les praticiens présents sont déjà ciblés par l\'équipe, vus récemment ou hors des critères choisis. Élargissez les communes ou les spécialités.';
@@ -2152,7 +2155,7 @@
   function validerVisites(uid) {
     var aValider = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide' && (!uid || a.uid === uid); });
     if (!aValider.length) return;
-    var t = aujourdhui(), ko = 0;
+    var t = aujourdhui(), ko = 0, etapes = [];
     aValider.forEach(function (a) {
       var v = { uid: a.uid, date: a.date > t ? t : a.date, idPresence: a.idPresence, code: a.code, nom: a.nom, type: a.type,
                 specialite: a.specialite, note: a.note, commune: a.commune, quartier: a.quartier, lieu: a.lieu,
@@ -2170,12 +2173,22 @@
       }
       if (estKo(a.statut)) ko++;
       a.etat = 'valide'; delete a.corrige;
+      if (a.prochaine && a.prochaine > a.date) etapes.push({ code: a.code, apres: a.prochaine, etape: true });
     });
+    // prochaine étape tombant dans la tournée en cours : le praticien y est ajouté comme un RDV
+    var placees = 0;
+    etapes.forEach(function (im) {
+      var deja = S.plan.filter(function (x) { return x.code === im.code && x.date >= im.apres && !x.statut; })[0];
+      if (deja) { deja.impose = true; deja.garde = true; deja.etape = true; placees++; return; }
+      if (placerImpose(im)) placees++;
+    });
+    if (placees) marquerModifie();
     ctxCache.data = null;
     S.ui.ouvert = null;
     sauver(); rendre();
-    toast(aValider.length + ' compte(s) rendu(s) enregistré(s)' + (ko ? '. ' + ko + ' visite(s) non réalisée(s) : utilisez « Remplacer ».' : '.'));
-    publierPlan(true);
+    toast(aValider.length + ' compte(s) rendu(s) enregistré(s)' + (ko ? '. ' + ko + ' visite(s) non réalisée(s) : utilisez « Remplacer ».' : '.') +
+      (placees ? ' Prochaine étape ajoutée à votre tournée.' : ''), 4500);
+    publierPlan(!placees);
   }
 
   function ajouterArret(c, date) {
@@ -2192,14 +2205,31 @@
   }
 
   // Place un médecin « à voir absolument » au meilleur endroit de la tournée existante
+  // Prochaines étapes fixées (comme un RDV pris) : placées d'office ce jour-là si le praticien y est présent,
+  // sinon au premier jour de présence suivant ; une étape en retard (14 jours au plus) est placée dès que possible.
+  // Une étape fixée par un collègue reste la sienne.
+  function rdvProchaines(dates) {
+    if (!dates.length) return [];
+    var c = ctx(), t = aujourdhui(), debut = ajouterJours(t, -14), fin = dates[dates.length - 1], auteur = {};
+    ((S.data && S.data.historique) || []).forEach(function (v) {
+      var pv = String(v.prochaine || '').slice(0, 10);
+      if (pv && !auteur[v.code + '|' + pv]) auteur[v.code + '|' + pv] = v.delegue || '';
+    });
+    var dejaImposes = ensemble(S.imposes.map(function (x) { return x.code; }));
+    return Object.keys(c.prat).map(function (k) { return c.prat[k]; }).filter(function (p) {
+      if (!p.prochaine || p.prochaine < debut || p.prochaine > fin || dejaImposes[p.code]) return false;
+      var qui = auteur[p.code + '|' + p.prochaine];
+      return !qui || estMoi(qui);
+    }).map(function (p) { return { code: p.code, apres: p.prochaine < dates[0] ? dates[0] : p.prochaine, etape: true }; });
+  }
   function placerImpose(im) {
     var c = ctx(), dates = datesPeriode(), best = null;
     (c.parCode[im.code] || []).forEach(function (cr) {
       dates.forEach(function (d) {
-        if (jourSemaineIndex(d) !== cr.jourIdx || (im.date && im.date !== d) || (im.cle && im.cle !== cr.cle)) return;
+        if (jourSemaineIndex(d) !== cr.jourIdx || (im.date && im.date !== d) || (im.apres && d < im.apres) || (im.cle && im.cle !== cr.cle) || estFerie(d)) return;
         if (S.plan.some(function (a) { return a.date === d && a.code === im.code; })) return;
         var a = Moteur.arretDepuisCreneau(cr, d);
-        a.impose = true; a.garde = true; if (im.rdv) a.rdv = im.rdv;
+        a.impose = true; a.garde = true; if (im.rdv) a.rdv = im.rdv; if (im.etape) a.etape = true;
         var jour = S.plan.filter(function (x) { return x.date === d; });
         var avant = jour.reduce(function (s, x) { return s + (x.dist || 0); }, 0);
         var essai = Moteur.ordonnerJour(jour.map(function (x) { return Object.assign({}, x); }).concat([a]), departCoord());
@@ -2210,7 +2240,7 @@
     if (!best) return false;
     S.plan.push(best.a);
     reordonner(best.d);
-    S.ui.jour = best.d;
+    if (!im.etape) S.ui.jour = best.d;
     return true;
   }
 

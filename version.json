@@ -1,8 +1,10 @@
 {
-  "version": "2.2.5",
+  "version": "2.2.6",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "« Vu il y a … j » mis à jour dès qu'un compte rendu est validé",
+    "Prochaine étape traitée comme un RDV : le praticien est placé d'office ce jour-là dans la tournée",
     "Tournée : bouton « Valider ce compte rendu » dans chaque fiche de visite, et « Modifier le compte rendu » une fois validé",
     "Filtres : les spécialités ne concernent que les médecins ; elles sont ignorées (mais conservées) en choisissant Pharmacies",
     "Autour : pharmacies affichées du lundi au vendredi, sur toute leur plage horaire",
