@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.0.2', EDITION = 'Enterprise';
+  var APP_VERSION = '3.0.3', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.0.3', ['L\'onglet « Ma semaine » s\'appelle désormais « Planifier »']],
     ['3.0.2', ['Compte rendu : les champs se déploient dès que le résultat de la visite est choisi']],
     ['3.0.1', ['Compte rendu complet de nouveau visible d\'emblée : vu ou non, type de visite, produits présentés, ce qui est ressorti de la discussion, prochaine étape']],
     ['3.0.0', ['Nouvelle organisation en 5 onglets qui suivent votre journée : Aujourd\'hui, Ma semaine, Praticiens, Équipe, Bilan',
@@ -739,7 +740,7 @@
     return q ? { lat: q.lat, lon: q.lon } : null;
   }
 
-  // ------------------------------------------------------------------ Vues du parcours : Aujourd'hui (terrain) et Ma semaine (préparation)
+  // ------------------------------------------------------------------ Vues du parcours : Aujourd'hui (terrain) et Planifier (préparation)
   function datesPlan() { return Array.from(new Set(S.plan.map(function (a) { return a.date; }))).sort(); }
   function choisirJour(dates) {
     if (!S.ui.jour || dates.indexOf(S.ui.jour) < 0) {
@@ -764,12 +765,12 @@
       '<button class="bouton petit" type="button" data-a="ouvrirAutour">' + icone('cible') + 'Autour de moi</button></div>' +
       '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>';
     if (!S.plan.length) {
-      return h + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Ma semaine ».' +
-        '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Préparer ma semaine</button></div>';
+      return h + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».' +
+        '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier ma tournée</button></div>';
     }
     var dates = datesPlan(); choisirJour(dates);
     if (S.programme.etat !== 'valide') {
-      h += '<div class="bandeau"><p><b>Tournée en brouillon.</b> Confirmez-la dans « Ma semaine » pour la partager avec l\'équipe. ' +
+      h += '<div class="bandeau"><p><b>Tournée en brouillon.</b> Confirmez-la dans « Planifier » pour la partager avec l\'équipe. ' +
         '<button type="button" class="bouton-texte" data-a="nav" data-tab="semaine">Confirmer</button></p></div>';
     }
     if (dates.length > 1) h += barreJours(dates);
@@ -805,13 +806,13 @@
       });
       h += '</ol>';
     });
-    h += '<p class="discret aide" style="text-align:center">Pour changer les médecins de ce jour : <button type="button" class="bouton-texte" data-a="nav" data-tab="semaine">Ma semaine</button></p>';
+    h += '<p class="discret aide" style="text-align:center">Pour changer les médecins de ce jour : <button type="button" class="bouton-texte" data-a="nav" data-tab="semaine">Planifier</button></p>';
     return h;
   };
 
-  // Ma semaine : réglages, proposition, ajustements, confirmation et partage, communes visitées
+  // Planifier : réglages, proposition, ajustements, confirmation et partage, communes visitées
   VUES.semaine = function () {
-    var h = '<h2 class="titre-vue">Ma semaine</h2><p class="sous-titre">Préparez votre tournée, ajustez-la, puis confirmez-la pour l\'équipe.</p>';
+    var h = '<h2 class="titre-vue">Planifier</h2><p class="sous-titre">Préparez votre tournée, ajustez-la, puis confirmez-la pour l\'équipe.</p>';
     if (S.ui.voirParams || !S.plan.length) h += rendreParams();
     else h += rendreResume();
     if (!S.plan.length) return h;
@@ -831,7 +832,7 @@
     return h;
   };
 
-  // Ligne compacte de la tournée (Ma semaine) : garder, retirer, ouvrir la visite
+  // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
   function rendreLignePlan(a) {
     var verrou = a.etat === 'valide', e = '';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV (prochaine étape)' : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';

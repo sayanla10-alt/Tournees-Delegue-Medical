@@ -1,4 +1,4 @@
-# MediPlanner v3.0.2 Enterprise (anciennement « Tournées »)
+# MediPlanner v3.0.3 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -105,7 +105,7 @@ L'application suit la journée du délégué, en 5 onglets.
 - Visite non faite : **Trouver un remplaçant à proximité** ouvre « Autour de moi » centré sur ce lieu.
 - **Autour de moi** (bouton en haut) : qui est présent maintenant ou à un autre moment, près de vous ou d'un quartier, avec les mêmes filtres que Praticiens.
 
-**2. Ma semaine** (la préparation)
+**2. Planifier** (la préparation)
 - **Réglages de la tournée** : une journée ou une semaine, communes (différentes selon le jour si besoin), Tout / Médecins / Pharmacies, spécialités, potentiel, visites par jour, « ne pas revoir avant », éviter les médecins prévus par un collègue.
 - **RDV et médecins prioritaires** : placés d'office, la tournée se construit autour d'eux.
 - **Proposer ma tournée**, puis jour par jour : **Garder** un médecin, le **retirer**, **Recalculer ce jour** ou **la semaine** (les médecins gardés, les RDV et les visites faites restent).
