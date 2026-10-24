@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.1.0', EDITION = 'Enterprise';
+  var APP_VERSION = '3.2.0', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.2.0', ['Itinéraire : les praticiens d\'un même établissement s\'enchaînent, puis les établissements de proche en proche, sans dépasser les horaires de présence']],
     ['3.1.0', ['Compte rendu propre aux pharmacies : visitée oui ou non, activités en officine, produits disponibles (avec Juvamine), état des stocks (en stock, rupture, périmé…)']],
     ['3.0.4', ['Planifier : « Envoyer sur WhatsApp » placé en bas, juste au-dessus de la carte']],
     ['3.0.3', ['L\'onglet « Ma semaine » s\'appelle désormais « Planifier »']],

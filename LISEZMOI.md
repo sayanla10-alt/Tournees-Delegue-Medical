@@ -1,4 +1,4 @@
-# MediPlanner v3.1.0 Enterprise (anciennement « Tournées »)
+# MediPlanner v3.2.0 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -99,7 +99,7 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 L'application suit la journée du délégué, en 5 onglets.
 
 **1. Aujourd'hui** (sur le terrain)
-- Les visites du jour dans l'ordre de passage, l'heure de la première visite, la fin estimée et l'**itinéraire de la journée**.
+- Les visites du jour dans l'ordre de passage (les praticiens d'un même établissement à la suite, puis les établissements de proche en proche depuis votre point de départ, sans dépasser les horaires de présence), l'heure de la première visite, la fin estimée et l'**itinéraire de la journée**.
 - Touchez une visite : **Appeler, SMS, WhatsApp, Maps** en premier, puis le résultat : le médecin a-t-il été vu (**Visite faite** : Présent, Intéressé… ; **Visite non faite** : Absent, Refus…). Dès le résultat choisi, le compte rendu se déploie : type de visite, produits présentés, ce qui est ressorti de la discussion, **prochaine étape le** (le praticien est placé d'office ce jour-là dans vos tournées).
 - **Pharmacie** : une seule question, **visitée oui ou non**, puis type de visite propre à l'officine (vérification des stocks, prise de commande, mise en avant / PLV, formation de l'équipe…), **produits disponibles** (gamme et Juvamine), **état des stocks** (en stock, stock faible, rupture, périmé, proche péremption, commande passée, non référencé), commentaire et prochaine étape. L'état des stocks est enregistré en tête du commentaire dans l'Historique.
 - **Enregistrer le compte rendu** ; un compte rendu enregistré se **modifie** à tout moment.

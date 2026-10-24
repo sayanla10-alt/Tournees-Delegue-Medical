@@ -144,12 +144,83 @@ var Moteur = (function () {
     return best.route;
   }
 
+  // ------------------------------------------------------------------ Itinéraire de la journée
+  // 1. les praticiens d'un même établissement sont vus à la suite (du plus pressé au moins pressé) ;
+  // 2. les établissements s'enchaînent de proche en proche, en partant du point de départ ;
+  // 3. les horaires de présence priment : aucun ordre ne doit faire arriver après la fin d'une présence.
+  // Jusqu'à 8 établissements, tous les ordres sont comparés ; au-delà, proche en proche puis améliorations 2-opt.
+  function cleLieu(it) { return normaliser(it.a.lieu || '') + '|' + bas(it.a.quartier) + '|' + it.a.creneau; }
+  function coutOrdre(route, depart) {
+    var s = simuler(route), km = 0, attente = 0, t = null, prev = depart, vus = {}, coupes = 0, cle = null;
+    route.forEach(function (it, i) {
+      km += prev ? dist(prev, it) : 0;
+      if (t !== null) attente += Math.max(0, s.debuts[i] - (t + trajetMin(route[i - 1], it, t)));
+      t = s.debuts[i] + R.dureeVisite; prev = it;
+      var k = cleLieu(it);
+      if (k !== cle && vus[k]) coupes++;      // revenir dans un établissement déjà quitté
+      vus[k] = true; cle = k;
+    });
+    // retards interdits ; établissement scindé fortement pénalisé ; puis kilomètres, l'attente comptant peu
+    return { retards: s.nbRetards, cout: s.nbRetards * 1000 + coupes * 50 + km + attente / 60 };
+  }
+  function ordonnerItems(items, depart) {
+    if (items.length < 2) return items.slice();
+    var groupes = [], idx = {};
+    items.forEach(function (it) {
+      var k = cleLieu(it);
+      if (idx[k] === undefined) { idx[k] = groupes.length; groupes.push([]); }
+      groupes[idx[k]].push(it);
+    });
+    groupes.forEach(function (g) { g.sort(function (a, b) { return a.tard - b.tard || a.tot - b.tot; }); });
+    function aplatir(ordre) { var r = []; ordre.forEach(function (g) { r = r.concat(g); }); return r; }
+    var best = null;
+    function evaluer(ordre) {
+      var r = aplatir(ordre), c = coutOrdre(r, depart);
+      if (!best || c.cout < best.c.cout) best = { r: r, c: c };
+    }
+    if (groupes.length <= 8) {
+      (function permuter(reste, pris) {
+        if (!reste.length) { evaluer(pris); return; }
+        for (var i = 0; i < reste.length; i++) permuter(reste.slice(0, i).concat(reste.slice(i + 1)), pris.concat([reste[i]]));
+      })(groupes, []);
+    } else {
+      // proche en proche, en tenant compte des horaires
+      var reste = groupes.slice(), ordre = [];
+      while (reste.length) {
+        var meilleur = null;
+        reste.forEach(function (g, i) {
+          var c = coutOrdre(aplatir(ordre.concat([g])), depart);
+          if (!meilleur || c.cout < meilleur.c) meilleur = { c: c.cout, i: i };
+        });
+        ordre.push(reste.splice(meilleur.i, 1)[0]);
+      }
+      evaluer(ordre);
+      for (var tour = 0, ameliore = true; ameliore && tour < 20; tour++) {
+        ameliore = false;
+        for (var i = 0; i < ordre.length - 1; i++) {
+          for (var j = i + 1; j < ordre.length; j++) {
+            var essai = ordre.slice(0, i).concat(ordre.slice(i, j + 1).reverse(), ordre.slice(j + 1));
+            var avant = best.c.cout; evaluer(essai);
+            if (best.c.cout < avant) { ordre = essai; ameliore = true; }
+          }
+        }
+      }
+    }
+    return best.r;
+  }
+  // Ordre retenu : le regroupement par établissement, sauf s'il crée plus de retards que l'ordre d'origine
+  function meilleurOrdre(route, depart) {
+    if (route.length < 2) return route;
+    var nouveau = ordonnerItems(route, depart);
+    return coutOrdre(nouveau, depart).cout <= coutOrdre(route, depart).cout ? nouveau : route;
+  }
+
   // Ordonne une liste d'arrêts d'une même journée (après ajout, retrait, nouveau tirage)
   function ordonnerJour(arrets, depart) {
     var its = arrets.map(item).sort(function (a, b) { return a.tot - b.tot || a.tard - b.tard; });
-    var route = [];
-    its.forEach(function (it) { route = insererAuMieux(route, it, depart); });
-    return finaliser(route);
+    var route = [], dep = depart ? { coord: depart } : null;
+    its.forEach(function (it) { route = insererAuMieux(route, it, dep); });
+    return finaliser(meilleurOrdre(route, dep));
   }
 
   function finaliser(route) {
@@ -216,7 +287,7 @@ var Moteur = (function () {
     passe(false);
     if (route.length < max) passe(true);
     route.forEach(function (it) { utilises[it.a.code] = true; });
-    return finaliser(route);
+    return finaliser(meilleurOrdre(route, depart));
   }
 
   // ------------------------------------------------------------------ Planning d'une période
