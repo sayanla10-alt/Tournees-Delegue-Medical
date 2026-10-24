@@ -1,8 +1,8 @@
 {
-  "version": "3.3.1",
-  "edition": "Enterprise",
+  "version": "3.3.2",
   "date": "2026-10-24",
   "notes": [
+    "Nom de l'application : MediPlanner, sans mention supplémentaire",
     "Planifier : « Reprendre un ancien programme » toujours visible, juste au-dessus de « Proposer ma tournée »",
     "Équipe : votre propre tournée apparaît aussi, en tête, avec celles de vos collègues",
     "Planifier : « Reprendre un ancien programme » copie une semaine ou une journée passée en brouillon, point de départ pour vos modifications",

@@ -1,5 +1,5 @@
 /* =============================================================================
-   Code.gs : serveur de l'application MediPlanner (v2.0.0, anciennement « Tournées »)
+   Code.gs : serveur de MediPlanner
    À coller dans Extensions > Apps Script du Google Sheet, avec Commun.gs.
 
    Feuilles

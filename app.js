@@ -1,5 +1,5 @@
 /* =============================================================================
-   app.js : interface de MediPlanner v2.0.0 (anciennement « Tournées »)
+   app.js : interface de MediPlanner
    - Données en cache sur le téléphone : tout fonctionne hors ligne
    - Visites, fiches praticiens et tournées envoyées au Google Sheet dès que possible
    - Écran de lancement, statistiques, filtres avancés, fiche praticien en 4 étapes,
@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.3.1', EDITION = 'Enterprise';
+  var APP_VERSION = '3.3.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.3.2', ['Nom de l\'application : MediPlanner, sans mention supplémentaire']],
     ['3.3.1', ['Planifier : « Reprendre un ancien programme » toujours visible, juste au-dessus de « Proposer ma tournée »']],
     ['3.3.0', ['Équipe : votre propre tournée apparaît aussi, en tête, avec celles de vos collègues', 'Planifier : « Reprendre un ancien programme » copie une semaine ou une journée passée en brouillon, point de départ pour vos modifications']],
     ['3.2.1', ['Équipe : la carte de la journée du collègue est affichée tout en bas', 'L\'onglet « Praticiens » devient « Recherche », avec une phrase qui résume les critères retenus']],
@@ -1911,7 +1912,7 @@
       (S.ui.installEvt ? '<button class="bouton bouton-plein bouton-large" type="button" data-a="installer">Installer l\'application</button>' :
         '<p class="discret" style="margin:0">Android (Chrome) : menu ⋮ puis « Installer l\'application ». iPhone (Safari) : bouton Partager puis « Sur l\'écran d\'accueil ».</p>') +
       '</section>';
-    h += '<section class="bloc"><h3>MediPlanner</h3><p class="discret" style="margin-top:0">Version ' + APP_VERSION + ' ' + EDITION +
+    h += '<section class="bloc"><h3>MediPlanner</h3><p class="discret" style="margin-top:0">Version ' + APP_VERSION +
       '. Les mises à jour sont signalées par un bandeau en haut de l\'écran ; vos données restent sur le téléphone.</p>' +
       '<div class="rangee"><button class="bouton" type="button" data-a="verifierMaj">Rechercher une mise à jour</button>' +
       '<button class="bouton" type="button" data-a="ouvrirLancement">Écran d\'accueil</button></div></section>';
@@ -3015,7 +3016,7 @@
     var h = '<div class="lancement" role="dialog" aria-modal="true" aria-labelledby="titreLancement">' +
       '<div class="lancement-tete"><img src="icon-192.png" alt=""><h1 id="titreLancement">MediPlanner</h1>' +
       '<p>Tournées de visites médicales, planning des praticiens et suivi d\'équipe</p>' +
-      '<span class="version">v' + APP_VERSION + ' ' + EDITION + '</span></div><div class="lancement-corps">' +
+      '<span class="version">v' + APP_VERSION + '</span></div><div class="lancement-corps">' +
       '<div class="etat-base ' + etat[0] + '">' + etat[1] + (detail ? '<small>' + esc(detail) + '</small>' : '') + '</div>';
     if (pret()) {
       var prat = ctx().prat, nMed = 0, nPha = 0;
