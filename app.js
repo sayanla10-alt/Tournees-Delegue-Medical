@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.0.1', EDITION = 'Enterprise';
+  var APP_VERSION = '3.0.2', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.0.2', ['Compte rendu : les champs se déploient dès que le résultat de la visite est choisi']],
     ['3.0.1', ['Compte rendu complet de nouveau visible d\'emblée : vu ou non, type de visite, produits présentés, ce qui est ressorti de la discussion, prochaine étape']],
     ['3.0.0', ['Nouvelle organisation en 5 onglets qui suivent votre journée : Aujourd\'hui, Ma semaine, Praticiens, Équipe, Bilan',
                'Aujourd\'hui : vos visites dans l\'ordre, contact en premier, compte rendu guidé (résultat d\'abord, puis le détail)',
@@ -970,9 +971,13 @@
         h += '<div class="etape-cr"><span class="etape-titre">Le médecin a-t-il été vu ?</span>' +
           '<span class="groupe-statuts">Visite faite</span><div class="statuts" role="group" aria-label="Visite faite">' + ok.map(bouton).join('') + '</div>' +
           '<span class="groupe-statuts">Visite non faite</span><div class="statuts" role="group" aria-label="Visite non faite">' + ko.map(bouton).join('') + '</div></div>';
-        // Compte rendu complet, toujours visible : résultat, type de visite, produits, ce qui est ressorti, prochaine étape
+        // Le compte rendu se déploie dès que le résultat est choisi (visite faite ou non) :
+        // type de visite, produits, ce qui est ressorti, prochaine étape ; « remplaçant » en plus si non faite
         var faite = a.statut && !estKo(a.statut);
-        if (a.statut && !faite) {
+        if (!a.statut) {
+          h += '<p class="aide-champ" style="text-align:center;margin:4px 0 12px">Touchez le résultat pour remplir le compte rendu.</p>';
+        } else {
+        if (!faite) {
           h += '<div class="bandeau"><p>Visite non faite. ' +
             '<button type="button" class="bouton-texte" data-a="rattraper" data-uid="' + a.uid + '">Trouver un remplaçant à proximité</button></p></div>';
         }
@@ -994,7 +999,8 @@
             '<span class="aide-champ">Comme un RDV pris : le praticien est placé d\'office ce jour-là dans vos tournées.</span></div>' +
           '<div class="actions-cr">' + (a.statut ?
             '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button>' :
-            '<button class="bouton bouton-large" type="button" disabled>' + icone('valider') + 'Enregistrer le compte rendu</button><span class="aide-champ">Indiquez d\'abord si le médecin a été vu (en haut).</span>') + '</div>';
+            '') + '</div>';
+        }
         h += '<button class="bouton-texte" type="button" data-a="retirer" data-uid="' + a.uid + '">Retirer de la tournée</button>';
       } else {
         h += '<div class="resume-cr">';
