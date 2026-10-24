@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.2.0', EDITION = 'Enterprise';
+  var APP_VERSION = '3.2.1', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.2.1', ['Équipe : la carte de la journée du collègue est affichée tout en bas', 'L\'onglet « Praticiens » devient « Recherche », avec une phrase qui résume les critères retenus']],
     ['3.2.0', ['Itinéraire : les praticiens d\'un même établissement s\'enchaînent, puis les établissements de proche en proche, sans dépasser les horaires de présence']],
     ['3.1.0', ['Compte rendu propre aux pharmacies : visitée oui ou non, activités en officine, produits disponibles (avec Juvamine), état des stocks (en stock, rupture, périmé…)']],
     ['3.0.4', ['Planifier : « Envoyer sur WhatsApp » placé en bas, juste au-dessus de la carte']],
@@ -1309,7 +1310,6 @@
       var c = pr && ctx().parCode[p.code] ? ctx().parCode[p.code].filter(function (x) { return String(x.idPresence) === String(p.idPresence); })[0] : null;
       return c && c.coord ? { lat: c.coord.lat, lon: c.coord.lon, nom: p.nom, lieu: p.lieu, heure: p.heure } : null;
     }).filter(Boolean);
-    if (pos.length) { h += '<div class="carte-l" id="carteEquipe"></div>'; cartesAFaire.push({ id: 'carteEquipe', route: pos }); }
     h += '<p class="bilan-jour"><b>' + esc(S.ui.collegue) + '</b>, ' + dateLongue(S.ui.jourEquipe) + ' : ' + duJour.length +
       ' visite' + (duJour.length > 1 ? 's' : '') + (maj ? '. Mise à jour le ' + esc(maj.slice(8, 10) + '/' + maj.slice(5, 7) + ' à ' + maj.slice(11, 16)) : '') + '.</p>';
     ['Matin', 'Soir'].forEach(function (cren) {
@@ -1330,6 +1330,8 @@
       });
       h += '</ol>';
     });
+    // carte de la journée du collègue, tout en bas (comme dans Planifier)
+    if (pos.length) { h += '<h3>Carte de la journée</h3><div class="carte-l" id="carteEquipe"></div>'; cartesAFaire.push({ id: 'carteEquipe', route: pos }); }
     return h;
   };
 
@@ -1413,17 +1415,40 @@
     return h;
   }
 
+  // Résumé des critères retenus, en une phrase (ex. « 12 médecins cardiologues à potentiel ★★★, non visités depuis plus de 30 jours, à Cocody, triés par potentiel. »)
+  function phraseCriteres(f, q, n, tri) {
+    var fem = f.type === 'Pharmacie', pl = n > 1, s = pl ? 's' : '', e = fem ? 'e' : '';
+    var nom = f.type === 'Pharmacie' ? 'pharmacie' : (f.type === 'Médecin' ? 'médecin' : 'praticien');
+    var t = (n ? n : 'Aucun' + (fem ? 'e' : '')) + ' ' + nom + (pl ? 's' : '');
+    if (f.type !== 'Pharmacie' && f.specialites.length) {
+      t += ' ' + f.specialites.map(function (x) { var m = x.toLowerCase(); return pl && !/[sx]$/.test(m) ? m + 's' : m; }).join(' ou ');
+      if (f.type === 'tous') t += ' (et les pharmacies)';
+    }
+    var c = [];
+    if (f.potentiels.length) c.push('à potentiel ' + f.potentiels.map(function (x) { return ETOILES[x]; }).join(' ou '));
+    if (f.conv !== 'tous') c.push((f.conv === 'oui' ? 'conventionné' : 'non conventionné') + e + s);
+    var vis = { '30': 'non visité' + e + s + ' depuis plus de 30 jours', recent: 'visité' + e + s + ' il y a moins de 30 jours', jamais: 'jamais visité' + e + s,
+                retard: 'en retard sur la cadence de visite', revoir: 'à revoir' };
+    if (f.visite !== 'tous') c.push(vis[f.visite]);
+    if (f.equipe !== 'tous') c.push((f.equipe === 'oui' ? 'déjà prévu' : 'non prévu') + e + s + ' par un collègue cette semaine');
+    if (f.communes.length) c.push('à ' + f.communes.join(' ou '));
+    if (q && String(q).trim()) c.push('correspondant à « ' + String(q).trim() + ' »');
+    var lt = { priorite: 'par potentiel', score: 'par priorité de visite', retard: 'du plus longtemps sans visite au plus récent', nom: 'par nom' };
+    if (n > 1 && lt[tri]) c.push('trié' + e + 's ' + lt[tri]);
+    return t + (c.length ? ' ' + c.join(', ') : '') + '.';
+  }
+
   VUES.praticiens = function () {
     var f = S.ui.filtres, t = aujourdhui(), c = ctx();
     var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
     // la fiche ouverte (par exemple juste créée) reste en tête de liste
     var io = liste.map(function (p) { return p.code; }).indexOf(S.ui.contactOuvert);
     if (io > 0) liste.unshift(liste.splice(io, 1)[0]);
-    var h = '<div class="tete-vue"><h2 class="titre-vue">Praticiens</h2>' +
+    var h = '<div class="tete-vue"><h2 class="titre-vue">Recherche</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Nouveau</button></div>' +
       '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>' + barreFiltres(f, S.ui.recherche);
-    h += '<div class="tri"><span class="discret">' + liste.length + ' praticien' + (liste.length > 1 ? 's' : '') +
-'</span>' +
+    h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
+    h += '<div class="tri"><span></span>' +
       '<label class="discret">Trier par <select data-f="tri">' +
       [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite'], ['nom', 'Nom']].map(function (x) {
         return '<option value="' + x[0] + '"' + (S.ui.tri === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';

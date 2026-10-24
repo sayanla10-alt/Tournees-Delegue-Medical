@@ -738,3 +738,5 @@ details.avance[open] summary b::after { content: " ▴"; }
 details.avance h3 { margin-top: 18px; }
 .statuts.deux { grid-template-columns: 1fr 1fr; }
 .statuts.deux .statut { min-height: 48px; font-size: 15px; }
+
+.phrase-criteres { margin: 2px 0 6px; font-size: 14px; color: var(--encre); font-weight: 500; }

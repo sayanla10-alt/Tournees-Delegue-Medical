@@ -1,8 +1,10 @@
 {
-  "version": "3.2.0",
+  "version": "3.2.1",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Équipe : la carte de la journée du collègue est affichée tout en bas",
+    "L'onglet « Praticiens » devient « Recherche », avec une phrase qui résume les critères retenus",
     "Itinéraire : les praticiens d'un même établissement s'enchaînent, puis les établissements de proche en proche, sans dépasser les horaires de présence",
     "Compte rendu propre aux pharmacies : visitée oui ou non, activités en officine, produits disponibles (avec Juvamine), état des stocks (en stock, rupture, périmé…)",
     "Planifier : « Envoyer sur WhatsApp » placé en bas, juste au-dessus de la carte",
