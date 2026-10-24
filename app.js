@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.2.0', EDITION = 'Enterprise';
+  var APP_VERSION = '2.2.1', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.2.1', ['Titre « Tournée » affiché en haut de l\'onglet, comme les autres onglets']],
     ['2.2.0', ['Message WhatsApp : une puce devant chaque médecin',
                'Chaque onglet présente son rôle en une phrase',
                'Autour : mêmes filtres que Contacts, rayon 2 km et « Maintenant » par défaut, filtre Tout / Médecins / Pharmacies',
@@ -714,7 +715,7 @@
 
   // ------------------------------------------------------------------ Vue : tournée
   VUES.tournee = function () {
-    var h = '<p class="sous-titre intro-vue">Votre programme de visites : tirage automatique, ajustements, comptes rendus et envoi.</p>';
+    var h = '<h2 class="titre-vue">Tournée</h2><p class="sous-titre">Votre programme de visites : tirage automatique, ajustements, comptes rendus et envoi.</p>';
     if (S.ui.voirParams || !S.plan.length) h += rendreParams();
     else h += rendreResume();
     if (!S.plan.length) {

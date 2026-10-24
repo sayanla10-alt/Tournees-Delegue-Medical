@@ -1,8 +1,9 @@
 {
-  "version": "2.2.0",
+  "version": "2.2.1",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Titre « Tournée » affiché en haut de l'onglet, comme les autres onglets",
     "Message WhatsApp : une puce devant chaque médecin",
     "Chaque onglet présente son rôle en une phrase",
     "Autour : mêmes filtres que Contacts, rayon 2 km et « Maintenant » par défaut, filtre Tout / Médecins / Pharmacies",
