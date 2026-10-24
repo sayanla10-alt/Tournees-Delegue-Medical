@@ -736,3 +736,5 @@ details.avance summary b { font: 700 17px/1.2 var(--titre); }
 details.avance summary b::after { content: " ▾"; color: var(--gris); }
 details.avance[open] summary b::after { content: " ▴"; }
 details.avance h3 { margin-top: 18px; }
+.statuts.deux { grid-template-columns: 1fr 1fr; }
+.statuts.deux .statut { min-height: 48px; font-size: 15px; }

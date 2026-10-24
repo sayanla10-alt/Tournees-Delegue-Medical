@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.0.4', EDITION = 'Enterprise';
+  var APP_VERSION = '3.1.0', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.1.0', ['Compte rendu propre aux pharmacies : visitée oui ou non, activités en officine, produits disponibles (avec Juvamine), état des stocks (en stock, rupture, périmé…)']],
     ['3.0.4', ['Planifier : « Envoyer sur WhatsApp » placé en bas, juste au-dessus de la carte']],
     ['3.0.3', ['L\'onglet « Ma semaine » s\'appelle désormais « Planifier »']],
     ['3.0.2', ['Compte rendu : les champs se déploient dès que le résultat de la visite est choisi']],
@@ -374,7 +375,24 @@
   // Produits de la gamme (feuille Listes, colonne Produits) proposés en puces ; les autres en saisie libre
   function produitsRef() { return (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT; }
   function listeProduits(t) { return String(t || '').split(/\s*[,;]\s*/).map(function (x) { return x.trim(); }).filter(Boolean); }
-  function autresProduits(t) { var ref = produitsRef(); return listeProduits(t).filter(function (x) { return ref.indexOf(x) < 0; }); }
+  function autresProduits(t, ref) { ref = ref || produitsRef(); return listeProduits(t).filter(function (x) { return ref.indexOf(x) < 0; }); }
+  // Pharmacies : compte rendu propre (visitée oui/non, activités en officine, produits disponibles, état des stocks)
+  var ACTIVITES_PHARMACIE = ['Routine', 'Vérification des stocks', 'Prise de commande', 'Mise en avant / PLV', 'Formation de l\'équipe officinale',
+                             'Remise d\'échantillons', 'Animation promotionnelle', 'Retour ou échange de produits', 'Autre activité'];
+  var PRODUITS_PHARMACIE_EN_PLUS = ['Juvamine'];
+  var ETATS_STOCK = ['En stock', 'Stock faible', 'Rupture', 'Périmé', 'Proche péremption', 'Commande passée', 'Non référencé'];
+  function estPharmacie(a) { return (a.type || (praticien(a.code) || {}).type) === 'Pharmacie'; }
+  function produitsPour(a) {
+    var l = produitsRef().slice();
+    if (estPharmacie(a)) PRODUITS_PHARMACIE_EN_PLUS.forEach(function (x) { if (l.indexOf(x) < 0) l.push(x); });
+    return l;
+  }
+  function statutLibelle(a) { return estPharmacie(a) && a.statut ? (estKo(a.statut) ? 'Non visitée' : 'Visitée') : a.statut; }
+  // Commentaire envoyé à l'historique : état des stocks (pharmacie) puis texte libre
+  function commentaireComplet(a) {
+    var st = estPharmacie(a) && a.stock ? 'Stock : ' + a.stock + '.' : '';
+    return [st, String(a.commentaire || '').trim()].filter(Boolean).join(' ');
+  }
   function activites() { return (S.data && S.data.activites && S.data.activites.length) ? S.data.activites : ACTIVITES_DEFAUT; }
   function listeActivites(t) { return String(t || '').split(/\s*;\s*/).filter(Boolean).map(function (x) { return ACTIVITES_RENOMMEES[x] || x; }); }
   function ficheEnAttente(code) { return S.fiches.some(function (f) { return f.praticien.code === code; }); }
@@ -841,7 +859,7 @@
   function rendreLignePlan(a) {
     var verrou = a.etat === 'valide', e = '';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV (prochaine étape)' : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
-    if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(a.statut) + '</span>';
+    if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici</span>';
     e += etiquetteCollegues(a.code, a.date);
@@ -943,9 +961,11 @@
     var e = '';
     e += badgeConv(a.conventionne);
     var pv = praticien(a.code) || {}, der = pv.derniere && (!a.derniere || pv.derniere > a.derniere) ? pv.derniere : a.derniere;
-    e += '<span class="etiquette">' + esc(vuDepuis(der, a.etat !== 'valide' && a.date > aujourdhui() ? a.date : aujourdhui())) + '</span>';
+    var vu = vuDepuis(der, a.etat !== 'valide' && a.date > aujourdhui() ? a.date : aujourdhui());
+    if (estPharmacie(a)) vu = vu.replace(/^Vu /, 'Visitée ').replace('Jamais visité', 'Jamais visitée');
+    e += '<span class="etiquette">' + esc(vu) + '</span>';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV (prochaine étape)' : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
-    if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(a.statut) + (verrou ? ', enregistré' : '') + '</span>';
+    if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + (verrou ? ', enregistré' : '') + '</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">RDV prévu le ' + dateCourte(a.prochaine) + '</span>';
@@ -967,50 +987,60 @@
       var pa = praticien(a.code) || {};
       h += '<div class="arret-detail">' +
         actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune });
+      var pharma = estPharmacie(a), refProd = produitsPour(a);
       if (!verrou) {
         var ok = statuts().filter(function (s) { return s.visite; }), ko = statuts().filter(function (s) { return !s.visite; });
-        var bouton = function (s) {
+        var bouton = function (s, lib) {
           return '<button type="button" class="statut' + (s.visite ? '' : ' ko') + '" data-a="statut" data-uid="' + a.uid +
-            '" data-v="' + esc(s.nom) + '" aria-pressed="' + (a.statut === s.nom) + '">' + esc(s.nom) + '</button>';
+            '" data-v="' + esc(s.nom) + '" aria-pressed="' + (a.statut === s.nom) + '">' + esc(lib || s.nom) + '</button>';
         };
-        h += '<div class="etape-cr"><span class="etape-titre">Le médecin a-t-il été vu ?</span>' +
-          '<span class="groupe-statuts">Visite faite</span><div class="statuts" role="group" aria-label="Visite faite">' + ok.map(bouton).join('') + '</div>' +
-          '<span class="groupe-statuts">Visite non faite</span><div class="statuts" role="group" aria-label="Visite non faite">' + ko.map(bouton).join('') + '</div></div>';
-        // Le compte rendu se déploie dès que le résultat est choisi (visite faite ou non) :
-        // type de visite, produits, ce qui est ressorti, prochaine étape ; « remplaçant » en plus si non faite
+        if (pharma) {
+          // pharmacie : une seule question, visitée oui ou non (statuts de la base : premier « visite » et « Absent »)
+          var oui = ok[0], non = ko.filter(function (s) { return /absent/i.test(s.nom); })[0] || ko[0];
+          h += '<div class="etape-cr"><span class="etape-titre">La pharmacie a-t-elle été visitée ?</span>' +
+            '<div class="statuts deux" role="group" aria-label="Pharmacie visitée">' + (oui ? bouton(oui, 'Oui') : '') + (non ? bouton(non, 'Non') : '') + '</div></div>';
+        } else {
+          h += '<div class="etape-cr"><span class="etape-titre">Le médecin a-t-il été vu ?</span>' +
+            '<span class="groupe-statuts">Visite faite</span><div class="statuts" role="group" aria-label="Visite faite">' + ok.map(function (x) { return bouton(x); }).join('') + '</div>' +
+            '<span class="groupe-statuts">Visite non faite</span><div class="statuts" role="group" aria-label="Visite non faite">' + ko.map(function (x) { return bouton(x); }).join('') + '</div></div>';
+        }
+        // Le compte rendu se déploie dès que le résultat est choisi (visite faite ou non)
         var faite = a.statut && !estKo(a.statut);
         if (!a.statut) {
-          h += '<p class="aide-champ" style="text-align:center;margin:4px 0 12px">Touchez le résultat pour remplir le compte rendu.</p>';
+          h += '<p class="aide-champ" style="text-align:center;margin:4px 0 12px">Touchez la réponse pour remplir le compte rendu.</p>';
         } else {
-        if (!faite) {
-          h += '<div class="bandeau"><p>Visite non faite. ' +
-            '<button type="button" class="bouton-texte" data-a="rattraper" data-uid="' + a.uid + '">Trouver un remplaçant à proximité</button></p></div>';
-        }
-        h += '<div class="champ"><span>Type de visite</span><div class="puces">' + activites().map(function (x) {
-            return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-          }).join('') + '</div></div>' +
-          '<div class="champ"><span>Produits présentés</span><div class="puces">' + produitsRef().map(function (x) {
-            return '<button type="button" class="puce" data-a="produit" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeProduits(a.produits).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-          }).join('') + '</div><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
-            '" value="' + esc(autresProduits(a.produits).join(', ')) + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() + '</div>' +
-          '<label class="champ"><span>Ce qui est ressorti de la discussion</span><textarea data-f="commentaire" data-uid="' + a.uid +
-            '" placeholder="Besoins, objections, échantillons remis, engagement du médecin, motif d\'absence…">' + esc(a.commentaire) + '</textarea></label>' +
-          '<div class="champ"><span>Prochaine étape le</span><div class="rangee-prochaine">' +
-            [7, 14, 30].map(function (n) {
-              var d = ajouterJours(a.date, n);
-              return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
-            }).join('') +
-            '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date de la prochaine étape"></div>' +
-            '<span class="aide-champ">Comme un RDV pris : le praticien est placé d\'office ce jour-là dans vos tournées.</span></div>' +
-          '<div class="actions-cr">' + (a.statut ?
-            '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button>' :
-            '') + '</div>';
+          if (!faite) {
+            h += '<div class="bandeau"><p>' + (pharma ? 'Pharmacie non visitée. ' : 'Visite non faite. ') +
+              '<button type="button" class="bouton-texte" data-a="rattraper" data-uid="' + a.uid + '">Trouver un remplaçant à proximité</button></p></div>';
+          }
+          h += '<div class="champ"><span>Type de visite</span><div class="puces">' + (pharma ? ACTIVITES_PHARMACIE : activites()).map(function (x) {
+              return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+            }).join('') + '</div></div>' +
+            '<div class="champ"><span>' + (pharma ? 'Produits disponibles' : 'Produits présentés') + '</span><div class="puces">' + refProd.map(function (x) {
+              return '<button type="button" class="puce" data-a="produit" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeProduits(a.produits).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+            }).join('') + '</div><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
+              '" value="' + esc(autresProduits(a.produits, refProd).join(', ')) + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() + '</div>' +
+            (pharma ? '<div class="champ"><span>État des stocks</span><div class="puces">' + ETATS_STOCK.map(function (x) {
+              return '<button type="button" class="puce" data-a="stock" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (String(a.stock || '').split(/\s*,\s*/).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
+            }).join('') + '</div></div>' : '') +
+            '<label class="champ"><span>' + (pharma ? 'Commentaire' : 'Ce qui est ressorti de la discussion') + '</span><textarea data-f="commentaire" data-uid="' + a.uid +
+              '" placeholder="' + (pharma ? 'Produit en rupture, lot périmé, quantité commandée, demande du pharmacien…' : 'Besoins, objections, échantillons remis, engagement du médecin, motif d\'absence…') + '">' + esc(a.commentaire) + '</textarea></label>' +
+            '<div class="champ"><span>Prochaine étape le</span><div class="rangee-prochaine">' +
+              [7, 14, 30].map(function (n) {
+                var d = ajouterJours(a.date, n);
+                return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
+              }).join('') +
+              '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date de la prochaine étape"></div>' +
+              '<span class="aide-champ">Comme un RDV pris : ' + (pharma ? 'la pharmacie est placée' : 'le praticien est placé') + ' d\'office ce jour-là dans vos tournées.</span></div>' +
+            '<div class="actions-cr"><button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') +
+              (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button></div>';
         }
         h += '<button class="bouton-texte" type="button" data-a="retirer" data-uid="' + a.uid + '">Retirer de la tournée</button>';
       } else {
         h += '<div class="resume-cr">';
         if (a.activite) h += '<p class="discret">Type de visite : ' + esc(listeActivites(a.activite).join(', ')) + '</p>';
-        if (a.produits) h += '<p class="discret">Produits : ' + esc(a.produits) + '</p>';
+        if (a.produits) h += '<p class="discret">' + (pharma ? 'Produits disponibles : ' : 'Produits : ') + esc(a.produits) + '</p>';
+        if (pharma && a.stock) h += '<p class="discret">Stock : ' + esc(a.stock) + '</p>';
         if (a.commentaire) h += '<p class="discret">' + esc(a.commentaire) + '</p>';
         if (a.prochaine) h += '<p class="discret">Prochaine étape le ' + dateCourte(a.prochaine) + '</p>';
         h += '</div><button class="bouton bouton-large" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:6px">' + icone('crayon') + 'Modifier le compte rendu</button>';
@@ -2247,7 +2277,7 @@
     aValider.forEach(function (a) {
       var v = { uid: a.uid, date: a.date > t ? t : a.date, idPresence: a.idPresence, code: a.code, nom: a.nom, type: a.type,
                 specialite: a.specialite, note: a.note, commune: a.commune, quartier: a.quartier, lieu: a.lieu,
-                creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '', delegue: moi(),
+                creneau: a.creneau, statut: a.statut, commentaire: commentaireComplet(a), delegue: moi(),
                 produits: a.produits || '', prochaine: a.prochaine || '', activite: a.activite || '' };
       if (a.corrige) v.correction = true;
       memoriserProduits(a.produits);
@@ -2547,6 +2577,12 @@
       if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
       a.produits = l.join(', '); LS.set('plan', S.plan); rendre();
     },
+    stock: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var l = String(a.stock || '').split(/\s*,\s*/).filter(Boolean), i = l.indexOf(el.dataset.v);
+      if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
+      a.stock = l.join(', '); LS.set('plan', S.plan); rendre();
+    },
     activite: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var l = listeActivites(a.activite), i = l.indexOf(el.dataset.v);
@@ -2699,7 +2735,7 @@
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
     if (f === 'fiche') majChampFiche(el, false);
     if (f === 'produits') {
-      var ap = arret(el.dataset.uid), ref = produitsRef();
+      var ap = arret(el.dataset.uid), ref = ap ? produitsPour(ap) : produitsRef();
       if (ap) { ap.produits = listeProduits(ap.produits).filter(function (x) { return ref.indexOf(x) >= 0; }).concat(listeProduits(el.value)).join(', '); LS.set('plan', S.plan); }
     }
     if (f === 'chercheOption') {
