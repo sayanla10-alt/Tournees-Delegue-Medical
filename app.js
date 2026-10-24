@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '2.0.6', EDITION = 'Enterprise';
+  var APP_VERSION = '2.0.7', EDITION = 'Enterprise';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['2.0.7', ['Couverture repliée par défaut sous la tournée (un toucher pour la carte et les communes)']],
     ['2.0.6', ['Compte rendu : produits présentés et date de prochaine étape (le praticien remonte en priorité à cette date)',
                'Temps de trajet plus réalistes : heures de pointe et traversée de la lagune',
                'Jours fériés et absences des praticiens respectés dans les tournées',
@@ -85,7 +86,7 @@
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, jourEquipe: null, histFiltre: 'moi',
-      couvPortee: 'jour', couvFiltre: 'toutes', couvOuverte: true,
+      couvPortee: 'jour', couvFiltre: 'toutes', couvOuverte: LS.get('couvOuverte', false),
       autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 5, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
       filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false
@@ -825,12 +826,15 @@
     var eq = arretsCollegues().filter(function (a) { return dates.indexOf(a.date) >= 0; });
     var cv = Moteur.couverture(ctx(), dates, mes, eq);
     var couv = cv.filter(function (c) { return c.moi > 0; }), non = cv.filter(function (c) { return c.moi === 0; });
-    var h = '<section class="bloc couverture"><div class="couv-tete"><h3>Couverture</h3>' +
+    var ouverte = S.ui.couvOuverte;
+    var h = '<section class="bloc couverture"><div class="couv-tete"><button type="button" class="groupe-bascule" data-a="couvOuvrir" aria-expanded="' + ouverte + '">' +
+      '<b>Couverture</b><small>' + couv.length + '/' + cv.length + ' communes</small>' + icone('chevron') + '</button>' +
       '<div class="segment petit" role="group" aria-label="Période">' +
         '<button type="button" data-a="couvPortee" data-v="jour" aria-pressed="' + (portee === 'jour') + '">Jour</button>' +
         '<button type="button" data-a="couvPortee" data-v="semaine" aria-pressed="' + (portee === 'semaine') + '">Semaine</button></div></div>' +
       '<p class="discret" style="margin:0 0 8px">' + (portee === 'jour' ? majuscule(dateLongue(S.ui.jour)) : 'Semaine du ' + dateCourte(dates[0])) +
       ' : ' + couv.length + ' commune' + (couv.length > 1 ? 's' : '') + ' couverte' + (couv.length > 1 ? 's' : '') + ' sur ' + cv.length + '.</p>';
+    if (!ouverte) return h + '<button type="button" class="bouton petit bouton-large" data-a="couvOuvrir">Voir la carte et les communes</button></section>';
     h += carteCouverture(dates, mes, eq);
     h += segment('Filtre', 'couvFiltre', [['toutes', 'Toutes'], ['couvertes', 'Couvertes · ' + couv.length], ['non', 'Non couvertes · ' + non.length]], S.ui.couvFiltre);
     var liste = S.ui.couvFiltre === 'couvertes' ? couv : (S.ui.couvFiltre === 'non' ? non : cv);
@@ -995,7 +999,8 @@
       var liste = duJour.filter(function (p) { return p.creneau === cren; });
       if (!liste.length) return;
       h += '<div class="creneau-titre">' + cren + '</div><ol class="ligne">';
-      liste.forEach(function (p) {
+      liste.forEach(function (p0) {
+        var p = Object.assign({}, p0); if (p.statut === 'À faire') p.statut = '';   // visite pas encore faite
         var ko = p.statut && estKo(p.statut);
         h += '<li class="arret' + (p.statut ? (ko ? ' absent' : ' fait') : '') + '" data-p="' + (+p.note === 3 ? 1 : 3) + '">' +
           '<div class="arret-heure"><b>' + esc(p.heure || '--:--') + '</b><small>' + esc(p.debut) + '-' + esc(p.fin) + '</small></div>' +
@@ -2061,6 +2066,7 @@
     partagerTexte: function () { navigator.share({ title: 'Programme de tournée', text: S.ui.feuille.texte }).catch(function () {}); },
     fermerFeuille: function () { S.ui.feuille = null; rendre(); },
     couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; rendre(); },
+    couvOuvrir: function () { S.ui.couvOuverte = !S.ui.couvOuverte; LS.set('couvOuverte', S.ui.couvOuverte); rendre(); },
     couvFiltre: function (el) { S.ui.couvFiltre = el.dataset.v; rendre(); },
     // Communes
     choisirCommunes: function (el) {

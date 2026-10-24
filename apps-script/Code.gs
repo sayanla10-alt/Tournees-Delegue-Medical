@@ -565,6 +565,8 @@ function publierPlanning(b) {
         if (c[0] === 'delegue') return delegue;
         if (c[0] === 'maj') return maj;
         if (c[0] === 'depuis') return depuis;
+        if (c[0] === 'etat' && !a.etat) return 'Prévu';          // visite pas encore faite
+        if (c[0] === 'statut' && !a.statut) return 'À faire';
         var v = a[c[0]];
         return v === undefined || v === null ? '' : String(v);
       });
@@ -648,21 +650,35 @@ function completerPlannings(ss) {
   var sh = ss.getSheetByName(FEUILLES.plannings), n = sh ? sh.getLastRow() - 1 : 0;
   if (n < 1) return 0;
   var tz = ss.getSpreadsheetTimeZone();
-  var notes = {};
-  lireObjets(ss.getSheetByName(FEUILLES.praticiens), CHAMPS_PRATICIENS, tz).forEach(function (p) { notes[p.code] = lireNote(p.note); });
+  var notes = {}, specs = {}, noms = {};
+  lireObjets(ss.getSheetByName(FEUILLES.praticiens), CHAMPS_PRATICIENS, tz).forEach(function (p) { notes[p.code] = lireNote(p.note); specs[p.code] = p.specialite; noms[p.code] = p.nom; });
   var parCode = {};
   lireObjets(ss.getSheetByName(FEUILLES.presences), CHAMPS_PRESENCES, tz).forEach(function (p) { (parCode[p.code] = parCode[p.code] || []).push(p); });
   var data = sh.getRange(2, 1, n, CHAMPS_PLAN.length).getDisplayValues(), modif = 0;
   function i(k) { return indexChamp(CHAMPS_PLAN, k); }
   data.forEach(function (l) {
-    if (!l[i('delegue')] || l[i('idPresence')]) return;
+    if (!l[i('delegue')]) return;
+    if (!l[i('etat')]) { l[i('etat')] = 'Prévu'; modif++; }
+    if (!l[i('statut')]) { l[i('statut')] = 'À faire'; modif++; }
+    // ancienne version : date de ciblage reprise de la date de mise à jour (priorité au premier arrivé)
+    if (!l[i('depuis')] && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(l[i('maj')])) { l[i('depuis')] = l[i('maj')].replace(' ', 'T') + ':00.000Z'; modif++; }
+    ['specialite', 'nom'].forEach(function (k) {
+      var src = k === 'nom' ? noms : specs;
+      if (!l[i(k)] && src[l[i('code')]]) { l[i(k)] = src[l[i('code')]]; modif++; }
+    });
+    if (l[i('idPresence')] && l[i('debut')] && l[i('note')] && l[i('programme')] && l[i('quartier')] && l[i('lieu')]) return;
     var j = jourSemaineIndex(versIso(l[i('date')], tz)), cren = l[i('creneau')] || 'Matin';
     if (j > 4) return;
-    var pres = (parCode[l[i('code')]] || []).filter(function (p) { var d = lireDispo(p[JOURS_CLES[j]]); return cren === 'Soir' ? d.soir : d.matin; })[0];
+    var lieux = parCode[l[i('code')]] || [];
+    // lieu où le praticien est présent ce jour-là à ce créneau ; à défaut, son premier lieu connu
+    var pres = lieux.filter(function (p) { var d = lireDispo(p[JOURS_CLES[j]]); return cren === 'Soir' ? d.soir : d.matin; })[0] || lieux[0];
     if (pres) {
       var h = lireHoraire(cren === 'Soir' ? pres.horaireSoir : pres.horaireMatin, cren === 'Soir' ? REGLAGES_MOTEUR.horaireSoirDefaut : REGLAGES_MOTEUR.horaireMatinDefaut);
-      l[i('idPresence')] = String(pres.id); l[i('debut')] = minutesVersHeure(h[0]); l[i('fin')] = minutesVersHeure(h[1]);
+      if (!l[i('idPresence')]) { l[i('idPresence')] = String(pres.id); l[i('debut')] = minutesVersHeure(h[0]); l[i('fin')] = minutesVersHeure(h[1]); }
       if (!l[i('lieu')]) l[i('lieu')] = pres.lieu;
+      if (!l[i('quartier')]) l[i('quartier')] = pres.quartier;
+      if (!l[i('heure')]) l[i('heure')] = l[i('debut')];
+      if (!l[i('commune')]) l[i('commune')] = pres.commune;
     }
     if (!l[i('note')]) l[i('note')] = String(notes[l[i('code')]] || 2);
     if (!l[i('programme')]) l[i('programme')] = 'Proposition';

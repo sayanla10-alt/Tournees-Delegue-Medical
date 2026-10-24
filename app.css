@@ -389,6 +389,9 @@ h3 { font: 700 18px/1.2 var(--titre); margin: 18px 0 8px; }
 
 /* ------------------------------------------------------------- Couverture */
 .couverture h3 { margin: 0; }
+.couverture .groupe-bascule small { margin-left: 4px; }
+.couverture[aria-expanded] {}
+.couv-tete .groupe-bascule[aria-expanded="true"] svg { transform: rotate(180deg); }
 .couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 .carte { width: 100%; height: auto; display: block; background: var(--carte-fond); border-radius: 8px; margin-bottom: 6px; }
 .carte text { font: 700 8.5px var(--titre); fill: var(--carte-texte); text-anchor: middle; paint-order: stroke; stroke: var(--carte-fond); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }

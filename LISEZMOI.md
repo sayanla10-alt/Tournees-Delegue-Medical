@@ -1,4 +1,4 @@
-# MediPlanner v2.0.6 Enterprise (anciennement « Tournées »)
+# MediPlanner v2.0.7 Enterprise (anciennement « Tournées »)
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 

@@ -1,8 +1,9 @@
 {
-  "version": "2.0.6",
+  "version": "2.0.7",
   "edition": "Enterprise",
   "date": "2026-10-24",
   "notes": [
+    "Couverture repliée par défaut sous la tournée",
     "Compte rendu : produits présentés et prochaine étape",
     "Trajets réalistes (heures de pointe, ponts), jours fériés et absences respectés",
     "Lieux où le praticien est souvent absent signalés ; nom du délégué choisi dans une liste ; Historique dans Stats",
