@@ -1,9 +1,7 @@
 {
-  "version": "3.8.2",
+  "version": "3.8.3",
   "date": "2026-10-24",
   "notes": [
-    "Planifier : bouton « Planifier » et planification une option à la fois, comme le compte rendu",
-    "Période, Communes ciblées, Praticiens à visiter, Spécialités, Potentiel, Rythme, RDV",
-    "Chaque réponse se replie en une ligne modifiable"
+    "Recherche : un bouton « Recherche » déploie les critères, « Fermer la recherche » les replie, comme Planifier"
   ]
 }

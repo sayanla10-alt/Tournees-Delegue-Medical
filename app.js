@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.8.2';
+  var APP_VERSION = '3.8.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.8.3', ['Recherche : comme Planifier, un résumé des critères et un bouton « Recherche » qui déploie la recherche ; « Fermer la recherche » la replie']],
     ['3.8.2', ['Planifier : bouton « Planifier » (ex-Réglages) ; la planification de la tournée se fait une option à la fois : Période, Communes ciblées, Praticiens à visiter, Spécialités, Potentiel, Rythme de visite, RDV et prioritaires', 'Chaque réponse se replie en une ligne modifiable ; « Proposer ma tournée » apparaît une fois les questions répondues', '« Reprendre un ancien programme » reste accessible à tout moment']],
     ['3.8.1', ['Recherche et Autour de moi : les critères sont posés une question à la fois, comme le compte rendu (Qui ? puis Quelle spécialité ? puis Où ? puis Quelle valeur ? puis Quel suivi ? puis Dans quel ordre ?)', 'Chaque réponse se replie en une ligne modifiable ; à la fin, une seule ligne « Critères » résume tout', 'Les raccourcis restent à la première question et mènent directement aux résultats']],
     ['3.8.0', ['Recherche et Autour de moi : filtres rangés dans l\'ordre des questions : Qui ? Quelle spécialité ? Où ? Quelle valeur ? Quel suivi ? Dans quel ordre ?', 'Une puce par question, qui affiche sa valeur et ouvre uniquement cette question ; « Tous » ouvre l\'ensemble, numéroté de 1 à 6, tri compris', 'Raccourcis d\'un geste conservés sur leur propre ligne ; « Tout effacer » à côté du tri', 'Pharmacies : la puce Spécialité disparaît, vos spécialités restent mémorisées']],
@@ -1987,6 +1988,7 @@
   // Critères posés une question à la fois, comme le compte rendu : les réponses données se replient en une ligne,
   // seule la question en cours est ouverte ; une fois toutes répondues, une seule ligne résume l'ensemble.
   S.ui.etapesF = LS.get('etapesFiltres', {});
+  S.ui.rechOuverte = LS.get('rechOuverte', false);
   function etatEtapes() { var k = cleFiltres(); return S.ui.etapesF[k] || (S.ui.etapesF[k] = { ok: {} }); }
   function sauverEtapes() { LS.set('etapesFiltres', S.ui.etapesF); }
   function puceEtape(k, v, lib, actif, m, auto) {
@@ -2046,7 +2048,7 @@
       // tout est répondu : une seule ligne, dépliable pour modifier une réponse
       if (et.ouvert) h += etapes.map(ligne).join('') + '<button type="button" class="bouton-texte" data-a="etapesBascule">Replier les critères</button>';
       else h += '<button type="button" class="cr-fait criteres-resume" data-a="etapesBascule"><span>Critères</span><b>' +
-        esc(etapes.map(function (e) { return e.resume(); }).filter(function (x) { return x !== 'Toutes' && x !== 'Tous'; }).join(' · ') || 'Aucun') + '</b>' + icone('crayon') + '</button>';
+        esc(etapes.map(function (e) { return e.id === 'ordre' ? 'tri par ' + e.resume().toLowerCase() : e.resume(); }).filter(function (x) { return x !== 'Toutes' && x !== 'Tous'; }).join(' · ') || 'Aucun') + '</b>' + icone('crayon') + '</button>';
       return h + '</div>';
     }
     etapes.forEach(function (e, i) {
@@ -2092,7 +2094,17 @@
     if (io > 0) liste.unshift(liste.splice(io, 1)[0]);
     var h = '<div class="tete-vue"><h2 class="titre-vue">Recherche</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Nouveau</button></div>' +
-      '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>' + barreFiltres(f, S.ui.recherche);
+      '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>';
+    // comme « Planifier » : un résumé et un bouton « Recherche » qui déploie la recherche ; « Fermer » la replie
+    if (S.ui.rechOuverte) {
+      h += '<section class="bloc"><h3 style="margin-top:0">Recherche</h3>' + barreFiltres(f, S.ui.recherche) +
+        '<button class="bouton-texte" type="button" data-a="rechFermer" style="margin-top:4px">Fermer la recherche</button></section>';
+    } else {
+      var res = etapesFiltres(f).map(function (e) { return e.id === 'ordre' ? 'tri par ' + e.resume().toLowerCase() : e.resume(); }).filter(function (x) { return x !== 'Toutes' && x !== 'Tous'; });
+      if (S.ui.recherche) res.unshift('« ' + S.ui.recherche + ' »');
+      h += '<section class="bloc resume-params"><p><b>Critères de recherche</b><span class="discret">' + esc(res.join(' · ') || 'Aucun : tous les praticiens') + '</span></p>' +
+        '<button class="bouton" data-a="rechOuvrir" type="button">' + icone('loupe') + 'Recherche</button></section>';
+    }
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
     if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer et recommencer</button></div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères. Retirez un filtre.</div>';
@@ -3448,6 +3460,8 @@
       if (el.dataset.auto) { etatEtapes().ok[el.dataset.auto] = true; sauverEtapes(); }
       rendre();
     },
+    rechOuvrir: function () { S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre(); },
+    rechFermer: function () { S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre(); window.scrollTo(0, 0); },
     etapeOk: function (el) { etatEtapes().ok[el.dataset.v] = true; sauverEtapes(); rendre(); },
     etapePasser: function (el) {
       var f = filtresCour(), vide = JSON.parse(JSON.stringify(FILTRES_VIDES));
