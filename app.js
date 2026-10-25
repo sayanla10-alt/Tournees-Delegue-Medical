@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.13.0';
+  var APP_VERSION = '3.13.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.13.1', ['Jour passé hors de la tournée en cours : les visites prévues sans compte rendu s\'ouvrent avec le compte rendu pas à pas (visite faite, produits présentés…), comme dans la tournée']],
     ['3.13.0', ['Aujourd\'hui, écran de terrain : la date sous le titre, une seule bande de la semaine, la synthèse et la progression du compte rendu du jour',
                '« Maintenant » : la visite suivante avec ses actions, les comptes rendus à saisir, puis la finalisation de la journée',
                'Chaque visite tient sur une ligne avec son état (faite, non faite, à saisir, à venir) ; une visite non faite se remplace directement par un praticien disponible, son compte rendu est gardé',
@@ -124,6 +125,8 @@
       catch (e) { return d; }
     },
     set: function (k, v) {
+      // les visites d'un jour hors tournée (compte rendu saisi après coup) sont gardées avec la tournée
+      if (k === 'plan' && typeof S !== 'undefined' && S && S.horsPlan) { try { localStorage.setItem(PREFIXE + 'horsPlan', JSON.stringify(S.horsPlan)); } catch (e) {} }
       try { localStorage.setItem(PREFIXE + k, JSON.stringify(v)); }
       catch (e) { toast('Mémoire du téléphone pleine : certaines données n\'ont pas été enregistrées.'); }
     },
@@ -909,6 +912,17 @@
     if (arch[d] && arch[d].length) return arch[d];
     return ((S.data && S.data.plannings) || []).filter(function (x) { return x.date === d && x.delegue && estMoi(x.delegue); });
   }
+  // visite prévue un jour hors de la tournée en cours (passé ou aujourd'hui) : carte avec compte rendu, gardée à part
+  S.horsPlan = LS.get('horsPlan', []).filter(function (a) { return a.date >= ajouterJours(aujourdhui(), -70); });
+  function arretHors(x, d) {
+    var uid = 'H-' + d + '-' + x.code, a = S.horsPlan.filter(function (y) { return y.uid === uid; })[0];
+    if (a) return a;
+    var pr = praticien(x.code) || {}, cr = x.idPresence && ctx().parCode[x.code] ? ctx().parCode[x.code].filter(function (c) { return String(c.idPresence) === String(x.idPresence); })[0] : null;
+    a = { uid: uid, hors: true, date: d, heure: x.heure || '', creneau: x.creneau || (cr ? cr.creneau : ''), debut: x.debut || (cr ? minutesVersHeure(cr.debut) : ''), fin: x.fin || (cr ? minutesVersHeure(cr.fin) : ''),
+      idPresence: x.idPresence || '', code: x.code, nom: x.nom || pr.nom || x.code, type: pr.type || x.type || 'Médecin', specialite: x.specialite || pr.specialite || '',
+      note: x.note || pr.note, conventionne: pr.conventionne, quartier: x.quartier || '', commune: x.commune || '', lieu: x.lieu || '', lat: cr && cr.coord ? cr.coord.lat : '', lon: cr && cr.coord ? cr.coord.lon : '', etat: 'propose' };
+    S.horsPlan.push(a); return a;
+  }
   function rendreJourHors(d) {
     var t = aujourdhui(), prevus = programmeDuJour(d).slice().sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
     var faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)); });
@@ -920,7 +934,16 @@
         (d < t ? 'Ni tournée archivée ni compte rendu pour cette date.' : 'Aucune tournée publiée pour cette date.') +
         (d >= t ? '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier</button>' : '') + '</div>';
     }
+    // passé ou aujourd'hui : les visites prévues sans compte rendu se complètent ici, comme dans la tournée
+    var aCompleter = d <= t ? lignes.filter(function (l) { return !l.v && !l.hors; }).map(function (l) { return arretHors(l.x, d); }) : [];
+    var enAttente = aCompleter.filter(function (a) { return a.etat !== 'valide'; });
+    lignes = lignes.filter(function (l) { return !(d <= t && !l.v && !l.hors) || aCompleter.filter(function (a) { return a.code === l.x.code && a.etat === 'valide'; }).length; });
     var nf = lignes.filter(function (l) { return l.v && Moteur.estVisite(l.v.statut, statuts()); }).length;
+    if (enAttente.length) {
+      h += '<div class="bandeau"><p><b>' + enAttente.length + ' visite' + (enAttente.length > 1 ? 's' : '') + ' sans compte rendu.</b> Touchez une visite pour saisir son compte rendu (visite faite ou non, produits présentés…).</p></div>' +
+        '<ol class="ligne">' + enAttente.map(rendreArret).join('') + '</ol>';
+    }
+    if (!lignes.length) return h;
     h += '<p class="bilan-jour"><b>' + lignes.length + ' visite' + (lignes.length > 1 ? 's' : '') + '</b>' + (d <= t ? ', ' + nf + ' faite' + (nf > 1 ? 's' : '') : ' prévue' + (lignes.length > 1 ? 's' : '')) + '.</p>';
     h += '<ul class="liste">' + lignes.map(function (l) {
       var x = l.x, v = l.v, e = '';
@@ -1861,7 +1884,7 @@
             '<span class="arret-lieu">' + esc(a.quartier) + ', ' + esc(a.commune) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : '<span class="arret-lieu">' + esc([a.lieu, a.quartier].filter(Boolean).join(', ')) + '</span>' + ligneEtat(a)) +
         '</button>' +
-        (!ouvert && a.statut && estKo(a.statut) && a.date <= aujourdhui() ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
+        (!ouvert && !a.hors && a.statut && estKo(a.statut) && a.date <= aujourdhui() ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
     if (ouvert) {
       var pa = praticien(a.code) || {};
       h += '<div class="arret-detail">' +
@@ -1869,7 +1892,8 @@
       if (!verrou) {
         h += rendreCompteRendu(a);
         var cf = conflitArret(a);
-        h += cf ? questionConflit(a, cf) : '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
+        h += a.hors ? '<div class="rangee-actions bas-carte"><button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>' :
+          cf ? questionConflit(a, cf) : '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
           '<button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else {
         h += '<div class="cr-enregistre"><div class="tete-bloc"><h3>' + icone('valider') + 'Compte rendu enregistré</h3>' +
@@ -3372,7 +3396,7 @@
   }
 
   // ------------------------------------------------------------------ Actions sur la tournée
-  function arret(uid) { return S.plan.filter(function (a) { return a.uid === uid; })[0]; }
+  function arret(uid) { return S.plan.filter(function (a) { return a.uid === uid; })[0] || (S.horsPlan || []).filter(function (a) { return a.uid === uid; })[0]; }
 
   function reordonner(date) {
     var autres = S.plan.filter(function (a) { return a.date !== date; });
@@ -3485,7 +3509,7 @@
     return JSON.stringify([c, a.statut || '', a.commentaire || '', a.produits || '', a.prochaine || '', a.activite || '']);
   }
   function validerVisites(uid) {
-    var aValider = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide' && (!uid || a.uid === uid); });
+    var aValider = S.plan.concat(S.horsPlan || []).filter(function (a) { return a.statut && a.etat !== 'valide' && (!uid || a.uid === uid); });
     // modification ouverte puis enregistrée sans rien changer : on le dit, rien n'est renvoyé
     var inchanges = aValider.filter(function (a) { if (a.cr) syncCr(a); return a.corrige && a.empreinte && a.empreinte === empreinteCr(a); });
     inchanges.forEach(function (a) { a.etat = 'valide'; delete a.corrige; delete a.empreinte; });
@@ -3966,6 +3990,7 @@
     crRemplacer: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       syncCr(a); validerVisites(a.uid);
+      if (a.hors) return;   // jour passé hors tournée : pas de remplacement après coup
       S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true }; rendre();
     },
     produit: function (el) {

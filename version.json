@@ -1,9 +1,9 @@
 {
-  "version": "3.13.0",
+  "version": "3.13.1",
   "date": "2026-10-24",
   "notes": [
+    "Compte rendu possible sur les visites d'un jour passé hors de la tournée en cours",
     "Aujourd'hui : écran de terrain, une ligne par visite, « Maintenant »",
-    "Compte rendu de la journée rempli automatiquement, complété, envoyé",
-    "Remplacer une visite non faite par un praticien disponible"
+    "Compte rendu de la journée rempli automatiquement, complété, envoyé"
   ]
 }
