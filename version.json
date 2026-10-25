@@ -1,8 +1,8 @@
 {
-  "version": "3.15.0",
+  "version": "3.16.0",
   "date": "2026-10-25",
   "notes": [
-    "Onglet Produits : 15 produits ajoutés",
-    "Filtres « Angor » et « Métabolisme »"
+    "Option « Saisir les jours à venir » (Réglages › Avancé)",
+    "15 produits ajoutés dans Produits"
   ]
 }

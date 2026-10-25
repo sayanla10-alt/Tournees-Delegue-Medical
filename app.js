@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.15.0';
+  var APP_VERSION = '3.16.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.16.0', ['Réglages › Avancé › Saisie : option « Saisir les jours à venir » (désactivée par défaut, les jours futurs restent en aperçu)']],
     ['3.15.0', ['Onglet Produits : 15 produits ajoutés (Zyltan, Lesstrol AM et EZ, Rozukaa F, A et Gold, Telmikaa AM, H, AMH et CT, Antiplatt Plus, Myonit SR, Orlitroy, Troynuron, Lesskaa)', 'Nouveaux filtres « Angor » et « Métabolisme »']],
     ['3.14.0', ['L\'onglet « Aujourd\'hui » devient « Journée » ; l\'étiquette « Aujourd\'hui » s\'affiche à côté du titre le jour même',
                'Cercle de la visite : vide et rouge pour une visite non faite pas encore enregistrée (vert vide pour une visite faite), plein une fois enregistré',
@@ -903,7 +904,7 @@
     var t = aujourdhui(), dates = datesPlan(), tour = dates.indexOf(d) >= 0, etat;
     if (tour) etat = S.programme.etat === 'valide' ? '<span class="etiquette ok">Confirmée</span>' :
       '<button type="button" class="etiquette alerte bouton-etiquette" data-a="nav" data-tab="semaine">Brouillon › Planifier</button>';
-    else etat = d < t ? '<span class="etiquette">' + (passeVerrouille(d) ? 'Lecture seule' : 'Jour passé') + '</span>' : (d > t ? '<span class="etiquette p1">Aperçu</span>' : '');
+    else etat = d < t ? '<span class="etiquette">' + (passeVerrouille(d) ? 'Lecture seule' : 'Jour passé') + '</span>' : (d > t ? '<span class="etiquette p1">' + (futurVerrouille(d) ? 'Aperçu' : 'Jour à venir') + '</span>' : '');
     var l = lundiDe(d), jours = joursOuvres(l);
     return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + (d === t ? ' <span class="etiquette ok jour-du-jour">Aujourd\'hui</span>' : '') + '</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
@@ -973,15 +974,15 @@
   }
   function rendreJourHors(d) {
     var t = aujourdhui(), h = '';
-    if (d <= t) {
-      // jour passé : tout reste modifiable, comme dans la tournée (compte rendu à saisir ou à corriger)
+    if (!futurVerrouille(d)) {
+      // jour passé (ou à venir si la saisie anticipée est activée) : tout reste modifiable, comme dans la tournée (compte rendu à saisir ou à corriger)
       var l = arretsHorsJour(d);
       if (!l.length) return '<div class="vide"><strong>Aucune visite ce jour-là</strong>Ni tournée archivée ni compte rendu pour cette date.</div>';
       var sans = l.filter(function (a) { return !a.statut || a.etat !== 'valide'; }).length, nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
       h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
         (sans ? ' · <b class="txt-alerte">' + sans + ' sans compte rendu</b>' : '') + '</span></div>' +
         '<div class="progression"><i style="width:' + Math.round(100 * (l.length - sans) / l.length) + '%"></i></div>' +
-        '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : 'Touchez une visite pour saisir ou modifier son compte rendu.') + '</small></section>';
+        '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : (d > t ? 'Saisie anticipée activée : touchez une visite pour saisir son compte rendu.' : 'Touchez une visite pour saisir ou modifier son compte rendu.')) + '</small></section>';
       h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';
       if (programmeDuJour(d).length) h += '<div class="rangee-actions pied-jour"><button class="bouton petit" type="button" data-a="ouvrirAnciens">' + icone('relancer') + 'Reprendre ce programme un autre jour</button></div>';
       return h;
@@ -1005,7 +1006,7 @@
     var d = jourAffiche(), t = aujourdhui(), h = enteteJour(d);
     if (S.ui.jourVue) {
       h += d === t ? rendreRappels() : '';
-      if (d <= t) { var lh = arretsHorsJour(d); if (lh.length && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, lh); }
+      if (!futurVerrouille(d)) { var lh = arretsHorsJour(d); if (lh.length && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, lh); }
       h += rendreJourHors(d);
       return h;
     }
@@ -1023,7 +1024,7 @@
       '<div class="progression" role="progressbar" aria-valuemin="0" aria-valuemax="' + duJour.length + '" aria-valuenow="' + renseignees + '"><i style="width:' +
         (duJour.length ? Math.round(100 * renseignees / duJour.length) : 0) + '%"></i></div>' +
       '</section>';
-    if (d <= t && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, duJour);
+    if (!futurVerrouille(d) && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
     ['Matin', 'Soir'].forEach(function (cren) {
       var liste = duJour.filter(function (a) { return a.creneau === cren; });
@@ -1054,7 +1055,7 @@
     var liste = S.ui.jourVue ? arretsHorsJour(d) : S.plan.filter(function (a) { return a.date === d; });
     return '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
       '<h2 class="titre-vue">Compte rendu</h2><p class="sous-titre">' + majuscule(dateLongue(d)) + ' : rempli à partir de vos visites, à compléter puis à valider.</p>' +
-      (d > t ? '<div class="vide"><strong>Journée à venir</strong>Le compte rendu se fait le jour même ou après.</div>' : rendreRapportJour(d, liste, passeVerrouille(d), true));
+      (futurVerrouille(d) ? '<div class="vide"><strong>Journée à venir</strong>Le compte rendu se fait le jour même ou après (ou activez « Saisir les jours à venir » dans Réglages › Avancé).</div>' : rendreRapportJour(d, liste, passeVerrouille(d), true));
   };
 
   // « Maintenant » : ce qu'il y a à faire tout de suite, selon l'heure
@@ -1900,6 +1901,8 @@
 
   // jours passés : modifiables seulement si l'option cachée « Modifier les jours passés » (Réglages › Avancé) est activée
   function passeVerrouille(d) { return d < aujourdhui() && !S.config.modifPasse; }
+  // jours à venir : aperçu seul, sauf option cachée Réglages › Avancé › « Saisir les jours à venir » (3.16.0)
+  function futurVerrouille(d) { return d > aujourdhui() && !S.config.saisieFutur; }
   // état d'une visite en une ligne (carte fermée) : faite + produits, non faite + motif, à saisir, à venir
   function ligneEtat(a) {
     var t = aujourdhui(), now = minutesMaintenant(), hm = heureVersMinutes(a.heure);
@@ -1941,7 +1944,7 @@
             '<span class="arret-lieu">' + esc(a.quartier) + ', ' + esc(a.commune) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : '<span class="arret-lieu">' + esc([a.lieu, a.quartier].filter(Boolean).join(', ')) + '</span>' + ligneEtat(a)) +
         '</button>' +
-        (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && a.date <= aujourdhui() ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
+        (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && !futurVerrouille(a.date) ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
     if (ouvert) {
       var pa = praticien(a.code) || {};
       h += '<div class="arret-detail">' +
@@ -2949,6 +2952,8 @@
     h += '<details class="bloc avance"' + (!c.url || S.ui.erreur ? ' open' : '') + '><summary><b>Avancé</b><span class="discret">Connexion à la base et données du téléphone</span></summary>' +
       '<h3>Saisie</h3><label class="interrupteur"><span>Modifier les jours passés<small class="discret bloc-texte">Saisir ou corriger les comptes rendus des jours précédents</small></span>' +
         '<input type="checkbox" data-f="modifPasse"' + (c.modifPasse ? ' checked' : '') + '></label>' +
+      '<label class="interrupteur"><span>Saisir les jours à venir<small class="discret bloc-texte">Saisir un compte rendu sur un jour futur (sinon simple aperçu)</small></span>' +
+        '<input type="checkbox" data-f="saisieFutur"' + (c.saisieFutur ? ' checked' : '') + '></label>' +
       '<h3>Connexion au Google Sheet</h3>' +
       '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
       '<label class="champ"><span>Jeton d\'accès</span><input type="text" id="cfgToken" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(c.token) + '"></label>' +
@@ -3584,7 +3589,7 @@
     if (!aValider.length) return;
     var t = aujourdhui(), ko = 0, etapes = [];
     aValider.forEach(function (a) {
-      var v = { uid: a.uid, date: a.date > t ? t : a.date, idPresence: a.idPresence, code: a.code, nom: a.nom, type: a.type,
+      var v = { uid: a.uid, date: a.date > t && !S.config.saisieFutur ? t : a.date, idPresence: a.idPresence, code: a.code, nom: a.nom, type: a.type,
                 specialite: a.specialite, note: a.note, commune: a.commune, quartier: a.quartier, lieu: a.lieu,
                 creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '', delegue: moi(),
                 produits: a.produits || '', prochaine: a.prochaine || '', activite: a.activite || '' };
@@ -4359,6 +4364,7 @@
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
+    if (f === 'saisieFutur') { S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie des jours à venir activée.' : 'Jours à venir en aperçu seul.'); }
     if (f === 'modifPasse') { S.config.modifPasse = el.checked; LS.set('config', S.config); toast(el.checked ? 'Modification des jours passés activée.' : 'Jours passés en lecture seule.'); }
     if (f === 'choixNom') { var bloc = $(el.id + 'Bloc'); if (bloc) bloc.hidden = el.value !== '__autre'; }
     if (f === 'tri') { S.ui.tri = el.value; LS.set('tri', S.ui.tri); rendre(); }
