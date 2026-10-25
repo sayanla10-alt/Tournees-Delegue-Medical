@@ -18,7 +18,7 @@ var FEUILLES = {
   praticiens: 'Praticiens', presences: 'Presences', hist: 'Historique', quartiers: 'Quartiers',
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies'
 };
-var VERSION_SERVEUR = '3.5.0';
+var VERSION_SERVEUR = '3.6.0';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -358,7 +358,7 @@ function lireTout(sig, hdepuis) {
   var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   ref.activites = listes.activites; ref.produits = listes.produits; ref.activitesPharmacie = listes.activitesPharmacie;
   empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
-  var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis,
+  var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis, alias: aliasDelegues(),
             plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString() };
   if (sig && sig === empreinte) { r.inchange = true; return r; }
   Object.keys(ref).forEach(function (k) { r[k] = ref[k]; });
@@ -413,6 +413,36 @@ function assurerListes(ss) {
     sh.getRange(1, c2 + 1).setValue('Ajoutez les fêtes musulmanes (fin du Ramadan, Tabaski, Maouloud) chaque année').setFontStyle('italic');
   }
 }
+// ---------------------------------------------------------------- Délégués : fusion de deux noms (ex. une adresse e-mail saisie comme nom)
+// L'ancien nom est remplacé partout (Plannings, Historique, Listes) et reste un alias : un téléphone qui l'utilise encore
+// est renommé automatiquement à la synchronisation, et ses envois sont enregistrés sous le bon nom.
+function aliasDelegues() {
+  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('DELEGUES_ALIAS') || '{}'); } catch (e) { return {}; }
+}
+function nomDelegue(n) {
+  n = String(n || '').trim();
+  var a = aliasDelegues(), k = Object.keys(a).filter(function (x) { return x.toLowerCase() === n.toLowerCase(); })[0];
+  return k ? a[k] : n;
+}
+function fusionnerDelegue(ancien, nouveau) {
+  var ss = SpreadsheetApp.getActive(), n = 0;
+  [FEUILLES.plannings, FEUILLES.hist, FEUILLES.listes].forEach(function (f) {
+    var sh = ss.getSheetByName(f); if (!sh || sh.getLastRow() < 2) return;
+    var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser), c = ent.indexOf(normaliser('Délégué')) >= 0 ? ent.indexOf(normaliser('Délégué')) : ent.indexOf(normaliser('Délégués'));
+    if (c < 0) return;
+    var r = sh.getRange(2, c + 1, sh.getLastRow() - 1, 1), v = r.getValues(), vus = {};
+    v.forEach(function (l) {
+      if (String(l[0]).trim().toLowerCase() === ancien.toLowerCase()) { l[0] = nouveau; n++; }
+      if (f === FEUILLES.listes) { var k = String(l[0]).trim(); if (k && vus[k]) l[0] = ''; vus[k] = true; }
+    });
+    if (f === FEUILLES.listes) { var noms = v.map(function (l) { return l[0]; }).filter(function (x) { return x !== ''; }); v = v.map(function (l, i) { return [noms[i] || '']; }); }
+    r.setValues(v);
+  });
+  var a = aliasDelegues(); a[ancien] = nouveau;
+  PropertiesService.getScriptProperties().setProperty('DELEGUES_ALIAS', JSON.stringify(a));
+  return n;
+}
+
 // ---------------------------------------------------------------- Migration 3.5.0 (une seule fois)
 // Listes : statuts et CompteCommeVisite, activités médecins et pharmacies, produits, délégués.
 // Données : anciens statuts et anciennes activités convertis (Historique, Praticiens, Pharmacies, Plannings).
@@ -492,7 +522,10 @@ function lireListes(ss, tz) {
 function lireEquipe() {
   var ss = SpreadsheetApp.getActive();
   assurerStructure(ss);
+  // listes de référence renvoyées aussi : produits, activités, statuts et délégués suivent la base en temps réel
+  var listes = lireListes(ss, ss.getSpreadsheetTimeZone());
   return { ok: true, plannings: lirePlannings(ss, ss.getSpreadsheetTimeZone(), JOURS_PLANNINGS_EQUIPE),
+           listes: { produits: listes.produits, activites: listes.activites, activitesPharmacie: listes.activitesPharmacie, delegues: listes.delegues, statuts: lireStatuts(ss) },
            depuis: ajouterJours(Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd'), -JOURS_PLANNINGS_EQUIPE),
            serveur: new Date().toISOString() };
 }
@@ -614,6 +647,7 @@ function enregistrerVisites(visites) {
     });
     visites.forEach(function (v) {
       if (!v || !v.uid) return;
+      v.delegue = nomDelegue(v.delegue);
       recus.push(v.uid);
       // compte rendu corrigé après enregistrement : la ligne existante est mise à jour
       var correction = !!(v.correction && deja[v.uid] && deja[v.uid] !== true);
@@ -674,7 +708,7 @@ function suiviFeuille(sh) {
 // Remplace la tournée publiée d'un délégué sur la période [debut, fin] et signale
 // les praticiens que d'autres délégués ont déjà prévus la même semaine.
 function publierPlanning(b) {
-  var delegue = String(b.delegue || '').trim();
+  var delegue = nomDelegue(b.delegue);
   if (!delegue) return { ok: false, erreur: 'Indiquez votre nom dans les réglages de l\'application.' };
   var lock = verrouiller();
   try {

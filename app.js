@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.5.1';
+  var APP_VERSION = '3.6.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.6.0', ['Compte rendu pas à pas : une seule question à la fois, la suivante selon la réponse ; les réponses restent en lignes courtes, touchez-les pour modifier', 'Produits, activités, statuts et délégués suivent la base en temps réel (mise à jour chaque minute)', 'Délégués : « yavosylvie10@gmail.com » fusionné avec « Sylvie »']],
     ['3.5.1', ['Compte rendu : « Prochaine étape le » (+7 j, +14 j, +30 j, calendrier) de nouveau toujours visible avant l\'enregistrement']],
     ['3.5.0', ['Comptes rendus guidés par un arbre de décision : « La visite a-t-elle été faite ? » puis, pour les médecins, types, produits présentés et réactions, échantillons, bilan ; pour les pharmacies, interlocuteur, activités, stock par produit, commande, compléments', 'Visite non faite : motif, précision, remplaçant à proximité ; produits, stocks et discussion masqués', 'Suite : rappel ou RDV confirmé avec date ; seul un RDV confirmé ajoute la visite à la tournée, les rappels s\'affichent dans « Aujourd\'hui »', 'Base mise à jour : statuts, activités médecins et pharmacies, produits (avec Juvamine), délégués ; « Conventionné » devient « Engagé »']],
     ['3.4.0', ['Équipe : choisissez un jour ou une semaine (flèches ou date) et voyez ce qui a été planifié et fait par vous et vos collègues, avec « Toute l\'équipe »']],
@@ -548,6 +549,10 @@
         hist = hist.slice(0, 1500);
       }
       var base = d.inchange ? ancien : d;
+      // nom de délégué fusionné dans la base (ex. adresse e-mail saisie comme nom) : ce téléphone prend le bon nom
+      if (d.alias && moi()) Object.keys(d.alias).forEach(function (k) {
+        if (k.toLowerCase() === moi().toLowerCase()) { S.config.delegue = d.alias[k]; LS.set('config', S.config); S.ui.aPublier = true; LS.set('aPublier', true); }
+      });
       S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
                  statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [],
                  historique: hist, plannings: d.plannings || [], syncedAt: new Date().toISOString() };
@@ -636,6 +641,8 @@
       // les tournées plus anciennes (statistiques du mois) sont conservées
       var depuis = r.depuis || ajouterJours(aujourdhui(), -14);
       S.data.plannings = (S.data.plannings || []).filter(function (p) { return p.date < depuis; }).concat(r.plannings || []);
+      // listes de la base (produits retirés ou ajoutés, activités, statuts, délégués) prises en compte sans attendre la synchronisation complète
+      if (r.listes) ['produits', 'activites', 'activitesPharmacie', 'delegues', 'statuts'].forEach(function (k) { if (r.listes[k] && r.listes[k].length) S.data[k] = r.listes[k]; });
       LS.set('data', S.data);
       return true;
     }).catch(function () { return false; });
@@ -1152,76 +1159,126 @@
     }).join('') + '</div>';
   }
 
-  function rendreCompteRendu(a) {
-    var c = crDe(a), ph = estPharmacie(a), im = implicite(a, c), cat = produitsRef(), h = '';
-    h += '<div class="etape-cr"><span class="etape-titre">La visite a-t-elle été faite ?</span>' + ouiNonCr(a, 'faite', c.faite) + '</div>';
-    if (!c.faite) return h + '<p class="aide-champ" style="text-align:center;margin:4px 0 12px">Répondez pour remplir le compte rendu.</p>';
+  // ------------------------------------------------------------------ Compte rendu pas à pas (3.6.0)
+  // Une question à la fois : la suivante apparaît selon la réponse. Les réponses données restent en lignes courtes
+  // (touchez pour modifier : les questions suivantes sont reposées). Étapes facultatives : Continuer ou Passer.
+  function etapesCr(a) {
+    var c = crDe(a), ph = estPharmacie(a), im = implicite(a, c), cat = produitsRef(), l = [];
+    function e(id, titre, type, rendu, resume, ok) { l.push({ id: id, titre: titre, type: type, rendu: rendu, resume: resume, valide: ok }); }
+    var oui = function (v) { return v === 'oui' ? 'Oui' : (v === 'non' ? 'Non' : ''); };
+    e('faite', 'La visite a-t-elle été faite ?', 'auto', function () { return ouiNonCr(a, 'faite', c.faite); }, function () { return oui(c.faite); });
+    if (!c.faite) return l;
     if (c.faite === 'non') {
-      h += etapeCr('Motif', choixCr(a, 'motif', motifsPour(a), c.motif));
-      h += etapeCr('Précision (facultatif)', texteCr(a, 'precision', c.precision, ph ? 'Ex. pharmacien en congé jusqu\'à lundi' : 'Ex. en bloc opératoire, revenir après 15 h', true));
-      h += etapeCr('Trouver un remplaçant à proximité ?', choixCr(a, 'remplacant', [['oui', 'Oui'], ['non', 'Non']], c.remplacant));
-      if (c.remplacant === 'oui') {
-        return h + '<div class="actions-cr"><button class="bouton bouton-plein bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '"' + (c.motif ? '' : ' disabled') + '>' +
-          icone('cible') + 'Enregistrer et ouvrir Autour de moi</button>' + (c.motif ? '' : '<span class="aide-champ">Choisissez d\'abord le motif.</span>') + '</div>';
-      }
-      h += rendreSuite(a, c, SUITES.nonFaite);
-      return h + boutonEnregistrer(a);
+      e('motif', 'Motif', 'auto', function () { return choixCr(a, 'motif', motifsPour(a), c.motif); }, function () { return c.motif; });
+      e('precision', 'Précision', 'facultatif', function () { return texteCr(a, 'precision', c.precision, ph ? 'Ex. pharmacien en congé jusqu\'à lundi' : 'Ex. en bloc opératoire, revenir après 15 h', true); },
+        function () { return c.precision || 'aucune'; });
+      e('remplacant', 'Trouver un remplaçant à proximité ?', 'auto', function () { return choixCr(a, 'remplacant', [['oui', 'Oui'], ['non', 'Non']], c.remplacant); }, function () { return oui(c.remplacant); });
+      if (c.remplacant === 'oui') { l.push({ id: '__remplacer', fin: 'remplacer' }); return l; }
+      etapesSuite(a, c, SUITES.nonFaite, e);
+      return l;
     }
     if (!ph) {
-      h += etapeCr('Type(s) de visite', multiCr(a, 'types', activites(), c.types));
-      if (!im.presentes) h += etapeCr('Produits présentés ?', choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes));
+      e('types', 'Type(s) de visite', 'continuer', function () { return multiCr(a, 'types', activites(), c.types); }, function () { return (c.types || []).join(', '); },
+        function () { return (c.types || []).length ? '' : 'choisissez au moins un type'; });
+      if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes); }, function () { return oui(c.presentes); });
       if (c.presentes === 'oui' || im.presentes) {
-        h += etapeCr('Produits présentés', multiCr(a, 'produits', cat, c.produits) +
-          '<input type="text" list="listeProduits" data-f="cr" data-uid="' + a.uid + '" data-k="autres" value="' + esc(c.autres || '') + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits());
-        var pres = produitsPresentes(c);
-        if (pres.length) h += etapeCr('Réaction du médecin', '<div class="table-produits">' + pres.map(function (p) {
-          return '<label class="ligne-produit"><span>' + esc(p) + '</span>' + selectCr(a, 'reactions.' + p, REACTIONS, c.reactions[p], 'Réaction…') + '</label>';
-        }).join('') + '</div>');
+        e('produits', 'Produits présentés', 'continuer', function () {
+          return multiCr(a, 'produits', cat, c.produits) + '<input type="text" list="listeProduits" data-f="cr" data-uid="' + a.uid + '" data-k="autres" value="' + esc(c.autres || '') +
+            '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits();
+        }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
+        e('reactions', 'Réaction du médecin', 'continuer', function () {
+          return '<div class="table-produits">' + produitsPresentes(c).map(function (p) {
+            return '<label class="ligne-produit"><span>' + esc(p) + '</span>' + selectCr(a, 'reactions.' + p, REACTIONS, c.reactions[p], 'Réaction…') + '</label>';
+          }).join('') + '</div>';
+        }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
       }
-      if (!im.echant) h += etapeCr('Échantillons remis ?', choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant));
-      if (c.echant === 'oui' || im.echant) h += etapeCr('Échantillons remis (quantités)', tableQ(a, 'echQ', cat, c.echQ));
-      h += etapeCr('Bilan (facultatif)', texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true));
-      h += rendreSuite(a, c, SUITES.medecin);
-    } else {
-      h += etapeCr('Interlocuteur', choixCr(a, 'interlocuteur', INTERLOCUTEURS, c.interlocuteur));
-      h += etapeCr('Activité(s)', multiCr(a, 'types', activitesPharmacie(), c.types));
-      if (!im.stocks) h += etapeCr('Stocks vérifiés ?', choixCr(a, 'stocksVerif', [['oui', 'Oui'], ['non', 'Non']], c.stocksVerif));
-      if (c.stocksVerif === 'oui' || im.stocks) {
-        h += etapeCr('Stock par produit', '<div class="table-produits">' + cat.map(function (p) {
+      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant); }, function () { return oui(c.echant); });
+      if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', cat, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
+      e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
+      etapesSuite(a, c, SUITES.medecin, e);
+      return l;
+    }
+    e('interlocuteur', 'Interlocuteur', 'auto', function () { return choixCr(a, 'interlocuteur', INTERLOCUTEURS, c.interlocuteur); }, function () { return c.interlocuteur; });
+    e('types', 'Activité(s)', 'continuer', function () { return multiCr(a, 'types', activitesPharmacie(), c.types); }, function () { return (c.types || []).join(', '); },
+      function () { return (c.types || []).length ? '' : 'choisissez au moins une activité'; });
+    if (!im.stocks) e('stocksVerif', 'Stocks vérifiés ?', 'auto', function () { return choixCr(a, 'stocksVerif', [['oui', 'Oui'], ['non', 'Non']], c.stocksVerif); }, function () { return oui(c.stocksVerif); });
+    if (c.stocksVerif === 'oui' || im.stocks) {
+      e('stocks', 'Stock par produit', 'continuer', function () {
+        return '<div class="table-produits">' + cat.map(function (p) {
           var s = c.stocks[p] || {};
           return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="stock-champs">' + selectCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, 'État…') +
             qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</div>' +
             (s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="stock-champs">' + selectCr(a, 'stocks.' + p + '.anomalie', ANOMALIES, s.anomalie, 'Aucune anomalie') +
               (s.anomalie ? '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot">' : '') + '</div>' : '') + '</div>';
-        }).join('') + '</div>' + texteCr(a, 'autresStock', c.autresStock, 'Autres produits et état, ex. Doliprane rupture'),
-          'Rupture, non référencé et non vérifié sont distincts. Une commande ne modifie pas le stock avant réception.');
-      }
-      if (!im.commande) h += etapeCr('Commande passée ?', choixCr(a, 'commande', [['oui', 'Oui'], ['non', 'Non']], c.commande));
-      if (c.commande === 'oui' || im.commande) h += etapeCr('Commande (quantités)', tableQ(a, 'cmdQ', cat, c.cmdQ));
-      else if (c.commande === 'non') h += etapeCr('Besoin de réapprovisionnement (si exprimé)', multiCr(a, 'besoin', cat, c.besoin) + texteCr(a, 'besoinTexte', c.besoinTexte, 'Autres besoins'));
-      var t = c.types || [];
-      if (t.indexOf('Échantillons') >= 0) h += etapeCr('Échantillons (quantités)', tableQ(a, 'echQ', cat, c.echQ));
-      if (t.indexOf('Retour ou échange') >= 0) h += etapeCr('Retour ou échange', tableQ(a, 'retourQ', cat, c.retourQ) + texteCr(a, 'retourMotif', c.retourMotif, 'Motif du retour ou de l\'échange'));
-      var act = t.filter(function (x) { return ['PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
-      if (act.length) h += etapeCr(act.join(', ') + ' : action et produits', texteCr(a, 'action', c.action, 'Ex. présentoir installé, équipe formée sur Rozukaa') + multiCr(a, 'actionProduits', cat, c.actionProduits));
-      h += etapeCr('Commentaire (facultatif)', texteCr(a, 'commentaire', c.commentaire, 'Demande du pharmacien, concurrence, prix…', true));
-      h += rendreSuite(a, c, SUITES.pharmacie);
+        }).join('') + '</div>' + texteCr(a, 'autresStock', c.autresStock, 'Autres produits et état, ex. Doliprane rupture') +
+          '<span class="aide-champ">Rupture, non référencé et non vérifié sont distincts. Une commande ne modifie pas le stock avant réception.</span>';
+      }, function () { var r = champsCr(a).stocks; return r || 'aucun produit renseigné'; });
     }
-    return h + boutonEnregistrer(a);
+    if (!im.commande) e('commande', 'Commande passée ?', 'auto', function () { return choixCr(a, 'commande', [['oui', 'Oui'], ['non', 'Non']], c.commande); }, function () { return oui(c.commande); });
+    if (c.commande === 'oui' || im.commande) e('cmdQ', 'Commande (quantités)', 'continuer', function () { return tableQ(a, 'cmdQ', cat, c.cmdQ); }, function () { return listeQ(c.cmdQ) || 'aucune quantité'; });
+    else if (c.commande === 'non') e('besoin', 'Besoin de réapprovisionnement', 'facultatif', function () { return multiCr(a, 'besoin', cat, c.besoin) + texteCr(a, 'besoinTexte', c.besoinTexte, 'Autres besoins'); },
+      function () { var b = (c.besoin || []).concat(c.besoinTexte ? [c.besoinTexte] : []); return b.length ? b.join(', ') : 'aucun'; });
+    var t = c.types || [];
+    if (t.indexOf('Échantillons') >= 0) e('echQ', 'Échantillons (quantités)', 'continuer', function () { return tableQ(a, 'echQ', cat, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
+    if (t.indexOf('Retour ou échange') >= 0) e('retour', 'Retour ou échange', 'continuer', function () { return tableQ(a, 'retourQ', cat, c.retourQ) + texteCr(a, 'retourMotif', c.retourMotif, 'Motif du retour ou de l\'échange'); },
+      function () { return (listeQ(c.retourQ) || 'aucune quantité') + (c.retourMotif ? ' (' + c.retourMotif + ')' : ''); });
+    var act = t.filter(function (x) { return ['PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
+    if (act.length) e('action', act.join(', ') + ' : action et produits', 'continuer', function () { return texteCr(a, 'action', c.action, 'Ex. présentoir installé, équipe formée sur Rozukaa') + multiCr(a, 'actionProduits', cat, c.actionProduits); },
+      function () { return [c.action].concat(c.actionProduits || []).filter(Boolean).join(', ') || 'non précisé'; });
+    e('commentaire', 'Commentaire', 'facultatif', function () { return texteCr(a, 'commentaire', c.commentaire, 'Demande du pharmacien, concurrence, prix…', true); }, function () { return c.commentaire || 'aucun'; });
+    etapesSuite(a, c, SUITES.pharmacie, e);
+    return l;
   }
-  function rendreSuite(a, c, options) {
-    var h = etapeCr('Suite', choixCr(a, 'suite', options, c.suite));
-    if (c.suite === 'aucune') return h;
-    h += etapeCr('Rappel ou RDV confirmé ?', choixCr(a, 'suiteType', [['rappel', 'Rappel'], ['rdv', 'RDV confirmé']], c.suiteType));
-    // « Prochaine étape le » toujours visible, à sa place habituelle (avant l'enregistrement)
-    h += etapeCr('Prochaine étape le', '<div class="rangee-prochaine">' + [7, 14, 30].map(function (n) {
+  function etapesSuite(a, c, options, e) {
+    var lib = function (v) { return ((options.filter(function (o) { return o[0] === v; })[0]) || [])[1] || ''; };
+    e('suite', 'Suite', 'auto', function () { return choixCr(a, 'suite', options, c.suite); }, function () { return lib(c.suite); });
+    if (!c.suite || c.suite === 'aucune') return;
+    e('suiteType', 'Rappel ou RDV confirmé ?', 'auto', function () { return choixCr(a, 'suiteType', [['rappel', 'Rappel'], ['rdv', 'RDV confirmé']], c.suiteType); },
+      function () { return c.suiteType === 'rdv' ? 'RDV confirmé' : 'Rappel'; });
+    e('date', 'Prochaine étape le', 'auto', function () {
+      return '<div class="rangee-prochaine">' + [7, 14, 30].map(function (n) {
         var d = ajouterJours(a.date, n);
         return '<button type="button" class="puce" data-a="crDate" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (c.date === d) + '">+' + n + ' j</button>';
-      }).join('') + '<input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date de la prochaine étape"></div>',
-      c.suiteType === 'rappel' ? 'Rappel : il s\'affiche ce jour-là dans « Aujourd\'hui », sans modifier la tournée.' :
-      'RDV confirmé : ' + (estPharmacie(a) ? 'la pharmacie est placée' : 'le praticien est placé') + ' d\'office ce jour-là dans vos tournées.');
-    return h;
+      }).join('') + '<input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date de la prochaine étape"></div>' +
+        '<span class="aide-champ">' + (c.suiteType === 'rappel' ? 'Rappel : il s\'affiche ce jour-là dans « Aujourd\'hui », sans modifier la tournée.' :
+          'RDV confirmé : ' + (estPharmacie(a) ? 'la pharmacie est placée' : 'le praticien est placé') + ' d\'office ce jour-là dans vos tournées.') + '</span>';
+    }, function () { return c.date ? majuscule(dateLongue(c.date)) : ''; });
   }
+  function rendreCompteRendu(a) {
+    var c = crDe(a), ok = c.ok || (c.ok = {}), h = '<div class="cr-pas">';
+    var etapes = etapesCr(a);
+    for (var i = 0; i < etapes.length; i++) {
+      var s = etapes[i];
+      if (s.fin === 'remplacer') {
+        return h + '<div class="actions-cr"><button class="bouton bouton-plein bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' +
+          icone('cible') + 'Enregistrer et ouvrir Autour de moi</button></div></div>';
+      }
+      if (ok[s.id]) {
+        h += '<button type="button" class="cr-fait" data-a="crEditer" data-uid="' + a.uid + '" data-v="' + s.id + '"><span>' + esc(s.titre) + '</span><b>' + esc(s.resume()) + '</b>' + icone('crayon') + '</button>';
+        continue;
+      }
+      // question en cours : la seule affichée
+      var err = s.valide ? s.valide() : '';
+      h += '<div class="cr-question"><span class="etape-titre">' + esc(s.titre) + (s.type === 'facultatif' ? ' <small>(facultatif)</small>' : '') + '</span>' + s.rendu();
+      if (s.type !== 'auto') {
+        h += '<div class="rangee cr-boutons">' + (s.type === 'facultatif' ? '<button class="bouton" type="button" data-a="crPasser" data-uid="' + a.uid + '" data-v="' + s.id + '">Passer</button>' : '') +
+          '<button class="bouton bouton-plein" type="button" data-a="crOk" data-uid="' + a.uid + '" data-v="' + s.id + '"' + (err ? ' disabled' : '') + '>Continuer</button></div>' +
+          (err ? '<span class="aide-champ">Pour continuer : ' + esc(err) + '.</span>' : '');
+      }
+      return h + '</div></div>';
+    }
+    // toutes les questions sont répondues
+    return h + '</div>' + boutonEnregistrer(a);
+  }
+  // réouvre une étape : elle et les suivantes sont reposées (les réponses restent pré-remplies)
+  function editerEtape(a, id) {
+    var c = crDe(a), l = etapesCr(a), i = l.map(function (s) { return s.id; }).indexOf(id);
+    c.ok = c.ok || {};
+    l.slice(Math.max(i, 0)).forEach(function (s) { delete c.ok[s.id]; });
+    LS.set('plan', S.plan);
+  }
+  function validerEtape(a, id) { var c = crDe(a); c.ok = c.ok || {}; c.ok[id] = true; LS.set('plan', S.plan); }
+
   function boutonEnregistrer(a) {
     var m = manquesCr(a);
     return '<div class="actions-cr">' + (m.length ?
@@ -2841,7 +2898,9 @@
       S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée' };
       rendre();
     },
-    corriger: function (el) { var a = arret(el.dataset.uid); if (!a) return; a.etat = 'correction'; a.corrige = true; S.ui.ouvert = a.uid; LS.set('plan', S.plan); rendre(); },
+    corriger: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return; a.etat = 'correction'; a.corrige = true;
+      var c = crDe(a); c.ok = c.ok || {}; etapesCr(a).forEach(function (x) { if (x.id && x.id.indexOf('__') !== 0) c.ok[x.id] = true; }); S.ui.ouvert = a.uid; LS.set('plan', S.plan); rendre(); },
     ouvrirExport: function () { S.ui.feuille = { type: 'exporter', titre: 'Envoyer la tournée', portee: S.params.mode === 'jour' ? 'jour' : 'semaine' }; rendre(); },
     exportPortee: function (el) { S.ui.feuille.portee = el.dataset.v; rendre(); },
     envoyerWhatsapp: function () { window.open(urlWhatsapp(S.ui.feuille.texte), '_blank', 'noopener'); },
@@ -2974,14 +3033,21 @@
     },
     crChoix: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
-      var c = crDe(a), k = el.dataset.k, cur = k.split('.').reduce(function (o, x) { return o && o[x]; }, c);
-      majCr(a, k, cur === el.dataset.v && k !== 'faite' ? '' : el.dataset.v); rendre();
+      majCr(a, el.dataset.k, el.dataset.v); validerEtape(a, el.dataset.k); rendre();
     },
+    crOk: function (el) { var a = arret(el.dataset.uid); if (!a) return; validerEtape(a, el.dataset.v); rendre(); },
+    crPasser: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var champs = { precision: ['precision'], bilan: ['bilan'], commentaire: ['commentaire'], besoin: ['besoinTexte'] }[el.dataset.v] || [];
+      champs.forEach(function (k) { majCr(a, k, ''); });
+      if (el.dataset.v === 'besoin') crDe(a).besoin = [];
+      syncCr(a); validerEtape(a, el.dataset.v); rendre();
+    },
+    crEditer: function (el) { var a = arret(el.dataset.uid); if (!a) return; editerEtape(a, el.dataset.v); rendre(); },
     crDate: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
-      if (!c.suite) c.suite = c.faite === 'non' ? 'reprogrammer' : 'visite';   // une date implique une suite
-      majCr(a, 'date', c.date === el.dataset.v ? '' : el.dataset.v); rendre();
+      majCr(a, 'date', el.dataset.v); validerEtape(a, 'date'); rendre();
     },
     crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); },
     crRemplacer: function (el) {
@@ -3174,7 +3240,7 @@
     if (f === 'autour') { S.ui.autour[el.dataset.k] = el.value; LS.set('autour', S.ui.autour); rendre(); }
     if (f === 'crSelect') {
       var as = arret(el.dataset.uid);
-      if (as) { if (el.dataset.k === 'date' && el.value && !crDe(as).suite) crDe(as).suite = crDe(as).faite === 'non' ? 'reprogrammer' : 'visite'; majCr(as, el.dataset.k, el.value); rendre(); }
+      if (as) { majCr(as, el.dataset.k, el.value); if (el.dataset.k === 'date' && el.value) validerEtape(as, 'date'); rendre(); }
     }
     if (f === 'cr' && /^(autres)$/.test(el.dataset.k)) rendre();
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }

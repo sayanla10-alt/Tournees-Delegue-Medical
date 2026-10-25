@@ -1,6 +1,6 @@
 # MediPlanner
 
-Version 3.5.1
+Version 3.6.0
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -102,7 +102,7 @@ L'application suit la journée du délégué, en 5 onglets.
 
 **1. Aujourd'hui** (sur le terrain)
 - Les visites du jour dans l'ordre de passage (les praticiens d'un même établissement à la suite, puis les établissements de proche en proche depuis votre point de départ, sans dépasser les horaires de présence), l'heure de la première visite, la fin estimée et l'**itinéraire de la journée**.
-- Touchez une visite : **Appeler, SMS, WhatsApp, Maps**, puis le compte rendu, guidé par un arbre de décision qui commence par **« La visite a-t-elle été faite ? Oui / Non »** :
+- Touchez une visite : **Appeler, SMS, WhatsApp, Maps**, puis le compte rendu, **une question à la fois** (la suivante n'apparaît qu'après la réponse ; les réponses données restent en lignes courtes, touchez-en une pour la modifier ; étapes à choix multiple ou à saisie : **Continuer**, étapes facultatives : **Passer**). L'arbre de décision commence par **« La visite a-t-elle été faite ? Oui / Non »** :
   - **Médecin, Oui** : type(s) de visite → produits présentés ? (avec « Autres produits ») → réaction par produit (intéressé, indécis, non intéressé, demande d'informations, non évalué) → échantillons remis ? (quantités) → bilan facultatif → suite.
   - **Pharmacie, Oui** : interlocuteur → activité(s) → stocks vérifiés ? (par produit : en stock, stock faible, rupture, non référencé, non vérifié ; quantité ; proche péremption ou périmé avec n° de lot) → commande passée ? (quantités, sinon besoin de réapprovisionnement) → compléments selon l'activité (échantillons, retour ou échange, PLV / formation / animation) → commentaire → suite.
   - **Non** : motif → précision facultative → trouver un remplaçant à proximité ? (Oui : enregistre la visite non faite et ouvre Autour de moi) → suite. Produits, stocks et discussion sont masqués.
@@ -125,6 +125,8 @@ L'application suit la journée du délégué, en 5 onglets.
 **4. Équipe** : choisissez **Jour** ou **Semaine**, puis la date (flèches ou calendrier) : pour vous et chaque collègue, ce qui a été planifié et ce qui a été fait (visites faites, non faites, sans compte rendu, hors tournée), avec « Toute l'équipe » pour tout voir ensemble, le détail de chaque visite (type, produits, commentaire) et la carte du jour en bas. Tournées conservées 62 jours.
 
 **5. Bilan** : tableau de bord (taux de réalisation, visites réalisées, objectif, praticiens ★★★ à jour, activité par jour, par commune, par spécialité, par type de visite, par délégué) et **Historique** de toutes les visites.
+
+Les listes de la feuille Listes (produits, activités, statuts, délégués) sont relues chaque minute : un produit retiré disparaît des comptes rendus sans attendre.
 
 **Réglages** (roue dentée) : profil, apparence, partage, installation, mises à jour ; **Avancé** : connexion au Google Sheet, synchronisation, démonstration, effacement des données.
 

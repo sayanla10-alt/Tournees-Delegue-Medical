@@ -1,7 +1,10 @@
 {
-  "version": "3.5.1",
+  "version": "3.6.0",
   "date": "2026-10-24",
   "notes": [
+    "Compte rendu pas à pas : une seule question à la fois, la suivante selon la réponse ; les réponses restent en lignes courtes, touchez-les pour modifier",
+    "Produits, activités, statuts et délégués suivent la base en temps réel (mise à jour chaque minute)",
+    "Délégués : « yavosylvie10@gmail.com » fusionné avec « Sylvie »",
     "Compte rendu : « Prochaine étape le » (+7 j, +14 j, +30 j, calendrier) de nouveau toujours visible avant l'enregistrement",
     "Comptes rendus guidés par un arbre de décision : « La visite a-t-elle été faite ? » puis, pour les médecins, types, produits présentés et réactions, échantillons, bilan ; pour les pharmacies, interlocuteur, activités, stock par produit, commande, compléments",
     "Visite non faite : motif, précision, remplaçant à proximité ; produits, stocks et discussion masqués",
