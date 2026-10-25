@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.11.0';
+  var APP_VERSION = '3.11.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.11.1', ['Produits : disposition compacte, une ligne par gamme avec ses produits en pastilles et un filtre par aire ; la fiche s\'ouvre dans une fenêtre, l\'essentiel visible (indications, contre-indications, arguments), le reste à déplier']],
     ['3.11.0', ['Produits : les produits s\'affichent en grille de 2 ou 3 colonnes par gamme ; la fiche s\'ouvre en pleine largeur, début du texte en haut de l\'écran',
                'Accueil : « Lancer l\'application » en premier (vers Aujourd\'hui), « Voir mon bilan » ensuite ; plus de décompte après une mise à jour',
                'Recherche : le bouton Recherche reprend toujours à la question 1',
@@ -1808,38 +1809,39 @@
     ['precautions', 'Précautions et interactions', 'pre'], ['effets', 'Effets indésirables', 'ei'], ['arguments', 'Arguments clés pour la visite', 'arg']];
   function fichesProduits() { var l = (S.data && S.data.fiches) || []; return l.length ? l : FICHES_PRODUITS_DEFAUT; }
   function lignesFiche(t) { return String(t || '').split(/\n|;\s*(?=[A-ZÉÈÀÂÎÔ])/).map(function (x) { return x.replace(/^[•\-\s]+/, '').trim(); }).filter(Boolean); }
+  // Disposition compacte : une ligne par gamme (nom, molécule) avec ses produits en pastilles ; un filtre par aire thérapeutique.
+  // La fiche ne s'ouvre qu'au toucher d'un produit, dans une fenêtre ; ses rubriques secondaires se déplient à la demande.
+  var AIRES_COURTES = { 'Hypertension artérielle': 'Hypertension', 'Cholestérol et risque cardiovasculaire': 'Cholestérol', 'Troubles du rythme cardiaque': 'Rythme', 'Prévention de la thrombose': 'Antiagrégant' };
+  function gammesProduits(l) {
+    var g = [];
+    l.forEach(function (f) { var x = g.filter(function (y) { return y.nom === f.gamme; })[0]; if (!x) g.push(x = { nom: f.gamme, aire: f.aire, fiches: [] }); x.fiches.push(f); });
+    return g.sort(function (a, b) { var i = ORDRE_AIRES.indexOf(a.aire), j = ORDRE_AIRES.indexOf(b.aire); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
+  }
   VUES.produits = function () {
-    var q = normaliser(S.ui.rechProduit || ''), toutes = fichesProduits();
-    var l = toutes.filter(function (f) { return !q || normaliser([f.produit, f.dci, f.gamme, f.classe, f.indications, f.aire].join(' ')).indexOf(q) >= 0; });
-    var h = '<h2 class="titre-vue">Produits</h2><p class="sous-titre">Votre aide-mémoire de visite : indications, contre-indications et arguments, par gamme.</p>' +
-      '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechProduit" placeholder="Produit, molécule, indication…" value="' + esc(S.ui.rechProduit || '') + '" aria-label="Rechercher un produit"></div></div>';
-    if (!l.length) return h + '<div class="vide"><strong>Aucun produit</strong>Aucune fiche ne correspond à cette recherche.</div>';
-    // une section par aire thérapeutique, les produits en grille, rangés par gamme (la gamme est rappelée sur chaque carte)
-    var gammes = [];
-    l.forEach(function (f) { var g = gammes.filter(function (x) { return x.nom === f.aire; })[0]; if (!g) gammes.push(g = { nom: f.aire || 'Autres', fiches: [] }); g.fiches.push(f); });
-    gammes.sort(function (a, b) { var i = ORDRE_AIRES.indexOf(a.nom), j = ORDRE_AIRES.indexOf(b.nom); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
-    gammes.forEach(function (g) {
-      var ordreG = []; g.fiches.forEach(function (f) { if (ordreG.indexOf(f.gamme) < 0) ordreG.push(f.gamme); });
-      g.fiches.sort(function (a, b) { return ordreG.indexOf(a.gamme) - ordreG.indexOf(b.gamme); });
-      h += '<section class="gamme"><div class="gamme-tete"><h3>' + esc(g.nom) + '</h3><span class="etiquette">' + g.fiches.length + ' produit' + (g.fiches.length > 1 ? 's' : '') + '</span></div><div class="grille-produits">';
-      g.fiches.forEach(function (f) {
-        var ouvert = S.ui.produitOuvert === f.produit || (!!q && l.length === 1);
-        h += '<article class="fiche-produit' + (ouvert ? ' ouverte' : '') + '"><button type="button" class="fiche-tete" data-a="produitOuvrir" data-v="' + esc(f.produit) + '" aria-expanded="' + ouvert + '">' +
-          '<span><em class="fiche-gamme">' + esc(String(f.gamme || '').replace(/\s*\(.*\)$/, '')) + '</em><b>' + esc(f.produit) + '</b><small>' + esc(f.dci) + '</small></span>' + icone('chevron') + '</button>';
-        if (ouvert) {
-          h += '<div class="fiche-corps"><p class="fiche-classe">' + esc(f.classe || '') + '</p>' + SECTIONS_FICHE.map(function (sec) {
-            var it = lignesFiche(f[sec[0]]); if (!it.length) return '';
-            return '<div class="fiche-section ' + sec[2] + '"><h4>' + sec[1] + '</h4><ul>' + it.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
-          }).join('') +
-          '<p class="discret fiche-pied">' + esc(f.laboratoire || '') + (f.sources ? ' · Sources : ' + esc(f.sources) : '') + '</p></div>';
-        }
-        h += '</article>';
-      });
-      h += '</div></section>';
+    var q = normaliser(S.ui.rechProduit || ''), aire = S.ui.aireProduit || '', toutes = fichesProduits();
+    var aires = []; toutes.forEach(function (f) { if (f.aire && aires.indexOf(f.aire) < 0) aires.push(f.aire); });
+    aires.sort(function (a, b) { return ORDRE_AIRES.indexOf(a) - ORDRE_AIRES.indexOf(b); });
+    var l = toutes.filter(function (f) { return (!aire || f.aire === aire) && (!q || normaliser([f.produit, f.dci, f.gamme, f.classe, f.indications, f.aire].join(' ')).indexOf(q) >= 0); });
+    var h = '<h2 class="titre-vue">Produits</h2><p class="sous-titre">Aide-mémoire de visite : touchez un produit pour ouvrir sa fiche.</p>' +
+      '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechProduit" placeholder="Produit, molécule, indication…" value="' + esc(S.ui.rechProduit || '') + '" aria-label="Rechercher un produit"></div></div>' +
+      '<div class="defile" role="group" aria-label="Aire thérapeutique"><button type="button" class="puce" data-a="aireProduit" data-v="" aria-pressed="' + !aire + '">Tous</button>' +
+      aires.map(function (x) { return '<button type="button" class="puce" data-a="aireProduit" data-v="' + esc(x) + '" aria-pressed="' + (aire === x) + '">' + esc(AIRES_COURTES[x] || x) + '</button>'; }).join('') + '</div>';
+    if (!l.length) return h + '<div class="vide"><strong>Aucun produit</strong>Aucune fiche ne correspond.</div>';
+    var aireCourante = null;
+    h += '<div class="liste-gammes">';
+    gammesProduits(l).forEach(function (g) {
+      if (!aire && g.aire !== aireCourante) { aireCourante = g.aire; h += '<div class="aire-titre">' + esc(g.aire || '') + '</div>'; }
+      var nom = String(g.nom || '').replace(/\s*\(.*\)$/, ''), mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
+      h += '<div class="ligne-gamme"><div class="lg-tete"><b>' + esc(nom) + '</b>' + (mol ? '<small>' + esc(mol) + '</small>' : '') + '</div><div class="lg-produits">' +
+        g.fiches.map(function (f) {
+          // dans la ligne de la gamme, le nom de gamme n'est pas répété : « Rozukaa 10 » devient « 10 mg », « Zyltan AM » devient « AM »
+          var court = f.produit.indexOf(nom + ' ') === 0 ? f.produit.slice(nom.length + 1) : f.produit;
+          if (/^\d+$/.test(court)) court += ' mg';
+          return '<button type="button" class="pastille-produit" data-a="produitOuvrir" data-v="' + esc(f.produit) + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
+        }).join('') + '</div></div>';
     });
-    return h + '<p class="discret" style="margin-top:14px">Aide-mémoire résumé des notices officielles des molécules. En cas de doute, la notice de la boîte et l\'avis du médecin font foi. Les fiches se modifient dans la feuille « Fiches produits » du Google Sheet.</p>';
+    return h + '</div><p class="discret" style="margin-top:12px;font-size:12.5px">Résumé des notices officielles des molécules ; la notice de la boîte fait foi. Fiches modifiables dans l\'onglet « Fiches produits » du Google Sheet.</p>';
   };
-
   // ------------------------------------------------------------------ Vue : autour de moi
   VUES.autour = function () {
     var A = S.ui.autour, h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Aujourd\'hui</button>' +
@@ -2673,6 +2675,27 @@
     if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
   }
   var FEUILLES = {};
+  // fiche d'un produit : l'essentiel ouvert (indications, contre-indications, arguments), le reste à déplier
+  FEUILLES.ficheProduit = function (fe) {
+    var f = fichesProduits().filter(function (x) { return x.produit === fe.produit; })[0]; if (!f) return '';
+    var ouvertes = fe.ouvertes || {};
+    var h = '<p class="fp-dci"><b>' + esc(f.dci) + '</b></p><p class="fiche-classe" style="margin-top:2px">' + esc(f.classe || '') + '</p>';
+    SECTIONS_FICHE.forEach(function (sec) {
+      var it = lignesFiche(f[sec[0]]); if (!it.length) return;
+      var essentiel = sec[2] === 'ind' || sec[2] === 'ci' || sec[2] === 'arg', ouvert = essentiel || ouvertes[sec[0]];
+      h += '<div class="fiche-section ' + sec[2] + (essentiel ? '' : ' repliable') + '">' +
+        (essentiel ? '<h4>' + sec[1] + '</h4>' : '<button type="button" class="fp-bascule" data-a="ficheSection" data-v="' + sec[0] + '" aria-expanded="' + !!ouvert + '"><h4>' + sec[1] + '</h4>' + icone('chevron') + '</button>') +
+        (ouvert ? '<ul>' + it.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+    });
+    h += '<p class="discret fiche-pied">' + esc(f.laboratoire || '') + (f.sources ? ' · Sources : ' + esc(f.sources) : '') + '</p>';
+    // produit précédent / suivant dans la même gamme
+    var memes = fichesProduits().filter(function (x) { return x.gamme === f.gamme; }), i = memes.indexOf(f);
+    var pied = (memes.length > 1 ? (i > 0 ? '<button class="bouton" type="button" data-a="produitOuvrir" data-v="' + esc(memes[i - 1].produit) + '">' + esc(memes[i - 1].produit) + '</button>' : '') +
+      (i < memes.length - 1 ? '<button class="bouton" type="button" data-a="produitOuvrir" data-v="' + esc(memes[i + 1].produit) + '">' + esc(memes[i + 1].produit) + '</button>' : '') : '') +
+      '<button class="bouton bouton-plein" type="button" data-a="fermerFeuille">Fermer</button>';
+    return { corps: h, pied: pied };
+  };
+
 
   FEUILLES.communes = function (f) {
     var h = groupeChoix(f, { id: 'communes', titre: 'Communes', chemin: 'sel', multiple: true, sections: sectionsCommunes(), recherche: true,
@@ -3781,10 +3804,9 @@
       etapesFiltres(S.ui.filtres).forEach(function (e) { et.ok[e.id] = e.id !== el.dataset.v; });
       sauverEtapes(); S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre();
     },
-    produitOuvrir: function (el) {
-      S.ui.produitOuvert = S.ui.produitOuvert === el.dataset.v ? null : el.dataset.v; rendre();
-      if (S.ui.produitOuvert) centrerElement(document.querySelector('.fiche-produit.ouverte'));
-    },
+    produitOuvrir: function (el) { S.ui.feuille = { type: 'ficheProduit', titre: el.dataset.v, produit: el.dataset.v, pleine: true, ouvertes: {} }; rendre(); var c = document.querySelector('.feuille-corps'); if (c) c.scrollTop = 0; },
+    ficheSection: function (el) { var f = S.ui.feuille; f.ouvertes[el.dataset.v] = !f.ouvertes[el.dataset.v]; rendre(); },
+    aireProduit: function (el) { S.ui.aireProduit = el.dataset.v; rendre(); },
     rechOuvrir: function () {
       var et = etatEtapes(); et.ok = {}; et.ouvert = false; sauverEtapes(); S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre(); },
     rechFermer: function () { S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre(); window.scrollTo(0, 0); },

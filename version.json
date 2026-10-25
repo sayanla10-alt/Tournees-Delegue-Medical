@@ -1,9 +1,9 @@
 {
-  "version": "3.11.0",
+  "version": "3.11.1",
   "date": "2026-10-24",
   "notes": [
-    "Produits en grille, fiche centrée",
-    "Accueil : Lancer l'application d'abord ; pas de décompte après mise à jour",
-    "Remplaçant via + Médecin / + Pharmacie ; Enregistrer : Oui / Non ; Quitter sur la carte"
+    "Produits : une ligne par gamme, produits en pastilles, filtre par aire",
+    "Fiche dans une fenêtre : l'essentiel visible, le reste à déplier",
+    "Produits en grille, fiche centrée"
   ]
 }
