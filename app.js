@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.8.8';
+  var APP_VERSION = '3.8.9';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.8.9', ['Compte rendu : réaction du médecin (Intéressé, Indécis…), état du stock et anomalie en boutons, comme le reste de l\'application', 'Plus aucune liste déroulante : nom du délégué, point de départ, quartier (Autour de moi, fiche praticien) et spécialité s\'ouvrent dans une liste avec recherche']],
     ['3.8.8', ['Recherche : planifier depuis le calendrier d\'un praticien propose la prochaine présence et les suivantes (+7, +14, +21, +28 jours), puis Oui ou Non']],
     ['3.8.7', ['Compte rendu : les réponses utilisent les mêmes éléments que Planifier : Oui / Non en segment, listes longues (types de visite, produits, motif) dans un sélecteur qui ouvre la liste, quantités et réactions en champs étiquetés', 'Ajouter un praticien : même parcours (étapes faites repliées en lignes modifiables, étape en cours dans son cadre)', 'Toutes les étapes indiquent « étape n/N »']],
     ['3.8.6', ['Planifier : « Confirmer la tournée » demande Oui ou Non ; Non vous ramène au brouillon', 'Recherche : « + Nouveau » devient « + Ajouter »', 'Aujourd\'hui : le compte rendu prend le même format que Planifier (titre, étape en cours, réponses repliées en lignes courtes, Passer et Continuer côte à côte, Oui / Non en puces)']],
@@ -384,20 +385,37 @@
     });
     return secs;
   }
+  // Sélecteur moderne (remplace les listes déroulantes) : bouton « valeur ▾ » qui ouvre une liste à puces avec recherche,
+  // comme « Communes » dans Planifier. cfg : { titre, options: [[v, lib]] ou sections: [{ titre, options }], valeur, vide, appliquer(v), dom }
+  // dom : formulaire non enregistré (Réglages, identité) : la valeur va dans un champ caché, sans redessiner l'écran.
+  S.ui.listes = {};
+  function selecteurListe(id, cfg) {
+    S.ui.listes[id] = cfg;
+    var tout = cfg.sections ? [].concat.apply([], cfg.sections.map(function (x) { return x.options; })) : cfg.options;
+    var lib = (tout.filter(function (o) { return o[0] === cfg.valeur; })[0] || [])[1];
+    return (cfg.dom ? '<input type="hidden" id="' + id + '" value="' + esc(cfg.valeur || '') + '">' : '') +
+      '<button type="button" class="selecteur" data-a="listeOuvrir" data-liste="' + esc(id) + '" id="' + esc(id) + 'Btn"' + (cfg.invalide ? ' aria-invalid="true"' : '') + '>' +
+      '<span>' + esc(lib || cfg.vide || 'Choisir…') + '</span><b>▾</b></button>';
+  }
+  function sectionsQuartiers() {
+    var par = {};
+    quartiers().forEach(function (q) { (par[q.commune] = par[q.commune] || []).push([q.quartier, q.quartier]); });
+    return Object.keys(par).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).map(function (c) { return { titre: c, options: par[c] }; });
+  }
   // Nom du délégué : choisi dans la liste de la feuille Listes (évite les fautes de frappe entre collègues)
   function champNom(id, valeur, libelle) {
     var l = (S.data && S.data.delegues) || [];
     if (!l.length) return '<label class="champ"><span>' + libelle + '</span><input type="text" id="' + id + '" autocomplete="name" placeholder="Ex. Koffi Yao" value="' + esc(valeur) + '"></label>';
     var autre = valeur && l.indexOf(valeur) < 0;
-    return '<label class="champ"><span>' + libelle + '</span><select id="' + id + '" data-f="choixNom"><option value="">Choisir mon nom…</option>' +
-      l.map(function (n) { return '<option' + (n === valeur ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join('') +
-      '<option value="__autre"' + (autre ? ' selected' : '') + '>Mon nom n\'est pas dans la liste</option></select></label>' +
+    return '<div class="champ"><span>' + libelle + '</span>' + selecteurListe(id, { titre: 'Votre nom', dom: true, valeur: autre ? '__autre' : valeur, vide: 'Choisir mon nom…',
+        options: l.map(function (n) { return [n, n]; }).concat([['__autre', 'Mon nom n\'est pas dans la liste']]),
+        appliquer: function (v) { var b = $(id + 'Bloc'); if (b) b.hidden = v !== '__autre'; } }) + '</div>' +
       '<label class="champ" id="' + id + 'Bloc"' + (autre ? '' : ' hidden') + '><span>Nom complet</span><input type="text" id="' + id + 'Autre" autocomplete="name" value="' + esc(autre ? valeur : '') + '">' +
       '<span class="aide-champ">Demandez aussi qu\'on vous ajoute dans la feuille Listes, colonne Délégués.</span></label>';
   }
   function lireNom(id) {
     var el = $(id); if (!el) return '';
-    if (el.tagName === 'SELECT') return (el.value === '__autre' ? ($(id + 'Autre').value || '') : el.value).trim();
+    if (el.tagName === 'SELECT' || el.type === 'hidden') return (el.value === '__autre' ? (($(id + 'Autre') || {}).value || '') : el.value).trim();
     return (el.value || '').trim();
   }
   // Produits déjà saisis : proposés à la saisie suivante
@@ -1347,6 +1365,12 @@
       : '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="' + cle + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '">';
   }
   function qteCr(a, cle, val) { return '<input type="number" min="0" inputmode="numeric" class="qte" data-f="cr" data-uid="' + a.uid + '" data-k="' + cle + '" value="' + esc(val || '') + '" placeholder="0" aria-label="Quantité">'; }
+  // choix unique en puces (remplace les listes déroulantes du compte rendu) : touchez de nouveau pour annuler
+  function pucesValCr(a, cle, options, val, libs) {
+    return '<div class="puces">' + options.map(function (o) {
+      return '<button type="button" class="puce" data-a="crVal" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(o) + '" aria-pressed="' + ((val || '') === o) + '">' + esc((libs && libs[o]) || o) + '</button>';
+    }).join('') + '</div>';
+  }
   function selectCr(a, cle, options, val, vide) {
     return '<select data-f="crSelect" data-uid="' + a.uid + '" data-k="' + cle + '">' + (vide !== undefined ? '<option value="">' + esc(vide) + '</option>' : '') +
       options.map(function (o) { return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
@@ -1387,7 +1411,7 @@
         }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
         e('reactions', 'Réaction du médecin', 'continuer', function () {
           return '<div class="champs-cr">' + produitsPresentes(c).map(function (p) {
-            return '<label class="champ"><span>' + esc(p) + '</span>' + selectCr(a, 'reactions.' + p, REACTIONS, c.reactions[p], 'Réaction…') + '</label>';
+            return '<div class="champ"><span>' + esc(p) + '</span>' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div>';
           }).join('') + '</div>';
         }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
       }
@@ -1405,10 +1429,10 @@
       e('stocks', 'Stock par produit', 'continuer', function () {
         return '<div class="champs-cr">' + cat.map(function (p) {
           var s = c.stocks[p] || {};
-          return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="grille-2"><label class="champ"><span>État</span>' + selectCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, 'État…') + '</label>' +
-            '<label class="champ"><span>Quantité</span>' + qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</label></div>' +
-            (s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="stock-champs">' + selectCr(a, 'stocks.' + p + '.anomalie', ANOMALIES, s.anomalie, 'Aucune anomalie') +
-              (s.anomalie ? '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot">' : '') + '</div>' : '') + '</div>';
+          return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="champ"><span>État</span>' + pucesValCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat) + '</div>' +
+            '<label class="champ"><span>Quantité</span>' + qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</label>' +
+            (s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="champ"><span>Anomalie</span>' + pucesValCr(a, 'stocks.' + p + '.anomalie', [''].concat(ANOMALIES), s.anomalie || '', { '': 'Aucune' }) + '</div>' +
+              (s.anomalie ? '<label class="champ"><span>N° de lot</span><input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot"></label>' : '') : '') + '</div>';
         }).join('') + '</div>' + texteCr(a, 'autresStock', c.autresStock, 'Autres produits et état, ex. Doliprane rupture') +
           '<span class="aide-champ">Rupture, non référencé et non vérifié sont distincts. Une commande ne modifie pas le stock avant réception.</span>';
       }, function () { var r = champsCr(a).stocks; return r || 'aucun produit renseigné'; });
@@ -1755,11 +1779,8 @@
       (A.moment === 'choisir' ? '<div class="grille-2"><label class="champ"><span>Date</span><input type="date" data-f="autour" data-k="date" value="' + esc(A.date || prochainJourOuvre(aujourdhui())) + '"></label>' +
         '<label class="champ"><span>Heure (vide : toute la journée)</span><input type="time" data-f="autour" data-k="heure" value="' + esc(A.heure) + '"></label></div>' : '') +
       '<button class="bouton bouton-large" type="button" data-a="localiser" style="margin-bottom:10px">' + icone('cible') + 'Utiliser ma position</button>' +
-      '<label class="champ"><span>Ou choisir un quartier</span><select data-f="autourQuartier">' +
-        '<option value="">' + (A.label ? esc(A.label) : 'Choisir un quartier') + '</option>' +
-        Object.keys(parCommune).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).map(function (c) {
-          return '<optgroup label="' + esc(c) + '">' + parCommune[c].map(function (q) { return '<option>' + esc(q) + '</option>'; }).join('') + '</optgroup>';
-        }).join('') + '</select></label>';
+      '<div class="champ"><span>Ou choisir un quartier</span>' + selecteurListe('autourQuartier', { titre: 'Choisir un quartier', valeur: '', vide: A.label ? A.label : 'Choisir un quartier', sections: sectionsQuartiers(),
+        appliquer: function (v) { var q = quartiers().filter(function (x) { return x.quartier === v; })[0]; if (q) { S.ui.autour.lat = q.lat; S.ui.autour.lon = q.lon; S.ui.autour.label = q.quartier; LS.set('autour', S.ui.autour); } } }) + '</div>';
     h += '<div class="champ" style="margin:0"><span>Rayon</span>' + segment('Rayon', 'autourRayon', [2, 5, 10, 20].map(function (r) { return [String(r), r + ' km']; }), String(A.rayon), 'margin:0') + '</div></section>';
     h += barreFiltres(S.ui.filtresAutour, S.ui.rechercheAutour);
     }
@@ -2509,7 +2530,7 @@
       champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)') +
       '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
       '<label class="interrupteur"><span>Toujours ouvrir WhatsApp Web</span><input type="checkbox" id="cfgWaWeb"' + (c.waWeb ? ' checked' : '') + '></label>' +
-      '<label class="champ"><span>Point de départ de mes tournées</span><select id="cfgDepart">' + qOpts + '</select></label>' +
+      '<div class="champ"><span>Point de départ de mes tournées</span>' + selecteurListe('cfgDepart', { titre: 'Point de départ', dom: true, valeur: c.depart || '', vide: 'Choisir un quartier…', sections: sectionsQuartiers() }) + '</div>' +
       '<button class="bouton bouton-plein bouton-large" type="button" data-a="enregistrerMoi">Enregistrer</button></section>';
     var th = LS.get('theme', 'clair');
     h += '<section class="bloc"><h3>Apparence</h3><div class="segment" role="group" aria-label="Thème" style="margin:0">' +
@@ -2720,6 +2741,14 @@
     return { corps: h, pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="planifierDateOui">Oui, ajouter</button>' };
   };
+  FEUILLES.listeChoix = function (f) {
+    var cfg = S.ui.listes[f.id] || {}, n = 0;
+    var map = function (l) { return l.map(function (o) { n++; return { v: o[0], lib: o[1] }; }); };
+    var o = { id: 'l', titre: 'Un seul choix', chemin: 'sel', recherche: true };
+    if (cfg.sections) o.sections = cfg.sections.map(function (x) { return { titre: x.titre, options: map(x.options) }; }); else o.options = map(cfg.options || []);
+    if (n <= 8) o.recherche = false;
+    return groupeChoix(f, o);
+  };
   FEUILLES.crListe = function (f) {
     var h = groupeChoix(f, { id: 'l', titre: f.multi ? 'Plusieurs choix possibles' : 'Un seul choix', chemin: 'sel', multiple: f.multi, recherche: f.options.length > 8,
       options: f.options.map(function (o) { return { v: o[0], lib: o[1] }; }) });
@@ -2850,9 +2879,9 @@
         SPECIALITES_DEFAUT.forEach(function (x) { if (x !== 'Pharmacien' && specs.indexOf(x) < 0) specs.push(x); });
         specs.sort(function (a, b) { return a.localeCompare(b, 'fr'); });
         if (d.specialite && d.specialite !== '__autre' && specs.indexOf(d.specialite) < 0) specs.unshift(d.specialite);
-        h += champFiche('specialite', 'Spécialité', '<select data-f="fiche" data-k="specialite"' + attrInvalide(f, 'specialite') + '><option value="">Choisir…</option>' +
-          specs.map(function (x) { return '<option' + (d.specialite === x ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') +
-          '<option value="__autre"' + (d.specialite === '__autre' ? ' selected' : '') + '>Autre spécialité…</option></select>', f, true);
+        h += champFiche('specialite', 'Spécialité', selecteurListe('ficheSpec', { titre: 'Spécialité', valeur: d.specialite, vide: 'Choisir…', invalide: !!f.err.specialite,
+          options: specs.map(function (x) { return [x, x]; }).concat([['__autre', 'Autre spécialité…']]),
+          appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.specialite = v; delete fe.err.specialite; } } }), f, true);
         if (d.specialite === '__autre') h += champFiche('autreSpec', 'Autre spécialité', '<input type="text" data-f="fiche" data-k="autreSpec" value="' + esc(d.autreSpec) + '"' + attrInvalide(f, 'autreSpec') + '>', f, true);
       }
       h += '<div class="champ"><span class="requis">Potentiel de prescription</span><div class="segment" role="group" aria-label="Potentiel" style="margin:0">' +
@@ -2896,10 +2925,8 @@
       d.lieux.forEach(function (l, i) {
         var q = quartiers().filter(function (x) { return x.quartier === l.quartier; })[0];
         h += '<div class="lieu-bloc"><div class="lieu-tete"><b>' + esc(l.lieu || 'Lieu ' + (i + 1)) + '</b></div>' +
-          champFiche('quartier' + i, 'Quartier', '<select data-f="fiche" data-k="quartier" data-i="' + i + '"' + attrInvalide(f, 'quartier' + i) + '><option value="">Choisir un quartier…</option>' +
-            Object.keys(parCommune).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).map(function (c) {
-              return '<optgroup label="' + esc(c) + '">' + parCommune[c].map(function (x) { return '<option' + (x === l.quartier ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</optgroup>';
-            }).join('') + '</select>', f, true, q ? 'Commune : ' + esc(q.commune) + ', ' + esc(q.zone) : '') +
+          champFiche('quartier' + i, 'Quartier', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: l.quartier, vide: 'Choisir un quartier…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
+            appliquer: (function (k) { return function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[k].quartier = v; delete fe.err['quartier' + k]; } }; })(i) }), f, true, q ? 'Commune : ' + esc(q.commune) + ', ' + esc(q.zone) : '') +
           '<div class="gps-ligne">' + (l.lat && l.lon ? 'GPS : ' + (+l.lat).toFixed(5) + ', ' + (+l.lon).toFixed(5) +
             ' <button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="' + i + '">Effacer</button>' : 'Pas de position GPS') +
             ' <button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'Je suis sur place</button></div></div>';
@@ -3308,7 +3335,11 @@
     envoyerWhatsapp: function () { window.open(urlWhatsapp(S.ui.feuille.texte), '_blank', 'noopener'); },
     copierTexte: function () { copier(S.ui.feuille.texte); },
     partagerTexte: function () { navigator.share({ title: 'Programme de tournée', text: S.ui.feuille.texte }).catch(function () {}); },
-    fermerFeuille: function () { S.ui.feuille = null; rendre(); },
+    fermerFeuille: function () {
+      var f = S.ui.feuille;
+      if (f && f.type === 'listeChoix') { S.ui.feuille = f.retour || null; if (f.dom) rendreFeuille(); else rendre(); return; }
+      S.ui.feuille = null; rendre();
+    },
     couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; LS.set('couvPortee', S.ui.couvPortee); rendre(); },
     couvOuvrir: function () { S.ui.couvOuverte = !S.ui.couvOuverte; LS.set('couvOuverte', S.ui.couvOuverte); rendre(); },
     couvFiltre: function (el) { S.ui.couvFiltre = el.dataset.v; LS.set('couvFiltre', S.ui.couvFiltre); rendre(); },
@@ -3521,11 +3552,34 @@
       a.prochaine = a.prochaine === el.dataset.v ? '' : el.dataset.v;
       LS.set('plan', S.plan); rendre();
     },
+    crVal: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var k = el.dataset.k, actuel = k.split('.').reduce(function (o, x) { return o && o[x]; }, crDe(a));
+      majCr(a, k, actuel === el.dataset.v && el.dataset.v ? '' : el.dataset.v); rendre();
+    },
+    listeOuvrir: function (el) {
+      var id = el.dataset.liste, cfg = S.ui.listes[id]; if (!cfg) return;
+      var val = cfg.dom ? ($(id) || {}).value : cfg.valeur;
+      S.ui.feuille = { type: 'listeChoix', titre: cfg.titre, id: id, sel: val || '', retour: S.ui.feuille, dom: cfg.dom };
+      if (cfg.dom) rendreFeuille(); else rendre();
+    },
     choix: function (el) {
       var c = cheminObjet(el.dataset.chemin), v = el.dataset.v;
       if (el.dataset.m === '1') { var l = c.o[c.k], i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v); }
       else c.o[c.k] = v;
       var f = S.ui.feuille;
+      if (f && f.type === 'listeChoix') {   // sélecteur : la valeur est appliquée et la liste se referme
+        var cfg = S.ui.listes[f.id] || {}; S.ui.feuille = f.retour || null;
+        if (cfg.dom) {
+          var h = $(f.id); if (h) h.value = v;
+          var tout = cfg.sections ? [].concat.apply([], cfg.sections.map(function (x) { return x.options; })) : cfg.options;
+          var b = $(f.id + 'Btn'); if (b) b.querySelector('span').textContent = (tout.filter(function (o) { return o[0] === v; })[0] || [])[1] || v;
+          if (cfg.appliquer) cfg.appliquer(v);
+          rendreFeuille(); return;
+        }
+        if (cfg.appliquer) cfg.appliquer(v);
+        rendre(); return;
+      }
       if (f && f.type === 'crListe' && !f.multi) {   // choix unique : appliqué tout de suite, question suivante
         var a = arret(f.uid); S.ui.feuille = null;
         if (a) { majCr(a, f.cle, v); validerEtape(a, f.cle); }

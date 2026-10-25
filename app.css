@@ -866,3 +866,5 @@ details.avance h3 { margin-top: 18px; }
 .cr-question .segment button { min-height: 40px; }
 .champs-cr .qte, .cr-question .ligne-stock .qte { width: 100% !important; text-align: left; padding: 6px 12px !important; }
 .puce:disabled { opacity: .45; cursor: not-allowed; }
+.selecteur > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.selecteur[aria-invalid="true"] { border-color: var(--rouge); }
