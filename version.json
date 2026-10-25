@@ -1,7 +1,8 @@
 {
-  "version": "3.5.0",
+  "version": "3.5.1",
   "date": "2026-10-24",
   "notes": [
+    "Compte rendu : « Prochaine étape le » (+7 j, +14 j, +30 j, calendrier) de nouveau toujours visible avant l'enregistrement",
     "Comptes rendus guidés par un arbre de décision : « La visite a-t-elle été faite ? » puis, pour les médecins, types, produits présentés et réactions, échantillons, bilan ; pour les pharmacies, interlocuteur, activités, stock par produit, commande, compléments",
     "Visite non faite : motif, précision, remplaçant à proximité ; produits, stocks et discussion masqués",
     "Suite : rappel ou RDV confirmé avec date ; seul un RDV confirmé ajoute la visite à la tournée, les rappels s'affichent dans « Aujourd'hui »",

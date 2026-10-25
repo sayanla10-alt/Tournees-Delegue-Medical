@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.5.0';
+  var APP_VERSION = '3.5.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.5.1', ['Compte rendu : « Prochaine étape le » (+7 j, +14 j, +30 j, calendrier) de nouveau toujours visible avant l\'enregistrement']],
     ['3.5.0', ['Comptes rendus guidés par un arbre de décision : « La visite a-t-elle été faite ? » puis, pour les médecins, types, produits présentés et réactions, échantillons, bilan ; pour les pharmacies, interlocuteur, activités, stock par produit, commande, compléments', 'Visite non faite : motif, précision, remplaçant à proximité ; produits, stocks et discussion masqués', 'Suite : rappel ou RDV confirmé avec date ; seul un RDV confirmé ajoute la visite à la tournée, les rappels s\'affichent dans « Aujourd\'hui »', 'Base mise à jour : statuts, activités médecins et pharmacies, produits (avec Juvamine), délégués ; « Conventionné » devient « Engagé »']],
     ['3.4.0', ['Équipe : choisissez un jour ou une semaine (flèches ou date) et voyez ce qui a été planifié et fait par vous et vos collègues, avec « Toute l\'équipe »']],
     ['3.3.2', ['Nom de l\'application : MediPlanner, sans mention supplémentaire']],
@@ -1210,16 +1211,15 @@
   }
   function rendreSuite(a, c, options) {
     var h = etapeCr('Suite', choixCr(a, 'suite', options, c.suite));
-    if (c.suite && c.suite !== 'aucune') {
-      h += etapeCr('Rappel ou RDV confirmé ?', choixCr(a, 'suiteType', [['rappel', 'Rappel'], ['rdv', 'RDV confirmé']], c.suiteType),
-        c.suiteType === 'rdv' ? 'Le RDV est placé d\'office ce jour-là dans votre tournée.' : (c.suiteType === 'rappel' ? 'Un rappel s\'affiche ce jour-là dans « Aujourd\'hui », sans modifier la tournée.' : ''));
-      if (c.suiteType) {
-        h += etapeCr('Date', '<div class="rangee-prochaine">' + [7, 14, 30].map(function (n) {
-          var d = ajouterJours(a.date, n);
-          return '<button type="button" class="puce" data-a="crChoix" data-uid="' + a.uid + '" data-k="date" data-v="' + d + '" aria-pressed="' + (c.date === d) + '">+' + n + ' j</button>';
-        }).join('') + '<input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date"></div>');
-      }
-    }
+    if (c.suite === 'aucune') return h;
+    h += etapeCr('Rappel ou RDV confirmé ?', choixCr(a, 'suiteType', [['rappel', 'Rappel'], ['rdv', 'RDV confirmé']], c.suiteType));
+    // « Prochaine étape le » toujours visible, à sa place habituelle (avant l'enregistrement)
+    h += etapeCr('Prochaine étape le', '<div class="rangee-prochaine">' + [7, 14, 30].map(function (n) {
+        var d = ajouterJours(a.date, n);
+        return '<button type="button" class="puce" data-a="crDate" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (c.date === d) + '">+' + n + ' j</button>';
+      }).join('') + '<input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date de la prochaine étape"></div>',
+      c.suiteType === 'rappel' ? 'Rappel : il s\'affiche ce jour-là dans « Aujourd\'hui », sans modifier la tournée.' :
+      'RDV confirmé : ' + (estPharmacie(a) ? 'la pharmacie est placée' : 'le praticien est placé') + ' d\'office ce jour-là dans vos tournées.');
     return h;
   }
   function boutonEnregistrer(a) {
@@ -2977,6 +2977,12 @@
       var c = crDe(a), k = el.dataset.k, cur = k.split('.').reduce(function (o, x) { return o && o[x]; }, c);
       majCr(a, k, cur === el.dataset.v && k !== 'faite' ? '' : el.dataset.v); rendre();
     },
+    crDate: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var c = crDe(a);
+      if (!c.suite) c.suite = c.faite === 'non' ? 'reprogrammer' : 'visite';   // une date implique une suite
+      majCr(a, 'date', c.date === el.dataset.v ? '' : el.dataset.v); rendre();
+    },
     crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); },
     crRemplacer: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -3166,7 +3172,10 @@
       if (k === 'dateRef' || k === 'parJour') rendre();
     }
     if (f === 'autour') { S.ui.autour[el.dataset.k] = el.value; LS.set('autour', S.ui.autour); rendre(); }
-    if (f === 'crSelect') { var as = arret(el.dataset.uid); if (as) { majCr(as, el.dataset.k, el.value); rendre(); } }
+    if (f === 'crSelect') {
+      var as = arret(el.dataset.uid);
+      if (as) { if (el.dataset.k === 'date' && el.value && !crDe(as).suite) crDe(as).suite = crDe(as).faite === 'non' ? 'reprogrammer' : 'visite'; majCr(as, el.dataset.k, el.value); rendre(); }
+    }
     if (f === 'cr' && /^(autres)$/.test(el.dataset.k)) rendre();
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
