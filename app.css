@@ -795,6 +795,9 @@ details.avance h3 { margin-top: 18px; }
 .nav-periode .date-fr { min-height: 42px; }
 
 /* 3.7.0 */
+.rangee-actions { display: flex; gap: 6px; margin: 0 0 12px; }
+.rangee-actions .bouton { flex: 1 1 auto; min-width: 0; padding: 0 8px; font-size: 13.5px; white-space: nowrap; gap: 3px; }
+.rangee-actions .bouton svg { width: 15px; height: 15px; flex: none; margin: 0; }
 .rangee-tete { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .conflit { flex-basis: 100%; margin: 8px 0 2px; padding: 10px; border-radius: 10px; background: var(--bleu-pale); font-size: 13.5px; }
 .conflit p { margin: 0 0 8px; }

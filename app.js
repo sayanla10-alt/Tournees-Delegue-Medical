@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.7.1';
+  var APP_VERSION = '3.7.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.7.2', ['Aujourd\'hui : boutons « + Médecin », « + Pharmacie » et « Autour de moi » sur une même ligne, sous la présentation', '« + Médecin » : les médecins présents près de vous, selon les spécialités de votre tournée', 'Le jour affiché (ex. mercredi) reste affiché après un rafraîchissement, jusqu\'à minuit']],
     ['3.7.1', ['Remplacer : la liste des praticiens disponibles ce jour-là (pré-filtrés selon vos critères) s\'affiche, vous choisissez, puis vous confirmez Oui ou Non', 'Toute modification de la tournée (retirer, ajouter, remplacer) demande une confirmation', 'Plus de remplacement automatique quand un collègue a prévu le même médecin : la carte vous pose la question']],
     ['3.7.0', ['Médecin déjà prévu par un collègue : « Le remplacer ? Oui / Non » au lieu de « Retirer »', 'Aujourd\'hui : bouton « Pharmacie » pour ajouter une pharmacie ouverte près de votre position']],
     ['3.6.3', ['Dates au format 26-Oct-2026', 'RDV placé dans la tournée : l\'étiquette indique quand il a été pris (et s\'il a été décalé faute de présence ce jour-là)']],
@@ -133,7 +134,7 @@
         var t = LS.get('onglet', 'jour'), anciens = { tournee: 'jour', contacts: 'praticiens', stats: 'bilan', historique: 'bilan' };
         t = anciens[t] || t;
         return ['jour', 'semaine', 'autour', 'praticiens', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
-      })(), jour: null, ouvert: null, voirParams: false, feuille: null,
+      })(), jour: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.j : null; })(), ouvert: null, voirParams: false, feuille: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
@@ -146,6 +147,8 @@
   };
   var FILTRES_VIDES = { specialites: [], communes: [], potentiels: [], visite: 'tous', conv: 'tous', type: 'tous', equipe: 'tous' };
   S.ui.filtres = Object.assign({}, FILTRES_VIDES, LS.get('filtres', {}));
+  S.ui.pharmaciesProches = S.ui.tab === 'autour' ? LS.get('proches', false) : false;
+  if (S.ui.pharmaciesProches === true) S.ui.pharmaciesProches = 'Pharmacie';
   S.ui.filtresAutour = Object.assign({}, FILTRES_VIDES, LS.get('filtresAutour', {}));
   // « Pharmacien » n'est plus une spécialité filtrable (2.2.4)
   [S.ui.filtres, S.ui.filtresAutour].forEach(function (f) { f.specialites = (f.specialites || []).filter(function (x) { return x !== 'Pharmacien'; }); });
@@ -689,6 +692,9 @@
     var tab = S.ui.tab;
     // onglet mémorisé : l'application rouvre là où l'on était (rafraîchissement, mise à jour, relance)
     if (VUES[tab] && tab !== 'accueil' && tab !== 'identite' && LS.get('onglet', '') !== tab) LS.set('onglet', tab);
+    // jour affiché mémorisé : un rafraîchissement ne ramène plus au lundi (valable jusqu'à minuit)
+    if (S.ui.jour) LS.set('jourVu', { j: S.ui.jour, le: aujourdhui() });
+    LS.set('proches', S.ui.pharmaciesProches || false);
     if (!pret() && tab !== 'reglages') tab = 'accueil';
     else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
     cacherInfobulle();
@@ -820,10 +826,11 @@
 
   // Aujourd'hui : les visites du jour, dans l'ordre, avec contact, itinéraire et compte rendu
   VUES.jour = function () {
-    var h = '<div class="tete-vue"><h2 class="titre-vue">Aujourd\'hui</h2>' +
-      '<div class="rangee-tete"><button class="bouton petit" type="button" data-a="ajouterPharmacie">' + icone('plus') + 'Pharmacie</button>' +
-      '<button class="bouton petit" type="button" data-a="ouvrirAutour">' + icone('cible') + 'Autour de moi</button></div></div>' +
-      '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>' + rendreRappels();
+    var h = '<h2 class="titre-vue">Aujourd\'hui</h2>' +
+      '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>' +
+      '<div class="rangee-actions"><button class="bouton petit" type="button" data-a="ajouterProches" data-v="Médecin">' + icone('plus') + 'Médecin</button>' +
+      '<button class="bouton petit" type="button" data-a="ajouterProches" data-v="Pharmacie">' + icone('plus') + 'Pharmacie</button>' +
+      '<button class="bouton petit" type="button" data-a="ouvrirAutour">' + icone('cible') + 'Autour de moi</button></div>' + rendreRappels();
     if (!S.plan.length) {
       return h + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».' +
         '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier ma tournée</button></div>';
@@ -1636,8 +1643,8 @@
   // ------------------------------------------------------------------ Vue : autour de moi
   VUES.autour = function () {
     var A = S.ui.autour, h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Aujourd\'hui</button>' +
-      '<h2 class="titre-vue">' + (S.ui.pharmaciesProches ? 'Pharmacies à proximité' : 'Autour de moi') + '</h2>' +
-      '<p class="sous-titre">' + (S.ui.pharmaciesProches ? 'Les pharmacies ouvertes près de votre position, à ajouter à votre tournée du jour.' : 'Médecin absent, trou dans la journée : trouvez qui est présent près de vous.') + '</p>';
+      '<h2 class="titre-vue">' + (S.ui.pharmaciesProches ? (S.ui.pharmaciesProches === 'Médecin' ? 'Médecins' : 'Pharmacies') + ' à proximité' : 'Autour de moi') + '</h2>' +
+      '<p class="sous-titre">' + (S.ui.pharmaciesProches === 'Médecin' ? 'Les médecins présents près de votre position, selon vos spécialités, à ajouter à votre tournée du jour.' : S.ui.pharmaciesProches ? 'Les pharmacies ouvertes près de votre position, à ajouter à votre tournée du jour.' : 'Médecin absent, trou dans la journée : trouvez qui est présent près de vous.') + '</p>';
     if (A.ref) {
       h += '<div class="bandeau"><p>Remplacement de <b>' + esc(A.ref.nom) + '</b> (' + esc(A.ref.heure) + ', ' + esc(A.ref.quartier) +
         '), marqué « Absent ». <button type="button" class="bouton-texte" data-a="finRef">Terminer</button></p></div>';
@@ -3222,14 +3229,15 @@
     remplacerOui: function () { var f = S.ui.feuille; appliquerRemplacement(f.uid, f.choix.cle); },
     confirmerOui: function () { var f = S.ui.feuille; S.ui.feuille = null; if (f && f.action) f.action(); else rendre(); },
     conflitGarder: function (el) { var a = arret(el.dataset.uid); if (!a) return; a.conflitOk = true; LS.set('plan', S.plan); rendre(); },
-    ajouterPharmacie: function () {
-      // pharmacies ouvertes près de ma position, pour le jour affiché dans « Aujourd'hui »
-      var j = S.ui.jour || aujourdhui();
-      S.ui.filtresAutour = Object.assign(JSON.parse(JSON.stringify(FILTRES_VIDES)), { type: 'Pharmacie' }); LS.set('filtresAutour', S.ui.filtresAutour);
+    ajouterProches: function (el) {
+      // médecins (selon les spécialités de la tournée) ou pharmacies près de ma position, pour le jour affiché dans « Aujourd'hui »
+      var j = S.ui.jour || aujourdhui(), type = el.dataset.v === 'Médecin' ? 'Médecin' : 'Pharmacie';
+      S.ui.filtresAutour = Object.assign(JSON.parse(JSON.stringify(FILTRES_VIDES)), { type: type },
+        type === 'Médecin' ? { specialites: (S.params.specialites || []).slice() } : {}); LS.set('filtresAutour', S.ui.filtresAutour);
       S.ui.rechercheAutour = '';
       Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null });
       LS.set('autour', S.ui.autour);
-      S.ui.tab = 'autour'; S.ui.pharmaciesProches = true; rendre(); window.scrollTo(0, 0);
+      S.ui.tab = 'autour'; S.ui.pharmaciesProches = type; rendre(); window.scrollTo(0, 0);
       localiser();
     },
     crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); },
