@@ -1,7 +1,9 @@
 {
-  "version": "3.6.2",
+  "version": "3.6.3",
   "date": "2026-10-24",
   "notes": [
+    "Dates au format 26-Oct-2026",
+    "RDV placé dans la tournée : l'étiquette indique quand il a été pris (et s'il a été décalé faute de présence ce jour-là)",
     "Tous les calendriers affichent la date en français, au format JJ/Mmm/AAAA (ex. 16/Nov/2026)",
     "Reprendre un ancien programme : choisissez aussi le jour ou la semaine sur lesquels le copier, puis conservez-le ou revenez à l'ancienne planification",
     "Compte rendu pas à pas : une seule question à la fois, la suivante selon la réponse ; les réponses restent en lignes courtes, touchez-les pour modifier",

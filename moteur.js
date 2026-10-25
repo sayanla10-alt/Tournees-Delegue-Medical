@@ -318,7 +318,7 @@ var Moteur = (function () {
         return cx - cy || fixes[x.d].length - fixes[y.d].length || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0) || x.c.debut - y.c.debut;
       });
       var o = options[0], a = arretDepuisCreneau(o.c, o.d);
-      a.impose = true; a.garde = true; if (im.etape) a.etape = true;
+      a.impose = true; a.garde = true; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres || ''; a.rdvPrisLe = im.prisLe || ''; }
       if (rdv !== null) a.rdv = minutesVersHeure(rdv);
       fixes[o.d].push(a);
       utilises[im.code] = true;

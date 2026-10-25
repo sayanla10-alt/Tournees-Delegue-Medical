@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.6.2';
+  var APP_VERSION = '3.6.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.6.3', ['Dates au format 26-Oct-2026', 'RDV placé dans la tournée : l\'étiquette indique quand il a été pris (et s\'il a été décalé faute de présence ce jour-là)']],
     ['3.6.2', ['Tous les calendriers affichent la date en français, au format JJ/Mmm/AAAA (ex. 16/Nov/2026)']],
     ['3.6.1', ['Reprendre un ancien programme : choisissez aussi le jour ou la semaine sur lesquels le copier, puis conservez-le ou revenez à l\'ancienne planification']],
     ['3.6.0', ['Compte rendu pas à pas : une seule question à la fois, la suivante selon la réponse ; les réponses restent en lignes courtes, touchez-les pour modifier', 'Produits, activités, statuts et délégués suivent la base en temps réel (mise à jour chaque minute)', 'Délégués : « yavosylvie10@gmail.com » fusionné avec « Sylvie »']],
@@ -406,6 +407,12 @@
     var l = produitsRef().slice();
     return l;
   }
+  // « RDV pris le 26-Oct-2026 » ; si le praticien n'était pas présent le jour convenu : « prévu le …, décalé au premier jour de présence »
+  function libelleRdv(a) {
+    var t = 'RDV' + (a.rdvPrisLe ? ' pris le ' + dateFr(a.rdvPrisLe) : ' (prochaine étape)');
+    if (a.rdvDate && a.rdvDate !== a.date) t += ', prévu le ' + dateFr(a.rdvDate) + ' (absent ce jour-là, décalé ici)';
+    return t;
+  }
   function statutLibelle(a) { return estPharmacie(a) && a.statut && !estKo(a.statut) ? 'Visitée' : a.statut; }
   function activites() { return (S.data && S.data.activites && S.data.activites.length) ? S.data.activites : ACTIVITES_DEFAUT; }
   function listeActivites(t) { return String(t || '').split(/\s*;\s*/).filter(Boolean).map(function (x) { return ACTIVITES_RENOMMEES[x] || x; }); }
@@ -697,17 +704,17 @@
     afficherEntete(); afficherBarre(); afficherNav();
     datesEnFrancais();
   }
-  // Calendriers : affichage français JJ/Mmm/AAAA (ex. 16/Nov/2026), quel que soit le réglage du téléphone.
+  // Calendriers : affichage français JJ-Mmm-AAAA (ex. 26-Oct-2026), quel que soit le réglage du téléphone.
   // Le sélecteur natif reste dessous (transparent) : toucher la date ouvre le calendrier du téléphone.
   var MOIS_ABREGES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-  function dateFr(iso) { var p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + MOIS_ABREGES[+p[1] - 1] + '/' + p[0] : ''; }
+  function dateFr(iso) { var p = String(iso || '').slice(0, 10).split('-'); return p.length === 3 ? p[2] + '-' + MOIS_ABREGES[+p[1] - 1] + '-' + p[0] : ''; }
   function datesEnFrancais() {
     document.querySelectorAll('input[type="date"]:not([data-fr])').forEach(function (inp) {
       inp.setAttribute('data-fr', '1'); inp.setAttribute('lang', 'fr');
       var cadre = document.createElement('span'), texte = document.createElement('span');
       cadre.className = 'date-fr'; texte.className = 'date-fr-texte';
       inp.parentNode.insertBefore(cadre, inp); cadre.appendChild(texte); cadre.appendChild(inp);
-      var maj = function () { texte.textContent = inp.value ? dateFr(inp.value) : 'JJ/Mmm/AAAA'; texte.classList.toggle('vide', !inp.value); };
+      var maj = function () { texte.textContent = inp.value ? dateFr(inp.value) : 'JJ-Mmm-AAAA'; texte.classList.toggle('vide', !inp.value); };
       maj();
       inp.addEventListener('input', maj); inp.addEventListener('change', maj);
       inp.addEventListener('click', function () { try { inp.showPicker(); } catch (e) {} });
@@ -967,6 +974,10 @@
     var deja = {}; gardes.forEach(function (a) { deja[a.date + '|' + a.code] = true; });
     S.plan = gardes.concat(nouveaux.filter(function (a) { return !deja[a.date + '|' + a.code]; }));
     Object.keys(cibles).forEach(function (d) { if (S.plan.some(function (a) { return a.date === d; })) reordonner(d); });
+    // les RDV confirmés tombant sur ces jours sont aussi placés
+    rdvProchaines(Object.keys(cibles).sort()).forEach(function (im) {
+      if (!S.plan.some(function (x) { return x.code === im.code && x.date >= im.apres; })) placerImpose(im);
+    });
     S.programme = { etat: 'proposition', valideLe: '' };
     S.ui.jour = Object.keys(cibles).sort()[0]; S.ui.feuille = null; S.ui.voirParams = false; S.ui.tab = 'semaine';
     if (type === 'semaine') { S.params.mode = 'semaine'; S.params.dateRef = lundiDe(S.ui.jour); } else if (S.params.mode === 'jour') S.params.dateRef = S.ui.jour;
@@ -978,7 +989,7 @@
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
   function rendreLignePlan(a) {
     var verrou = a.etat === 'valide', e = '';
-    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV (prochaine étape)' : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
+    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici</span>';
@@ -1383,7 +1394,7 @@
     var vu = vuDepuis(der, a.etat !== 'valide' && a.date > aujourdhui() ? a.date : aujourdhui());
     if (estPharmacie(a)) vu = vu.replace(/^Vu /, 'Visitée ').replace('Jamais visité', 'Jamais visitée');
     e += '<span class="etiquette">' + esc(vu) + '</span>';
-    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? 'RDV (prochaine étape)' : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
+    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + (verrou ? ', enregistré' : '') + '</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.etat === 'repris') e += '<span class="etiquette">Repris d\'un ancien programme</span>';
@@ -2787,13 +2798,13 @@
       if (estKo(a.statut)) ko++;
       a.etat = 'valide'; delete a.corrige;
       // seul un RDV confirmé est placé d'office dans la tournée
-      if (a.prochaine && a.prochaine > a.date && (a.cr ? a.rdvConfirme : true)) etapes.push({ code: a.code, apres: a.prochaine, etape: true });
+      if (a.prochaine && a.prochaine > a.date && (a.cr ? a.rdvConfirme : true)) etapes.push({ code: a.code, apres: a.prochaine, etape: true, dateRdv: a.prochaine, prisLe: v.date });
     });
     // prochaine étape tombant dans la tournée en cours : le praticien y est ajouté comme un RDV
     var placees = 0;
     etapes.forEach(function (im) {
       var deja = S.plan.filter(function (x) { return x.code === im.code && x.date >= im.apres && !x.statut; })[0];
-      if (deja) { deja.impose = true; deja.garde = true; deja.etape = true; placees++; return; }
+      if (deja) { deja.impose = true; deja.garde = true; deja.etape = true; deja.rdvDate = im.dateRdv; deja.rdvPrisLe = im.prisLe; placees++; return; }
       if (placerImpose(im)) placees++;
     });
     if (placees) marquerModifie();
@@ -2824,17 +2835,18 @@
   // Une étape fixée par un collègue reste la sienne.
   function rdvProchaines(dates) {
     if (!dates.length) return [];
-    var c = ctx(), t = aujourdhui(), debut = ajouterJours(t, -14), fin = dates[dates.length - 1], auteur = {};
+    var c = ctx(), t = aujourdhui(), debut = ajouterJours(t, -14), fin = dates[dates.length - 1], auteur = {}, prisLe = {};
     ((S.data && S.data.historique) || []).forEach(function (v) {
       var pv = String(v.prochaine || '').slice(0, 10);
       if (pv && !auteur[v.code + '|' + pv]) auteur[v.code + '|' + pv] = v.delegue || '';
+      if (pv && !prisLe[v.code + '|' + pv]) prisLe[v.code + '|' + pv] = String(v.date || '').slice(0, 10);
     });
     var dejaImposes = ensemble(S.imposes.map(function (x) { return x.code; }));
     return Object.keys(c.prat).map(function (k) { return c.prat[k]; }).filter(function (p) {
       if (!p.prochaine || p.prochaine < debut || p.prochaine > fin || dejaImposes[p.code]) return false;
       var qui = auteur[p.code + '|' + p.prochaine];
       return !qui || estMoi(qui);
-    }).map(function (p) { return { code: p.code, apres: p.prochaine < dates[0] ? dates[0] : p.prochaine, etape: true }; });
+    }).map(function (p) { return { code: p.code, apres: p.prochaine < dates[0] ? dates[0] : p.prochaine, etape: true, dateRdv: p.prochaine, prisLe: prisLe[p.code + '|' + p.prochaine] || '' }; });
   }
   function placerImpose(im) {
     var c = ctx(), dates = datesPeriode(), best = null;
@@ -2843,7 +2855,7 @@
         if (jourSemaineIndex(d) !== cr.jourIdx || (im.date && im.date !== d) || (im.apres && d < im.apres) || (im.cle && im.cle !== cr.cle) || estFerie(d)) return;
         if (S.plan.some(function (a) { return a.date === d && a.code === im.code; })) return;
         var a = Moteur.arretDepuisCreneau(cr, d);
-        a.impose = true; a.garde = true; if (im.rdv) a.rdv = im.rdv; if (im.etape) a.etape = true;
+        a.impose = true; a.garde = true; if (im.rdv) a.rdv = im.rdv; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres; a.rdvPrisLe = im.prisLe || ''; }
         var jour = S.plan.filter(function (x) { return x.date === d; });
         var avant = jour.reduce(function (s, x) { return s + (x.dist || 0); }, 0);
         var essai = Moteur.ordonnerJour(jour.map(function (x) { return Object.assign({}, x); }).concat([a]), departCoord());
