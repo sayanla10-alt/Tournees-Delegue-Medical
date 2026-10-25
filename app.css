@@ -1003,3 +1003,4 @@ details.avance h3 { margin-top: 18px; }
 .choix-ajout .tuile b svg { width: 18px; height: 18px; }
 .choix-ajout .tuile small { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 13px; }
 .a-saisir .bouton-texte { min-height: 0; padding: 3px 0; font-size: 14.5px; }
+.txt-alerte { color: #B45309; }

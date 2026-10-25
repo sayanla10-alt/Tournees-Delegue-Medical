@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.13.1';
+  var APP_VERSION = '3.13.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.13.2', ['Jours passés : plus de lecture seule ; chaque visite se complète ou se modifie (compte rendu pas à pas), et le compte rendu de la journée se remplit et se valide comme pour aujourd\'hui']],
     ['3.13.1', ['Jour passé hors de la tournée en cours : les visites prévues sans compte rendu s\'ouvrent avec le compte rendu pas à pas (visite faite, produits présentés…), comme dans la tournée']],
     ['3.13.0', ['Aujourd\'hui, écran de terrain : la date sous le titre, une seule bande de la semaine, la synthèse et la progression du compte rendu du jour',
                '« Maintenant » : la visite suivante avec ses actions, les comptes rendus à saisir, puis la finalisation de la journée',
@@ -893,7 +894,7 @@
     var t = aujourdhui(), dates = datesPlan(), tour = dates.indexOf(d) >= 0, etat;
     if (tour) etat = S.programme.etat === 'valide' ? '<span class="etiquette ok">Confirmée</span>' :
       '<button type="button" class="etiquette alerte bouton-etiquette" data-a="nav" data-tab="semaine">Brouillon › Planifier</button>';
-    else etat = d < t ? '<span class="etiquette">Lecture seule</span>' : (d > t ? '<span class="etiquette p1">Aperçu</span>' : '');
+    else etat = d < t ? '<span class="etiquette">Jour passé</span>' : (d > t ? '<span class="etiquette p1">Aperçu</span>' : '');
     var l = lundiDe(d), jours = joursOuvres(l);
     return '<div class="tete-jour"><div><h2 class="titre-vue">Aujourd\'hui</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
@@ -923,42 +924,52 @@
       note: x.note || pr.note, conventionne: pr.conventionne, quartier: x.quartier || '', commune: x.commune || '', lieu: x.lieu || '', lat: cr && cr.coord ? cr.coord.lat : '', lon: cr && cr.coord ? cr.coord.lon : '', etat: 'propose' };
     S.horsPlan.push(a); return a;
   }
-  function rendreJourHors(d) {
-    var t = aujourdhui(), prevus = programmeDuJour(d).slice().sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
-    var faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)); });
-    var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
-    var h = '', lignes = prevus.map(function (x) { return { x: x, v: parCode[x.code] }; });
-    faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) lignes.push({ x: v, v: v, hors: true }); });
-    if (!lignes.length) {
-      return '<div class="vide"><strong>' + (d < t ? 'Aucune visite enregistrée ce jour-là' : 'Rien de prévu ce jour-là') + '</strong>' +
-        (d < t ? 'Ni tournée archivée ni compte rendu pour cette date.' : 'Aucune tournée publiée pour cette date.') +
-        (d >= t ? '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier</button>' : '') + '</div>';
-    }
-    // passé ou aujourd'hui : les visites prévues sans compte rendu se complètent ici, comme dans la tournée
-    var aCompleter = d <= t ? lignes.filter(function (l) { return !l.v && !l.hors; }).map(function (l) { return arretHors(l.x, d); }) : [];
-    var enAttente = aCompleter.filter(function (a) { return a.etat !== 'valide'; });
-    lignes = lignes.filter(function (l) { return !(d <= t && !l.v && !l.hors) || aCompleter.filter(function (a) { return a.code === l.x.code && a.etat === 'valide'; }).length; });
-    var nf = lignes.filter(function (l) { return l.v && Moteur.estVisite(l.v.statut, statuts()); }).length;
-    if (enAttente.length) {
-      h += '<div class="bandeau"><p><b>' + enAttente.length + ' visite' + (enAttente.length > 1 ? 's' : '') + ' sans compte rendu.</b> Touchez une visite pour saisir son compte rendu (visite faite ou non, produits présentés…).</p></div>' +
-        '<ol class="ligne">' + enAttente.map(rendreArret).join('') + '</ol>';
-    }
-    if (!lignes.length) return h;
-    h += '<p class="bilan-jour"><b>' + lignes.length + ' visite' + (lignes.length > 1 ? 's' : '') + '</b>' + (d <= t ? ', ' + nf + ' faite' + (nf > 1 ? 's' : '') : ' prévue' + (lignes.length > 1 ? 's' : '')) + '.</p>';
-    h += '<ul class="liste">' + lignes.map(function (l) {
-      var x = l.x, v = l.v, e = '';
-      if (v && v.statut) e += '<span class="etiquette ' + (estKo(v.statut) ? 'ko' : 'ok') + '">' + esc(v.statut) + '</span>';
-      else e += d < t ? '<span class="etiquette alerte">Sans compte rendu</span>' : '<span class="etiquette">Prévue</span>';
-      if (l.hors) e += '<span class="etiquette">Hors tournée</span>';
-      var det = v ? [v.activite ? listeActivites(v.activite).join(', ') : '', v.produits ? 'Produits : ' + v.produits : '', v.commentaire || ''].filter(Boolean).join(' · ') : '';
-      return '<li class="element"><div class="element-tete"><div><b>' + esc(x.heure || '--:--') + '</b> · <b>' + esc(x.nom || '') + '</b> ' + etoiles(x.note) +
-        '<span class="discret bloc-texte">' + esc([x.specialite, x.lieu, x.quartier].filter(Boolean).join(', ')) + '</span></div></div>' +
-        '<span class="etiquettes">' + e + '</span>' + (det ? '<p class="discret" style="margin:6px 0 0">' + esc(det) + '</p>' : '') + '</li>';
-    }).join('') + '</ul>';
-    if (prevus.length && d > t) h += '<button class="bouton bouton-plein bouton-large" type="button" data-a="jourReprendre" data-v="' + d + '">' + icone('relancer') + 'Reprendre ce programme</button>';
-    else if (prevus.length) h += '<button class="bouton bouton-large" type="button" data-a="ouvrirAnciens">' + icone('relancer') + 'Reprendre ce programme sur un autre jour</button>';
-    return h;
+  // visite déjà renseignée un jour hors tournée : carte « compte rendu enregistré », modifiable (même identifiant que dans l'Historique)
+  function arretDeVisite(v, x, d) {
+    var uid = v.uid || ('V-' + d + '-' + v.code), a = S.horsPlan.filter(function (y) { return y.uid === uid; })[0];
+    if (a) return a;
+    var pr = praticien(v.code) || {}; x = x || {};
+    a = { uid: uid, hors: true, date: d, heure: v.heure || x.heure || '', creneau: v.creneau || x.creneau || '', debut: x.debut || '', fin: x.fin || '', idPresence: v.idPresence || x.idPresence || '',
+      code: v.code, nom: v.nom || x.nom || pr.nom || v.code, type: v.type || pr.type || 'Médecin', specialite: v.specialite || x.specialite || pr.specialite || '', note: v.note || x.note || pr.note,
+      conventionne: pr.conventionne, quartier: v.quartier || x.quartier || '', commune: v.commune || x.commune || '', lieu: v.lieu || x.lieu || '',
+      statut: v.statut || '', activite: v.activite || '', produits: v.produits || '', commentaire: v.commentaire || '', prochaine: String(v.prochaine || '').slice(0, 10), etat: 'valide' };
+    S.horsPlan.push(a); return a;
   }
+  // toutes les visites d'un jour hors tournée : prévues (archive ou tournée publiée) et réalisées (Historique)
+  function arretsHorsJour(d) {
+    var prevus = programmeDuJour(d), faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)); });
+    var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
+    var l = prevus.map(function (x) { return parCode[x.code] ? arretDeVisite(parCode[x.code], x, d) : arretHors(x, d); });
+    faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) { var a = arretDeVisite(v, null, d); a.horsTournee = true; l.push(a); } });
+    return l.sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
+  }
+  function rendreJourHors(d) {
+    var t = aujourdhui(), h = '';
+    if (d <= t) {
+      // jour passé : tout reste modifiable, comme dans la tournée (compte rendu à saisir ou à corriger)
+      var l = arretsHorsJour(d);
+      if (!l.length) return '<div class="vide"><strong>Aucune visite ce jour-là</strong>Ni tournée archivée ni compte rendu pour cette date.</div>';
+      var sans = l.filter(function (a) { return !a.statut || a.etat !== 'valide'; }).length, nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
+      h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
+        (sans ? ' · <b class="txt-alerte">' + sans + ' sans compte rendu</b>' : '') + '</span></div>' +
+        '<div class="progression"><i style="width:' + Math.round(100 * (l.length - sans) / l.length) + '%"></i></div>' +
+        '<small class="discret">Touchez une visite pour saisir ou modifier son compte rendu.</small></section>';
+      h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';
+      if (programmeDuJour(d).length) h += '<div class="rangee-actions pied-jour"><button class="bouton petit" type="button" data-a="ouvrirAnciens">' + icone('relancer') + 'Reprendre ce programme un autre jour</button></div>';
+      return h;
+    }
+    // jour à venir hors tournée : aperçu de la tournée publiée
+    var prevus = programmeDuJour(d).slice().sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
+    if (!prevus.length) return '<div class="vide"><strong>Rien de prévu ce jour-là</strong>Aucune tournée publiée pour cette date.' +
+      '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier</button></div>';
+    h += '<p class="bilan-jour"><b>' + prevus.length + ' visite' + (prevus.length > 1 ? 's' : '') + ' prévue' + (prevus.length > 1 ? 's' : '') + '</b>.</p>';
+    h += '<ul class="liste">' + prevus.map(function (x) {
+      return '<li class="element"><div class="element-tete"><div><b>' + esc(x.heure || '--:--') + '</b> · <b>' + esc(x.nom || '') + '</b> ' + etoiles(x.note) +
+        '<span class="discret bloc-texte">' + esc([x.specialite, x.lieu, x.quartier].filter(Boolean).join(', ')) + '</span></div></div></li>';
+    }).join('') + '</ul>';
+    return h + '<button class="bouton bouton-plein bouton-large" type="button" data-a="jourReprendre" data-v="' + d + '">' + icone('relancer') + 'Reprendre ce programme</button>';
+  }
+
   // ------------------------------------------------------------------ Aujourd'hui : écran de terrain + compte rendu de la journée
   // 1. en-tête (date, état, semaine) 2. synthèse et progression 3. « Maintenant » (selon l'heure) 4. parcours du jour
   // 5. ajouter / modifier 6. compte rendu de la journée (rempli à partir des visites, complété par le délégué)
@@ -967,7 +978,7 @@
     if (S.ui.jourVue) {
       h += d === t ? rendreRappels() : '';
       h += rendreJourHors(d);
-      if (d <= t && rapportDe(d)) h += rendreRapportJour(d, [], true);
+      if (d <= t) { var lh = arretsHorsJour(d); if (lh.length) h += rendreRapportJour(d, lh, false); }
       return h;
     }
     if (!S.plan.length) {
@@ -1124,8 +1135,9 @@
     }
     return h + '</section>';
   }
+  function visitesDuJourRapport(d) { var l = S.plan.filter(function (a) { return a.date === d; }); return l.length ? l : arretsHorsJour(d); }
   function texteRapport(d) {
-    var R = rapportDe(d) || {}, s = syntheseJour(S.plan.filter(function (a) { return a.date === d; }));
+    var R = rapportDe(d) || {}, s = syntheseJour(visitesDuJourRapport(d));
     var l = ['*Compte rendu du ' + dateLongue(d) + '*', 'Délégué : ' + (moi() || '')];
     lignesSynthese(s).forEach(function (x) { l.push(x[0] + ' : ' + x[1]); });
     l.push('Faits marquants : ' + (String(R.faits || '').trim() || 'rien à signaler'));
@@ -1138,7 +1150,7 @@
   function empreinteRapport(R) { return JSON.stringify([R.faits || '', R.concurrence || '', R.besoins || [], R.besoinsTexte || '', R.km || '']); }
   function envoyerRapport(d) {
     var R = rapportDe(d); if (!R || !R.valideLe || !connecte() || !moi()) return Promise.resolve();
-    var s = syntheseJour(S.plan.filter(function (a) { return a.date === d; }));
+    var s = syntheseJour(visitesDuJourRapport(d));
     var payload = { delegue: moi(), date: d, valideLe: R.valideLe, prevues: s.prevues, faites: s.faites.length,
       nonFaites: s.nonFaites.map(function (a) { return a.nom + ' (' + statutLibelle(a) + ')'; }).join(', '), sansCr: s.sansCr.length,
       synthese: lignesSynthese(s).map(function (x) { return x[0] + ' : ' + x[1]; }).join('\n'), faits: R.faits || '', concurrence: R.concurrence || '',

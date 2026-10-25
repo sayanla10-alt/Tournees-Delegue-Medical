@@ -1,9 +1,9 @@
 {
-  "version": "3.13.1",
+  "version": "3.13.2",
   "date": "2026-10-24",
   "notes": [
+    "Jours passés modifiables : comptes rendus des visites et de la journée",
     "Compte rendu possible sur les visites d'un jour passé hors de la tournée en cours",
-    "Aujourd'hui : écran de terrain, une ligne par visite, « Maintenant »",
-    "Compte rendu de la journée rempli automatiquement, complété, envoyé"
+    "Aujourd'hui : écran de terrain, une ligne par visite, « Maintenant »"
   ]
 }
