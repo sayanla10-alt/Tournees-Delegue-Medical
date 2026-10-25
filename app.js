@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.8.5';
+  var APP_VERSION = '3.8.6';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.8.6', ['Planifier : « Confirmer la tournée » demande Oui ou Non ; Non vous ramène au brouillon', 'Recherche : « + Nouveau » devient « + Ajouter »', 'Aujourd\'hui : le compte rendu prend le même format que Planifier (titre, étape en cours, réponses repliées en lignes courtes, Passer et Continuer côte à côte, Oui / Non en puces)']],
     ['3.8.5', ['Après une mise à jour, l\'application s\'ouvre sur « Aujourd\'hui »', 'Recherche : la fiche d\'un praticien s\'ouvre là où il est dans la liste, sans remonter en tête']],
     ['3.8.4', ['Équipe : sélectionnez un ou plusieurs délégués pour les isoler ; « Toute l\'équipe » les affiche tous', 'Plusieurs délégués : un bloc repliable par délégué, avec ses visites et celles faites', 'Planifier et Recherche : bouton « Fermer » à droite du titre ; le bloc s\'appelle simplement « Planifier »']],
     ['3.8.3', ['Recherche : comme Planifier, un résumé des critères et un bouton « Recherche » qui déploie la recherche ; « Fermer la recherche » la replie']],
@@ -1057,6 +1058,13 @@
     toast(a.nom + ' retiré de la tournée.');
   }
   // Confirmation avant tout changement de la tournée
+  function confirmerProgramme() {
+    var d = new Date();
+    S.programme = { etat: 'valide', valideLe: pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) };
+    sauver(); publierPlan(true);
+    S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée' };
+    rendre();
+  }
   function confirmerPuis(titre, message, libelleOui, action) {
     S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action };
     rendre();
@@ -1308,7 +1316,8 @@
   }
   function choixCr(a, cle, options, val) { return '<div class="puces">' + options.map(function (o) { o = Array.isArray(o) ? o : [o, o]; return puceCr(a, cle, o[0], o[1], val === o[0]); }).join('') + '</div>'; }
   function multiCr(a, cle, options, vals) { return '<div class="puces">' + options.map(function (o) { return puceCr(a, cle, o, o, (vals || []).indexOf(o) >= 0, true); }).join('') + '</div>'; }
-  function ouiNonCr(a, cle, val) { return '<div class="statuts deux">' + [['oui', 'Oui'], ['non', 'Non']].map(function (o) {
+  function ouiNonCr(a, cle, val) { return choixCr(a, cle, [['oui', 'Oui'], ['non', 'Non']], val); }
+  function ouiNonCrAncien(a, cle, val) { return '<div class="statuts deux">' + [['oui', 'Oui'], ['non', 'Non']].map(function (o) {
     return '<button type="button" class="statut' + (o[0] === 'non' ? ' ko' : '') + '" data-a="crChoix" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + o[0] + '" aria-pressed="' + (val === o[0]) + '">' + o[1] + '</button>';
   }).join('') + '</div>'; }
   function texteCr(a, cle, val, ph, zone) {
@@ -1412,8 +1421,15 @@
           'RDV confirmé : ' + (estPharmacie(a) ? 'la pharmacie est placée' : 'le praticien est placé') + ' d\'office ce jour-là dans vos tournées.') + '</span>';
     }, function () { return c.date ? majuscule(dateLongue(c.date)) : ''; });
   }
+  // libellés courts des réponses repliées (comme Planifier : « Période  Journée du… »)
+  var TITRES_COURTS = { 'La visite a-t-elle été faite ?': 'Visite faite', 'Trouver un remplaçant à proximité ?': 'Remplaçant', 'Type(s) de visite': 'Types',
+    'Activité(s)': 'Activités', 'Produits présentés ?': 'Présentés', 'Produits présentés': 'Produits', 'Réaction du médecin': 'Réaction',
+    'Échantillons remis ?': 'Échantillons', 'Échantillons remis (quantités)': 'Échantillons', 'Échantillons (quantités)': 'Échantillons',
+    'Rappel ou RDV confirmé ?': 'Rappel / RDV', 'Prochaine étape le': 'Date', 'Stocks vérifiés ?': 'Stocks', 'Stock par produit': 'Stocks',
+    'Commande passée ?': 'Commande', 'Commande (quantités)': 'Quantités', 'Besoin de réapprovisionnement': 'Besoin' };
+  function titreCourt(t) { return TITRES_COURTS[t] || t; }
   function rendreCompteRendu(a) {
-    var c = crDe(a), ok = c.ok || (c.ok = {}), h = '<div class="cr-pas">';
+    var c = crDe(a), ok = c.ok || (c.ok = {}), h = '<div class="cr-pas etapes-filtres"><div class="tete-bloc tete-cr"><h3>Compte rendu</h3></div>';
     var etapes = etapesCr(a);
     for (var i = 0; i < etapes.length; i++) {
       var s = etapes[i];
@@ -1422,12 +1438,12 @@
           icone('cible') + 'Enregistrer et ouvrir Autour de moi</button></div></div>';
       }
       if (ok[s.id]) {
-        h += '<button type="button" class="cr-fait" data-a="crEditer" data-uid="' + a.uid + '" data-v="' + s.id + '"><span>' + esc(s.titre) + '</span><b>' + esc(s.resume()) + '</b>' + icone('crayon') + '</button>';
+        h += '<button type="button" class="cr-fait" data-a="crEditer" data-uid="' + a.uid + '" data-v="' + s.id + '"><span>' + esc(titreCourt(s.titre)) + '</span><b>' + esc(s.resume()) + '</b>' + icone('crayon') + '</button>';
         continue;
       }
       // question en cours : la seule affichée
       var err = s.valide ? s.valide() : '';
-      h += '<div class="cr-question"><span class="etape-titre">' + esc(s.titre) + (s.type === 'facultatif' ? ' <small>(facultatif)</small>' : '') + '</span>' + s.rendu();
+      h += '<div class="cr-question"><span class="etape-titre">' + esc(s.titre) + ' <small>étape ' + (i + 1) + (s.type === 'facultatif' ? ', facultatif' : '') + '</small></span>' + s.rendu();
       if (s.type !== 'auto') {
         h += '<div class="rangee cr-boutons">' + (s.type === 'facultatif' ? '<button class="bouton" type="button" data-a="crPasser" data-uid="' + a.uid + '" data-v="' + s.id + '">Passer</button>' : '') +
           '<button class="bouton bouton-plein" type="button" data-a="crOk" data-uid="' + a.uid + '" data-v="' + s.id + '"' + (err ? ' disabled' : '') + '>Continuer</button></div>' +
@@ -2106,7 +2122,7 @@
     var io = liste.map(function (p) { return p.code; }).indexOf(S.ui.contactOuvert);
     if (io > 0 && S.ui.contactEnTete === S.ui.contactOuvert) liste.unshift(liste.splice(io, 1)[0]);
     var h = '<div class="tete-vue"><h2 class="titre-vue">Recherche</h2>' +
-      '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Nouveau</button></div>' +
+      '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Ajouter</button></div>' +
       '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>';
     // comme « Planifier » : un résumé et un bouton « Recherche » qui déploie la recherche ; « Fermer » la replie
     if (S.ui.rechOuverte) {
@@ -3222,12 +3238,12 @@
       S.ui.tab = 'autour'; S.ui.pharmaciesProches = false; rendre(); window.scrollTo(0, 0);
     },
     validerProgramme: function () {
-      var d = new Date();
-      S.programme = { etat: 'valide', valideLe: pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) };
-      sauver(); publierPlan(true);
-      S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée' };
-      rendre();
+      var dates = datesAffichees();
+      confirmerPuis('Confirmer la tournée', 'Confirmer votre tournée ' + (S.params.mode === 'semaine' ? 'de la semaine du ' + dateFr(dates[0]) : 'du ' + dateFr(dates[0])) +
+        ' ? Elle sera visible par l\'équipe.<br><span class="discret">Non : vous revenez à la tournée en brouillon pour l\'ajuster.</span>', 'Oui, confirmer', confirmerProgramme);
     },
+    confirmerProgrammeDirect: function () { confirmerProgramme(); },
+
     corriger: function (el) {
       var a = arret(el.dataset.uid); if (!a) return; a.etat = 'correction'; a.corrige = true;
       var c = crDe(a); c.ok = c.ok || {}; etapesCr(a).forEach(function (x) { if (x.id && x.id.indexOf('__') !== 0) c.ok[x.id] = true; }); S.ui.ouvert = a.uid; LS.set('plan', S.plan); rendre(); },

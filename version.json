@@ -1,8 +1,9 @@
 {
-  "version": "3.8.5",
+  "version": "3.8.6",
   "date": "2026-10-24",
   "notes": [
-    "Après une mise à jour, retour sur « Aujourd'hui »",
-    "Recherche : la fiche s'ouvre là où est le praticien dans la liste"
+    "Confirmer la tournée : Oui ou Non",
+    "Recherche : « + Ajouter »",
+    "Compte rendu au même format que Planifier"
   ]
 }

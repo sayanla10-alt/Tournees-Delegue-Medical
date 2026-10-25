@@ -1,6 +1,6 @@
 # MediPlanner
 
-Version 3.8.5
+Version 3.8.6
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -127,7 +127,7 @@ L'application suit la journée du délégué, en 5 onglets.
 - **Confirmer la tournée** : elle devient visible par l'équipe ; elle reste modifiable et chaque changement est publié. **Envoyer sur WhatsApp** : « Planning du … (votre nom) », puis chaque établissement et ses médecins, précédés d'une puce.
 - **Communes visitées** : carte et liste des communes visitées ou non (par vous et par l'équipe), au jour ou à la semaine.
 
-**3. Recherche** (les praticiens) : recherche, une phrase qui résume les critères retenus, Tout / Médecins / Pharmacies, filtres rapides et avancés, tri. La fiche affiche les actions rapides, le dernier commentaire, le prochain RDV et les jours de présence (touchez M ou S pour planifier) ; **Ajouter à ma tournée** ou **Modifier la fiche** ; **Nouveau** pour créer une fiche en 4 étapes.
+**3. Recherche** (les praticiens) : recherche, une phrase qui résume les critères retenus, Tout / Médecins / Pharmacies, filtres rapides et avancés, tri. La fiche affiche les actions rapides, le dernier commentaire, le prochain RDV et les jours de présence (touchez M ou S pour planifier) ; **Ajouter à ma tournée** ou **Modifier la fiche** ; **Ajouter** pour créer une fiche en 4 étapes.
 
 **4. Équipe** : choisissez **Jour** ou **Semaine**, puis la date (flèches ou calendrier) : pour vous et chaque collègue, ce qui a été planifié et ce qui a été fait (visites faites, non faites, sans compte rendu, hors tournée), avec « Toute l'équipe » pour tout voir ensemble, le détail de chaque visite (type, produits, commentaire) et la carte du jour en bas. Tournées conservées 62 jours.
 

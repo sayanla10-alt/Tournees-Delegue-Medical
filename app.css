@@ -845,3 +845,11 @@ details.avance h3 { margin-top: 18px; }
 .tete-bloc h3 { margin: 0; }
 .fermer-bloc { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: 14px; }
 .fermer-bloc svg { width: 16px; height: 16px; }
+
+/* 3.8.6 : compte rendu au même format que Planifier */
+.tete-cr { margin: 12px 0 8px; }
+.tete-cr h3 { font-size: 16px; }
+.cr-question .etape-titre small { font-weight: 500; color: var(--gris); font-size: 12.5px; }
+.cr-boutons { flex-wrap: nowrap; }
+.cr-boutons .bouton { flex: 1 1 0; min-width: 0; }
+.cr-question textarea, .cr-question input[type="text"], .cr-question select { width: 100%; max-width: 100%; box-sizing: border-box; }
