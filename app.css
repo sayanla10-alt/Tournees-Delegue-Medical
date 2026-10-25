@@ -853,3 +853,15 @@ details.avance h3 { margin-top: 18px; }
 .cr-boutons { flex-wrap: nowrap; }
 .cr-boutons .bouton { flex: 1 1 0; min-width: 0; }
 .cr-question textarea, .cr-question input[type="text"], .cr-question select { width: 100%; max-width: 100%; box-sizing: border-box; }
+
+/* 3.8.7 : champs du compte rendu au format Planifier */
+.champs-cr { margin-top: 8px; }
+.champs-cr .champ { margin-bottom: 10px; }
+.champs-cr .champ:last-child { margin-bottom: 0; }
+.champs-cr .qte, .champs-cr select { width: 100%; }
+.cr-question .ligne-stock { padding: 10px 0; border-bottom: 1px solid var(--trait); }
+.cr-question .ligne-stock:last-child { border-bottom: 0; }
+.cr-question .ligne-stock > b { display: block; margin-bottom: 6px; }
+.cr-question .ligne-stock .grille-2 .champ { margin-bottom: 0; }
+.cr-question .segment button { min-height: 40px; }
+.champs-cr .qte, .cr-question .ligne-stock .qte { width: 100% !important; text-align: left; padding: 6px 12px !important; }

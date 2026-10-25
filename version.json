@@ -1,9 +1,9 @@
 {
-  "version": "3.8.6",
+  "version": "3.8.7",
   "date": "2026-10-24",
   "notes": [
-    "Confirmer la tournée : Oui ou Non",
-    "Recherche : « + Ajouter »",
-    "Compte rendu au même format que Planifier"
+    "Compte rendu : mêmes éléments que Planifier (segments, sélecteurs, champs étiquetés)",
+    "Ajouter un praticien : même parcours par étapes",
+    "Application harmonisée"
   ]
 }

@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.8.6';
+  var APP_VERSION = '3.8.7';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.8.7', ['Compte rendu : les réponses utilisent les mêmes éléments que Planifier : Oui / Non en segment, listes longues (types de visite, produits, motif) dans un sélecteur qui ouvre la liste, quantités et réactions en champs étiquetés', 'Ajouter un praticien : même parcours (étapes faites repliées en lignes modifiables, étape en cours dans son cadre)', 'Toutes les étapes indiquent « étape n/N »']],
     ['3.8.6', ['Planifier : « Confirmer la tournée » demande Oui ou Non ; Non vous ramène au brouillon', 'Recherche : « + Nouveau » devient « + Ajouter »', 'Aujourd\'hui : le compte rendu prend le même format que Planifier (titre, étape en cours, réponses repliées en lignes courtes, Passer et Continuer côte à côte, Oui / Non en puces)']],
     ['3.8.5', ['Après une mise à jour, l\'application s\'ouvre sur « Aujourd\'hui »', 'Recherche : la fiche d\'un praticien s\'ouvre là où il est dans la liste, sans remonter en tête']],
     ['3.8.4', ['Équipe : sélectionnez un ou plusieurs délégués pour les isoler ; « Toute l\'équipe » les affiche tous', 'Plusieurs délégués : un bloc repliable par délégué, avec ses visites et celles faites', 'Planifier et Recherche : bouton « Fermer » à droite du titre ; le bloc s\'appelle simplement « Planifier »']],
@@ -1189,7 +1190,7 @@
         return;
       }
       if (e !== enCours) return;
-      h += '<div class="cr-question"><span class="etape-titre">' + e.titre + ' <small>' + (i + 1) + '/' + n + (e.facultatif ? ', facultatif' : '') + '</small></span>' + e.rendu();
+      h += '<div class="cr-question"><span class="etape-titre">' + e.titre + ' <small>étape ' + (i + 1) + '/' + n + (e.facultatif ? ', facultatif' : '') + '</small></span>' + e.rendu();
       if (!e.auto || ok[e.id] === false) h += '<div class="rangee cr-boutons">' + (e.facultatif ? '<button class="bouton" type="button" data-a="pEtapePasser" data-v="' + e.id + '">Passer</button>' : '') +
         '<button class="bouton bouton-plein" type="button" data-a="pEtapeOk" data-v="' + e.id + '">' + (e.auto ? 'Garder « ' + esc(e.resume()) + ' »' : 'Continuer') + '</button></div>';
       h += '</div>';
@@ -1314,8 +1315,28 @@
     return '<button type="button" class="puce" data-a="' + (multi ? 'crMulti' : 'crChoix') + '" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + esc(v) +
       '" aria-pressed="' + !!actif + '">' + esc(lib || v) + '</button>';
   }
-  function choixCr(a, cle, options, val) { return '<div class="puces">' + options.map(function (o) { o = Array.isArray(o) ? o : [o, o]; return puceCr(a, cle, o[0], o[1], val === o[0]); }).join('') + '</div>'; }
-  function multiCr(a, cle, options, vals) { return '<div class="puces">' + options.map(function (o) { return puceCr(a, cle, o, o, (vals || []).indexOf(o) >= 0, true); }).join('') + '</div>'; }
+  // Composants du compte rendu, alignés sur Planifier : 2 choix = segment (comme « Une journée | Une semaine »),
+  // jusqu'à 5 = puces, au-delà = sélecteur qui ouvre la liste (comme « Communes » ou « Spécialités »).
+  S.ui.crOptions = {};
+  function optionsNorm(options) { return options.map(function (o) { return Array.isArray(o) ? o : [o, o]; }); }
+  function selecteurCr(a, cle, options, vals, multi, vide) {
+    S.ui.crOptions[a.uid + '|' + cle] = optionsNorm(options);
+    var libs = optionsNorm(options).filter(function (o) { return vals.indexOf(o[0]) >= 0; }).map(function (o) { return o[1]; });
+    return '<div class="champ" style="margin:8px 0 0"><button type="button" class="selecteur" data-a="crListe" data-uid="' + a.uid + '" data-k="' + cle + '" data-m="' + (multi ? 1 : 0) + '">' +
+      esc(libs.length ? libs.join(', ') : vide) + '<b>▾</b></button></div>';
+  }
+  function choixCr(a, cle, options, val) {
+    var o = optionsNorm(options);
+    if (o.length === 2) return '<div class="segment" role="group" style="margin:8px 0 0">' + o.map(function (x) {
+      return '<button type="button" data-a="crChoix" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + esc(x[0]) + '" aria-pressed="' + (val === x[0]) + '">' + esc(x[1]) + '</button>';
+    }).join('') + '</div>';
+    if (o.length > 5) return selecteurCr(a, cle, o, val ? [val] : [], false, 'Choisir…');
+    return '<div class="puces">' + o.map(function (x) { return puceCr(a, cle, x[0], x[1], val === x[0]); }).join('') + '</div>';
+  }
+  function multiCr(a, cle, options, vals) {
+    if (options.length > 4) return selecteurCr(a, cle, options, vals || [], true, 'Choisir… (plusieurs possibles)');
+    return '<div class="puces">' + options.map(function (o) { return puceCr(a, cle, o, o, (vals || []).indexOf(o) >= 0, true); }).join('') + '</div>';
+  }
   function ouiNonCr(a, cle, val) { return choixCr(a, cle, [['oui', 'Oui'], ['non', 'Non']], val); }
   function ouiNonCrAncien(a, cle, val) { return '<div class="statuts deux">' + [['oui', 'Oui'], ['non', 'Non']].map(function (o) {
     return '<button type="button" class="statut' + (o[0] === 'non' ? ' ko' : '') + '" data-a="crChoix" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + o[0] + '" aria-pressed="' + (val === o[0]) + '">' + o[1] + '</button>';
@@ -1331,8 +1352,8 @@
   }
   function etapeCr(titre, contenu, aide) { return '<div class="champ etape-cr-bloc"><span>' + titre + '</span>' + contenu + (aide ? '<span class="aide-champ">' + aide + '</span>' : '') + '</div>'; }
   function tableQ(a, prefixe, produits, valeurs) {
-    return '<div class="table-produits">' + produits.map(function (p) {
-      return '<label class="ligne-produit"><span>' + esc(p) + '</span>' + qteCr(a, prefixe + '.' + p, (valeurs || {})[p]) + '</label>';
+    return '<div class="grille-2 champs-cr">' + produits.map(function (p) {
+      return '<label class="champ"><span>' + esc(p) + '</span>' + qteCr(a, prefixe + '.' + p, (valeurs || {})[p]) + '</label>';
     }).join('') + '</div>';
   }
 
@@ -1364,8 +1385,8 @@
             '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits();
         }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
         e('reactions', 'Réaction du médecin', 'continuer', function () {
-          return '<div class="table-produits">' + produitsPresentes(c).map(function (p) {
-            return '<label class="ligne-produit"><span>' + esc(p) + '</span>' + selectCr(a, 'reactions.' + p, REACTIONS, c.reactions[p], 'Réaction…') + '</label>';
+          return '<div class="champs-cr">' + produitsPresentes(c).map(function (p) {
+            return '<label class="champ"><span>' + esc(p) + '</span>' + selectCr(a, 'reactions.' + p, REACTIONS, c.reactions[p], 'Réaction…') + '</label>';
           }).join('') + '</div>';
         }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
       }
@@ -1381,10 +1402,10 @@
     if (!im.stocks) e('stocksVerif', 'Stocks vérifiés ?', 'auto', function () { return choixCr(a, 'stocksVerif', [['oui', 'Oui'], ['non', 'Non']], c.stocksVerif); }, function () { return oui(c.stocksVerif); });
     if (c.stocksVerif === 'oui' || im.stocks) {
       e('stocks', 'Stock par produit', 'continuer', function () {
-        return '<div class="table-produits">' + cat.map(function (p) {
+        return '<div class="champs-cr">' + cat.map(function (p) {
           var s = c.stocks[p] || {};
-          return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="stock-champs">' + selectCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, 'État…') +
-            qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</div>' +
+          return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="grille-2"><label class="champ"><span>État</span>' + selectCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, 'État…') + '</label>' +
+            '<label class="champ"><span>Quantité</span>' + qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</label></div>' +
             (s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="stock-champs">' + selectCr(a, 'stocks.' + p + '.anomalie', ANOMALIES, s.anomalie, 'Aucune anomalie') +
               (s.anomalie ? '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot">' : '') + '</div>' : '') + '</div>';
         }).join('') + '</div>' + texteCr(a, 'autresStock', c.autresStock, 'Autres produits et état, ex. Doliprane rupture') +
@@ -1416,7 +1437,7 @@
       return '<div class="rangee-prochaine">' + [7, 14, 30].map(function (n) {
         var d = ajouterJours(a.date, n);
         return '<button type="button" class="puce" data-a="crDate" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (c.date === d) + '">+' + n + ' j</button>';
-      }).join('') + '<input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date de la prochaine étape"></div>' +
+      }).join('') + '</div><label class="champ" style="margin:10px 0 0"><span>Ou une date</span><input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date de la prochaine étape"></label>' +
         '<span class="aide-champ">' + (c.suiteType === 'rappel' ? 'Rappel : il s\'affiche ce jour-là dans « Aujourd\'hui », sans modifier la tournée.' :
           'RDV confirmé : ' + (estPharmacie(a) ? 'la pharmacie est placée' : 'le praticien est placé') + ' d\'office ce jour-là dans vos tournées.') + '</span>';
     }, function () { return c.date ? majuscule(dateLongue(c.date)) : ''; });
@@ -2083,7 +2104,7 @@
     etapes.forEach(function (e, i) {
       if (ok[e.id]) { h += ligne(e); return; }
       if (e !== enCours) return;
-      h += '<div class="cr-question"><span class="etape-titre">' + QUESTIONS_FILTRES[e.id].titre + ' <small>' + (i + 1) + '/' + n + '</small></span>' + e.rendu();
+      h += '<div class="cr-question"><span class="etape-titre">' + QUESTIONS_FILTRES[e.id].titre + ' <small>étape ' + (i + 1) + '/' + n + '</small></span>' + e.rendu();
       if (!e.auto) h += '<div class="rangee cr-boutons"><button class="bouton" type="button" data-a="etapePasser" data-v="' + e.id + '">Passer</button>' +
         '<button class="bouton bouton-plein" type="button" data-a="etapeOk" data-v="' + e.id + '">Continuer</button></div>';
       else if (i > 0 || ok.qui === false) h += '<div class="rangee cr-boutons"><button class="bouton" type="button" data-a="etapeOk" data-v="' + e.id + '">Garder « ' + esc(e.resume()) + ' »</button></div>';
@@ -2679,6 +2700,12 @@
 
   // Filtres avancés de la liste des praticiens (cumulables)
   var TRIS = [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite'], ['nom', 'Nom']];
+  FEUILLES.crListe = function (f) {
+    var h = groupeChoix(f, { id: 'l', titre: f.multi ? 'Plusieurs choix possibles' : 'Un seul choix', chemin: 'sel', multiple: f.multi, recherche: f.options.length > 8,
+      options: f.options.map(function (o) { return { v: o[0], lib: o[1] }; }) });
+    return f.multi ? { corps: h, pied: '<button class="bouton" type="button" data-a="crListeAucun">Effacer</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="crListeOk">Valider' + (f.sel.length ? ' · ' + f.sel.length : '') + '</button>' } : h;
+  };
   FEUILLES.filtres = function (f) {
     var b = f.brouillon, n = filtrerPraticiens(b, rechercheCour()).length, seule = f.question;
     function opt(l) { return l.map(function (x) { return { v: x[0], lib: x[1], n: x[2] }; }); }
@@ -2771,11 +2798,19 @@
   function attrInvalide(f, cle) { return (f.err[cle] ? ' aria-invalid="true"' : '') + ' aria-describedby="err-' + cle + '"'; }
 
   FEUILLES.fiche = function (f) {
-    var d = f.d, e = f.etape, h = '<ol class="etapes">' + ETAPES_FICHE.map(function (t, i) {
-      return '<li class="' + (i < e ? 'faite' : (i === e ? 'active' : '')) + '"' + (i === e ? ' aria-current="step"' : '') + '>' + (i + 1) + '. ' + t + '</li>';
-    }).join('') + '</ol>';
+    // même parcours que Planifier et le compte rendu : étapes faites repliées en lignes, étape en cours dans son cadre
+    var d = f.d, e = f.etape;
+    var resumes = [
+      function () { return (d.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin') + (d.nom ? ' · ' + d.nom : ''); },
+      function () { return (d.type === 'Pharmacie' ? 'Pharmacien' : (d.specialite === '__autre' ? d.autreSpec : d.specialite) || '') + ' · ' + ETOILES[lettrePotentiel(+d.note)] + (d.conventionne === 'Oui' ? ' · Engagé' : ''); },
+      function () { return d.lieux.length + ' lieu' + (d.lieux.length > 1 ? 'x' : '') + ' : ' + d.lieux.map(function (l) { return l.lieu; }).filter(Boolean).join(', '); },
+      function () { return d.lieux.map(function (l) { return l.quartier; }).filter(Boolean).join(', '); }
+    ];
+    var h = '<div class="cr-pas etapes-filtres">' + ETAPES_FICHE.map(function (t, i) {
+      return i < e ? '<button type="button" class="cr-fait" data-a="ficheAller" data-v="' + i + '"><span>' + t + '</span><b>' + esc(resumes[i]()) + '</b>' + icone('crayon') + '</button>' : '';
+    }).join('') + '<div class="cr-question"><span class="etape-titre">' + ETAPES_FICHE[e] + ' <small>étape ' + (e + 1) + '/' + ETAPES_FICHE.length + '</small></span>';
     if (e === 0) {
-      h += '<p class="etape-titre">Informations personnelles</p><p class="discret" style="margin-top:0">Les champs marqués * sont obligatoires.</p>' +
+      h += '<p class="discret" style="margin-top:0">Les champs marqués * sont obligatoires.</p>' +
         '<div class="segment" role="group" aria-label="Type">' + ['Médecin', 'Pharmacie'].map(function (t) {
           return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
         }).join('') + '</div>' +
@@ -2788,7 +2823,7 @@
       if (d.code) h += '<label class="interrupteur"><span>Praticien actif (sinon retiré des tournées, historique conservé)</span><input type="checkbox" data-f="fiche" data-k="actif"' + (d.actif !== 'Non' ? ' checked' : '') + '></label>';
     }
     if (e === 1) {
-      h += '<p class="etape-titre">Spécialité et potentiel</p>';
+      h += '';
       if (d.type === 'Pharmacie') h += '<p class="discret">Spécialité enregistrée : Pharmacien.</p>';
       else {
         var specs = specialitesListe().map(function (x) { return x.nom; });
@@ -2808,7 +2843,7 @@
         '<label class="interrupteur"><span>Engagé</span><input type="checkbox" data-f="fiche" data-k="conventionne"' + (d.conventionne === 'Oui' ? ' checked' : '') + '></label>';
     }
     if (e === 2) {
-      h += '<p class="etape-titre">Disponibilités</p><p class="discret" style="margin-top:0">Pour chaque lieu d\'exercice : les demi-journées de présence et leurs horaires.</p>';
+      h += '<p class="discret" style="margin-top:0">Pour chaque lieu d\'exercice : les demi-journées de présence et leurs horaires.</p>';
       if (f.err.lieux) h += '<p class="erreur-texte">' + esc(f.err.lieux) + '</p>';
       d.lieux.forEach(function (l, i) {
         var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
@@ -2837,7 +2872,7 @@
     if (e === 3) {
       var parCommune = {};
       quartiers().forEach(function (q) { (parCommune[q.commune] = parCommune[q.commune] || []).push(q.quartier); });
-      h += '<p class="etape-titre">Localisation</p><p class="discret" style="margin-top:0">Le quartier place le lieu sur la carte et dans les tournées. La position GPS, facultative, rend les trajets plus précis.</p>';
+      h += '<p class="discret" style="margin-top:0">Le quartier place le lieu sur la carte et dans les tournées. La position GPS, facultative, rend les trajets plus précis.</p>';
       d.lieux.forEach(function (l, i) {
         var q = quartiers().filter(function (x) { return x.quartier === l.quartier; })[0];
         h += '<div class="lieu-bloc"><div class="lieu-tete"><b>' + esc(l.lieu || 'Lieu ' + (i + 1)) + '</b></div>' +
@@ -2856,6 +2891,7 @@
           return esc(l.lieu) + ' : ' + esc(j);
         }).join('<br>') + '</dd></dl>';
     }
+    h += '</div></div>';
     var pied = (e > 0 ? '<button class="bouton" type="button" data-a="ficheEtape" data-v="-1">Précédent</button>' : '<button class="bouton" type="button" data-a="fermerFeuille">Annuler</button>') +
       (e < 3 ? '<button class="bouton bouton-plein" type="button" data-a="ficheEtape" data-v="1">Suivant</button>'
              : '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>');
@@ -3460,6 +3496,29 @@
       var c = cheminObjet(el.dataset.chemin), v = el.dataset.v;
       if (el.dataset.m === '1') { var l = c.o[c.k], i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v); }
       else c.o[c.k] = v;
+      var f = S.ui.feuille;
+      if (f && f.type === 'crListe' && !f.multi) {   // choix unique : appliqué tout de suite, question suivante
+        var a = arret(f.uid); S.ui.feuille = null;
+        if (a) { majCr(a, f.cle, v); validerEtape(a, f.cle); }
+      }
+      rendre();
+    },
+    crListe: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var cle = el.dataset.k, multi = el.dataset.m === '1', c = crDe(a), opts = S.ui.crOptions[a.uid + '|' + cle] || [];
+      var titres = { types: estPharmacie(a) ? 'Activités' : 'Types de visite', produits: 'Produits présentés', motif: 'Motif', besoin: 'Besoin de réapprovisionnement', actionProduits: 'Produits concernés' };
+      S.ui.feuille = { type: 'crListe', titre: titres[cle] || 'Choisir', uid: a.uid, cle: cle, multi: multi, options: opts,
+        sel: multi ? (c[cle] || []).slice() : (c[cle] || '') };
+      rendre();
+    },
+    crListeAucun: function () { S.ui.feuille.sel = []; rendre(); },
+    crListeOk: function () {
+      var f = S.ui.feuille, a = arret(f.uid); S.ui.feuille = null;
+      if (a) {
+        crDe(a)[f.cle] = f.sel.slice(); syncCr(a); LS.set('plan', S.plan);
+        // comme Planifier : la liste validée passe à la question suivante (sauf s'il reste un champ à remplir dans la question)
+        if (f.sel.length && (f.cle === 'types')) validerEtape(a, f.cle);
+      }
       rendre();
     },
     groupeTout: function (el) {
@@ -3575,6 +3634,7 @@
       }, function () { toast('Position indisponible. Autorisez la localisation.'); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
     },
     ficheGpsEffacer: function (el) { var l = S.ui.feuille.d.lieux[+el.dataset.i]; l.lat = ''; l.lon = ''; rendre(); },
+    ficheAller: function (el) { var f = S.ui.feuille; f.err = {}; f.etape = Math.min(f.etape, +el.dataset.v); rendre(); },
     ficheEtape: function (el) {
       var f = S.ui.feuille, sens = +el.dataset.v;
       if (sens > 0) {
