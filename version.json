@@ -1,7 +1,9 @@
 {
-  "version": "3.6.3",
+  "version": "3.7.0",
   "date": "2026-10-24",
   "notes": [
+    "Médecin déjà prévu par un collègue : « Le remplacer ? Oui / Non » au lieu de « Retirer »",
+    "Aujourd'hui : bouton « Pharmacie » pour ajouter une pharmacie ouverte près de votre position",
     "Dates au format 26-Oct-2026",
     "RDV placé dans la tournée : l'étiquette indique quand il a été pris (et s'il a été décalé faute de présence ce jour-là)",
     "Tous les calendriers affichent la date en français, au format JJ/Mmm/AAAA (ex. 16/Nov/2026)",

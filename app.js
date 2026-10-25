@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.6.3';
+  var APP_VERSION = '3.7.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.7.0', ['Médecin déjà prévu par un collègue : « Le remplacer ? Oui / Non » au lieu de « Retirer »', 'Aujourd\'hui : bouton « Pharmacie » pour ajouter une pharmacie ouverte près de votre position']],
     ['3.6.3', ['Dates au format 26-Oct-2026', 'RDV placé dans la tournée : l\'étiquette indique quand il a été pris (et s\'il a été décalé faute de présence ce jour-là)']],
     ['3.6.2', ['Tous les calendriers affichent la date en français, au format JJ/Mmm/AAAA (ex. 16/Nov/2026)']],
     ['3.6.1', ['Reprendre un ancien programme : choisissez aussi le jour ou la semaine sur lesquels le copier, puis conservez-le ou revenez à l\'ancienne planification']],
@@ -825,7 +826,8 @@
   // Aujourd'hui : les visites du jour, dans l'ordre, avec contact, itinéraire et compte rendu
   VUES.jour = function () {
     var h = '<div class="tete-vue"><h2 class="titre-vue">Aujourd\'hui</h2>' +
-      '<button class="bouton petit" type="button" data-a="ouvrirAutour">' + icone('cible') + 'Autour de moi</button></div>' +
+      '<div class="rangee-tete"><button class="bouton petit" type="button" data-a="ajouterPharmacie">' + icone('plus') + 'Pharmacie</button>' +
+      '<button class="bouton petit" type="button" data-a="ouvrirAutour">' + icone('cible') + 'Autour de moi</button></div></div>' +
       '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>' + rendreRappels();
     if (!S.plan.length) {
       return h + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».' +
@@ -986,6 +988,36 @@
       (manques.length ? ' ; ' + manques.length + ' praticien' + (manques.length > 1 ? 's' : '') + ' absent' + (manques.length > 1 ? 's' : '') + ' ce jour-là (non repris)' : '') + '.', 5000);
   }
 
+  // Médecin déjà prévu par un collègue la même semaine : question « Le remplacer ? » (Oui : un autre praticien ; Non : je le garde)
+  function conflitArret(a) {
+    if (a.etat === 'valide' || a.statut || a.conflitOk || S.config.demo) return null;
+    var l = cibleParCollegues(a.code, a.date);
+    return l.length ? l[0] : null;
+  }
+  function questionConflit(a, cf) {
+    return '<div class="conflit"><p>Aussi prévu par <b>' + esc(cf.delegue) + '</b> le ' + dateFr(cf.date) + '. Le remplacer par un autre praticien ?</p>' +
+      '<div class="rangee"><button class="bouton petit bouton-plein" type="button" data-a="conflitRemplacer" data-uid="' + a.uid + '">Oui, remplacer</button>' +
+      '<button class="bouton petit" type="button" data-a="conflitGarder" data-uid="' + a.uid + '">Non, je le garde</button></div></div>';
+  }
+  function remplacerArret(uid) {
+    var a = arret(uid); if (!a) return;
+    var d = a.date, avant = S.plan.filter(function (x) { return x.date === d; }).length;
+    S.rejetes[a.code] = true;
+    var reste = S.plan.filter(function (x) { return x.uid !== uid; });
+    var exclus = exclusCollegues([d]);
+    exclus[a.code] = true;
+    reste.forEach(function (x) { if (x.date !== d) exclus[x.code] = true; });
+    var r = Moteur.genererPlanning(ctx(), {
+      dates: [d], communesPour: communesPour, maxJour: avant, delai: +S.params.delai || 0, exclus: exclus, rejetes: S.rejetes,
+      conserves: reste.filter(function (x) { return x.date === d; }), imposes: [], depart: departCoord(), accepte: filtreCibles()
+    });
+    var anciens = ensemble(reste.map(function (x) { return x.uid; }));
+    var nouveau = r.arrets.filter(function (x) { return !anciens[x.uid]; })[0];
+    S.plan = reste.filter(function (x) { return x.date !== d; }).concat(r.arrets);
+    trierPlan(); S.ui.ouvert = null; marquerModifie(); sauver(); rendre(); publierPlan();
+    toast(nouveau ? a.nom + ' remplacé par ' + nouveau.nom + ' (' + nouveau.heure + ', ' + nouveau.quartier + ').' : a.nom + ' retiré : aucun autre praticien disponible ce jour-là.', 5000);
+  }
+
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
   function rendreLignePlan(a) {
     var verrou = a.etat === 'valide', e = '';
@@ -1002,6 +1034,7 @@
         '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
           (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
         '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
+      (conflitArret(a) ? questionConflit(a, conflitArret(a)) : '') +
       '</li>';
   }
 
@@ -1420,7 +1453,8 @@
         actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune });
       if (!verrou) {
         h += rendreCompteRendu(a);
-        h += '<button class="bouton-texte" type="button" data-a="retirer" data-uid="' + a.uid + '">Retirer de la tournée</button>';
+        var cf = conflitArret(a);
+        h += cf ? questionConflit(a, cf) : '<button class="bouton-texte" type="button" data-a="retirer" data-uid="' + a.uid + '">Retirer de la tournée</button>';
       } else {
         h += '<div class="resume-cr">' + resumeCompteRendu(a) + '</div><button class="bouton bouton-large" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:6px">' + icone('crayon') + 'Modifier le compte rendu</button>';
       }
@@ -1571,14 +1605,20 @@
   // ------------------------------------------------------------------ Vue : autour de moi
   VUES.autour = function () {
     var A = S.ui.autour, h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Aujourd\'hui</button>' +
-      '<h2 class="titre-vue">Autour de moi</h2>' +
-      '<p class="sous-titre">Médecin absent, trou dans la journée : trouvez qui est présent près de vous.</p>';
+      '<h2 class="titre-vue">' + (S.ui.pharmaciesProches ? 'Pharmacies à proximité' : 'Autour de moi') + '</h2>' +
+      '<p class="sous-titre">' + (S.ui.pharmaciesProches ? 'Les pharmacies ouvertes près de votre position, à ajouter à votre tournée du jour.' : 'Médecin absent, trou dans la journée : trouvez qui est présent près de vous.') + '</p>';
     if (A.ref) {
       h += '<div class="bandeau"><p>Remplacement de <b>' + esc(A.ref.nom) + '</b> (' + esc(A.ref.heure) + ', ' + esc(A.ref.quartier) +
         '), marqué « Absent ». <button type="button" class="bouton-texte" data-a="finRef">Terminer</button></p></div>';
     }
     var parCommune = {};
     quartiers().forEach(function (q) { (parCommune[q.commune] = parCommune[q.commune] || []).push(q.quartier); });
+    if (S.ui.pharmaciesProches) {
+      // raccourci « Pharmacie » : juste la position et le rayon, les résultats tout de suite
+      h += '<section class="bloc compact"><p style="margin:0 0 10px"><b>' + esc(A.label || 'Position en cours de recherche…') + '</b></p>' +
+        '<button class="bouton petit" type="button" data-a="localiser" style="margin-bottom:10px">' + icone('cible') + 'Actualiser ma position</button>' +
+        segment('Rayon', 'autourRayon', [2, 5, 10, 20].map(function (r) { return [String(r), r + ' km']; }), String(A.rayon), 'margin:0') + '</section>';
+    } else {
     h += '<section class="bloc">' +
       '<div class="segment" role="group" aria-label="Moment">' +
         '<button type="button" data-a="autourMoment" data-v="maintenant" aria-pressed="' + (A.moment === 'maintenant') + '">Maintenant</button>' +
@@ -1593,6 +1633,7 @@
         }).join('') + '</select></label>';
     h += '<div class="champ" style="margin:0"><span>Rayon</span>' + segment('Rayon', 'autourRayon', [2, 5, 10, 20].map(function (r) { return [String(r), r + ' km']; }), String(A.rayon), 'margin:0') + '</div></section>';
     h += barreFiltres(S.ui.filtresAutour, S.ui.rechercheAutour);
+    }
 
     if (A.lat === null) return h + '<div class="vide"><strong>Où êtes-vous ?</strong>Utilisez votre position ou choisissez un quartier.</div>';
     var date, minute;
@@ -1609,7 +1650,7 @@
     var groupes = minute === null ? [['matin', 'Le matin'], ['soir', 'Le soir']] :
       [['present', 'Présents maintenant'], ['plustard', 'Plus tard dans la journée']];
     h += '<p class="discret">' + majuscule(dateLongue(date)) + (minute !== null ? ', ' + minutesVersHeure(minute) : '') +
-      ', autour de ' + esc(A.label || 'votre position') + ' : ' + res.length + ' praticien' + (res.length > 1 ? 's' : '') + '.</p>';
+      ', autour de ' + esc(A.label || 'votre position') + ' : ' + res.length + (S.ui.filtresAutour.type === 'Pharmacie' ? ' pharmacie' : (S.ui.filtresAutour.type === 'Médecin' ? ' médecin' : ' praticien')) + (res.length > 1 ? 's' : '') + '.</p>';
     groupes.forEach(function (g) {
       var l = res.map(function (x, i) { return { x: x, i: i }; }).filter(function (o) { return o.x.etat === g[0]; });
       h += '<h3>' + g[1] + ' (' + l.length + ')</h3>';
@@ -2903,7 +2944,7 @@
 
   var ACTIONS = {
     nav: function (el) {
-      S.ui.tab = el.dataset.tab;
+      S.ui.tab = el.dataset.tab; S.ui.pharmaciesProches = false;
       if (S.ui.tab === 'historique') { S.ui.tab = 'bilan'; S.ui.statsVue = 'historique'; } S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);
       if (S.ui.tab === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && S.ui.tab === 'equipe') rendreSiPossible(); });
@@ -2922,7 +2963,7 @@
     },
     fermerParams: function () { S.ui.voirParams = false; rendre(); window.scrollTo(0, 0); },
     voirVisite: function (el) { S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' }); },
-    ouvrirAutour: function () { S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); },
+    ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); },
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) { S.ui.jour = el.dataset.v; S.ui.ouvert = null; rendre(); },
@@ -2952,7 +2993,7 @@
       S.ui.autour = Object.assign(S.ui.autour, { lat: a.lat, lon: a.lon, label: a.quartier, moment: a.date === aujourdhui() ? 'maintenant' : 'choisir',
         date: a.date, heure: a.heure, ref: { nom: a.nom, code: a.code, cle: a.cle, date: a.date, heure: a.heure, quartier: a.quartier, creneau: a.creneau } });
       LS.set('autour', S.ui.autour);
-      S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0);
+      S.ui.tab = 'autour'; S.ui.pharmaciesProches = false; rendre(); window.scrollTo(0, 0);
     },
     validerProgramme: function () {
       var d = new Date();
@@ -3111,6 +3152,18 @@
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
       majCr(a, 'date', el.dataset.v); validerEtape(a, 'date'); rendre();
+    },
+    conflitRemplacer: function (el) { remplacerArret(el.dataset.uid); },
+    conflitGarder: function (el) { var a = arret(el.dataset.uid); if (!a) return; a.conflitOk = true; LS.set('plan', S.plan); rendre(); },
+    ajouterPharmacie: function () {
+      // pharmacies ouvertes près de ma position, pour le jour affiché dans « Aujourd'hui »
+      var j = S.ui.jour || aujourdhui();
+      S.ui.filtresAutour = Object.assign(JSON.parse(JSON.stringify(FILTRES_VIDES)), { type: 'Pharmacie' }); LS.set('filtresAutour', S.ui.filtresAutour);
+      S.ui.rechercheAutour = '';
+      Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null });
+      LS.set('autour', S.ui.autour);
+      S.ui.tab = 'autour'; S.ui.pharmaciesProches = true; rendre(); window.scrollTo(0, 0);
+      localiser();
     },
     crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); },
     crRemplacer: function (el) {

@@ -1,6 +1,6 @@
 # MediPlanner
 
-Version 3.6.3
+Version 3.7.0
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -110,6 +110,8 @@ L'application suit la journée du délégué, en 5 onglets.
   - **Suite** : rappel ou **RDV confirmé** avec date (+7 j, +14 j, +30 j ou calendrier). Seul un RDV confirmé ajoute la visite à la tournée ; un rappel s'affiche le jour venu dans « Aujourd'hui ». Une commande ne modifie pas le stock avant réception.
 - **Enregistrer le compte rendu** ; un compte rendu enregistré se **modifie** à tout moment.
 - Visite non faite : **Trouver un remplaçant à proximité** ouvre « Autour de moi » centré sur ce lieu.
+- **Pharmacie** (bouton en haut) : les pharmacies ouvertes près de votre position, à ajouter à la tournée du jour.
+- Médecin déjà prévu par un collègue : la carte demande **« Le remplacer ? »** ; Oui le remplace par un autre praticien disponible ce jour-là, Non le garde.
 - **Autour de moi** (bouton en haut) : qui est présent maintenant ou à un autre moment, près de vous ou d'un quartier, avec les mêmes filtres que Praticiens.
 
 **2. Planifier** (la préparation)
