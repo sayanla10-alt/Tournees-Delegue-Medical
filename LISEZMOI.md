@@ -1,6 +1,6 @@
 # MediPlanner
 
-Version 3.8.3
+Version 3.8.4
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -112,6 +112,7 @@ L'application suit la journée du délégué, en 5 onglets.
 - Visite non faite : **Trouver un remplaçant à proximité** ouvre « Autour de moi » centré sur ce lieu.
 - **Pharmacie** (bouton en haut) : les pharmacies ouvertes près de votre position, à ajouter à la tournée du jour.
 - Planifier : bouton **Planifier** ; la planification de la tournée se fait une option à la fois **Période > Communes ciblées > Praticiens à visiter > Spécialités > Potentiel > Rythme de visite > RDV et prioritaires** ; chaque réponse se replie en une ligne modifiable, puis « Proposer ma tournée ».
+- Équipe : touchez un ou plusieurs délégués pour les isoler ; « Toute l'équipe » les affiche tous, un bloc repliable par délégué.
 - Recherche : un résumé des critères et un bouton **Recherche** qui les déploie ; **Fermer la recherche** les replie.
 - Recherche et Autour de moi : filtres dans l'ordre des questions **Qui ? > Quelle spécialité ? > Où ? > Quelle valeur ? > Quel suivi ? > Dans quel ordre ?**. Une seule question à la fois, comme le compte rendu ; chaque réponse se replie en une ligne modifiable, puis une ligne « Critères » résume tout. Les raccourcis (★★★, Non visité +30 j, À revoir, Jamais visité, Engagés) sont proposés à la première question.
 - Aujourd'hui : **+ Médecin** (médecins présents près de vous, selon vos spécialités), **+ Pharmacie** et **Autour de moi**, sur une même ligne. Le jour choisi reste affiché après un rafraîchissement.
@@ -119,7 +120,7 @@ L'application suit la journée du délégué, en 5 onglets.
 - **Autour de moi** (bouton en haut) : qui est présent maintenant ou à un autre moment, près de vous ou d'un quartier, avec les mêmes filtres que Praticiens.
 
 **2. Planifier** (la préparation)
-- **Planification de la tournée** : une journée ou une semaine, communes (différentes selon le jour si besoin), Tout / Médecins / Pharmacies, spécialités, potentiel, visites par jour, « ne pas revoir avant », éviter les médecins prévus par un collègue.
+- **Planifier** : une journée ou une semaine, communes (différentes selon le jour si besoin), Tout / Médecins / Pharmacies, spécialités, potentiel, visites par jour, « ne pas revoir avant », éviter les médecins prévus par un collègue.
 - **RDV et médecins prioritaires** : placés d'office, la tournée se construit autour d'eux.
 - **Reprendre un ancien programme** : choisissez une semaine ou un jour des 8 dernières semaines, puis **le jour ou la semaine sur lesquels le copier**. Il est copié en brouillon (praticiens absents ce jour-là signalés) ; un bandeau propose alors **Conserver** ou **Revenir à l'ancienne** planification.
 - **Proposer ma tournée**, puis jour par jour : **Garder** un médecin, le **retirer**, **Recalculer ce jour** ou **la semaine** (les médecins gardés, les RDV et les visites faites restent).

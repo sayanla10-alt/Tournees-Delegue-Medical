@@ -831,3 +831,17 @@ details.avance h3 { margin-top: 18px; }
 .sous-etape { display: block; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--gris); }
 .raccourcis-titre-etape { margin: 12px 0 0; font-size: 13px; }
 .criteres-resume span { color: var(--primaire); font-weight: 700; }
+
+/* 3.8.4 : Équipe, un bloc repliable par délégué */
+.groupe-delegue { width: 100%; display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; padding: 11px 12px; border: 1px solid var(--trait); border-radius: 12px; background: var(--papier); text-align: left; color: var(--encre); }
+.groupe-delegue b { font-size: 15.5px; }
+.groupe-delegue small { flex: 1; color: var(--gris); font-size: 13px; }
+.groupe-delegue svg { width: 18px; height: 18px; flex: none; color: var(--gris); transition: transform .15s; }
+.groupe-delegue[aria-expanded="true"] { border-color: var(--primaire); }
+.groupe-delegue[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+/* 3.8.4 : bouton Fermer à droite du titre du bloc */
+.tete-bloc { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.tete-bloc h3 { margin: 0; }
+.fermer-bloc { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: 14px; }
+.fermer-bloc svg { width: 16px; height: 16px; }
