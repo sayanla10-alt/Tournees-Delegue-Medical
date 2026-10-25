@@ -781,3 +781,15 @@ details.avance h3 { margin-top: 18px; }
 .cr-boutons .bouton { flex: 0 1 auto; min-width: 110px; }
 .arret > div:last-child, .arret-carte, .arret-detail, .cr-pas { min-width: 0; }
 .bandeau-prog.reprise { background: var(--bleu-pale); border-color: transparent; }
+
+/* 3.6.2 : calendriers en français (JJ/Mmm/AAAA) */
+.date-fr { position: relative; display: flex; align-items: center; width: 100%; min-height: 46px; padding: 10px 42px 10px 14px;
+  border: 1px solid var(--trait); border-radius: 12px; background-color: var(--papier-2); color: var(--encre); font-size: 15px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%237A8F99' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='5' width='17' height='15' rx='2.5'/%3E%3Cpath d='M3.5 10h17M8 3v4M16 3v4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; background-size: 19px; }
+.date-fr:focus-within { border-color: var(--primaire); background-color: var(--papier); box-shadow: 0 0 0 3px var(--primaire-pale); }
+.date-fr-texte { pointer-events: none; font-variant-numeric: tabular-nums; letter-spacing: .2px; }
+.date-fr-texte.vide { color: var(--gris-2); }
+.date-fr input[type="date"] { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.rangee-prochaine .date-fr { flex: 1 1 150px; min-height: 40px; }
+.nav-periode .date-fr { min-height: 42px; }

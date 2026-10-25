@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.6.1';
+  var APP_VERSION = '3.6.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.6.2', ['Tous les calendriers affichent la date en français, au format JJ/Mmm/AAAA (ex. 16/Nov/2026)']],
     ['3.6.1', ['Reprendre un ancien programme : choisissez aussi le jour ou la semaine sur lesquels le copier, puis conservez-le ou revenez à l\'ancienne planification']],
     ['3.6.0', ['Compte rendu pas à pas : une seule question à la fois, la suivante selon la réponse ; les réponses restent en lignes courtes, touchez-les pour modifier', 'Produits, activités, statuts et délégués suivent la base en temps réel (mise à jour chaque minute)', 'Délégués : « yavosylvie10@gmail.com » fusionné avec « Sylvie »']],
     ['3.5.1', ['Compte rendu : « Prochaine étape le » (+7 j, +14 j, +30 j, calendrier) de nouveau toujours visible avant l\'enregistrement']],
@@ -694,6 +695,23 @@
     rendreFeuille();
     rendreLancement();
     afficherEntete(); afficherBarre(); afficherNav();
+    datesEnFrancais();
+  }
+  // Calendriers : affichage français JJ/Mmm/AAAA (ex. 16/Nov/2026), quel que soit le réglage du téléphone.
+  // Le sélecteur natif reste dessous (transparent) : toucher la date ouvre le calendrier du téléphone.
+  var MOIS_ABREGES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+  function dateFr(iso) { var p = String(iso || '').split('-'); return p.length === 3 ? p[2] + '/' + MOIS_ABREGES[+p[1] - 1] + '/' + p[0] : ''; }
+  function datesEnFrancais() {
+    document.querySelectorAll('input[type="date"]:not([data-fr])').forEach(function (inp) {
+      inp.setAttribute('data-fr', '1'); inp.setAttribute('lang', 'fr');
+      var cadre = document.createElement('span'), texte = document.createElement('span');
+      cadre.className = 'date-fr'; texte.className = 'date-fr-texte';
+      inp.parentNode.insertBefore(cadre, inp); cadre.appendChild(texte); cadre.appendChild(inp);
+      var maj = function () { texte.textContent = inp.value ? dateFr(inp.value) : 'JJ/Mmm/AAAA'; texte.classList.toggle('vide', !inp.value); };
+      maj();
+      inp.addEventListener('input', maj); inp.addEventListener('change', maj);
+      inp.addEventListener('click', function () { try { inp.showPicker(); } catch (e) {} });
+    });
   }
   function rendreSiPossible() {
     var a = document.activeElement;
