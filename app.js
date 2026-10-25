@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.9.3';
+  var APP_VERSION = '3.9.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.9.4', ['RDV et prioritaires : un RDV pris un jour sans présence connue est placé à la prochaine présence, et la date retenue est indiquée']],
     ['3.9.3', ['Planifier et Recherche : boutons Précédent (sauf à la 1re étape), Suivant (Terminer à la dernière) et Passer quand la question s\'y prête ; « Quitter » en haut pendant le parcours', 'RDV et prioritaires : les RDV déjà pris dans les comptes rendus apparaissent (date du RDV, date de prise), avec les prioritaires ajoutés']],
     ['3.9.2', ['Planifier : chaque tuile du récapitulatif ouvre sa propre option (Spécialités ouvre Spécialités, etc.) ; la période aussi', 'Recherche : même récapitulatif en tuiles, chaque tuile ouvre son critère']],
     ['3.9.1', ['Modifier un compte rendu, une fiche ou vos réglages sans rien changer : l\'application l\'indique (« Aucune modification ») au lieu de « Enregistré » ; une vraie modification affiche « Compte rendu modifié »']],
@@ -1195,7 +1196,13 @@
             var pr = praticien(im.code), passe = im.dateRdv < dates[0];
             return '<li><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
               '<span class="discret bloc-texte">RDV du ' + dateFr(im.dateRdv) + (im.prisLe ? ', pris le ' + dateFr(im.prisLe) : '') +
-              (passe ? ' · date passée : placé au plus tôt' : '') + '</span></div><span class="etiquette p1">RDV</span></li>';
+              (passe ? ' · date passée : placé au plus tôt' : '') + (function () {
+                // RDV un jour sans présence connue : placé à la prochaine présence connue, et on le dit
+                var crs = ctx().parCode[im.code] || [], jour = jourSemaineIndex(im.dateRdv);
+                if (passe || crs.some(function (cr) { return cr.jourIdx === jour; })) return '';
+                var suiv = dates.filter(function (d) { return d >= im.dateRdv && !estFerie(d) && crs.some(function (cr) { return cr.jourIdx === jourSemaineIndex(d); }); })[0];
+                return '<br>Pas de présence connue ce jour-là : ' + (suiv ? 'placé le ' + dateFr(suiv) + ' (prochaine présence)' : 'aucune présence connue d\'ici la fin de la période');
+              })() + '</span></div><span class="etiquette p1">RDV</span></li>';
           }).join('') + '</ul>' : '<p class="discret" style="margin:4px 0 0">Aucun RDV pris sur cette période.</p>';
           h += '<div class="imposes-tete" style="margin-top:12px"><span class="sous-etape" style="margin:0">Prioritaires ajoutés</span>' +
             '<button type="button" class="bouton petit" data-a="ouvrirRecherche">' + icone('plus') + 'Ajouter</button></div>';
