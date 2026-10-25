@@ -865,3 +865,4 @@ details.avance h3 { margin-top: 18px; }
 .cr-question .ligne-stock .grille-2 .champ { margin-bottom: 0; }
 .cr-question .segment button { min-height: 40px; }
 .champs-cr .qte, .cr-question .ligne-stock .qte { width: 100% !important; text-align: left; padding: 6px 12px !important; }
+.puce:disabled { opacity: .45; cursor: not-allowed; }

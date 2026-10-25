@@ -1,9 +1,9 @@
 {
-  "version": "3.8.7",
+  "version": "3.8.8",
   "date": "2026-10-24",
   "notes": [
+    "Recherche : planifier un praticien sur la prochaine présence ou +7, +14, +21, +28 jours, puis Oui ou Non",
     "Compte rendu : mêmes éléments que Planifier (segments, sélecteurs, champs étiquetés)",
-    "Ajouter un praticien : même parcours par étapes",
-    "Application harmonisée"
+    "Ajouter un praticien : même parcours par étapes"
   ]
 }

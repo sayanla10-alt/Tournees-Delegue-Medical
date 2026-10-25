@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.8.7';
+  var APP_VERSION = '3.8.8';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.8.8', ['Recherche : planifier depuis le calendrier d\'un praticien propose la prochaine présence et les suivantes (+7, +14, +21, +28 jours), puis Oui ou Non']],
     ['3.8.7', ['Compte rendu : les réponses utilisent les mêmes éléments que Planifier : Oui / Non en segment, listes longues (types de visite, produits, motif) dans un sélecteur qui ouvre la liste, quantités et réactions en champs étiquetés', 'Ajouter un praticien : même parcours (étapes faites repliées en lignes modifiables, étape en cours dans son cadre)', 'Toutes les étapes indiquent « étape n/N »']],
     ['3.8.6', ['Planifier : « Confirmer la tournée » demande Oui ou Non ; Non vous ramène au brouillon', 'Recherche : « + Nouveau » devient « + Ajouter »', 'Aujourd\'hui : le compte rendu prend le même format que Planifier (titre, étape en cours, réponses repliées en lignes courtes, Passer et Continuer côte à côte, Oui / Non en puces)']],
     ['3.8.5', ['Après une mise à jour, l\'application s\'ouvre sur « Aujourd\'hui »', 'Recherche : la fiche d\'un praticien s\'ouvre là où il est dans la liste, sans remonter en tête']],
@@ -2210,7 +2211,7 @@
             (d.soir ? '<button type="button" data-a="planifierCle" data-v="' + esc(cleS) + '" title="Planifier ' + JOURS[i] + ' soir">S</button>' : '') + '</td>';
         }).join('') + '</tr>';
     });
-    return h + '</tbody></table><p class="discret">Touchez M (matin) ou S (soir) pour planifier une visite à la prochaine présence.</p></div>';
+    return h + '</tbody></table><p class="discret">Touchez M (matin) ou S (soir) pour planifier une visite : prochaine présence ou les semaines suivantes.</p></div>';
   }
 
   // ------------------------------------------------------------------ Vue : statistiques
@@ -2700,6 +2701,25 @@
 
   // Filtres avancés de la liste des praticiens (cumulables)
   var TRIS = [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite'], ['nom', 'Nom']];
+  // Planifier un praticien depuis sa fiche : prochaine présence, ou +7, +14, +21, +28 jours, puis Oui / Non
+  FEUILLES.planifierDate = function (f) {
+    var c = Moteur.creneauParCle(ctx(), f.cle); if (!c) return '';
+    var p = praticien(c.code) || {};
+    var dates = [0, 7, 14, 21, 28].map(function (n) { return ajouterJours(f.d0, n); });
+    var dejaLa = function (d) { return S.plan.some(function (a) { return a.code === c.code && a.date === d; }); };
+    var absent = function (d) { return p.absentDu && d >= p.absentDu && (!p.absentAu || d <= p.absentAu); };
+    var h = '<div class="cr-pas etapes-filtres"><div class="cr-question"><span class="etape-titre">Quelle date ?</span>' +
+      '<p class="discret" style="margin:4px 0 0">' + esc(c.prat.nom) + ' : ' + esc(c.lieu) + ', ' + JOURS[c.jourIdx].toLowerCase() + ' ' + c.creneau.toLowerCase() +
+      ' (' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + ')</p><div class="puces">' +
+      dates.map(function (d, i) {
+        var bloque = estFerie(d) || absent(d) || dejaLa(d);
+        return '<button type="button" class="puce" data-a="planifierDateChoix" data-v="' + d + '" aria-pressed="' + (f.d === d) + '"' + (bloque ? ' disabled' : '') + '>' +
+          dateFr(d) + '<small>' + (i ? '+' + (i * 7) + ' j' : 'prochaine') + (estFerie(d) ? ', férié' : absent(d) ? ', absent' : dejaLa(d) ? ', déjà prévu' : '') + '</small></button>';
+      }).join('') + '</div></div>' +
+      '<p style="margin:14px 0 0">Ajouter <b>' + esc(c.prat.nom) + '</b> à votre tournée du <b>' + dateFr(f.d) + '</b> ?</p></div>';
+    return { corps: h, pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="planifierDateOui">Oui, ajouter</button>' };
+  };
   FEUILLES.crListe = function (f) {
     var h = groupeChoix(f, { id: 'l', titre: f.multi ? 'Plusieurs choix possibles' : 'Un seul choix', chemin: 'sel', multiple: f.multi, recherche: f.options.length > 8,
       options: f.options.map(function (o) { return { v: o[0], lib: o[1] }; }) });
@@ -3336,8 +3356,17 @@
     planifierCle: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v); if (!c) return;
       var d = el.dataset.d || prochaineOccurrence(c.jourIdx, prochainJourOuvre(aujourdhui()), true);
+      if (!el.dataset.d) {   // depuis la fiche : choix parmi les prochaines présences (+7, +14…) puis Oui / Non
+        S.ui.feuille = { type: 'planifierDate', titre: 'Planifier une visite', cle: el.dataset.v, d: d, d0: d }; rendre(); return;
+      }
       confirmerPuis('Planifier une visite', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ') à votre tournée du ' + dateFr(d) + ' ?', 'Oui, ajouter',
         function () { if (ajouterArret(c, d)) { S.ui.tab = 'jour'; window.scrollTo(0, 0); } rendre(); });
+    },
+    planifierDateChoix: function (el) { S.ui.feuille.d = el.dataset.v; rendre(); },
+    planifierDateOui: function () {
+      var f = S.ui.feuille, c = Moteur.creneauParCle(ctx(), f.cle); S.ui.feuille = null;
+      if (c && ajouterArret(c, f.d)) { S.ui.tab = 'jour'; S.ui.jour = f.d; window.scrollTo(0, 0); }
+      rendre();
     },
     // Autour de moi
     localiser: localiser,
