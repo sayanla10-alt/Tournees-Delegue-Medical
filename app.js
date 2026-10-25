@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.8.4';
+  var APP_VERSION = '3.8.5';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.8.5', ['Après une mise à jour, l\'application s\'ouvre sur « Aujourd\'hui »', 'Recherche : la fiche d\'un praticien s\'ouvre là où il est dans la liste, sans remonter en tête']],
     ['3.8.4', ['Équipe : sélectionnez un ou plusieurs délégués pour les isoler ; « Toute l\'équipe » les affiche tous', 'Plusieurs délégués : un bloc repliable par délégué, avec ses visites et celles faites', 'Planifier et Recherche : bouton « Fermer » à droite du titre ; le bloc s\'appelle simplement « Planifier »']],
     ['3.8.3', ['Recherche : comme Planifier, un résumé des critères et un bouton « Recherche » qui déploie la recherche ; « Fermer la recherche » la replie']],
     ['3.8.2', ['Planifier : bouton « Planifier » (ex-Réglages) ; la planification de la tournée se fait une option à la fois : Période, Communes ciblées, Praticiens à visiter, Spécialités, Potentiel, Rythme de visite, RDV et prioritaires', 'Chaque réponse se replie en une ligne modifiable ; « Proposer ma tournée » apparaît une fois les questions répondues', '« Reprendre un ancien programme » reste accessible à tout moment']],
@@ -2103,7 +2104,7 @@
     var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
     // la fiche ouverte (par exemple juste créée) reste en tête de liste
     var io = liste.map(function (p) { return p.code; }).indexOf(S.ui.contactOuvert);
-    if (io > 0) liste.unshift(liste.splice(io, 1)[0]);
+    if (io > 0 && S.ui.contactEnTete === S.ui.contactOuvert) liste.unshift(liste.splice(io, 1)[0]);
     var h = '<div class="tete-vue"><h2 class="titre-vue">Recherche</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Nouveau</button></div>' +
       '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>';
@@ -3298,7 +3299,13 @@
     },
     finRef: function () { S.ui.autour.ref = null; LS.set('autour', S.ui.autour); rendre(); },
     // Divers
-    contact: function (el) { S.ui.contactOuvert = S.ui.contactOuvert === el.dataset.v ? null : el.dataset.v; rendre(); },
+    contact: function (el) {
+      // la fiche s'ouvre là où elle est dans la liste, sans remonter en tête ni déplacer l'écran
+      var y = el.getBoundingClientRect().top;
+      S.ui.contactEnTete = null; S.ui.contactOuvert = S.ui.contactOuvert === el.dataset.v ? null : el.dataset.v; rendre();
+      var b = document.querySelector('[data-a="contact"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(el.dataset.v) : el.dataset.v) + '"]');
+      if (b) window.scrollBy(0, b.getBoundingClientRect().top - y);
+    },
     filtre: function (el) { S.ui.filtre = el.dataset.v; S.ui.limite = 40; rendre(); },
     plus: function () { S.ui.limite += 40; rendre(); },
     collegue: function (el) {
@@ -3569,7 +3576,7 @@
         if (Object.keys(e).length) { f.etape = i; f.err = e; rendre(); focusErreur(); toast('Étape ' + (i + 1) + ' à compléter.'); return; }
       }
       var nouveau = !f.d.code, code = enregistrerFiche(f.d);
-      S.ui.feuille = null; S.ui.contactOuvert = code; S.ui.tab = 'praticiens'; S.ui.recherche = ''; rendre();
+      S.ui.feuille = null; S.ui.contactOuvert = code; S.ui.contactEnTete = code; S.ui.tab = 'praticiens'; S.ui.recherche = ''; rendre();
       toast((nouveau ? 'Praticien ajouté' : 'Fiche mise à jour') + (S.config.demo ? '.' : (navigator.onLine ? ', envoi au Google Sheet…' : ', envoyée dès le retour du réseau.')));
       if (!S.config.demo) synchroniser(true);
     },
@@ -3899,6 +3906,8 @@
   (function () {
     var vue = LS.get('versionVue', '');
     if (vue === APP_VERSION) return;
+    // après une mise à jour : retour sur « Aujourd'hui »
+    if (vue) { S.ui.tab = 'jour'; S.ui.pharmaciesProches = false; LS.set('onglet', 'jour'); }
     if (pret() || vue) {
       var notes = [];
       JOURNAL.forEach(function (v) { if (compVersion(v[0], vue) > 0 && compVersion(v[0], APP_VERSION) <= 0) notes = notes.concat(v[1]); });

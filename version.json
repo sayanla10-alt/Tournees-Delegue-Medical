@@ -1,9 +1,8 @@
 {
-  "version": "3.8.4",
+  "version": "3.8.5",
   "date": "2026-10-24",
   "notes": [
-    "Équipe : isolez un ou plusieurs délégués",
-    "Un bloc repliable par délégué",
-    "Recherche : bouton « Recherche » et « Fermer la recherche », comme Planifier"
+    "Après une mise à jour, retour sur « Aujourd'hui »",
+    "Recherche : la fiche s'ouvre là où est le praticien dans la liste"
   ]
 }
