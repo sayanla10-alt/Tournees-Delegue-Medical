@@ -1,8 +1,7 @@
 {
-  "version": "3.17.0",
+  "version": "3.17.1",
   "date": "2026-10-25",
   "notes": [
-    "Journée : bouton « Planifier » sur un jour vide",
-    "Planifier : les jours déjà planifiés sont conservés (bandeau)"
+    "Journée : bouton « Planifier le … » sur tout jour sans visite"
   ]
 }

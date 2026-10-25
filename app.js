@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.17.0';
+  var APP_VERSION = '3.17.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.17.1', ['Journée : le bouton « Planifier le … » apparaît aussi quand aucune tournée n\'existe ; un week-end ou un jour férié propose le prochain jour ouvré']],
     ['3.17.0', ['Journée : un jour sans visite propose « Planifier le … » (Planifier s\'ouvre réglé sur ce jour)',
                'Planifier : bandeau « Déjà planifié » ; les visites déjà prévues ou renseignées restent en place, à leur heure, et seuls les créneaux libres sont complétés',
                'Une nouvelle tournée ne remplace dans la base que sa propre période',
@@ -1012,7 +1013,9 @@
   }
   // jour sans visite (aujourd'hui ou à venir, jour ouvré) : planifier directement cette journée
   function boutonPlanifierJour(d) {
-    if (d < aujourdhui() || jourSemaineIndex(d) > 4 || estFerie(d)) return '';
+    if (d < aujourdhui()) return '';
+    // week-end ou férié : on propose le prochain jour ouvré
+    var n = 0; while ((jourSemaineIndex(d) > 4 || estFerie(d)) && n++ < 10) d = ajouterJours(d, 1);
     return '<button class="bouton bouton-plein bouton-large" type="button" data-a="planifierDate" data-v="' + d + '" style="margin-top:12px">' + icone('calendrier') + 'Planifier le ' + esc(dateCourte(d)) + '</button>';
   }
   function rendreJourHors(d) {
@@ -1053,8 +1056,8 @@
       return h;
     }
     if (!S.plan.length) {
-      return h + rendreRappels() + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».' +
-        '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier ma tournée</button></div>';
+      return h + rendreRappels() + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».</div>' +
+        (boutonPlanifierJour(d) || '<button class="bouton bouton-plein bouton-large" type="button" data-a="nav" data-tab="semaine" style="margin-top:12px">' + icone('calendrier') + 'Planifier ma tournée</button>');
     }
     var duJour = S.plan.filter(function (a) { return a.date === d; });
     var renseignees = duJour.filter(function (a) { return a.statut; }).length;
