@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.13.2';
+  var APP_VERSION = '3.13.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.13.3', ['Réglages › Avancé : option « Modifier les jours passés » ; désactivée, les jours passés sont en lecture seule']],
     ['3.13.2', ['Jours passés : plus de lecture seule ; chaque visite se complète ou se modifie (compte rendu pas à pas), et le compte rendu de la journée se remplit et se valide comme pour aujourd\'hui']],
     ['3.13.1', ['Jour passé hors de la tournée en cours : les visites prévues sans compte rendu s\'ouvrent avec le compte rendu pas à pas (visite faite, produits présentés…), comme dans la tournée']],
     ['3.13.0', ['Aujourd\'hui, écran de terrain : la date sous le titre, une seule bande de la semaine, la synthèse et la progression du compte rendu du jour',
@@ -894,7 +895,7 @@
     var t = aujourdhui(), dates = datesPlan(), tour = dates.indexOf(d) >= 0, etat;
     if (tour) etat = S.programme.etat === 'valide' ? '<span class="etiquette ok">Confirmée</span>' :
       '<button type="button" class="etiquette alerte bouton-etiquette" data-a="nav" data-tab="semaine">Brouillon › Planifier</button>';
-    else etat = d < t ? '<span class="etiquette">Jour passé</span>' : (d > t ? '<span class="etiquette p1">Aperçu</span>' : '');
+    else etat = d < t ? '<span class="etiquette">' + (passeVerrouille(d) ? 'Lecture seule' : 'Jour passé') + '</span>' : (d > t ? '<span class="etiquette p1">Aperçu</span>' : '');
     var l = lundiDe(d), jours = joursOuvres(l);
     return '<div class="tete-jour"><div><h2 class="titre-vue">Aujourd\'hui</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
@@ -953,7 +954,7 @@
       h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
         (sans ? ' · <b class="txt-alerte">' + sans + ' sans compte rendu</b>' : '') + '</span></div>' +
         '<div class="progression"><i style="width:' + Math.round(100 * (l.length - sans) / l.length) + '%"></i></div>' +
-        '<small class="discret">Touchez une visite pour saisir ou modifier son compte rendu.</small></section>';
+        '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : 'Touchez une visite pour saisir ou modifier son compte rendu.') + '</small></section>';
       h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';
       if (programmeDuJour(d).length) h += '<div class="rangee-actions pied-jour"><button class="bouton petit" type="button" data-a="ouvrirAnciens">' + icone('relancer') + 'Reprendre ce programme un autre jour</button></div>';
       return h;
@@ -978,7 +979,7 @@
     if (S.ui.jourVue) {
       h += d === t ? rendreRappels() : '';
       h += rendreJourHors(d);
-      if (d <= t) { var lh = arretsHorsJour(d); if (lh.length) h += rendreRapportJour(d, lh, false); }
+      if (d <= t) { var lh = arretsHorsJour(d); if (lh.length && (rapportDe(d) || !passeVerrouille(d))) h += rendreRapportJour(d, lh, passeVerrouille(d)); }
       return h;
     }
     if (!S.plan.length) {
@@ -1012,7 +1013,7 @@
     });
     h += '<div class="rangee-actions pied-jour"><button class="bouton petit" type="button" data-a="ajouterJour">' + icone('plus') + 'Ajouter à la journée</button>' +
       '<button class="bouton petit" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button></div>';
-    if (d <= t) h += rendreRapportJour(d, duJour, false);
+    if (d <= t && (rapportDe(d) || !passeVerrouille(d))) h += rendreRapportJour(d, duJour, passeVerrouille(d));
     return h;
   };
 
@@ -1855,6 +1856,8 @@
     }).join('') + '</ul></section>';
   }
 
+  // jours passés : modifiables seulement si l'option cachée « Modifier les jours passés » (Réglages › Avancé) est activée
+  function passeVerrouille(d) { return d < aujourdhui() && !S.config.modifPasse; }
   // état d'une visite en une ligne (carte fermée) : faite + produits, non faite + motif, à saisir, à venir
   function ligneEtat(a) {
     var t = aujourdhui(), now = minutesMaintenant(), hm = heureVersMinutes(a.heure);
@@ -1896,12 +1899,16 @@
             '<span class="arret-lieu">' + esc(a.quartier) + ', ' + esc(a.commune) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : '<span class="arret-lieu">' + esc([a.lieu, a.quartier].filter(Boolean).join(', ')) + '</span>' + ligneEtat(a)) +
         '</button>' +
-        (!ouvert && !a.hors && a.statut && estKo(a.statut) && a.date <= aujourdhui() ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
+        (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && a.date <= aujourdhui() ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
     if (ouvert) {
       var pa = praticien(a.code) || {};
       h += '<div class="arret-detail">' +
         actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune });
-      if (!verrou) {
+      if (passeVerrouille(a.date) && !(a.statut && verrou)) {
+        h += '<div class="bandeau" style="margin-top:10px"><p><b>Jour passé.</b> La saisie des comptes rendus des jours passés est désactivée. ' +
+          'Pour l\'activer : roue crantée › Avancé › « Modifier les jours passés ».</p></div>' +
+          '<div class="rangee-actions bas-carte"><button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
+      } else if (!verrou) {
         h += rendreCompteRendu(a);
         var cf = conflitArret(a);
         h += a.hors ? '<div class="rangee-actions bas-carte"><button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>' :
@@ -1909,7 +1916,7 @@
           '<button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else {
         h += '<div class="cr-enregistre"><div class="tete-bloc"><h3>' + icone('valider') + 'Compte rendu enregistré</h3>' +
-          '<button class="bouton petit" type="button" data-a="corriger" data-uid="' + a.uid + '">' + icone('crayon') + 'Modifier</button></div>' +
+          (passeVerrouille(a.date) ? '' : '<button class="bouton petit" type="button" data-a="corriger" data-uid="' + a.uid + '">' + icone('crayon') + 'Modifier</button>') + '</div>' +
           '<div class="tuiles-resume">' + resumeCompteRendu(a, true) + '</div>' +
           '<div class="rangee-actions" style="margin:10px 0 0"><button class="bouton petit" type="button" data-a="quitterCarte">' + icone('fermer') + 'Quitter</button></div></div>';
       }
@@ -2897,6 +2904,8 @@
       '<button class="bouton" type="button" data-a="ouvrirLancement">Écran d\'accueil</button></div></section>';
     // Avancé : connexion à la base, synchronisation, démonstration, effacement
     h += '<details class="bloc avance"' + (!c.url || S.ui.erreur ? ' open' : '') + '><summary><b>Avancé</b><span class="discret">Connexion à la base et données du téléphone</span></summary>' +
+      '<h3>Saisie</h3><label class="interrupteur"><span>Modifier les jours passés<small class="discret bloc-texte">Saisir ou corriger les comptes rendus des jours précédents</small></span>' +
+        '<input type="checkbox" data-f="modifPasse"' + (c.modifPasse ? ' checked' : '') + '></label>' +
       '<h3>Connexion au Google Sheet</h3>' +
       '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
       '<label class="champ"><span>Jeton d\'accès</span><input type="text" id="cfgToken" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(c.token) + '"></label>' +
@@ -4303,6 +4312,7 @@
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
+    if (f === 'modifPasse') { S.config.modifPasse = el.checked; LS.set('config', S.config); toast(el.checked ? 'Modification des jours passés activée.' : 'Jours passés en lecture seule.'); }
     if (f === 'choixNom') { var bloc = $(el.id + 'Bloc'); if (bloc) bloc.hidden = el.value !== '__autre'; }
     if (f === 'tri') { S.ui.tri = el.value; LS.set('tri', S.ui.tri); rendre(); }
     if (f === 'stats') {
