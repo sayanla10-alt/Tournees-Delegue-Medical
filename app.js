@@ -1117,7 +1117,7 @@
     return '<section class="bloc resume-plan"><div class="tete-bloc"><h3>' + esc(quand.resume()) + '</h3>' +
       '<button class="bouton petit" data-a="voirParams" type="button">' + icone('calendrier') + 'Planifier</button></div>' +
       '<div class="tuiles-resume">' + et.filter(function (e) { return e.id !== 'quand'; }).map(function (e) {
-        return '<button type="button" class="tuile" data-a="resumeEditer" data-v="' + e.id + '"><small>' + esc(e.titre) + '</small><b>' + esc(e.resume()) + '</b></button>';
+        return '<button type="button" class="tuile" data-a="resumeEditer" data-v="' + e.id + '"><small>' + esc({ ou: 'Communes', qui: 'Praticiens', spec: 'Spécialités', valeur: 'Potentiel', rythme: 'Rythme', rdv: 'RDV et prioritaires' }[e.id] || e.titre) + '</small><b>' + esc(e.resume()) + '</b></button>';
       }).join('') + '</div></section>';
   }
 
