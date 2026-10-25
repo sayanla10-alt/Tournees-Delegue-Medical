@@ -951,3 +951,6 @@ details.avance h3 { margin-top: 18px; }
 .fp-bascule svg { width: 16px; height: 16px; color: var(--gris); transition: transform .15s; }
 .fp-bascule[aria-expanded="true"] svg { transform: rotate(180deg); }
 .fp-bascule[aria-expanded="true"] + ul { margin-top: 4px; }
+
+/* 3.12.0 : navigation par jour dans Aujourd'hui */
+.nav-jour { margin: 0 0 12px; }

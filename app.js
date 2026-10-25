@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.11.1';
+  var APP_VERSION = '3.12.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.12.0', ['Aujourd\'hui : le titre indique le jour affiché (« Aujourd\'hui » ou la date), avec « Revenir à aujourd\'hui »',
+               'Aujourd\'hui : flèches ‹ › et calendrier pour aller sur n\'importe quel jour ; un jour passé montre les visites faites et leurs comptes rendus, un jour à venir la tournée publiée, avec « Reprendre ce programme »']],
     ['3.11.1', ['Produits : disposition compacte, une ligne par gamme avec ses produits en pastilles et un filtre par aire ; la fiche s\'ouvre dans une fenêtre, l\'essentiel visible (indications, contre-indications, arguments), le reste à déplier']],
     ['3.11.0', ['Produits : les produits s\'affichent en grille de 2 ou 3 colonnes par gamme ; la fiche s\'ouvre en pleine largeur, début du texte en haut de l\'écran',
                'Accueil : « Lancer l\'application » en premier (vers Aujourd\'hui), « Voir mon bilan » ensuite ; plus de décompte après une mise à jour',
@@ -157,7 +159,8 @@
         var t = LS.get('onglet', 'jour'), anciens = { tournee: 'jour', contacts: 'praticiens', stats: 'bilan', historique: 'bilan' };
         t = anciens[t] || t;
         return ['jour', 'semaine', 'autour', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
-      })(), jour: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.j : null; })(), ouvert: null, voirParams: false, feuille: null,
+      })(), jour: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.j : null; })(),
+      jourVue: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.v || null : null; })(), ouvert: null, voirParams: false, feuille: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, eqSel: LS.get('eqSel', []), jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
@@ -733,7 +736,7 @@
     // onglet mémorisé : l'application rouvre là où l'on était (rafraîchissement, mise à jour, relance)
     if (VUES[tab] && tab !== 'accueil' && tab !== 'identite' && LS.get('onglet', '') !== tab) LS.set('onglet', tab);
     // jour affiché mémorisé : un rafraîchissement ne ramène plus au lundi (valable jusqu'à minuit)
-    if (S.ui.jour) LS.set('jourVu', { j: S.ui.jour, le: aujourdhui() });
+    if (S.ui.jour || S.ui.jourVue) LS.set('jourVu', { j: S.ui.jour, v: S.ui.jourVue || null, le: aujourdhui() });
     LS.set('proches', S.ui.pharmaciesProches || false);
     if (!pret() && tab !== 'reglages') tab = 'accueil';
     else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
@@ -865,9 +868,64 @@
   function libelleJour(d) { return d === aujourdhui() ? 'Aujourd\'hui' : majuscule(dateLongue(d)); }
 
   // Aujourd'hui : les visites du jour, dans l'ordre, avec contact, itinéraire et compte rendu
+  // Jour affiché : celui de la tournée (S.ui.jour) ou, hors tournée, une date choisie avec ‹ › ou le calendrier (S.ui.jourVue)
+  function jourAffiche() {
+    var dates = datesPlan();
+    if (S.ui.jourVue && dates.indexOf(S.ui.jourVue) >= 0) { S.ui.jour = S.ui.jourVue; S.ui.jourVue = null; }
+    if (S.ui.jourVue) return S.ui.jourVue;
+    if (!dates.length) return aujourdhui();
+    choisirJour(dates); return S.ui.jour;
+  }
+  function allerAuJour(d) {
+    if (datesPlan().indexOf(d) >= 0) { S.ui.jour = d; S.ui.jourVue = null; } else S.ui.jourVue = d;
+    S.ui.ouvert = null; rendre(); window.scrollTo(0, 0);
+  }
+  function enteteJour(d) {
+    var t = aujourdhui();
+    return '<h2 class="titre-vue">' + (d === t ? 'Aujourd\'hui' : majuscule(dateLongue(d))) + '</h2>' +
+      '<p class="sous-titre">' + (d === t ? 'Vos visites dans l\'ordre : itinéraire, contact et compte rendu.' :
+        (d < t ? 'Journée passée : visites faites et comptes rendus.' : 'Journée à venir.') + ' <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>') + '</p>' +
+      '<div class="nav-periode nav-jour"><button type="button" class="bouton-icone sombre" data-a="jourDecaler" data-v="-1" aria-label="Jour précédent">' + icone('chevron') + '</button>' +
+      '<label class="champ" style="margin:0;flex:1"><input type="date" data-f="jourDate" value="' + esc(d) + '" aria-label="Choisir un jour"></label>' +
+      '<button type="button" class="bouton-icone sombre suivant" data-a="jourDecaler" data-v="1" aria-label="Jour suivant">' + icone('chevron') + '</button></div>';
+  }
+  // programme d'un jour hors tournée en cours : archive du téléphone, sinon tournée publiée (feuille Plannings)
+  function programmeDuJour(d) {
+    var arch = LS.get('archives', {});
+    if (arch[d] && arch[d].length) return arch[d];
+    return ((S.data && S.data.plannings) || []).filter(function (x) { return x.date === d && x.delegue && estMoi(x.delegue); });
+  }
+  function rendreJourHors(d) {
+    var t = aujourdhui(), prevus = programmeDuJour(d).slice().sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
+    var faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)); });
+    var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
+    var h = '', lignes = prevus.map(function (x) { return { x: x, v: parCode[x.code] }; });
+    faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) lignes.push({ x: v, v: v, hors: true }); });
+    if (!lignes.length) {
+      return '<div class="vide"><strong>' + (d < t ? 'Aucune visite enregistrée ce jour-là' : 'Rien de prévu ce jour-là') + '</strong>' +
+        (d < t ? 'Ni tournée archivée ni compte rendu pour cette date.' : 'Aucune tournée publiée pour cette date.') +
+        (d >= t ? '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier</button>' : '') + '</div>';
+    }
+    var nf = lignes.filter(function (l) { return l.v && Moteur.estVisite(l.v.statut, statuts()); }).length;
+    h += '<p class="bilan-jour"><b>' + lignes.length + ' visite' + (lignes.length > 1 ? 's' : '') + '</b>' + (d <= t ? ', ' + nf + ' faite' + (nf > 1 ? 's' : '') : ' prévue' + (lignes.length > 1 ? 's' : '')) + '.</p>';
+    h += '<ul class="liste">' + lignes.map(function (l) {
+      var x = l.x, v = l.v, e = '';
+      if (v && v.statut) e += '<span class="etiquette ' + (estKo(v.statut) ? 'ko' : 'ok') + '">' + esc(v.statut) + '</span>';
+      else e += d < t ? '<span class="etiquette alerte">Sans compte rendu</span>' : '<span class="etiquette">Prévue</span>';
+      if (l.hors) e += '<span class="etiquette">Hors tournée</span>';
+      var det = v ? [v.activite ? listeActivites(v.activite).join(', ') : '', v.produits ? 'Produits : ' + v.produits : '', v.commentaire || ''].filter(Boolean).join(' · ') : '';
+      return '<li class="element"><div class="element-tete"><div><b>' + esc(x.heure || '--:--') + '</b> · <b>' + esc(x.nom || '') + '</b> ' + etoiles(x.note) +
+        '<span class="discret bloc-texte">' + esc([x.specialite, x.lieu, x.quartier].filter(Boolean).join(', ')) + '</span></div></div>' +
+        '<span class="etiquettes">' + e + '</span>' + (det ? '<p class="discret" style="margin:6px 0 0">' + esc(det) + '</p>' : '') + '</li>';
+    }).join('') + '</ul>';
+    if (prevus.length && d > t) h += '<button class="bouton bouton-plein bouton-large" type="button" data-a="jourReprendre" data-v="' + d + '">' + icone('relancer') + 'Reprendre ce programme</button>';
+    else if (prevus.length) h += '<button class="bouton bouton-large" type="button" data-a="ouvrirAnciens">' + icone('relancer') + 'Reprendre ce programme sur un autre jour</button>';
+    return h;
+  }
   VUES.jour = function () {
-    var h = '<h2 class="titre-vue">Aujourd\'hui</h2>' +
-      '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>' +
+    var d = jourAffiche();
+    if (S.ui.jourVue) return enteteJour(d) + rendreRappels() + rendreJourHors(d);
+    var h = enteteJour(d) +
       '<div class="rangee-actions"><button class="bouton petit" type="button" data-a="ajouterProches" data-v="Médecin">' + icone('plus') + 'Médecin</button>' +
       '<button class="bouton petit" type="button" data-a="ajouterProches" data-v="Pharmacie">' + icone('plus') + 'Pharmacie</button>' +
       '<button class="bouton petit" type="button" data-a="ouvrirAutour">' + icone('cible') + 'Autour de moi</button></div>' + rendreRappels();
@@ -875,7 +933,7 @@
       return h + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».' +
         '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier ma tournée</button></div>';
     }
-    var dates = datesPlan(); choisirJour(dates);
+    var dates = datesPlan();
     if (S.programme.etat !== 'valide') {
       h += '<div class="bandeau"><p><b>Tournée en brouillon.</b> Confirmez-la dans « Planifier » pour la partager avec l\'équipe. ' +
         '<button type="button" class="bouton-texte" data-a="nav" data-tab="semaine">Confirmer</button></p></div>';
@@ -3432,7 +3490,18 @@
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); },
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
-    jour: function (el) { S.ui.jour = el.dataset.v; S.ui.ouvert = null; rendre(); },
+    jour: function (el) { S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; rendre(); },
+    jourDecaler: function (el) {
+      var d = jourAffiche(), sens = +el.dataset.v;
+      do { d = ajouterJours(d, sens); } while (jourSemaineIndex(d) > 4);
+      allerAuJour(d);
+    },
+    jourAujourdhui: function () { allerAuJour(aujourdhui()); },
+    jourReprendre: function (el) {
+      var d = el.dataset.v;
+      confirmerPuis('Reprendre ce programme', 'Remplacer votre tournée en cours par le programme du <b>' + dateFr(d) + '</b> ?<br><span class="discret">Vous pourrez revenir à l\'ancienne planification.</span>',
+        'Oui, reprendre', function () { S.ui.jourVue = null; reprendreProgramme('jour', d, d); });
+    },
     quitterCarte: function () { S.ui.ouvert = null; rendre(); },
     ouvrir: function (el) {
       S.ui.ouvert = S.ui.ouvert === el.dataset.uid ? null : el.dataset.uid; rendre();
@@ -3955,6 +4024,7 @@
       g.querySelectorAll('.puce').forEach(function (b) { b.hidden = !!q && b.dataset.lib.indexOf(q) < 0; });
       g.querySelectorAll('.section-choix').forEach(function (sec) { sec.hidden = !sec.querySelector('.puce:not([hidden])'); });
     }
+    if (f === 'jourDate' && el.value) { allerAuJour(el.value); return; }
     if (f === 'rechProduit') {
       S.ui.rechProduit = el.value; var pp = el.selectionStart; rendre();
       var cp = document.querySelector('[data-f="rechProduit"]'); if (cp) { cp.focus(); try { cp.setSelectionRange(pp, pp); } catch (x) {} }
