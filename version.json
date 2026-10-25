@@ -1,9 +1,8 @@
 {
-  "version": "3.14.0",
-  "date": "2026-10-24",
+  "version": "3.15.0",
+  "date": "2026-10-25",
   "notes": [
-    "Onglet « Journée »",
-    "Cercle rouge vide si non faite et non enregistrée",
-    "Heures affichées pour toutes les visites"
+    "Onglet Produits : 15 produits ajoutés",
+    "Filtres « Angor » et « Métabolisme »"
   ]
 }

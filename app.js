@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.14.0';
+  var APP_VERSION = '3.15.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.15.0', ['Onglet Produits : 15 produits ajoutés (Zyltan, Lesstrol AM et EZ, Rozukaa F, A et Gold, Telmikaa AM, H, AMH et CT, Antiplatt Plus, Myonit SR, Orlitroy, Troynuron, Lesskaa)', 'Nouveaux filtres « Angor » et « Métabolisme »']],
     ['3.14.0', ['L\'onglet « Aujourd\'hui » devient « Journée » ; l\'étiquette « Aujourd\'hui » s\'affiche à côté du titre le jour même',
                'Cercle de la visite : vide et rouge pour une visite non faite pas encore enregistrée (vert vide pour une visite faite), plein une fois enregistré',
                'Heures toujours affichées à gauche de la ligne, y compris pour les visites des jours passés', 'Barre « Enregistrer les comptes rendus » : confirmation Oui / Non']],
@@ -2107,14 +2108,14 @@
 
   // ------------------------------------------------------------------ Vue : produits (aide-mémoire du délégué)
   // Fiches de la feuille « Fiches produits » du Google Sheet (repli : fiches intégrées), regroupées par gamme.
-  var ORDRE_AIRES = ['Hypertension artérielle', 'Hypertension et cœur', 'Cholestérol et risque cardiovasculaire', 'Troubles du rythme cardiaque', 'Prévention de la thrombose'];
+  var ORDRE_AIRES = ['Hypertension artérielle', 'Hypertension et cœur', 'Cholestérol et risque cardiovasculaire', 'Troubles du rythme cardiaque', 'Angine de poitrine', 'Prévention de la thrombose', 'Métabolisme et neuropathie'];
   var SECTIONS_FICHE = [['indications', 'Indications', 'ind'], ['contreIndications', 'Contre-indications', 'ci'], ['posologie', 'Posologie', 'pos'],
     ['precautions', 'Précautions et interactions', 'pre'], ['effets', 'Effets indésirables', 'ei'], ['arguments', 'Arguments clés pour la visite', 'arg']];
   function fichesProduits() { var l = (S.data && S.data.fiches) || []; return l.length ? l : FICHES_PRODUITS_DEFAUT; }
   function lignesFiche(t) { return String(t || '').split(/\n|;\s*(?=[A-ZÉÈÀÂÎÔ])/).map(function (x) { return x.replace(/^[•\-\s]+/, '').trim(); }).filter(Boolean); }
   // Disposition compacte : une ligne par gamme (nom, molécule) avec ses produits en pastilles ; un filtre par aire thérapeutique.
   // La fiche ne s'ouvre qu'au toucher d'un produit, dans une fenêtre ; ses rubriques secondaires se déplient à la demande.
-  var AIRES_COURTES = { 'Hypertension artérielle': 'Hypertension', 'Cholestérol et risque cardiovasculaire': 'Cholestérol', 'Troubles du rythme cardiaque': 'Rythme', 'Prévention de la thrombose': 'Antiagrégant' };
+  var AIRES_COURTES = { 'Hypertension artérielle': 'Hypertension', 'Cholestérol et risque cardiovasculaire': 'Cholestérol', 'Troubles du rythme cardiaque': 'Rythme', 'Prévention de la thrombose': 'Antiagrégant', 'Angine de poitrine': 'Angor', 'Métabolisme et neuropathie': 'Métabolisme' };
   function gammesProduits(l) {
     var g = [];
     l.forEach(function (f) { var x = g.filter(function (y) { return y.nom === f.gamme; })[0]; if (!x) g.push(x = { nom: f.gamme, aire: f.aire, fiches: [] }); x.fiches.push(f); });
@@ -2136,10 +2137,11 @@
       if (!aire && g.aire !== aireCourante) { aireCourante = g.aire; h += '<div class="aire-titre">' + esc(g.aire || '') + '</div>'; }
       var nom = String(g.nom || '').replace(/\s*\(.*\)$/, ''), mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
       h += '<div class="ligne-gamme"><div class="lg-tete"><b>' + esc(nom) + '</b>' + (mol ? '<small>' + esc(mol) + '</small>' : '') + '</div><div class="lg-produits">' +
-        g.fiches.map(function (f) {
+        g.fiches.slice().sort(function (x, y) { return (y.produit === nom) - (x.produit === nom); }).map(function (f) {
           // dans la ligne de la gamme, le nom de gamme n'est pas répété : « Rozukaa 10 » devient « 10 mg », « Zyltan AM » devient « AM »
           var court = f.produit.indexOf(nom + ' ') === 0 ? f.produit.slice(nom.length + 1) : f.produit;
           if (/^\d+$/.test(court)) court += ' mg';
+          if (g.fiches.length === 1) court = f.produit;   // gamme d'un seul produit : nom complet (« Myonit SR » plutôt que « SR »)
           return '<button type="button" class="pastille-produit" data-a="produitOuvrir" data-v="' + esc(f.produit) + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
         }).join('') + '</div></div>';
     });
