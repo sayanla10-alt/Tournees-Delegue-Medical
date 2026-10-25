@@ -1,8 +1,8 @@
 {
-  "version": "3.16.0",
+  "version": "3.17.0",
   "date": "2026-10-25",
   "notes": [
-    "Option « Saisir les jours à venir » (Réglages › Avancé)",
-    "15 produits ajoutés dans Produits"
+    "Journée : bouton « Planifier » sur un jour vide",
+    "Planifier : les jours déjà planifiés sont conservés (bandeau)"
   ]
 }

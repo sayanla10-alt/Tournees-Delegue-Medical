@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.16.0';
+  var APP_VERSION = '3.17.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.17.0', ['Journée : un jour sans visite propose « Planifier le … » (Planifier s\'ouvre réglé sur ce jour)',
+               'Planifier : bandeau « Déjà planifié » ; les visites déjà prévues ou renseignées restent en place, à leur heure, et seuls les créneaux libres sont complétés',
+               'Une nouvelle tournée ne remplace dans la base que sa propre période',
+               'Planifier reprend toujours le parcours à l\'étape 1, même après une interruption']],
     ['3.16.0', ['Réglages › Avancé › Saisie : option « Saisir les jours à venir » (désactivée par défaut, les jours futurs restent en aperçu)']],
     ['3.15.0', ['Onglet Produits : 15 produits ajoutés (Zyltan, Lesstrol AM et EZ, Rozukaa F, A et Gold, Telmikaa AM, H, AMH et CT, Antiplatt Plus, Myonit SR, Orlitroy, Troynuron, Lesskaa)', 'Nouveaux filtres « Angor » et « Métabolisme »']],
     ['3.14.0', ['L\'onglet « Aujourd\'hui » devient « Journée » ; l\'étiquette « Aujourd\'hui » s\'affiche à côté du titre le jour même',
@@ -238,7 +242,7 @@
     var parDate = {};
     S.plan.forEach(function (a) {
       (parDate[a.date] = parDate[a.date] || []).push({ date: a.date, heure: a.heure, creneau: a.creneau, idPresence: a.idPresence, code: a.code,
-        nom: a.nom, specialite: a.specialite, note: a.note, quartier: a.quartier, commune: a.commune, lieu: a.lieu, statut: a.statut || '' });
+        nom: a.nom, specialite: a.specialite, note: a.note, quartier: a.quartier, commune: a.commune, lieu: a.lieu, statut: a.statut || '', prog: S.programme.etat });
     });
     Object.keys(parDate).forEach(function (d) { arch[d] = parDate[d]; });
     Object.keys(arch).forEach(function (d) { if (d < limite) delete arch[d]; });
@@ -846,6 +850,40 @@
     return '<div class="bandeau info">' + icone('calendrier') + '<p><b>Jour' + (l.length > 1 ? 's' : '') + ' férié' + (l.length > 1 ? 's' : '') + '</b> : ' +
       l.map(function (d) { return dateCourte(d) + ', ' + esc(nomFerie(d)); }).join(' ; ') + '. Aucune visite n\'est prévue ce' + (l.length > 1 ? 's jours-là' : ' jour-là') + '.</p></div>';
   }
+  // 3.17.0 : visites déjà présentes un jour donné, à ne jamais écraser par une nouvelle planification :
+  // tournée en cours (toute si elle est confirmée, sinon les visites renseignées, gardées ou imposées),
+  // sinon programme archivé ou publié (confirmé) et comptes rendus de ce jour
+  function vraiStatut(s) { return s && s !== 'À faire' ? s : ''; }
+  function versPlan(x, v, d) {
+    var s = v || x, x2 = x || {}, pr = praticien(s.code) || {}, c = creneauDe(s.code, d, s.idPresence || x2.idPresence, s.creneau || x2.creneau);
+    var st = v ? v.statut || '' : vraiStatut(x2.statut);
+    return completerHeures({ uid: (v && v.uid) || x2.uid || ('C-' + d + '-' + s.code), date: d, heure: x2.heure || (v && v.heure) || '', creneau: s.creneau || x2.creneau || (c ? c.creneau : ''),
+      debut: x2.debut || '', fin: x2.fin || '', idPresence: s.idPresence || x2.idPresence || '', code: s.code, nom: s.nom || pr.nom || s.code, type: pr.type || s.type || 'Médecin',
+      specialite: s.specialite || pr.specialite || '', note: pr.note || s.note, conventionne: pr.conventionne, quartier: s.quartier || x2.quartier || '', commune: s.commune || x2.commune || '',
+      lieu: s.lieu || x2.lieu || '', lat: c && c.coord ? c.coord.lat : null, lon: c && c.coord ? c.coord.lon : null, statut: st,
+      activite: v ? v.activite || '' : '', produits: v ? v.produits || '' : '', commentaire: v ? v.commentaire || '' : '', prochaine: v ? String(v.prochaine || '').slice(0, 10) : '',
+      etat: st ? 'valide' : '', garde: true, impose: false, rdv: '', dist: 0, retard: false });
+  }
+  function donneesJour(d) {
+    var dansPlan = S.plan.filter(function (a) { return a.date === d; });
+    if (dansPlan.length) return dansPlan.filter(function (a) { return S.programme.etat === 'valide' || a.statut || a.etat === 'valide' || a.garde || a.impose || a.corrige; });
+    var prevus = programmeDuJour(d).filter(function (x) {
+      return vraiStatut(x.statut) || (x.prog ? x.prog === 'valide' : x.programme !== 'Proposition');
+    });
+    var faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && v.code; });
+    var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
+    var l = prevus.map(function (x) { return versPlan(x, parCode[x.code], d); });
+    faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) l.push(versPlan(null, v, d)); });
+    var vus = {};
+    return l.filter(function (a) { if (vus[a.code]) return false; vus[a.code] = true; return true; });
+  }
+  function bandeauDejaPlanifie(dates) {
+    var l = dates.map(function (d) { return { d: d, n: donneesJour(d).length }; }).filter(function (x) { return x.n; });
+    if (!l.length) return '';
+    return '<div class="bandeau info deja-planifie">' + icone('calendrier') + '<p><b>Déjà planifié</b><br>' +
+      l.map(function (x) { return majuscule(dateCourte(x.d)) + ' : ' + x.n + ' visite' + (x.n > 1 ? 's' : ''); }).join('<br>') +
+      '<br><span class="discret">Ces visites restent en place ; seuls les créneaux libres seront complétés.</span></p></div>';
+  }
   function prochainFerie() {
     var t = aujourdhui(), l = feries().filter(function (d) { return d >= t; }).sort();
     return l.length ? l[0] : '';
@@ -972,12 +1010,17 @@
     faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) { var a = arretDeVisite(v, null, d); a.horsTournee = true; l.push(a); } });
     return l.sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
   }
+  // jour sans visite (aujourd'hui ou à venir, jour ouvré) : planifier directement cette journée
+  function boutonPlanifierJour(d) {
+    if (d < aujourdhui() || jourSemaineIndex(d) > 4 || estFerie(d)) return '';
+    return '<button class="bouton bouton-plein bouton-large" type="button" data-a="planifierDate" data-v="' + d + '" style="margin-top:12px">' + icone('calendrier') + 'Planifier le ' + esc(dateCourte(d)) + '</button>';
+  }
   function rendreJourHors(d) {
     var t = aujourdhui(), h = '';
     if (!futurVerrouille(d)) {
       // jour passé (ou à venir si la saisie anticipée est activée) : tout reste modifiable, comme dans la tournée (compte rendu à saisir ou à corriger)
       var l = arretsHorsJour(d);
-      if (!l.length) return '<div class="vide"><strong>Aucune visite ce jour-là</strong>Ni tournée archivée ni compte rendu pour cette date.</div>';
+      if (!l.length) return '<div class="vide"><strong>Aucune visite ce jour-là</strong>Ni tournée archivée ni compte rendu pour cette date.</div>' + boutonPlanifierJour(d);
       var sans = l.filter(function (a) { return !a.statut || a.etat !== 'valide'; }).length, nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
       h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
         (sans ? ' · <b class="txt-alerte">' + sans + ' sans compte rendu</b>' : '') + '</span></div>' +
@@ -989,8 +1032,7 @@
     }
     // jour à venir hors tournée : aperçu de la tournée publiée
     var prevus = programmeDuJour(d).slice().sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
-    if (!prevus.length) return '<div class="vide"><strong>Rien de prévu ce jour-là</strong>Aucune tournée publiée pour cette date.' +
-      '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier</button></div>';
+    if (!prevus.length) return '<div class="vide"><strong>Rien de prévu ce jour-là</strong>Aucune tournée publiée pour cette date.</div>' + boutonPlanifierJour(d);
     h += '<p class="bilan-jour"><b>' + prevus.length + ' visite' + (prevus.length > 1 ? 's' : '') + ' prévue' + (prevus.length > 1 ? 's' : '') + '</b>.</p>';
     h += '<ul class="liste">' + prevus.map(function (x) {
       return '<li class="element"><div class="element-tete"><div><b>' + esc(x.heure || '--:--') + '</b> · <b>' + esc(x.nom || '') + '</b> ' + etoiles(x.note) +
@@ -1426,6 +1468,8 @@
   S.ui.etapesP = LS.get('etapesParams', null) || { ok: {} };
   if (!LS.get('etapesParams', null) && S.plan.length) ['quand', 'ou', 'qui', 'spec', 'valeur', 'rythme', 'rdv'].forEach(function (k) { S.ui.etapesP.ok[k] = true; });
   function sauverEtapesP() { LS.set('etapesParams', S.ui.etapesP); }
+  // 3.17.0 : ouvrir Planifier reprend toujours le parcours à l'étape 1 (réponses précédentes conservées)
+  function etapesPDepuisDebut() { S.ui.etapesP = { ok: {} }; sauverEtapesP(); }
   function etapesParams() {
     var p = S.params, dates = datesAffichees();
     var l = [
@@ -1435,7 +1479,7 @@
               '<button type="button" data-a="param" data-k="mode" data-v="jour" aria-pressed="' + (p.mode === 'jour') + '">Une journée</button>' +
               '<button type="button" data-a="param" data-k="mode" data-v="semaine" aria-pressed="' + (p.mode === 'semaine') + '">Une semaine</button></div>' +
             '<label class="champ" style="margin-bottom:0"><span>' + (p.mode === 'jour' ? 'Date' : 'Semaine du') + '</span>' +
-              '<input type="date" data-f="param" data-k="dateRef" value="' + esc(p.dateRef) + '"></label>' + bandeauFeries(dates);
+              '<input type="date" data-f="param" data-k="dateRef" value="' + esc(p.dateRef) + '"></label>' + bandeauFeries(dates) + bandeauDejaPlanifie(datesPeriode());
         } },
       { id: 'ou', titre: 'Communes ciblées', resume: function () { return p.mode === 'semaine' && p.parJour ? 'Communes différentes selon le jour' : libelleCommunes(p.communes); },
         rendu: function () {
@@ -1541,7 +1585,7 @@
     h += '</div>';
     if (enCours) return h + boutonAnciens('margin:12px 0 0') + '</section>';
     // toutes les questions sont répondues : on peut proposer
-    h += boutonAnciens('margin:10px 0') + '<button class="bouton bouton-plein bouton-large" data-a="generer" type="button">' + icone('relancer') + (S.plan.length ? 'Proposer une nouvelle tournée' : 'Proposer ma tournée') + '</button>' +
+    h += bandeauDejaPlanifie(datesPeriode()) + boutonAnciens('margin:10px 0') + '<button class="bouton bouton-plein bouton-large" data-a="generer" type="button">' + icone('relancer') + (S.plan.length ? 'Proposer une nouvelle tournée' : 'Proposer ma tournée') + '</button>' +
       (S.plan.length ? '<p class="discret" style="margin:10px 0 0">Les visites déjà faites, les médecins gardés et les RDV sont conservés.</p>' : '') +
       '</section>';
     return h;
@@ -3535,6 +3579,13 @@
         });
       }
       var conserves = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && (a.etat === 'valide' || a.corrige || a.garde); });
+      var heuresGardees = {};
+      if (portee === 'nouveau') {
+        // jours déjà planifiés : leurs visites restent (à leur heure), seuls les créneaux libres sont complétés
+        conserves = [];
+        cible.forEach(function (d) { conserves = conserves.concat(donneesJour(d)); });
+        conserves.forEach(function (a) { a.garde = true; heuresGardees[a.uid] = a.heure; });
+      }
       var horsCible = portee === 'nouveau' ? [] : S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible);
       horsCible.forEach(function (a) { exclus[a.code] = true; });
@@ -3542,14 +3593,18 @@
         dates: cible, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0,
         exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles()
       });
+      r.arrets.forEach(function (a) { if (heuresGardees[a.uid]) a.heure = heuresGardees[a.uid]; });
       S.plan = horsCible.concat(r.arrets);
       trierPlan();
+      // nouvelle tournée : seule sa période est remplacée dans la base, les autres jours publiés restent
+      if (portee === 'nouveau') { S.ui.portee = null; LS.set('portee', null); }
       if (S.programme.etat === 'valide' && portee !== 'nouveau') marquerModifie();
       else S.programme = { etat: 'proposition', valideLe: '' };
       S.ui.voirParams = false; S.ui.ouvert = null;
       if (portee === 'nouveau') { S.ui.jour = null; S.ui.tab = 'semaine'; window.scrollTo(0, 0); }
       sauver(); rendre(); publierPlan();
-      var msg = r.arrets.length ? r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.' : 'Aucun praticien ne correspond à ces critères.';
+      var nG = Object.keys(heuresGardees).length, nN = r.arrets.length - nG;
+      var msg = r.arrets.length ? (nG ? (!nN ? 'Aucun créneau libre : les ' + nG + ' visites déjà prévues sont conservées.' : nN + ' visite' + (nN > 1 ? 's' : '') + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' déjà prévue' + (nG > 1 ? 's' : '') + ' conservée' + (nG > 1 ? 's' : '') + '.') : r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.') : 'Aucun praticien ne correspond à ces critères.';
       var np = r.nonPlaces.filter(function (x) { return !x.etape; });
       if (np.length) msg += ' ' + np.length + ' médecin(s) prioritaire(s) absent(s) sur la période.';
       var attendu = (+p.maxJour || 8) * cible.filter(function (d) { return jourSemaineIndex(d) < 5; }).length;
@@ -3713,6 +3768,7 @@
 
   var ACTIONS = {
     nav: function (el) {
+      if (el.dataset.tab === 'semaine' && S.ui.tab !== 'semaine' && (!S.plan.length || S.ui.voirParams)) etapesPDepuisDebut();
       S.ui.tab = el.dataset.tab; S.ui.pharmaciesProches = false;
       if (S.ui.tab === 'historique') { S.ui.tab = 'bilan'; S.ui.statsVue = 'historique'; } S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);
@@ -3737,7 +3793,13 @@
       sauverEtapesP(); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0);
     },
     pEtapeEditer: function (el) { S.ui.etapesP.ok[el.dataset.v] = false; sauverEtapesP(); rendre(); },
-    voirParams: function () { S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
+    voirParams: function () { etapesPDepuisDebut(); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
+    planifierDate: function (el) {
+      // Journée vide → Planifier, période réglée sur ce jour (les autres réponses déjà données sont reprises)
+      S.params.mode = 'jour'; S.params.dateRef = el.dataset.v; LS.set('params', S.params);
+      etapesPDepuisDebut();
+      S.ui.tab = 'semaine'; S.ui.voirParams = true; S.ui.feuille = null; rendre(); window.scrollTo(0, 0);
+    },
     ouvrirAnciens: function () { S.ui.feuille = { type: 'anciens', titre: 'Reprendre un ancien programme', pleine: true }; rendre(); },
     reprendre: function (el) { var f = S.ui.feuille; f.source = { type: el.dataset.t, valeur: el.dataset.v }; f.cible = cibleParDefaut(el.dataset.t, el.dataset.v); rendre(); },
     repriseRetour: function () { S.ui.feuille.source = null; rendre(); },
@@ -4637,5 +4699,5 @@
 
   // Accès pour les tests automatisés
   window.__tournees = { S: S, ctx: ctx, texteProgramme: texteProgramme, urlWhatsapp: urlWhatsapp, normaliserNumero: normaliserNumero,
-                        version: APP_VERSION, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape };
+                        version: APP_VERSION, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre };
 })();
