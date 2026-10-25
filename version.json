@@ -1,9 +1,9 @@
 {
-  "version": "3.13.3",
+  "version": "3.13.4",
   "date": "2026-10-24",
   "notes": [
-    "Option « Modifier les jours passés » dans Réglages › Avancé (lecture seule par défaut)",
-    "Jours passés modifiables : comptes rendus des visites et de la journée",
-    "Compte rendu possible sur les visites d'un jour passé hors de la tournée en cours"
+    "Compte rendu dans sa propre page, accès en haut d'Aujourd'hui",
+    "Cercle vide tant que non enregistré ; une valeur par ligne",
+    "Marge réduite, phrase de présentation rétablie"
   ]
 }

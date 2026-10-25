@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.13.3';
+  var APP_VERSION = '3.13.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.13.4', ['Aujourd\'hui : phrase de présentation rétablie, marge de gauche réduite',
+               'Compte rendu : accès en haut de l\'écran, il s\'ouvre dans sa propre page (bouton retour vers Aujourd\'hui)',
+               'Carte de visite : le cercle vert plein suffit à dire « enregistré » ; cercle vide tant que le compte rendu n\'est pas enregistré',
+               'Comptes rendus : une valeur par ligne au lieu d\'une liste séparée par des virgules']],
     ['3.13.3', ['Réglages › Avancé : option « Modifier les jours passés » ; désactivée, les jours passés sont en lecture seule']],
     ['3.13.2', ['Jours passés : plus de lecture seule ; chaque visite se complète ou se modifie (compte rendu pas à pas), et le compte rendu de la journée se remplit et se valide comme pour aujourd\'hui']],
     ['3.13.1', ['Jour passé hors de la tournée en cours : les visites prévues sans compte rendu s\'ouvrent avec le compte rendu pas à pas (visite faite, produits présentés…), comme dans la tournée']],
@@ -167,7 +171,7 @@
         // 3.0.0 : nouveaux onglets du parcours (anciens noms convertis)
         var t = LS.get('onglet', 'jour'), anciens = { tournee: 'jour', contacts: 'praticiens', stats: 'bilan', historique: 'bilan' };
         t = anciens[t] || t;
-        return ['jour', 'semaine', 'autour', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
+        return ['jour', 'semaine', 'autour', 'rapport', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
       })(), jour: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.j : null; })(),
       jourVue: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.v || null : null; })(), ouvert: null, voirParams: false, feuille: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
@@ -734,7 +738,7 @@
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
-      var actif = S.ui.tab === 'autour' ? 'jour' : S.ui.tab;
+      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : S.ui.tab;
       if (b.dataset.tab === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
@@ -899,6 +903,7 @@
     var l = lundiDe(d), jours = joursOuvres(l);
     return '<div class="tete-jour"><div><h2 class="titre-vue">Aujourd\'hui</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
+      '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>' +
       '<div class="bande-jours"><button type="button" class="bouton-icone sombre" data-a="jourSemaine" data-v="-1" aria-label="Semaine précédente">' + icone('chevron') + '</button>' +
         '<div class="bj-jours">' + jours.map(function (x) {
           var n = nbVisitesJour(x);
@@ -978,8 +983,8 @@
     var d = jourAffiche(), t = aujourdhui(), h = enteteJour(d);
     if (S.ui.jourVue) {
       h += d === t ? rendreRappels() : '';
+      if (d <= t) { var lh = arretsHorsJour(d); if (lh.length && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, lh); }
       h += rendreJourHors(d);
-      if (d <= t) { var lh = arretsHorsJour(d); if (lh.length && (rapportDe(d) || !passeVerrouille(d))) h += rendreRapportJour(d, lh, passeVerrouille(d)); }
       return h;
     }
     if (!S.plan.length) {
@@ -995,8 +1000,8 @@
         (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' +
       '<div class="progression" role="progressbar" aria-valuemin="0" aria-valuemax="' + duJour.length + '" aria-valuenow="' + renseignees + '"><i style="width:' +
         (duJour.length ? Math.round(100 * renseignees / duJour.length) : 0) + '%"></i></div>' +
-      '<small class="discret">Compte rendu du jour : ' + renseignees + '/' + duJour.length + ' visite' + (duJour.length > 1 ? 's renseignées' : ' renseignée') +
-        (rapportDe(d) && rapportDe(d).valideLe ? ' · journée validée' : '') + '</small></section>';
+      '</section>';
+    if (d <= t && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
     ['Matin', 'Soir'].forEach(function (cren) {
       var liste = duJour.filter(function (a) { return a.creneau === cren; });
@@ -1013,8 +1018,21 @@
     });
     h += '<div class="rangee-actions pied-jour"><button class="bouton petit" type="button" data-a="ajouterJour">' + icone('plus') + 'Ajouter à la journée</button>' +
       '<button class="bouton petit" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button></div>';
-    if (d <= t && (rapportDe(d) || !passeVerrouille(d))) h += rendreRapportJour(d, duJour, passeVerrouille(d));
     return h;
+  };
+  // accès au compte rendu (page à part, dans le même onglet)
+  function tuileRapport(d, liste) {
+    var R = rapportDe(d), n = liste.length, r = liste.filter(function (a) { return a.statut; }).length;
+    var etat = R && R.valideLe ? '<span class="etiquette ok">Validé</span>' : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>');
+    return '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte rendu</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
+      ' · faits marquants, concurrence, besoins</small></span>' + etat + icone('chevron') + '</button>';
+  }
+  VUES.rapport = function () {
+    var d = jourAffiche(), t = aujourdhui();
+    var liste = S.ui.jourVue ? arretsHorsJour(d) : S.plan.filter(function (a) { return a.date === d; });
+    return '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Aujourd\'hui</button>' +
+      '<h2 class="titre-vue">Compte rendu</h2><p class="sous-titre">' + majuscule(dateLongue(d)) + ' : rempli à partir de vos visites, à compléter puis à valider.</p>' +
+      (d > t ? '<div class="vide"><strong>Journée à venir</strong>Le compte rendu se fait le jour même ou après.</div>' : rendreRapportJour(d, liste, passeVerrouille(d), true));
   };
 
   // « Maintenant » : ce qu'il y a à faire tout de suite, selon l'heure
@@ -1024,8 +1042,8 @@
     var suivante = sans.filter(function (a) { return heureVersMinutes(a.heure) === null || heureVersMinutes(a.heure) >= now; })[0];
     var h = '<section class="maintenant"><h3>Maintenant</h3>';
     if (!sans.length) {
-      return h + '<p>Toutes les visites sont renseignées. Finalisez le compte rendu de la journée.</p>' +
-        '<button class="bouton bouton-plein" type="button" data-a="allerRapport">' + icone('valider') + 'Finaliser le compte rendu du jour</button></section>';
+      return h + '<p>Toutes les visites sont renseignées. Finalisez le compte rendu.</p>' +
+        '<button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></section>';
     }
     if (aSaisir.length) {
       h += '<div class="a-saisir"><b>' + icone('crayon') + aSaisir.length + ' compte' + (aSaisir.length > 1 ? 's' : '') + ' rendu' + (aSaisir.length > 1 ? 's' : '') + ' à saisir</b>' +
@@ -1101,12 +1119,12 @@
         rendu: function () { return '<label class="champ" style="margin:8px 0 0"><span>Kilomètres réels (vide : estimation de ' + km(s.km) + ')</span><input type="number" min="0" inputmode="numeric" data-f="rapport" data-k="km" value="' + esc(R.km || '') + '"></label>'; } }
     ];
   }
-  function rendreRapportJour(d, duJour, lecture) {
+  function rendreRapportJour(d, duJour, lecture, page) {
     var R = lecture ? rapportDe(d) : rapportOuCree(d), s = syntheseJour(duJour.length ? duJour : []);
     var etat = R && R.valideLe ? '<span class="etiquette ok">Validé le ' + esc(R.valideLe) + '</span>' : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>');
-    var h = '<section class="bloc rapport-jour" id="rapportJour"><div class="tete-bloc"><h3>Compte rendu de la journée</h3>' + etat + '</div>';
+    var h = '<section class="bloc rapport-jour" id="rapportJour"><div class="tete-bloc"><h3>' + (page ? 'Synthèse de la journée' : 'Compte rendu') + '</h3>' + etat + '</div>';
     if (duJour.length) h += '<div class="tuiles-resume">' + lignesSynthese(s).map(function (x) {
-      return '<div class="tuile statique' + (String(x[1]).length > 38 ? ' large' : '') + '"><small>' + esc(x[0]) + '</small><b>' + esc(x[1]) + '</b></div>';
+      return '<div class="tuile statique' + (String(x[1]).length > 38 ? ' large' : '') + '"><small>' + esc(x[0]) + '</small><b>' + parLigne(x[1]) + '</b></div>';
     }).join('') + '</div>';
     if (!R) return h + '<p class="discret">Pas de compte rendu de journée enregistré.</p></section>';
     var etapes = etapesRapport(R, s), ok = R.ok || (R.ok = {}), edition = !lecture && (!R.valideLe || R.edition);
@@ -1128,7 +1146,7 @@
       if (s.sansCr.length) h += '<div class="bandeau"><p><b>' + s.sansCr.length + ' visite' + (s.sansCr.length > 1 ? 's' : '') + ' sans compte rendu :</b> ' +
         s.sansCr.map(function (a) { return '<button type="button" class="bouton-texte" data-a="ouvrirVisite" data-uid="' + a.uid + '">' + esc(a.nom) + '</button>'; }).join(', ') +
         '. Complétez-les, ou validez la journée telle quelle.</p></div>';
-      h += '<button class="bouton bouton-plein bouton-large" type="button" data-a="rapValider" data-v="' + d + '">' + icone('valider') + 'Valider le compte rendu de la journée</button>';
+      h += '<button class="bouton bouton-plein bouton-large" type="button" data-a="rapValider" data-v="' + d + '">' + icone('valider') + 'Valider le compte rendu</button>';
     } else if (!edition) {
       h += '<div class="rangee-actions" style="margin-top:10px"><button class="bouton petit wa" type="button" data-a="rapWhatsapp" data-v="' + d + '">' + icone('whatsapp') + 'Envoyer</button>' +
         '<button class="bouton petit" type="button" data-a="rapCopier" data-v="' + d + '">Copier</button>' +
@@ -1798,6 +1816,8 @@
       '<button class="bouton bouton-large" type="button" disabled>' + icone('valider') + 'Enregistrer le compte rendu</button><span class="aide-champ">Pour enregistrer : ' + esc(m.join(', ')) + '.</span>' :
       '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button>') + '</div>';
   }
+  // une valeur par ligne : « Routine, Présentation produit » ou « A ; B » s'affichent l'un sous l'autre
+  function parLigne(v) { return String(v || '').split(/\s*;\s*|,\s+(?=[A-ZÉÈÀÂÎÔ0-9★])/).filter(Boolean).map(esc).join('<br>'); }
   function resumeCompteRendu(a, tuiles) {
     var r = champsCr(a), l = [];
     if (r.interlocuteur) l.push('Interlocuteur : ' + r.interlocuteur);
@@ -1812,7 +1832,7 @@
     if (r.suite) l.push(r.suite + ' le ' + dateCourte(r.prochaine));
     if (tuiles) return '<div class="tuile statique"><small>Résultat</small><b>' + esc(a.statut || '') + '</b></div>' + l.map(function (x) {
       var i = x.indexOf(' : '), lab = i > 0 ? x.slice(0, i) : (r.suite && x.indexOf(r.suite) === 0 ? 'Suite' : 'Note'), val = i > 0 ? x.slice(i + 3) : x;
-      return '<div class="tuile statique' + (val.length > 40 ? ' large' : '') + '"><small>' + esc(lab) + '</small><b>' + esc(val) + '</b></div>';
+      return '<div class="tuile statique' + (val.length > 40 ? ' large' : '') + '"><small>' + esc(lab) + '</small><b>' + parLigne(val) + '</b></div>';
     }).join('');
     return l.map(function (x) { return '<p class="discret">' + esc(x) + '</p>'; }).join('');
   }
@@ -1873,7 +1893,7 @@
   function rendreArret(a) {
     var ouvert = S.ui.ouvert === a.uid, verrou = a.etat === 'valide';
     var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') +
-      (a.statut ? (estKo(a.statut) ? ' absent' : ' fait') : '');
+      (a.statut && verrou ? (estKo(a.statut) ? ' absent' : ' fait') : '');   // cercle plein seulement une fois le compte rendu enregistré
     var e = '';
     e += badgeConv(a.conventionne);
     var pv = praticien(a.code) || {}, der = pv.derniere && (!a.derniere || pv.derniere > a.derniere) ? pv.derniere : a.derniere;
@@ -1881,7 +1901,7 @@
     if (estPharmacie(a)) vu = vu.replace(/^Vu /, 'Visitée ').replace('Jamais visité', 'Jamais visitée');
     e += '<span class="etiquette">' + esc(vu) + '</span>';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
-    if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + (verrou ? ', enregistré' : '') + '</span>';
+    if (a.statut && !verrou) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + ', à enregistrer</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.etat === 'repris') e += '<span class="etiquette">Repris d\'un ancien programme</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
@@ -1915,10 +1935,10 @@
           cf ? questionConflit(a, cf) : '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
           '<button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else {
-        h += '<div class="cr-enregistre"><div class="tete-bloc"><h3>' + icone('valider') + 'Compte rendu enregistré</h3>' +
-          (passeVerrouille(a.date) ? '' : '<button class="bouton petit" type="button" data-a="corriger" data-uid="' + a.uid + '">' + icone('crayon') + 'Modifier</button>') + '</div>' +
+        h += '<div class="cr-enregistre">' +
           '<div class="tuiles-resume">' + resumeCompteRendu(a, true) + '</div>' +
-          '<div class="rangee-actions" style="margin:10px 0 0"><button class="bouton petit" type="button" data-a="quitterCarte">' + icone('fermer') + 'Quitter</button></div></div>';
+          '<div class="rangee-actions" style="margin:10px 0 0">' + (passeVerrouille(a.date) ? '' : '<button class="bouton petit" type="button" data-a="corriger" data-uid="' + a.uid + '">' + icone('crayon') + 'Modifier</button>') +
+          '<button class="bouton petit" type="button" data-a="quitterCarte">' + icone('fermer') + 'Quitter</button></div></div>';
       }
       h += '</div>';
     }
@@ -3716,15 +3736,16 @@
     jourSemaine: function (el) { allerAuJour(ajouterJours(lundiDe(jourAffiche()), 7 * +el.dataset.v)); },
     ouvrirVisite: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
-      if (a.date !== jourAffiche()) { S.ui.jour = a.date; S.ui.jourVue = null; }
-      S.ui.ouvert = a.uid; rendre(); centrerCarte(a.uid);
+      if (a.date !== jourAffiche() && !a.hors) { S.ui.jour = a.date; S.ui.jourVue = null; }
+      S.ui.tab = 'jour'; S.ui.ouvert = a.uid; rendre(); centrerCarte(a.uid);
     },
     ajouterJour: function () { S.ui.feuille = { type: 'ajouterJour', titre: 'Ajouter à la journée' }; rendre(); },
     ajouterJourChoix: function (el) {
       S.ui.feuille = null; var v = el.dataset.v;
       if (v === 'autour') ACTIONS.ouvrirAutour(); else ACTIONS.ajouterProches({ dataset: { v: v } });
     },
-    allerRapport: function () { var r = $('rapportJour'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+    allerRapport: function () { S.ui.tab = 'rapport'; rendre(); window.scrollTo(0, 0); },
+    ouvrirRapport: function () { S.ui.tab = 'rapport'; rendre(); window.scrollTo(0, 0); },
     rapOk: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = true; sauverRapports(); rendre(); },
     rapPrec: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); },
     rapPasser: function (el) {
@@ -3739,12 +3760,12 @@
     },
     rapValider: function (el) {
       var d = el.dataset.v, R = rapportOuCree(d);
-      if (R.valideLe && R.empreinte === empreinteRapport(R)) { R.edition = false; sauverRapports(); rendre(); toast('Aucune modification : le compte rendu de la journée est inchangé.'); return; }
-      confirmerPuis('Valider le compte rendu de la journée', 'Valider le compte rendu du <b>' + dateFr(d) + '</b> ? Il sera enregistré dans le Google Sheet.', 'Oui, valider', function () {
+      if (R.valideLe && R.empreinte === empreinteRapport(R)) { R.edition = false; sauverRapports(); rendre(); toast('Aucune modification : le compte rendu est inchangé.'); return; }
+      confirmerPuis('Valider le compte rendu', 'Valider le compte rendu du <b>' + dateFr(d) + '</b> ? Il sera enregistré dans le Google Sheet.', 'Oui, valider', function () {
         var n = new Date(); R.valideLe = dateFr(d) === dateFr(aujourdhui()) ? pad2(n.getHours()) + ':' + pad2(n.getMinutes()) : dateFr(aujourdhui());
         R.edition = false; R.envoye = false; R.empreinte = empreinteRapport(R); sauverRapports(); rendre();
-        if (connecte()) envoyerRapport(d).then(function () { toast('Compte rendu de la journée enregistré. Vous pouvez l\'envoyer sur WhatsApp.'); }, function () { toast('Enregistré sur le téléphone ; envoi au Google Sheet dès le retour du réseau.'); });
-        else toast('Compte rendu de la journée validé.');
+        if (connecte()) envoyerRapport(d).then(function () { toast('Compte rendu enregistré. Vous pouvez l\'envoyer sur WhatsApp.'); }, function () { toast('Enregistré sur le téléphone ; envoi au Google Sheet dès le retour du réseau.'); });
+        else toast('Compte rendu validé.');
       });
     },
     rapModifier: function (el) { var R = rapportOuCree(el.dataset.v); R.edition = true; R.ok = {}; sauverRapports(); rendre(); },

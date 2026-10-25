@@ -1004,3 +1004,18 @@ details.avance h3 { margin-top: 18px; }
 .choix-ajout .tuile small { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 13px; }
 .a-saisir .bouton-texte { min-height: 0; padding: 3px 0; font-size: 14.5px; }
 .txt-alerte { color: #B45309; }
+
+/* 3.13.4 : marge de gauche réduite, accès au compte rendu */
+.arret, .troncon { grid-template-columns: 48px 18px 1fr; }
+.arret-heure { padding: 12px 5px 0 0; }
+.arret-heure b { font-size: 15px; }
+.arret-heure small { font-size: 10px; }
+.creneau-titre { margin-left: 66px; }
+.troncon span { padding-left: 8px; font-size: 12px; }
+.acces-rapport { width: 100%; display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 11px 12px; border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); color: var(--encre); text-align: left; }
+.acces-rapport > span { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
+.acces-rapport > span svg { width: 18px; height: 18px; color: var(--primaire); grid-row: span 2; }
+.acces-rapport b { font-size: 15.5px; }
+.acces-rapport small { color: var(--gris); font-size: 12.5px; }
+.acces-rapport > .etiquette { flex: none; }
+.acces-rapport > svg { width: 18px; height: 18px; color: var(--gris); transform: rotate(-90deg); flex: none; }
