@@ -1,9 +1,9 @@
 {
-  "version": "3.7.2",
+  "version": "3.8.0",
   "date": "2026-10-24",
   "notes": [
-    "Aujourd'hui : boutons « + Médecin », « + Pharmacie » et « Autour de moi » sur une même ligne",
-    "« + Médecin » : médecins présents près de vous, selon vos spécialités",
-    "Le jour affiché reste affiché après un rafraîchissement"
+    "Filtres rangés par question : Qui ? Spécialité ? Où ? Valeur ? Suivi ? Ordre ?",
+    "Une puce par question, avec sa valeur ; « Tous » ouvre l'ensemble numéroté",
+    "Raccourcis conservés sur leur propre ligne"
   ]
 }

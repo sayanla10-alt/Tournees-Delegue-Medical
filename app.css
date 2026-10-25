@@ -802,3 +802,24 @@ details.avance h3 { margin-top: 18px; }
 .conflit { flex-basis: 100%; margin: 8px 0 2px; padding: 10px; border-radius: 10px; background: var(--bleu-pale); font-size: 13.5px; }
 .conflit p { margin: 0 0 8px; }
 .ligne-plan { flex-wrap: wrap; }
+
+/* 3.8.0 : filtres ordonnés (arbre de décision) */
+.defile.criteres { margin-bottom: 8px; }
+.puce-critere { gap: 4px; padding: 0 10px 0 14px; max-width: 240px; }
+.puce-critere span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.puce-critere svg { width: 15px; height: 15px; flex: none; opacity: .7; }
+.puce-critere.actif { background: var(--bleu-pale); border-color: var(--primaire); color: var(--primaire); font-weight: 700; }
+.puce-tous { padding: 0 12px; }
+.puce-tous svg { transform: none; }
+.puce-tous .compteur { margin-left: 2px; }
+.defile.raccourcis { align-items: center; gap: 6px; margin-bottom: 10px; }
+.raccourcis-titre { flex: none; font-size: 12px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: .04em; }
+.puce.petite { min-height: 32px; padding: 0 11px; font-size: 13px; }
+.puce.petite[aria-pressed="true"] { padding-left: 8px; }
+.question-filtre + .question-filtre { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--trait); }
+.question-filtre h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 16px; }
+.question-filtre h3 .num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--primaire); color: var(--sur-primaire); font-size: 12.5px; }
+.tri label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tri select { width: auto; }
+.effacer-filtres { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; color: var(--rouge); font-size: 13.5px; }
+.effacer-filtres svg { width: 15px; height: 15px; }

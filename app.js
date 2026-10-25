@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.7.2';
+  var APP_VERSION = '3.8.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.8.0', ['Recherche et Autour de moi : filtres rangés dans l\'ordre des questions : Qui ? Quelle spécialité ? Où ? Quelle valeur ? Quel suivi ? Dans quel ordre ?', 'Une puce par question, qui affiche sa valeur et ouvre uniquement cette question ; « Tous » ouvre l\'ensemble, numéroté de 1 à 6, tri compris', 'Raccourcis d\'un geste conservés sur leur propre ligne ; « Tout effacer » à côté du tri', 'Pharmacies : la puce Spécialité disparaît, vos spécialités restent mémorisées']],
     ['3.7.2', ['Aujourd\'hui : boutons « + Médecin », « + Pharmacie » et « Autour de moi » sur une même ligne, sous la présentation', '« + Médecin » : les médecins présents près de vous, selon les spécialités de votre tournée', 'Le jour affiché (ex. mercredi) reste affiché après un rafraîchissement, jusqu\'à minuit']],
     ['3.7.1', ['Remplacer : la liste des praticiens disponibles ce jour-là (pré-filtrés selon vos critères) s\'affiche, vous choisissez, puis vous confirmez Oui ou Non', 'Toute modification de la tournée (retirer, ajouter, remplacer) demande une confirmation', 'Plus de remplacement automatique quand un collègue a prévu le même médecin : la carte vous pose la question']],
     ['3.7.0', ['Médecin déjà prévu par un collègue : « Le remplacer ? Oui / Non » au lieu de « Retirer »', 'Aujourd\'hui : bouton « Pharmacie » pour ajouter une pharmacie ouverte près de votre position']],
@@ -1925,22 +1926,47 @@
   }
 
   // Barre de recherche et de filtres commune aux onglets Contacts et Autour
+  // Filtres ordonnés comme un arbre de décision : Qui ? > Quelle spécialité ? > Où ? > Quelle valeur ? > Quel suivi ? (> Dans quel ordre ?)
+  // Chaque puce montre sa valeur et ouvre la seule question concernée ; « Tous les filtres » ouvre l'ensemble, dans le même ordre.
+  var QUESTIONS_FILTRES = {
+    qui: { titre: 'Qui ?', cles: ['type'] },
+    spec: { titre: 'Quelle spécialité ?', cles: ['specialites'] },
+    com: { titre: 'Où ?', cles: ['communes'] },
+    valeur: { titre: 'Quelle valeur ?', cles: ['potentiels', 'conv'] },
+    suivi: { titre: 'Quel suivi ?', cles: ['visite', 'equipe'] },
+    ordre: { titre: 'Dans quel ordre ?', cles: [] }
+  };
+  function resumeListe(l, vide, pluriel) { return !l.length ? vide : (l.length === 1 ? l[0] : pluriel + ' (' + l.length + ')'); }
+  function pucesCriteres(f) {
+    var pot = f.potentiels.map(function (x) { return ETOILES[x]; }), val = pot.slice();
+    if (f.conv !== 'tous') val.push(f.conv === 'oui' ? 'Engagés' : 'Non engagés');
+    var suivi = [];
+    if (f.visite !== 'tous') suivi.push(LIB_VISITE[f.visite]);
+    if (f.equipe !== 'tous' && !S.config.demo) suivi.push(f.equipe === 'oui' ? 'Prévus par un collègue' : 'Non prévus par un collègue');
+    var l = [];
+    if (f.type !== 'Pharmacie') l.push(['spec', resumeListe(f.specialites, 'Spécialité', 'Spécialités'), f.specialites.length > 0]);
+    l.push(['com', resumeListe(f.communes, 'Commune', 'Communes'), f.communes.length > 0]);
+    l.push(['valeur', val.length ? val.join(' · ') : 'Potentiel, engagé', val.length > 0]);
+    l.push(['suivi', suivi.length ? suivi.join(' · ') : 'Dernière visite', suivi.length > 0]);
+    return l;
+  }
   function barreFiltres(f, q) {
-    var actifs = criteresActifs(f), autres = actifs.filter(function (x) { return !estRapide(x[0], x[1]) && x[0] !== 'type'; });
+    var actifs = criteresActifs(f);
     var h = '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
-        esc(q) + '" aria-label="Rechercher un praticien"></div>' +
-      '<button class="bouton bouton-filtres' + (actifs.length ? ' actif' : '') + '" type="button" data-a="ouvrirFiltres" aria-label="Filtres avancés">' + icone('filtre') +
-        '<span>Filtres</span>' + (actifs.length ? '<span class="compteur">' + actifs.length + '</span>' : '') + '</button></div>';
-    h += segment('Type de praticien', 'filtreType', [['tous', 'Tout'], ['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies']], f.type, 'margin-bottom:10px');
-    h += '<div class="defile" role="group" aria-label="Filtres rapides">' + FILTRES_RAPIDES.map(function (x) {
-      return '<button type="button" class="puce" data-a="filtreRapide" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + filtreRapideActif(f, x[0], x[1]) + '">' + esc(x[2]) + '</button>';
-    }).join('') + (actifs.length ? '<button type="button" class="puce puce-effacer" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer</button>' : '') + '</div>';
-    if (autres.length) {
-      h += '<div class="filtres-actifs">' + autres.map(function (x) {
-        return '<button type="button" class="filtre-actif" data-a="retirerFiltre" data-k="' + x[0] + '" data-v="' + esc(x[1]) + '" aria-label="Retirer le filtre ' +
-          esc(x[2]) + '">' + esc(x[2]) + icone('fermer') + '</button>';
-      }).join('') + '</div>';
-    }
+        esc(q) + '" aria-label="Rechercher un praticien"></div></div>';
+    // 1. Qui ?
+    h += segment('Type de praticien', 'filtreType', [['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']], f.type, 'margin-bottom:10px');
+    // 2 à 5 : une puce par question, dans l'ordre
+    h += '<div class="defile criteres" role="group" aria-label="Critères">' + pucesCriteres(f).map(function (x) {
+      return '<button type="button" class="puce puce-critere' + (x[2] ? ' actif' : '') + '" data-a="filtreQuestion" data-v="' + x[0] + '">' +
+        '<span>' + esc(x[1]) + '</span>' + icone('chevron') + '</button>';
+    }).join('') +
+      '<button type="button" class="puce puce-critere puce-tous" data-a="ouvrirFiltres" aria-label="Tous les filtres">' + icone('filtre') + 'Tous' +
+        (actifs.length ? '<span class="compteur">' + actifs.length + '</span>' : '') + '</button></div>';
+    // raccourcis d'un seul geste (inchangés)
+    h += '<div class="defile raccourcis" role="group" aria-label="Raccourcis"><span class="raccourcis-titre">Raccourcis</span>' + FILTRES_RAPIDES.map(function (x) {
+      return '<button type="button" class="puce petite" data-a="filtreRapide" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + filtreRapideActif(f, x[0], x[1]) + '">' + esc(x[2]) + '</button>';
+    }).join('') + '</div>';
     return h;
   }
 
@@ -1977,7 +2003,7 @@
       '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Nouveau</button></div>' +
       '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>' + barreFiltres(f, S.ui.recherche);
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
-    h += '<div class="tri"><span></span>' +
+    h += '<div class="tri">' + (criteresActifs(f).length || S.ui.recherche ? '<button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer</button>' : '<span></span>') +
       '<label class="discret">Trier par <select data-f="tri">' +
       [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite'], ['nom', 'Nom']].map(function (x) {
         return '<option value="' + x[0] + '"' + (S.ui.tri === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';
@@ -2524,23 +2550,36 @@
   };
 
   // Filtres avancés de la liste des praticiens (cumulables)
+  var TRIS = [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite'], ['nom', 'Nom']];
   FEUILLES.filtres = function (f) {
-    var b = f.brouillon, n = filtrerPraticiens(b, rechercheCour()).length;
+    var b = f.brouillon, n = filtrerPraticiens(b, rechercheCour()).length, seule = f.question;
     function opt(l) { return l.map(function (x) { return { v: x[0], lib: x[1], n: x[2] }; }); }
-    var h = groupeChoix(f, { id: 'type', titre: 'Type', chemin: 'brouillon.type', options: opt([['tous', 'Tous'], ['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies']]) }) +
-      groupeChoix(f, { id: 'pot', titre: 'Potentiel de prescription', chemin: 'brouillon.potentiels', multiple: true,
-        options: opt([['A', '★★★', 'fort'], ['B', '★★', 'moyen'], ['C', '★', 'faible']]) }) +
-      groupeChoix(f, { id: 'visite', titre: 'Dernière visite', chemin: 'brouillon.visite', options: opt([['tous', 'Toutes'], ['30', 'Non visité +30 j'], ['revoir', 'À revoir'],
-        ['jamais', 'Jamais visité'], ['retard', 'En retard sur la cadence'], ['recent', 'Vu il y a moins de 30 j']]) }) +
-      groupeChoix(f, { id: 'conv', titre: 'Engagé', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }) +
-      (S.config.demo ? '' : groupeChoix(f, { id: 'equipe', titre: 'Ciblé par un collègue cette semaine', chemin: 'brouillon.equipe', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) })) +
-      groupeChoix(f, { id: 'spec', titre: 'Spécialités', chemin: 'brouillon.specialites', multiple: true, repliable: true, recherche: true, resume: 'Toutes',
-        options: specialitesListe().map(function (x) { return { v: x.nom, lib: x.nom, n: x.n }; }),
-        aide: b.type === 'Pharmacie' ? 'Ignorées pour les pharmacies ; elles restent mémorisées et s\'appliquent de nouveau en choisissant Médecins ou Tout.' : 'S\'appliquent aux médecins seulement ; les pharmacies ne sont pas concernées.' }) +
-      groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: true, recherche: true, resume: 'Toutes', sections: sectionsCommunes(),
-        aide: 'Lieux d\'exercice du praticien. Pour un établissement ou un quartier, utilisez la recherche de la liste.' });
-    return { corps: h, pied: '<button class="bouton" type="button" data-a="filtresReinit">Réinitialiser</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="filtresOk">' + (S.ui.tab === 'autour' ? 'Appliquer les filtres' : 'Afficher ' + n + ' praticien' + (n > 1 ? 's' : '')) + '</button>' };
+    var blocs = {
+      qui: groupeChoix(f, { id: 'type', titre: 'Type de praticien', chemin: 'brouillon.type', options: opt([['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']]) }),
+      spec: b.type === 'Pharmacie' ? '<p class="discret groupe-aide">Les spécialités ne concernent pas les pharmacies. Celles choisies restent mémorisées pour les médecins' +
+          (b.specialites.length ? ' (' + esc(b.specialites.join(', ')) + ')' : '') + '.</p>' :
+        groupeChoix(f, { id: 'spec', titre: 'Spécialités', chemin: 'brouillon.specialites', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes',
+          options: specialitesListe().map(function (x) { return { v: x.nom, lib: x.nom, n: x.n }; }),
+          aide: b.type === 'tous' ? 'S\'appliquent aux médecins seulement ; les pharmacies restent affichées.' : '' }),
+      com: groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes', sections: sectionsCommunes(),
+        aide: 'Lieux d\'exercice du praticien. Pour un établissement ou un quartier, utilisez la recherche de la liste.' }),
+      valeur: groupeChoix(f, { id: 'pot', titre: 'Potentiel de prescription', chemin: 'brouillon.potentiels', multiple: true,
+          options: opt([['A', '★★★', 'fort'], ['B', '★★', 'moyen'], ['C', '★', 'faible']]) }) +
+        groupeChoix(f, { id: 'conv', titre: 'Engagé', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }),
+      suivi: groupeChoix(f, { id: 'visite', titre: 'Dernière visite (un seul choix)', chemin: 'brouillon.visite', options: opt([['tous', 'Toutes'], ['jamais', 'Jamais visité'],
+          ['30', 'Non visité +30 j'], ['retard', 'En retard sur la cadence'], ['revoir', 'À revoir'], ['recent', 'Vu il y a moins de 30 j']]) }) +
+        (S.config.demo ? '' : groupeChoix(f, { id: 'equipe', titre: 'Prévu par un collègue cette semaine', chemin: 'brouillon.equipe', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) })),
+      ordre: S.ui.tab === 'praticiens' ? groupeChoix(f, { id: 'tri', titre: 'Trier la liste par', chemin: 'tri', options: opt(TRIS) }) : ''
+    };
+    var ordre = seule ? [seule] : ['qui', 'spec', 'com', 'valeur', 'suivi', 'ordre'], num = 0;
+    var h = ordre.map(function (k) {
+      if (!blocs[k]) return '';
+      num++;
+      return '<div class="question-filtre">' + (seule ? '' : '<h3><span class="num">' + num + '</span>' + QUESTIONS_FILTRES[k].titre + '</h3>') + blocs[k] + '</div>';
+    }).join('');
+    var libOk = S.ui.tab === 'autour' ? 'Appliquer' : 'Afficher ' + n + ' praticien' + (n > 1 ? 's' : '');
+    return { corps: h, pied: '<button class="bouton" type="button" data-a="filtresReinit">' + (seule ? 'Effacer' : 'Tout effacer') + '</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="filtresOk">' + libOk + '</button>' };
   };
 
   // ------------------------------------------------------------------ Fiche praticien : assistant en 4 étapes
@@ -3295,7 +3334,12 @@
     // Filtres avancés
     ouvrirFiltres: function () {
       var b = JSON.parse(JSON.stringify(filtresCour()));
-      S.ui.feuille = { type: 'filtres', titre: 'Filtres', pleine: true, brouillon: b, ouverts: { spec: b.specialites.length > 0, com: b.communes.length > 0 } };
+      S.ui.feuille = { type: 'filtres', titre: 'Tous les filtres', pleine: true, brouillon: b, tri: S.ui.tri, ouverts: { spec: b.specialites.length > 0, com: b.communes.length > 0 } };
+      rendre();
+    },
+    filtreQuestion: function (el) {
+      var b = JSON.parse(JSON.stringify(filtresCour())), k = el.dataset.v;
+      S.ui.feuille = { type: 'filtres', titre: QUESTIONS_FILTRES[k].titre, pleine: k === 'spec' || k === 'com', question: k, brouillon: b, tri: S.ui.tri, ouverts: {} };
       rendre();
     },
     filtreBrouillon: function (el) {
@@ -3304,8 +3348,17 @@
       else b[k] = v;
       rendre();
     },
-    filtresReinit: function () { S.ui.feuille.brouillon = JSON.parse(JSON.stringify(FILTRES_VIDES)); rendre(); },
-    filtresOk: function () { majFiltres(S.ui.feuille.brouillon); S.ui.feuille = null; rendre(); },
+    filtresReinit: function () {
+      var f = S.ui.feuille, vide = JSON.parse(JSON.stringify(FILTRES_VIDES));
+      if (f.question) QUESTIONS_FILTRES[f.question].cles.forEach(function (k) { f.brouillon[k] = vide[k]; });
+      else { f.brouillon = vide; f.tri = 'priorite'; }
+      rendre();
+    },
+    filtresOk: function () {
+      var f = S.ui.feuille; majFiltres(f.brouillon);
+      if (f.tri && f.tri !== S.ui.tri) { S.ui.tri = f.tri; LS.set('tri', S.ui.tri); }
+      S.ui.feuille = null; rendre();
+    },
     retirerFiltre: function (el) {
       var f = filtresCour(), k = el.dataset.k;
       if (Array.isArray(f[k])) f[k] = f[k].filter(function (x) { return x !== el.dataset.v; }); else f[k] = 'tous';
