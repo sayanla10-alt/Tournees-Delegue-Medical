@@ -1,8 +1,8 @@
 {
-  "version": "3.9.1",
+  "version": "3.9.2",
   "date": "2026-10-24",
   "notes": [
-    "« Aucune modification » quand rien n'a changé (compte rendu, fiche, réglages)",
-    "Planifier : résumé en tuiles"
+    "Planifier : chaque tuile du récapitulatif ouvre sa propre option",
+    "« Aucune modification » quand rien n'a changé (compte rendu, fiche, réglages)"
   ]
 }

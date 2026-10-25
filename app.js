@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.9.1';
+  var APP_VERSION = '3.9.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.9.2', ['Planifier : chaque tuile du récapitulatif ouvre sa propre option (Spécialités ouvre Spécialités, etc.) ; la période aussi', 'Recherche : même récapitulatif en tuiles, chaque tuile ouvre son critère']],
     ['3.9.1', ['Modifier un compte rendu, une fiche ou vos réglages sans rien changer : l\'application l\'indique (« Aucune modification ») au lieu de « Enregistré » ; une vraie modification affiche « Compte rendu modifié »']],
     ['3.9.0', ['Planifier : le résumé de la tournée est rangé en tuiles (Communes, Praticiens, Spécialités, Potentiel, Rythme, RDV) sous la période ; touchez une tuile pour la modifier']],
     ['3.8.9', ['Compte rendu : réaction du médecin (Intéressé, Indécis…), état du stock et anomalie en boutons, comme le reste de l\'application', 'Plus aucune liste déroulante : nom du délégué, point de départ, quartier (Autour de moi, fiche praticien) et spécialité s\'ouvrent dans une liste avec recherche']],
@@ -1115,7 +1116,7 @@
   // Résumé de la planification : le titre (période), puis une tuile par option ; touchez une tuile pour la modifier
   function rendreResume() {
     var et = etapesParams(), quand = et.filter(function (e) { return e.id === 'quand'; })[0];
-    return '<section class="bloc resume-plan"><div class="tete-bloc"><h3>' + esc(quand.resume()) + '</h3>' +
+    return '<section class="bloc resume-plan"><div class="tete-bloc"><button type="button" class="titre-tuile" data-a="resumeEditer" data-v="quand"><h3>' + esc(quand.resume()) + '</h3>' + icone('crayon') + '</button>' +
       '<button class="bouton petit" data-a="voirParams" type="button">' + icone('calendrier') + 'Planifier</button></div>' +
       '<div class="tuiles-resume">' + et.filter(function (e) { return e.id !== 'quand'; }).map(function (e) {
         return '<button type="button" class="tuile" data-a="resumeEditer" data-v="' + e.id + '"><small>' + esc({ ou: 'Communes', qui: 'Praticiens', spec: 'Spécialités', valeur: 'Potentiel', rythme: 'Rythme', rdv: 'RDV et prioritaires' }[e.id] || e.titre) + '</small><b>' + esc(e.resume()) + '</b></button>';
@@ -2174,10 +2175,14 @@
       h += '<section class="bloc"><div class="tete-bloc"><h3>Recherche</h3><button class="bouton-texte fermer-bloc" type="button" data-a="rechFermer">' + icone('fermer') + 'Fermer</button></div>' +
         barreFiltres(f, S.ui.recherche) + '</section>';
     } else {
-      var res = etapesFiltres(f).map(function (e) { return e.id === 'ordre' ? 'tri par ' + e.resume().toLowerCase() : e.resume(); }).filter(function (x) { return x !== 'Toutes' && x !== 'Tous'; });
-      if (S.ui.recherche) res.unshift('« ' + S.ui.recherche + ' »');
-      h += '<section class="bloc resume-params"><p><b>Critères de recherche</b><span class="discret">' + esc(res.join(' · ') || 'Aucun : tous les praticiens') + '</span></p>' +
-        '<button class="bouton" data-a="rechOuvrir" type="button">' + icone('loupe') + 'Recherche</button></section>';
+      // même récapitulatif que Planifier : une tuile par critère, qui ouvre exactement ce critère
+      var courts = { qui: 'Praticiens', spec: 'Spécialités', com: 'Communes', valeur: 'Potentiel, engagé', suivi: 'Suivi', ordre: 'Tri' };
+      h += '<section class="bloc resume-plan"><div class="tete-bloc"><h3>Critères de recherche</h3>' +
+        '<button class="bouton petit" data-a="rechOuvrir" type="button">' + icone('loupe') + 'Recherche</button></div>' +
+        (S.ui.recherche ? '<p class="discret" style="margin:0 0 8px">Nom ou lieu : « ' + esc(S.ui.recherche) + ' »</p>' : '') +
+        '<div class="tuiles-resume">' + etapesFiltres(f).map(function (e) {
+          return '<button type="button" class="tuile" data-a="rechTuile" data-v="' + e.id + '"><small>' + courts[e.id] + '</small><b>' + esc(e.resume()) + '</b></button>';
+        }).join('') + '</div></section>';
     }
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
     if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer et recommencer</button></div>';
@@ -3291,7 +3296,12 @@
       if (k === 'spec') S.params.specialites = []; if (k === 'valeur') S.params.potentiels = [];
       LS.set('params', S.params); S.ui.etapesP.ok[k] = true; sauverEtapesP(); rendre();
     },
-    resumeEditer: function (el) { S.ui.etapesP.ok[el.dataset.v] = false; sauverEtapesP(); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
+    resumeEditer: function (el) {
+      // la tuile touchée ouvre exactement cette option (les autres, déjà répondues, restent repliées)
+      var ok = S.ui.etapesP.ok;
+      etapesParams().forEach(function (e) { ok[e.id] = e.id !== el.dataset.v; });
+      sauverEtapesP(); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0);
+    },
     pEtapeEditer: function (el) { S.ui.etapesP.ok[el.dataset.v] = false; sauverEtapesP(); rendre(); },
     voirParams: function () { S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
     ouvrirAnciens: function () { S.ui.feuille = { type: 'anciens', titre: 'Reprendre un ancien programme', pleine: true }; rendre(); },
@@ -3662,6 +3672,11 @@
       else { if (el.dataset.m === '1') { var i = f[k].indexOf(v); if (i >= 0) f[k].splice(i, 1); else f[k].push(v); } else f[k] = v; majFiltres(f); }
       if (el.dataset.auto) { etatEtapes().ok[el.dataset.auto] = true; sauverEtapes(); }
       rendre();
+    },
+    rechTuile: function (el) {
+      var et = etatEtapes(); et.ouvert = false;
+      etapesFiltres(S.ui.filtres).forEach(function (e) { et.ok[e.id] = e.id !== el.dataset.v; });
+      sauverEtapes(); S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre();
     },
     rechOuvrir: function () { S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre(); },
     rechFermer: function () { S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre(); window.scrollTo(0, 0); },

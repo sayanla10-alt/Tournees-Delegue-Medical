@@ -878,3 +878,6 @@ details.avance h3 { margin-top: 18px; }
 .tuile b { font-size: 14.5px; font-weight: 600; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .tuile:active { transform: scale(.98); }
 .tuile:hover { border-color: var(--primaire); }
+
+.titre-tuile { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; min-width: 0; }
+.titre-tuile svg { width: 15px; height: 15px; color: var(--gris-2); flex: none; }
