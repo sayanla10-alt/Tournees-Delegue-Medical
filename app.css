@@ -881,3 +881,9 @@ details.avance h3 { margin-top: 18px; }
 
 .titre-tuile { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; min-width: 0; }
 .titre-tuile svg { width: 15px; height: 15px; color: var(--gris-2); flex: none; }
+
+/* 3.9.3 : navigation des étapes */
+.nav-etapes .bouton { gap: 4px; }
+.nav-etapes .bouton svg { width: 16px; height: 16px; flex: none; }
+.nav-etapes .nav-prec svg { transform: rotate(90deg); }
+.nav-etapes .nav-suiv svg { transform: rotate(-90deg); }

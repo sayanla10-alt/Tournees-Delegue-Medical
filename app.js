@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.9.2';
+  var APP_VERSION = '3.9.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.9.3', ['Planifier et Recherche : boutons Précédent (sauf à la 1re étape), Suivant (Terminer à la dernière) et Passer quand la question s\'y prête ; « Quitter » en haut pendant le parcours', 'RDV et prioritaires : les RDV déjà pris dans les comptes rendus apparaissent (date du RDV, date de prise), avec les prioritaires ajoutés']],
     ['3.9.2', ['Planifier : chaque tuile du récapitulatif ouvre sa propre option (Spécialités ouvre Spécialités, etc.) ; la période aussi', 'Recherche : même récapitulatif en tuiles, chaque tuile ouvre son critère']],
     ['3.9.1', ['Modifier un compte rendu, une fiche ou vos réglages sans rien changer : l\'application l\'indique (« Aucune modification ») au lieu de « Enregistré » ; une vraie modification affiche « Compte rendu modifié »']],
     ['3.9.0', ['Planifier : le résumé de la tournée est rangé en tuiles (Communes, Praticiens, Spécialités, Potentiel, Rythme, RDV) sous la période ; touchez une tuile pour la modifier']],
@@ -1182,30 +1183,48 @@
             (S.config.demo ? '' : '<label class="interrupteur" style="margin-bottom:0"><span>Éviter les médecins déjà prévus par un collègue</span>' +
               '<input type="checkbox" data-f="param" data-k="eviterCollegues"' + (p.eviterCollegues !== false ? ' checked' : '') + '></label>');
         } },
-      { id: 'rdv', titre: 'RDV et prioritaires', facultatif: true, resume: function () { return S.imposes.length ? S.imposes.length + ' placé' + (S.imposes.length > 1 ? 's' : '') + ' d\'office' : 'Aucun'; },
+      { id: 'rdv', titre: 'RDV et prioritaires', resume: function () {
+          var n = rdvProchaines(dates).length, m = S.imposes.length, r = [];
+          if (n) r.push(n + ' RDV déjà pris'); if (m) r.push(m + ' prioritaire' + (m > 1 ? 's' : ''));
+          return r.length ? r.join(' · ') : 'Aucun'; },
         rendu: function () {
-          var h = '<div class="imposes" style="margin-top:6px;border:0;padding:0"><div class="imposes-tete"><span class="discret">Placés d\'office ; la tournée se construit autour d\'eux.</span>' +
+          // RDV confirmés dans les comptes rendus (placés d'office automatiquement) + prioritaires ajoutés à la main
+          var rdv = rdvProchaines(dates), h = '<p class="discret" style="margin:4px 0 8px">Placés d\'office : la tournée se construit autour d\'eux.</p>';
+          h += '<span class="sous-etape">RDV déjà pris</span>';
+          h += rdv.length ? '<ul class="liste-imposes">' + rdv.map(function (im) {
+            var pr = praticien(im.code), passe = im.dateRdv < dates[0];
+            return '<li><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
+              '<span class="discret bloc-texte">RDV du ' + dateFr(im.dateRdv) + (im.prisLe ? ', pris le ' + dateFr(im.prisLe) : '') +
+              (passe ? ' · date passée : placé au plus tôt' : '') + '</span></div><span class="etiquette p1">RDV</span></li>';
+          }).join('') + '</ul>' : '<p class="discret" style="margin:4px 0 0">Aucun RDV pris sur cette période.</p>';
+          h += '<div class="imposes-tete" style="margin-top:12px"><span class="sous-etape" style="margin:0">Prioritaires ajoutés</span>' +
             '<button type="button" class="bouton petit" data-a="ouvrirRecherche">' + icone('plus') + 'Ajouter</button></div>';
-          if (S.imposes.length) {
-            h += '<ul class="liste-imposes">' + S.imposes.map(function (im, i) {
-              var pr = praticien(im.code);
-              var c = im.cle ? Moteur.creneauParCle(ctx(), im.cle) : null;
-              var quand = im.date ? dateCourte(im.date) + (c ? ', ' + c.creneau.toLowerCase() + ', ' + esc(c.lieu) : '') : 'Au meilleur moment de la période';
-              return '<li><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
-                '<span class="discret bloc-texte">' + quand + (im.rdv ? ', RDV ' + esc(im.rdv) : '') + '</span></div>' +
-                '<button type="button" class="bouton-icone sombre" data-a="retirerImpose" data-i="' + i + '" aria-label="Retirer">' + icone('fermer') + '</button></li>';
-            }).join('') + '</ul>';
-          }
-          return h + '</div>';
+          h += S.imposes.length ? '<ul class="liste-imposes">' + S.imposes.map(function (im, i) {
+            var pr = praticien(im.code);
+            var c = im.cle ? Moteur.creneauParCle(ctx(), im.cle) : null;
+            var quand = im.date ? dateFr(im.date) + (c ? ', ' + c.creneau.toLowerCase() + ', ' + esc(c.lieu) : '') : 'Au meilleur moment de la période';
+            return '<li><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
+              '<span class="discret bloc-texte">' + quand + (im.rdv ? ', RDV ' + esc(im.rdv) : '') + '</span></div>' +
+              '<button type="button" class="bouton-icone sombre" data-a="retirerImpose" data-i="' + i + '" aria-label="Retirer">' + icone('fermer') + '</button></li>';
+          }).join('') + '</ul>' : '<p class="discret" style="margin:4px 0 0">Aucun.</p>';
+          return h;
         } }
     ];
     return l.filter(function (e) { return e.si !== false; });
+  }
+  // navigation d'une étape, commune à Planifier et à la Recherche : Précédent (sauf la 1re), Passer (si la question s'y prête),
+  // Suivant (Terminer à la dernière)
+  function boutonsEtape(aPrec, idPrec, aPasser, aOk, id, dernier) {
+    return '<div class="rangee cr-boutons nav-etapes">' +
+      (aPrec ? '<button class="bouton nav-prec" type="button" data-a="' + aPrec + '" data-v="' + idPrec + '">' + icone('chevron') + 'Précédent</button>' : '') +
+      (aPasser ? '<button class="bouton" type="button" data-a="' + aPasser + '" data-v="' + id + '">Passer</button>' : '') +
+      '<button class="bouton bouton-plein nav-suiv" type="button" data-a="' + aOk + '" data-v="' + id + '">' + (dernier ? 'Terminer' : 'Suivant' + icone('chevron')) + '</button></div>';
   }
   function rendreParams() {
     var ok = S.ui.etapesP.ok, etapes = etapesParams(), n = etapes.length;
     var enCours = etapes.filter(function (e) { return !ok[e.id]; })[0];
     var h = '<section class="bloc"><div class="tete-bloc"><h3>Planifier</h3>' +
-      (S.plan.length ? '<button class="bouton-texte fermer-bloc" type="button" data-a="fermerParams">' + icone('fermer') + 'Fermer</button>' : '') + '</div><div class="cr-pas etapes-filtres">';
+      (S.plan.length ? '<button class="bouton-texte fermer-bloc" type="button" data-a="fermerParams">' + icone('fermer') + (enCours ? 'Quitter' : 'Fermer') + '</button>' : '') + '</div><div class="cr-pas etapes-filtres">';
     etapes.forEach(function (e, i) {
       if (ok[e.id]) {
         h += '<button type="button" class="cr-fait" data-a="pEtapeEditer" data-v="' + e.id + '"><span>' + e.titre + '</span><b>' + esc(e.resume()) + '</b>' + icone('crayon') + '</button>';
@@ -1213,8 +1232,7 @@
       }
       if (e !== enCours) return;
       h += '<div class="cr-question"><span class="etape-titre">' + e.titre + ' <small>étape ' + (i + 1) + '/' + n + (e.facultatif ? ', facultatif' : '') + '</small></span>' + e.rendu();
-      if (!e.auto || ok[e.id] === false) h += '<div class="rangee cr-boutons">' + (e.facultatif ? '<button class="bouton" type="button" data-a="pEtapePasser" data-v="' + e.id + '">Passer</button>' : '') +
-        '<button class="bouton bouton-plein" type="button" data-a="pEtapeOk" data-v="' + e.id + '">' + (e.auto ? 'Garder « ' + esc(e.resume()) + ' »' : 'Continuer') + '</button></div>';
+      h += boutonsEtape(i > 0 ? 'pEtapePrec' : '', i > 0 ? etapes[i - 1].id : '', e.facultatif ? 'pEtapePasser' : '', 'pEtapeOk', e.id, i === n - 1);
       h += '</div>';
     });
     h += '</div>';
@@ -2130,9 +2148,7 @@
       if (ok[e.id]) { h += ligne(e); return; }
       if (e !== enCours) return;
       h += '<div class="cr-question"><span class="etape-titre">' + QUESTIONS_FILTRES[e.id].titre + ' <small>étape ' + (i + 1) + '/' + n + '</small></span>' + e.rendu();
-      if (!e.auto) h += '<div class="rangee cr-boutons"><button class="bouton" type="button" data-a="etapePasser" data-v="' + e.id + '">Passer</button>' +
-        '<button class="bouton bouton-plein" type="button" data-a="etapeOk" data-v="' + e.id + '">Continuer</button></div>';
-      else if (i > 0 || ok.qui === false) h += '<div class="rangee cr-boutons"><button class="bouton" type="button" data-a="etapeOk" data-v="' + e.id + '">Garder « ' + esc(e.resume()) + ' »</button></div>';
+      h += boutonsEtape(i > 0 ? 'etapePrec' : '', i > 0 ? etapes[i - 1].id : '', e.auto ? '' : 'etapePasser', 'etapeOk', e.id, i === n - 1);
       h += '</div>';
     });
     return h + '</div>';
@@ -3290,6 +3306,7 @@
       if (el.dataset.auto) { S.ui.etapesP.ok[el.dataset.auto] = true; sauverEtapesP(); }
       rendre();
     },
+    pEtapePrec: function (el) { S.ui.etapesP.ok[el.dataset.v] = false; sauverEtapesP(); rendre(); },
     pEtapeOk: function (el) { S.ui.etapesP.ok[el.dataset.v] = true; sauverEtapesP(); rendre(); },
     pEtapePasser: function (el) {
       var k = el.dataset.v;
@@ -3680,6 +3697,7 @@
     },
     rechOuvrir: function () { S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre(); },
     rechFermer: function () { S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre(); window.scrollTo(0, 0); },
+    etapePrec: function (el) { etatEtapes().ok[el.dataset.v] = false; sauverEtapes(); rendre(); },
     etapeOk: function (el) { etatEtapes().ok[el.dataset.v] = true; sauverEtapes(); rendre(); },
     etapePasser: function (el) {
       var f = filtresCour(), vide = JSON.parse(JSON.stringify(FILTRES_VIDES));
