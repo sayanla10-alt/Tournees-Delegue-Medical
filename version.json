@@ -1,9 +1,9 @@
 {
-  "version": "3.8.1",
+  "version": "3.8.2",
   "date": "2026-10-24",
   "notes": [
-    "Recherche : critères posés une question à la fois, comme le compte rendu",
-    "Chaque réponse se replie ; à la fin, une seule ligne « Critères »",
-    "Raccourcis à la première question"
+    "Planifier : bouton « Planifier » et planification une option à la fois, comme le compte rendu",
+    "Période, Communes ciblées, Praticiens à visiter, Spécialités, Potentiel, Rythme, RDV",
+    "Chaque réponse se replie en une ligne modifiable"
   ]
 }
