@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.8.0';
+  var APP_VERSION = '3.8.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.8.1', ['Recherche et Autour de moi : les critères sont posés une question à la fois, comme le compte rendu (Qui ? puis Quelle spécialité ? puis Où ? puis Quelle valeur ? puis Quel suivi ? puis Dans quel ordre ?)', 'Chaque réponse se replie en une ligne modifiable ; à la fin, une seule ligne « Critères » résume tout', 'Les raccourcis restent à la première question et mènent directement aux résultats']],
     ['3.8.0', ['Recherche et Autour de moi : filtres rangés dans l\'ordre des questions : Qui ? Quelle spécialité ? Où ? Quelle valeur ? Quel suivi ? Dans quel ordre ?', 'Une puce par question, qui affiche sa valeur et ouvre uniquement cette question ; « Tous » ouvre l\'ensemble, numéroté de 1 à 6, tri compris', 'Raccourcis d\'un geste conservés sur leur propre ligne ; « Tout effacer » à côté du tri', 'Pharmacies : la puce Spécialité disparaît, vos spécialités restent mémorisées']],
     ['3.7.2', ['Aujourd\'hui : boutons « + Médecin », « + Pharmacie » et « Autour de moi » sur une même ligne, sous la présentation', '« + Médecin » : les médecins présents près de vous, selon les spécialités de votre tournée', 'Le jour affiché (ex. mercredi) reste affiché après un rafraîchissement, jusqu\'à minuit']],
     ['3.7.1', ['Remplacer : la liste des praticiens disponibles ce jour-là (pré-filtrés selon vos critères) s\'affiche, vous choisissez, puis vous confirmez Oui ou Non', 'Toute modification de la tournée (retirer, ajouter, remplacer) demande une confirmation', 'Plus de remplacement automatique quand un collègue a prévu le même médecin : la carte vous pose la question']],
@@ -1927,7 +1928,6 @@
 
   // Barre de recherche et de filtres commune aux onglets Contacts et Autour
   // Filtres ordonnés comme un arbre de décision : Qui ? > Quelle spécialité ? > Où ? > Quelle valeur ? > Quel suivi ? (> Dans quel ordre ?)
-  // Chaque puce montre sa valeur et ouvre la seule question concernée ; « Tous les filtres » ouvre l'ensemble, dans le même ordre.
   var QUESTIONS_FILTRES = {
     qui: { titre: 'Qui ?', cles: ['type'] },
     spec: { titre: 'Quelle spécialité ?', cles: ['specialites'] },
@@ -1936,38 +1936,81 @@
     suivi: { titre: 'Quel suivi ?', cles: ['visite', 'equipe'] },
     ordre: { titre: 'Dans quel ordre ?', cles: [] }
   };
-  function resumeListe(l, vide, pluriel) { return !l.length ? vide : (l.length === 1 ? l[0] : pluriel + ' (' + l.length + ')'); }
-  function pucesCriteres(f) {
-    var pot = f.potentiels.map(function (x) { return ETOILES[x]; }), val = pot.slice();
-    if (f.conv !== 'tous') val.push(f.conv === 'oui' ? 'Engagés' : 'Non engagés');
-    var suivi = [];
-    if (f.visite !== 'tous') suivi.push(LIB_VISITE[f.visite]);
-    if (f.equipe !== 'tous' && !S.config.demo) suivi.push(f.equipe === 'oui' ? 'Prévus par un collègue' : 'Non prévus par un collègue');
-    var l = [];
-    if (f.type !== 'Pharmacie') l.push(['spec', resumeListe(f.specialites, 'Spécialité', 'Spécialités'), f.specialites.length > 0]);
-    l.push(['com', resumeListe(f.communes, 'Commune', 'Communes'), f.communes.length > 0]);
-    l.push(['valeur', val.length ? val.join(' · ') : 'Potentiel, engagé', val.length > 0]);
-    l.push(['suivi', suivi.length ? suivi.join(' · ') : 'Dernière visite', suivi.length > 0]);
-    return l;
+  // Critères posés une question à la fois, comme le compte rendu : les réponses données se replient en une ligne,
+  // seule la question en cours est ouverte ; une fois toutes répondues, une seule ligne résume l'ensemble.
+  S.ui.etapesF = LS.get('etapesFiltres', {});
+  function etatEtapes() { var k = cleFiltres(); return S.ui.etapesF[k] || (S.ui.etapesF[k] = { ok: {} }); }
+  function sauverEtapes() { LS.set('etapesFiltres', S.ui.etapesF); }
+  function puceEtape(k, v, lib, actif, m, auto) {
+    return '<button type="button" class="puce" data-a="etapeFiltre" data-k="' + k + '" data-v="' + esc(v) + '" data-m="' + (m ? 1 : 0) + '"' + (auto ? ' data-auto="' + auto + '"' : '') +
+      ' aria-pressed="' + actif + '">' + esc(lib) + '</button>';
+  }
+  function etapesFiltres(f) {
+    var vis = [['tous', 'Toutes'], ['jamais', 'Jamais visité'], ['30', 'Non visité +30 j'], ['retard', 'En retard sur la cadence'], ['revoir', 'À revoir'], ['recent', 'Vu il y a moins de 30 j']];
+    var l = [
+      { id: 'qui', auto: true, resume: function () { return f.type === 'Pharmacie' ? 'Pharmacies' : (f.type === 'Médecin' ? 'Médecins' : 'Médecins et pharmacies'); },
+        rendu: function () {
+          return '<div class="puces">' + [['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']].map(function (x) { return puceEtape('type', x[0], x[1], f.type === x[0], false, 'qui'); }).join('') + '</div>' +
+            '<p class="discret raccourcis-titre-etape">Ou directement un raccourci :</p><div class="puces">' + FILTRES_RAPIDES.map(function (x) {
+              return '<button type="button" class="puce petite" data-a="filtreRapide" data-fin="1" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + filtreRapideActif(f, x[0], x[1]) + '">' + esc(x[2]) + '</button>';
+            }).join('') + '</div>';
+        } },
+      { id: 'spec', si: f.type !== 'Pharmacie', resume: function () { return f.specialites.length ? f.specialites.join(', ') : 'Toutes'; },
+        rendu: function () {
+          return '<p class="discret" style="margin:4px 0 8px">' + (f.specialites.length ? esc(f.specialites.join(', ')) : 'Toutes les spécialités') + (f.type === 'tous' ? ' (les pharmacies restent affichées)' : '') + '</p>' +
+            '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="spec">' + icone('loupe') + 'Choisir les spécialités</button>';
+        } },
+      { id: 'com', resume: function () { return f.communes.length ? f.communes.join(', ') : 'Toutes'; },
+        rendu: function () {
+          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes.length ? esc(f.communes.join(', ')) : 'Toutes les communes') + '</p>' +
+            '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="com">' + icone('loupe') + 'Choisir les communes</button>';
+        } },
+      { id: 'valeur', resume: function () {
+          var r = f.potentiels.map(function (x) { return ETOILES[x]; }); if (f.conv !== 'tous') r.push(f.conv === 'oui' ? 'Engagés' : 'Non engagés');
+          return r.length ? r.join(' · ') : 'Tous'; },
+        rendu: function () {
+          return '<span class="sous-etape">Potentiel</span><div class="puces">' + [['A', '★★★ fort'], ['B', '★★ moyen'], ['C', '★ faible']].map(function (x) { return puceEtape('potentiels', x[0], x[1], f.potentiels.indexOf(x[0]) >= 0, true); }).join('') + '</div>' +
+            '<span class="sous-etape">Engagé</span><div class="puces">' + [['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']].map(function (x) { return puceEtape('conv', x[0], x[1], f.conv === x[0]); }).join('') + '</div>';
+        } },
+      { id: 'suivi', resume: function () {
+          var r = []; if (f.visite !== 'tous') r.push(LIB_VISITE[f.visite]);
+          if (f.equipe !== 'tous' && !S.config.demo) r.push(f.equipe === 'oui' ? 'Prévus par un collègue' : 'Non prévus par un collègue');
+          return r.length ? r.join(' · ') : 'Tous'; },
+        rendu: function () {
+          return '<span class="sous-etape">Dernière visite (un seul choix)</span><div class="puces">' + vis.map(function (x) { return puceEtape('visite', x[0], x[1], f.visite === x[0]); }).join('') + '</div>' +
+            (S.config.demo ? '' : '<span class="sous-etape">Prévu par un collègue cette semaine</span><div class="puces">' + [['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']].map(function (x) { return puceEtape('equipe', x[0], x[1], f.equipe === x[0]); }).join('') + '</div>');
+        } },
+      { id: 'ordre', auto: true, si: S.ui.tab === 'praticiens', resume: function () { return TRIS.filter(function (x) { return x[0] === S.ui.tri; }).map(function (x) { return x[1]; })[0] || 'Potentiel'; },
+        rendu: function () { return '<div class="puces">' + TRIS.map(function (x) { return puceEtape('tri', x[0], x[1], S.ui.tri === x[0], false, 'ordre'); }).join('') + '</div>'; } }
+    ];
+    return l.filter(function (e) { return e.si !== false; });
   }
   function barreFiltres(f, q) {
-    var actifs = criteresActifs(f);
     var h = '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(q) + '" aria-label="Rechercher un praticien"></div></div>';
-    // 1. Qui ?
-    h += segment('Type de praticien', 'filtreType', [['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']], f.type, 'margin-bottom:10px');
-    // 2 à 5 : une puce par question, dans l'ordre
-    h += '<div class="defile criteres" role="group" aria-label="Critères">' + pucesCriteres(f).map(function (x) {
-      return '<button type="button" class="puce puce-critere' + (x[2] ? ' actif' : '') + '" data-a="filtreQuestion" data-v="' + x[0] + '">' +
-        '<span>' + esc(x[1]) + '</span>' + icone('chevron') + '</button>';
-    }).join('') +
-      '<button type="button" class="puce puce-critere puce-tous" data-a="ouvrirFiltres" aria-label="Tous les filtres">' + icone('filtre') + 'Tous' +
-        (actifs.length ? '<span class="compteur">' + actifs.length + '</span>' : '') + '</button></div>';
-    // raccourcis d'un seul geste (inchangés)
-    h += '<div class="defile raccourcis" role="group" aria-label="Raccourcis"><span class="raccourcis-titre">Raccourcis</span>' + FILTRES_RAPIDES.map(function (x) {
-      return '<button type="button" class="puce petite" data-a="filtreRapide" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + filtreRapideActif(f, x[0], x[1]) + '">' + esc(x[2]) + '</button>';
-    }).join('') + '</div>';
-    return h;
+    var et = etatEtapes(), ok = et.ok, etapes = etapesFiltres(f), n = etapes.length;
+    var enCours = etapes.filter(function (e) { return !ok[e.id]; })[0];
+    function ligne(e) {
+      return '<button type="button" class="cr-fait" data-a="etapeEditer" data-v="' + e.id + '"><span>' + QUESTIONS_FILTRES[e.id].titre + '</span><b>' + esc(e.resume()) + '</b>' + icone('crayon') + '</button>';
+    }
+    h += '<div class="cr-pas etapes-filtres">';
+    if (!enCours) {
+      // tout est répondu : une seule ligne, dépliable pour modifier une réponse
+      if (et.ouvert) h += etapes.map(ligne).join('') + '<button type="button" class="bouton-texte" data-a="etapesBascule">Replier les critères</button>';
+      else h += '<button type="button" class="cr-fait criteres-resume" data-a="etapesBascule"><span>Critères</span><b>' +
+        esc(etapes.map(function (e) { return e.resume(); }).filter(function (x) { return x !== 'Toutes' && x !== 'Tous'; }).join(' · ') || 'Aucun') + '</b>' + icone('crayon') + '</button>';
+      return h + '</div>';
+    }
+    etapes.forEach(function (e, i) {
+      if (ok[e.id]) { h += ligne(e); return; }
+      if (e !== enCours) return;
+      h += '<div class="cr-question"><span class="etape-titre">' + QUESTIONS_FILTRES[e.id].titre + ' <small>' + (i + 1) + '/' + n + '</small></span>' + e.rendu();
+      if (!e.auto) h += '<div class="rangee cr-boutons"><button class="bouton" type="button" data-a="etapePasser" data-v="' + e.id + '">Passer</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="etapeOk" data-v="' + e.id + '">Continuer</button></div>';
+      else if (i > 0 || ok.qui === false) h += '<div class="rangee cr-boutons"><button class="bouton" type="button" data-a="etapeOk" data-v="' + e.id + '">Garder « ' + esc(e.resume()) + ' »</button></div>';
+      h += '</div>';
+    });
+    return h + '</div>';
   }
 
   // Résumé des critères retenus, en une phrase (ex. « 12 médecins cardiologues à potentiel ★★★, non visités depuis plus de 30 jours, à Cocody, triés par potentiel. »)
@@ -2003,11 +2046,7 @@
       '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Nouveau</button></div>' +
       '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>' + barreFiltres(f, S.ui.recherche);
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
-    h += '<div class="tri">' + (criteresActifs(f).length || S.ui.recherche ? '<button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer</button>' : '<span></span>') +
-      '<label class="discret">Trier par <select data-f="tri">' +
-      [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite'], ['nom', 'Nom']].map(function (x) {
-        return '<option value="' + x[0] + '"' + (S.ui.tri === x[0] ? ' selected' : '') + '>' + x[1] + '</option>';
-      }).join('') + '</select></label></div>';
+    if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer et recommencer</button></div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères. Retirez un filtre.</div>';
     h += '<ul class="liste">';
     liste.slice(0, S.ui.limite).forEach(function (p) {
@@ -3325,6 +3364,7 @@
       var f = filtresCour(), k = el.dataset.k, v = el.dataset.v;
       if (Array.isArray(f[k])) { var i = f[k].indexOf(v); if (i >= 0) f[k].splice(i, 1); else f[k].push(v); }
       else f[k] = f[k] === v ? 'tous' : v;
+      if (el.dataset.fin) { var et = etatEtapes(); Object.keys(QUESTIONS_FILTRES).forEach(function (q) { et.ok[q] = true; }); et.ouvert = false; sauverEtapes(); }
       majFiltres(f); rendre();
     },
     filtreType: function (el) { var f = filtresCour(); f.type = el.dataset.v; majFiltres(f); rendre(); },
@@ -3337,6 +3377,21 @@
       S.ui.feuille = { type: 'filtres', titre: 'Tous les filtres', pleine: true, brouillon: b, tri: S.ui.tri, ouverts: { spec: b.specialites.length > 0, com: b.communes.length > 0 } };
       rendre();
     },
+    etapeFiltre: function (el) {
+      var f = filtresCour(), k = el.dataset.k, v = el.dataset.v;
+      if (k === 'tri') { S.ui.tri = v; LS.set('tri', v); }
+      else { if (el.dataset.m === '1') { var i = f[k].indexOf(v); if (i >= 0) f[k].splice(i, 1); else f[k].push(v); } else f[k] = v; majFiltres(f); }
+      if (el.dataset.auto) { etatEtapes().ok[el.dataset.auto] = true; sauverEtapes(); }
+      rendre();
+    },
+    etapeOk: function (el) { etatEtapes().ok[el.dataset.v] = true; sauverEtapes(); rendre(); },
+    etapePasser: function (el) {
+      var f = filtresCour(), vide = JSON.parse(JSON.stringify(FILTRES_VIDES));
+      QUESTIONS_FILTRES[el.dataset.v].cles.forEach(function (k) { f[k] = vide[k]; }); majFiltres(f);
+      etatEtapes().ok[el.dataset.v] = true; sauverEtapes(); rendre();
+    },
+    etapeEditer: function (el) { var et = etatEtapes(); et.ok[el.dataset.v] = false; et.ouvert = false; sauverEtapes(); rendre(); },
+    etapesBascule: function () { var et = etatEtapes(); et.ouvert = !et.ouvert; sauverEtapes(); rendre(); },
     filtreQuestion: function (el) {
       var b = JSON.parse(JSON.stringify(filtresCour())), k = el.dataset.v;
       S.ui.feuille = { type: 'filtres', titre: QUESTIONS_FILTRES[k].titre, pleine: k === 'spec' || k === 'com', question: k, brouillon: b, tri: S.ui.tri, ouverts: {} };
@@ -3357,6 +3412,7 @@
     filtresOk: function () {
       var f = S.ui.feuille; majFiltres(f.brouillon);
       if (f.tri && f.tri !== S.ui.tri) { S.ui.tri = f.tri; LS.set('tri', S.ui.tri); }
+      if (f.question) { etatEtapes().ok[f.question] = true; sauverEtapes(); }
       S.ui.feuille = null; rendre();
     },
     retirerFiltre: function (el) {
@@ -3364,7 +3420,11 @@
       if (Array.isArray(f[k])) f[k] = f[k].filter(function (x) { return x !== el.dataset.v; }); else f[k] = 'tous';
       majFiltres(f); rendre();
     },
-    effacerFiltres: function () { majFiltres(JSON.parse(JSON.stringify(FILTRES_VIDES))); rendre(); },
+    effacerFiltres: function () {
+      majFiltres(JSON.parse(JSON.stringify(FILTRES_VIDES)));
+      if (S.ui.tab === 'autour') S.ui.rechercheAutour = ''; else S.ui.recherche = '';
+      S.ui.etapesF[cleFiltres()] = { ok: {} }; sauverEtapes(); rendre();
+    },
     // Fiche praticien
     nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau praticien', pleine: true, etape: 0, d: brouillonFiche(''), err: {} }; rendre(); },
     modifierFiche: function (el) { S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche', pleine: true, etape: 0, d: brouillonFiche(el.dataset.v), err: {} }; rendre(); },

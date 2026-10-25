@@ -823,3 +823,11 @@ details.avance h3 { margin-top: 18px; }
 .tri select { width: auto; }
 .effacer-filtres { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; color: var(--rouge); font-size: 13.5px; }
 .effacer-filtres svg { width: 15px; height: 15px; }
+
+/* 3.8.1 : critères une question à la fois */
+.etapes-filtres { margin: 0 0 8px; }
+.etapes-filtres .cr-question { margin-top: 4px; }
+.etapes-filtres .puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sous-etape { display: block; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--gris); }
+.raccourcis-titre-etape { margin: 12px 0 0; font-size: 13px; }
+.criteres-resume span { color: var(--primaire); font-weight: 700; }

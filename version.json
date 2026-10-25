@@ -1,9 +1,9 @@
 {
-  "version": "3.8.0",
+  "version": "3.8.1",
   "date": "2026-10-24",
   "notes": [
-    "Filtres rangés par question : Qui ? Spécialité ? Où ? Valeur ? Suivi ? Ordre ?",
-    "Une puce par question, avec sa valeur ; « Tous » ouvre l'ensemble numéroté",
-    "Raccourcis conservés sur leur propre ligne"
+    "Recherche : critères posés une question à la fois, comme le compte rendu",
+    "Chaque réponse se replie ; à la fin, une seule ligne « Critères »",
+    "Raccourcis à la première question"
   ]
 }
