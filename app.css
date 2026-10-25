@@ -887,3 +887,31 @@ details.avance h3 { margin-top: 18px; }
 .nav-etapes .bouton svg { width: 16px; height: 16px; flex: none; }
 .nav-etapes .nav-prec svg { transform: rotate(90deg); }
 .nav-etapes .nav-suiv svg { transform: rotate(-90deg); }
+
+/* 3.10.0 : onglet Produits (fiche comme une notice) */
+.gamme { margin-top: 16px; }
+.gamme-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.gamme-tete h3 { margin: 0; font-size: 17px; }
+.fiche-produit { border: 1px solid var(--trait); border-radius: 14px; background: var(--papier); margin-bottom: 8px; overflow: hidden; }
+.fiche-produit.ouverte { border-color: var(--primaire); }
+.fiche-tete { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 0; background: none; text-align: left; color: var(--encre); }
+.fiche-tete > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fiche-tete b { font-size: 16px; }
+.fiche-tete small { color: var(--gris); font-size: 13px; }
+.fiche-tete svg { width: 18px; height: 18px; color: var(--gris); flex: none; transition: transform .15s; }
+.fiche-produit.ouverte .fiche-tete svg { transform: rotate(180deg); }
+.fiche-corps { padding: 0 14px 12px; border-top: 1px solid var(--trait); }
+.fiche-classe { margin: 10px 0 6px; font-size: 13px; font-weight: 600; color: var(--primaire); }
+.fiche-section { margin-top: 10px; padding: 8px 10px 8px 12px; border-left: 3px solid var(--trait); border-radius: 0 8px 8px 0; background: var(--fond); }
+.fiche-section h4 { margin: 0 0 4px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--gris); }
+.fiche-section ul { margin: 0; padding-left: 18px; }
+.fiche-section li { font-size: 14px; line-height: 1.4; margin: 2px 0; }
+.fiche-section.ci { border-left-color: var(--rouge); }
+.fiche-section.ci h4 { color: var(--rouge); }
+.fiche-section.arg { border-left-color: var(--primaire); }
+.fiche-section.arg h4 { color: var(--primaire); }
+.fiche-pied { margin: 10px 0 0; font-size: 12px; }
+/* 6 onglets : libellés ajustés aux petits écrans */
+.navigation button span { max-width: 100%; }
+@media (max-width: 400px) { .navigation button { font-size: 10px; letter-spacing: -.2px; } .navigation button svg { width: 22px; height: 22px; } }
+@media (max-width: 350px) { .navigation button { font-size: 9.5px; } }

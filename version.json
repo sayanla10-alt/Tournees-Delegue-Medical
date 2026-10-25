@@ -1,9 +1,9 @@
 {
-  "version": "3.9.4",
+  "version": "3.10.0",
   "date": "2026-10-24",
   "notes": [
-    "RDV un jour sans présence connue : placé à la prochaine présence, date indiquée",
-    "Planifier et Recherche : Précédent, Suivant, Passer, Quitter",
-    "RDV déjà pris affichés dans « RDV et prioritaires »"
+    "Nouvel onglet Produits : aide-mémoire de visite par gamme",
+    "Indications, contre-indications, posologie, arguments clés",
+    "Fiches modifiables dans la feuille « Fiches produits »"
   ]
 }

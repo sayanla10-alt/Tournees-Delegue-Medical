@@ -16,9 +16,10 @@
 
 var FEUILLES = {
   praticiens: 'Praticiens', presences: 'Presences', hist: 'Historique', quartiers: 'Quartiers',
-  listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies'
+  listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
+  fiches: 'Fiches produits'
 };
-var VERSION_SERVEUR = '3.6.0';
+var VERSION_SERVEUR = '3.7.0';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -357,6 +358,7 @@ function lireTout(sig, hdepuis) {
   var ref = { praticiens: praticiens, presences: presences, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
   var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   ref.activites = listes.activites; ref.produits = listes.produits; ref.activitesPharmacie = listes.activitesPharmacie;
+  ref.fiches = lireObjets(ss.getSheetByName(FEUILLES.fiches), CHAMPS_FICHES, tz).filter(function (f) { return String(f.produit).trim() !== ''; });
   empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis, alias: aliasDelegues(),
             plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString() };
@@ -580,7 +582,24 @@ function versIso(v, tz) {
 }
 
 // ---------------------------------------------------------------- Structure (migration automatique)
+// 3.7.0 : feuille « Fiches produits » (aide-mémoire du délégué), créée une seule fois avec les fiches de référence,
+// ensuite modifiable librement dans le classeur : l'application affiche ce qu'elle contient
+function assurerFichesProduits(ss) {
+  var sh = ss.getSheetByName(FEUILLES.fiches);
+  if (sh) { completerEntetes(sh, CHAMPS_FICHES); return sh; }
+  sh = ss.insertSheet(FEUILLES.fiches);
+  var ent = CHAMPS_FICHES.map(function (c) { return c[1]; });
+  sh.getRange(1, 1, 1, ent.length).setValues([ent]).setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
+  var lignes = FICHES_PRODUITS_DEFAUT.map(function (f) { return CHAMPS_FICHES.map(function (c) { return f[c[0]] || ''; }); });
+  sh.getRange(2, 1, lignes.length, ent.length).setValues(lignes).setWrap(true).setVerticalAlignment('top');
+  sh.setFrozenRows(1); sh.setFrozenColumns(3);
+  [150, 150, 110, 200, 180, 280, 300, 230, 280, 220, 300, 160, 240].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+  sh.getRange(2, 3, lignes.length, 1).setFontWeight('bold');
+  return sh;
+}
+
 function assurerStructure(ss) {
+  assurerFichesProduits(ss);
   // 3.5.0 : la colonne « Conventionné » devient « Engagé » (données conservées)
   [FEUILLES.praticiens, FEUILLES.pharmacies].forEach(function (f) { renommerEntete(ss.getSheetByName(f), 'Conventionné', 'Engagé'); });
   if (!ss.getSheetByName(FEUILLES.plannings)) {

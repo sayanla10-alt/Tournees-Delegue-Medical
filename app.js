@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.9.4';
+  var APP_VERSION = '3.10.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.10.0', ['Nouvel onglet Produits : aide-mémoire de visite par gamme (Zyltan, Telmikaa, Tensicard, Rozukaa, Lesstrol, Eurythmic, Antiplatt) avec indications, contre-indications, posologie, précautions, effets indésirables et arguments clés', 'Les fiches sont dans une nouvelle feuille « Fiches produits » du Google Sheet, modifiable', 'Aujourd\'hui, en bas : « Pour étoffer la liste de ce jour » avec + Médecin, + Pharmacie et Planifier', 'Aujourd\'hui : la carte touchée se centre à l\'écran pour voir tout son contenu']],
     ['3.9.4', ['RDV et prioritaires : un RDV pris un jour sans présence connue est placé à la prochaine présence, et la date retenue est indiquée']],
     ['3.9.3', ['Planifier et Recherche : boutons Précédent (sauf à la 1re étape), Suivant (Terminer à la dernière) et Passer quand la question s\'y prête ; « Quitter » en haut pendant le parcours', 'RDV et prioritaires : les RDV déjà pris dans les comptes rendus apparaissent (date du RDV, date de prise), avec les prioritaires ajoutés']],
     ['3.9.2', ['Planifier : chaque tuile du récapitulatif ouvre sa propre option (Spécialités ouvre Spécialités, etc.) ; la période aussi', 'Recherche : même récapitulatif en tuiles, chaque tuile ouvre son critère']],
@@ -148,7 +149,7 @@
         // 3.0.0 : nouveaux onglets du parcours (anciens noms convertis)
         var t = LS.get('onglet', 'jour'), anciens = { tournee: 'jour', contacts: 'praticiens', stats: 'bilan', historique: 'bilan' };
         t = anciens[t] || t;
-        return ['jour', 'semaine', 'autour', 'praticiens', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
+        return ['jour', 'semaine', 'autour', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
       })(), jour: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.j : null; })(), ouvert: null, voirParams: false, feuille: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
@@ -600,7 +601,7 @@
         if (k.toLowerCase() === moi().toLowerCase()) { S.config.delegue = d.alias[k]; LS.set('config', S.config); S.ui.aPublier = true; LS.set('aPublier', true); }
       });
       S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
-                 statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [],
+                 statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [], fiches: base.fiches || [],
                  historique: hist, plannings: d.plannings || [], syncedAt: new Date().toISOString() };
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
@@ -905,7 +906,10 @@
       });
       h += '</ol>';
     });
-    h += '<p class="discret aide" style="text-align:center">Pour changer les médecins de ce jour : <button type="button" class="bouton-texte" data-a="nav" data-tab="semaine">Planifier</button></p>';
+    h += '<p class="discret aide" style="text-align:center;margin-bottom:8px">Pour étoffer la liste de ce jour :</p>' +
+      '<div class="rangee-actions"><button class="bouton petit" type="button" data-a="ajouterProches" data-v="Médecin">' + icone('plus') + 'Médecin</button>' +
+      '<button class="bouton petit" type="button" data-a="ajouterProches" data-v="Pharmacie">' + icone('plus') + 'Pharmacie</button>' +
+      '<button class="bouton petit" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Planifier</button></div>';
     return h;
   };
 
@@ -1782,6 +1786,42 @@
     var q = quartiers().filter(function (x) { return x.quartier === a.quartier; })[0];
     return q ? { lat: +q.lat, lon: +q.lon } : null;
   }
+
+  // ------------------------------------------------------------------ Vue : produits (aide-mémoire du délégué)
+  // Fiches de la feuille « Fiches produits » du Google Sheet (repli : fiches intégrées), regroupées par gamme.
+  var ORDRE_AIRES = ['Hypertension artérielle', 'Hypertension et cœur', 'Cholestérol et risque cardiovasculaire', 'Troubles du rythme cardiaque', 'Prévention de la thrombose'];
+  var SECTIONS_FICHE = [['indications', 'Indications', 'ind'], ['contreIndications', 'Contre-indications', 'ci'], ['posologie', 'Posologie', 'pos'],
+    ['precautions', 'Précautions et interactions', 'pre'], ['effets', 'Effets indésirables', 'ei'], ['arguments', 'Arguments clés pour la visite', 'arg']];
+  function fichesProduits() { var l = (S.data && S.data.fiches) || []; return l.length ? l : FICHES_PRODUITS_DEFAUT; }
+  function lignesFiche(t) { return String(t || '').split(/\n|;\s*(?=[A-ZÉÈÀÂÎÔ])/).map(function (x) { return x.replace(/^[•\-\s]+/, '').trim(); }).filter(Boolean); }
+  VUES.produits = function () {
+    var q = normaliser(S.ui.rechProduit || ''), toutes = fichesProduits();
+    var l = toutes.filter(function (f) { return !q || normaliser([f.produit, f.dci, f.gamme, f.classe, f.indications, f.aire].join(' ')).indexOf(q) >= 0; });
+    var h = '<h2 class="titre-vue">Produits</h2><p class="sous-titre">Votre aide-mémoire de visite : indications, contre-indications et arguments, par gamme.</p>' +
+      '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechProduit" placeholder="Produit, molécule, indication…" value="' + esc(S.ui.rechProduit || '') + '" aria-label="Rechercher un produit"></div></div>';
+    if (!l.length) return h + '<div class="vide"><strong>Aucun produit</strong>Aucune fiche ne correspond à cette recherche.</div>';
+    var gammes = [];
+    l.forEach(function (f) { var g = gammes.filter(function (x) { return x.nom === f.gamme; })[0]; if (!g) gammes.push(g = { nom: f.gamme, aire: f.aire, fiches: [] }); g.fiches.push(f); });
+    gammes.sort(function (a, b) { var i = ORDRE_AIRES.indexOf(a.aire), j = ORDRE_AIRES.indexOf(b.aire); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j); });
+    gammes.forEach(function (g) {
+      h += '<section class="gamme"><div class="gamme-tete"><h3>' + esc(g.nom) + '</h3><span class="etiquette">' + esc(g.aire || '') + '</span></div>';
+      g.fiches.forEach(function (f) {
+        var ouvert = S.ui.produitOuvert === f.produit || (!!q && l.length === 1);
+        h += '<article class="fiche-produit' + (ouvert ? ' ouverte' : '') + '"><button type="button" class="fiche-tete" data-a="produitOuvrir" data-v="' + esc(f.produit) + '" aria-expanded="' + ouvert + '">' +
+          '<span><b>' + esc(f.produit) + '</b><small>' + esc(f.dci) + '</small></span>' + icone('chevron') + '</button>';
+        if (ouvert) {
+          h += '<div class="fiche-corps"><p class="fiche-classe">' + esc(f.classe || '') + '</p>' + SECTIONS_FICHE.map(function (sec) {
+            var it = lignesFiche(f[sec[0]]); if (!it.length) return '';
+            return '<div class="fiche-section ' + sec[2] + '"><h4>' + sec[1] + '</h4><ul>' + it.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>';
+          }).join('') +
+          '<p class="discret fiche-pied">' + esc(f.laboratoire || '') + (f.sources ? ' · Sources : ' + esc(f.sources) : '') + '</p></div>';
+        }
+        h += '</article>';
+      });
+      h += '</section>';
+    });
+    return h + '<p class="discret" style="margin-top:14px">Aide-mémoire résumé des notices officielles des molécules. En cas de doute, la notice de la boîte et l\'avis du médecin font foi. Les fiches se modifient dans la feuille « Fiches produits » du Google Sheet.</p>';
+  };
 
   // ------------------------------------------------------------------ Vue : autour de moi
   VUES.autour = function () {
@@ -3162,6 +3202,15 @@
   function horodatageCourt() { var d = new Date(); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   // Programme validé puis modifié : il reste validé pour l'équipe, avec la date de modification
   function marquerModifie() { if (S.programme.etat === 'valide') S.programme.modifieLe = horodatageCourt(); }
+  // carte ouverte : centrée dans l'espace visible (entre l'en-tête et la barre du bas) ; si elle est plus haute, son haut est aligné
+  function centrerCarte(uid) {
+    var c = document.querySelector('.arret.ouvert') || document.querySelector('[data-uid="' + uid + '"]');
+    if (!c) return;
+    var r = c.getBoundingClientRect(), ent = (document.querySelector('.entete') || { offsetHeight: 0 }).offsetHeight,
+        nav = (document.querySelector('.navigation') || { offsetHeight: 0 }).offsetHeight, dispo = window.innerHeight - ent - nav;
+    var cible = r.height <= dispo - 16 ? ent + (dispo - r.height) / 2 : ent + 8;
+    window.scrollTo({ top: Math.max(0, window.scrollY + r.top - cible), behavior: 'smooth' });
+  }
   // empreinte d'un compte rendu : sert à dire « aucune modification » plutôt que « enregistré »
   function empreinteCr(a) {
     var c = JSON.parse(JSON.stringify(a.cr || {})); delete c.ok;
@@ -3344,7 +3393,10 @@
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) { S.ui.jour = el.dataset.v; S.ui.ouvert = null; rendre(); },
-    ouvrir: function (el) { S.ui.ouvert = S.ui.ouvert === el.dataset.uid ? null : el.dataset.uid; rendre(); },
+    ouvrir: function (el) {
+      S.ui.ouvert = S.ui.ouvert === el.dataset.uid ? null : el.dataset.uid; rendre();
+      if (S.ui.ouvert) centrerCarte(S.ui.ouvert);
+    },
     garder: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       a.garde = !a.garde; if (a.garde) delete S.rejetes[a.code];
@@ -3702,6 +3754,7 @@
       etapesFiltres(S.ui.filtres).forEach(function (e) { et.ok[e.id] = e.id !== el.dataset.v; });
       sauverEtapes(); S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre();
     },
+    produitOuvrir: function (el) { S.ui.produitOuvert = S.ui.produitOuvert === el.dataset.v ? null : el.dataset.v; rendre(); },
     rechOuvrir: function () { S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre(); },
     rechFermer: function () { S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre(); window.scrollTo(0, 0); },
     etapePrec: function (el) { etatEtapes().ok[el.dataset.v] = false; sauverEtapes(); rendre(); },
@@ -3848,6 +3901,10 @@
       var q = normaliser(el.value), g = el.closest('.groupe-filtre');
       g.querySelectorAll('.puce').forEach(function (b) { b.hidden = !!q && b.dataset.lib.indexOf(q) < 0; });
       g.querySelectorAll('.section-choix').forEach(function (sec) { sec.hidden = !sec.querySelector('.puce:not([hidden])'); });
+    }
+    if (f === 'rechProduit') {
+      S.ui.rechProduit = el.value; var pp = el.selectionStart; rendre();
+      var cp = document.querySelector('[data-f="rechProduit"]'); if (cp) { cp.focus(); try { cp.setSelectionRange(pp, pp); } catch (x) {} }
     }
     if (f === 'recherche' || f === 'rechercheImpose') {
       if (f === 'recherche') { if (S.ui.tab === 'autour') S.ui.rechercheAutour = el.value; else S.ui.recherche = el.value; S.ui.limite = 40; } else S.ui.feuille.q = el.value;
