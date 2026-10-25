@@ -1019,3 +1019,8 @@ details.avance h3 { margin-top: 18px; }
 .acces-rapport small { color: var(--gris); font-size: 12.5px; }
 .acces-rapport > .etiquette { flex: none; }
 .acces-rapport > svg { width: 18px; height: 18px; color: var(--gris); transform: rotate(-90deg); flex: none; }
+
+/* 3.14.0 */
+.arret.absent-attente .arret-noeud { background: var(--papier); border-color: var(--rouge); }
+.arret.fait-attente .arret-noeud { background: var(--papier); border-color: var(--vert); }
+.jour-du-jour { vertical-align: middle; font-size: 12px; margin-left: 4px; position: relative; top: -3px; }

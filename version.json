@@ -1,9 +1,9 @@
 {
-  "version": "3.13.4",
+  "version": "3.14.0",
   "date": "2026-10-24",
   "notes": [
-    "Compte rendu dans sa propre page, accès en haut d'Aujourd'hui",
-    "Cercle vide tant que non enregistré ; une valeur par ligne",
-    "Marge réduite, phrase de présentation rétablie"
+    "Onglet « Journée »",
+    "Cercle rouge vide si non faite et non enregistrée",
+    "Heures affichées pour toutes les visites"
   ]
 }
