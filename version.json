@@ -1,7 +1,8 @@
 {
-  "version": "3.6.0",
+  "version": "3.6.1",
   "date": "2026-10-24",
   "notes": [
+    "Reprendre un ancien programme : choisissez aussi le jour ou la semaine sur lesquels le copier, puis conservez-le ou revenez à l'ancienne planification",
     "Compte rendu pas à pas : une seule question à la fois, la suivante selon la réponse ; les réponses restent en lignes courtes, touchez-les pour modifier",
     "Produits, activités, statuts et délégués suivent la base en temps réel (mise à jour chaque minute)",
     "Délégués : « yavosylvie10@gmail.com » fusionné avec « Sylvie »",

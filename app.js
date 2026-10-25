@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.6.0';
+  var APP_VERSION = '3.6.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.6.1', ['Reprendre un ancien programme : choisissez aussi le jour ou la semaine sur lesquels le copier, puis conservez-le ou revenez à l\'ancienne planification']],
     ['3.6.0', ['Compte rendu pas à pas : une seule question à la fois, la suivante selon la réponse ; les réponses restent en lignes courtes, touchez-les pour modifier', 'Produits, activités, statuts et délégués suivent la base en temps réel (mise à jour chaque minute)', 'Délégués : « yavosylvie10@gmail.com » fusionné avec « Sylvie »']],
     ['3.5.1', ['Compte rendu : « Prochaine étape le » (+7 j, +14 j, +30 j, calendrier) de nouveau toujours visible avant l\'enregistrement']],
     ['3.5.0', ['Comptes rendus guidés par un arbre de décision : « La visite a-t-elle été faite ? » puis, pour les médecins, types, produits présentés et réactions, échantillons, bilan ; pour les pharmacies, interlocuteur, activités, stock par produit, commande, compléments', 'Visite non faite : motif, précision, remplaçant à proximité ; produits, stocks et discussion masqués', 'Suite : rappel ou RDV confirmé avec date ; seul un RDV confirmé ajoute la visite à la tournée, les rappels s\'affichent dans « Aujourd\'hui »', 'Base mise à jour : statuts, activités médecins et pharmacies, produits (avec Juvamine), délégués ; « Conventionné » devient « Engagé »']],
@@ -133,7 +134,7 @@
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
       couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: LS.get('couvOuverte', false),
-      statsVue: LS.get('statsVue', 'tableau'), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
+      statsVue: LS.get('statsVue', 'tableau'), annulReprise: LS.get('annulReprise', null), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
       autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 2, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
       filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false
@@ -854,7 +855,12 @@
     else h += rendreResume() + boutonAnciens('margin:-4px 0 14px');
     if (!S.plan.length) return h;
     var dates = datesPlan(); choisirJour(dates);
-    h += rendreProgramme();
+    if (S.ui.annulReprise) {
+      h += '<section class="bandeau-prog reprise"><div><b>Programme repris</b><span>' + esc(S.ui.annulReprise.libelle) +
+        '. Conservez-le, ou revenez à l\'ancienne planification.</span></div><div class="rangee">' +
+        '<button class="bouton bouton-plein" type="button" data-a="repriseConserver">' + icone('valider') + 'Conserver</button>' +
+        '<button class="bouton" type="button" data-a="repriseAnnuler">Revenir à l\'ancienne</button></div></section>';
+    } else h += rendreProgramme();   // la confirmation de la tournée vient après le choix Conserver / Revenir
     h += barreJours(dates);
     var duJour = S.plan.filter(function (a) { return a.date === S.ui.jour; });
     var n3 = duJour.filter(function (a) { return +a.note === 3; }).length;
@@ -895,24 +901,27 @@
     return Object.keys(semaines).sort().reverse().slice(0, 8).map(function (l) { return { lundi: l, jours: semaines[l] }; });
   }
   // Dates cibles : semaine (même jour de la semaine) ou journée choisie dans les réglages
-  function ciblesReprise(type, source) {
-    var p = S.params;
+  // Dates cibles : la semaine choisie (même jour de la semaine) ou le jour choisi
+  function ciblesReprise(type, source, cible) {
+    var m = {};
     if (type === 'semaine') {
-      var cible = joursOuvres(lundiDe(p.dateRef)), m = {};
-      Object.keys(source).forEach(function (d) { m[d] = cible[jourSemaineIndex(d)]; });
-      return m;
-    }
-    var d0 = Object.keys(source)[0], m2 = {};
-    m2[d0] = p.mode === 'jour' ? p.dateRef : joursOuvres(lundiDe(p.dateRef))[jourSemaineIndex(d0)];
-    return m2;
+      var jours = joursOuvres(lundiDe(cible));
+      Object.keys(source).forEach(function (d) { m[d] = jours[jourSemaineIndex(d)]; });
+    } else m[Object.keys(source)[0]] = cible;
+    return m;
   }
-  function reprendreProgramme(type, valeur) {
+  function cibleParDefaut(type, valeur) {
+    var t = prochainJourOuvre(aujourdhui());
+    if (type === 'semaine') return lundiDe(S.plan.length ? datesPlan()[0] : (jourSemaineIndex(aujourdhui()) > 3 ? ajouterJours(aujourdhui(), 7) : aujourdhui()));
+    // même jour de la semaine, à partir d'aujourd'hui
+    return prochaineOccurrence(jourSemaineIndex(valeur), t, true);
+  }
+  function reprendreProgramme(type, valeur, cibleChoisie) {
     var semaine = anciensProgrammes().filter(function (x) { return x.lundi === (type === 'semaine' ? valeur : lundiDe(valeur)); })[0];
     if (!semaine) return;
     var source = {};
     if (type === 'semaine') source = semaine.jours; else source[valeur] = semaine.jours[valeur];
-    if (type === 'semaine' && S.params.mode !== 'semaine') { S.params.mode = 'semaine'; }
-    var vers = ciblesReprise(type, source), c = ctx(), nouveaux = [], manques = [];
+    var vers = ciblesReprise(type, source, cibleChoisie || cibleParDefaut(type, valeur)), c = ctx(), nouveaux = [], manques = [];
     Object.keys(source).forEach(function (d) {
       var cible = vers[d];
       if (!cible || jourSemaineIndex(cible) > 4 || estFerie(cible)) { manques = manques.concat(source[d].map(function (x) { return x.nom; })); return; }
@@ -931,12 +940,18 @@
     var cibles = ensemble(Object.keys(vers).map(function (k) { return vers[k]; }));
     var aRemplacer = S.plan.filter(function (a) { return cibles[a.date] && a.etat !== 'valide' && !a.corrige; });
     if (aRemplacer.some(function (a) { return a.statut; }) && !confirm('Des comptes rendus non enregistrés sur ces jours seront perdus. Continuer ?')) return;
+    // sauvegarde : « Revenir à l'ancienne planification » reste possible tant que la reprise n'est pas conservée
+    S.ui.annulReprise = { plan: JSON.parse(JSON.stringify(S.plan)), programme: JSON.parse(JSON.stringify(S.programme)),
+      libelle: (type === 'semaine' ? 'Semaine du ' + dateCourte(valeur) + ' reprise sur ' : 'Programme du ' + dateCourte(valeur) + ' repris sur ') +
+        (type === 'semaine' ? 'la semaine du ' + dateCourte(lundiDe(vers[Object.keys(vers)[0]])) : 'le ' + dateCourte(vers[valeur])) };
+    LS.set('annulReprise', S.ui.annulReprise);
     var gardes = S.plan.filter(function (a) { return !cibles[a.date] || a.etat === 'valide' || a.corrige; });
     var deja = {}; gardes.forEach(function (a) { deja[a.date + '|' + a.code] = true; });
     S.plan = gardes.concat(nouveaux.filter(function (a) { return !deja[a.date + '|' + a.code]; }));
     Object.keys(cibles).forEach(function (d) { if (S.plan.some(function (a) { return a.date === d; })) reordonner(d); });
     S.programme = { etat: 'proposition', valideLe: '' };
-    S.ui.jour = Object.keys(cibles).sort()[0]; S.ui.feuille = null; S.ui.voirParams = false;
+    S.ui.jour = Object.keys(cibles).sort()[0]; S.ui.feuille = null; S.ui.voirParams = false; S.ui.tab = 'semaine';
+    if (type === 'semaine') { S.params.mode = 'semaine'; S.params.dateRef = lundiDe(S.ui.jour); } else if (S.params.mode === 'jour') S.params.dateRef = S.ui.jour;
     sauver(); rendre(); publierPlan(true); window.scrollTo(0, 0);
     toast(nouveaux.length + ' visite' + (nouveaux.length > 1 ? 's' : '') + ' reprise' + (nouveaux.length > 1 ? 's' : '') + ' en brouillon' +
       (manques.length ? ' ; ' + manques.length + ' praticien' + (manques.length > 1 ? 's' : '') + ' absent' + (manques.length > 1 ? 's' : '') + ' ce jour-là (non repris)' : '') + '.', 5000);
@@ -2328,13 +2343,23 @@
       (navigator.share ? '<button class="bouton" type="button" data-a="partagerTexte">Partager…</button>' : '') + '</div>';
   };
 
-  FEUILLES.anciens = function () {
+  FEUILLES.anciens = function (f) {
+    if (f.source) {
+      var sem = f.source.type === 'semaine', c = f.cible, existants = S.plan.filter(function (a) { return sem ? lundiDe(a.date) === lundiDe(c) : a.date === c; });
+      var weekend = !sem && jourSemaineIndex(c) > 4;
+      return { corps: '<p style="margin-top:0"><b>À reprendre :</b> ' + (sem ? 'semaine du ' + dateCourte(f.source.valeur) : majuscule(dateLongue(f.source.valeur))) + '.</p>' +
+        '<label class="champ"><span>' + (sem ? 'Sur quelle semaine ? (choisissez un jour de la semaine)' : 'Sur quel jour ?') + '</span><input type="date" data-f="repriseCible" value="' + esc(c) + '"></label>' +
+        '<p class="discret">' + (sem ? 'Semaine du ' + dateCourte(lundiDe(c)) + ' au ' + dateCourte(joursOuvres(lundiDe(c))[4]) + ', chaque jour sur le même jour de la semaine.' : majuscule(dateLongue(c)) + '.') + '</p>' +
+        (weekend ? '<p class="discret" style="color:var(--rouge)">Choisissez un jour de semaine.</p>' : '') +
+        (existants.length ? '<div class="bandeau"><p>' + existants.length + ' visite' + (existants.length > 1 ? 's' : '') + ' déjà prévue' + (existants.length > 1 ? 's' : '') +
+          ' sur ' + (sem ? 'cette semaine' : 'ce jour') + ' seront remplacées (les comptes rendus enregistrés sont conservés). Vous pourrez revenir à l\'ancienne planification.</p></div>' : ''),
+        pied: '<button class="bouton" type="button" data-a="repriseRetour">Retour</button>' +
+          '<button class="bouton bouton-plein" type="button" data-a="repriseConfirmer"' + (weekend ? ' disabled' : '') + '>Reprendre</button>' };
+    }
     var l = anciensProgrammes(), p = S.params;
     if (!l.length) return '<p class="discret" style="margin-top:0">Aucun ancien programme pour l\'instant. Vos tournées sont mémorisées au fil de l\'eau : elles apparaîtront ici dès la semaine prochaine (8 dernières semaines).</p>';
     var semCible = joursOuvres(lundiDe(p.dateRef))[0];
-    var h = '<p class="discret" style="margin-top:0">Le programme choisi est copié en <b>brouillon</b>, aux mêmes jours de la semaine, vers la ' +
-      (p.mode === 'jour' ? 'journée du <b>' + dateCourte(p.dateRef) + '</b> (pour une journée) ou la semaine du <b>' + dateCourte(semCible) + '</b> (pour une semaine)' : 'semaine du <b>' + dateCourte(semCible) + '</b>') +
-      '. Modifiez la date dans les réglages de la tournée pour changer de cible. Vous pourrez ensuite garder, retirer ou recalculer.</p>';
+    var h = '<p class="discret" style="margin-top:0">Choisissez la semaine ou le jour à reprendre, puis le jour ou la semaine sur lesquels le copier. Il est copié en <b>brouillon</b> ; vous pourrez le conserver ou revenir à l\'ancienne planification.</p>';
     h += l.map(function (s2) {
       var jours = Object.keys(s2.jours).sort(), n = jours.reduce(function (t, d) { return t + s2.jours[d].length; }, 0);
       var com = []; jours.forEach(function (d) { s2.jours[d].forEach(function (x) { if (x.commune && com.indexOf(x.commune) < 0) com.push(x.commune); }); });
@@ -2856,7 +2881,15 @@
     param: function (el) { S.params[el.dataset.k] = el.dataset.v; LS.set('params', S.params); rendre(); },
     voirParams: function () { S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
     ouvrirAnciens: function () { S.ui.feuille = { type: 'anciens', titre: 'Reprendre un ancien programme', pleine: true }; rendre(); },
-    reprendre: function (el) { reprendreProgramme(el.dataset.t, el.dataset.v); },
+    reprendre: function (el) { var f = S.ui.feuille; f.source = { type: el.dataset.t, valeur: el.dataset.v }; f.cible = cibleParDefaut(el.dataset.t, el.dataset.v); rendre(); },
+    repriseRetour: function () { S.ui.feuille.source = null; rendre(); },
+    repriseConfirmer: function () { var f = S.ui.feuille; reprendreProgramme(f.source.type, f.source.valeur, f.cible); },
+    repriseConserver: function () { S.ui.annulReprise = null; LS.set('annulReprise', null); rendre(); toast('Programme repris conservé.'); },
+    repriseAnnuler: function () {
+      var r = S.ui.annulReprise; if (!r) return;
+      S.plan = r.plan; S.programme = r.programme; S.ui.annulReprise = null; LS.set('annulReprise', null);
+      S.ui.jour = null; sauver(); rendre(); publierPlan(true); toast('Retour à l\'ancienne planification.');
+    },
     fermerParams: function () { S.ui.voirParams = false; rendre(); window.scrollTo(0, 0); },
     voirVisite: function (el) { S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' }); },
     ouvrirAutour: function () { S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); },
@@ -3243,6 +3276,7 @@
       if (as) { majCr(as, el.dataset.k, el.value); if (el.dataset.k === 'date' && el.value) validerEtape(as, 'date'); rendre(); }
     }
     if (f === 'cr' && /^(autres)$/.test(el.dataset.k)) rendre();
+    if (f === 'repriseCible' && el.value && S.ui.feuille) { S.ui.feuille.cible = el.value; rendre(); }
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }

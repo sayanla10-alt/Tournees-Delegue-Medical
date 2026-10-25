@@ -780,3 +780,4 @@ details.avance h3 { margin-top: 18px; }
 .cr-boutons { margin-top: 10px; justify-content: flex-end; }
 .cr-boutons .bouton { flex: 0 1 auto; min-width: 110px; }
 .arret > div:last-child, .arret-carte, .arret-detail, .cr-pas { min-width: 0; }
+.bandeau-prog.reprise { background: var(--bleu-pale); border-color: transparent; }
