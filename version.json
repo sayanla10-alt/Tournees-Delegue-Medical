@@ -1,7 +1,8 @@
 {
-  "version": "3.9.0",
+  "version": "3.9.1",
   "date": "2026-10-24",
   "notes": [
-    "Planifier : résumé de la tournée rangé en tuiles, touchez pour modifier"
+    "« Aucune modification » quand rien n'a changé (compte rendu, fiche, réglages)",
+    "Planifier : résumé en tuiles"
   ]
 }

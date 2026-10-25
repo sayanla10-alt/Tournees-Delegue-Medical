@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.9.0';
+  var APP_VERSION = '3.9.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.9.1', ['Modifier un compte rendu, une fiche ou vos réglages sans rien changer : l\'application l\'indique (« Aucune modification ») au lieu de « Enregistré » ; une vraie modification affiche « Compte rendu modifié »']],
     ['3.9.0', ['Planifier : le résumé de la tournée est rangé en tuiles (Communes, Praticiens, Spécialités, Potentiel, Rythme, RDV) sous la période ; touchez une tuile pour la modifier']],
     ['3.8.9', ['Compte rendu : réaction du médecin (Intéressé, Indécis…), état du stock et anomalie en boutons, comme le reste de l\'application', 'Plus aucune liste déroulante : nom du délégué, point de départ, quartier (Autour de moi, fiche praticien) et spécialité s\'ouvrent dans une liste avec recherche']],
     ['3.8.8', ['Recherche : planifier depuis le calendrier d\'un praticien propose la prochaine présence et les suivantes (+7, +14, +21, +28 jours), puis Oui ou Non']],
@@ -3133,8 +3134,20 @@
   function horodatageCourt() { var d = new Date(); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   // Programme validé puis modifié : il reste validé pour l'équipe, avec la date de modification
   function marquerModifie() { if (S.programme.etat === 'valide') S.programme.modifieLe = horodatageCourt(); }
+  // empreinte d'un compte rendu : sert à dire « aucune modification » plutôt que « enregistré »
+  function empreinteCr(a) {
+    var c = JSON.parse(JSON.stringify(a.cr || {})); delete c.ok;
+    return JSON.stringify([c, a.statut || '', a.commentaire || '', a.produits || '', a.prochaine || '', a.activite || '']);
+  }
   function validerVisites(uid) {
     var aValider = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide' && (!uid || a.uid === uid); });
+    // modification ouverte puis enregistrée sans rien changer : on le dit, rien n'est renvoyé
+    var inchanges = aValider.filter(function (a) { if (a.cr) syncCr(a); return a.corrige && a.empreinte && a.empreinte === empreinteCr(a); });
+    inchanges.forEach(function (a) { a.etat = 'valide'; delete a.corrige; delete a.empreinte; });
+    if (inchanges.length) {
+      aValider = aValider.filter(function (a) { return inchanges.indexOf(a) < 0; });
+      if (!aValider.length) { S.ui.ouvert = null; sauver(); rendre(); toast('Aucune modification : le compte rendu est inchangé.'); return; }
+    }
     if (!aValider.length) return;
     var t = aujourdhui(), ko = 0, etapes = [];
     aValider.forEach(function (a) {
@@ -3154,7 +3167,7 @@
         if (a.corrige && S.data.historique) S.data.historique.forEach(function (x, i) { if (x.uid === v.uid) S.data.historique[i] = Object.assign({}, x, v); });
       }
       if (estKo(a.statut)) ko++;
-      a.etat = 'valide'; delete a.corrige;
+      a.etat = 'valide'; delete a.corrige; delete a.empreinte;
       // seul un RDV confirmé est placé d'office dans la tournée
       if (a.prochaine && a.prochaine > a.date && (a.cr ? a.rdvConfirme : true)) etapes.push({ code: a.code, apres: a.prochaine, etape: true, dateRdv: a.prochaine, prisLe: v.date });
     });
@@ -3169,7 +3182,8 @@
     ctxCache.data = null;
     S.ui.ouvert = null;
     sauver(); rendre();
-    toast(aValider.length + ' compte(s) rendu(s) enregistré(s)' + (ko ? '. ' + ko + ' visite(s) non réalisée(s) : utilisez « Remplacer ».' : '.') +
+    var nCorr = aValider.filter(function (a) { return a.uid && S.queue.some(function (q) { return q.uid === a.uid && q.correction; }); }).length;
+    toast((nCorr === aValider.length ? (nCorr > 1 ? nCorr + ' comptes rendus modifiés' : 'Compte rendu modifié') : aValider.length + ' compte(s) rendu(s) enregistré(s)') + (ko ? '. ' + ko + ' visite(s) non réalisée(s) : utilisez « Remplacer ».' : '.') +
       (placees ? ' Prochaine étape ajoutée à votre tournée.' : ''), 4500);
     publierPlan(!placees);
   }
@@ -3330,7 +3344,7 @@
     confirmerProgrammeDirect: function () { confirmerProgramme(); },
 
     corriger: function (el) {
-      var a = arret(el.dataset.uid); if (!a) return; a.etat = 'correction'; a.corrige = true;
+      var a = arret(el.dataset.uid); if (!a) return; a.etat = 'correction'; a.corrige = true; a.empreinte = empreinteCr(a);
       var c = crDe(a); c.ok = c.ok || {}; etapesCr(a).forEach(function (x) { if (x.id && x.id.indexOf('__') !== 0) c.ok[x.id] = true; }); S.ui.ouvert = a.uid; LS.set('plan', S.plan); rendre(); },
     ouvrirExport: function () { S.ui.feuille = { type: 'exporter', titre: 'Envoyer la tournée', portee: S.params.mode === 'jour' ? 'jour' : 'semaine' }; rendre(); },
     exportPortee: function (el) { S.ui.feuille.portee = el.dataset.v; rendre(); },
@@ -3454,9 +3468,10 @@
     enregistrerMoi: function () {
       var n = lireNom('cfgNom'), w = ($('cfgWhatsapp').value || '').trim();
       if (w && !normaliserNumero(w)) { toast('Numéro WhatsApp non reconnu. Exemple : 07 07 07 07 07.'); return; }
-      var ancien = moi();
+      var ancien = moi(), avant = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '']);
       S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); S.config.waWeb = $('cfgWaWeb').checked; S.config.depart = $('cfgDepart').value;
-      LS.set('config', S.config); rendre(); toast('Réglages enregistrés.');
+      var apres = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '']);
+      LS.set('config', S.config); rendre(); toast(avant === apres ? 'Aucune modification : vos réglages sont inchangés.' : 'Réglages enregistrés.');
       if (n && n !== ancien) publierPlan();
     },
     tester: function () {
@@ -3693,7 +3708,7 @@
     },
     // Fiche praticien
     nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau praticien', pleine: true, etape: 0, d: brouillonFiche(''), err: {} }; rendre(); },
-    modifierFiche: function (el) { S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche', pleine: true, etape: 0, d: brouillonFiche(el.dataset.v), err: {} }; rendre(); },
+    modifierFiche: function (el) { var d = brouillonFiche(el.dataset.v); S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche', pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) }; rendre(); },
     ficheVal: function (el) {
       var d = S.ui.feuille.d, k = el.dataset.k;
       d[k] = k === 'note' ? +el.dataset.v : el.dataset.v;
@@ -3736,6 +3751,7 @@
         var e = erreursEtape(f.d, i);
         if (Object.keys(e).length) { f.etape = i; f.err = e; rendre(); focusErreur(); toast('Étape ' + (i + 1) + ' à compléter.'); return; }
       }
+      if (f.initial && f.initial === JSON.stringify(f.d)) { S.ui.feuille = null; rendre(); toast('Aucune modification : la fiche est inchangée.'); return; }
       var nouveau = !f.d.code, code = enregistrerFiche(f.d);
       S.ui.feuille = null; S.ui.contactOuvert = code; S.ui.contactEnTete = code; S.ui.tab = 'praticiens'; S.ui.recherche = ''; rendre();
       toast((nouveau ? 'Praticien ajouté' : 'Fiche mise à jour') + (S.config.demo ? '.' : (navigator.onLine ? ', envoi au Google Sheet…' : ', envoyée dès le retour du réseau.')));
