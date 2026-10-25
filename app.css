@@ -743,3 +743,8 @@ details.avance h3 { margin-top: 18px; }
 
 .ancien { margin-bottom: 10px; }
 .ancien-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+
+.nav-periode { display: flex; align-items: center; gap: 6px; }
+.nav-periode .bouton-icone svg { transform: rotate(90deg); width: 20px; height: 20px; }
+.nav-periode .bouton-icone.suivant svg { transform: rotate(-90deg); }
+.titre-delegue { margin: 18px 0 4px; padding-top: 10px; border-top: 1px solid var(--trait); }

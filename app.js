@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.3.2';
+  var APP_VERSION = '3.4.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.4.0', ['Équipe : choisissez un jour ou une semaine (flèches ou date) et voyez ce qui a été planifié et fait par vous et vos collègues, avec « Toute l\'équipe »']],
     ['3.3.2', ['Nom de l\'application : MediPlanner, sans mention supplémentaire']],
     ['3.3.1', ['Planifier : « Reprendre un ancien programme » toujours visible, juste au-dessus de « Proposer ma tournée »']],
     ['3.3.0', ['Équipe : votre propre tournée apparaît aussi, en tête, avec celles de vos collègues', 'Planifier : « Reprendre un ancien programme » copie une semaine ou une journée passée en brouillon, point de départ pour vos modifications']],
@@ -129,7 +130,7 @@
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
       couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: LS.get('couvOuverte', false),
-      statsVue: LS.get('statsVue', 'tableau'),
+      statsVue: LS.get('statsVue', 'tableau'), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
       autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 2, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
       filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false
@@ -1361,69 +1362,137 @@
       '</li>';
   }
 
-  // ------------------------------------------------------------------ Vue : équipe
-  VUES.equipe = function () {
-    var h = '<h2 class="titre-vue">Équipe</h2>';
-    var depuis = lundiDe(aujourdhui()), nomMoi = moi() || 'Moi';
-    // ma tournée (version du téléphone, la plus récente) + celles des collègues
-    var miens = S.plan.map(function (a) {
-      return Object.assign({}, a, { delegue: nomMoi, programme: S.programme.etat === 'valide' ? 'Validé' : 'Proposition', statut: a.etat === 'valide' ? a.statut : '' });
+  // ------------------------------------------------------------------ Vue : équipe (moi et mes collègues, jour ou semaine au choix)
+  // Planifié : tournées (téléphone pour moi, feuille Plannings pour tous) ; fait : comptes rendus (Historique et file d'envoi)
+  function donneesEquipe(dates) {
+    var dd = ensemble(dates), nomMoi = moi() || 'Moi', l = [], cles = {};
+    var hist = (S.queue || []).concat((S.data && S.data.historique) || []), parUid = {};
+    hist.forEach(function (v) { if (v.uid && !parUid[v.uid]) parUid[v.uid] = v; });
+    var miennesLocales = ensemble(S.plan.map(function (a) { return a.date; }));
+    function ajouter(x) {
+      var k = (x.delegue || '') + '|' + x.date + '|' + x.code;
+      if (cles[k]) return; cles[k] = true; l.push(x);
+    }
+    S.plan.forEach(function (a) {
+      if (!dd[a.date]) return;
+      var v = parUid[a.uid];
+      ajouter(Object.assign({}, a, { delegue: nomMoi, programme: S.programme.etat === 'valide' ? 'Validé' : 'Proposition',
+        statut: v ? v.statut : (a.etat === 'valide' ? a.statut : ''), compte: v ? v : (a.etat === 'valide' ? a : null) }));
     });
-    var arrets = miens.concat(S.config.demo ? [] : arretsCollegues()).filter(function (p) { return p.date >= depuis; });
-    var noms = Array.from(new Set(arrets.map(function (p) { return p.delegue; }))).sort(function (a, b) {
+    ((S.data && S.data.plannings) || []).forEach(function (p) {
+      if (!dd[p.date] || !p.delegue) return;
+      if (estMoi(p.delegue) && miennesLocales[p.date]) return;   // ma version du téléphone est la plus récente
+      var v = p.uid ? parUid[p.uid] : null, st = v ? v.statut : (p.statut === 'À faire' ? '' : p.statut);
+      ajouter(Object.assign({}, p, { delegue: estMoi(p.delegue) ? nomMoi : p.delegue, statut: st || '', compte: v || null }));
+    });
+    // visites faites hors tournée publiée (ajouts, anciennes tournées)
+    hist.forEach(function (v) {
+      var d = String(v.date || '').slice(0, 10);
+      if (!dd[d] || !v.delegue) return;
+      var x = Object.assign({}, v, { date: d, delegue: estMoi(v.delegue) ? nomMoi : v.delegue, heure: '', programme: '', compte: v, horsTournee: true });
+      ajouter(x);
+    });
+    return l;
+  }
+  function decalerEquipe(sens) {
+    var p = S.ui.eqPortee, d = S.ui.eqDate || aujourdhui();
+    S.ui.eqDate = ajouterJours(d, (p === 'semaine' ? 7 : 1) * sens);
+    if (p === 'jour') { while (jourSemaineIndex(S.ui.eqDate) > 4) S.ui.eqDate = ajouterJours(S.ui.eqDate, sens); }
+    S.ui.jourEquipe = null; LS.set('eqDate', S.ui.eqDate); rendre();
+  }
+
+  VUES.equipe = function () {
+    var nomMoi = moi() || 'Moi', p = S.ui.eqPortee || 'semaine', ref = S.ui.eqDate || aujourdhui();
+    var dates = p === 'semaine' ? joursOuvres(lundiDe(ref)) : [ref];
+    var h = '<h2 class="titre-vue">Équipe</h2><p class="sous-titre">Ce qui est planifié et ce qui a été fait, par vous et vos collègues, au jour ou à la semaine.</p>';
+    h += '<section class="bloc filtres-equipe">' + segment('Période', 'eqPortee', [['jour', 'Jour'], ['semaine', 'Semaine']], p, 'margin-bottom:10px') +
+      '<div class="nav-periode"><button type="button" class="bouton-icone sombre" data-a="eqDecaler" data-v="-1" aria-label="Période précédente">' + icone('chevron') + '</button>' +
+      '<label class="champ" style="margin:0;flex:1"><input type="date" data-f="eqDate" value="' + esc(ref) + '" aria-label="Date"></label>' +
+      '<button type="button" class="bouton-icone sombre suivant" data-a="eqDecaler" data-v="1" aria-label="Période suivante">' + icone('chevron') + '</button></div>' +
+      '<p class="discret" style="margin:8px 0 0">' + (p === 'semaine' ? 'Semaine du ' + dateCourte(dates[0]) + ' au ' + dateCourte(dates[4]) : majuscule(dateLongue(ref))) +
+      (ref !== aujourdhui() ? ' · <button type="button" class="bouton-texte" data-a="eqAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></section>';
+
+    var tout = donneesEquipe(dates);
+    var noms = Array.from(new Set(tout.map(function (x) { return x.delegue; }))).sort(function (a, b) {
       return (a === nomMoi ? -1 : b === nomMoi ? 1 : a.localeCompare(b, 'fr'));
     });
-    h += '<p class="sous-titre">Votre tournée et celles de vos collègues, pour coordonner les visites et éviter les doublons. Mise à jour chaque minute.</p>';
-    if (!noms.length) return h + '<div class="vide"><strong>Aucune tournée cette semaine</strong>Votre tournée et celles de vos collègues apparaissent ici dès qu\'elles sont préparées.</div>';
-    h += '<ul class="liste resume-equipe">' + noms.map(function (n) {
-      var l = arrets.filter(function (p) { return p.delegue === n; });
-      var valide = l.some(function (p) { return p.programme === 'Validé'; });
-      var com = Array.from(new Set(l.map(function (p) { return p.commune; })));
+    if (!noms.length) return h + '<div class="vide"><strong>Rien sur cette période</strong>Aucune visite planifiée ni réalisée. Choisissez une autre date.</div>';
+    var fait = function (x) { return x.statut && Moteur.estVisite(x.statut, statuts()); };
+    var nonFait = function (x) { return x.statut && !Moteur.estVisite(x.statut, statuts()); };
+    // synthèse par délégué
+    var ligne = function (n, l) {
+      var conf = l.some(function (x) { return x.programme === 'Validé'; }), nf = l.filter(fait).length, nk = l.filter(nonFait).length, prevu = l.filter(function (x) { return !x.horsTournee; }).length;
+      var com = Array.from(new Set(l.map(function (x) { return x.commune; }).filter(Boolean)));
       return '<li><button type="button" data-a="collegue" data-v="' + esc(n) + '" aria-pressed="' + (n === S.ui.collegue) + '">' +
-        '<b>' + esc(n) + (n === nomMoi ? ' (moi)' : '') + '</b><span class="etiquette ' + (valide ? 'ok' : '') + '">' + (valide ? 'Tournée confirmée' : 'Brouillon') + '</span>' +
-        '<span class="discret bloc-texte">' + l.length + ' visites, ' + esc(libelleCommunes(com)) + '</span></button></li>';
-    }).join('') + '</ul>';
-    if (noms.indexOf(S.ui.collegue) < 0) S.ui.collegue = noms[0];
-    var siens = arrets.filter(function (p) { return p.delegue === S.ui.collegue; });
-    var dates = Array.from(new Set(siens.map(function (p) { return p.date; }))).sort();
-    if (!S.ui.jourEquipe || dates.indexOf(S.ui.jourEquipe) < 0) {
-      var t = aujourdhui();
-      S.ui.jourEquipe = dates.indexOf(t) >= 0 ? t : (dates.filter(function (d) { return d >= t; })[0] || dates[0]);
+        '<b>' + esc(n === '__tous' ? 'Toute l\'équipe' : n) + (n === nomMoi ? ' (moi)' : '') + '</b>' +
+        (n === '__tous' ? '' : '<span class="etiquette ' + (conf ? 'ok' : '') + '">' + (conf ? 'Tournée confirmée' : (prevu ? 'Brouillon' : 'Hors tournée')) + '</span>') +
+        '<span class="discret bloc-texte">' + prevu + ' planifiée' + (prevu > 1 ? 's' : '') + ', ' + nf + ' faite' + (nf > 1 ? 's' : '') +
+        (nk ? ', ' + nk + ' non faite' + (nk > 1 ? 's' : '') : '') + (com.length ? ' · ' + esc(libelleCommunes(com)) : '') + '</span></button></li>';
+    };
+    if (noms.indexOf(S.ui.collegue) < 0 && S.ui.collegue !== '__tous') S.ui.collegue = noms.length > 1 ? '__tous' : noms[0];
+    h += '<ul class="liste resume-equipe">' + (noms.length > 1 ? ligne('__tous', tout) : '') +
+      noms.map(function (n) { return ligne(n, tout.filter(function (x) { return x.delegue === n; })); }).join('') + '</ul>';
+
+    var siens = S.ui.collegue === '__tous' ? tout : tout.filter(function (x) { return x.delegue === S.ui.collegue; });
+    // semaine : un jour à la fois
+    var jour = ref;
+    if (p === 'semaine') {
+      if (!S.ui.jourEquipe || dates.indexOf(S.ui.jourEquipe) < 0) {
+        var t = aujourdhui();
+        S.ui.jourEquipe = dates.indexOf(t) >= 0 ? t : (dates.filter(function (d) { return siens.some(function (x) { return x.date === d; }); })[0] || dates[0]);
+      }
+      jour = S.ui.jourEquipe;
+      h += '<div class="jours" role="group" aria-label="Jour">' + dates.map(function (d) {
+        var l = siens.filter(function (x) { return x.date === d; }), nf = l.filter(fait).length;
+        return '<button type="button" class="jour' + (d === aujourdhui() ? ' aujourdhui' : '') + '" data-a="jourEquipe" data-v="' + d + '" aria-pressed="' + (d === jour) +
+          '"><b>' + JOURS_COURTS[jourSemaineIndex(d)].replace('.', '') + ' ' + (+d.slice(8)) + '</b><small>' + (nf ? nf + '/' : '') + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</small></button>';
+      }).join('') + '</div>';
     }
-    h += '<div class="jours" role="group" aria-label="Jour">' + dates.map(function (d) {
-      var n = siens.filter(function (p) { return p.date === d; }).length;
-      return '<button type="button" class="jour" data-a="jourEquipe" data-v="' + d + '" aria-pressed="' + (d === S.ui.jourEquipe) +
-        '"><b>' + JOURS_COURTS[jourSemaineIndex(d)].replace('.', '') + ' ' + (+d.slice(8)) + '</b><small>' + n + ' visite' + (n > 1 ? 's' : '') + '</small></button>';
-    }).join('') + '</div>';
-    var duJour = siens.filter(function (p) { return p.date === S.ui.jourEquipe; });
-    var maj = duJour.reduce(function (m, p) { return p.maj > m ? p.maj : m; }, '');
-    var pos = duJour.map(function (p) {
-      var pr = (ctx().presencesParCode[p.code] || []).filter(function (x) { return String(x.id) === String(p.idPresence); })[0];
-      var c = pr && ctx().parCode[p.code] ? ctx().parCode[p.code].filter(function (x) { return String(x.idPresence) === String(p.idPresence); })[0] : null;
-      return c && c.coord ? { lat: c.coord.lat, lon: c.coord.lon, nom: p.nom, lieu: p.lieu, heure: p.heure } : null;
-    }).filter(Boolean);
-    h += '<p class="bilan-jour"><b>' + esc(S.ui.collegue) + '</b>, ' + dateLongue(S.ui.jourEquipe) + ' : ' + duJour.length +
-      ' visite' + (duJour.length > 1 ? 's' : '') + (maj ? '. Mise à jour le ' + esc(maj.slice(8, 10) + '/' + maj.slice(5, 7) + ' à ' + maj.slice(11, 16)) : '') + '.</p>';
-    ['Matin', 'Soir'].forEach(function (cren) {
-      var liste = duJour.filter(function (p) { return p.creneau === cren; });
+    var duJour = siens.filter(function (x) { return x.date === jour; });
+    var nf = duJour.filter(fait).length;
+    h += '<p class="bilan-jour"><b>' + esc(S.ui.collegue === '__tous' ? 'Toute l\'équipe' : S.ui.collegue) + '</b>, ' + dateLongue(jour) + ' : ' + duJour.length +
+      ' visite' + (duJour.length > 1 ? 's' : '') + ', ' + nf + ' faite' + (nf > 1 ? 's' : '') + '.</p>';
+    if (!duJour.length) h += '<p class="discret">Rien de planifié ni de réalisé ce jour-là.</p>';
+    // « Toute l'équipe » : une tournée par délégué, l'une sous l'autre
+    var groupesDel = S.ui.collegue === '__tous' ? noms.filter(function (n) { return duJour.some(function (x) { return x.delegue === n; }); }) : [null];
+    groupesDel.forEach(function (del) {
+    var sesVisites = del ? duJour.filter(function (x) { return x.delegue === del; }) : duJour;
+    if (del) h += '<h3 class="titre-delegue">' + esc(del) + (del === nomMoi ? ' (moi)' : '') + '</h3>';
+    ['Matin', 'Soir', ''].forEach(function (cren) {
+      var liste = sesVisites.filter(function (x) { return cren ? x.creneau === cren : (x.creneau !== 'Matin' && x.creneau !== 'Soir'); })
+        .sort(function (a, b) { return String(a.heure || a.debut || '').localeCompare(String(b.heure || b.debut || '')) || String(a.delegue).localeCompare(String(b.delegue)); });
       if (!liste.length) return;
-      h += '<div class="creneau-titre">' + cren + '</div><ol class="ligne">';
-      liste.forEach(function (p0) {
-        var p = Object.assign({}, p0); if (p.statut === 'À faire') p.statut = '';   // visite pas encore faite
-        var ko = p.statut && estKo(p.statut);
-        h += '<li class="arret' + (p.statut ? (ko ? ' absent' : ' fait') : '') + '" data-p="' + (+p.note === 3 ? 1 : 3) + '">' +
-          '<div class="arret-heure"><b>' + esc(p.heure || '--:--') + '</b><small>' + esc(p.debut) + '-' + esc(p.fin) + '</small></div>' +
+      h += '<div class="creneau-titre">' + (cren || 'Autres visites') + '</div><ol class="ligne">';
+      liste.forEach(function (x) {
+        var ko = nonFait(x), v = x.compte;
+        var e = '';
+        e += x.statut ? '<span class="etiquette ' + (ko ? 'ko' : 'ok') + '">' + esc(x.statut) + '</span>' : (jour < aujourdhui() ? '<span class="etiquette alerte">Sans compte rendu</span>' : '<span class="etiquette">Prévue</span>');
+        if (x.horsTournee) e += '<span class="etiquette">Hors tournée</span>';
+        h += '<li class="arret' + (x.statut ? (ko ? ' absent' : ' fait') : '') + '" data-p="' + (+x.note === 3 ? 1 : 3) + '">' +
+          '<div class="arret-heure"><b>' + esc(x.heure || '--:--') + '</b><small>' + esc(x.debut || '') + (x.fin ? '-' + esc(x.fin) : '') + '</small></div>' +
           '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
-          '<div><div class="arret-carte"><span class="arret-nom">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-          '<span class="arret-lieu">' + esc(p.specialite) + ', ' + esc(p.lieu) + '</span>' +
-          '<span class="arret-lieu">' + esc(p.quartier) + ', ' + esc(p.commune) + '</span>' +
-          (p.statut ? '<span class="etiquettes"><span class="etiquette ' + (ko ? 'ko' : 'ok') + '">' + esc(p.statut) + '</span></span>' : '') +
+          '<div><div class="arret-carte"><span class="arret-nom">' + esc(x.nom) + ' ' + etoiles(x.note) + '</span>' +
+          '<span class="arret-lieu">' + esc(x.specialite || '') + (x.lieu ? ', ' + esc(x.lieu) : '') + '</span>' +
+          '<span class="arret-lieu">' + esc(x.quartier || '') + (x.commune ? ', ' + esc(x.commune) : '') + '</span>' +
+          '<span class="etiquettes">' + e + '</span>' +
+          (v && (v.activite || v.produits || v.commentaire) ? '<span class="discret bloc-texte" style="margin-top:6px">' +
+            [v.activite ? listeActivites(v.activite).join(', ') : '', v.produits ? 'Produits : ' + v.produits : '', v.commentaire || ''].filter(Boolean).map(esc).join(' · ') + '</span>' : '') +
           '</div></div></li>';
       });
       h += '</ol>';
     });
-    // carte de la journée du collègue, tout en bas (comme dans Planifier)
-    if (pos.length) { h += '<h3>Carte de la journée</h3><div class="carte-l" id="carteEquipe"></div>'; cartesAFaire.push({ id: 'carteEquipe', route: pos }); }
+    });
+    // carte du jour, tout en bas
+    var pos = duJour.map(function (x) {
+      var c = x.idPresence && ctx().parCode[x.code] ? ctx().parCode[x.code].filter(function (k) { return String(k.idPresence) === String(x.idPresence); })[0] : null;
+      var co = c && c.coord ? c.coord : (x.lat && x.lon ? { lat: +x.lat, lon: +x.lon } : null);
+      return co ? { lat: co.lat, lon: co.lon, nom: (S.ui.collegue === '__tous' ? x.delegue + ' : ' : '') + x.nom, lieu: x.lieu, heure: x.heure } : null;
+    }).filter(Boolean);
+    if (pos.length) {
+      h += '<h3>Carte de la journée</h3><div class="carte-l" id="carteEquipe"></div>';
+      cartesAFaire.push(S.ui.collegue === '__tous' ? { id: 'carteEquipe', equipe: pos.map(function (q) { return { lat: q.lat, lon: q.lon, nom: q.nom, delegue: '' }; }) } : { id: 'carteEquipe', route: pos });
+    }
+    if (ref < ajouterJours(aujourdhui(), -60)) h += '<p class="discret">Les tournées sont conservées 62 jours ; au-delà, seules les visites faites restent visibles.</p>';
     return h;
   };
 
@@ -2652,6 +2721,9 @@
     plus: function () { S.ui.limite += 40; rendre(); },
     collegue: function (el) { S.ui.collegue = el.dataset.v; S.ui.jourEquipe = null; rendre(); },
     jourEquipe: function (el) { S.ui.jourEquipe = el.dataset.v; rendre(); },
+    eqPortee: function (el) { S.ui.eqPortee = el.dataset.v; LS.set('eqPortee', S.ui.eqPortee); S.ui.jourEquipe = null; rendre(); },
+    eqDecaler: function (el) { decalerEquipe(+el.dataset.v); },
+    eqAujourdhui: function () { S.ui.eqDate = aujourdhui(); LS.set('eqDate', S.ui.eqDate); S.ui.jourEquipe = null; rendre(); },
     histFiltre: function (el) { S.ui.histFiltre = el.dataset.v; LS.set('histFiltre', S.ui.histFiltre); rendre(); },
     valider: function () { validerVisites(); },
     validerUn: function (el) { validerVisites(el.dataset.uid); },
@@ -2899,6 +2971,7 @@
       if (k === 'dateRef' || k === 'parJour') rendre();
     }
     if (f === 'autour') { S.ui.autour[el.dataset.k] = el.value; LS.set('autour', S.ui.autour); rendre(); }
+    if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
     if (f === 'choixNom') { var bloc = $(el.id + 'Bloc'); if (bloc) bloc.hidden = el.value !== '__autre'; }

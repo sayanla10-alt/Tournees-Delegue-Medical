@@ -1,7 +1,8 @@
 {
-  "version": "3.3.2",
+  "version": "3.4.0",
   "date": "2026-10-24",
   "notes": [
+    "Équipe : choisissez un jour ou une semaine (flèches ou date) et voyez ce qui a été planifié et fait par vous et vos collègues, avec « Toute l'équipe »",
     "Nom de l'application : MediPlanner, sans mention supplémentaire",
     "Planifier : « Reprendre un ancien programme » toujours visible, juste au-dessus de « Proposer ma tournée »",
     "Équipe : votre propre tournée apparaît aussi, en tête, avec celles de vos collègues",
