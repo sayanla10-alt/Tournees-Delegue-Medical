@@ -590,6 +590,14 @@ var FICHES_PRODUITS_DEFAUT = [
     laboratoire: LABO_TROIKAA, sources: 'RCP clopidogrel / Plavix (ANSM, VIDAL) ; pharmeasy.in (composition Antiplatt)' }
 ];
 
+// ---------------------------------------------------------------- Comptes rendus de la journée (3.13.0)
+// Feuille « Rapports du jour » : une ligne par délégué et par jour (synthèse automatique + saisie du délégué)
+var CHAMPS_RAPPORTS = [
+  ['delegue', 'Délégué'], ['date', 'Date'], ['valideLe', 'Validé le'], ['prevues', 'Visites prévues'], ['faites', 'Visites faites'],
+  ['nonFaites', 'Non faites'], ['sansCr', 'Sans compte rendu'], ['synthese', 'Synthèse'], ['faits', 'Faits marquants'],
+  ['concurrence', 'Concurrence'], ['besoins', 'Besoins'], ['km', 'Kilomètres'], ['maj', 'Mise à jour']
+];
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     VERSION_DONNEES: VERSION_DONNEES, JOURS: JOURS, JOURS_CLES: JOURS_CLES, CRENEAUX: CRENEAUX, DISPOS: DISPOS,
@@ -604,7 +612,7 @@ if (typeof module !== 'undefined' && module.exports) {
     completerDonneesFictives: completerDonneesFictives, hachage: hachage,
     minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,
     CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES,
-    ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES,
+    ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
   };

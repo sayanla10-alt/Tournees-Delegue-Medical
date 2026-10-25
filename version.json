@@ -1,9 +1,9 @@
 {
-  "version": "3.12.0",
+  "version": "3.13.0",
   "date": "2026-10-24",
   "notes": [
-    "Aujourd'hui : titre du jour affiché, Revenir à aujourd'hui",
-    "Flèches et calendrier : jours passés (visites faites) et à venir (tournée publiée)",
-    "Produits : disposition compacte"
+    "Aujourd'hui : écran de terrain, une ligne par visite, « Maintenant »",
+    "Compte rendu de la journée rempli automatiquement, complété, envoyé",
+    "Remplacer une visite non faite par un praticien disponible"
   ]
 }

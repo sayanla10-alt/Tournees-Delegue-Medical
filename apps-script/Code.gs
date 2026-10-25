@@ -17,9 +17,9 @@
 var FEUILLES = {
   praticiens: 'Praticiens', presences: 'Presences', hist: 'Historique', quartiers: 'Quartiers',
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
-  fiches: 'Fiches produits'
+  fiches: 'Fiches produits', rapports: 'Rapports du jour'
 };
-var VERSION_SERVEUR = '3.7.0';
+var VERSION_SERVEUR = '3.8.0';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -288,6 +288,7 @@ function doPost(e) {
     if (body.action === 'valider') return json(enregistrerVisites(body.visites || []));
     if (body.action === 'planning') return json(publierPlanning(body));
     if (body.action === 'fiche') return json(ficheUnique(body));
+    if (body.action === 'rapport') return json(enregistrerRapport(body.rapport || {}));
     return json({ ok: false, erreur: 'Action inconnue.' });
   } catch (err) {
     var m = String(err.message || err);
@@ -360,7 +361,9 @@ function lireTout(sig, hdepuis) {
   ref.activites = listes.activites; ref.produits = listes.produits; ref.activitesPharmacie = listes.activitesPharmacie;
   ref.fiches = lireObjets(ss.getSheetByName(FEUILLES.fiches), CHAMPS_FICHES, tz).filter(function (f) { return String(f.produit).trim() !== ''; });
   empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
-  var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis, alias: aliasDelegues(),
+  var limiteR = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -JOURS_PLANNINGS_DATA);
+  var rapports = lireObjets(ss.getSheetByName(FEUILLES.rapports), CHAMPS_RAPPORTS, tz).filter(function (x) { return x.delegue !== '' && x.date >= limiteR; });
+  var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis, alias: aliasDelegues(), rapports: rapports,
             plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString() };
   if (sig && sig === empreinte) { r.inchange = true; return r; }
   Object.keys(ref).forEach(function (k) { r[k] = ref[k]; });
@@ -598,8 +601,37 @@ function assurerFichesProduits(ss) {
   return sh;
 }
 
+// 3.8.0 : comptes rendus de la journée, une ligne par délégué et par jour (remplacée à chaque nouvelle validation)
+function assurerRapports(ss) {
+  var sh = ss.getSheetByName(FEUILLES.rapports);
+  if (sh) { completerEntetes(sh, CHAMPS_RAPPORTS); return sh; }
+  sh = preparerFeuille(ss, FEUILLES.rapports, CHAMPS_RAPPORTS.map(function (c) { return c[1]; }));
+  sh.getRange(1, 1, 1000, CHAMPS_RAPPORTS.length).setNumberFormat('@');
+  [130, 100, 130, 70, 70, 200, 70, 360, 260, 220, 220, 80, 150].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
+  sh.getRange(2, 1, 999, CHAMPS_RAPPORTS.length).setWrap(true).setVerticalAlignment('top');
+  return sh;
+}
+function enregistrerRapport(r) {
+  var delegue = nomDelegue(r.delegue);
+  if (!delegue || !r.date) return { ok: false, erreur: 'Rapport incomplet (délégué ou date).' };
+  var lock = verrouiller();
+  try {
+    var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone(), sh = assurerRapports(ss);
+    r.delegue = delegue; r.maj = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm');
+    var ligne = CHAMPS_RAPPORTS.map(function (c) { return r[c[0]] === undefined ? '' : String(r[c[0]]); });
+    var iDel = indexChamp(CHAMPS_RAPPORTS, 'delegue'), iDate = indexChamp(CHAMPS_RAPPORTS, 'date'), n = sh.getLastRow() - 1, rang = -1;
+    if (n > 0) sh.getRange(2, 1, n, CHAMPS_RAPPORTS.length).getDisplayValues().forEach(function (l, i) {
+      if (String(l[iDel]).trim().toLowerCase() === delegue.toLowerCase() && versIso(l[iDate], tz) === r.date) rang = i + 2;
+    });
+    if (rang > 0) sh.getRange(rang, 1, 1, ligne.length).setValues([ligne]);
+    else sh.getRange(sh.getLastRow() + 1, 1, 1, ligne.length).setValues([ligne]);
+    return { ok: true, date: r.date };
+  } finally { lock.releaseLock(); }
+}
+
 function assurerStructure(ss) {
   assurerFichesProduits(ss);
+  assurerRapports(ss);
   // 3.5.0 : la colonne « Conventionné » devient « Engagé » (données conservées)
   [FEUILLES.praticiens, FEUILLES.pharmacies].forEach(function (f) { renommerEntete(ss.getSheetByName(f), 'Conventionné', 'Engagé'); });
   if (!ss.getSheetByName(FEUILLES.plannings)) {

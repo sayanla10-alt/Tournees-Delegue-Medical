@@ -1,6 +1,6 @@
 # MediPlanner
 
-Version 3.12.0
+Version 3.13.0
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -111,6 +111,7 @@ L'application suit la journée du délégué, en 5 onglets.
 - **Enregistrer le compte rendu** ; un compte rendu enregistré se **modifie** à tout moment.
 - Visite non faite : **Trouver un remplaçant à proximité** ouvre « Autour de moi » centré sur ce lieu.
 - **Pharmacie** (bouton en haut) : les pharmacies ouvertes près de votre position, à ajouter à la tournée du jour.
+- **Aujourd'hui** (écran de terrain) : date sous le titre, bande de la semaine, synthèse et progression ; « Maintenant » (visite suivante, comptes rendus à saisir) ; une ligne par visite avec son état ; Remplacer une visite non faite ; **compte rendu de la journée** rempli à partir des visites, complété (faits marquants, concurrence, besoins, kilomètres), enregistré dans la feuille « Rapports du jour » et envoyé sur WhatsApp au responsable (numéro dans Réglages).
 - **Produits** : aide-mémoire de visite par gamme (Zyltan H, Zyltan AM, Losartan AM, Telmikaa, Tensicard, Rozukaa 10 et 20, Lesstrol 20, Eurythmic, Antiplatt) : indications, contre-indications, posologie, précautions, effets indésirables, arguments clés. Données dans la feuille « Fiches produits » du Google Sheet, modifiable.
 - Planifier : bouton **Planifier** ; la planification de la tournée se fait une option à la fois **Période > Communes ciblées > Praticiens à visiter > Spécialités > Potentiel > Rythme de visite > RDV et prioritaires** ; chaque réponse se replie en une ligne modifiable, puis « Proposer ma tournée ».
 - Équipe : touchez un ou plusieurs délégués pour les isoler ; « Toute l'équipe » les affiche tous, un bloc repliable par délégué.
