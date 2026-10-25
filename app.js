@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.7.0';
+  var APP_VERSION = '3.7.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.7.1', ['Remplacer : la liste des praticiens disponibles ce jour-là (pré-filtrés selon vos critères) s\'affiche, vous choisissez, puis vous confirmez Oui ou Non', 'Toute modification de la tournée (retirer, ajouter, remplacer) demande une confirmation', 'Plus de remplacement automatique quand un collègue a prévu le même médecin : la carte vous pose la question']],
     ['3.7.0', ['Médecin déjà prévu par un collègue : « Le remplacer ? Oui / Non » au lieu de « Retirer »', 'Aujourd\'hui : bouton « Pharmacie » pour ajouter une pharmacie ouverte près de votre position']],
     ['3.6.3', ['Dates au format 26-Oct-2026', 'RDV placé dans la tournée : l\'étiquette indique quand il a été pris (et s\'il a été décalé faute de présence ce jour-là)']],
     ['3.6.2', ['Tous les calendriers affichent la date en français, au format JJ/Mmm/AAAA (ex. 16/Nov/2026)']],
@@ -572,15 +573,9 @@
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       if (S.ui.conflits.length) {
         var conflits = S.ui.conflits; S.ui.conflits = [];
-        var remplaces = resoudreConflits(conflits);
-        if (remplaces) {
-          toast(remplaces + ' médecin' + (remplaces > 1 ? 's' : '') + ' déjà ciblé' + (remplaces > 1 ? 's' : '') +
-            ' par un collègue ' + (remplaces > 1 ? 'ont été remplacés' : 'a été remplacé') + ' automatiquement.', 5000);
-          S.ui.aPublier = true; LS.set('aPublier', true); tentePub = false;
-        } else {
-          toast(conflits.length + ' médecin' + (conflits.length > 1 ? 's' : '') + ' de votre tournée ' +
-            (conflits.length > 1 ? 'sont' : 'est') + ' aussi ciblé' + (conflits.length > 1 ? 's' : '') + ' par un collègue (étiquette bleue).', 5000);
-        }
+        // plus de remplacement automatique : chaque carte concernée pose la question Remplacer Oui / Non
+        toast(conflits.length + ' médecin' + (conflits.length > 1 ? 's' : '') + ' de votre tournée ' +
+          (conflits.length > 1 ? 'sont' : 'est') + ' aussi prévu' + (conflits.length > 1 ? 's' : '') + ' par un collègue : choisissez sur chaque carte de le remplacer ou non.', 5000);
       }
       if (!silencieux) toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
     }).catch(function (e) {
@@ -999,23 +994,59 @@
       '<div class="rangee"><button class="bouton petit bouton-plein" type="button" data-a="conflitRemplacer" data-uid="' + a.uid + '">Oui, remplacer</button>' +
       '<button class="bouton petit" type="button" data-a="conflitGarder" data-uid="' + a.uid + '">Non, je le garde</button></div></div>';
   }
+  // Candidats pour remplacer une visite : présents ce jour-là, hors tournée, non prévus par un collègue, selon les critères de la tournée ;
+  // ceux qui s'insèrent sans retard d'abord, puis par priorité et proximité du lieu remplacé
+  function candidatsRemplacement(a) {
+    var d = a.date, j = jourSemaineIndex(d), c = ctx(), filtre = filtreCibles(), ex = exclusCollegues([d]);
+    var dansPlan = ensemble(S.plan.filter(function (x) { return x.date === d; }).map(function (x) { return x.code; }));
+    var origine = coordArret(a), vus = {}, l = [];
+    (c.parJour[j] || []).forEach(function (cr) {
+      var p = cr.prat;
+      if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || (filtre && !filtre(p)) || absentLe(p, d)) return;
+      if (joursEcoules(p.derniere, d) < (+S.params.delai || 0)) return;
+      var dist = origine && cr.coord ? distanceKm(origine, cr.coord) : 99;
+      var x = { cr: cr, dist: dist, score: Moteur.scoreDe(p, d) };
+      if (!vus[cr.code] || x.dist < vus[cr.code].dist) vus[cr.code] = x;
+    });
+    Object.keys(vus).forEach(function (k) { l.push(vus[k]); });
+    l.sort(function (x, y) { return (y.score - 20 * y.dist) - (x.score - 20 * x.dist); });
+    var jour = S.plan.filter(function (x) { return x.date === d && x.uid !== a.uid; });
+    return l.slice(0, 25).map(function (x) {
+      var n = Moteur.arretDepuisCreneau(x.cr, d);
+      var essai = Moteur.ordonnerJour(jour.map(function (y) { return Object.assign({}, y); }).concat([n]), departCoord());
+      var place = essai.filter(function (y) { return y.uid === n.uid; })[0];
+      x.heure = place ? place.heure : n.heure; x.ok = !essai.some(function (y) { return y.retard; });
+      return x;
+    }).sort(function (x, y) { return (y.ok ? 1 : 0) - (x.ok ? 1 : 0); }).slice(0, 12);
+  }
   function remplacerArret(uid) {
     var a = arret(uid); if (!a) return;
-    var d = a.date, avant = S.plan.filter(function (x) { return x.date === d; }).length;
+    S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: uid, choix: null };
+    rendre();
+  }
+  function appliquerRemplacement(uid, cle) {
+    var a = arret(uid), cr = Moteur.creneauParCle(ctx(), cle); if (!a || !cr) return;
     S.rejetes[a.code] = true;
-    var reste = S.plan.filter(function (x) { return x.uid !== uid; });
-    var exclus = exclusCollegues([d]);
-    exclus[a.code] = true;
-    reste.forEach(function (x) { if (x.date !== d) exclus[x.code] = true; });
-    var r = Moteur.genererPlanning(ctx(), {
-      dates: [d], communesPour: communesPour, maxJour: avant, delai: +S.params.delai || 0, exclus: exclus, rejetes: S.rejetes,
-      conserves: reste.filter(function (x) { return x.date === d; }), imposes: [], depart: departCoord(), accepte: filtreCibles()
-    });
-    var anciens = ensemble(reste.map(function (x) { return x.uid; }));
-    var nouveau = r.arrets.filter(function (x) { return !anciens[x.uid]; })[0];
-    S.plan = reste.filter(function (x) { return x.date !== d; }).concat(r.arrets);
-    trierPlan(); S.ui.ouvert = null; marquerModifie(); sauver(); rendre(); publierPlan();
-    toast(nouveau ? a.nom + ' remplacé par ' + nouveau.nom + ' (' + nouveau.heure + ', ' + nouveau.quartier + ').' : a.nom + ' retiré : aucun autre praticien disponible ce jour-là.', 5000);
+    S.plan = S.plan.filter(function (x) { return x.uid !== uid; });
+    var n = Moteur.arretDepuisCreneau(cr, a.date); n.etat = 'ajoute'; n.garde = true;
+    S.plan.push(n); reordonner(a.date);
+    S.ui.feuille = null; S.ui.ouvert = null; marquerModifie(); sauver(); rendre(); publierPlan();
+    var placé = arret(n.uid);
+    toast(a.nom + ' remplacé par ' + n.nom + (placé ? ' (' + placé.heure + ', ' + n.quartier + ')' : '') + '.', 5000);
+  }
+  function retirerArret(uid) {
+    var a = arret(uid); if (!a) return;
+    S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; });
+    S.rejetes[a.code] = true;
+    S.imposes = S.imposes.filter(function (im) { return im.code !== a.code; });
+    reordonner(a.date);
+    S.ui.ouvert = null; sauver(); rendre(); publierPlan();
+    toast(a.nom + ' retiré de la tournée.');
+  }
+  // Confirmation avant tout changement de la tournée
+  function confirmerPuis(titre, message, libelleOui, action) {
+    S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action };
+    rendre();
   }
 
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
@@ -2442,6 +2473,34 @@
     return h + '<p class="discret">Touchez un jour pour ne reprendre que celui-ci.</p>';
   };
 
+  FEUILLES.remplacer = function (f) {
+    var a = arret(f.uid);
+    if (!a) return '<p class="discret">Visite introuvable.</p>';
+    if (f.choix) {
+      var x = f.choix;
+      return { corps: '<p style="margin-top:0">Remplacer <b>' + esc(a.nom) + '</b> (' + esc(a.heure) + ', ' + esc(a.lieu) + ')<br>par <b>' + esc(x.nom) + '</b> ' + etoiles(x.note) +
+          ' (' + esc(x.heure) + ', ' + esc(x.lieu) + ', ' + esc(x.quartier) + ') ?</p><p class="discret">' + majuscule(dateLongue(a.date)) + '. L\'ordre de passage sera recalculé.</p>',
+        pied: '<button class="bouton" type="button" data-a="remplacerNon">Non</button><button class="bouton bouton-plein" type="button" data-a="remplacerOui">Oui, remplacer</button>' };
+    }
+    var l = candidatsRemplacement(a);
+    if (!l.length) return '<p class="discret" style="margin-top:0">Aucun autre praticien disponible ce jour-là selon vos critères (communes, spécialités, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>';
+    return '<p class="discret" style="margin-top:0">Praticiens présents le ' + dateFr(a.date) + ', hors de votre tournée et non prévus par un collègue, selon vos critères. Choisissez celui qui remplacera <b>' + esc(a.nom) + '</b> :</p>' +
+      '<ul class="liste">' + l.map(function (x) {
+        var p = x.cr.prat;
+        return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '">' +
+          '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="discret bloc-texte">' + esc(p.specialite) + ', ' + esc(x.cr.lieu) + ', ' + esc(x.cr.quartier) + '</span>' +
+          '<span class="discret bloc-texte">' + x.cr.creneau + ' ' + minutesVersHeure(x.cr.debut) + '-' + minutesVersHeure(x.cr.fin) + ' · passage vers ' + esc(x.heure) +
+            (x.dist < 99 ? ' · ' + km(x.dist) + ' du lieu remplacé' : '') + '</span>' +
+          '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, a.date)) + '</span>' +
+            (x.ok ? '' : '<span class="etiquette alerte">Horaire difficile à tenir</span>') + '</span></button></li>';
+      }).join('') + '</ul>';
+  };
+  FEUILLES.confirmer = function (f) {
+    return { corps: '<p style="margin-top:0">' + f.message + '</p>',
+      pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non</button><button class="bouton bouton-plein" type="button" data-a="confirmerOui">' + esc(f.oui) + '</button>' };
+  };
+
   FEUILLES.valide = function () {
     return { corps: '<p style="margin-top:0">Votre tournée est confirmée et visible par l\'équipe. Vous pouvez toujours la modifier.</p><p class="discret">Voulez-vous l\'envoyer sur WhatsApp ?</p>',
       pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non, merci</button>' +
@@ -2980,12 +3039,10 @@
     },
     retirer: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
-      S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; });
-      S.rejetes[a.code] = true;
-      S.imposes = S.imposes.filter(function (im) { return im.code !== a.code; });
-      reordonner(a.date);
-      S.ui.ouvert = null; sauver(); rendre(); publierPlan();
+      confirmerPuis('Retirer de la tournée', 'Retirer <b>' + esc(a.nom) + '</b> de votre tournée du ' + dateFr(a.date) + ' ?', 'Oui, retirer', function () { retirerArret(a.uid); });
     },
+    retirerConfirme: function (el) { retirerArret(el.dataset.uid); },
+
     rattraper: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       if (!a.statut) a.statut = 'Absent';
@@ -3057,7 +3114,8 @@
     planifierCle: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v); if (!c) return;
       var d = el.dataset.d || prochaineOccurrence(c.jourIdx, prochainJourOuvre(aujourdhui()), true);
-      if (ajouterArret(c, d)) { S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0); }
+      confirmerPuis('Planifier une visite', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ') à votre tournée du ' + dateFr(d) + ' ?', 'Oui, ajouter',
+        function () { if (ajouterArret(c, d)) { S.ui.tab = 'jour'; window.scrollTo(0, 0); } rendre(); });
     },
     // Autour de moi
     localiser: localiser,
@@ -3065,7 +3123,9 @@
     autourRayon: function (el) { S.ui.autour.rayon = +el.dataset.v; LS.set('autour', S.ui.autour); rendre(); },
     ajouterAutour: function (el) {
       var x = S.ui.resAutour[+el.dataset.i]; if (!x) return;
-      if (ajouterArret(x.c, el.dataset.d)) rendre();
+      var d = el.dataset.d, c = x.c;
+      confirmerPuis('Ajouter à la tournée', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) +
+        ') à votre tournée du ' + dateFr(d) + ' ?', 'Oui, ajouter', function () { if (ajouterArret(c, d)) rendre(); else rendre(); });
     },
     finRef: function () { S.ui.autour.ref = null; LS.set('autour', S.ui.autour); rendre(); },
     // Divers
@@ -3154,6 +3214,13 @@
       majCr(a, 'date', el.dataset.v); validerEtape(a, 'date'); rendre();
     },
     conflitRemplacer: function (el) { remplacerArret(el.dataset.uid); },
+    remplacerChoisir: function (el) {
+      var cr = Moteur.creneauParCle(ctx(), el.dataset.v); if (!cr) return;
+      S.ui.feuille.choix = { cle: el.dataset.v, nom: cr.prat.nom, note: cr.prat.note, heure: el.dataset.h, lieu: cr.lieu, quartier: cr.quartier }; rendre();
+    },
+    remplacerNon: function () { S.ui.feuille.choix = null; rendre(); },
+    remplacerOui: function () { var f = S.ui.feuille; appliquerRemplacement(f.uid, f.choix.cle); },
+    confirmerOui: function () { var f = S.ui.feuille; S.ui.feuille = null; if (f && f.action) f.action(); else rendre(); },
     conflitGarder: function (el) { var a = arret(el.dataset.uid); if (!a) return; a.conflitOk = true; LS.set('plan', S.plan); rendre(); },
     ajouterPharmacie: function () {
       // pharmacies ouvertes près de ma position, pour le jour affiché dans « Aujourd'hui »

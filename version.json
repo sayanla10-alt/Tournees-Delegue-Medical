@@ -1,7 +1,10 @@
 {
-  "version": "3.7.0",
+  "version": "3.7.1",
   "date": "2026-10-24",
   "notes": [
+    "Remplacer : la liste des praticiens disponibles ce jour-là (pré-filtrés selon vos critères) s'affiche, vous choisissez, puis vous confirmez Oui ou Non",
+    "Toute modification de la tournée (retirer, ajouter, remplacer) demande une confirmation",
+    "Plus de remplacement automatique quand un collègue a prévu le même médecin : la carte vous pose la question",
     "Médecin déjà prévu par un collègue : « Le remplacer ? Oui / Non » au lieu de « Retirer »",
     "Aujourd'hui : bouton « Pharmacie » pour ajouter une pharmacie ouverte près de votre position",
     "Dates au format 26-Oct-2026",
