@@ -570,7 +570,7 @@ var FICHES_PRODUITS_DEFAUT = [
     effets: 'Photosensibilisation, dépôts cornéens\nHypo ou hyperthyroïdie\nBradycardie ; rare : atteinte pulmonaire ou hépatique',
     arguments: 'Antiarythmique de référence, efficace sur les troubles du rythme auriculaires et ventriculaires\nUtilisable en cas d\'insuffisance cardiaque\nLongue durée d\'action',
     laboratoire: LABO_TROIKAA, sources: 'RCP amiodarone / Cordarone (ANSM, VIDAL) ; 1mg.com (composition Eurythmic)' },
-  { gamme: 'Tensicard (aténolol)', aire: 'Hypertension et cœur', produit: 'Tensicard', dci: 'Aténolol 25, 50 ou 100 mg, comprimé',
+  { gamme: 'Tensicard (aténolol)', aire: 'Hypertension artérielle', produit: 'Tensicard', dci: 'Aténolol 25, 50 ou 100 mg, comprimé',
     classe: 'Bêtabloquant cardiosélectif (β1)',
     indications: 'Hypertension artérielle\nAngor d\'effort\nPrévention secondaire après infarctus\nTroubles du rythme supraventriculaires',
     contreIndications: 'Asthme et bronchopneumopathie obstructive sévère\nInsuffisance cardiaque non contrôlée, choc cardiogénique\nBloc auriculo-ventriculaire 2e et 3e degré non appareillé, maladie du sinus\nBradycardie importante (< 45 à 50/min)\nPhéochromocytome non traité ; hypotension ; maladie de Raynaud ou artériopathie sévère',
