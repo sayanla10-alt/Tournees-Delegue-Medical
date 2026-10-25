@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.8.9';
+  var APP_VERSION = '3.9.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.9.0', ['Planifier : le résumé de la tournée est rangé en tuiles (Communes, Praticiens, Spécialités, Potentiel, Rythme, RDV) sous la période ; touchez une tuile pour la modifier']],
     ['3.8.9', ['Compte rendu : réaction du médecin (Intéressé, Indécis…), état du stock et anomalie en boutons, comme le reste de l\'application', 'Plus aucune liste déroulante : nom du délégué, point de départ, quartier (Autour de moi, fiche praticien) et spécialité s\'ouvrent dans une liste avec recherche']],
     ['3.8.8', ['Recherche : planifier depuis le calendrier d\'un praticien propose la prochaine présence et les suivantes (+7, +14, +21, +28 jours), puis Oui ou Non']],
     ['3.8.7', ['Compte rendu : les réponses utilisent les mêmes éléments que Planifier : Oui / Non en segment, listes longues (types de visite, produits, motif) dans un sélecteur qui ouvre la liste, quantités et réactions en champs étiquetés', 'Ajouter un praticien : même parcours (étapes faites repliées en lignes modifiables, étape en cours dans son cadre)', 'Toutes les étapes indiquent « étape n/N »']],
@@ -1110,14 +1111,14 @@
       '</li>';
   }
 
+  // Résumé de la planification : le titre (période), puis une tuile par option ; touchez une tuile pour la modifier
   function rendreResume() {
-    var p = S.params, dates = datesAffichees();
-    var com = p.mode === 'semaine' && p.parJour ? 'Communes différentes selon le jour' : libelleCommunes(p.communes);
-    return '<section class="bloc resume-params"><p><b>' +
-      (p.mode === 'jour' ? 'Journée du ' + dateCourte(p.dateRef) : 'Semaine du ' + dateCourte(dates[0])) +
-      '</b><span class="discret">' + esc(com) + ', ' + p.maxJour + ' visites par jour' + (libelleCibles() ? ', ' + esc(libelleCibles()) : '') +
-      (S.imposes.length ? ', ' + S.imposes.length + ' RDV ou prioritaire' + (S.imposes.length > 1 ? 's' : '') : '') + '</span></p>' +
-      '<button class="bouton" data-a="voirParams" type="button">' + icone('calendrier') + 'Planifier</button></section>';
+    var et = etapesParams(), quand = et.filter(function (e) { return e.id === 'quand'; })[0];
+    return '<section class="bloc resume-plan"><div class="tete-bloc"><h3>' + esc(quand.resume()) + '</h3>' +
+      '<button class="bouton petit" data-a="voirParams" type="button">' + icone('calendrier') + 'Planifier</button></div>' +
+      '<div class="tuiles-resume">' + et.filter(function (e) { return e.id !== 'quand'; }).map(function (e) {
+        return '<button type="button" class="tuile" data-a="resumeEditer" data-v="' + e.id + '"><small>' + esc(e.titre) + '</small><b>' + esc(e.resume()) + '</b></button>';
+      }).join('') + '</div></section>';
   }
 
   // Planification de la tournée posée une question à la fois, comme le compte rendu et la recherche :
@@ -3276,6 +3277,7 @@
       if (k === 'spec') S.params.specialites = []; if (k === 'valeur') S.params.potentiels = [];
       LS.set('params', S.params); S.ui.etapesP.ok[k] = true; sauverEtapesP(); rendre();
     },
+    resumeEditer: function (el) { S.ui.etapesP.ok[el.dataset.v] = false; sauverEtapesP(); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
     pEtapeEditer: function (el) { S.ui.etapesP.ok[el.dataset.v] = false; sauverEtapesP(); rendre(); },
     voirParams: function () { S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
     ouvrirAnciens: function () { S.ui.feuille = { type: 'anciens', titre: 'Reprendre un ancien programme', pleine: true }; rendre(); },

@@ -1,8 +1,7 @@
 {
-  "version": "3.8.9",
+  "version": "3.9.0",
   "date": "2026-10-24",
   "notes": [
-    "Réaction du médecin, état du stock : en boutons",
-    "Plus aucune liste déroulante : listes avec recherche partout"
+    "Planifier : résumé de la tournée rangé en tuiles, touchez pour modifier"
   ]
 }

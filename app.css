@@ -868,3 +868,13 @@ details.avance h3 { margin-top: 18px; }
 .puce:disabled { opacity: .45; cursor: not-allowed; }
 .selecteur > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .selecteur[aria-invalid="true"] { border-color: var(--rouge); }
+
+/* 3.9.0 : résumé de la planification en tuiles */
+.resume-plan .tete-bloc h3 { font-size: 18px; }
+.tuiles-resume { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tuile { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 10px 12px; text-align: left;
+  border: 1px solid var(--trait); border-radius: 12px; background: var(--fond, var(--papier)); color: var(--encre); }
+.tuile small { font-size: 12px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: .03em; }
+.tuile b { font-size: 14.5px; font-weight: 600; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tuile:active { transform: scale(.98); }
+.tuile:hover { border-color: var(--primaire); }
