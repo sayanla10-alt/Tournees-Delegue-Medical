@@ -3,7 +3,7 @@
    À coller dans Extensions > Apps Script du Google Sheet, avec Commun.gs.
 
    Feuilles
-   - Praticiens  : une ligne par médecin / pharmacie (potentiel 3/2/1 = A/B/C, conventionné)
+   - Praticiens  : une ligne par médecin / pharmacie (potentiel 3/2/1 = A/B/C, engagé)
    - Presences   : une ligne par lieu d'exercice, colonnes Lundi..Vendredi
                    (Matin / Soir / Matin et soir) et horaires propres au lieu
    - Quartiers, Listes, Historique, Plannings (tournées publiées par l'équipe)
@@ -18,7 +18,7 @@ var FEUILLES = {
   praticiens: 'Praticiens', presences: 'Presences', hist: 'Historique', quartiers: 'Quartiers',
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies'
 };
-var VERSION_SERVEUR = '2.2.0';
+var VERSION_SERVEUR = '3.5.0';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -245,7 +245,7 @@ function convertirAncienneBase() {
   formaterPresences(ss);
   ordonnerFeuilles(ss);
   ui.alert('Conversion terminée : ' + ordre.length + ' praticiens, ' + ordreP.length + ' lieux. ' +
-           'Complétez les colonnes Conventionné et les horaires si nécessaire, puis supprimez BaseDonnees.');
+           'Complétez les colonnes Engagé et les horaires si nécessaire, puis supprimez BaseDonnees.');
 }
 
 // ---------------------------------------------------------------- Jeton d'accès
@@ -356,7 +356,7 @@ function lireTout(sig, hdepuis) {
   var listes = lireListes(ss, tz), statuts = lireStatuts(ss);
   var ref = { praticiens: praticiens, presences: presences, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
   var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
-  ref.activites = listes.activites; ref.produits = listes.produits;
+  ref.activites = listes.activites; ref.produits = listes.produits; ref.activitesPharmacie = listes.activitesPharmacie;
   empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis,
             plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString() };
@@ -369,6 +369,7 @@ function lireTout(sig, hdepuis) {
 function assurerListes(ss) {
   var sh = ss.getSheetByName(FEUILLES.listes);
   if (!sh) return;
+  migrer350(ss, sh);
   var ent = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 2)).getValues()[0].map(normaliser);
   if (ent.indexOf(normaliser('Délégués')) < 0) {
     var noms = {}, tz = ss.getSpreadsheetTimeZone();
@@ -412,16 +413,74 @@ function assurerListes(ss) {
     sh.getRange(1, c2 + 1).setValue('Ajoutez les fêtes musulmanes (fin du Ramadan, Tabaski, Maouloud) chaque année').setFontStyle('italic');
   }
 }
+// ---------------------------------------------------------------- Migration 3.5.0 (une seule fois)
+// Listes : statuts et CompteCommeVisite, activités médecins et pharmacies, produits, délégués.
+// Données : anciens statuts et anciennes activités convertis (Historique, Praticiens, Pharmacies, Plannings).
+function migrer350(ss, sh) {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('MIGRATION_350')) return;
+  var tz = ss.getSpreadsheetTimeZone();
+  function colonne(nom) {
+    var ent = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0].map(normaliser), i = ent.indexOf(normaliser(nom));
+    if (i >= 0) return i + 1;
+    var c = sh.getLastColumn() + 2;
+    sh.getRange(1, c).setValue(nom).setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
+    return c;
+  }
+  function ecrireColonne(c, valeurs) {
+    if (sh.getLastRow() > 1) sh.getRange(2, c, sh.getLastRow() - 1, 1).clearContent();
+    if (valeurs.length) sh.getRange(2, c, valeurs.length, 1).setValues(valeurs.map(function (v) { return [v]; }));
+  }
+  // statuts (colonnes A et B)
+  sh.getRange(1, 1, 1, 2).setValues([['Statut', 'CompteCommeVisite']]);
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 2).clearContent();
+  sh.getRange(2, 1, STATUTS_DEFAUT.length, 2).setValues(STATUTS_DEFAUT.map(function (x) { return [x.nom, x.visite ? 'Oui' : 'Non']; }));
+  sh.getRange(2, 2, STATUTS_DEFAUT.length, 1).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['Oui', 'Non'], true).build());
+  ecrireColonne(colonne('Activités'), ACTIVITES_DEFAUT);
+  ecrireColonne(colonne('ActivitésPharmacie'), ACTIVITES_PHARMACIE_DEFAUT);
+  // produits : catalogue de référence, les produits ajoutés à la main sont conservés
+  var cP = colonne('Produits'), anciens = sh.getLastRow() > 1 ? sh.getRange(2, cP, sh.getLastRow() - 1, 1).getValues().map(function (v) { return String(v[0]).trim(); }).filter(Boolean) : [];
+  ecrireColonne(cP, PRODUITS_DEFAUT.concat(anciens.filter(function (x) { return PRODUITS_DEFAUT.indexOf(x) < 0; })));
+  // délégués : liste actuelle + noms trouvés dans les tournées et l'historique
+  var cD = colonne('Délégués'), noms = {};
+  if (sh.getLastRow() > 1) sh.getRange(2, cD, sh.getLastRow() - 1, 1).getValues().forEach(function (v) { var n = String(v[0]).trim(); if (n) noms[n] = true; });
+  [[FEUILLES.plannings, CHAMPS_PLAN], [FEUILLES.hist, CHAMPS_HIST]].forEach(function (x) {
+    lireObjets(ss.getSheetByName(x[0]), x[1], tz).forEach(function (o) { var n = String(o.delegue || '').trim(); if (n) noms[n] = true; });
+  });
+  ecrireColonne(cD, Object.keys(noms).sort());
+  // conversion des valeurs dans les feuilles de données
+  function convertir(nomFeuille, entete, table, multiple) {
+    var f = ss.getSheetByName(nomFeuille);
+    if (!f || f.getLastRow() < 2) return;
+    var ent = f.getRange(1, 1, 1, f.getLastColumn()).getValues()[0].map(normaliser), c = ent.indexOf(normaliser(entete));
+    if (c < 0) return;
+    var r = f.getRange(2, c + 1, f.getLastRow() - 1, 1), vals = r.getValues(), modif = false;
+    vals.forEach(function (l) {
+      var v = String(l[0]);
+      var n = multiple ? v.split(/\s*;\s*/).map(function (x) { return table[x] || x; }).join(' ; ') : (table[v] || v);
+      if (n !== v) { l[0] = n; modif = true; }
+    });
+    if (modif) r.setValues(vals);
+  }
+  convertir(FEUILLES.hist, 'Statut', STATUTS_RENOMMES);
+  convertir(FEUILLES.hist, 'Activité', ACTIVITES_RENOMMEES, true);
+  convertir(FEUILLES.praticiens, 'DernierStatut', STATUTS_RENOMMES);
+  convertir(FEUILLES.pharmacies, 'DernierStatut', STATUTS_RENOMMES);
+  convertir(FEUILLES.plannings, 'Statut', STATUTS_RENOMMES);
+  props.setProperty('MIGRATION_350', new Date().toISOString());
+}
+
 function lirePharmacies(ss, tz) {
   return lireObjets(ss.getSheetByName(FEUILLES.pharmacies), CHAMPS_PHARMACIES, tz).filter(function (p) { return p.code !== '' && p.nom !== ''; });
 }
 function lireListes(ss, tz) {
-  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [], produits: [] };
+  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [], activitesPharmacie: [], produits: [] };
   if (!sh || sh.getLastRow() < 2) return r;
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   var vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
-  var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés')), cA = ent.indexOf(normaliser('Activités')), cP = ent.indexOf(normaliser('Produits'));
+  var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés')), cA = ent.indexOf(normaliser('Activités')), cP = ent.indexOf(normaliser('Produits')), cAP = ent.indexOf(normaliser('ActivitésPharmacie'));
   vals.forEach(function (v) {
+    if (cAP >= 0 && String(v[cAP]).trim()) r.activitesPharmacie.push(String(v[cAP]).trim());
     if (cP >= 0 && String(v[cP]).trim()) r.produits.push(String(v[cP]).trim());
     if (cA >= 0 && String(v[cA]).trim()) r.activites.push(String(v[cA]).trim());
     if (cD >= 0 && String(v[cD]).trim()) r.delegues.push(String(v[cD]).trim());
@@ -489,6 +548,8 @@ function versIso(v, tz) {
 
 // ---------------------------------------------------------------- Structure (migration automatique)
 function assurerStructure(ss) {
+  // 3.5.0 : la colonne « Conventionné » devient « Engagé » (données conservées)
+  [FEUILLES.praticiens, FEUILLES.pharmacies].forEach(function (f) { renommerEntete(ss.getSheetByName(f), 'Conventionné', 'Engagé'); });
   if (!ss.getSheetByName(FEUILLES.plannings)) {
     preparerFeuille(ss, FEUILLES.plannings, CHAMPS_PLAN.map(function (c) { return c[1]; }))
       .getRange(1, 1, 1000, CHAMPS_PLAN.length).setNumberFormat('@');
@@ -504,6 +565,13 @@ function assurerStructure(ss) {
   else completerEntetes(ss.getSheetByName(FEUILLES.praticiens), CHAMPS_PRATICIENS);
   assurerListes(ss);
   if (!ss.getSheetByName(FEUILLES.presences)) preparerFeuille(ss, FEUILLES.presences, CHAMPS_PRESENCES.map(function (c) { return c[1]; }));
+}
+
+function renommerEntete(sh, ancien, nouveau) {
+  if (!sh || sh.getLastColumn() < 1) return;
+  var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  var i = ent.indexOf(normaliser(ancien));
+  if (i >= 0 && ent.indexOf(normaliser(nouveau)) < 0) sh.getRange(1, i + 1).setValue(nouveau);
 }
 
 // Ajoute en fin de ligne d'en-tête les colonnes attendues qui manquent
@@ -570,7 +638,9 @@ function enregistrerVisites(visites) {
         } else if (avant) data[i][c.nbVisites] = Math.max((+data[i][c.nbVisites] || 0) - 1, 0);
         data[i][c.statut] = v.statut;
         data[i][c.commentaire] = v.commentaire || '';
-        if (c.prochaine >= 0) data[i][c.prochaine] = v.prochaine ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
+        // seul un RDV confirmé devient la prochaine étape du praticien (un rappel reste dans l'historique)
+        var prochaine = v.rdv === false ? '' : v.prochaine;
+        if (c.prochaine >= 0) data[i][c.prochaine] = prochaine ? Utilities.parseDate(prochaine, tz, 'yyyy-MM-dd') : '';
       });
     });
     suivis.forEach(function (f) {

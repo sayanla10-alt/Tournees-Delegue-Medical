@@ -404,6 +404,8 @@ var Moteur = (function () {
   function estVisite(statut, statuts) {
     var s = (statuts && statuts.length ? statuts : STATUTS_DEFAUT);
     for (var i = 0; i < s.length; i++) if (s[i].nom === statut) return !!s[i].visite;
+    // ancien libellé (historique antérieur à la conversion de la base)
+    if (STATUTS_RENOMMES[statut]) return estVisite(STATUTS_RENOMMES[statut], statuts);
     return false;
   }
   function appliquerVisite(praticiens, v, statuts) {
@@ -414,7 +416,8 @@ var Moteur = (function () {
         if (!p.derniere || v.date > p.derniere) p.derniere = v.date;
         p.nbVisites = (+p.nbVisites || 0) + 1;
       }
-      p.prochaine = v.prochaine || '';
+      // seul un RDV confirmé reste comme prochaine étape (placée d'office dans la tournée) ; un rappel ne l'est pas
+      p.prochaine = v.rdv === false ? '' : (v.prochaine || '');
       p.statut = v.statut;
       p.commentaire = v.commentaire || '';
     });

@@ -1,7 +1,11 @@
 {
-  "version": "3.4.0",
+  "version": "3.5.0",
   "date": "2026-10-24",
   "notes": [
+    "Comptes rendus guidés par un arbre de décision : « La visite a-t-elle été faite ? » puis, pour les médecins, types, produits présentés et réactions, échantillons, bilan ; pour les pharmacies, interlocuteur, activités, stock par produit, commande, compléments",
+    "Visite non faite : motif, précision, remplaçant à proximité ; produits, stocks et discussion masqués",
+    "Suite : rappel ou RDV confirmé avec date ; seul un RDV confirmé ajoute la visite à la tournée, les rappels s'affichent dans « Aujourd'hui »",
+    "Base mise à jour : statuts, activités médecins et pharmacies, produits (avec Juvamine), délégués ; « Conventionné » devient « Engagé »",
     "Équipe : choisissez un jour ou une semaine (flèches ou date) et voyez ce qui a été planifié et fait par vous et vos collègues, avec « Toute l'équipe »",
     "Nom de l'application : MediPlanner, sans mention supplémentaire",
     "Planifier : « Reprendre un ancien programme » toujours visible, juste au-dessus de « Proposer ma tournée »",

@@ -748,3 +748,21 @@ details.avance h3 { margin-top: 18px; }
 .nav-periode .bouton-icone svg { transform: rotate(90deg); width: 20px; height: 20px; }
 .nav-periode .bouton-icone.suivant svg { transform: rotate(-90deg); }
 .titre-delegue { margin: 18px 0 4px; padding-top: 10px; border-top: 1px solid var(--trait); }
+
+/* 3.5.0 : compte rendu guidé */
+.etape-cr-bloc { padding-top: 10px; border-top: 1px dashed var(--trait); }
+.table-produits { display: flex; flex-direction: column; gap: 6px; }
+.ligne-produit { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.ligne-produit > span { flex: 1; min-width: 0; }
+.ligne-produit select { flex: 0 0 56%; min-height: 40px; font-size: 14px; }
+.qte { width: 76px !important; flex: none; min-height: 40px !important; text-align: center; padding: 6px !important; }
+.ligne-stock { padding: 8px 0; border-bottom: 1px solid var(--trait); }
+.ligne-stock:last-child { border-bottom: 0; }
+.ligne-stock b { display: block; font-size: 14px; margin-bottom: 6px; }
+.stock-champs { display: flex; gap: 8px; margin-bottom: 6px; }
+.stock-champs select { flex: 1; min-height: 40px; font-size: 14px; }
+.stock-champs input[type="text"] { flex: 1; min-height: 40px; }
+.rappels h3 { margin-bottom: 8px; }
+.liste-rappels { list-style: none; margin: 0; padding: 0; }
+.liste-rappels li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--trait); }
+.liste-rappels li:first-child { border-top: 0; }

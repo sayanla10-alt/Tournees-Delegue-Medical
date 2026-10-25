@@ -1,6 +1,6 @@
 # MediPlanner
 
-Version 3.4.0
+Version 3.5.0
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -31,13 +31,13 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 
 | Feuille | Contenu |
 |---|---|
-| **Praticiens** | Une ligne par médecin ou pharmacie : CodeContact, Type, Nom, Spécialité, **Note** (3, 2 ou 1, affichée ★★★, ★★ ou ★ dans l'application), **Conventionné** (Oui/Non), Téléphone, suivi des visites, Actif |
+| **Praticiens** | Une ligne par médecin ou pharmacie : CodeContact, Type, Nom, Spécialité, **Note** (3, 2 ou 1, affichée ★★★, ★★ ou ★ dans l'application), **Engagé** (Oui/Non), Téléphone, suivi des visites, Actif |
 | **Presences** | Une ligne par **lieu d'exercice** d'un praticien : lieu, quartier, une colonne par jour (**Lundi** à **Vendredi**) contenant *Matin*, *Soir* ou *Matin et soir*, et les horaires du lieu (**HoraireMatin**, ex. `08:00-12:00` ; **HoraireSoir**, ex. `16:00-19:00`). Latitude et Longitude facultatives. |
 | **Pharmacies** | Pharmacies réelles d'Abidjan (source OpenStreetMap, menu MediPlanner > Importer les pharmacies réelles) : nom, quartier, commune, zone, latitude, longitude, téléphone quand il est connu ; ouvertes du lundi au vendredi matin (08:00-12:30) et soir (15:00-20:00) ; mêmes colonnes de suivi que Praticiens |
 | **Plannings** | Tournées publiées par chaque délégué (tenue à jour par l'application, ne pas modifier) |
-| **Historique** | Une ligne par compte rendu de visite, avec le nom du délégué |
+| **Historique** | Une ligne par compte rendu de visite, avec le nom du délégué ; colonnes du compte rendu détaillé : Interlocuteur, Réactions, Échantillons, Stocks, Commande, Compléments, Suite |
 | **Quartiers** | Quartiers, communes, zones et coordonnées GPS |
-| **Listes** | Statuts de visite et ceux qui comptent comme visite effective ; **Délégués** (noms proposés dans l'application) ; **Activités** (types de visite), **Produits** (gamme proposée en puces dans le compte rendu), **JoursFériés** (exclus des tournées ; ajoutez chaque année les fêtes musulmanes) |
+| **Listes** | Statuts (Visite faite, puis les motifs de visite non faite) et CompteCommeVisite ; **Activités** (médecins) et **ActivitésPharmacie** ; **Délégués** (noms proposés dans l'application) ; **Activités** (types de visite), **Produits** (gamme proposée en puces dans le compte rendu), **JoursFériés** (exclus des tournées ; ajoutez chaque année les fêtes musulmanes) |
 
 **Potentiel de prescription** : ★★★ = fort (note 3, à voir tous les 14 jours), ★★ = moyen (note 2, 30 jours), ★ = faible (note 1, 60 jours).
 
@@ -68,12 +68,12 @@ Téléphones (application)  <-->  Apps Script (serveur, jeton d'accès)  <-->  G
 
 - **Écran d'accueil** à l'ouverture : version, état de la base (« Base de données opérationnelle », « Hors ligne : données locales »…), nombre de médecins et de pharmacies, visites planifiées de la semaine. Boutons **Accéder au tableau de bord** et **Lancer l'application** ; sans action, la tournée s'ouvre seule après 5 secondes (10 secondes après une mise à jour, le temps de lire les nouveautés, affichées une seule fois). Toucher l'écran d'accueil arrête le décompte.
 - **Stats** (nouvel onglet) : taux de couverture (visites faites sur visites prévues échues), visites réalisées et taux de présence, atteinte de l'objectif (visites par semaine, réglable), part des praticiens ★★★ vus dans les 14 jours, activité par jour, par commune et par spécialité. Filtres Jour, Semaine, Mois, Personnalisé, et Moi / Équipe. Chaque graphique a son tableau de données.
-- **Filtres avancés cumulables** (Contacts > Filtres) : type, potentiel ★ à ★★★, dernière visite (non visité depuis +30 j, à revoir, jamais visité, en retard, visité récemment), conventionné, ciblé par un collègue, spécialités, communes. La recherche couvre nom, spécialité, établissement et quartier. Tri par potentiel, priorité, dernière visite ou nom.
+- **Filtres avancés cumulables** (Contacts > Filtres) : type, potentiel ★ à ★★★, dernière visite (non visité depuis +30 j, à revoir, jamais visité, en retard, visité récemment), engagé, ciblé par un collègue, spécialités, communes. La recherche couvre nom, spécialité, établissement et quartier. Tri par potentiel, priorité, dernière visite ou nom.
 - **Fiche praticien en 4 étapes** (Contacts > + Praticien, ou Modifier la fiche) : informations, spécialité et potentiel, disponibilités par lieu, localisation (quartier et GPS facultatif). Les erreurs sont signalées champ par champ. La fiche s'enregistre hors ligne et part dans le Google Sheet au retour du réseau (code MED-/PHA- attribué par le serveur).
 - **Tournée** : praticiens ciblés (avec ou sans pharmacies, ou pharmacies seules), spécialités ciblées en choix multiple, potentiels ciblés. Pour chaque jour : premier RDV, fin estimée, durée de la journée et temps de route, et un bouton **Itinéraire du jour dans l'ordre optimal** (Google Maps).
 - **Actions rapides** sur chaque visite et chaque contact : Appeler, SMS (si le téléphone est renseigné), Waze, Google Maps.
 - **Apparence** (Réglages) : Clair (par défaut), Sombre ou Auto.
-- **Filtres** : puces cochées, recherche dans les longues listes (spécialités, communes), groupes repliables, boutons Tout / Effacer / Toute la zone, filtres rapides en un toucher dans Contacts (★★★, non visité +30 j, à revoir, jamais visité, conventionnés, pharmacies). Sur tablette, les fenêtres de choix s'ouvrent au centre de l'écran.
+- **Filtres** : puces cochées, recherche dans les longues listes (spécialités, communes), groupes repliables, boutons Tout / Effacer / Toute la zone, filtres rapides en un toucher dans Contacts (★★★, non visité +30 j, à revoir, jamais visité, engagés, pharmacies). Sur tablette, les fenêtres de choix s'ouvrent au centre de l'écran.
 - **Tournée** : par défaut sans pharmacies.
 - **Mises à jour** : quand une nouvelle version est publiée, un bandeau « Mise à jour disponible » avec les nouveautés apparaît ; **Mise à jour** recharge l'application dans la nouvelle version. Les données du téléphone (tournée, comptes rendus en attente, réglages) sont conservées. Les téléphones encore sur l'ancienne application passent automatiquement en 2.0.0 à leur prochaine ouverture.
 
@@ -102,8 +102,12 @@ L'application suit la journée du délégué, en 5 onglets.
 
 **1. Aujourd'hui** (sur le terrain)
 - Les visites du jour dans l'ordre de passage (les praticiens d'un même établissement à la suite, puis les établissements de proche en proche depuis votre point de départ, sans dépasser les horaires de présence), l'heure de la première visite, la fin estimée et l'**itinéraire de la journée**.
-- Touchez une visite : **Appeler, SMS, WhatsApp, Maps** en premier, puis le résultat : le médecin a-t-il été vu (**Visite faite** : Présent, Intéressé… ; **Visite non faite** : Absent, Refus…). Dès le résultat choisi, le compte rendu se déploie : type de visite, produits présentés, ce qui est ressorti de la discussion, **prochaine étape le** (le praticien est placé d'office ce jour-là dans vos tournées).
-- **Pharmacie** : une seule question, **visitée oui ou non**, puis type de visite propre à l'officine (vérification des stocks, prise de commande, mise en avant / PLV, formation de l'équipe…), **produits disponibles** (gamme et Juvamine), **état des stocks** (en stock, stock faible, rupture, périmé, proche péremption, commande passée, non référencé), commentaire et prochaine étape. L'état des stocks est enregistré en tête du commentaire dans l'Historique.
+- Touchez une visite : **Appeler, SMS, WhatsApp, Maps**, puis le compte rendu, guidé par un arbre de décision qui commence par **« La visite a-t-elle été faite ? Oui / Non »** :
+  - **Médecin, Oui** : type(s) de visite → produits présentés ? (avec « Autres produits ») → réaction par produit (intéressé, indécis, non intéressé, demande d'informations, non évalué) → échantillons remis ? (quantités) → bilan facultatif → suite.
+  - **Pharmacie, Oui** : interlocuteur → activité(s) → stocks vérifiés ? (par produit : en stock, stock faible, rupture, non référencé, non vérifié ; quantité ; proche péremption ou périmé avec n° de lot) → commande passée ? (quantités, sinon besoin de réapprovisionnement) → compléments selon l'activité (échantillons, retour ou échange, PLV / formation / animation) → commentaire → suite.
+  - **Non** : motif → précision facultative → trouver un remplaçant à proximité ? (Oui : enregistre la visite non faite et ouvre Autour de moi) → suite. Produits, stocks et discussion sont masqués.
+  - Une question déjà réglée par les activités n'est pas reposée (Présentation produit, Échantillons, Stocks, Commande).
+  - **Suite** : rappel ou **RDV confirmé** avec date (+7 j, +14 j, +30 j ou calendrier). Seul un RDV confirmé ajoute la visite à la tournée ; un rappel s'affiche le jour venu dans « Aujourd'hui ». Une commande ne modifie pas le stock avant réception.
 - **Enregistrer le compte rendu** ; un compte rendu enregistré se **modifie** à tout moment.
 - Visite non faite : **Trouver un remplaçant à proximité** ouvre « Autour de moi » centré sur ce lieu.
 - **Autour de moi** (bouton en haut) : qui est présent maintenant ou à un autre moment, près de vous ou d'un quartier, avec les mêmes filtres que Praticiens.

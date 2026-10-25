@@ -17,19 +17,27 @@ var JOURS_CLES = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
 var CRENEAUX = ['Matin', 'Soir'];
 var DISPOS = ['Matin', 'Soir', 'Matin et soir'];
 
+// Statuts (feuille Listes) : « Visite faite » compte comme visite ; les autres sont les motifs de visite non faite
 var STATUTS_DEFAUT = [
-  { nom: 'Présent', visite: true },
+  { nom: 'Visite faite', visite: true },
   { nom: 'Absent', visite: false },
-  { nom: 'Intéressé', visite: true },
-  { nom: 'À rappeler', visite: true },
-  { nom: 'Refus', visite: true },
-  { nom: 'RDV reporté', visite: false }
+  { nom: 'Indisponible', visite: false },
+  { nom: 'Refus de recevoir', visite: false },
+  { nom: 'RDV reporté', visite: false },
+  { nom: 'Établissement fermé', visite: false },
+  { nom: 'Pharmacie fermée', visite: false },
+  { nom: 'Interlocuteur absent', visite: false },
+  { nom: 'Autre motif', visite: false }
 ];
+// anciens statuts (avant 3.5.0) : convertis dans la base, encore reconnus dans l'historique
+var STATUTS_RENOMMES = { 'Présent': 'Visite faite', 'Intéressé': 'Visite faite', 'À rappeler': 'Visite faite', 'Refus': 'Refus de recevoir' };
+var MOTIFS_MEDECIN = ['Absent', 'Indisponible', 'Refus de recevoir', 'RDV reporté', 'Établissement fermé', 'Autre motif'];
+var MOTIFS_PHARMACIE = ['Pharmacie fermée', 'Interlocuteur absent', 'Indisponible', 'Refus de recevoir', 'RDV reporté', 'Autre motif'];
 
 // Clé interne -> en-tête de colonne dans le Google Sheet
 var CHAMPS_PRATICIENS = [
   ['code', 'CodeContact'], ['type', 'Type'], ['nom', 'Nom'], ['specialite', 'Spécialité'],
-  ['note', 'Note'], ['conventionne', 'Conventionné'], ['telephone', 'Téléphone'],
+  ['note', 'Note'], ['conventionne', 'Engagé'], ['telephone', 'Téléphone'],
   ['derniere', 'DateDerniereVisite'], ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'],
   ['nbVisites', 'NbVisites'], ['actif', 'Actif'],
   ['prochaine', 'ProchaineEtape'], ['absentDu', 'AbsentDu'], ['absentAu', 'AbsentAu']
@@ -47,7 +55,10 @@ var CHAMPS_HIST = [
   ['nom', 'Nom'], ['type', 'Type'], ['specialite', 'Spécialité'], ['note', 'Note'],
   ['commune', 'Commune'], ['quartier', 'Quartier'], ['lieu', 'Lieu/Etablissement'], ['creneau', 'Créneau'],
   ['statut', 'Statut'], ['commentaire', 'Commentaire'], ['uid', 'IdSync'], ['delegue', 'Délégué'],
-  ['produits', 'Produits'], ['prochaine', 'ProchaineEtape'], ['activite', 'Activité']
+  ['produits', 'Produits'], ['prochaine', 'ProchaineEtape'], ['activite', 'Activité'],
+  // compte rendu détaillé (3.5.0)
+  ['interlocuteur', 'Interlocuteur'], ['reactions', 'Réactions'], ['echantillons', 'Échantillons'], ['stocks', 'Stocks'],
+  ['commande', 'Commande'], ['complements', 'Compléments'], ['suite', 'Suite']
 ];
 
 // Pharmacies (feuille séparée, données réelles issues d'OpenStreetMap) : ouvertes du lundi au samedi,
@@ -55,15 +66,18 @@ var CHAMPS_HIST = [
 var CHAMPS_PHARMACIES = [
   ['code', 'CodeContact'], ['nom', 'Nom'], ['titulaire', 'Titulaire'], ['quartier', 'Quartier'], ['commune', 'Commune'],
   ['zone', 'Zone'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['horaireMatin', 'HoraireMatin'],
-  ['horaireSoir', 'HoraireSoir'], ['note', 'Note'], ['conventionne', 'Conventionné'], ['derniere', 'DateDerniereVisite'],
+  ['horaireSoir', 'HoraireSoir'], ['note', 'Note'], ['conventionne', 'Engagé'], ['derniere', 'DateDerniereVisite'],
   ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'], ['nbVisites', 'NbVisites'], ['actif', 'Actif'],
   ['prochaine', 'ProchaineEtape'], ['source', 'Source']
 ];
 var HORAIRES_PHARMACIE = ['08:00-12:30', '15:00-20:00'];
-var ACTIVITES_DEFAUT = ['Routine', 'Présentation produit', 'EPU', 'Remise d\'échantillons', 'Réunion', 'Staff', 'Déjeuner', 'Garde', 'Autre activité'];
-// anciens libellés (avant 2.2.0), remplacés automatiquement
-var ACTIVITES_RENOMMEES = { 'Visite de routine (rappel)': 'Routine', 'Réunion / staff': 'Réunion' };
-var PRODUITS_DEFAUT = ['Zyltan H', 'Rozukaa 10', 'Rozukaa 20', 'Lestrol 20', 'Phestal', 'Imodium'];
+var ACTIVITES_DEFAUT = ['Routine', 'Présentation produit', 'EPU', 'Échantillons', 'Réunion', 'Staff', 'Déjeuner', 'Garde', 'Cadeaux', 'Dépistage', 'Autre'];
+var ACTIVITES_PHARMACIE_DEFAUT = ['Routine', 'Stocks', 'Commande', 'PLV', 'Formation', 'Échantillons', 'Animation', 'Retour ou échange', 'Autre'];
+// anciens libellés, remplacés automatiquement (base et historique)
+var ACTIVITES_RENOMMEES = { 'Visite de routine (rappel)': 'Routine', 'Réunion / staff': 'Réunion', 'Remise d\'échantillons': 'Échantillons',
+  'Autre activité': 'Autre', 'Vérification des stocks': 'Stocks', 'Prise de commande': 'Commande', 'Mise en avant / PLV': 'PLV',
+  'Formation de l\'équipe officinale': 'Formation', 'Animation promotionnelle': 'Animation', 'Retour ou échange de produits': 'Retour ou échange' };
+var PRODUITS_DEFAUT = ['Zyltan H', 'Rozukaa 10', 'Rozukaa 20', 'Lestrol 20', 'Phestal', 'Imodium', 'Juvamine'];
 
 // Tournées publiées par les délégués (visibles par toute l'équipe)
 var CHAMPS_PLAN = [
@@ -242,7 +256,7 @@ function calcScore(note, jours, dernierStatut) {
   note = lireNote(note);
   var retard = jours / REGLAGES_MOTEUR.cadence[note];
   if (retard > 3) retard = 3;
-  var bonus = dernierStatut === 'À rappeler' ? 50 : (dernierStatut === 'Intéressé' ? 30 : 0);
+  var bonus = dernierStatut === 'RDV reporté' || dernierStatut === 'À rappeler' ? 50 : (dernierStatut === 'Intéressé' ? 30 : 0);
   return Math.round((note * 100 + retard * 100 + bonus) * 10) / 10;
 }
 
@@ -485,7 +499,8 @@ if (typeof module !== 'undefined' && module.exports) {
     lettrePotentiel: lettrePotentiel, SPECIALITES_DEFAUT: SPECIALITES_DEFAUT,
     completerDonneesFictives: completerDonneesFictives, hachage: hachage,
     minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,
-    CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES, PRODUITS_DEFAUT: PRODUITS_DEFAUT,
+    CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES,
+    ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
   };

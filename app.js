@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.4.0';
+  var APP_VERSION = '3.5.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.5.0', ['Comptes rendus guidés par un arbre de décision : « La visite a-t-elle été faite ? » puis, pour les médecins, types, produits présentés et réactions, échantillons, bilan ; pour les pharmacies, interlocuteur, activités, stock par produit, commande, compléments', 'Visite non faite : motif, précision, remplaçant à proximité ; produits, stocks et discussion masqués', 'Suite : rappel ou RDV confirmé avec date ; seul un RDV confirmé ajoute la visite à la tournée, les rappels s\'affichent dans « Aujourd\'hui »', 'Base mise à jour : statuts, activités médecins et pharmacies, produits (avec Juvamine), délégués ; « Conventionné » devient « Engagé »']],
     ['3.4.0', ['Équipe : choisissez un jour ou une semaine (flèches ou date) et voyez ce qui a été planifié et fait par vous et vos collègues, avec « Toute l\'équipe »']],
     ['3.3.2', ['Nom de l\'application : MediPlanner, sans mention supplémentaire']],
     ['3.3.1', ['Planifier : « Reprendre un ancien programme » toujours visible, juste au-dessus de « Proposer ma tournée »']],
@@ -231,7 +232,7 @@
     return '<span class="note" title="Potentiel de prescription ' + k + ' sur 3 (' + LIB_POTENTIEL[l] + ')" aria-label="Potentiel ' + k + ' sur 3">' +
       '★★★'.slice(0, k) + '<i>' + '★★★'.slice(0, 3 - k) + '</i></span>';
   }
-  function badgeConv(v) { return estConventionne(v) ? '<span class="etiquette conv">Conventionné</span>' : '<span class="etiquette">Non conventionné</span>'; }
+  function badgeConv(v) { return estConventionne(v) ? '<span class="etiquette conv">Engagé</span>' : '<span class="etiquette">Non engagé</span>'; }
   function lienCarte(o) {
     if (o.lat && o.lon) return 'https://www.google.com/maps/search/?api=1&query=' + (+o.lat).toFixed(5) + ',' + (+o.lon).toFixed(5);
     var q = [o.lieu, o.quartier, o.commune, 'Abidjan'].filter(Boolean).join(', ');
@@ -396,23 +397,12 @@
   function produitsRef() { return (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT; }
   function listeProduits(t) { return String(t || '').split(/\s*[,;]\s*/).map(function (x) { return x.trim(); }).filter(Boolean); }
   function autresProduits(t, ref) { ref = ref || produitsRef(); return listeProduits(t).filter(function (x) { return ref.indexOf(x) < 0; }); }
-  // Pharmacies : compte rendu propre (visitée oui/non, activités en officine, produits disponibles, état des stocks)
-  var ACTIVITES_PHARMACIE = ['Routine', 'Vérification des stocks', 'Prise de commande', 'Mise en avant / PLV', 'Formation de l\'équipe officinale',
-                             'Remise d\'échantillons', 'Animation promotionnelle', 'Retour ou échange de produits', 'Autre activité'];
-  var PRODUITS_PHARMACIE_EN_PLUS = ['Juvamine'];
-  var ETATS_STOCK = ['En stock', 'Stock faible', 'Rupture', 'Périmé', 'Proche péremption', 'Commande passée', 'Non référencé'];
   function estPharmacie(a) { return (a.type || (praticien(a.code) || {}).type) === 'Pharmacie'; }
   function produitsPour(a) {
     var l = produitsRef().slice();
-    if (estPharmacie(a)) PRODUITS_PHARMACIE_EN_PLUS.forEach(function (x) { if (l.indexOf(x) < 0) l.push(x); });
     return l;
   }
-  function statutLibelle(a) { return estPharmacie(a) && a.statut ? (estKo(a.statut) ? 'Non visitée' : 'Visitée') : a.statut; }
-  // Commentaire envoyé à l'historique : état des stocks (pharmacie) puis texte libre
-  function commentaireComplet(a) {
-    var st = estPharmacie(a) && a.stock ? 'Stock : ' + a.stock + '.' : '';
-    return [st, String(a.commentaire || '').trim()].filter(Boolean).join(' ');
-  }
+  function statutLibelle(a) { return estPharmacie(a) && a.statut && !estKo(a.statut) ? 'Visitée' : a.statut; }
   function activites() { return (S.data && S.data.activites && S.data.activites.length) ? S.data.activites : ACTIVITES_DEFAUT; }
   function listeActivites(t) { return String(t || '').split(/\s*;\s*/).filter(Boolean).map(function (x) { return ACTIVITES_RENOMMEES[x] || x; }); }
   function ficheEnAttente(code) { return S.fiches.some(function (f) { return f.praticien.code === code; }); }
@@ -558,7 +548,7 @@
       }
       var base = d.inchange ? ancien : d;
       S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
-                 statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], produits: base.produits || [],
+                 statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [],
                  historique: hist, plannings: d.plannings || [], syncedAt: new Date().toISOString() };
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
@@ -802,7 +792,7 @@
   VUES.jour = function () {
     var h = '<div class="tete-vue"><h2 class="titre-vue">Aujourd\'hui</h2>' +
       '<button class="bouton petit" type="button" data-a="ouvrirAutour">' + icone('cible') + 'Autour de moi</button></div>' +
-      '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>';
+      '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>' + rendreRappels();
     if (!S.plan.length) {
       return h + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».' +
         '<button class="bouton bouton-plein" type="button" data-a="nav" data-tab="semaine" style="margin-top:14px">' + icone('calendrier') + 'Planifier ma tournée</button></div>';
@@ -1042,6 +1032,256 @@
       '<div class="rangee"><button class="bouton bouton-plein" type="button" data-a="validerProgramme">' + icone('valider') + 'Confirmer la tournée</button></div></section>';
   }
 
+  // ------------------------------------------------------------------ Compte rendu de visite (arbre de décision, 3.5.0)
+  // Médecin : faite ? → types → produits présentés → réactions → échantillons → bilan → suite (rappel ou RDV confirmé + date)
+  // Pharmacie : faite ? → interlocuteur → activités → stocks → commande → compléments → suite
+  // Non faite : motif → précision → remplaçant → suite. Seul un RDV confirmé place la visite dans la tournée.
+  var REACTIONS = ['Intéressé', 'Indécis', 'Non intéressé', 'Demande d\'informations', 'Non évalué'];
+  var ETATS_STOCK = ['En stock', 'Stock faible', 'Rupture', 'Non référencé', 'Non vérifié'];
+  var ANOMALIES = ['Proche péremption', 'Périmé'];
+  var INTERLOCUTEURS = ['Pharmacien', 'Équipe', 'Responsable des achats', 'Autre'];
+  var SUITES = {
+    medecin: [['visite', 'Nouvelle visite'], ['appeler', 'Appeler'], ['informations', 'Envoyer des informations'], ['aucune', 'Aucune']],
+    pharmacie: [['visite', 'Nouvelle visite'], ['appeler', 'Appeler'], ['commande', 'Suivi de commande'], ['informations', 'Informations'], ['aucune', 'Aucune']],
+    nonFaite: [['reprogrammer', 'Reprogrammer'], ['appeler', 'Appeler'], ['aucune', 'Aucune']]
+  };
+  function activitesPharmacie() { return (S.data && S.data.activitesPharmacie && S.data.activitesPharmacie.length) ? S.data.activitesPharmacie : ACTIVITES_PHARMACIE_DEFAUT; }
+  function statutFaite() { var l = statuts().filter(function (s) { return s.visite; }); return (l.filter(function (s) { return s.nom === 'Visite faite'; })[0] || l[0] || { nom: 'Visite faite' }).nom; }
+  function motifsPour(a) {
+    var base = estPharmacie(a) ? MOTIFS_PHARMACIE : MOTIFS_MEDECIN, connus = statuts().filter(function (s) { return !s.visite; }).map(function (s) { return s.nom; });
+    var l = base.filter(function (m) { return !connus.length || connus.indexOf(m) >= 0; });
+    return l.length ? l : base;
+  }
+  // compte rendu structuré de l'arrêt (reconstruit depuis les anciens champs si besoin)
+  function crDe(a) {
+    if (!a.cr) {
+      var c = { types: listeActivites(a.activite), produits: [], reactions: {}, echQ: {}, stocks: {}, cmdQ: {}, besoin: [], retourQ: {}, actionProduits: [] };
+      if (a.statut) { if (estKo(a.statut)) { c.faite = 'non'; c.motif = a.statut; c.precision = a.commentaire || ''; } else { c.faite = 'oui'; c.bilan = a.commentaire || ''; c.commentaire = a.commentaire || ''; } }
+      var lp = listeProduits(a.produits), ref = produitsRef();
+      c.produits = lp.filter(function (x) { return ref.indexOf(x) >= 0; }); c.autres = lp.filter(function (x) { return ref.indexOf(x) < 0; }).join(', ');
+      if (c.produits.length || c.autres) c.presentes = 'oui';
+      if (a.prochaine) { c.suite = c.faite === 'non' ? 'reprogrammer' : 'visite'; c.suiteType = 'rdv'; c.date = a.prochaine; }
+      a.cr = c;
+    }
+    return a.cr;
+  }
+  function implicite(a, c) {
+    var t = c.types || [];
+    return estPharmacie(a) ? { stocks: t.indexOf('Stocks') >= 0, commande: t.indexOf('Commande') >= 0 }
+      : { presentes: t.indexOf('Présentation produit') >= 0, echant: t.indexOf('Échantillons') >= 0 };
+  }
+  function produitsPresentes(c) { return (c.produits || []).concat(listeProduits(c.autres)); }
+  function listeQ(o) { return Object.keys(o || {}).filter(function (p) { return +o[p] > 0; }).map(function (p) { return p + ' × ' + (+o[p]); }).join(' ; '); }
+  // champs envoyés à l'historique (colonnes de la feuille Historique)
+  function champsCr(a) {
+    var c = crDe(a), ph = estPharmacie(a), im = implicite(a, c), r = { interlocuteur: '', reactions: '', echantillons: '', stocks: '', commande: '', complements: '', suite: '' };
+    if (c.faite === 'oui') {
+      r.statut = statutFaite(); r.activite = (c.types || []).join(' ; ');
+      if (!ph) {
+        var pres = c.presentes === 'oui' || im.presentes ? produitsPresentes(c) : [];
+        r.produits = pres.join(', ');
+        r.reactions = pres.filter(function (p) { return c.reactions[p]; }).map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(' ; ');
+        if (c.echant === 'oui' || im.echant) r.echantillons = listeQ(c.echQ);
+        r.commentaire = c.bilan || '';
+      } else {
+        r.interlocuteur = c.interlocuteur || '';
+        if (c.stocksVerif === 'oui' || im.stocks) {
+          r.stocks = Object.keys(c.stocks).filter(function (p) { return c.stocks[p] && c.stocks[p].etat; }).map(function (p) {
+            var s = c.stocks[p]; return p + ' : ' + s.etat.toLowerCase() + (s.qte ? ' (' + s.qte + ')' : '') + (s.anomalie ? ', ' + s.anomalie.toLowerCase() + (s.lot ? ' lot ' + s.lot : '') : '');
+          }).concat(c.autresStock ? ['Autres : ' + c.autresStock] : []).join(' ; ');
+          r.produits = Object.keys(c.stocks).filter(function (p) { return c.stocks[p] && (c.stocks[p].etat === 'En stock' || c.stocks[p].etat === 'Stock faible'); }).join(', ');
+        }
+        if (c.commande === 'oui' || im.commande) r.commande = listeQ(c.cmdQ);
+        else if (c.commande === 'non' && ((c.besoin || []).length || c.besoinTexte)) r.commande = 'Besoin : ' + (c.besoin || []).concat(c.besoinTexte ? [c.besoinTexte] : []).join(', ');
+        var t = c.types || [], comp = [];
+        if (t.indexOf('Échantillons') >= 0 && listeQ(c.echQ)) { comp.push('Échantillons : ' + listeQ(c.echQ)); r.echantillons = listeQ(c.echQ); }
+        if (t.indexOf('Retour ou échange') >= 0 && (listeQ(c.retourQ) || c.retourMotif)) comp.push('Retour/échange : ' + listeQ(c.retourQ) + (c.retourMotif ? ' (' + c.retourMotif + ')' : ''));
+        var act = t.filter(function (x) { return ['PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
+        if (act.length && (c.action || (c.actionProduits || []).length)) comp.push(act.join(', ') + ' : ' + (c.action || '') + ((c.actionProduits || []).length ? ' (' + c.actionProduits.join(', ') + ')' : ''));
+        r.complements = comp.join(' ; ');
+        r.commentaire = c.commentaire || '';
+      }
+    } else if (c.faite === 'non') {
+      r.statut = c.motif || ''; r.activite = ''; r.produits = ''; r.commentaire = c.precision || '';
+    }
+    var lib = (SUITES[c.faite === 'non' ? 'nonFaite' : (ph ? 'pharmacie' : 'medecin')].filter(function (x) { return x[0] === c.suite; })[0] || [])[1];
+    if (c.suite && c.suite !== 'aucune' && c.suiteType && c.date) {
+      r.suite = (c.suiteType === 'rdv' ? 'RDV confirmé : ' : 'Rappel : ') + (lib || '').toLowerCase();
+      r.prochaine = c.date; r.rdv = c.suiteType === 'rdv';
+    } else { r.prochaine = ''; r.rdv = false; }
+    return r;
+  }
+  // garde les champs habituels de l'arrêt à jour (statut, activité, produits, commentaire, prochaine étape)
+  function syncCr(a) {
+    var r = champsCr(a);
+    a.statut = r.statut || ''; a.activite = r.activite || ''; a.produits = r.produits || ''; a.commentaire = r.commentaire || '';
+    a.prochaine = r.prochaine || ''; a.rdvConfirme = !!r.rdv;
+  }
+  function manquesCr(a) {
+    var c = crDe(a), m = [];
+    if (!c.faite) m.push('indiquez si la visite a été faite');
+    else if (c.faite === 'non' && !c.motif) m.push('choisissez le motif');
+    if (c.suite && c.suite !== 'aucune' && (!c.suiteType || !c.date)) m.push('précisez rappel ou RDV confirmé et la date');
+    return m;
+  }
+
+  // petits éléments de formulaire
+  function puceCr(a, cle, v, lib, actif, multi) {
+    return '<button type="button" class="puce" data-a="' + (multi ? 'crMulti' : 'crChoix') + '" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + esc(v) +
+      '" aria-pressed="' + !!actif + '">' + esc(lib || v) + '</button>';
+  }
+  function choixCr(a, cle, options, val) { return '<div class="puces">' + options.map(function (o) { o = Array.isArray(o) ? o : [o, o]; return puceCr(a, cle, o[0], o[1], val === o[0]); }).join('') + '</div>'; }
+  function multiCr(a, cle, options, vals) { return '<div class="puces">' + options.map(function (o) { return puceCr(a, cle, o, o, (vals || []).indexOf(o) >= 0, true); }).join('') + '</div>'; }
+  function ouiNonCr(a, cle, val) { return '<div class="statuts deux">' + [['oui', 'Oui'], ['non', 'Non']].map(function (o) {
+    return '<button type="button" class="statut' + (o[0] === 'non' ? ' ko' : '') + '" data-a="crChoix" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + o[0] + '" aria-pressed="' + (val === o[0]) + '">' + o[1] + '</button>';
+  }).join('') + '</div>'; }
+  function texteCr(a, cle, val, ph, zone) {
+    return zone ? '<textarea data-f="cr" data-uid="' + a.uid + '" data-k="' + cle + '" placeholder="' + esc(ph) + '">' + esc(val || '') + '</textarea>'
+      : '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="' + cle + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '">';
+  }
+  function qteCr(a, cle, val) { return '<input type="number" min="0" inputmode="numeric" class="qte" data-f="cr" data-uid="' + a.uid + '" data-k="' + cle + '" value="' + esc(val || '') + '" placeholder="0" aria-label="Quantité">'; }
+  function selectCr(a, cle, options, val, vide) {
+    return '<select data-f="crSelect" data-uid="' + a.uid + '" data-k="' + cle + '">' + (vide !== undefined ? '<option value="">' + esc(vide) + '</option>' : '') +
+      options.map(function (o) { return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+  }
+  function etapeCr(titre, contenu, aide) { return '<div class="champ etape-cr-bloc"><span>' + titre + '</span>' + contenu + (aide ? '<span class="aide-champ">' + aide + '</span>' : '') + '</div>'; }
+  function tableQ(a, prefixe, produits, valeurs) {
+    return '<div class="table-produits">' + produits.map(function (p) {
+      return '<label class="ligne-produit"><span>' + esc(p) + '</span>' + qteCr(a, prefixe + '.' + p, (valeurs || {})[p]) + '</label>';
+    }).join('') + '</div>';
+  }
+
+  function rendreCompteRendu(a) {
+    var c = crDe(a), ph = estPharmacie(a), im = implicite(a, c), cat = produitsRef(), h = '';
+    h += '<div class="etape-cr"><span class="etape-titre">La visite a-t-elle été faite ?</span>' + ouiNonCr(a, 'faite', c.faite) + '</div>';
+    if (!c.faite) return h + '<p class="aide-champ" style="text-align:center;margin:4px 0 12px">Répondez pour remplir le compte rendu.</p>';
+    if (c.faite === 'non') {
+      h += etapeCr('Motif', choixCr(a, 'motif', motifsPour(a), c.motif));
+      h += etapeCr('Précision (facultatif)', texteCr(a, 'precision', c.precision, ph ? 'Ex. pharmacien en congé jusqu\'à lundi' : 'Ex. en bloc opératoire, revenir après 15 h', true));
+      h += etapeCr('Trouver un remplaçant à proximité ?', choixCr(a, 'remplacant', [['oui', 'Oui'], ['non', 'Non']], c.remplacant));
+      if (c.remplacant === 'oui') {
+        return h + '<div class="actions-cr"><button class="bouton bouton-plein bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '"' + (c.motif ? '' : ' disabled') + '>' +
+          icone('cible') + 'Enregistrer et ouvrir Autour de moi</button>' + (c.motif ? '' : '<span class="aide-champ">Choisissez d\'abord le motif.</span>') + '</div>';
+      }
+      h += rendreSuite(a, c, SUITES.nonFaite);
+      return h + boutonEnregistrer(a);
+    }
+    if (!ph) {
+      h += etapeCr('Type(s) de visite', multiCr(a, 'types', activites(), c.types));
+      if (!im.presentes) h += etapeCr('Produits présentés ?', choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes));
+      if (c.presentes === 'oui' || im.presentes) {
+        h += etapeCr('Produits présentés', multiCr(a, 'produits', cat, c.produits) +
+          '<input type="text" list="listeProduits" data-f="cr" data-uid="' + a.uid + '" data-k="autres" value="' + esc(c.autres || '') + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits());
+        var pres = produitsPresentes(c);
+        if (pres.length) h += etapeCr('Réaction du médecin', '<div class="table-produits">' + pres.map(function (p) {
+          return '<label class="ligne-produit"><span>' + esc(p) + '</span>' + selectCr(a, 'reactions.' + p, REACTIONS, c.reactions[p], 'Réaction…') + '</label>';
+        }).join('') + '</div>');
+      }
+      if (!im.echant) h += etapeCr('Échantillons remis ?', choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant));
+      if (c.echant === 'oui' || im.echant) h += etapeCr('Échantillons remis (quantités)', tableQ(a, 'echQ', cat, c.echQ));
+      h += etapeCr('Bilan (facultatif)', texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true));
+      h += rendreSuite(a, c, SUITES.medecin);
+    } else {
+      h += etapeCr('Interlocuteur', choixCr(a, 'interlocuteur', INTERLOCUTEURS, c.interlocuteur));
+      h += etapeCr('Activité(s)', multiCr(a, 'types', activitesPharmacie(), c.types));
+      if (!im.stocks) h += etapeCr('Stocks vérifiés ?', choixCr(a, 'stocksVerif', [['oui', 'Oui'], ['non', 'Non']], c.stocksVerif));
+      if (c.stocksVerif === 'oui' || im.stocks) {
+        h += etapeCr('Stock par produit', '<div class="table-produits">' + cat.map(function (p) {
+          var s = c.stocks[p] || {};
+          return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="stock-champs">' + selectCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, 'État…') +
+            qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</div>' +
+            (s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="stock-champs">' + selectCr(a, 'stocks.' + p + '.anomalie', ANOMALIES, s.anomalie, 'Aucune anomalie') +
+              (s.anomalie ? '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot">' : '') + '</div>' : '') + '</div>';
+        }).join('') + '</div>' + texteCr(a, 'autresStock', c.autresStock, 'Autres produits et état, ex. Doliprane rupture'),
+          'Rupture, non référencé et non vérifié sont distincts. Une commande ne modifie pas le stock avant réception.');
+      }
+      if (!im.commande) h += etapeCr('Commande passée ?', choixCr(a, 'commande', [['oui', 'Oui'], ['non', 'Non']], c.commande));
+      if (c.commande === 'oui' || im.commande) h += etapeCr('Commande (quantités)', tableQ(a, 'cmdQ', cat, c.cmdQ));
+      else if (c.commande === 'non') h += etapeCr('Besoin de réapprovisionnement (si exprimé)', multiCr(a, 'besoin', cat, c.besoin) + texteCr(a, 'besoinTexte', c.besoinTexte, 'Autres besoins'));
+      var t = c.types || [];
+      if (t.indexOf('Échantillons') >= 0) h += etapeCr('Échantillons (quantités)', tableQ(a, 'echQ', cat, c.echQ));
+      if (t.indexOf('Retour ou échange') >= 0) h += etapeCr('Retour ou échange', tableQ(a, 'retourQ', cat, c.retourQ) + texteCr(a, 'retourMotif', c.retourMotif, 'Motif du retour ou de l\'échange'));
+      var act = t.filter(function (x) { return ['PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
+      if (act.length) h += etapeCr(act.join(', ') + ' : action et produits', texteCr(a, 'action', c.action, 'Ex. présentoir installé, équipe formée sur Rozukaa') + multiCr(a, 'actionProduits', cat, c.actionProduits));
+      h += etapeCr('Commentaire (facultatif)', texteCr(a, 'commentaire', c.commentaire, 'Demande du pharmacien, concurrence, prix…', true));
+      h += rendreSuite(a, c, SUITES.pharmacie);
+    }
+    return h + boutonEnregistrer(a);
+  }
+  function rendreSuite(a, c, options) {
+    var h = etapeCr('Suite', choixCr(a, 'suite', options, c.suite));
+    if (c.suite && c.suite !== 'aucune') {
+      h += etapeCr('Rappel ou RDV confirmé ?', choixCr(a, 'suiteType', [['rappel', 'Rappel'], ['rdv', 'RDV confirmé']], c.suiteType),
+        c.suiteType === 'rdv' ? 'Le RDV est placé d\'office ce jour-là dans votre tournée.' : (c.suiteType === 'rappel' ? 'Un rappel s\'affiche ce jour-là dans « Aujourd\'hui », sans modifier la tournée.' : ''));
+      if (c.suiteType) {
+        h += etapeCr('Date', '<div class="rangee-prochaine">' + [7, 14, 30].map(function (n) {
+          var d = ajouterJours(a.date, n);
+          return '<button type="button" class="puce" data-a="crChoix" data-uid="' + a.uid + '" data-k="date" data-v="' + d + '" aria-pressed="' + (c.date === d) + '">+' + n + ' j</button>';
+        }).join('') + '<input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date"></div>');
+      }
+    }
+    return h;
+  }
+  function boutonEnregistrer(a) {
+    var m = manquesCr(a);
+    return '<div class="actions-cr">' + (m.length ?
+      '<button class="bouton bouton-large" type="button" disabled>' + icone('valider') + 'Enregistrer le compte rendu</button><span class="aide-champ">Pour enregistrer : ' + esc(m.join(', ')) + '.</span>' :
+      '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button>') + '</div>';
+  }
+  function resumeCompteRendu(a) {
+    var r = champsCr(a), l = [];
+    if (r.interlocuteur) l.push('Interlocuteur : ' + r.interlocuteur);
+    if (r.activite) l.push('Type de visite : ' + listeActivites(r.activite).join(', '));
+    if (r.produits && !estPharmacie(a)) l.push('Produits présentés : ' + r.produits);
+    if (r.reactions) l.push('Réactions : ' + r.reactions);
+    if (r.echantillons) l.push('Échantillons : ' + r.echantillons);
+    if (r.stocks) l.push('Stocks : ' + r.stocks);
+    if (r.commande) l.push('Commande : ' + r.commande);
+    if (r.complements && !/^Échantillons/.test(r.complements)) l.push(r.complements);
+    if (r.commentaire) l.push((crDe(a).faite === 'non' ? 'Précision : ' : 'Bilan : ') + r.commentaire);
+    if (r.suite) l.push(r.suite + ' le ' + dateCourte(r.prochaine));
+    return l.map(function (x) { return '<p class="discret">' + esc(x) + '</p>'; }).join('');
+  }
+  // valeur d'un chemin « a.b.c » dans le compte rendu
+  function majCr(a, cle, valeur, multi) {
+    var c = crDe(a), p = cle.split('.'), o = c;
+    // nom de produit pouvant contenir un point : le 2e élément est le produit, le reste le champ
+    if (p.length > 2) p = [p[0], p.slice(1, p.length - 1).join('.'), p[p.length - 1]];
+    else if (p.length === 2) p = [p[0], p[1]];
+    for (var i = 0; i < p.length - 1; i++) { if (!o[p[i]] || typeof o[p[i]] !== 'object') o[p[i]] = {}; o = o[p[i]]; }
+    var k = p[p.length - 1];
+    if (multi) { var l = Array.isArray(o[k]) ? o[k] : [], j = l.indexOf(valeur); if (j >= 0) l.splice(j, 1); else l.push(valeur); o[k] = l; }
+    else o[k] = valeur;
+    if (cle === 'faite' && valeur === 'oui') { c.motif = ''; c.remplacant = ''; }
+    if (cle === 'suite' && valeur === 'aucune') { c.suiteType = ''; c.date = ''; }
+    syncCr(a); LS.set('plan', S.plan);
+  }
+
+  // Rappels du jour (et en retard) : suites « Rappel » de mes comptes rendus, sans visite depuis
+  function rappelsDuJour() {
+    var t = aujourdhui(), dernier = {}, l = [];
+    (S.queue || []).concat((S.data && S.data.historique) || []).forEach(function (v) {
+      if (v.delegue && !estMoi(v.delegue)) return;
+      var d = String(v.date || '').slice(0, 10);
+      if (!dernier[v.code] || d > dernier[v.code].d) dernier[v.code] = { d: d, v: v };
+    });
+    Object.keys(dernier).forEach(function (k) {
+      var v = dernier[k].v, p = String(v.prochaine || '').slice(0, 10);
+      if (/^Rappel/.test(v.suite || '') && p && p <= t) l.push({ v: v, date: p });
+    });
+    return l.sort(function (x, y) { return x.date < y.date ? -1 : 1; });
+  }
+  function rendreRappels() {
+    var l = rappelsDuJour();
+    if (!l.length) return '';
+    return '<section class="bloc rappels"><h3 style="margin-top:0">Rappels (' + l.length + ')</h3><ul class="liste-rappels">' + l.map(function (x) {
+      var p = praticien(x.v.code) || {};
+      return '<li><div><b>' + esc(x.v.nom) + '</b><span class="discret bloc-texte">' + esc(String(x.v.suite).replace(/^Rappel : /, '')) +
+        (x.date < aujourdhui() ? ', prévu le ' + dateCourte(x.date) : '') + '</span></div>' +
+        (p.telephone ? '<a class="bouton petit" href="tel:' + esc(String(p.telephone).replace(/\s/g, '')) + '">' + icone('tel') + 'Appeler</a>' : '') + '</li>';
+    }).join('') + '</ul></section>';
+  }
+
   // Carte d'une visite (Aujourd'hui) : contact d'abord, puis compte rendu en deux temps
   function rendreArret(a) {
     var ouvert = S.ui.ouvert === a.uid, verrou = a.etat === 'valide';
@@ -1077,63 +1317,11 @@
       var pa = praticien(a.code) || {};
       h += '<div class="arret-detail">' +
         actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune });
-      var pharma = estPharmacie(a), refProd = produitsPour(a);
       if (!verrou) {
-        var ok = statuts().filter(function (s) { return s.visite; }), ko = statuts().filter(function (s) { return !s.visite; });
-        var bouton = function (s, lib) {
-          return '<button type="button" class="statut' + (s.visite ? '' : ' ko') + '" data-a="statut" data-uid="' + a.uid +
-            '" data-v="' + esc(s.nom) + '" aria-pressed="' + (a.statut === s.nom) + '">' + esc(lib || s.nom) + '</button>';
-        };
-        if (pharma) {
-          // pharmacie : une seule question, visitée oui ou non (statuts de la base : premier « visite » et « Absent »)
-          var oui = ok[0], non = ko.filter(function (s) { return /absent/i.test(s.nom); })[0] || ko[0];
-          h += '<div class="etape-cr"><span class="etape-titre">La pharmacie a-t-elle été visitée ?</span>' +
-            '<div class="statuts deux" role="group" aria-label="Pharmacie visitée">' + (oui ? bouton(oui, 'Oui') : '') + (non ? bouton(non, 'Non') : '') + '</div></div>';
-        } else {
-          h += '<div class="etape-cr"><span class="etape-titre">Le médecin a-t-il été vu ?</span>' +
-            '<span class="groupe-statuts">Visite faite</span><div class="statuts" role="group" aria-label="Visite faite">' + ok.map(function (x) { return bouton(x); }).join('') + '</div>' +
-            '<span class="groupe-statuts">Visite non faite</span><div class="statuts" role="group" aria-label="Visite non faite">' + ko.map(function (x) { return bouton(x); }).join('') + '</div></div>';
-        }
-        // Le compte rendu se déploie dès que le résultat est choisi (visite faite ou non)
-        var faite = a.statut && !estKo(a.statut);
-        if (!a.statut) {
-          h += '<p class="aide-champ" style="text-align:center;margin:4px 0 12px">Touchez la réponse pour remplir le compte rendu.</p>';
-        } else {
-          if (!faite) {
-            h += '<div class="bandeau"><p>' + (pharma ? 'Pharmacie non visitée. ' : 'Visite non faite. ') +
-              '<button type="button" class="bouton-texte" data-a="rattraper" data-uid="' + a.uid + '">Trouver un remplaçant à proximité</button></p></div>';
-          }
-          h += '<div class="champ"><span>Type de visite</span><div class="puces">' + (pharma ? ACTIVITES_PHARMACIE : activites()).map(function (x) {
-              return '<button type="button" class="puce" data-a="activite" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeActivites(a.activite).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-            }).join('') + '</div></div>' +
-            '<div class="champ"><span>' + (pharma ? 'Produits disponibles' : 'Produits présentés') + '</span><div class="puces">' + refProd.map(function (x) {
-              return '<button type="button" class="puce" data-a="produit" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (listeProduits(a.produits).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-            }).join('') + '</div><input type="text" list="listeProduits" data-f="produits" data-uid="' + a.uid +
-              '" value="' + esc(autresProduits(a.produits, refProd).join(', ')) + '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() + '</div>' +
-            (pharma ? '<div class="champ"><span>État des stocks</span><div class="puces">' + ETATS_STOCK.map(function (x) {
-              return '<button type="button" class="puce" data-a="stock" data-uid="' + a.uid + '" data-v="' + esc(x) + '" aria-pressed="' + (String(a.stock || '').split(/\s*,\s*/).indexOf(x) >= 0) + '">' + esc(x) + '</button>';
-            }).join('') + '</div></div>' : '') +
-            '<label class="champ"><span>' + (pharma ? 'Commentaire' : 'Ce qui est ressorti de la discussion') + '</span><textarea data-f="commentaire" data-uid="' + a.uid +
-              '" placeholder="' + (pharma ? 'Produit en rupture, lot périmé, quantité commandée, demande du pharmacien…' : 'Besoins, objections, échantillons remis, engagement du médecin, motif d\'absence…') + '">' + esc(a.commentaire) + '</textarea></label>' +
-            '<div class="champ"><span>Prochaine étape le</span><div class="rangee-prochaine">' +
-              [7, 14, 30].map(function (n) {
-                var d = ajouterJours(a.date, n);
-                return '<button type="button" class="puce" data-a="prochaine" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (a.prochaine === d) + '">+' + n + ' j</button>';
-              }).join('') +
-              '<input type="date" data-f="prochaine" data-uid="' + a.uid + '" value="' + esc(a.prochaine || '') + '" aria-label="Date de la prochaine étape"></div>' +
-              '<span class="aide-champ">Comme un RDV pris : ' + (pharma ? 'la pharmacie est placée' : 'le praticien est placé') + ' d\'office ce jour-là dans vos tournées.</span></div>' +
-            '<div class="actions-cr"><button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') +
-              (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button></div>';
-        }
+        h += rendreCompteRendu(a);
         h += '<button class="bouton-texte" type="button" data-a="retirer" data-uid="' + a.uid + '">Retirer de la tournée</button>';
       } else {
-        h += '<div class="resume-cr">';
-        if (a.activite) h += '<p class="discret">Type de visite : ' + esc(listeActivites(a.activite).join(', ')) + '</p>';
-        if (a.produits) h += '<p class="discret">' + (pharma ? 'Produits disponibles : ' : 'Produits : ') + esc(a.produits) + '</p>';
-        if (pharma && a.stock) h += '<p class="discret">Stock : ' + esc(a.stock) + '</p>';
-        if (a.commentaire) h += '<p class="discret">' + esc(a.commentaire) + '</p>';
-        if (a.prochaine) h += '<p class="discret">Prochaine étape le ' + dateCourte(a.prochaine) + '</p>';
-        h += '</div><button class="bouton bouton-large" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:6px">' + icone('crayon') + 'Modifier le compte rendu</button>';
+        h += '<div class="resume-cr">' + resumeCompteRendu(a) + '</div><button class="bouton bouton-large" type="button" data-a="corriger" data-uid="' + a.uid + '" style="margin-bottom:6px">' + icone('crayon') + 'Modifier le compte rendu</button>';
       }
       h += '</div>';
     }
@@ -1538,12 +1726,12 @@
     if (f.type !== 'Pharmacie') f.specialites.forEach(function (x) { l.push(['specialites', x, x]); });
     f.communes.forEach(function (x) { l.push(['communes', x, x]); });
     if (f.visite !== 'tous') l.push(['visite', f.visite, LIB_VISITE[f.visite]]);
-    if (f.conv !== 'tous') l.push(['conv', f.conv, f.conv === 'oui' ? 'Conventionnés' : 'Non conventionnés']);
+    if (f.conv !== 'tous') l.push(['conv', f.conv, f.conv === 'oui' ? 'Engagés' : 'Non engagés']);
     if (f.equipe !== 'tous') l.push(['equipe', f.equipe, f.equipe === 'oui' ? 'Ciblés par l\'équipe' : 'Non ciblés par l\'équipe']);
     return l;
   }
   var FILTRES_RAPIDES = [['potentiels', 'A', '★★★'], ['visite', '30', 'Non visité +30 j'], ['visite', 'revoir', 'À revoir'],
-                         ['visite', 'jamais', 'Jamais visité'], ['conv', 'oui', 'Conventionnés']];
+                         ['visite', 'jamais', 'Jamais visité'], ['conv', 'oui', 'Engagés']];
   function estRapide(k, v) { return FILTRES_RAPIDES.some(function (x) { return x[0] === k && x[1] === v; }); }
   function filtreRapideActif(f, k, v) { return Array.isArray(f[k]) ? f[k].indexOf(v) >= 0 : f[k] === v; }
   function trierPraticiens(liste, tri) {
@@ -1587,7 +1775,7 @@
     }
     var c = [];
     if (f.potentiels.length) c.push('à potentiel ' + f.potentiels.map(function (x) { return ETOILES[x]; }).join(' ou '));
-    if (f.conv !== 'tous') c.push((f.conv === 'oui' ? 'conventionné' : 'non conventionné') + e + s);
+    if (f.conv !== 'tous') c.push((f.conv === 'oui' ? 'engagé' : 'non engagé') + e + s);
     var vis = { '30': 'non visité' + e + s + ' depuis plus de 30 jours', recent: 'visité' + e + s + ' il y a moins de 30 jours', jamais: 'jamais visité' + e + s,
                 retard: 'en retard sur la cadence de visite', revoir: 'à revoir' };
     if (f.visite !== 'tous') c.push(vis[f.visite]);
@@ -2126,7 +2314,7 @@
         options: opt([['A', '★★★', 'fort'], ['B', '★★', 'moyen'], ['C', '★', 'faible']]) }) +
       groupeChoix(f, { id: 'visite', titre: 'Dernière visite', chemin: 'brouillon.visite', options: opt([['tous', 'Toutes'], ['30', 'Non visité +30 j'], ['revoir', 'À revoir'],
         ['jamais', 'Jamais visité'], ['retard', 'En retard sur la cadence'], ['recent', 'Vu il y a moins de 30 j']]) }) +
-      groupeChoix(f, { id: 'conv', titre: 'Conventionné', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }) +
+      groupeChoix(f, { id: 'conv', titre: 'Engagé', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }) +
       (S.config.demo ? '' : groupeChoix(f, { id: 'equipe', titre: 'Ciblé par un collègue cette semaine', chemin: 'brouillon.equipe', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) })) +
       groupeChoix(f, { id: 'spec', titre: 'Spécialités', chemin: 'brouillon.specialites', multiple: true, repliable: true, recherche: true, resume: 'Toutes',
         options: specialitesListe().map(function (x) { return { v: x.nom, lib: x.nom, n: x.n }; }),
@@ -2232,7 +2420,7 @@
           var l = lettrePotentiel(n);
           return '<button type="button" data-a="ficheVal" data-k="note" data-v="' + n + '" aria-pressed="' + (+d.note === n) + '">' + ETOILES[l] + ' ' + LIB_POTENTIEL[l] + '</button>';
         }).join('') + '</div><span class="aide-champ">★★★ : à voir tous les ' + REGLAGES_MOTEUR.cadence[3] + ' jours, ★★ : ' + REGLAGES_MOTEUR.cadence[2] + ' jours, ★ : ' + REGLAGES_MOTEUR.cadence[1] + ' jours.</span></div>' +
-        '<label class="interrupteur"><span>Conventionné</span><input type="checkbox" data-f="fiche" data-k="conventionne"' + (d.conventionne === 'Oui' ? ' checked' : '') + '></label>';
+        '<label class="interrupteur"><span>Engagé</span><input type="checkbox" data-f="fiche" data-k="conventionne"' + (d.conventionne === 'Oui' ? ' checked' : '') + '></label>';
     }
     if (e === 2) {
       h += '<p class="etape-titre">Disponibilités</p><p class="discret" style="margin-top:0">Pour chaque lieu d\'exercice : les demi-journées de présence et leurs horaires.</p>';
@@ -2277,7 +2465,7 @@
             ' <button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'Je suis sur place</button></div></div>';
       });
       h += '<dl class="recap bloc"><dt>Praticien</dt><dd>' + esc(d.nom) + ' ' + etoiles(d.note) + '</dd><dt>Spécialité</dt><dd>' +
-        esc(d.type === 'Pharmacie' ? 'Pharmacien' : (d.specialite === '__autre' ? d.autreSpec : d.specialite)) + (d.conventionne === 'Oui' ? ', conventionné' : '') + '</dd>' +
+        esc(d.type === 'Pharmacie' ? 'Pharmacien' : (d.specialite === '__autre' ? d.autreSpec : d.specialite)) + (d.conventionne === 'Oui' ? ', engagé' : '') + '</dd>' +
         '<dt>Présences</dt><dd>' + d.lieux.map(function (l) {
           var j = JOURS.map(function (n, k) { var x = l.jours[k]; return x.matin || x.soir ? n.slice(0, 3) + ' ' + (x.matin && x.soir ? 'M+S' : (x.matin ? 'M' : 'S')) : ''; }).filter(Boolean).join(', ');
           return esc(l.lieu) + ' : ' + esc(j);
@@ -2483,8 +2671,9 @@
     aValider.forEach(function (a) {
       var v = { uid: a.uid, date: a.date > t ? t : a.date, idPresence: a.idPresence, code: a.code, nom: a.nom, type: a.type,
                 specialite: a.specialite, note: a.note, commune: a.commune, quartier: a.quartier, lieu: a.lieu,
-                creneau: a.creneau, statut: a.statut, commentaire: commentaireComplet(a), delegue: moi(),
+                creneau: a.creneau, statut: a.statut, commentaire: a.commentaire || '', delegue: moi(),
                 produits: a.produits || '', prochaine: a.prochaine || '', activite: a.activite || '' };
+      if (a.cr) { syncCr(a); Object.assign(v, champsCr(a)); v.statut = a.statut; v.prochaine = a.prochaine || ''; v.produits = a.produits || ''; }
       if (a.corrige) v.correction = true;
       memoriserProduits(a.produits);
       Moteur.appliquerVisite(S.data.praticiens, v, statuts());
@@ -2497,7 +2686,8 @@
       }
       if (estKo(a.statut)) ko++;
       a.etat = 'valide'; delete a.corrige;
-      if (a.prochaine && a.prochaine > a.date) etapes.push({ code: a.code, apres: a.prochaine, etape: true });
+      // seul un RDV confirmé est placé d'office dans la tournée
+      if (a.prochaine && a.prochaine > a.date && (a.cr ? a.rdvConfirme : true)) etapes.push({ code: a.code, apres: a.prochaine, etape: true });
     });
     // prochaine étape tombant dans la tournée en cours : le praticien y est ajouté comme un RDV
     var placees = 0;
@@ -2782,17 +2972,21 @@
                        aide: 'Aucune sélection = toutes les spécialités. Les pharmacies dépendent du choix « Avec / Sans pharmacies ».' };
       rendre();
     },
+    crChoix: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var c = crDe(a), k = el.dataset.k, cur = k.split('.').reduce(function (o, x) { return o && o[x]; }, c);
+      majCr(a, k, cur === el.dataset.v && k !== 'faite' ? '' : el.dataset.v); rendre();
+    },
+    crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); },
+    crRemplacer: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      syncCr(a); validerVisites(a.uid); ACTIONS.rattraper(el);
+    },
     produit: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var l = listeProduits(a.produits), i = l.indexOf(el.dataset.v);
       if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
       a.produits = l.join(', '); LS.set('plan', S.plan); rendre();
-    },
-    stock: function (el) {
-      var a = arret(el.dataset.uid); if (!a) return;
-      var l = String(a.stock || '').split(/\s*,\s*/).filter(Boolean), i = l.indexOf(el.dataset.v);
-      if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
-      a.stock = l.join(', '); LS.set('plan', S.plan); rendre();
     },
     activite: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -2944,6 +3138,7 @@
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
+    if (f === 'cr') { var ac = arret(el.dataset.uid); if (ac) majCr(ac, el.dataset.k, el.value); }
     if (f === 'fiche') majChampFiche(el, false);
     if (f === 'produits') {
       var ap = arret(el.dataset.uid), ref = ap ? produitsPour(ap) : produitsRef();
@@ -2971,6 +3166,8 @@
       if (k === 'dateRef' || k === 'parJour') rendre();
     }
     if (f === 'autour') { S.ui.autour[el.dataset.k] = el.value; LS.set('autour', S.ui.autour); rendre(); }
+    if (f === 'crSelect') { var as = arret(el.dataset.uid); if (as) { majCr(as, el.dataset.k, el.value); rendre(); } }
+    if (f === 'cr' && /^(autres)$/.test(el.dataset.k)) rendre();
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
