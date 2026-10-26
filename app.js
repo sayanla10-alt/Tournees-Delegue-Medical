@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.6';
+  var APP_VERSION = '3.24.7';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.7', ['Journée : X visites · X faites · X sans CR · X à planifier (visites par jour voulues moins celles déjà prévues) ; « sans CR » ouvre le compte rendu, « à planifier » ouvre Planifier pour ce jour']],
     ['3.24.6', ['Journée : toucher « X sans compte rendu » ouvre la page Compte rendu du jour']],
     ['3.24.5', ['Le mot pharmacie abrégé en « Phcie » à l\'écran (cartes, listes, boutons) pour gagner de la place ; rien ne change dans la base']],
     ['3.24.4', ['Recherche : « Réinitialiser les filtres et recommencer », centré']],
@@ -1285,15 +1286,24 @@
     var n = 0; while ((jourSemaineIndex(d) > 4 || estFerie(d)) && n++ < 10) d = ajouterJours(d, 1);
     return '<button class="bouton bouton-plein bouton-large" type="button" data-a="planifierDate" data-v="' + d + '" style="margin-top:12px">' + icone('calendrier') + 'Planifier le ' + esc(dateCourte(d)) + '</button>';
   }
+  // 3.24.7 : compteurs du jour : visites, faites, sans CR (ouvre le compte rendu), à planifier
+  // (visites par jour voulues dans Planifier moins celles déjà prévues ; ouvre Planifier pour ce jour)
+  function compteursJour(d, l) {
+    var t = aujourdhui(), n = l.length, nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
+    var sans = d <= t || !futurVerrouille(d) ? l.filter(function (a) { return !a.statut; }).length : 0;
+    var aPlan = d >= t && jourSemaineIndex(d) < 5 && !estFerie(d) ? Math.max(0, (+S.params.maxJour || 8) - n) : 0;
+    return '<b>' + n + ' visite' + (n > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
+      (sans ? ' · <button type="button" class="bouton-texte lien-cr" data-a="ouvrirRapport">' + sans + ' sans CR ›</button>' : '') +
+      (aPlan ? ' · <button type="button" class="bouton-texte lien-cr lien-plan" data-a="planifierDate" data-v="' + d + '">' + aPlan + ' à planifier ›</button>' : '');
+  }
   function rendreJourHors(d) {
     var t = aujourdhui(), h = '';
     if (!futurVerrouille(d)) {
       // jour passé (ou à venir si la saisie anticipée est activée) : tout reste modifiable, comme dans la tournée (compte rendu à saisir ou à corriger)
       var l = arretsHorsJour(d);
       if (!l.length) return '<div class="vide"><strong>Aucune visite ce jour-là</strong>Ni tournée archivée ni compte rendu pour cette date.</div>' + boutonPlanifierJour(d);
-      var sans = l.filter(function (a) { return !a.statut || a.etat !== 'valide'; }).length, nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
-      h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
-        (sans ? ' · <button type="button" class="bouton-texte txt-alerte lien-cr" data-a="ouvrirRapport">' + sans + ' sans compte rendu ›</button>' : '') + '</span></div>' +
+      var nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
+      h += '<section class="synthese-jour"><div class="sj-ligne"><span>' + compteursJour(d, l) + '</span></div>' +
         barreRealise(nf, l.length) +
         '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : (d > t ? 'Saisie anticipée activée : touchez une visite pour saisir son compte rendu.' : 'Touchez une visite pour saisir ou modifier son compte rendu.')) + '</small></section>';
       h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';
@@ -1331,8 +1341,8 @@
     var renseignees = duJour.filter(function (a) { return a.statut; }).length;
     var com = Array.from(new Set(duJour.map(function (a) { return a.commune; }).filter(Boolean)));
     var est = estimationJour(duJour), liens = lienItineraire(duJour);
-    h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') + '</b>' +
-        (est ? ' · ' + minutesVersHeure(est.debut) + ' → ' + minutesVersHeure(est.fin) : '') + (com.length ? ' · ' + esc(libelleCommunes(com)) : '') + '</span>' +
+    var infos = [est ? minutesVersHeure(est.debut) + ' → ' + minutesVersHeure(est.fin) : '', com.length ? esc(libelleCommunes(com)) : ''].filter(Boolean).join(' · ');
+    h += '<section class="synthese-jour"><div class="sj-ligne"><span>' + compteursJour(d, duJour) + (infos ? '<small class="discret bloc-texte">' + infos + '</small>' : '') + '</span>' +
         (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' +
       barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length) +
       '</section>';
