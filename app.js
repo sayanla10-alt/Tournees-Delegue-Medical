@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.20.0';
+  var APP_VERSION = '3.21.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.21.0', ['Bilan et Équipe : un seul filtre en haut, « Qui » (moi, toute l\'équipe ou plusieurs délégués choisis) et « Quand » (jour, semaine, mois ou période, avec ‹ ›)',
+               'Bilan : Tableau de bord et Historique suivent le même filtre ; l\'historique se limite à la période choisie']],
     ['3.20.0', ['Planifier devient un agenda : tous les jours planifiés (7 jours passés et tout l\'à venir) dans une frise chronologique, chaque jour confirmé ou en brouillon',
                'Planifier : le parcours s\'ouvre sur une page à part et disparaît dès que la tournée est proposée ; une nouvelle planification ne touche que ses propres jours',
                'Après « Recalculer ce jour » : « Accepter » ou « Recalculer encore » ; « Envoyer par WhatsApp » apparaît une fois le jour confirmé',
@@ -2484,13 +2486,8 @@
   VUES.equipe = function () {
     var nomMoi = moi() || 'Moi', p = S.ui.eqPortee || 'semaine', ref = S.ui.eqDate || aujourdhui();
     var dates = p === 'semaine' ? joursOuvres(lundiDe(ref)) : [ref];
-    var h = '<h2 class="titre-vue">Équipe</h2><p class="sous-titre">Ce qui est planifié et ce qui a été fait, par vous et vos collègues, au jour ou à la semaine.</p>';
-    h += '<section class="bloc filtres-equipe">' + segment('Période', 'eqPortee', [['jour', 'Jour'], ['semaine', 'Semaine']], p, 'margin-bottom:10px') +
-      '<div class="nav-periode"><button type="button" class="bouton-icone sombre" data-a="eqDecaler" data-v="-1" aria-label="Période précédente">' + icone('chevron') + '</button>' +
-      '<label class="champ" style="margin:0;flex:1"><input type="date" data-f="eqDate" value="' + esc(ref) + '" aria-label="Date"></label>' +
-      '<button type="button" class="bouton-icone sombre suivant" data-a="eqDecaler" data-v="1" aria-label="Période suivante">' + icone('chevron') + '</button></div>' +
-      '<p class="discret" style="margin:8px 0 0">' + (p === 'semaine' ? 'Semaine du ' + dateCourte(dates[0]) + ' au ' + dateCourte(dates[4]) : majuscule(dateLongue(ref))) +
-      (ref !== aujourdhui() ? ' · <button type="button" class="bouton-texte" data-a="eqAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></section>';
+    var h = '<h2 class="titre-vue">Équipe</h2>' + barreQuiQuand('equipe') +
+      (ref !== aujourdhui() ? '<p class="discret" style="margin:-4px 0 10px"><button type="button" class="bouton-texte" data-a="eqAujourdhui">Revenir à aujourd\'hui</button></p>' : '');
 
     var tout = donneesEquipe(dates);
     var noms = Array.from(new Set(tout.map(function (x) { return x.delegue; }))).sort(function (a, b) {
@@ -2510,12 +2507,12 @@
         (nk ? ', ' + nk + ' non faite' + (nk > 1 ? 's' : '') : '') + (com.length ? ' · ' + esc(libelleCommunes(com)) : '') + '</span></button></li>';
     };
     // sélection : aucun = toute l'équipe ; un ou plusieurs délégués isolés
-    var sel = (S.ui.eqSel || []).filter(function (n) { return noms.indexOf(n) >= 0; });
+    var fq = S.ui.fq, sel = fq.qui === 'tous' ? [] : (fq.qui === 'moi' ? [nomMoi] : fq.liste.slice()).filter(function (n) { return noms.indexOf(n) >= 0; });
+    if (fq.qui !== 'tous' && !sel.length) return h + '<div class="vide"><strong>Rien sur cette période</strong>Aucune visite pour ' + esc(libelleQui()) + '. Choisissez d\'autres délégués ou une autre date.</div>';
     if (noms.length === 1) sel = [];
     var tous = !sel.length, libSel = tous ? 'Toute l\'équipe' : sel.join(', ');
-    h += (noms.length > 1 ? '<p class="discret" style="margin:0 0 6px">Touchez un ou plusieurs délégués pour les isoler ; « Toute l\'équipe » les affiche tous.</p>' : '') +
-      '<ul class="liste resume-equipe">' + (noms.length > 1 ? ligne('__tous', tout) : '') +
-      noms.map(function (n) { return ligne(n, tout.filter(function (x) { return x.delegue === n; })); }).join('') + '</ul>';
+    var visibles = tous ? noms : sel;
+    h += '<ul class="liste resume-equipe">' + visibles.map(function (n) { return ligne(n, tout.filter(function (x) { return x.delegue === n; })); }).join('') + '</ul>';
 
     var siens = tous ? tout : tout.filter(function (x) { return sel.indexOf(x.delegue) >= 0; });
     // semaine : un jour à la fois
@@ -2842,8 +2839,66 @@
   }
 
   // ------------------------------------------------------------------ Vue : statistiques
+  // 3.21.0 : un seul filtre « Qui / Quand » pour le Bilan (tableau de bord et historique) et l'Équipe :
+  // moi, toute l'équipe ou plusieurs délégués choisis ; jour, semaine, mois ou période, avec ‹ › pour avancer ou reculer
+  var FEUILLES = {};   // feuilles (fenêtres) : déclarées ici car certaines sont définies plus haut que leur section
+  S.ui.fq = LS.get('filtreQui', { qui: 'moi', liste: [] });
+  function nomsDelegues() {
+    var n = {}; ((S.data && S.data.delegues) || []).forEach(function (x) { n[x] = true; });
+    ((S.data && S.data.plannings) || []).concat((S.data && S.data.historique) || []).forEach(function (x) { if (x.delegue) n[String(x.delegue).trim()] = true; });
+    if (moi()) n[moi()] = true;
+    return Object.keys(n).filter(Boolean).sort(function (a, b) { return estMoi(a) ? -1 : estMoi(b) ? 1 : a.localeCompare(b, 'fr'); });
+  }
+  function quiCorrespond(nom) {
+    var f = S.ui.fq;
+    if (f.qui === 'tous') return true;
+    if (f.qui === 'liste') return f.liste.some(function (x) { return nom ? String(nom).trim().toLowerCase() === x.toLowerCase() : estMoi(x); });
+    return !nom || estMoi(nom);
+  }
+  function libelleQui() {
+    var f = S.ui.fq;
+    if (f.qui === 'tous') return 'Toute l\'équipe';
+    if (f.qui === 'liste') return f.liste.length > 2 ? f.liste.length + ' délégués' : f.liste.map(function (x) { return estMoi(x) ? 'Moi' : x.split(' ')[0]; }).join(', ');
+    return 'Moi';
+  }
+  function libelleBornes(b) {
+    var st = S.ui.stats;
+    if (b[0] === b[1]) return majuscule(dateCourte(b[0]));
+    if (st.periode === 'semaine') return 'Semaine du ' + dateCourte(b[0]);
+    if (st.periode === 'mois') return majuscule(MOIS[+b[0].slice(5, 7) - 1]) + ' ' + b[0].slice(0, 4);
+    return 'Du ' + dateCourte(b[0]) + ' au ' + dateCourte(b[1]);
+  }
+  function barreQuiQuand(onglet) {
+    var quand = onglet === 'equipe' ? (S.ui.eqPortee === 'jour' ? majuscule(dateCourte(S.ui.eqDate || aujourdhui())) : 'Semaine du ' + dateCourte(lundiDe(S.ui.eqDate || aujourdhui()))) : libelleBornes(bornesStats());
+    var nav = onglet === 'equipe' || S.ui.stats.periode !== 'perso';
+    return '<div class="barre-qq">' +
+      (S.config.demo ? '' : '<button type="button" class="puce-filtre" data-a="quiOuvrir">' + icone('equipe') + '<span>' + esc(libelleQui()) + '</span><b>▾</b></button>') +
+      '<div class="qq-quand">' + (nav ? '<button type="button" class="bouton-icone sombre" data-a="quandDecaler" data-o="' + onglet + '" data-v="-1" aria-label="Période précédente">' + icone('chevron') + '</button>' : '') +
+      '<button type="button" class="puce-filtre" data-a="quandOuvrir" data-o="' + onglet + '">' + icone('calendrier') + '<span>' + esc(quand) + '</span><b>▾</b></button>' +
+      (nav ? '<button type="button" class="bouton-icone sombre suivant" data-a="quandDecaler" data-o="' + onglet + '" data-v="1" aria-label="Période suivante">' + icone('chevron') + '</button>' : '') + '</div></div>';
+  }
+  FEUILLES.qui = function (f) {
+    var noms = nomsDelegues();
+    return '<div class="segment" role="group" aria-label="Qui" style="margin-top:0">' + [['moi', 'Moi'], ['tous', 'Toute l\'équipe'], ['liste', 'Choisir']].map(function (x) {
+        return '<button type="button" data-a="quiMode" data-v="' + x[0] + '" aria-pressed="' + (f.qui === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>' +
+      (f.qui === 'liste' ? '<p class="discret" style="margin:4px 0 8px">Touchez les délégués à réunir dans le bilan.</p><div class="puces">' + noms.map(function (n) {
+        return '<button type="button" class="puce" data-a="quiToggle" data-v="' + esc(n) + '" aria-pressed="' + (f.liste.indexOf(n) >= 0) + '">' + esc(n) + (estMoi(n) ? ' (moi)' : '') + '</button>';
+      }).join('') + '</div>' : '') +
+      '<button class="bouton bouton-plein bouton-large" type="button" data-a="quiAppliquer" style="margin-top:14px">Appliquer</button>';
+  };
+  FEUILLES.quand = function (f) {
+    var opts = f.onglet === 'equipe' ? [['jour', 'Jour'], ['semaine', 'Semaine']] : [['jour', 'Jour'], ['semaine', 'Semaine'], ['mois', 'Mois'], ['perso', 'Période']];
+    return '<div class="segment" role="group" aria-label="Période" style="margin-top:0">' + opts.map(function (x) {
+        return '<button type="button" data-a="quandMode" data-v="' + x[0] + '" aria-pressed="' + (f.periode === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>' +
+      (f.periode === 'perso' ? '<div class="grille-2"><label class="champ"><span>Du</span><input type="date" id="quandDebut" value="' + esc(f.debut) + '"></label>' +
+        '<label class="champ"><span>Au</span><input type="date" id="quandFin" value="' + esc(f.fin) + '"></label></div>' :
+        '<label class="champ"><span>' + (f.periode === 'mois' ? 'Un jour du mois' : f.periode === 'semaine' ? 'Un jour de la semaine' : 'Date') + '</span><input type="date" id="quandRef" value="' + esc(f.ref) + '"></label>') +
+      '<button class="bouton bouton-plein bouton-large" type="button" data-a="quandAppliquer">Appliquer</button>';
+  };
   function bornesStats() {
-    var st = S.ui.stats, t = aujourdhui();
+    var st = S.ui.stats, t = st.ref || aujourdhui();
     if (st.periode === 'jour') return [t, t];
     if (st.periode === 'semaine') { var l = lundiDe(t); return [l, ajouterJours(l, 6)]; }
     if (st.periode === 'mois') { var d = t.slice(0, 8) + '01'; return [d, ajouterJours(ajouterJours(d, 32).slice(0, 8) + '01', -1)]; }
@@ -2874,11 +2929,11 @@
     return l;
   }
   function calculerStats() {
-    var st = S.ui.stats, eq = st.portee === 'equipe' && !S.config.demo, b = bornesStats(), t = aujourdhui();
+    var st = S.ui.stats, eq = S.ui.fq.qui !== 'moi' && !S.config.demo, b = bornesStats(), t = aujourdhui();
     var dans = function (d) { return d && d >= b[0] && d <= b[1]; };
-    var visites = visitesConnues().filter(function (v) { return dans(String(v.date).slice(0, 10)) && (eq || !v.delegue || estMoi(v.delegue)); });
+    var visites = visitesConnues().filter(function (v) { return dans(String(v.date).slice(0, 10)) && (S.config.demo || quiCorrespond(v.delegue)); });
     var effectives = visites.filter(function (v) { return Moteur.estVisite(v.statut, statuts()); });
-    var plan = arretsPlanifies(eq).filter(function (a) { return dans(a.date); });
+    var plan = arretsPlanifies(eq).filter(function (a) { return dans(a.date) && (S.config.demo || quiCorrespond(a.delegue)); });
     var echus = plan.filter(function (a) { return a.date <= t; });
     var faits = echus.filter(function (a) { return a.etat === 'valide' && Moteur.estVisite(a.statut, statuts()); });
     var delegues = {};
@@ -2900,17 +2955,10 @@
   VUES.bilan = function () {
     var vueH = S.ui.statsVue === 'historique';
     var tete = '<h2 class="titre-vue">Bilan</h2>' +
-      '<p class="sous-titre">' + (vueH ? 'Toutes les visites enregistrées, les vôtres ou celles de l\'équipe.' : 'Vos résultats : visites réalisées, objectif, communes et activités.') + '</p>' +
-      segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique']], vueH ? 'historique' : 'tableau');
+      segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique']], vueH ? 'historique' : 'tableau') + barreQuiQuand('bilan');
     if (vueH) return tete + VUES.historique(true);
     var st = S.ui.stats, r = calculerStats(), b = r.bornes;
     var h = tete;
-    h += '<div class="filtres-stats">' + segment('Période', 'statsPeriode', [['jour', 'Jour'], ['semaine', 'Semaine'], ['mois', 'Mois'], ['perso', 'Période']], st.periode) +
-      (S.config.demo ? '' : segment('Portée', 'statsPortee', [['moi', 'Mes visites'], ['equipe', 'Toute l\'équipe']], st.portee)) + '</div>';
-    if (st.periode === 'perso') {
-      h += '<div class="periode-perso"><label class="champ"><span>Du</span><input type="date" data-f="stats" data-k="debut" value="' + esc(b[0]) + '"></label>' +
-        '<label class="champ"><span>Au</span><input type="date" data-f="stats" data-k="fin" value="' + esc(b[1]) + '"></label></div>';
-    }
     h += '<p class="discret" style="margin:0 0 10px">' + (b[0] === b[1] ? majuscule(dateLongue(b[0])) : 'Du ' + dateCourte(b[0]) + ' au ' + dateCourte(b[1])) +
       (r.equipe ? ', ' + r.nbDel + ' délégué' + (r.nbDel > 1 ? 's' : '') : ', mes visites') + '.</p>';
 
@@ -3093,8 +3141,8 @@
   VUES.historique = function (integre) {
     var enAttente = S.queue.slice().reverse().map(function (v) { v = Object.assign({}, v); v.attente = true; return v; });
     var tout = enAttente.concat((S.data.historique || []).filter(function (v) { return !S.queue.some(function (q) { return q.uid === v.uid; }); }));
-    var hist = tout.filter(function (v) { return !v.delegue || estMoi(v.delegue); });
-    var t = aujourdhui(), lundi = lundiDe(t), mois = t.slice(0, 7), il30 = ajouterJours(t, -30);
+    var hist = tout.filter(function (v) { return S.config.demo || quiCorrespond(v.delegue); });
+    var t = aujourdhui(), lundi = lundiDe(t), mois = t.slice(0, 7), il30 = ajouterJours(t, -30), bh = bornesStats();
     var compte = function (v) { return Moteur.estVisite(v.statut, statuts()); };
     var sem = hist.filter(function (v) { return v.date >= lundi && compte(v); }).length;
     var moisN = hist.filter(function (v) { return String(v.date).slice(0, 7) === mois && compte(v); }).length;
@@ -3105,11 +3153,9 @@
       '<div class="chiffre"><b>' + moisN + '</b><span>visites ce mois-ci</span></div>' +
       '<div class="chiffre"><b>' + (taux === null ? 'n.d.' : pct(taux)) + '</b><span>présence sur 30 jours</span></div></div>';
     if (S.queue.length) h += '<div class="bandeau"><p>' + S.queue.length + ' compte(s) rendu(s) en attente d\'envoi. Ils partiront dès que le réseau revient.</p></div>';
-    if (!S.config.demo) {
-      h += segment('Visites affichées', 'histFiltre', [['moi', 'Mes visites'], ['equipe', 'Toute l\'équipe']], S.ui.histFiltre === 'equipe' ? 'equipe' : 'moi');
-    }
-    var liste = S.ui.histFiltre === 'equipe' ? tout : hist;
-    if (!liste.length) return h + '<div class="vide"><strong>Aucune visite enregistrée</strong>Les comptes rendus enregistrés dans « Journée » apparaîtront ici.</div>';
+    var liste = hist.filter(function (v) { var d = String(v.date || '').slice(0, 10); return v.attente || (d >= bh[0] && d <= bh[1]); });
+    h += '<p class="discret" style="margin:12px 0 8px">' + liste.length + ' visite' + (liste.length > 1 ? 's' : '') + ' · ' + esc(libelleQui()) + ' · ' + esc(libelleBornes(bh)) + '</p>';
+    if (!liste.length) return h + '<div class="vide"><strong>Aucune visite sur cette période</strong>Changez de période ou de délégués.</div>';
     return h + '<ul class="liste">' + liste.slice(0, 150).map(function (v) {
       return '<li class="element' + classeType(v) + '"><div class="element-tete"><div>' +
         '<span class="element-titre">' + pastilleType(v) + esc(v.nom) + '</span>' +
@@ -3195,7 +3241,6 @@
       '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
     if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
   }
-  var FEUILLES = {};
   // fiche d'un produit : l'essentiel ouvert (indications, contre-indications, arguments), le reste à déplier
   FEUILLES.ficheProduit = function (fe) {
     var f = fichesProduits().filter(function (x) { return x.produit === fe.produit; })[0]; if (!f) return '';
@@ -4242,10 +4287,41 @@
     filtre: function (el) { S.ui.filtre = el.dataset.v; S.ui.limite = 40; rendre(); },
     plus: function () { S.ui.limite += 40; rendre(); },
     collegue: function (el) {
-      var v = el.dataset.v, sel = (S.ui.eqSel || []).slice();
-      if (v === '__tous') sel = [];
-      else { var i = sel.indexOf(v); if (i >= 0) sel.splice(i, 1); else sel.push(v); }
-      S.ui.eqSel = sel; LS.set('eqSel', sel); S.ui.eqOuverts = {}; S.ui.jourEquipe = null; rendre();
+      // toucher un délégué de la synthèse l'isole (sélection « Choisir »)
+      var v = el.dataset.v; S.ui.fq = { qui: 'liste', liste: [v] }; LS.set('filtreQui', S.ui.fq); S.ui.eqOuverts = {}; S.ui.jourEquipe = null; rendre();
+    },
+    quiOuvrir: function () { S.ui.feuille = { type: 'qui', titre: 'Délégués', qui: S.ui.fq.qui, liste: S.ui.fq.liste.slice() }; rendre(); },
+    quiMode: function (el) { var f = S.ui.feuille; f.qui = el.dataset.v; if (f.qui === 'liste' && !f.liste.length && moi()) f.liste = [moi()]; rendre(); },
+    quiToggle: function (el) { var f = S.ui.feuille, i = f.liste.indexOf(el.dataset.v); if (i >= 0) f.liste.splice(i, 1); else f.liste.push(el.dataset.v); rendre(); },
+    quiAppliquer: function () {
+      var f = S.ui.feuille; S.ui.fq = { qui: f.qui === 'liste' && !f.liste.length ? 'moi' : f.qui, liste: f.qui === 'liste' ? f.liste : [] };
+      LS.set('filtreQui', S.ui.fq); S.ui.feuille = null; S.ui.eqOuverts = {}; S.ui.jourEquipe = null; rendre();
+    },
+    quandOuvrir: function (el) {
+      var o = el.dataset.o, st = S.ui.stats;
+      S.ui.feuille = o === 'equipe' ? { type: 'quand', titre: 'Période', onglet: o, periode: S.ui.eqPortee || 'semaine', ref: S.ui.eqDate || aujourdhui() }
+        : { type: 'quand', titre: 'Période', onglet: o, periode: st.periode, ref: st.ref || aujourdhui(), debut: bornesStats()[0], fin: bornesStats()[1] };
+      rendre();
+    },
+    quandMode: function (el) { S.ui.feuille.periode = el.dataset.v; rendre(); },
+    quandAppliquer: function () {
+      var f = S.ui.feuille, ref = (($('quandRef') || {}).value) || f.ref;
+      if (f.onglet === 'equipe') { S.ui.eqPortee = f.periode; LS.set('eqPortee', f.periode); S.ui.eqDate = ref; LS.set('eqDate', ref); S.ui.jourEquipe = null; }
+      else {
+        var st = S.ui.stats; st.periode = f.periode; st.ref = ref;
+        if (f.periode === 'perso') { st.debut = ($('quandDebut') || {}).value || f.debut; st.fin = ($('quandFin') || {}).value || f.fin; }
+        LS.set('stats', st);
+      }
+      S.ui.feuille = null; rendre();
+    },
+    quandDecaler: function (el) {
+      var s = +el.dataset.v;
+      if (el.dataset.o === 'equipe') { decalerEquipe(s); return; }
+      var st = S.ui.stats, t = st.ref || aujourdhui();
+      if (st.periode === 'jour') { do { t = ajouterJours(t, s); } while (jourSemaineIndex(t) > 4); }
+      else if (st.periode === 'semaine') t = ajouterJours(t, 7 * s);
+      else if (st.periode === 'mois') { var m = +t.slice(5, 7) - 1 + s, y = +t.slice(0, 4) + Math.floor(m / 12); m = ((m % 12) + 12) % 12; t = y + '-' + pad2(m + 1) + '-01'; }
+      st.ref = t; LS.set('stats', st); rendre();
     },
     eqBascule: function (el) {
       var o = S.ui.eqOuverts || (S.ui.eqOuverts = {}), b = el.getAttribute('aria-expanded') === 'true';
@@ -4731,6 +4807,7 @@
     var d = {
       relancer: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
       plus: '<path d="M12 5v14M5 12h14"/>',
+      equipe: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>',
       partager: '<path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5v10h14V11h-1"/>',
       telecharger: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
       fermer: '<path d="M6 6l12 12M18 6 6 18"/>',

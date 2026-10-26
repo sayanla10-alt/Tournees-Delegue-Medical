@@ -1088,3 +1088,16 @@ details.avance h3 { margin-top: 18px; }
 .wa-mini svg { width: 20px; height: 20px; }
 .bandeau-prog.accepter { border-color: var(--primaire); background: var(--primaire-pale); }
 .rangee-tirage { display: grid; grid-template-columns: 1fr; gap: 8px; }
+
+/* 3.21.0 : filtre Qui / Quand (Bilan, Équipe) */
+.barre-qq { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 12px; }
+.qq-quand { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; }
+.qq-quand .bouton-icone { flex: none; width: 34px; height: 34px; }
+.qq-quand .bouton-icone svg { transform: rotate(90deg); }
+.qq-quand .bouton-icone.suivant svg { transform: rotate(-90deg); }
+.puce-filtre { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border-radius: 19px; border: 1.5px solid var(--trait);
+  background: var(--papier); color: var(--encre); font-weight: 600; font-size: 14px; max-width: 100%; }
+.puce-filtre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.puce-filtre svg { width: 17px; height: 17px; color: var(--primaire); flex: none; }
+.puce-filtre b { color: var(--gris); font-size: 11px; }
+.qq-quand .puce-filtre { flex: 1; justify-content: center; }

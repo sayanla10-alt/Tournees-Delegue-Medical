@@ -1,9 +1,8 @@
 {
-  "version": "3.20.0",
+  "version": "3.21.0",
   "date": "2026-10-26",
   "notes": [
-    "Planifier en agenda : tous les jours planifiés dans l'ordre",
-    "Accepter / Recalculer encore",
-    "Ajouter à la tournée"
+    "Bilan et Équipe : filtre Qui / Quand",
+    "Planifier en agenda"
   ]
 }
