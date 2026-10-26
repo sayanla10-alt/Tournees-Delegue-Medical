@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.22.2';
+  var APP_VERSION = '3.22.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.22.3', ['Produits : la première aire thérapeutique est dépliée par défaut, les autres au toucher']],
     ['3.22.2', ['Journée : + Médecin et + Pharmacie proposent « Par ma position » ou « Selon mes filtres » (communes du jour, spécialités)',
                'Autour de moi : bouton « + Aujourd\'hui » plus court ; boutons secondaires centrés et moins larges',
                'Planifier : tous les jours qui ont au moins une donnée (brouillon compris) apparaissent d\'office dans la frise']],
@@ -2395,7 +2396,9 @@
       aires.map(function (x) { return '<button type="button" class="puce" data-a="aireProduit" data-v="' + esc(x) + '" aria-pressed="' + (aire === x) + '">' + esc(AIRES_COURTES[x] || x) + '</button>'; }).join('') + '</div>';
     if (!l.length) return h + '<div class="vide"><strong>Aucun produit</strong>Aucune fiche ne correspond.</div>';
     // 3.19.0 : une section repliable par aire thérapeutique (ouverte d'office si un filtre ou une recherche est actif)
-    var aireCourante = null, ouvertes = S.ui.airesOuvertes = S.ui.airesOuvertes || {}, toutOuvert = !!(aire || q);
+    // 3.22.3 : par défaut, seule la première aire est dépliée (le reste se déplie au toucher)
+    if (!S.ui.airesOuvertes) { S.ui.airesOuvertes = {}; if (aires[0]) S.ui.airesOuvertes[aires[0]] = true; }
+    var aireCourante = null, ouvertes = S.ui.airesOuvertes, toutOuvert = !!(aire || q);
     var parAire = {}; l.forEach(function (f) { parAire[f.aire] = (parAire[f.aire] || 0) + 1; });
     h += '<div class="liste-gammes">';
     gammesProduits(l).forEach(function (g) {

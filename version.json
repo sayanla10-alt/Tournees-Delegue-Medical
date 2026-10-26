@@ -1,7 +1,8 @@
 {
-  "version": "3.22.2",
+  "version": "3.22.3",
   "date": "2026-10-26",
   "notes": [
+    "Produits : première aire dépliée par défaut",
     "+ Médecin / + Pharmacie : par ma position ou selon mes filtres",
     "Planifier : tous les jours planifiés dans la frise"
   ]
