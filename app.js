@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.9';
+  var APP_VERSION = '3.24.10';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.10', ['Planifier : « Reprendre un ancien programme » centré sous « Planifier ma tournée »']],
     ['3.24.9', ['Planifier : tous les jours planifiés, même en partie, restent affichés ; un jour n\'est plus écarté ni effacé de la base parce qu\'il manquait sur le téléphone', 'Les jours écartés par erreur reviennent automatiquement']],
     ['3.24.8', ['« Compte Rendu » avec la majuscule (titres, boutons, messages)']],
     ['3.24.7', ['Journée : X visites · X faites · X sans CR · X à planifier (visites par jour voulues moins celles déjà prévues) ; « sans CR » ouvre le compte rendu, « à planifier » ouvre Planifier pour ce jour']],
@@ -1619,7 +1620,7 @@
       return h + '<p class="sous-titre">Préparez votre tournée : une journée ou une semaine, une question à la fois.</p>' +
         '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Planifier » pour préparer votre tournée.</div>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="voirParams">' + icone('calendrier') + 'Planifier ma tournée</button>' +
-        boutonAnciens('margin:10px 0 0');
+        boutonAnciens('margin-top:10px');
     }
     var dates = datesPlan(); choisirJour(dates);
     var d = S.ui.jour, enAttente = S.ui.aAccepter === d;
@@ -1647,7 +1648,7 @@
         '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Recalculer ce jour</button></div>';
     }
     h += rendreCouverture(dates);
-    h += boutonAnciens('margin:14px 0 0');
+    h += boutonAnciens('margin-top:14px');
     return h;
   };
   // frise de l'agenda : tous les jours qui ont au moins une visite, dans l'ordre ; le jour choisi au centre
