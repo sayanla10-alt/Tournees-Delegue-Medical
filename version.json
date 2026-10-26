@@ -1,9 +1,8 @@
 {
-  "version": "3.22.1",
+  "version": "3.22.2",
   "date": "2026-10-26",
   "notes": [
-    "Journée : + Médecin, + Pharmacie, Autour de moi de retour en bas",
-    "GPS automatique des nouveaux praticiens",
-    "Sauvegardes de la base et du téléphone"
+    "+ Médecin / + Pharmacie : par ma position ou selon mes filtres",
+    "Planifier : tous les jours planifiés dans la frise"
   ]
 }
