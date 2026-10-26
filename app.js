@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.21';
+  var APP_VERSION = '3.24.22';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.22', ['Pharmacies : nouvelles officines, y compris hors Abidjan (zone « Intérieur »)']],
     ['3.24.21', ['Fenêtres (fiche produit, choix, questions…) : on ferme avec la flèche retour en haut à gauche, comme dans Compte Rendu ; plus de croix', 'Carte de visite : « Quitter » avec la flèche retour']],
     ['3.24.20', ['Visite proche (GPS) : proposée à moins de 500 m (au lieu de 300 m), si le praticien est encore présent au moins 10 minutes (au lieu de 20)']],
     ['3.24.19', ['Fiche produit : la bande des produits tourne en boucle (après le dernier, le premier revient, dans les deux sens)']],
@@ -365,7 +366,9 @@
   // ------------------------------------------------------------------ Mise en forme
   var JOURS_COURTS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
   var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  var ZONES = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest'];
+  var ZONES = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest', 'Zone Intérieur'];
+  // 3.24.22 : villes de l'intérieur (zone « Zone Intérieur ») : la recherche Google Maps vise la ville, pas Abidjan
+  function villeCarte(o) { return o.zone === 'Zone Intérieur' ? 'Côte d\'Ivoire' : 'Abidjan'; }
 
   function esc(s) {
     return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -408,7 +411,7 @@
   function badgeConv(v) { return estConventionne(v) ? '<span class="etiquette conv">Engagé</span>' : '<span class="etiquette">Non engagé</span>'; }
   function lienCarte(o) {
     if (o.lat && o.lon) return 'https://www.google.com/maps/search/?api=1&query=' + (+o.lat).toFixed(5) + ',' + (+o.lon).toFixed(5);
-    var q = [o.lieu, o.quartier, o.commune, 'Abidjan'].filter(Boolean).join(', ');
+    var q = [o.lieu, o.quartier === 'NL' ? '' : o.quartier, o.commune, villeCarte(o)].filter(Boolean).join(', ');
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
   }
   function estKo(statut) { return statut && !Moteur.estVisite(statut, statuts()); }
@@ -475,7 +478,7 @@
   function actionsRapides(o) {
     var num = normaliserNumero(o.telephone), tel = num ? '+' + num : '';
     var pos = o.lat && o.lon && isFinite(+o.lat) && isFinite(+o.lon) ? (+o.lat).toFixed(5) + ',' + (+o.lon).toFixed(5) : '';
-    var q = [o.lieu, o.quartier, o.commune, 'Abidjan'].filter(Boolean).join(', ');
+    var q = [o.lieu, o.quartier === 'NL' ? '' : o.quartier, o.commune, villeCarte(o)].filter(Boolean).join(', ');
     var gmaps = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&destination=' + (pos || encodeURIComponent(q));
     function lien(href, ic, lib, actif, externe) {
       return actif ? '<a class="action-rapide" href="' + esc(href) + '"' + (externe ? ' target="_blank" rel="noopener"' : '') + '>' + icone(ic) + lib + '</a>'

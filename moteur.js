@@ -375,7 +375,7 @@ var Moteur = (function () {
   function couverture(ctx, dates, mesArrets, arretsEquipe) {
     var jours = {};
     dates.forEach(function (d) { var j = jourSemaineIndex(d); if (j < 5) jours[j] = d; });
-    var communes = {}, ordreZones = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest'];
+    var communes = {}, ordreZones = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest', 'Zone Intérieur'];
     ctx.quartiers.forEach(function (q) {
       if (!communes[q.commune]) communes[q.commune] = { commune: q.commune, zone: q.zone, moi: 0, equipe: {}, dispo: {}, prioritaires: {} };
     });
