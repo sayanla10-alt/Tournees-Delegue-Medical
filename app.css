@@ -1230,3 +1230,12 @@ details.avance h3 { margin-top: 18px; }
 @keyframes apparaitre { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes pulse-halo { 0%,100% { box-shadow: 0 0 0 10px rgba(255,255,255,.06), 0 18px 40px rgba(0,0,0,.25); } 50% { box-shadow: 0 0 0 18px rgba(255,255,255,.03), 0 18px 40px rgba(0,0,0,.25); } }
 @media (prefers-reduced-motion: reduce) { .lancement.moderne, .lancement.moderne .logo-halo { animation: none; } }
+/* 3.25.5 : suggestions d'établissements (nouveau praticien) */
+.sug-lieux .aide-champ { display: block; margin: 6px 0 4px; }
+.sug-lieux .ok-lieu { color: var(--ok, #1e7a4f); display: flex; align-items: center; gap: 6px; }
+.sug-liste { list-style: none; margin: 0 0 10px; padding: 0; border: 1px solid var(--trait); border-radius: var(--r); overflow: hidden; background: var(--fond, #fff); }
+.sug-liste li + li { border-top: 1px solid var(--trait); }
+.sug-liste button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 10px 12px; font: inherit; color: inherit; cursor: pointer; }
+.sug-liste button:active, .sug-liste button:hover { background: var(--primaire-pale); }
+.sug-liste b { display: block; font-size: 15px; }
+.sug-liste small { color: var(--gris); font-size: 13px; }

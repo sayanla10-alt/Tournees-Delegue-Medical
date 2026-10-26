@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.4';
+  var APP_VERSION = '3.25.5';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.5', ['Nouveau praticien : l\'établissement se saisit en quelques lettres, avec les établissements déjà connus (quartier et position repris), pour éviter les doublons']],
     ['3.25.4', ['Messages WhatsApp (programme et compte rendu) mieux présentés : titres en gras, puces, sections aérées, heures et établissements numérotés']],
     ['3.25.3', ['Fenêtre « Ajouter » : champ de recherche retiré, la recherche se fait dans la liste « Selon mes filtres »']],
     ['3.25.2', ['Ajouter selon mes filtres (communes du jour) : champ de recherche en tête pour chercher parmi les praticiens déjà filtrés']],
@@ -4031,6 +4032,38 @@
 
   // ------------------------------------------------------------------ Fiche praticien : assistant en 4 étapes
   var ETAPES_FICHE = ['Informations', 'Spécialité', 'Disponibilités', 'Localisation'];
+  // 3.25.5 : saisie assistée de l'établissement : dès quelques lettres, les établissements déjà connus de la base
+  // (lieu, quartier, commune), pour reprendre exactement le même nom et éviter les doublons mal orthographiés
+  function etablissementsConnus() {
+    var vus = {}, l = [];
+    ((S.data && S.data.presences) || []).forEach(function (x) {
+      var nom = String(x.lieu || '').trim(); if (!nom || /^NL$/i.test(nom)) return;
+      var k = normaliser(nom), e = vus[k];
+      if (!e) { e = vus[k] = { lieu: nom, quartier: '', commune: '', lat: '', lon: '', n: 0, txt: k }; l.push(e); }
+      e.n++;
+      if (!e.quartier && x.quartier && !/^NL$/i.test(x.quartier)) e.quartier = x.quartier;
+      if (!e.commune && x.commune) e.commune = x.commune;
+      var la = parseFloat(String(x.lat).replace(',', '.')), lo = parseFloat(String(x.lon).replace(',', '.'));
+      if (!e.lat && isFinite(la) && isFinite(lo) && la) { e.lat = la; e.lon = lo; }
+    });
+    l.forEach(function (e) { e.txt = normaliser(e.lieu + ' ' + e.quartier + ' ' + e.commune); });
+    return l;
+  }
+  function suggestionsLieu(q, i) {
+    var t = normaliser(q || ''), mots = t ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    S.ui.sugLieux = S.ui.sugLieux || {}; S.ui.sugLieux[i] = [];
+    if (!mots.length || t.length < 2) return '';
+    var l = etablissementsConnus().filter(function (e) { return mots.every(function (m) { return e.txt.indexOf(m) >= 0; }); });
+    if (l.some(function (e) { return normaliser(e.lieu) === t; })) return '<p class="aide-champ ok-lieu">' + icone('valider') + 'Établissement connu de la base.</p>';
+    var rang = function (e) { var n = normaliser(e.lieu); return (mots.every(function (m) { return n.indexOf(m) >= 0; }) ? 0 : 2) + (n.indexOf(mots[0]) === 0 ? 0 : 1); };
+    l.sort(function (a, b) { return rang(a) - rang(b) || b.n - a.n || a.lieu.localeCompare(b.lieu, 'fr'); });
+    l = l.slice(0, 6); S.ui.sugLieux[i] = l;
+    if (!l.length) return '<p class="aide-champ">Aucun établissement correspondant dans la base : il sera créé tel que saisi.</p>';
+    return '<p class="aide-champ">Déjà dans la base, touchez pour reprendre le même nom :</p><ul class="sug-liste">' + l.map(function (e, k) {
+      return '<li><button type="button" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '"><b>' + esc(e.lieu) + '</b><small>' +
+        esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + ' · ' + e.n + ' praticien' + (e.n > 1 ? 's' : '') + '</small></button></li>';
+    }).join('') + '</ul>';
+  }
   function lieuVide() {
     return { id: '', lieu: '', quartier: '', jours: [0, 1, 2, 3, 4].map(function () { return { matin: false, soir: false }; }),
              horaireMatin: REGLAGES_MOTEUR.horaireMatinDefaut, horaireSoir: REGLAGES_MOTEUR.horaireSoirDefaut, lat: '', lon: '' };
@@ -4141,7 +4174,8 @@
         var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
         h += '<div class="lieu-bloc"><div class="lieu-tete"><b>Lieu ' + (i + 1) + '</b>' +
           (d.lieux.length > 1 ? '<button type="button" class="bouton-texte" data-a="ficheRetirerLieu" data-i="' + i + '">Supprimer</button>' : '') + '</div>' +
-          champFiche('lieu' + i, 'Établissement ou cabinet', '<input type="text" data-f="fiche" data-k="lieu" data-i="' + i + '" value="' + esc(l.lieu) + '" placeholder="Ex. CHU de Cocody"' + attrInvalide(f, 'lieu' + i) + '>', f, true) +
+          champFiche('lieu' + i, 'Établissement ou cabinet', '<input type="text" data-f="fiche" data-k="lieu" data-i="' + i + '" value="' + esc(l.lieu) + '" placeholder="Tapez quelques lettres, ex. CHU Coc"' + attrInvalide(f, 'lieu' + i) + ' autocomplete="off">', f, true) +
+          '<div class="sug-lieux" id="sugLieu' + i + '">' + suggestionsLieu(l.lieu, i) + '</div>' +
           '<div class="grille-dispo" role="group" aria-label="Présences du lieu ' + (i + 1) + '"><span></span><span class="entete-col">Matin</span><span class="entete-col">Soir</span>' +
           JOURS.map(function (j, k) {
             return '<span class="jour-nom">' + j + '</span>' +
@@ -5226,6 +5260,14 @@
     },
     ficheAjouterLieu: function () { S.ui.feuille.d.lieux.push(lieuVide()); rendre(); },
     ficheRetirerLieu: function (el) { S.ui.feuille.d.lieux.splice(+el.dataset.i, 1); S.ui.feuille.err = {}; rendre(); },
+    ficheChoixLieu: function (el) {
+      var f = S.ui.feuille, i = +el.dataset.i, e = ((S.ui.sugLieux || {})[i] || [])[+el.dataset.v]; if (!f || !e) return;
+      var l = f.d.lieux[i]; l.lieu = e.lieu; delete f.err['lieu' + i];
+      // le quartier et la position suivent l'établissement choisi (modifiables à l'étape Lieux)
+      if (e.quartier && quartiers().some(function (q) { return q.quartier === e.quartier; })) l.quartier = e.quartier;
+      if (e.lat && !l.lat) { l.lat = e.lat; l.lon = e.lon; }
+      rendre(); toast('Établissement repris : ' + e.lieu + '.');
+    },
     ficheGps: function (el) {
       var l = S.ui.feuille.d.lieux[+el.dataset.i];
       if (!navigator.geolocation) { toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
@@ -5302,7 +5344,10 @@
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
     if (f === 'cr') { var ac = arret(el.dataset.uid); if (ac) majCr(ac, el.dataset.k, el.value); }
-    if (f === 'fiche') majChampFiche(el, false);
+    if (f === 'fiche') {
+      majChampFiche(el, false);
+      if (el.dataset.k === 'lieu') { var zs = document.getElementById('sugLieu' + el.dataset.i); if (zs) zs.innerHTML = suggestionsLieu(el.value, +el.dataset.i); }
+    }
     if (f === 'produits') {
       var ap = arret(el.dataset.uid), ref = ap ? produitsPour(ap) : produitsRef();
       if (ap) { ap.produits = listeProduits(ap.produits).filter(function (x) { return ref.indexOf(x) >= 0; }).concat(listeProduits(el.value)).join(', '); LS.set('plan', S.plan); }
