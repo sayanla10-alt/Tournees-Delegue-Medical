@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.8';
+  var APP_VERSION = '3.24.9';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.9', ['Planifier : tous les jours planifiés, même en partie, restent affichés ; un jour n\'est plus écarté ni effacé de la base parce qu\'il manquait sur le téléphone', 'Les jours écartés par erreur reviennent automatiquement']],
     ['3.24.8', ['« Compte Rendu » avec la majuscule (titres, boutons, messages)']],
     ['3.24.7', ['Journée : X visites · X faites · X sans CR · X à planifier (visites par jour voulues moins celles déjà prévues) ; « sans CR » ouvre le compte rendu, « à planifier » ouvre Planifier pour ce jour']],
     ['3.24.6', ['Journée : toucher « X sans compte rendu » ouvre la page Compte rendu du jour']],
@@ -684,6 +685,9 @@
     return d.length ? { debut: d[0], fin: d[d.length - 1] } : null;
   }
   function chargePlan() {
+    // 3.24.9 : avant toute publication, les jours connus (archives, base, comptes rendus) sont repris :
+    // la base n'efface plus un jour simplement absent du téléphone
+    importerAgenda();
     var p = porteePlan() || { debut: aujourdhui(), fin: aujourdhui() }, ancien = S.ui.portee;
     if (ancien) { if (ancien.debut < p.debut) p.debut = ancien.debut; if (ancien.fin > p.fin) p.fin = ancien.fin; }
     // agenda importé : la base reflète exactement mes 7 derniers jours et tout l'à venir
@@ -1102,7 +1106,9 @@
     var lim = ajouterJours(aujourdhui(), -7);
     S.plan = S.plan.filter(function (a) { return a.date >= lim || (a.statut && a.etat !== 'valide'); });
     var present = ensemble(datesPlan()), retires = LS.get('joursRetires', {});
-    Object.keys(S.jours).forEach(function (d) { if (!present[d]) { delete S.jours[d]; if (d >= lim) retires[d] = true; } });
+    // 3.24.9 : un jour qui disparaît n'est plus noté « retiré » d'office (il revenait vide après certaines mises à jour) ;
+    // seul un retrait volontaire (dernière visite du jour retirée) l'écarte de l'import
+    Object.keys(S.jours).forEach(function (d) { if (!present[d]) delete S.jours[d]; });
     Object.keys(retires).forEach(function (d) { if (present[d] || d < lim) delete retires[d]; });
     LS.set('joursRetires', retires);
     datesPlan().forEach(function (d) { if (!S.jours[d]) S.jours[d] = { etat: 'proposition', valideLe: '', modifieLe: '' }; });
@@ -1602,6 +1608,7 @@
   // N'apparaît que ce qui sert sur le moment : « Confirmer » s'il y a des brouillons, « Accepter / Recalculer encore »
   // juste après un recalcul, « Envoyer par WhatsApp » une fois le jour confirmé.
   VUES.semaine = function () {
+    if (!S.ui.voirParams) importerAgenda();
     if (S.ui.voirParams) {
       return '<div class="page-entree"><button type="button" class="retour" data-a="fermerParams">' + icone('chevron') + 'Planifier</button>' +
         '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; la tournée proposée s\'affiche à la fin.</p>' + rendreParams() + '</div>';
@@ -1796,6 +1803,7 @@
   function retirerArret(uid) {
     var a = arret(uid); if (!a) return;
     S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; });
+    if (!S.plan.some(function (x) { return x.date === a.date; })) { var rt = LS.get('joursRetires', {}); rt[a.date] = true; LS.set('joursRetires', rt); }
     S.rejetes[a.code] = true;
     S.imposes = S.imposes.filter(function (im) { return im.code !== a.code; });
     reordonner(a.date);
@@ -5379,6 +5387,8 @@
       ms.forEach(function (m) { if (m.type === 'characterData') abreger(m.target); else m.addedNodes.forEach(abreger); });
     }).observe(document.body, { childList: true, subtree: true, characterData: true });
   })();
+  // 3.24.9 : les jours écartés d'office par les versions précédentes reviennent dans l'agenda
+  if (!LS.get('retiresV2', false)) { LS.set('joursRetires', {}); LS.set('retiresV2', true); }
   importerAgenda();
   // 3.19.0 : à l'ouverture, Journée montre toujours aujourd'hui
   (function () {
