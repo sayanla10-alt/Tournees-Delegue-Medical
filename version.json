@@ -1,13 +1,8 @@
 {
-  "version": "3.25.0",
+  "version": "3.25.1",
   "date": "2026-10-26",
   "notes": [
-    "Heures réalistes",
-    "Spécialités par défaut",
-    "Saisie avancée",
-    "Planifier J+1",
-    "Recherche dans Ajouter",
-    "Accepter puis WhatsApp",
-    "Accueil modernisé"
+    "Recherche libre en tête d'Autour de moi",
+    "Même champ de recherche dans toutes les fenêtres d'ajout"
   ]
 }

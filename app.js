@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.0';
+  var APP_VERSION = '3.25.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.1', ['Autour de moi : champ de recherche libre en tête (nom, spécialité, établissement, commune), résultats dès les premières lettres, selon vos filtres, du plus proche au plus loin',
+      'Même champ de recherche, avec la loupe, dans toutes les fenêtres d\'ajout']],
     ['3.25.0', ['Heures proposées entre 7 h 30 et 19 h ; une visite faite tard ne décale plus les suivantes',
                'Filtres : Cardiologue, Diabétologue, Endocrinologue et Généraliste cochés par défaut, modifiables',
                'Réglages › Avancé : un seul interrupteur « Saisie avancée » (jours passés et à venir) ; sans lui, une visite à venir s\'affiche sans compte rendu',
@@ -2696,6 +2698,39 @@
     });
     return h + '</div><p class="discret" style="margin-top:12px;font-size:12.5px">Résumé des notices officielles des molécules ; la notice de la boîte fait foi. Fiches modifiables dans l\'onglet « Fiches produits » du Google Sheet.</p>';
   };
+  // champ de recherche libre, identique à celui de l'onglet Recherche (loupe, sans critère à choisir)
+  function champRechercheLibre(f, q) {
+    return '<div class="recherche recherche-libre">' + icone('loupe') + '<input type="search" data-f="' + f + '" placeholder="Nom, spécialité, établissement, commune…" value="' +
+      esc(q || '') + '" aria-label="Rechercher un praticien" autocomplete="off"></div>';
+  }
+  // 3.25.1 : résultats de la recherche libre d'« Autour de moi » : praticiens présents ce jour-là, tous rayons confondus,
+  // selon les filtres appliqués, du plus proche au plus loin
+  function momentAutour() {
+    var A = S.ui.autour;
+    if (A.moment === 'maintenant') return { date: aujourdhui(), minute: minutesMaintenant() };
+    return { date: A.date || prochainJourOuvre(aujourdhui()), minute: heureVersMinutes(A.heure) };
+  }
+  function resultatsAutourLibre(q) {
+    var mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    S.ui.resAutourLibre = [];
+    if (!mots.length) return '';
+    var A = S.ui.autour, m = momentAutour(), date = m.date;
+    if (jourSemaineIndex(date) > 4) return '<p class="discret">Aucun praticien présent le week-end.</p>';
+    var fa = S.ui.filtresAutour, filtre = criteresActifs(fa).length ? ensemble(filtrerPraticiens(fa, '').map(function (p) { return p.code; })) : null;
+    var avecPos = A.lat !== null, pos = avecPos ? { lat: A.lat, lon: A.lon } : { lat: 5.345, lon: -4.02 };
+    var l = Moteur.autourDe(ctx(), pos, date, m.minute, Infinity).filter(function (x) {
+      var c = x.c, p = c.prat;
+      if ((A.ref && c.code === A.ref.code) || (filtre && !filtre[c.code]) || absentLe(p, date)) return false;
+      var txt = normaliser([p.nom, p.specialite, c.lieu, c.quartier, c.commune].join(' '));
+      return mots.every(function (w) { return txt.indexOf(w) >= 0; });
+    });
+    if (!avecPos) l.sort(function (a, b) { return b.score - a.score; });
+    l = l.slice(0, 30); S.ui.resAutourLibre = l;
+    if (!l.length) return '<p class="discret">Aucun praticien présent le ' + dateFr(date) + ' ne correspond, selon vos filtres.</p>';
+    return '<p class="discret">' + l.length + (l.length === 30 ? '+' : '') + ' résultat' + (l.length > 1 ? 's' : '') + ', ' + dateLongue(date) + (avecPos ? ', du plus proche au plus loin' : '') + '.</p>' +
+      '<ul class="liste">' + l.map(function (x, i) { return rendreProposition(x, i, date, 'libre', avecPos); }).join('') + '</ul>';
+  }
+
   // ------------------------------------------------------------------ Vue : autour de moi
   VUES.autour = function () {
     var A = S.ui.autour, h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
@@ -2705,6 +2740,12 @@
       h += '<div class="bandeau"><p>Remplacement de <b>' + esc(A.ref.nom) + '</b> (' + esc(A.ref.heure) + ', ' + esc(A.ref.quartier) +
         '), marqué « Absent ». <button type="button" class="bouton-texte" data-a="finRef">Terminer</button></p></div>';
     }
+    // 3.25.1 : recherche libre en tête, sans critère à choisir (nom, spécialité, établissement, quartier, commune), dès les premières lettres
+    var qL = S.ui.rechAutourLibre || '';
+    var haut = h + champRechercheLibre('rechAutourLibre', qL) +
+      '<div id="resAutourLibre">' + resultatsAutourLibre(qL) + '</div>';
+    h = '';
+    var fin = function (x) { return haut + '<div id="autourListe"' + (normaliser(qL) ? ' hidden' : '') + '>' + x + '</div>'; };
     var parCommune = {};
     quartiers().forEach(function (q) { (parCommune[q.commune] = parCommune[q.commune] || []).push(q.quartier); });
     if (S.ui.pharmaciesProches) {
@@ -2723,18 +2764,18 @@
       '<div class="champ"><span>Ou choisir un quartier</span>' + selecteurListe('autourQuartier', { titre: 'Choisir un quartier', valeur: '', vide: A.label ? A.label : 'Choisir un quartier', sections: sectionsQuartiers(),
         appliquer: function (v) { var q = quartiers().filter(function (x) { return x.quartier === v; })[0]; if (q) { S.ui.autour.lat = q.lat; S.ui.autour.lon = q.lon; S.ui.autour.label = q.quartier; LS.set('autour', S.ui.autour); } } }) + '</div>';
     h += '<div class="champ" style="margin:0"><span>Rayon</span>' + segment('Rayon', 'autourRayon', [2, 5, 10, 20].map(function (r) { return [String(r), r + ' km']; }), String(A.rayon), 'margin:0') + '</div></section>';
-    h += barreFiltres(S.ui.filtresAutour, S.ui.rechercheAutour);
+    h += barreFiltres(S.ui.filtresAutour, '', true);
     }
 
-    if (A.lat === null) return h + '<div class="vide"><strong>Où êtes-vous ?</strong>Utilisez votre position ou choisissez un quartier.</div>';
+    if (A.lat === null) return fin(h + '<div class="vide"><strong>Où êtes-vous ?</strong>Utilisez votre position ou choisissez un quartier.</div>');
     var date, minute;
     if (A.moment === 'maintenant') { date = aujourdhui(); minute = minutesMaintenant(); }
     else { date = A.date || prochainJourOuvre(aujourdhui()); minute = heureVersMinutes(A.heure); }
     if (jourSemaineIndex(date) > 4) {
-      return h + '<div class="vide"><strong>Pas de présences le week-end</strong>Médecins et pharmacies sont affichés du lundi au vendredi. Choisissez « Autre moment » et un jour de semaine.</div>';
+      return fin(h + '<div class="vide"><strong>Pas de présences le week-end</strong>Médecins et pharmacies sont affichés du lundi au vendredi. Choisissez « Autre moment » et un jour de semaine.</div>');
     }
     h += bandeauFeries([date]);
-    var fa = S.ui.filtresAutour, filtre = criteresActifs(fa).length || S.ui.rechercheAutour ? ensemble(filtrerPraticiens(fa, S.ui.rechercheAutour).map(function (p) { return p.code; })) : null;
+    var fa = S.ui.filtresAutour, filtre = criteresActifs(fa).length ? ensemble(filtrerPraticiens(fa, '').map(function (p) { return p.code; })) : null;
     var res = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, A.rayon)
       .filter(function (x) { return (!A.ref || x.c.code !== A.ref.code) && (!filtre || filtre[x.c.code]); });
     S.ui.resAutour = res;
@@ -2758,7 +2799,7 @@
           '<button class="bouton bouton-large" type="button" data-a="planifierCle" data-v="' + esc(c.cle) + '" data-d="' + d + '">Planifier le ' + dateCourte(d) + '</button></li>';
       }).join('') + '</ul>' : '<p class="discret">Pas d\'autre présence connue.</p>';
     }
-    return h;
+    return fin(h);
   };
 
   function prochaineOccurrence(jourIdx, depuis, memeJourPossible) {
@@ -2799,7 +2840,7 @@
   function nomSansType(nom) { return String(nom || '').replace(/^\s*pharmacie\s+/i, ''); }
   function metres(km) { return Math.max(10, Math.round(km * 100) * 10) + ' mètres'; }
   function classeType(o) { return estPharmacie(o) ? ' t-pharma' : ' t-med'; }
-  function rendreProposition(x, i, date) {
+  function rendreProposition(x, i, date, src, avecDist) {
     var c = x.c, p = c.prat;
     var deja = S.plan.some(function (a) { return a.date === date && a.code === p.code; });
     return '<li class="element' + classeType(p) + '"><div class="element-tete"><div>' +
@@ -2808,10 +2849,10 @@
       '<span class="discret bloc-texte">' + esc(c.quartier) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</span>' +
       '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, date)) + '</span>' +
       etiquetteCollegues(p.code, date) + '</span></div>' +
-      '<div class="element-mesure">' + km(x.dist) + '<small>score ' + Math.round(x.score) + '</small></div></div>' +
+      '<div class="element-mesure">' + (avecDist === false ? '' : km(x.dist)) + '<small>score ' + Math.round(x.score) + '</small></div></div>' +
       (deja ? '<p class="discret" style="margin:8px 0 0">Déjà dans votre tournée ce jour-là.</p>' :
         '<div class="rangee" style="margin-top:10px"><a class="bouton" href="' + lienCarte({ lat: c.coord && c.coord.lat, lon: c.coord && c.coord.lon }) + '" target="_blank" rel="noopener">' + icone('carte') + 'Y aller</a>' +
-        '<button class="bouton bouton-plein" type="button" data-a="ajouterAutour" data-i="' + i + '" data-d="' + date + '">' + icone('plus') + (date === aujourdhui() ? 'Aujourd\'hui' : dateCourte(date)) + '</button></div>') +
+        '<button class="bouton bouton-plein" type="button" data-a="ajouterAutour" data-i="' + i + '"' + (src ? ' data-s="' + src + '"' : '') + ' data-d="' + date + '">' + icone('plus') + (date === aujourdhui() ? 'Aujourd\'hui' : dateCourte(date)) + '</button></div>') +
       '</li>';
   }
 
@@ -3787,7 +3828,7 @@
   };
   FEUILLES.ajouterJour = function (f) {
     var q = (f && f.q) || '';
-    return '<label class="champ recherche-ajout" style="margin-top:0"><input type="search" aria-label="Rechercher un praticien" data-f="rechAjout" placeholder="Nom, spécialité, établissement, commune…" value="' + esc(q) + '" autocomplete="off"></label>' +
+    return champRechercheLibre('rechAjout', q) +
       '<div id="resAjout">' + resultatsAjout(q) + '</div>' +
       '<p class="discret" style="margin-top:0">Ou complétez votre journée avec un praticien présent près de vous.</p><div class="choix-ajout">' +
       [['Médecin', 'plus', 'Médecin', 'Présents près de vous, selon vos spécialités'], ['Pharmacie', 'plus', 'Pharmacie', 'Ouvertes près de vous'], ['autour', 'cible', 'Autour de moi', 'Tous les praticiens, avec filtres']].map(function (x) {
@@ -3822,7 +3863,7 @@
   }
   FEUILLES.ajouterTournee = function (f) {
     var q = (f && f.q) || '';
-    var rech = '<label class="champ recherche-ajout" style="margin-top:0"><input type="search" aria-label="Rechercher un praticien" data-f="rechAjout" placeholder="Nom, spécialité, établissement, commune…" value="' + esc(q) + '" autocomplete="off"></label>' +
+    var rech = champRechercheLibre('rechAjout', q) +
       '<div id="resAjout">' + resultatsAjout(q) + '</div>';
     var t = S.ui.typeAjout, qui = t === 'Médecin' ? 'Médecins' : t === 'Pharmacie' ? 'Pharmacies' : 'Praticiens';
     var filtres = libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour)) + (t === 'Médecin' && (S.params.specialites || []).length ? ' · ' + libelleListe(S.params.specialites, '') : '');
@@ -4526,7 +4567,7 @@
     },
     fermerParams: function () { S.ui.voirParams = false; rendre(); window.scrollTo(0, 0); },
     voirVisite: function (el) { S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' }); },
-    ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); },
+    ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); },
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) {
@@ -4679,7 +4720,7 @@
       if (el.dataset.v === 'position') {
         S.ui.feuille = null;
         Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null }); LS.set('autour', S.ui.autour);
-        S.ui.pharmaciesProches = false; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); ACTIONS.localiser();
+        S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); ACTIONS.localiser();
         return;
       }
       S.ui.feuille = { type: 'ajouterCommunes', titre: 'Communes du ' + dateCourte(j), pleine: true }; rendre();
@@ -4764,7 +4805,7 @@
     autourMoment: function (el) { S.ui.autour.moment = el.dataset.v; LS.set('autour', S.ui.autour); rendre(); },
     autourRayon: function (el) { S.ui.autour.rayon = +el.dataset.v; LS.set('autour', S.ui.autour); rendre(); },
     ajouterAutour: function (el) {
-      var x = S.ui.resAutour[+el.dataset.i]; if (!x) return;
+      var x = (el.dataset.s === 'libre' ? S.ui.resAutourLibre : S.ui.resAutour)[+el.dataset.i]; if (!x) return;
       var d = el.dataset.d, c = x.c;
       confirmerPuis('Ajouter à la tournée', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) +
         ') à votre tournée du ' + dateFr(d) + ' ?', 'Ajouter', function () { if (ajouterArret(c, d)) rendre(); else rendre(); });
@@ -4950,7 +4991,7 @@
       var j = el.dataset.d || S.ui.jour || aujourdhui(), type = el.dataset.v === 'Médecin' ? 'Médecin' : 'Pharmacie';
       S.ui.filtresAutour = Object.assign(JSON.parse(JSON.stringify(FILTRES_VIDES)), { type: type },
         type === 'Médecin' ? { specialites: (S.params.specialites || []).slice() } : {}); LS.set('filtresAutour', S.ui.filtresAutour);
-      S.ui.rechercheAutour = '';
+      S.ui.rechercheAutour = ''; S.ui.rechAutourLibre = '';
       Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null });
       LS.set('autour', S.ui.autour);
       S.ui.tab = 'autour'; S.ui.pharmaciesProches = type; rendre(); window.scrollTo(0, 0);
@@ -5224,6 +5265,10 @@
     if (f === 'produits') {
       var ap = arret(el.dataset.uid), ref = ap ? produitsPour(ap) : produitsRef();
       if (ap) { ap.produits = listeProduits(ap.produits).filter(function (x) { return ref.indexOf(x) >= 0; }).concat(listeProduits(el.value)).join(', '); LS.set('plan', S.plan); }
+    }
+    if (f === 'rechAutourLibre') {
+      S.ui.rechAutourLibre = el.value; var za = document.getElementById('resAutourLibre'), zl = document.getElementById('autourListe');
+      if (za) za.innerHTML = resultatsAutourLibre(el.value); if (zl) zl.hidden = !!normaliser(el.value);
     }
     if (f === 'rechAjout' && S.ui.feuille) {
       S.ui.feuille.q = el.value; var zr = document.getElementById('resAjout'); if (zr) zr.innerHTML = resultatsAjout(el.value);
