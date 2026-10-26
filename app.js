@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.7';
+  var APP_VERSION = '3.24.8';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.8', ['« Compte Rendu » avec la majuscule (titres, boutons, messages)']],
     ['3.24.7', ['Journée : X visites · X faites · X sans CR · X à planifier (visites par jour voulues moins celles déjà prévues) ; « sans CR » ouvre le compte rendu, « à planifier » ouvre Planifier pour ce jour']],
     ['3.24.6', ['Journée : toucher « X sans compte rendu » ouvre la page Compte rendu du jour']],
     ['3.24.5', ['Le mot pharmacie abrégé en « Phcie » à l\'écran (cartes, listes, boutons) pour gagner de la place ; rien ne change dans la base']],
@@ -1368,14 +1369,14 @@
   function tuileRapport(d, liste) {
     var R = rapportDe(d), n = liste.length, r = liste.filter(function (a) { return a.statut; }).length;
     var etat = R && R.valideLe ? '<span class="etiquette ok">Validé</span>' : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>');
-    return '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte rendu</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
+    return '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte Rendu</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
       ' · faits marquants, concurrence, besoins</small></span>' + etat + icone('chevron') + '</button>';
   }
   VUES.rapport = function () {
     var d = jourAffiche(), t = aujourdhui();
     var liste = S.ui.jourVue ? arretsHorsJour(d) : S.plan.filter(function (a) { return a.date === d; });
     return '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
-      '<h2 class="titre-vue">Compte rendu</h2><p class="sous-titre">' + majuscule(dateLongue(d)) + ' : rempli à partir de vos visites, à compléter puis à valider.</p>' +
+      '<h2 class="titre-vue">Compte Rendu</h2><p class="sous-titre">' + majuscule(dateLongue(d)) + ' : rempli à partir de vos visites, à compléter puis à valider.</p>' +
       (futurVerrouille(d) ? '<div class="vide"><strong>Journée à venir</strong>Le compte rendu se fait le jour même ou après (ou activez « Saisir les jours à venir » dans Réglages › Avancé).</div>' : rendreRapportJour(d, liste, passeVerrouille(d), true));
   };
 
@@ -1418,7 +1419,7 @@
       h += '<div class="suivante"><small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
         (lieuQuartier(suivante) ? '<span class="discret bloc-texte">' + esc(lieuQuartier(suivante)) + '</span>' : '') + tr +
         actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
-        '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte rendu de cette visite</button></div>';
+        '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte Rendu de cette visite</button></div>';
     }
     return h + '</section>';
   }
@@ -1473,7 +1474,7 @@
     });
     return best;
   }
-  // ------------------------------------------------------------------ Compte rendu de la journée
+  // ------------------------------------------------------------------ Compte Rendu de la journée
   S.rapports = LS.get('rapports', {});
   function rapportDe(d) {
     if (S.rapports[d]) return S.rapports[d];
@@ -1536,7 +1537,7 @@
   function rendreRapportJour(d, duJour, lecture, page) {
     var R = lecture ? rapportDe(d) : rapportOuCree(d), s = syntheseJour(duJour.length ? duJour : []);
     var etat = R && R.valideLe ? '<span class="etiquette ok">Validé le ' + esc(R.valideLe) + '</span>' : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>');
-    var h = '<section class="bloc rapport-jour" id="rapportJour"><div class="tete-bloc"><h3>' + (page ? 'Synthèse de la journée' : 'Compte rendu') + '</h3>' + etat + '</div>';
+    var h = '<section class="bloc rapport-jour" id="rapportJour"><div class="tete-bloc"><h3>' + (page ? 'Synthèse de la journée' : 'Compte Rendu') + '</h3>' + etat + '</div>';
     if (duJour.length) h += '<div class="tuiles-resume">' + lignesSynthese(s).map(function (x) {
       return '<div class="tuile statique' + (String(x[1]).length > 38 ? ' large' : '') + '"><small>' + esc(x[0]) + '</small><b>' + parLigne(x[1]) + '</b></div>';
     }).join('') + '</div>';
@@ -1571,7 +1572,7 @@
   function visitesDuJourRapport(d) { var l = S.plan.filter(function (a) { return a.date === d; }); return l.length ? l : arretsHorsJour(d); }
   function texteRapport(d) {
     var R = rapportDe(d) || {}, s = syntheseJour(visitesDuJourRapport(d));
-    var l = ['*Compte rendu du ' + dateLongue(d) + '*', 'Délégué : ' + (moi() || '')];
+    var l = ['*Compte Rendu du ' + dateLongue(d) + '*', 'Délégué : ' + (moi() || '')];
     lignesSynthese(s).forEach(function (x) { l.push(x[0] + ' : ' + x[1]); });
     l.push('Faits marquants : ' + (String(R.faits || '').trim() || 'rien à signaler'));
     l.push('Concurrence : ' + (String(R.concurrence || '').trim() || 'rien observé'));
@@ -1836,7 +1837,7 @@
       '<span class="lp-heure">' + esc(a.heure) + '</span>' +
       '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
         (infosSansDoublon(a, [a.specialite, a.quartier]) ? '<span class="discret bloc-texte">' + esc(infosSansDoublon(a, [a.specialite, a.quartier])) + '</span>' : '') + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
-      (verrou ? '<span class="lp-fait" title="Compte rendu enregistré">' + icone('valider') + '</span>' :
+      (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
         '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
           (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
         '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
@@ -1993,7 +1994,7 @@
       '<div class="rangee"><button class="bouton bouton-plein" type="button" data-a="validerProgramme">' + icone('valider') + 'Confirmer</button></div></section>';
   }
 
-  // ------------------------------------------------------------------ Compte rendu de visite (arbre de décision, 3.5.0)
+  // ------------------------------------------------------------------ Compte Rendu de visite (arbre de décision, 3.5.0)
   // Médecin : faite ? → types → produits présentés → réactions → échantillons → bilan → suite (rappel ou RDV confirmé + date)
   // Pharmacie : faite ? → interlocuteur → activités → stocks → commande → compléments → suite
   // Non faite : motif → précision → remplaçant → suite. Seul un RDV confirmé place la visite dans la tournée.
@@ -2139,7 +2140,7 @@
     }).join('') + '</div>';
   }
 
-  // ------------------------------------------------------------------ Compte rendu pas à pas (3.6.0)
+  // ------------------------------------------------------------------ Compte Rendu pas à pas (3.6.0)
   // Une question à la fois : la suivante apparaît selon la réponse. Les réponses données restent en lignes courtes
   // (touchez pour modifier : les questions suivantes sont reposées). Étapes facultatives : Continuer ou Passer.
   function etapesCr(a) {
@@ -2232,7 +2233,7 @@
     'Commande passée ?': 'Commande', 'Commande (quantités)': 'Quantités', 'Besoin de réapprovisionnement': 'Besoin' };
   function titreCourt(t) { return TITRES_COURTS[t] || t; }
   function rendreCompteRendu(a) {
-    var c = crDe(a), ok = c.ok || (c.ok = {}), h = '<div class="cr-pas etapes-filtres"><div class="tete-bloc tete-cr"><h3>Compte rendu</h3></div>';
+    var c = crDe(a), ok = c.ok || (c.ok = {}), h = '<div class="cr-pas etapes-filtres"><div class="tete-bloc tete-cr"><h3>Compte Rendu</h3></div>';
     var etapes = etapesCr(a);
     for (var i = 0; i < etapes.length; i++) {
       var s = etapes[i];
@@ -2343,8 +2344,8 @@
       var ko = estKo(a.statut), pr = !ko && a.produits ? ' · ' + a.produits : '';
       return '<span class="ligne-etat ' + (ko ? 'ko' : 'ok') + '">' + (ko ? '✗ ' : '✓ ') + esc(statutLibelle(a)) + esc(pr) + (a.etat !== 'valide' ? ' · à enregistrer' : '') + '</span>';
     }
-    if (a.date < t) return '<span class="ligne-etat alerte">! Compte rendu à saisir</span>';
-    if (a.date === t && hm !== null && hm < now) return '<span class="ligne-etat alerte">! Compte rendu à saisir' + distanceMoi(a) + '</span>';
+    if (a.date < t) return '<span class="ligne-etat alerte">! Compte Rendu à saisir</span>';
+    if (a.date === t && hm !== null && hm < now) return '<span class="ligne-etat alerte">! Compte Rendu à saisir' + distanceMoi(a) + '</span>';
     var tag = a.impose ? (a.etape ? libelleRdv(a) : (a.rdv ? 'RDV ' + a.rdv : 'Prioritaire')) : '';
     return '<span class="ligne-etat">○ À venir' + (tag ? ' · ' + esc(tag) : '') + (a.date === t ? distanceMoi(a) : '') + '</span>';
   }
@@ -4218,7 +4219,7 @@
     S.ui.ouvert = null;
     sauver(); rendre();
     var nCorr = aValider.filter(function (a) { return a.uid && S.queue.some(function (q) { return q.uid === a.uid && q.correction; }); }).length;
-    toast((nCorr === aValider.length ? (nCorr > 1 ? nCorr + ' comptes rendus modifiés' : 'Compte rendu modifié') : aValider.length + ' compte(s) rendu(s) enregistré(s)') + (ko ? '. ' + ko + ' visite(s) non réalisée(s) : utilisez « Remplacer ».' : '.') +
+    toast((nCorr === aValider.length ? (nCorr > 1 ? nCorr + ' comptes rendus modifiés' : 'Compte Rendu modifié') : aValider.length + ' compte(s) rendu(s) enregistré(s)') + (ko ? '. ' + ko + ' visite(s) non réalisée(s) : utilisez « Remplacer ».' : '.') +
       (placees ? ' Prochaine étape ajoutée à votre tournée.' : ''), 4500);
     publierPlan(!placees);
   }
@@ -4406,8 +4407,8 @@
       confirmerPuis('Valider le compte rendu', 'Valider le compte rendu du <b>' + dateFr(d) + '</b> ? Il sera enregistré dans le Google Sheet.', 'Valider', function () {
         var n = new Date(); R.valideLe = dateFr(d) === dateFr(aujourdhui()) ? pad2(n.getHours()) + ':' + pad2(n.getMinutes()) : dateFr(aujourdhui());
         R.edition = false; R.envoye = false; R.empreinte = empreinteRapport(R); sauverRapports(); rendre();
-        if (connecte()) envoyerRapport(d).then(function () { toast('Compte rendu enregistré. Vous pouvez l\'envoyer sur WhatsApp.'); }, function () { toast('Enregistré sur le téléphone ; envoi au Google Sheet dès le retour du réseau.'); });
-        else toast('Compte rendu validé.');
+        if (connecte()) envoyerRapport(d).then(function () { toast('Compte Rendu enregistré. Vous pouvez l\'envoyer sur WhatsApp.'); }, function () { toast('Enregistré sur le téléphone ; envoi au Google Sheet dès le retour du réseau.'); });
+        else toast('Compte Rendu validé.');
       });
     },
     rapModifier: function (el) { var R = rapportOuCree(el.dataset.v); R.edition = true; R.ok = {}; sauverRapports(); rendre(); },
