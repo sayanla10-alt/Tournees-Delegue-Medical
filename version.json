@@ -1,8 +1,9 @@
 {
-  "version": "3.21.0",
+  "version": "3.22.0",
   "date": "2026-10-26",
   "notes": [
-    "Bilan et Équipe : filtre Qui / Quand",
-    "Planifier en agenda"
+    "GPS automatique des nouveaux praticiens",
+    "Sauvegardes de la base et du téléphone",
+    "Bilan et Équipe : filtre Qui / Quand"
   ]
 }

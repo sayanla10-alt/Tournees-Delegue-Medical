@@ -12,6 +12,9 @@
    - GET  action=ping | data | equipe
    - POST action=valider (visites) | planning (publication d'une tournée)
           | fiche (création ou modification d'un praticien et de ses lieux depuis l'application)
+          | rapport (compte rendu de la journée) | delegue (ajout d'un délégué à la liste)
+   Sauvegarde : une copie complète du classeur chaque nuit dans le dossier Drive « Sauvegardes MediPlanner »
+   (7 copies tournantes), à installer une fois avec le menu MediPlanner > Sauvegardes.
    ============================================================================= */
 
 var FEUILLES = {
@@ -19,7 +22,7 @@ var FEUILLES = {
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour'
 };
-var VERSION_SERVEUR = '3.8.0';
+var VERSION_SERVEUR = '3.9.0';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -33,6 +36,11 @@ function onOpen() {
     .addItem('Convertir l\'ancienne feuille BaseDonnees', 'convertirAncienneBase')
     .addItem('Compléter les données manquantes (base de test)', 'completerBaseTest')
     .addItem('Importer les pharmacies réelles (OpenStreetMap)', 'importerPharmacies')
+    .addSeparator()
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Sauvegardes')
+      .addItem('Installer la sauvegarde quotidienne', 'installerSauvegardeQuotidienne')
+      .addItem('Sauvegarder maintenant', 'sauvegarderMaintenant')
+      .addItem('Ouvrir le dossier des sauvegardes', 'ouvrirDossierSauvegardes'))
     .addSeparator()
     .addItem('Afficher le jeton d\'accès', 'afficherJeton')
     .addItem('Changer le jeton d\'accès', 'changerJeton')
@@ -272,7 +280,8 @@ function doGet(e) {
   var p = (e && e.parameter) || {};
   try {
     if (!jetonValide(p.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
-    if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR });
+    if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR,
+      sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' });
     if (p.action === 'data') return json(lireTout(p.sig || '', p.hdepuis || ''));
     if (p.action === 'equipe') return json(lireEquipe());
     return json({ ok: false, erreur: 'Action inconnue.' });
@@ -289,6 +298,7 @@ function doPost(e) {
     if (body.action === 'planning') return json(publierPlanning(body));
     if (body.action === 'fiche') return json(ficheUnique(body));
     if (body.action === 'rapport') return json(enregistrerRapport(body.rapport || {}));
+    if (body.action === 'delegue') return json(ajouterDelegue(body.nom));
     return json({ ok: false, erreur: 'Action inconnue.' });
   } catch (err) {
     var m = String(err.message || err);
@@ -364,7 +374,8 @@ function lireTout(sig, hdepuis) {
   var limiteR = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -JOURS_PLANNINGS_DATA);
   var rapports = lireObjets(ss.getSheetByName(FEUILLES.rapports), CHAMPS_RAPPORTS, tz).filter(function (x) { return x.delegue !== '' && x.date >= limiteR; });
   var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis, alias: aliasDelegues(), rapports: rapports,
-            plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString() };
+            plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString(),
+            sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' };
   if (sig && sig === empreinte) { r.inchange = true; return r; }
   Object.keys(ref).forEach(function (k) { r[k] = ref[k]; });
   return r;
@@ -981,7 +992,7 @@ function enregistrerFiche(b) {
       if (+l[rId] > maxId) maxId = +l[rId];
       if (anciensCode && String(l[rCode]) === anciensCode) mesLignes.push(i);
     });
-    var ids = {};
+    var ids = {}, coords = {};
     var lignesR = lieux.map(function (x) {
       var id = x.id && !/^TMP/.test(String(x.id)) ? x.id : ++maxId;
       if (x.id) ids[x.id] = id;
@@ -990,6 +1001,8 @@ function enregistrerFiche(b) {
                 commune: q[0] || String(x.commune || ''), zone: q[2] || String(x.zone || ''),
                 horaireMatin: String(x.horaireMatin || ''), horaireSoir: String(x.horaireSoir || ''),
                 lat: x.lat === undefined ? '' : x.lat, lon: x.lon === undefined ? '' : x.lon };
+      // 3.9.0 : pas de position prise sur place ? on cherche l'établissement sur Google Maps (Abidjan)
+      if (o.lat === '' || o.lon === '') { var g = geocoderLieu(o.lieu, o.quartier, o.commune); if (g) { o.lat = g.lat; o.lon = g.lon; coords[id] = g; } }
       JOURS_CLES.forEach(function (j) { o[j] = String(x[j] || ''); });
       var v = entR.map(function () { return ''; });
       CHAMPS_PRESENCES.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
@@ -1003,7 +1016,7 @@ function enregistrerFiche(b) {
       shR.getRange(shR.getLastRow() + 1, 1, lignesR.length - k, entR.length).setValues(lignesR.slice(k));
     }
     for (var s = mesLignes.length - 1; s >= k; s--) shR.deleteRow(mesLignes[s] + 2);
-    return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
+    return { ok: true, code: code, ancien: String(p.code || ''), ids: ids, coords: coords };
   } finally {
     lock.releaseLock();
   }
@@ -1029,6 +1042,7 @@ function enregistrerPharmacie(ss, p, lieu) {
     telephone: String(p.telephone || ''), note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
     actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui', horaireMatin: lieu.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: lieu.horaireSoir || HORAIRES_PHARMACIE[1] };
   if (lieu.lat && lieu.lon) { modif.lat = +lieu.lat; modif.lon = +lieu.lon; }
+  else { var g = geocoderLieu(p.nom, lieu.quartier, modif.commune); if (g) { modif.lat = g.lat; modif.lon = g.lon; } }
   if (ligne < 0) { modif.nbVisites = 0; modif.source = 'Application'; }
   CHAMPS_PHARMACIES.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
   if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]); else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
@@ -1141,4 +1155,84 @@ function onEdit(e) {
   } catch (err) {
     // Une erreur de saisie ne doit jamais bloquer le Sheet
   }
+}
+
+// ---------------------------------------------------------------- 3.9.0 : coordonnées GPS par Google Maps
+// Quand le délégué n'est pas sur place, l'établissement est cherché sur Google Maps (nom, quartier, commune, Abidjan).
+// Un résultat hors du Grand Abidjan est ignoré (le quartier sert alors de repère, comme avant). Résultats gardés 6 h en cache.
+function geocoderLieu(lieu, quartier, commune) {
+  var adr = [lieu, quartier, commune, 'Abidjan', 'Côte d\'Ivoire'].filter(function (x) { return String(x || '').trim(); }).join(', ');
+  var cache = null, k = '';
+  try {
+    if (typeof Maps === 'undefined') return null;
+    cache = CacheService.getScriptCache(); k = 'geo:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, adr));
+    var c = cache.get(k);
+    if (c) return c === 'x' ? null : JSON.parse(c);
+    var r = Maps.newGeocoder().setRegion('ci').setLanguage('fr').geocode(adr);
+    var g = r && r.status === 'OK' && r.results && r.results[0] && r.results[0].geometry && r.results[0].geometry.location;
+    if (g && g.lat > 5.15 && g.lat < 5.65 && g.lng > -4.35 && g.lng < -3.65) {
+      var o = { lat: Math.round(g.lat * 1e6) / 1e6, lon: Math.round(g.lng * 1e6) / 1e6 };
+      cache.put(k, JSON.stringify(o), 21600);
+      return o;
+    }
+    cache.put(k, 'x', 3600);
+  } catch (e) { /* quota ou service indisponible : on garde le repère du quartier */ }
+  return null;
+}
+
+// ---------------------------------------------------------------- 3.9.0 : délégué ajouté depuis l'application
+// Un prénom absent de la liste est ajouté à la colonne « Délégués » de la feuille Listes (sans doublon).
+function ajouterDelegue(nom) {
+  nom = String(nom || '').trim().replace(/\s+/g, ' ');
+  if (nom.length < 2 || nom.length > 60 || /@/.test(nom)) return { ok: false, erreur: 'Nom invalide.' };
+  var lock = verrouiller();
+  try {
+    var ss = SpreadsheetApp.getActive(); assurerStructure(ss);
+    var sh = ss.getSheetByName(FEUILLES.listes); if (!sh) return { ok: false, erreur: 'Feuille Listes absente.' };
+    var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser), c = ent.indexOf(normaliser('Délégués'));
+    if (c < 0) return { ok: false, erreur: 'Colonne Délégués absente.' };
+    var n = Math.max(sh.getLastRow() - 1, 0), v = n ? sh.getRange(2, c + 1, n, 1).getValues().map(function (l) { return String(l[0]).trim(); }) : [];
+    if (v.some(function (x) { return x.toLowerCase() === nom.toLowerCase(); })) return { ok: true, ajoute: false };
+    var libre = v.indexOf(''); var ligne = libre >= 0 ? libre + 2 : v.length + 2;
+    sh.getRange(ligne, c + 1).setValue(nom);
+    return { ok: true, ajoute: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------- 3.9.0 : sauvegarde quotidienne du classeur
+// Chaque nuit (vers 2 h), une copie complète du classeur est rangée dans le dossier Drive « Sauvegardes MediPlanner ».
+// Les 7 dernières copies sont gardées (les plus anciennes vont à la corbeille Drive, récupérables 30 jours).
+// Reprise après incident : ouvrir la copie du jour voulu, puis copier la ou les feuilles nécessaires dans le classeur
+// (clic droit sur l'onglet > Copier vers), ou faire de la copie le nouveau classeur (voir LISEZMOI).
+var DOSSIER_SAUVEGARDES = 'Sauvegardes MediPlanner', NB_SAUVEGARDES = 7;
+function dossierSauvegardes() {
+  var it = DriveApp.getFoldersByName(DOSSIER_SAUVEGARDES);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(DOSSIER_SAUVEGARDES);
+}
+function sauvegarderClasseur() {
+  var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone(), dossier = dossierSauvegardes();
+  var prefixe = ss.getName() + ' - sauvegarde ';
+  DriveApp.getFileById(ss.getId()).makeCopy(prefixe + Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm'), dossier);
+  var l = [], f = dossier.getFiles();
+  while (f.hasNext()) { var x = f.next(); if (x.getName().indexOf(prefixe) === 0) l.push(x); }
+  l.sort(function (a, b) { return b.getDateCreated() - a.getDateCreated(); });
+  l.slice(NB_SAUVEGARDES).forEach(function (x) { x.setTrashed(true); });
+  PropertiesService.getScriptProperties().setProperty('DERNIERE_SAUVEGARDE', new Date().toISOString());
+  return l.length;
+}
+function installerSauvegardeQuotidienne() {
+  ScriptApp.getProjectTriggers().forEach(function (t) { if (t.getHandlerFunction() === 'sauvegarderClasseur') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('sauvegarderClasseur').timeBased().everyDays(1).atHour(2).create();
+  sauvegarderClasseur();
+  try { SpreadsheetApp.getUi().alert('Sauvegarde quotidienne installée : une copie chaque nuit vers 2 h dans le dossier Drive « ' + DOSSIER_SAUVEGARDES + ' » (7 copies gardées). Une première copie vient d\'être faite.'); } catch (e) {}
+}
+function sauvegarderMaintenant() {
+  sauvegarderClasseur();
+  try { SpreadsheetApp.getUi().alert('Sauvegarde faite dans le dossier Drive « ' + DOSSIER_SAUVEGARDES + ' ».'); } catch (e) {}
+}
+function ouvrirDossierSauvegardes() {
+  var url = dossierSauvegardes().getUrl();
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput('<p style="font-family:sans-serif">Dossier des sauvegardes : <a href="' + url + '" target="_blank">ouvrir dans Drive</a></p>').setWidth(360).setHeight(90), 'Sauvegardes');
 }

@@ -1,6 +1,6 @@
 # MediPlanner
 
-Version 3.21.0
+Version 3.22.0
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -158,6 +158,22 @@ La pastille en haut à droite indique l'état de la synchronisation ; touchez-la
 - **Application** : les fichiers à la racine du dépôt sont servis par GitHub Pages. Pour publier une version : changer `VERSION` dans `sw.js`, `APP_VERSION` dans `app.js` et le contenu de `version.json` (numéro et nouveautés affichées dans le bandeau).
 - **Jeton** : MediPlanner > Changer le jeton d'accès, puis renvoyer le lien d'installation (Réglages > Partager l'application).
 - `commun.js` et `apps-script/Commun.gs` doivent rester identiques.
+
+## Sauvegardes et reprise après incident (3.22.0)
+
+Deux niveaux, indépendants l'un de l'autre :
+
+- **La base (Google Sheet)** : menu **MediPlanner › Sauvegardes › Installer la sauvegarde quotidienne** (une seule fois, Google demande l'autorisation Drive). Chaque nuit vers 2 h, une copie complète du classeur va dans le dossier Drive **Sauvegardes MediPlanner** ; les 7 dernières sont gardées (les plus anciennes partent à la corbeille Drive, récupérables 30 jours). « Sauvegarder maintenant » fait une copie à la demande. Les versions du classeur (Fichier › Historique des versions) restent aussi disponibles.
+- **Le téléphone** : l'application garde une copie de secours par jour sur 7 jours (comptes rendus et fiches pas encore envoyés, agenda, comptes rendus de journée). **Réglages › Avancé › Sauvegarde › Exporter** la télécharge en un fichier (à garder dans Drive ou par e-mail).
+
+Reprise :
+1. **Feuille abîmée ou effacée** : ouvrir la copie du jour voulu dans le dossier Sauvegardes, clic droit sur l'onglet concerné › **Copier vers** › le classeur MediPlanner, puis remplacer l'onglet abîmé par la copie (même nom).
+2. **Classeur perdu** : ouvrir la dernière copie, la renommer, puis dans Extensions › Apps Script : **Déployer › Nouveau déploiement** (application Web) ; mettre la nouvelle URL dans Réglages › Avancé › Connexion, ou renvoyer le lien d'installation.
+3. **Téléphone perdu ou réinitialisé** : installer l'application par le lien, puis **Réglages › Avancé › Sauvegarde › Importer** le fichier exporté. Les comptes rendus et fiches non envoyés qui manquent sont ajoutés et envoyés ; rien d'existant n'est remplacé.
+
+## Coordonnées GPS (3.22.0)
+
+Pour un nouveau praticien, « Je suis sur place » prend la position du téléphone. Sinon, la base cherche l'établissement sur Google Maps (nom, quartier, commune, Abidjan) et inscrit les coordonnées ; un résultat hors du Grand Abidjan est ignoré et le quartier sert de repère.
 
 ## Limites
 

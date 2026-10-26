@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.21.0';
+  var APP_VERSION = '3.22.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.22.0', ['Nouveau praticien sans position prise sur place : coordonnées GPS cherchées automatiquement sur Google Maps et inscrites dans la base',
+               'Mon profil : un nom absent de la liste est ajouté aux délégués dans la base',
+               'Sauvegarde : copie complète de la base chaque nuit dans Drive (7 copies) ; copie de secours du téléphone sur 7 jours, à exporter ou reprendre dans Réglages › Avancé']],
     ['3.21.0', ['Bilan et Équipe : un seul filtre en haut, « Qui » (moi, toute l\'équipe ou plusieurs délégués choisis) et « Quand » (jour, semaine, mois ou période, avec ‹ ›)',
                'Bilan : Tableau de bord et Historique suivent le même filtre ; l\'historique se limite à la période choisie']],
     ['3.20.0', ['Planifier devient un agenda : tous les jours planifiés (7 jours passés et tout l\'à venir) dans une frise chronologique, chaque jour confirmé ou en brouillon',
@@ -256,8 +259,40 @@
   if (!Array.isArray(S.params.potentiels)) S.params.potentiels = [];
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);
 
+  // 3.22.0 : copie de secours du téléphone, une par jour sur 7 jours (comptes rendus et fiches non envoyés, agenda,
+  // comptes rendus de journée). Exportable en fichier depuis Réglages › Avancé, pour reprendre après un incident.
+  // reprise : on ajoute ce qui manque (comptes rendus et fiches non envoyés, comptes rendus de journée) ;
+  // l'agenda n'est repris que si le téléphone n'en a plus. Rien d'existant n'est écrasé.
+  function importerSecours(fichier) {
+    var lecteur = new FileReader();
+    lecteur.onload = function () {
+      var o; try { o = JSON.parse(lecteur.result); } catch (e) { toast('Fichier illisible.'); return; }
+      var sec = o && o.secours, jours = sec ? Object.keys(sec).sort() : [];
+      if (!jours.length) { toast('Ce fichier n\'est pas une sauvegarde MediPlanner.'); return; }
+      var s = sec[jours[jours.length - 1]];
+      confirmerPuis('Reprendre une sauvegarde', 'Reprendre la sauvegarde du <b>' + dateFr(jours[jours.length - 1]) + '</b>' + (o.delegue ? ' (' + esc(o.delegue) + ')' : '') +
+        ' ? Les comptes rendus et fiches non envoyés qui manquent seront ajoutés ; rien d\'existant n\'est remplacé.', 'Oui, reprendre', function () {
+        var uids = ensemble(S.queue.map(function (v) { return v.uid; }).concat(((S.data && S.data.historique) || []).map(function (v) { return v.uid; })));
+        var nq = (s.queue || []).filter(function (v) { return !uids[v.uid]; }); S.queue = S.queue.concat(nq);
+        var fu = ensemble(S.fiches.map(function (f) { return f.uid; })), nf = (s.fiches || []).filter(function (f) { return !fu[f.uid]; }); S.fiches = S.fiches.concat(nf);
+        Object.keys(s.rapports || {}).forEach(function (d) { if (!S.rapports[d]) S.rapports[d] = s.rapports[d]; }); LS.set('rapports', S.rapports);
+        var np = 0;
+        if (!S.plan.length && (s.plan || []).length) { S.plan = s.plan; S.jours = s.jours || {}; np = datesPlan().length; }
+        sauver(); rendre(); if (connecte()) synchroniser(true);
+        toast(nq.length + ' compte(s) rendu(s), ' + nf.length + ' fiche(s)' + (np ? ', ' + np + ' jour(s) d\'agenda' : '') + ' repris.', 5000);
+      });
+    };
+    lecteur.readAsText(fichier);
+  }
+  function copieSecours() {
+    var t = aujourdhui(), sec = LS.get('secours', {});
+    sec[t] = { le: new Date().toISOString(), delegue: moi(), queue: S.queue, fiches: S.fiches, plan: S.plan, jours: S.jours,
+               horsPlan: S.horsPlan || [], rapports: S.rapports || {}, imposes: S.imposes };
+    Object.keys(sec).sort().reverse().slice(7).forEach(function (d) { delete sec[d]; });
+    LS.set('secours', sec);
+  }
   function sauver() {
-    archiverPlan(); nettoyerAgenda();
+    archiverPlan(); nettoyerAgenda(); try { copieSecours(); } catch (e) { /* stockage plein : la sauvegarde n'empêche pas l'enregistrement */ }
     LS.set('config', S.config); LS.set('data', S.data); LS.set('plan', S.plan); LS.set('etatsJours', S.jours);
     LS.set('params', S.params); LS.set('queue', S.queue); LS.set('imposes', S.imposes); LS.set('rejetes', S.rejetes);
     LS.set('fiches', S.fiches);
@@ -479,6 +514,14 @@
       '<label class="champ" id="' + id + 'Bloc"' + (autre ? '' : ' hidden') + '><span>Nom complet</span><input type="text" id="' + id + 'Autre" autocomplete="name" value="' + esc(autre ? valeur : '') + '">' +
       '<span class="aide-champ">Votre prénom et nom seront ajoutés à la liste des délégués.</span></label>';
   }
+  // 3.22.0 : un nom absent de la liste des délégués y est ajouté dans la base
+  function inscrireDelegue(n) {
+    var l = (S.data && S.data.delegues) || [];
+    if (!n || !connecte() || l.some(function (x) { return x.toLowerCase() === n.toLowerCase(); })) return;
+    apiPost('delegue', { nom: n }).then(function (r) {
+      if (r && r.ok) { l.push(n); if (S.data) S.data.delegues = l; LS.set('data', S.data); if (r.ajoute) toast(n + ' ajouté à la liste des délégués.'); }
+    }).catch(function () { /* nouvelle tentative au prochain enregistrement */ });
+  }
   function lireNom(id) {
     var el = $(id); if (!el) return '';
     if (el.tagName === 'SELECT' || el.type === 'hidden') return (el.value === '__autre' ? (($(id + 'Autre') || {}).value || '') : el.value).trim();
@@ -665,7 +708,8 @@
       });
       S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
                  statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [], fiches: base.fiches || [],
-                 historique: hist, plannings: d.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: new Date().toISOString() };
+                 historique: hist, plannings: d.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: new Date().toISOString(),
+                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '' };
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data);
@@ -3222,6 +3266,11 @@
       (S.fiches.length ? ' ' + S.fiches.length + ' fiche(s) praticien en attente' + (S.ui.serveurAncien ? ' : le serveur Apps Script doit être mis à jour pour les recevoir.' : '.') : '') + '</p>' +
       (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' : '') +
       '<button class="bouton bouton-large" type="button" data-a="demo" style="margin-bottom:10px">Charger les données de démonstration</button>' +
+      '<h3>Sauvegarde</h3><p class="discret" style="margin-top:0">' +
+        (S.data && S.data.sauvegarde ? 'Base : dernière copie le ' + new Date(S.data.sauvegarde).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' (7 copies dans Drive).' : 'Base : sauvegarde quotidienne à installer dans le Google Sheet (menu MediPlanner › Sauvegardes).') +
+        ' Téléphone : ' + Object.keys(LS.get('secours', {})).length + ' copie(s) sur 7 jours.</p>' +
+      '<div class="rangee" style="margin-bottom:10px"><button class="bouton" type="button" data-a="exporterSecours">' + icone('telecharger') + 'Exporter</button>' +
+        '<label class="bouton" style="position:relative;overflow:hidden">' + icone('relancer') + 'Importer<input type="file" accept="application/json,.json" data-f="importSecours" style="position:absolute;inset:0;opacity:0"></label></div>' +
       '<button class="bouton bouton-large bouton-danger" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button></details>';
     return h;
   };
@@ -4352,7 +4401,7 @@
       if (n.length < 2) { toast('Indiquez votre nom.'); return; }
       S.config.delegue = n; S.config.whatsapp = normaliserNumero($('numWhatsapp').value) || '';
       LS.set('config', S.config); S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); publierPlan();
-      toast('Bienvenue ' + n + '.');
+      toast('Bienvenue ' + n + '.'); inscrireDelegue(n);
     },
     enregistrerMoi: function () {
       var n = lireNom('cfgNom'), w = ($('cfgWhatsapp').value || '').trim();
@@ -4363,6 +4412,7 @@
       S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); S.config.waWeb = $('cfgWaWeb').checked; S.config.depart = $('cfgDepart').value; S.config.waResp = normaliserNumero(wr);
       var apres = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '', S.config.waResp || '']);
       LS.set('config', S.config); rendre(); toast(avant === apres ? 'Aucune modification : vos réglages sont inchangés.' : 'Réglages enregistrés.');
+      inscrireDelegue(n);
       if (n && n !== ancien) publierPlan();
     },
     tester: function () {
@@ -4383,6 +4433,14 @@
     reinitialiser: function () {
       var msg = enAttente() ? enAttente() + ' élément(s) non envoyé(s) (comptes rendus, fiches) seront perdus. ' : '';
       confirmerPuis('Effacer les données', msg + 'Effacer toutes les données de l\'application sur ce téléphone ?', 'Oui, effacer', function () { LS.vider(); location.reload(); });
+    },
+    exporterSecours: function () {
+      copieSecours();
+      var contenu = JSON.stringify({ application: 'MediPlanner', version: APP_VERSION, exporteLe: new Date().toISOString(), delegue: moi(), secours: LS.get('secours', {}) });
+      var lien = document.createElement('a'); lien.href = URL.createObjectURL(new Blob([contenu], { type: 'application/json' }));
+      lien.download = 'mediplanner-sauvegarde-' + aujourdhui() + '.json'; document.body.appendChild(lien); lien.click();
+      setTimeout(function () { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
+      toast('Sauvegarde exportée : gardez le fichier en lieu sûr (Drive, e-mail).');
     },
     installer: function () {
       var evt = S.ui.installEvt;
@@ -4754,6 +4812,7 @@
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
+    if (f === 'importSecours' && el.files && el.files[0]) { importerSecours(el.files[0]); el.value = ''; }
     if (f === 'saisieFutur') { S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie des jours à venir activée.' : 'Jours à venir en aperçu seul.'); }
     if (f === 'modifPasse') { S.config.modifPasse = el.checked; LS.set('config', S.config); toast(el.checked ? 'Modification des jours passés activée.' : 'Jours passés en lecture seule.'); }
     if (f === 'choixNom') { var bloc = $(el.id + 'Bloc'); if (bloc) bloc.hidden = el.value !== '__autre'; }
