@@ -1127,3 +1127,15 @@ details.avance h3 { margin-top: 18px; }
 .bandeau-proche > svg { width: 20px; height: 20px; color: var(--primaire); margin-top: 2px; }
 .bandeau-proche p { margin: 0; }
 .bandeau-proche .rangee { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
+
+/* 3.23.2 : trajet en symboles */
+.trajet-mini { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font: 600 13px/1.2 var(--texte); color: var(--primaire); }
+.trajet-mini > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.trajet-mini svg { width: 15px; height: 15px; flex: none; }
+.troncon .trajet-mini { align-self: center; padding-left: 10px; font-size: 12px; color: var(--gris); }
+.troncon .trajet-mini svg { width: 13px; height: 13px; color: var(--primaire); }
+.suivante .trajet-mini { display: flex; margin: 6px 0 2px; }
+.troncon .trajet-mini > span { padding-left: 0; font: inherit; color: inherit; }
+.dist-moi { display: inline-flex; align-items: center; gap: 3px; margin-left: 10px; font-weight: 700; color: var(--gris); white-space: nowrap; }
+.dist-moi svg { width: 13px; height: 13px; }
+.dist-moi.tout-pres { color: var(--primaire); }

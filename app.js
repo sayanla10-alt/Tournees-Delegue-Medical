@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.23.1';
+  var APP_VERSION = '3.23.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.23.2', ['Cartes de la journée : distance entre vous et chaque visite à faire (symbole de position), pour choisir qui voir en priorité',
+               'L\'alerte « médecins prévus par un collègue » ne s\'affiche plus que dans Planifier',
+               'Trajets en symboles : distance, minutes à pied et en voiture, entre les visites et jusqu\'à la visite suivante (depuis votre position quand le GPS est actif)']],
     ['3.23.1', ['Médecin et pharmacie signalés par leur symbole (caducée du médecin en bleu, coupe d\'Hygie de la pharmacie en violet) au lieu du mot',
                'Pharmacie proche : « X est à 150 mètres, ouverte jusqu\'à 12:30 (Jamais visité). Y aller ? »']],
     ['3.23.0', ['Boutons de confirmation raccourcis : « Enregistrer », « Confirmer », « Ajouter »… au lieu de « Oui, … »',
@@ -348,6 +351,14 @@
   function dateCourte(iso) { var p = iso.split('-'); return JOURS_COURTS[jourSemaineIndex(iso)] + ' ' + p[2] + '/' + p[1]; }
   function dateLongue(iso) { var p = iso.split('-'); return nomJour(iso).toLowerCase() + ' ' + (+p[2]) + ' ' + MOIS[+p[1] - 1]; }
   function majuscule(s) { return s.replace(/^./, function (c) { return c.toUpperCase(); }); }
+  // 3.23.2 : trajet en symboles : distance, minutes à pied, minutes en voiture (vol d'oiseau x détour routier)
+  function trajetMini(kmVol, minVoiture) {
+    var route = kmVol * REGLAGES_MOTEUR.detourRoutier, pied = Math.max(1, Math.round(route / 4.8 * 60));
+    var dist = route < 1 ? Math.max(10, Math.round(route * 100) * 10) + ' m' : (Math.round(route * 10) / 10).toLocaleString('fr-FR') + ' km';
+    var duree = function (m) { return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + pad2(m % 60); };
+    return '<span class="trajet-mini" role="img" aria-label="' + dist + ', ' + duree(pied) + ' à pied, ' + duree(Math.max(1, minVoiture)) + ' en voiture">' +
+      '<span>' + icone('route') + dist + '</span><span>' + icone('pieton') + duree(pied) + '</span><span>' + icone('voiture') + duree(Math.max(1, minVoiture)) + '</span></span>';
+  }
   function km(n) { return (Math.round(n * 10) / 10).toLocaleString('fr-FR') + ' km'; }
   function pct(n) { return (Math.round(n * 10) / 10).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' %'; }
   function vuDepuis(derniere, ref) {
@@ -724,12 +735,8 @@
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data);
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
-      if (S.ui.conflits.length) {
-        var conflits = S.ui.conflits; S.ui.conflits = [];
-        // plus de remplacement automatique : chaque carte concernée pose la question Remplacer Oui / Non
-        toast(conflits.length + ' médecin' + (conflits.length > 1 ? 's' : '') + ' de votre tournée ' +
-          (conflits.length > 1 ? 'sont' : 'est') + ' aussi prévu' + (conflits.length > 1 ? 's' : '') + ' par un collègue : choisissez sur chaque carte de le remplacer ou non.', 5000);
-      }
+      // 3.23.2 : l'alerte « prévus par un collègue » n'est donnée que dans Planifier (gardée en attente sinon)
+      if (S.ui.conflits.length) { S.ui.conflitsAttente = S.ui.conflits; S.ui.conflits = []; if (S.ui.tab === 'semaine') alerteConflits(); }
       if (!silencieux) toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
     }).catch(function (e) {
       S.ui.sync = 'erreur'; S.ui.erreur = e.message;
@@ -1256,8 +1263,8 @@
       h += '<div class="creneau-titre">' + cren + '</div><ol class="ligne">';
       liste.forEach(function (a, i) {
         if (i > 0 && a.dist > 0) {
-          h += '<li class="troncon" aria-hidden="true"><div></div><div class="arret-rail"></div><span>' +
-            km(a.dist) + ', environ ' + (a.trajet !== undefined ? a.trajet : Math.round(a.dist * REGLAGES_MOTEUR.minutesParKm)) + ' min</span></li>';
+          h += '<li class="troncon"><div></div><div class="arret-rail"></div>' +
+            trajetMini(a.dist, a.trajet !== undefined ? a.trajet : Math.round(a.dist * REGLAGES_MOTEUR.minutesParKm)) + '</li>';
         }
         h += rendreArret(a);
       });
@@ -1312,8 +1319,13 @@
     }
     if (suivante) {
       var pa = praticien(suivante.code) || {}, premiere = suivante === duJour[0] && !duJour.some(function (a) { return a.statut; });
-      h += '<div class="suivante"><small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
-        '<span class="discret bloc-texte">' + esc([suivante.lieu, suivante.quartier].filter(Boolean).join(', ')) + '</span>' +
+      var cS = coordPrecise(suivante) || coordArret(suivante), pos = S.ui.posGps && Date.now() - S.ui.posGps.t < 5 * 60000 ? S.ui.posGps : null, tr = '';
+      if (cS && pos) {
+        var qp = Moteur.quartierLePlusProche(pos.lat, pos.lon, quartiers()), dk = distanceKm(pos, cS);
+        tr = trajetMini(dk, minutesTrajet(dk, qp ? qp.quartier.commune : '', suivante.commune, now));
+      } else if (suivante.dist > 0) tr = trajetMini(suivante.dist, suivante.trajet !== undefined ? suivante.trajet : Math.round(suivante.dist * REGLAGES_MOTEUR.minutesParKm));
+      h += '<div class="suivante"><small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
+        '<span class="discret bloc-texte">' + esc([suivante.lieu, suivante.quartier].filter(Boolean).join(', ')) + '</span>' + tr +
         actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte rendu de cette visite</button></div>';
     }
@@ -1498,6 +1510,7 @@
   // N'apparaît que ce qui sert sur le moment : « Confirmer » s'il y a des brouillons, « Accepter / Recalculer encore »
   // juste après un recalcul, « Envoyer par WhatsApp » une fois le jour confirmé.
   VUES.semaine = function () {
+    if (S.ui.conflitsAttente && S.ui.conflitsAttente.length) setTimeout(alerteConflits, 300);
     if (S.ui.voirParams) {
       return '<div class="page-entree"><button type="button" class="retour" data-a="fermerParams">' + icone('chevron') + 'Planifier</button>' +
         '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; la tournée proposée s\'affiche à la fin.</p>' + rendreParams() + '</div>';
@@ -2240,9 +2253,18 @@
       var ko = estKo(a.statut), pr = !ko && a.produits ? ' · ' + a.produits : '';
       return '<span class="ligne-etat ' + (ko ? 'ko' : 'ok') + '">' + (ko ? '✗ ' : '✓ ') + esc(statutLibelle(a)) + esc(pr) + (a.etat !== 'valide' ? ' · à enregistrer' : '') + '</span>';
     }
-    if (a.date < t || (a.date === t && hm !== null && hm < now)) return '<span class="ligne-etat alerte">! Compte rendu à saisir</span>';
+    if (a.date < t) return '<span class="ligne-etat alerte">! Compte rendu à saisir</span>';
+    if (a.date === t && hm !== null && hm < now) return '<span class="ligne-etat alerte">! Compte rendu à saisir' + distanceMoi(a) + '</span>';
     var tag = a.impose ? (a.etape ? libelleRdv(a) : (a.rdv ? 'RDV ' + a.rdv : 'Prioritaire')) : '';
-    return '<span class="ligne-etat">○ À venir' + (tag ? ' · ' + esc(tag) : '') + '</span>';
+    return '<span class="ligne-etat">○ À venir' + (tag ? ' · ' + esc(tag) : '') + (a.date === t ? distanceMoi(a) : '') + '</span>';
+  }
+  // 3.23.2 : distance entre moi (GPS) et une visite du jour pas encore faite, pour choisir qui voir en priorité
+  function distanceMoi(a) {
+    var pos = S.ui.posGps, c = pos && Date.now() - pos.t < 5 * 60000 ? (coordPrecise(a) || coordArret(a)) : null;
+    if (!c) return '';
+    var route = distanceKm(pos, c) * REGLAGES_MOTEUR.detourRoutier;
+    var d = route < 1 ? Math.max(10, Math.round(route * 100) * 10) + ' m' : (Math.round(route * 10) / 10).toLocaleString('fr-FR') + ' km';
+    return '<span class="dist-moi' + (route < 0.5 ? ' tout-pres' : '') + '" role="img" aria-label="À ' + d + ' de vous">' + icone('cible') + d + '</span>';
   }
   // Carte d'une visite (Aujourd'hui) : contact d'abord, puis compte rendu en deux temps
   function rendreArret(a) {
@@ -3930,6 +3952,13 @@
 
   // Premier arrivé, premier servi : les médecins qu'un collègue avait ciblés avant nous sont
   // remplacés automatiquement, sauf ceux épinglés, imposés ou déjà visités (simplement signalés).
+  function alerteConflits() {
+    var conflits = S.ui.conflitsAttente || []; if (!conflits.length) return;
+    S.ui.conflitsAttente = null;
+    // plus de remplacement automatique : chaque carte concernée pose la question Remplacer Oui / Non
+    toast(conflits.length + ' médecin' + (conflits.length > 1 ? 's' : '') + ' de votre tournée ' +
+      (conflits.length > 1 ? 'sont' : 'est') + ' aussi prévu' + (conflits.length > 1 ? 's' : '') + ' par un collègue : choisissez sur chaque carte de le remplacer ou non.', 5000);
+  }
   function resoudreConflits(conflits) {
     var touches = {}, dates = {}, codes = {};
     conflits.forEach(function (c) {
@@ -5004,6 +5033,8 @@
     var d = {
       relancer: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
       plus: '<path d="M12 5v14M5 12h14"/>',
+      pieton: '<circle cx="13" cy="4" r="1.8"/><path d="M10 21l2-6 3 3v3M9 11l3-3.5 3 2 2.5 3M12 7.5l-1.3 5.3 3.3 2.2"/><path d="M8.5 12.5 7 15"/>',
+      voiture: '<path d="M5 16V12l1.8-4.2A2 2 0 0 1 8.6 6.5h6.8a2 2 0 0 1 1.8 1.3L19 12v4"/><path d="M4 16h16v2.5H4z"/><path d="M5 12h14"/><circle cx="7.5" cy="18.5" r="1.4"/><circle cx="16.5" cy="18.5" r="1.4"/>',
       medecin: '<path d="M12 2.5v19"/><path d="M14.6 4.2c1.3.2 1.6 1.6.4 2.2L9.4 9c-1.6.8-1.4 2.6.3 3.1l4.4 1.2c1.6.5 1.7 2.3.2 3l-3.5 1.6"/><circle cx="14.6" cy="4.1" r=".6"/>',
       pharmacie: '<path d="M5 10.5h14c0 3.6-3.1 6.5-7 6.5s-7-2.9-7-6.5z"/><path d="M12 17v3.5M8.5 21h7"/><path d="M8.5 10.5c-.4-2.3 1.2-3.4 3.3-3.4s3.3-1.2 2.7-3.1"/><circle cx="14.4" cy="3.9" r=".6"/>',
       equipe: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>',

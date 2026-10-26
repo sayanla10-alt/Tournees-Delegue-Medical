@@ -1,9 +1,9 @@
 {
-  "version": "3.23.1",
+  "version": "3.23.2",
   "date": "2026-10-26",
   "notes": [
+    "Trajets en symboles : distance, à pied, en voiture",
     "Symboles médecin / pharmacie au lieu du mot",
-    "Pharmacie proche : « Y aller ? » avec la distance en mètres",
-    "Journée : visite proche ramenée « maintenant » (GPS)"
+    "Pharmacie proche : « Y aller ? » avec la distance en mètres"
   ]
 }
