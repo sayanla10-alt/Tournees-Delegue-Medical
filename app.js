@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.19';
+  var APP_VERSION = '3.24.20';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.20', ['Visite proche (GPS) : proposée à moins de 500 m (au lieu de 300 m), si le praticien est encore présent au moins 10 minutes (au lieu de 20)']],
     ['3.24.19', ['Fiche produit : la bande des produits tourne en boucle (après le dernier, le premier revient, dans les deux sens)']],
     ['3.24.18', ['Compte Rendu de visite : « Choisir » au lieu de « Choisir… (plusieurs possibles) »']],
     ['3.24.17', ['Réglages : libellé « WhatsApp Superviseur »']],
@@ -1450,8 +1451,8 @@
   }
 
   // 3.23.0 : position suivie toutes les 2 minutes pendant que Journée montre aujourd'hui ;
-  // une visite prévue plus tard, à moins de 300 m et dont le praticien est présent à cette heure, est proposée « maintenant »
-  var RAYON_PROCHE_KM = 0.3;
+  // une visite prévue plus tard, à moins de 500 m et dont le praticien est présent à cette heure, est proposée « maintenant »
+  var RAYON_PROCHE_KM = 0.5, MARGE_PRESENCE_MIN = 10;   // 3.24.20 : 500 m, au moins 10 min de présence restantes
   function suivrePosition() {
     if (S.ui.gpsMinuteur || !navigator.geolocation) return;
     var lire = function () {
@@ -1492,7 +1493,7 @@
     sans.forEach(function (a) {
       if (a === suivante || (refus.d === aujourdhui() && refus.uids && refus.uids[a.uid])) return;
       var c = coordPrecise(a), deb = heureVersMinutes(a.debut), fin = heureVersMinutes(a.fin);
-      if (!c || deb === null || fin === null || now < deb || now > fin - REGLAGES_MOTEUR.dureeVisite) return;
+      if (!c || deb === null || fin === null || now < deb || now > fin - MARGE_PRESENCE_MIN) return;
       if (heureVersMinutes(a.heure) !== null && heureVersMinutes(a.heure) <= now + 15) return;   // déjà imminente
       var d = distanceKm(pos, c);
       if (d <= RAYON_PROCHE_KM && (!best || d < best.d)) best = { a: a, d: d };
