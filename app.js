@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.4';
+  var APP_VERSION = '3.24.5';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.5', ['Le mot pharmacie abrégé en « Phcie » à l\'écran (cartes, listes, boutons) pour gagner de la place ; rien ne change dans la base']],
     ['3.24.4', ['Recherche : « Réinitialiser les filtres et recommencer », centré']],
     ['3.24.3', ['Journée : à côté du titre, Avant-hier, Hier, Demain ou Après-demain, chacun dans sa couleur, comme Aujourd\'hui']],
     ['3.24.2', ['Journée : lieu, quartier, commune et GPS des visites suivent la base (officine ou cabinet déplacé, coordonnées corrigées) dès la synchronisation']],
@@ -5344,6 +5345,28 @@
     S.ui.lancementAuto = true;
     S.ui.lancementFin = Date.now() + 1000 * (S.ui.nouveautes && S.ui.nouveautes.length ? DELAI_LANCEMENT_NOUVEAUTES : DELAI_LANCEMENT);
   }
+  // 3.24.5 : « Pharmacie » abrégé en « Phcie » à l'écran seulement (cartes, listes, feuilles, messages).
+  // On ne touche qu'aux textes affichés : ni les valeurs des champs, ni les attributs, ni les données,
+  // ni les textes partagés (WhatsApp, exports) ; les lecteurs d'écran gardent le mot entier (aria-label).
+  (function () {
+    var RE = /\bPharmacie\b|\bPHARMACIE\b/g, EXCLUS = { TEXTAREA: 1, SCRIPT: 1, STYLE: 1, OPTION: 1, INPUT: 1, SELECT: 1 };
+    function abreger(n) {
+      if (n.nodeType === 3) {
+        var p = n.parentNode; if (!p || EXCLUS[p.nodeName] || (p.closest && p.closest('[contenteditable],textarea,select,.texte-entier'))) return;
+        if (RE.test(n.nodeValue)) { RE.lastIndex = 0; n.nodeValue = n.nodeValue.replace(RE, function (m) { return m === 'PHARMACIE' ? 'PHCIE' : 'Phcie'; }); }
+        RE.lastIndex = 0; return;
+      }
+      if (n.nodeType !== 1 || EXCLUS[n.nodeName]) return;
+      var w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT), l = [], t;
+      while ((t = w.nextNode())) l.push(t);
+      l.forEach(abreger);
+    }
+    if (!window.MutationObserver) return;
+    abreger(document.body);
+    new MutationObserver(function (ms) {
+      ms.forEach(function (m) { if (m.type === 'characterData') abreger(m.target); else m.addedNodes.forEach(abreger); });
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  })();
   importerAgenda();
   // 3.19.0 : à l'ouverture, Journée montre toujours aujourd'hui
   (function () {
