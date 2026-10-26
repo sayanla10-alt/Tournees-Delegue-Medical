@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.1';
+  var APP_VERSION = '3.24.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.2', ['Journée : lieu, quartier, commune et GPS des visites suivent la base (officine ou cabinet déplacé, coordonnées corrigées) dès la synchronisation']],
     ['3.24.1', ['Journée : pourcentage du planning du jour réalisé, avec la barre de progression (visites faites / visites prévues)']],
     ['3.24.0', ['Animations plus vivantes : cartes en cascade, prochaine visite qui pulse, barres et jauges qui se remplissent, chiffres qui défilent, onde au toucher, rebond de l\'onglet, notifications glissantes']],
     ['3.23.4', ['Journée, Planifier, Recherche, Autour de moi : sous-titres sans redite (pas de « Pharmacien » ni du nom de la pharmacie répété ; la spécialité reste pour les médecins)']],
@@ -1104,8 +1105,33 @@
   // 3.22.2 : tout jour de la fenêtre qui a au moins une donnée (tournée archivée ou publiée, brouillon compris,
   // ou compte rendu) apparaît d'office dans l'agenda, à chaque ouverture et après chaque synchronisation.
   // Un jour vidé volontairement (toutes ses visites retirées) n'est pas réimporté.
+  // 3.24.2 : lieu, quartier, commune et GPS d'une visite suivent la base : une officine ou un cabinet
+  // déplacé (ou des coordonnées corrigées) dans la feuille se reflète à l'écran dès la synchronisation
+  function actualiserLieux() {
+    var C = ctx(), t0 = ajouterJours(aujourdhui(), -7), change = false, futur = false;
+    function maj(a) {
+      if (!a || !a.code || String(a.date || '') < t0) return;
+      var l = C.parCode[a.code] || [], vus = {}, pres = [];
+      l.forEach(function (c) { if (!vus[c.idPresence]) { vus[c.idPresence] = true; pres.push(c); } });
+      var c = (a.idPresence && pres.filter(function (x) { return String(x.idPresence) === String(a.idPresence); })[0]) || (pres.length === 1 ? pres[0] : null);
+      var p = C.prat[a.code];
+      var n = c ? { lieu: c.lieu || '', quartier: c.quartier || '', commune: c.commune || '', lat: c.coord ? c.coord.lat : null, lon: c.coord ? c.coord.lon : null } : {};
+      if (p && p.nom) n.nom = p.nom;
+      Object.keys(n).forEach(function (k) {
+        var av = a[k] === undefined || a[k] === null ? '' : String(a[k]), ap = n[k] === undefined || n[k] === null ? '' : String(n[k]);
+        if (k === 'lat' || k === 'lon') { av = av === '' ? '' : (+av).toFixed(6); ap = ap === '' ? '' : (+ap).toFixed(6); }
+        if (av !== ap) { a[k] = n[k]; change = true; if (a.date >= aujourdhui()) futur = true; }
+      });
+    }
+    S.plan.forEach(maj); (S.horsPlan || []).forEach(maj);
+    if (!change) return false;
+    LS.set('horsPlan', S.horsPlan || []); sauver();
+    if (futur && moi()) { S.ui.aPublier = true; LS.set('aPublier', true); }
+    return true;
+  }
   function importerAgenda() {
     if (!pret()) return 0;
+    actualiserLieux();
     var t = aujourdhui(), n = 0, deja = ensemble(datesPlan()), retires = LS.get('joursRetires', {});
     for (var k = -7; k <= 70; k++) {
       var d = ajouterJours(t, k);
@@ -5322,6 +5348,6 @@
   });
 
   // Accès pour les tests automatisés
-  window.__tournees = { S: S, ctx: ctx, texteProgramme: texteProgramme, urlWhatsapp: urlWhatsapp, normaliserNumero: normaliserNumero,
+  window.__tournees = { S: S, ctx: ctx, actualiserLieux: actualiserLieux, texteProgramme: texteProgramme, urlWhatsapp: urlWhatsapp, normaliserNumero: normaliserNumero,
                         version: APP_VERSION, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre };
 })();
