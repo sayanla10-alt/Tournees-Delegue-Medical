@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.17.1';
+  var APP_VERSION = '3.17.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.17.2', ['Journée › « Planifier le … » : Planifier s\'ouvre directement à l\'étape 2 (la période est déjà réglée sur ce jour)']],
     ['3.17.1', ['Journée : le bouton « Planifier le … » apparaît aussi quand aucune tournée n\'existe ; un week-end ou un jour férié propose le prochain jour ouvré']],
     ['3.17.0', ['Journée : un jour sans visite propose « Planifier le … » (Planifier s\'ouvre réglé sur ce jour)',
                'Planifier : bandeau « Déjà planifié » ; les visites déjà prévues ou renseignées restent en place, à leur heure, et seuls les créneaux libres sont complétés',
@@ -3800,7 +3801,8 @@
     planifierDate: function (el) {
       // Journée vide → Planifier, période réglée sur ce jour (les autres réponses déjà données sont reprises)
       S.params.mode = 'jour'; S.params.dateRef = el.dataset.v; LS.set('params', S.params);
-      etapesPDepuisDebut();
+      // période déjà connue (ce jour) : le parcours reprend à l'étape 2, la période reste modifiable
+      etapesPDepuisDebut(); S.ui.etapesP.ok.quand = true; sauverEtapesP();
       S.ui.tab = 'semaine'; S.ui.voirParams = true; S.ui.feuille = null; rendre(); window.scrollTo(0, 0);
     },
     ouvrirAnciens: function () { S.ui.feuille = { type: 'anciens', titre: 'Reprendre un ancien programme', pleine: true }; rendre(); },

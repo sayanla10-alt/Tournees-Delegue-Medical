@@ -1,7 +1,7 @@
 {
-  "version": "3.17.1",
+  "version": "3.17.2",
   "date": "2026-10-25",
   "notes": [
-    "Journée : bouton « Planifier le … » sur tout jour sans visite"
+    "« Planifier le … » ouvre Planifier à l'étape 2"
   ]
 }
