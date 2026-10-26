@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.22';
+  var APP_VERSION = '3.24.23';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.23', ['Journée : une visite renseignée passe en bas, dans « Effectuées » (toujours dans l\'ordre des heures) ; les visites à faire les plus proches restent en haut', 'Planifier : impossible de planifier un jour passé ; une semaine entamée ne planifie que les jours à venir', 'Planifier n\'affiche plus les jours passés ; ils restent mémorisés et se retrouvent dans « Reprendre un ancien programme »']],
     ['3.24.22', ['Pharmacies : nouvelles officines, y compris hors Abidjan (zone « Intérieur »)']],
     ['3.24.21', ['Fenêtres (fiche produit, choix, questions…) : on ferme avec la flèche retour en haut à gauche, comme dans Compte Rendu ; plus de croix', 'Carte de visite : « Quitter » avec la flèche retour']],
     ['3.24.20', ['Visite proche (GPS) : proposée à moins de 500 m (au lieu de 300 m), si le praticien est encore présent au moins 10 minutes (au lieu de 20)']],
@@ -1088,7 +1089,16 @@
     return l.length ? l[0] : '';
   }
   // Dates de la période (affichage) et dates travaillées (jours fériés exclus) pour le tirage
-  function datesAffichees() { var p = S.params; return p.mode === 'jour' ? [p.dateRef] : joursOuvres(lundiDe(p.dateRef)); }
+  // 3.24.23 : on ne planifie jamais un jour passé ; une semaine entamée ne garde que ses jours à venir
+  function dateRefValide() {
+    var p = S.params, t = aujourdhui();
+    if (!p.dateRef || p.dateRef < t && (p.mode === 'jour' || joursOuvres(lundiDe(p.dateRef))[4] < t)) { p.dateRef = t; LS.set('params', p); }
+    return p.dateRef;
+  }
+  function datesAffichees() {
+    var p = S.params, t = aujourdhui(), r = dateRefValide();
+    return (p.mode === 'jour' ? [r] : joursOuvres(lundiDe(r))).filter(function (d) { return d >= t; });
+  }
   function datesPeriode() { return datesAffichees().filter(function (d) { return !estFerie(d); }); }
   function communesPour(date) {
     var p = S.params, l = p.communes;
@@ -1105,9 +1115,11 @@
 
   // ------------------------------------------------------------------ Vues du parcours : Aujourd'hui (terrain) et Planifier (préparation)
   function datesPlan() { return Array.from(new Set(S.plan.map(function (a) { return a.date; }))).sort(); }
+  // 3.24.23 : Planifier ne montre qu'aujourd'hui et l'à venir ; les jours passés restent en mémoire (Aujourd'hui, Reprendre un ancien programme)
+  function datesPlanAvenir() { var t = aujourdhui(); return datesPlan().filter(function (d) { return d >= t; }); }
   function etatJour(d) { return S.jours[d] && S.jours[d].etat === 'valide' ? 'valide' : 'proposition'; }
   function jourConfirme(d) { return etatJour(d) === 'valide'; }
-  function joursBrouillon() { return datesPlan().filter(function (d) { return !jourConfirme(d); }); }
+  function joursBrouillon() { return datesPlanAvenir().filter(function (d) { return !jourConfirme(d); }); }
   function mettreBrouillon(dates) { dates.forEach(function (d) { S.jours[d] = { etat: 'proposition', valideLe: '', modifieLe: '' }; }); }
   function signatureJour(d) { return S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code + '@' + a.heure; }).sort().join(','); }
   function confirmerJours(dates) {
@@ -1379,8 +1391,12 @@
       '</section>';
     if (!futurVerrouille(d) && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
+    // 3.24.23 : les visites renseignées passent en bas (« Effectuées », dans l'ordre des heures) ;
+    // en haut restent les visites à faire, les plus proches d'abord
+    var parHeure = function (x, y) { return (heureVersMinutes(x.heure) || 0) - (heureVersMinutes(y.heure) || 0); };
+    var aFaire = duJour.filter(function (a) { return !a.statut; }), faites = duJour.filter(function (a) { return a.statut; }).sort(parHeure);
     ['Matin', 'Soir'].forEach(function (cren) {
-      var liste = duJour.filter(function (a) { return a.creneau === cren; });
+      var liste = aFaire.filter(function (a) { return a.creneau === cren; });
       if (!liste.length) return;
       h += '<div class="creneau-titre">' + cren + '</div><ol class="ligne">';
       liste.forEach(function (a, i) {
@@ -1392,6 +1408,7 @@
       });
       h += '</ol>';
     });
+    if (faites.length) h += '<div class="creneau-titre">Effectuées · ' + faites.length + '</div><ol class="ligne faites">' + faites.map(rendreArret).join('') + '</ol>';
     h += blocRemplacant(d);
     return h;
   };
@@ -1642,13 +1659,14 @@
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('calendrier') + 'Planifier</button></div>';
-    if (!S.plan.length) {
+    var datesF = datesPlanAvenir();
+    if (!datesF.length) {
       return h + '<p class="sous-titre">Préparez votre tournée : une journée ou une semaine, une question à la fois.</p>' +
         '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Planifier » pour préparer votre tournée.</div>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="voirParams">' + icone('calendrier') + 'Planifier ma tournée</button>' +
         boutonAnciens('margin-top:10px');
     }
-    var dates = datesPlan(); choisirJour(dates);
+    var dates = datesF; choisirJour(dates);
     var d = S.ui.jour, enAttente = S.ui.aAccepter === d;
     if (S.ui.annulReprise) {
       h += '<section class="bandeau-prog reprise"><div><b>Programme repris</b><span>' + esc(S.ui.annulReprise.libelle) +
@@ -1697,12 +1715,14 @@
   }
   // Sources : mes tournées publiées (feuille Plannings, 62 jours) et l'archive du téléphone, hors jours de la tournée en cours
   function anciensProgrammes() {
-    var parDate = {}, enCours = ensemble(S.plan.map(function (a) { return a.date; }));
+    var t0 = aujourdhui(), parDate = {}, enCours = ensemble(datesPlanAvenir());
+    // 3.24.23 : jours passés de la tournée du téléphone (toujours mémorisés)
+    S.plan.forEach(function (a) { if (a.date < t0) (parDate[a.date] = parDate[a.date] || []).push(a); });
     var arch = LS.get('archives', {}), srv = {};
-    Object.keys(arch).forEach(function (d) { if (!enCours[d]) parDate[d] = arch[d]; });
+    Object.keys(arch).forEach(function (d) { if (!enCours[d] && !parDate[d]) parDate[d] = arch[d]; });
     // la version publiée (feuille Plannings) complète les jours absents de l'archive du téléphone
     ((S.data && S.data.plannings) || []).forEach(function (p) {
-      if (p.delegue && estMoi(p.delegue) && !enCours[p.date] && !arch[p.date]) (srv[p.date] = srv[p.date] || []).push(p);
+      if (p.delegue && estMoi(p.delegue) && !enCours[p.date] && !arch[p.date] && !parDate[p.date]) (srv[p.date] = srv[p.date] || []).push(p);
     });
     Object.keys(srv).forEach(function (d) { parDate[d] = srv[d]; });
     var semaines = {};
@@ -1724,7 +1744,8 @@
   }
   function cibleParDefaut(type, valeur) {
     var t = prochainJourOuvre(aujourdhui());
-    if (type === 'semaine') return lundiDe(S.plan.length ? datesPlan()[0] : (jourSemaineIndex(aujourdhui()) > 3 ? ajouterJours(aujourdhui(), 7) : aujourdhui()));
+    var av = datesPlanAvenir();
+    if (type === 'semaine') return lundiDe(av.length ? av[0] : (jourSemaineIndex(aujourdhui()) > 3 ? ajouterJours(aujourdhui(), 7) : aujourdhui()));
     // même jour de la semaine, à partir d'aujourd'hui
     return prochaineOccurrence(jourSemaineIndex(valeur), t, true);
   }
@@ -1736,7 +1757,7 @@
     var vers = ciblesReprise(type, source, cibleChoisie || cibleParDefaut(type, valeur)), c = ctx(), nouveaux = [], manques = [];
     Object.keys(source).forEach(function (d) {
       var cible = vers[d];
-      if (!cible || jourSemaineIndex(cible) > 4 || estFerie(cible)) { manques = manques.concat(source[d].map(function (x) { return x.nom; })); return; }
+      if (!cible || cible < aujourdhui() || jourSemaineIndex(cible) > 4 || estFerie(cible)) { manques = manques.concat(source[d].map(function (x) { return x.nom; })); return; }
       var j = jourSemaineIndex(cible), vus = {};
       source[d].slice().sort(function (a, b) { return String(a.heure).localeCompare(String(b.heure)); }).forEach(function (x) {
         if (vus[x.code]) return; vus[x.code] = true;
@@ -1902,13 +1923,14 @@
   function etapesParams() {
     var p = S.params, dates = datesAffichees();
     var l = [
-      { id: 'quand', titre: 'Période', resume: function () { return p.mode === 'jour' ? 'Journée du ' + dateCourte(p.dateRef) : 'Semaine du ' + dateCourte(dates[0]); },
+      { id: 'quand', titre: 'Période', resume: function () { return p.mode === 'jour' ? 'Journée du ' + dateCourte(p.dateRef) : (dates.length && dates[0] !== lundiDe(dates[0]) ? 'Du ' + dateCourte(dates[0]) + ' au ' + dateCourte(dates[dates.length - 1]) : 'Semaine du ' + dateCourte(dates[0])); },
         rendu: function () {
           return '<div class="segment" role="group" aria-label="Durée" style="margin-top:8px">' +
               '<button type="button" data-a="param" data-k="mode" data-v="jour" aria-pressed="' + (p.mode === 'jour') + '">Une journée</button>' +
               '<button type="button" data-a="param" data-k="mode" data-v="semaine" aria-pressed="' + (p.mode === 'semaine') + '">Une semaine</button></div>' +
             '<label class="champ" style="margin-bottom:0"><span>' + (p.mode === 'jour' ? 'Date' : 'Semaine du') + '</span>' +
-              '<input type="date" data-f="param" data-k="dateRef" value="' + esc(p.dateRef) + '"></label>' + bandeauFeries(dates) + bandeauDejaPlanifie(datesPeriode());
+              '<input type="date" data-f="param" data-k="dateRef" min="' + aujourdhui() + '" value="' + esc(p.dateRef) + '"></label>' +
+              (p.mode === 'semaine' && lundiDe(p.dateRef) < aujourdhui() ? '<p class="discret" style="margin:6px 0 0">Semaine entamée : seuls les jours à venir seront planifiés.</p>' : '') + bandeauFeries(dates) + bandeauDejaPlanifie(datesPeriode());
         } },
       { id: 'ou', titre: 'Communes ciblées', resume: function () { return p.mode === 'semaine' && p.parJour ? 'Communes différentes selon le jour' : libelleCommunes(p.communes); },
         rendu: function () {
@@ -3683,7 +3705,7 @@
       var sem = f.source.type === 'semaine', c = f.cible, existants = S.plan.filter(function (a) { return sem ? lundiDe(a.date) === lundiDe(c) : a.date === c; });
       var weekend = !sem && jourSemaineIndex(c) > 4;
       return { corps: '<p style="margin-top:0"><b>À reprendre :</b> ' + (sem ? 'semaine du ' + dateCourte(f.source.valeur) : majuscule(dateLongue(f.source.valeur))) + '.</p>' +
-        '<label class="champ"><span>' + (sem ? 'Sur quelle semaine ? (choisissez un jour de la semaine)' : 'Sur quel jour ?') + '</span><input type="date" data-f="repriseCible" value="' + esc(c) + '"></label>' +
+        '<label class="champ"><span>' + (sem ? 'Sur quelle semaine ? (choisissez un jour de la semaine)' : 'Sur quel jour ?') + '</span><input type="date" data-f="repriseCible" min="' + aujourdhui() + '" value="' + esc(c) + '"></label>' +
         '<p class="discret">' + (sem ? 'Semaine du ' + dateCourte(lundiDe(c)) + ' au ' + dateCourte(joursOuvres(lundiDe(c))[4]) + ', chaque jour sur le même jour de la semaine.' : majuscule(dateLongue(c)) + '.') + '</p>' +
         (weekend ? '<p class="discret" style="color:var(--rouge)">Choisissez un jour de semaine.</p>' : '') +
         (existants.length ? '<div class="bandeau"><p>' + existants.length + ' visite' + (existants.length > 1 ? 's' : '') + ' déjà prévue' + (existants.length > 1 ? 's' : '') +
@@ -5143,6 +5165,9 @@
     if (f === 'param') {
       var k = el.dataset.k;
       S.params[k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? +el.value : el.value);
+      if (k === 'dateRef' && S.params.dateRef && S.params.dateRef < aujourdhui() && (S.params.mode === 'jour' || joursOuvres(lundiDe(S.params.dateRef))[4] < aujourdhui())) {
+        S.params.dateRef = aujourdhui(); toast('Impossible de planifier un jour passé : la date revient à aujourd\'hui.', 4000);
+      }
       LS.set('params', S.params);
       if (k === 'dateRef' || k === 'parJour') rendre();
     }
@@ -5152,7 +5177,11 @@
       if (as) { majCr(as, el.dataset.k, el.value); if (el.dataset.k === 'date' && el.value) validerEtape(as, 'date'); rendre(); }
     }
     if (f === 'cr' && /^(autres)$/.test(el.dataset.k)) rendre();
-    if (f === 'repriseCible' && el.value && S.ui.feuille) { S.ui.feuille.cible = el.value; rendre(); }
+    if (f === 'repriseCible' && el.value && S.ui.feuille) {
+      S.ui.feuille.cible = el.value < aujourdhui() && (S.ui.feuille.source.type !== 'semaine' || joursOuvres(lundiDe(el.value))[4] < aujourdhui()) ? aujourdhui() : el.value;
+      if (S.ui.feuille.cible !== el.value) toast('Impossible de reprendre sur un jour passé.', 3500);
+      rendre();
+    }
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
