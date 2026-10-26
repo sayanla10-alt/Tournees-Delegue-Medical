@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.23.2';
+  var APP_VERSION = '3.23.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.23.3', ['Planifier : plus d\'alerte « médecins prévus par un collègue » ; chaque ligne concernée affiche directement « Prévu par … »']],
     ['3.23.2', ['Cartes de la journée : distance entre vous et chaque visite à faire (symbole de position), pour choisir qui voir en priorité',
                'L\'alerte « médecins prévus par un collègue » ne s\'affiche plus que dans Planifier',
                'Trajets en symboles : distance, minutes à pied et en voiture, entre les visites et jusqu\'à la visite suivante (depuis votre position quand le GPS est actif)']],
@@ -735,8 +736,8 @@
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data);
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
-      // 3.23.2 : l'alerte « prévus par un collègue » n'est donnée que dans Planifier (gardée en attente sinon)
-      if (S.ui.conflits.length) { S.ui.conflitsAttente = S.ui.conflits; S.ui.conflits = []; if (S.ui.tab === 'semaine') alerteConflits(); }
+      // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
+      S.ui.conflits = [];
       if (!silencieux) toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
     }).catch(function (e) {
       S.ui.sync = 'erreur'; S.ui.erreur = e.message;
@@ -1510,7 +1511,6 @@
   // N'apparaît que ce qui sert sur le moment : « Confirmer » s'il y a des brouillons, « Accepter / Recalculer encore »
   // juste après un recalcul, « Envoyer par WhatsApp » une fois le jour confirmé.
   VUES.semaine = function () {
-    if (S.ui.conflitsAttente && S.ui.conflitsAttente.length) setTimeout(alerteConflits, 300);
     if (S.ui.voirParams) {
       return '<div class="page-entree"><button type="button" class="retour" data-a="fermerParams">' + icone('chevron') + 'Planifier</button>' +
         '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; la tournée proposée s\'affiche à la fin.</p>' + rendreParams() + '</div>';
@@ -3952,13 +3952,6 @@
 
   // Premier arrivé, premier servi : les médecins qu'un collègue avait ciblés avant nous sont
   // remplacés automatiquement, sauf ceux épinglés, imposés ou déjà visités (simplement signalés).
-  function alerteConflits() {
-    var conflits = S.ui.conflitsAttente || []; if (!conflits.length) return;
-    S.ui.conflitsAttente = null;
-    // plus de remplacement automatique : chaque carte concernée pose la question Remplacer Oui / Non
-    toast(conflits.length + ' médecin' + (conflits.length > 1 ? 's' : '') + ' de votre tournée ' +
-      (conflits.length > 1 ? 'sont' : 'est') + ' aussi prévu' + (conflits.length > 1 ? 's' : '') + ' par un collègue : choisissez sur chaque carte de le remplacer ou non.', 5000);
-  }
   function resoudreConflits(conflits) {
     var touches = {}, dates = {}, codes = {};
     conflits.forEach(function (c) {
