@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.13';
+  var APP_VERSION = '3.24.14';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.14', ['Bilan : s\'ouvre toujours sur le Tableau de bord', 'Planifier : bouton « Envoyer par WhatsApp » avec son icône, centré', 'L\'écran ne bouge plus à chaque synchronisation ou rafraîchissement : les animations ne se jouent qu\'à l\'ouverture d\'un écran, et la position de lecture est gardée']],
     ['3.24.13', ['Réglages : le bouton « Installer l\'application » est toujours visible ; s\'il est déjà installé, il affiche « Application installée »']],
     ['3.24.12', ['Journée : sous la jauge, « X/Y réalisées · Z % renseignées » (comptes rendus saisis, visite faite ou non)']],
     ['3.24.11', ['Journée : sous la jauge, « X/Y réalisées · Z % »']],
@@ -235,7 +236,7 @@
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, eqSel: LS.get('eqSel', []), jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
       couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: LS.get('couvOuverte', false),
-      statsVue: LS.get('statsVue', 'tableau'), annulReprise: LS.get('annulReprise', null), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
+      statsVue: 'tableau', annulReprise: LS.get('annulReprise', null), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
       autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 2, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
       filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false
@@ -883,8 +884,13 @@
     else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
     cacherInfobulle();
     cartesAFaire = [];
-    $('vue').innerHTML = (VUES[tab] || VUES.jour)();
+    // 3.24.14 : un rafraîchissement du même écran (synchronisation, minuterie) ne rejoue aucune animation
+    // et garde la position de lecture : l'écran ne bouge plus
+    var vue = $('vue'), y = window.scrollY;
+    vue.classList.remove('vue-entre');
+    vue.innerHTML = (VUES[tab] || VUES.jour)();
     animerRendu(tab);
+    if (!vue.classList.contains('vue-entre') && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
     centrerBandeJours();
     dessinerCartes();
     rendreFeuille();
@@ -898,7 +904,7 @@
     var v = $('vue'), cle = tab + '|' + (S.ui.rechOuverte ? 1 : 0) + '|' + (S.ui.voirParams ? 1 : 0) + '|' + (S.ui.jourVue || S.ui.jour || '');
     var nouvelEcran = cle !== S.ui.cleVue;
     if (nouvelEcran) {
-      v.classList.remove('vue-entre'); void v.offsetWidth; v.classList.add('vue-entre'); S.ui.cleVue = cle;
+      void v.offsetWidth; v.classList.add('vue-entre'); S.ui.cleVue = cle;
       // 3.24.0 : les cartes, lignes et indicateurs arrivent l'un après l'autre (cascade)
       v.querySelectorAll('.arret, .ligne-plan, .liste > .element, .kpi, .ligne-gamme, .tuile, .bj-jour').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 14)); });
       if (!reduireAnimations()) compterChiffres(v);
@@ -911,6 +917,9 @@
       if (nb) { nb.classList.remove('rebond'); void nb.offsetWidth; nb.classList.add('rebond'); }
       S.ui.ongletAnime = tab;
     }
+    var bpx = v.querySelector('.bandeau-proche'), kp = bpx ? bpx.textContent : '';
+    if (bpx && kp !== S.ui.cleProche) bpx.classList.add('nouveau');
+    S.ui.cleProche = kp;
     var q = v.querySelector('.cr-question .etape-titre'), kq = q ? q.textContent : '';
     if (q && kq !== S.ui.cleQuestion) q.parentNode.classList.add('nouvelle');
     S.ui.cleQuestion = kq;
@@ -1641,7 +1650,9 @@
     var etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmé' + (S.jours[d] && S.jours[d].modifieLe ? ', modifié' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
     h += '<div class="tete-jour-plan"><p class="bilan-jour"><b>' + majuscule(dateLongue(d)) + '</b> : ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
       ', environ ' + km(totalKm) + (n3 ? ', dont ' + n3 + ' ★★★' : '') + '.</p>' + etat +
-      (jourConfirme(d) && !enAttente ? '<button class="bouton-icone wa-mini" type="button" data-a="ouvrirExport" aria-label="Envoyer par WhatsApp">' + icone('whatsapp') + '</button>' : '') + '</div>';
+'</div>' +
+      // 3.24.14 : bouton texte + icône, centré
+      (jourConfirme(d) && !enAttente ? '<div class="rangee-wa"><button class="bouton wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer par WhatsApp</button></div>' : '');
     h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
     if (enAttente) {
       h += '<section class="bandeau-prog accepter"><div><b>Nouvelle sélection</b><span>Elle vous convient ? Acceptez-la, ou recalculez encore (les médecins gardés restent).</span></div>' +
@@ -4330,6 +4341,8 @@
   var ACTIONS = {
     nav: function (el) {
       if (el.dataset.tab === 'semaine' && S.ui.tab !== 'semaine' && (!S.plan.length || S.ui.voirParams)) etapesPDepuisDebut();
+      // 3.24.14 : Bilan s'ouvre toujours sur le Tableau de bord
+      if (el.dataset.tab === 'bilan' && S.ui.tab !== 'bilan') { S.ui.statsVue = 'tableau'; LS.set('statsVue', 'tableau'); }
       S.ui.tab = el.dataset.tab; S.ui.pharmaciesProches = false;
       if (S.ui.tab === 'historique') { S.ui.tab = 'bilan'; S.ui.statsVue = 'historique'; } S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);

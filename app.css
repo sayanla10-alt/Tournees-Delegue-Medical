@@ -1124,7 +1124,7 @@ details.avance h3 { margin-top: 18px; }
 
 /* 3.23.0 : visite proche (GPS) */
 .bandeau-proche { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: start; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r);
-  background: var(--primaire-pale); border: 1.5px solid var(--primaire); animation: entrer .25s ease-out both; }
+  background: var(--primaire-pale); border: 1.5px solid var(--primaire); }
 .bandeau-proche > svg { width: 20px; height: 20px; color: var(--primaire); margin-top: 2px; }
 .bandeau-proche p { margin: 0; }
 .bandeau-proche .rangee { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; }
@@ -1158,7 +1158,7 @@ details.avance h3 { margin-top: 18px; }
 .onde { position: absolute; border-radius: 50%; background: currentColor; pointer-events: none; animation: onde .6s ease-out forwards; }
 .toast { transform: translateY(18px) scale(.96); transition: opacity .25s, transform .35s cubic-bezier(.2, 1.4, .4, 1); }
 .toast.visible { transform: none; }
-.bandeau-proche { animation: arriver .35s ease-out both, attention .6s ease-in-out .5s; }
+.bandeau-proche.nouveau { animation: arriver .35s ease-out both, attention .6s ease-in-out .5s; }
 .feuille.anim { animation: monter .32s cubic-bezier(.2, 1.2, .35, 1); }
 .bj-jour[aria-pressed="true"] { transition: transform .3s cubic-bezier(.2, 1.4, .4, 1), background-color .2s ease, box-shadow .2s ease; }
 .aire-bascule svg, .groupe-bascule svg { transition: transform .3s cubic-bezier(.2, 1.4, .4, 1); }
@@ -1180,3 +1180,7 @@ details.avance h3 { margin-top: 18px; }
 /* 3.24.6 : « X sans compte rendu » ouvre le compte rendu */
 .lien-cr { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; padding: 0; min-height: 0; color: var(--rouge); }
 .lien-cr.lien-plan { color: var(--ambre); }
+
+/* 3.24.14 : Planifier, Envoyer par WhatsApp centré */
+.rangee-wa { display: flex; justify-content: center; margin: 4px 0 12px; }
+.rangee-wa .bouton.wa { width: auto; min-width: 60%; justify-content: center; padding: 0 22px; }
