@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.5';
+  var APP_VERSION = '3.24.6';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.6', ['Journée : toucher « X sans compte rendu » ouvre la page Compte rendu du jour']],
     ['3.24.5', ['Le mot pharmacie abrégé en « Phcie » à l\'écran (cartes, listes, boutons) pour gagner de la place ; rien ne change dans la base']],
     ['3.24.4', ['Recherche : « Réinitialiser les filtres et recommencer », centré']],
     ['3.24.3', ['Journée : à côté du titre, Avant-hier, Hier, Demain ou Après-demain, chacun dans sa couleur, comme Aujourd\'hui']],
@@ -1292,7 +1293,7 @@
       if (!l.length) return '<div class="vide"><strong>Aucune visite ce jour-là</strong>Ni tournée archivée ni compte rendu pour cette date.</div>' + boutonPlanifierJour(d);
       var sans = l.filter(function (a) { return !a.statut || a.etat !== 'valide'; }).length, nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
       h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
-        (sans ? ' · <b class="txt-alerte">' + sans + ' sans compte rendu</b>' : '') + '</span></div>' +
+        (sans ? ' · <button type="button" class="bouton-texte txt-alerte lien-cr" data-a="ouvrirRapport">' + sans + ' sans compte rendu ›</button>' : '') + '</span></div>' +
         barreRealise(nf, l.length) +
         '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : (d > t ? 'Saisie anticipée activée : touchez une visite pour saisir son compte rendu.' : 'Touchez une visite pour saisir ou modifier son compte rendu.')) + '</small></section>';
       h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';

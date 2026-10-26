@@ -1176,3 +1176,6 @@ details.avance h3 { margin-top: 18px; }
 
 /* 3.24.4 : Recherche, réinitialiser les filtres centré */
 .tri.tri-centre { justify-content: center; text-align: center; }
+
+/* 3.24.6 : « X sans compte rendu » ouvre le compte rendu */
+.lien-cr { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; padding: 0; min-height: 0; color: var(--rouge); }
