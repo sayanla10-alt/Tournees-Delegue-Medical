@@ -1,9 +1,9 @@
 {
-  "version": "3.23.0",
+  "version": "3.23.1",
   "date": "2026-10-26",
   "notes": [
-    "Journée : visite proche ramenée « maintenant » (GPS)",
-    "Pharmacie ouverte à proximité signalée avec sa distance",
-    "Produits : première aire dépliée par défaut"
+    "Symboles médecin / pharmacie au lieu du mot",
+    "Pharmacie proche : « Y aller ? » avec la distance en mètres",
+    "Journée : visite proche ramenée « maintenant » (GPS)"
   ]
 }

@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.23.0';
+  var APP_VERSION = '3.23.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.23.1', ['Médecin et pharmacie signalés par leur symbole (caducée du médecin en bleu, coupe d\'Hygie de la pharmacie en violet) au lieu du mot',
+               'Pharmacie proche : « X est à 150 mètres, ouverte jusqu\'à 12:30 (Jamais visité). Y aller ? »']],
     ['3.23.0', ['Boutons de confirmation raccourcis : « Enregistrer », « Confirmer », « Ajouter »… au lieu de « Oui, … »',
                'Journée : une pharmacie ouverte à moins de 500 m, hors de votre journée et pas vue récemment, est signalée avec sa distance ; « Oui » l\'ajoute maintenant',
                'Journée : si le GPS vous situe à moins de 300 m d\'une visite prévue plus tard (praticien présent à cette heure), « Le voir maintenant ? » la ramène juste après la visite en cours et recalcule les heures suivantes']],
@@ -1288,16 +1290,16 @@
     suivrePosition();
     var proche = visiteProche(sans, suivante);
     if (proche) {
-      h += '<div class="bandeau-proche">' + icone('cible') + '<p>Vous êtes à <b>' + Math.max(10, Math.round(proche.d * 1000 / 10) * 10) + ' m</b> de <b>' + esc(proche.a.nom) + '</b> (prévu à ' + esc(proche.a.heure) + '). Le voir maintenant ?</p>' +
+      h += '<div class="bandeau-proche' + classeType(proche.a) + '">' + pastilleType(proche.a, true) + '<p>Vous êtes à <b>' + metres(proche.d) + '</b> de <b>' + esc(nomSansType(proche.a.nom)) + '</b> (prévu à ' + esc(proche.a.heure) + '). Le voir maintenant ?</p>' +
         '<div class="rangee"><button class="bouton" type="button" data-a="procheNon" data-uid="' + proche.a.uid + '">Non</button>' +
         '<button class="bouton bouton-plein" type="button" data-a="procheOui" data-uid="' + proche.a.uid + '">Maintenant</button></div></div>';
     } else {
       var ph = pharmacieProche(duJour);
       if (ph) {
-        h += '<div class="bandeau-proche">' + icone('cible') + '<p><b>' + esc(ph.c.prat.nom) + '</b> est à <b>' + Math.max(10, Math.round(ph.d * 100) * 10) + ' m</b> de vous' +
-          ', ouverte jusqu\'à ' + minutesVersHeure(ph.c.fin) + ' (' + esc(vuDepuis(ph.c.prat.derniere)) .toLowerCase() + '). Y passer maintenant ?</p>' +
+        h += '<div class="bandeau-proche t-pharma">' + pastilleType(ph.c.prat, true) + '<p><b>' + esc(nomSansType(ph.c.prat.nom)) + '</b> est à <b>' + metres(ph.d) + '</b>' +
+          ', ouverte jusqu\'à ' + minutesVersHeure(ph.c.fin) + ' (' + esc(vuDepuis(ph.c.prat.derniere)) + '). Y aller ?</p>' +
           '<div class="rangee"><button class="bouton" type="button" data-a="pharmaNon" data-v="' + esc(ph.c.code) + '">Non</button>' +
-          '<button class="bouton bouton-plein" type="button" data-a="pharmaOui" data-v="' + esc(ph.c.cle) + '">Ajouter</button></div></div>';
+          '<button class="bouton bouton-plein" type="button" data-a="pharmaOui" data-v="' + esc(ph.c.cle) + '">Y aller</button></div></div>';
       }
     }
     if (!sans.length) {
@@ -2562,7 +2564,14 @@
 
   // 3.18.0 : type de praticien en couleur (médecin bleu, pharmacie violet), avec le mot pour ne pas dépendre de la couleur
   function estPharmacie(o) { var t = o && (o.type || (praticien(o.code) || {}).type); return t === 'Pharmacie'; }
-  function pastilleType(o) { var ph = estPharmacie(o); return '<i class="type-pastille ' + (ph ? 't-pharma' : 't-med') + '">' + (ph ? 'Pharmacie' : 'Médecin') + '</i>'; }
+  // 3.23.1 : le type se lit par un symbole et une couleur : caducée du médecin (bâton d'Asclépios, bleu),
+  // coupe d'Hygie de la pharmacie (violet) ; le mot reste lu par les lecteurs d'écran
+  function pastilleType(o, grand) {
+    var ph = estPharmacie(o), lib = ph ? 'Pharmacie' : 'Médecin';
+    return '<i class="type-pastille ' + (ph ? 't-pharma' : 't-med') + (grand ? ' grand' : '') + '" role="img" aria-label="' + lib + '" title="' + lib + '">' + icone(ph ? 'pharmacie' : 'medecin') + '</i>';
+  }
+  function nomSansType(nom) { return String(nom || '').replace(/^\s*pharmacie\s+/i, ''); }
+  function metres(km) { return Math.max(10, Math.round(km * 100) * 10) + ' mètres'; }
   function classeType(o) { return estPharmacie(o) ? ' t-pharma' : ' t-med'; }
   function rendreProposition(x, i, date) {
     var c = x.c, p = c.prat;
@@ -4995,6 +5004,8 @@
     var d = {
       relancer: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
       plus: '<path d="M12 5v14M5 12h14"/>',
+      medecin: '<path d="M12 2.5v19"/><path d="M14.6 4.2c1.3.2 1.6 1.6.4 2.2L9.4 9c-1.6.8-1.4 2.6.3 3.1l4.4 1.2c1.6.5 1.7 2.3.2 3l-3.5 1.6"/><circle cx="14.6" cy="4.1" r=".6"/>',
+      pharmacie: '<path d="M5 10.5h14c0 3.6-3.1 6.5-7 6.5s-7-2.9-7-6.5z"/><path d="M12 17v3.5M8.5 21h7"/><path d="M8.5 10.5c-.4-2.3 1.2-3.4 3.3-3.4s3.3-1.2 2.7-3.1"/><circle cx="14.4" cy="3.9" r=".6"/>',
       equipe: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>',
       partager: '<path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5v10h14V11h-1"/>',
       telecharger: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
