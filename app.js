@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.3';
+  var APP_VERSION = '3.25.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.4', ['Messages WhatsApp (programme et compte rendu) mieux présentés : titres en gras, puces, sections aérées, heures et établissements numérotés']],
     ['3.25.3', ['Fenêtre « Ajouter » : champ de recherche retiré, la recherche se fait dans la liste « Selon mes filtres »']],
     ['3.25.2', ['Ajouter selon mes filtres (communes du jour) : champ de recherche en tête pour chercher parmi les praticiens déjà filtrés']],
     ['3.25.1', ['Autour de moi : champ de recherche libre en tête (nom, spécialité, établissement, commune), résultats dès les premières lettres, selon vos filtres, du plus proche au plus loin',
@@ -1644,15 +1645,34 @@
     return h + (page ? '<div style="margin-top:12px">' + waSup + '</div>' : '') + '</section>';
   }
   function visitesDuJourRapport(d) { var l = S.plan.filter(function (a) { return a.date === d; }); return l.length ? l : arretsHorsJour(d); }
+  // 3.25.4 : mise en forme WhatsApp (*gras*, _italique_, puces •, une ligne vide entre les sections)
+  function sectionWa(titre, items, vide) {
+    var l = (items || []).filter(function (x) { return String(x || '').trim(); });
+    if (!l.length && vide === undefined) return [];
+    return ['', '*' + titre + '*' + (l.length > 1 ? ' (' + l.length + ')' : '')].concat(l.length ? l.map(function (x) { return '• ' + x; }) : ['_' + vide + '_']);
+  }
+  function heureVisite(a) { return (a.statut && a.valideA) || a.heure || ''; }
   function texteRapport(d) {
-    var R = rapportDe(d) || {}, s = syntheseJour(visitesDuJourRapport(d));
-    var l = ['*Compte Rendu du ' + dateLongue(d) + '*', 'Délégué : ' + (moi() || '')];
-    lignesSynthese(s).forEach(function (x) { l.push(x[0] + ' : ' + x[1]); });
-    l.push('Faits marquants : ' + (String(R.faits || '').trim() || 'rien à signaler'));
-    l.push('Concurrence : ' + (String(R.concurrence || '').trim() || 'rien observé'));
-    var b = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []);
-    l.push('Besoins : ' + (b.length ? b.join(', ') : 'aucun'));
-    if (R.km) l.push('Kilomètres réels : ' + R.km + ' km');
+    var R = rapportDe(d) || {}, duJour = visitesDuJourRapport(d), s = syntheseJour(duJour);
+    var pot = [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return s.pot[x[0]] + ' ' + x[1]; }).join('  ·  ');
+    var prod = Object.keys(s.produits).sort(function (a, b) { return s.produits[b] - s.produits[a]; }).map(function (x) { return x + (s.produits[x] > 1 ? ' _(' + s.produits[x] + ')_' : ''); });
+    var faites = s.faites.slice().sort(function (a, b) { return String(heureVisite(a)).localeCompare(String(heureVisite(b))); });
+    var l = ['*COMPTE RENDU DU ' + dateLongue(d).toUpperCase() + '*', '_' + (moi() || 'Délégué') + '_', '',
+      '*Bilan de la journée*',
+      '• Visites : *' + s.faites.length + ' faite' + (s.faites.length > 1 ? 's' : '') + ' sur ' + s.prevues + '*' + (s.sansCr.length ? ' _(' + s.sansCr.length + ' sans compte rendu)_' : '')];
+    if (pot) l.push('• Potentiel vu : ' + pot);
+    l.push('• Trajet : ' + (R.km ? R.km + ' km (réels)' : km(s.km)) + (s.est ? ', de ' + minutesVersHeure(s.est.debut) + ' à ' + minutesVersHeure(s.est.fin) : ''));
+    if (s.communes.length) l.push('• Communes : ' + s.communes.join(', '));
+    l = l.concat(sectionWa('Visites faites', faites.map(function (a) { var h = heureVisite(a); return (h ? h + '  ' : '') + '*' + a.nom + '*' + (a.lieu ? ', ' + a.lieu : ''); })));
+    l = l.concat(sectionWa('Visites non faites', s.nonFaites.map(function (a) { return a.nom + ' : ' + String(statutLibelle(a) || '').toLowerCase(); })));
+    l = l.concat(sectionWa('Produits présentés', prod));
+    l = l.concat(sectionWa('Échantillons remis', s.echantillons));
+    l = l.concat(sectionWa('Commandes', s.commandes));
+    l = l.concat(sectionWa('Ruptures signalées', s.ruptures));
+    l = l.concat(sectionWa('RDV et rappels', s.suites));
+    l = l.concat(sectionWa('Faits marquants', String(R.faits || '').split(/\n+/), 'Rien à signaler'));
+    l = l.concat(sectionWa('Concurrence', String(R.concurrence || '').split(/\n+/), 'Rien observé'));
+    l = l.concat(sectionWa('Besoins', (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []), 'Aucun'));
     return l.join('\n');
   }
   function empreinteRapport(R) { return JSON.stringify([R.faits || '', R.concurrence || '', R.besoins || [], R.besoinsTexte || '', R.km || '']); }
@@ -4232,23 +4252,33 @@
   //   HMA
   //   Dr Assie Augustin
   //   ...
+  // 3.25.4 : un bloc par jour ; établissements numérotés dans l'ordre de passage, médecins en puces avec l'heure
+  //   *PROGRAMME DU MARDI 27/10/2026*
+  //   _Serge Alain · 8 visites_
+  //
+  //   *1. HMA* _(Adjamé)_
+  //   • 08:30  Dr Assie Augustin
   function texteProgramme(dates) {
     var blocs = [];
     dates.forEach(function (d) {
-      var l = S.plan.filter(function (a) { return a.date === d; });
+      var l = S.plan.filter(function (a) { return a.date === d; }).slice().sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
       if (!l.length) return;
-      var p = d.split('-');
-      var lignes = ['Planning du ' + nomJour(d).toLowerCase() + ' ' + p[2] + '/' + p[1] + '/' + p[0] + (moi() ? ' (' + moi() + ')' : '')];
-      var ordre = [], parLieu = {};
+      var p = d.split('-'), ordre = [], parLieu = {};
       l.forEach(function (a) {
         var k = String(a.lieu || a.quartier || '').trim() || 'Autre lieu';
-        if (!parLieu[k]) { parLieu[k] = []; ordre.push(k); }
-        if (parLieu[k].indexOf(a.nom) < 0) parLieu[k].push(a.nom);
+        if (!parLieu[k]) { parLieu[k] = { commune: a.commune || '', noms: [] }; ordre.push(k); }
+        if (!parLieu[k].noms.some(function (x) { return x.nom === a.nom; })) parLieu[k].noms.push({ nom: a.nom, heure: a.heure || '' });
       });
-      ordre.forEach(function (k) { lignes.push(''); lignes.push('*' + k + '*'); parLieu[k].forEach(function (n) { lignes.push('• ' + n); }); });
+      var lignes = ['*PROGRAMME DU ' + nomJour(d).toUpperCase() + ' ' + p[2] + '/' + p[1] + '/' + p[0] + '*',
+        '_' + (moi() ? moi() + ' · ' : '') + l.length + ' visite' + (l.length > 1 ? 's' : '') + (ordre.length > 1 ? ', ' + ordre.length + ' établissements' : '') + '_'];
+      ordre.forEach(function (k, n) {
+        var x = parLieu[k];
+        lignes.push(''); lignes.push('*' + (n + 1) + '. ' + k + '*' + (x.commune && k.indexOf(x.commune) < 0 ? ' _(' + x.commune + ')_' : ''));
+        x.noms.forEach(function (m) { lignes.push('• ' + (m.heure ? m.heure + '  ' : '') + m.nom); });
+      });
       blocs.push(lignes.join('\n'));
     });
-    return blocs.join('\n\n');
+    return blocs.join('\n\n━━━━━━━━━━\n\n');
   }
   function urlWhatsapp(texte, dest) {
     var num = normaliserNumero(dest || S.config.whatsapp), t = encodeURIComponent(texte);
@@ -5640,6 +5670,6 @@
   });
 
   // Accès pour les tests automatisés
-  window.__tournees = { S: S, ctx: ctx, actualiserLieux: actualiserLieux, texteProgramme: texteProgramme, urlWhatsapp: urlWhatsapp, normaliserNumero: normaliserNumero,
+  window.__tournees = { S: S, ctx: ctx, actualiserLieux: actualiserLieux, texteProgramme: texteProgramme, texteRapport: texteRapport, urlWhatsapp: urlWhatsapp, normaliserNumero: normaliserNumero,
                         version: APP_VERSION, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre };
 })();
