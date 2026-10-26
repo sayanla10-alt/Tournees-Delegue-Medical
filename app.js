@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.5';
+  var APP_VERSION = '3.25.6';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -2506,8 +2506,7 @@
         actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune });
       if (futurVerrouille(a.date) && !(a.statut && verrou)) {
         // 3.25.0 : jour à venir sans « Saisie avancée » : pas de compte rendu, la planification reste possible
-        h += '<div class="bandeau" style="margin-top:10px"><p><b>Visite à venir.</b> Le compte rendu se saisit le jour même. ' +
-          'Pour saisir à l\'avance : roue crantée › Avancé › « Saisie avancée ».</p></div>' +
+        h += '<div class="bandeau" style="margin-top:10px"><p><b>Visite à venir.</b> Le compte rendu ne se saisit pas à l\'avance.</p></div>' +
           '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
           '<button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else if (passeVerrouille(a.date) && !(a.statut && verrou)) {
