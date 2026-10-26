@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.3';
+  var APP_VERSION = '3.24.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.4', ['Recherche : « Réinitialiser les filtres et recommencer », centré']],
     ['3.24.3', ['Journée : à côté du titre, Avant-hier, Hier, Demain ou Après-demain, chacun dans sa couleur, comme Aujourd\'hui']],
     ['3.24.2', ['Journée : lieu, quartier, commune et GPS des visites suivent la base (officine ou cabinet déplacé, coordonnées corrigées) dès la synchronisation']],
     ['3.24.1', ['Journée : pourcentage du planning du jour réalisé, avec la barre de progression (visites faites / visites prévues)']],
@@ -3046,7 +3047,7 @@
         esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
     h += '<button class="bouton bouton-large bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + 'Rechercher par critères</button>';
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
-    if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer et recommencer</button></div>';
+    if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri tri-centre"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Réinitialiser les filtres et recommencer</button></div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères. Retirez un filtre.</div>';
     h += '<ul class="liste">';
     liste.slice(0, S.ui.limite).forEach(function (p) {
