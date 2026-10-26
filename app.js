@@ -9,10 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.18.0';
+  var APP_VERSION = '3.19.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.19.0', ['Journée s\'ouvre toujours sur aujourd\'hui ; bande des jours défilante (glisser), jour choisi au centre et en couleur',
+               'Questions en trois boutons partout : Oui, Non, Sortir',
+               'RDV en une ligne courte (« RDV du 05-Nov reporté au 07-Nov pour absence ») ; bandeau « Tournée confirmée » affiché quelques secondes',
+               'Recherche : critères sur une page à part ; les résultats montrent le nombre et les critères appliqués, avec « Tout effacer »',
+               'Produits : une section repliable par aire thérapeutique',
+               'Réglages : libellés raccourcis, « Mon quartier », bouton « Installer l\'application »',
+               'Animations discrètes (changement d\'écran, question suivante, carte ouverte, compte rendu enregistré)']],
     ['3.18.0', ['Médecins en bleu, pharmacies en violet : pastille « Médecin » / « Pharmacie » devant le nom et liseré de couleur sur les cartes (Journée, Planifier, Recherche, Autour de moi, Historique)']],
     ['3.17.2', ['Journée › « Planifier le … » : Planifier s\'ouvre directement à l\'étape 2 (la période est déjà réglée sur ce jour)']],
     ['3.17.1', ['Journée : le bouton « Planifier le … » apparaît aussi quand aucune tournée n\'existe ; un week-end ou un jour férié propose le prochain jour ouvré']],
@@ -452,7 +459,7 @@
         options: l.map(function (n) { return [n, n]; }).concat([['__autre', 'Mon nom n\'est pas dans la liste']]),
         appliquer: function (v) { var b = $(id + 'Bloc'); if (b) b.hidden = v !== '__autre'; } }) + '</div>' +
       '<label class="champ" id="' + id + 'Bloc"' + (autre ? '' : ' hidden') + '><span>Nom complet</span><input type="text" id="' + id + 'Autre" autocomplete="name" value="' + esc(autre ? valeur : '') + '">' +
-      '<span class="aide-champ">Demandez aussi qu\'on vous ajoute dans la feuille Listes, colonne Délégués.</span></label>';
+      '<span class="aide-champ">Votre prénom et nom seront ajoutés à la liste des délégués.</span></label>';
   }
   function lireNom(id) {
     var el = $(id); if (!el) return '';
@@ -482,9 +489,10 @@
   }
   // « RDV pris le 26-Oct-2026 » ; si le praticien n'était pas présent le jour convenu : « prévu le …, décalé au premier jour de présence »
   function libelleRdv(a) {
-    var t = 'RDV' + (a.rdvPrisLe ? ' pris le ' + dateFr(a.rdvPrisLe) : ' (prochaine étape)');
-    if (a.rdvDate && a.rdvDate !== a.date) t += ', prévu le ' + dateFr(a.rdvDate) + ' (absent ce jour-là, décalé ici)';
-    return t;
+    // 3.19.0 : libellé court (« RDV du 05-Nov reporté au 07-Nov pour absence »)
+    var jm = function (d) { return dateFr(d).slice(0, -5); };
+    if (a.rdvDate && a.rdvDate !== a.date) return 'RDV du ' + jm(a.rdvDate) + ' reporté au ' + jm(a.date) + ' pour absence';
+    return 'RDV du ' + jm(a.rdvDate || a.date);
   }
   function statutLibelle(a) { return estPharmacie(a) && a.statut && !estKo(a.statut) ? 'Visitée' : a.statut; }
   function activites() { return (S.data && S.data.activites && S.data.activites.length) ? S.data.activites : ACTIVITES_DEFAUT; }
@@ -768,12 +776,38 @@
     cacherInfobulle();
     cartesAFaire = [];
     $('vue').innerHTML = (VUES[tab] || VUES.jour)();
+    animerRendu(tab);
+    centrerBandeJours();
     dessinerCartes();
     rendreFeuille();
     rendreLancement();
     afficherEntete(); afficherBarre(); afficherNav();
     datesEnFrancais();
   }
+  // 3.19.0 : animations discrètes, seulement quand quelque chose change vraiment
+  // (nouvel écran, nouvelle question d'un parcours, carte qu'on vient d'ouvrir, compte rendu qu'on vient d'enregistrer)
+  function animerRendu(tab) {
+    var v = $('vue'), cle = tab + '|' + (S.ui.rechOuverte ? 1 : 0) + '|' + (S.ui.pagePlanif ? 1 : 0) + '|' + (S.ui.jourVue || S.ui.jour || '');
+    if (cle !== S.ui.cleVue) { v.classList.remove('vue-entre'); void v.offsetWidth; v.classList.add('vue-entre'); S.ui.cleVue = cle; }
+    var q = v.querySelector('.cr-question .etape-titre'), kq = q ? q.textContent : '';
+    if (q && kq !== S.ui.cleQuestion) q.parentNode.classList.add('nouvelle');
+    S.ui.cleQuestion = kq;
+    var o = v.querySelector('.arret.ouvert');
+    if (o && S.ui.ouvert !== S.ui.dernierOuvert) o.classList.add('vient-ouvrir');
+    S.ui.dernierOuvert = S.ui.ouvert;
+    if (S.ui.flashOk) { var f = S.ui.flashOk; setTimeout(function () { if (S.ui.flashOk === f) S.ui.flashOk = null; }, 900); }
+  }
+  // bande des jours : le jour choisi glisse au centre (depuis la position précédente, pour garder le mouvement)
+  function centrerBandeJours() {
+    var b = document.querySelector('.bj-jours'), s = b && b.querySelector('.bj-jour[aria-pressed="true"]');
+    if (!s) return;
+    var cible = s.offsetLeft - (b.clientWidth - s.offsetWidth) / 2;
+    if (S.ui.bjDepart !== undefined && S.ui.bjDepart !== null) {
+      b.scrollLeft = s.offsetLeft - S.ui.bjDepart; S.ui.bjDepart = null;
+      try { b.scrollTo({ left: cible, behavior: reduireAnimations() ? 'auto' : 'smooth' }); } catch (e) { b.scrollLeft = cible; }
+    } else b.scrollLeft = cible;
+  }
+  function reduireAnimations() { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
   // Calendriers : affichage français JJ-Mmm-AAAA (ex. 26-Oct-2026), quel que soit le réglage du téléphone.
   // Le sélecteur natif reste dessous (transparent) : toucher la date ouvre le calendrier du téléphone.
   var MOIS_ABREGES = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
@@ -946,17 +980,17 @@
     if (tour) etat = S.programme.etat === 'valide' ? '<span class="etiquette ok">Confirmée</span>' :
       '<button type="button" class="etiquette alerte bouton-etiquette" data-a="nav" data-tab="semaine">Brouillon › Planifier</button>';
     else etat = d < t ? '<span class="etiquette">' + (passeVerrouille(d) ? 'Lecture seule' : 'Jour passé') + '</span>' : (d > t ? '<span class="etiquette p1">' + (futurVerrouille(d) ? 'Aperçu' : 'Jour à venir') + '</span>' : '');
-    var l = lundiDe(d), jours = joursOuvres(l);
+    // 3.19.0 : bande défilante des jours ouvrés (glisser à gauche ou à droite), jour choisi au centre, en couleur
+    var jours = []; for (var k = -42; k <= 42; k++) { var x0 = ajouterJours(d, k); if (jourSemaineIndex(x0) < 5) jours.push(x0); }
     return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + (d === t ? ' <span class="etiquette ok jour-du-jour">Aujourd\'hui</span>' : '') + '</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
       '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>' +
-      '<div class="bande-jours"><button type="button" class="bouton-icone sombre" data-a="jourSemaine" data-v="-1" aria-label="Semaine précédente">' + icone('chevron') + '</button>' +
-        '<div class="bj-jours">' + jours.map(function (x) {
+      '<div class="bande-jours">' +
+        '<div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
           var n = nbVisitesJour(x);
-          return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + '" data-a="jourAller" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
-            JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><i>' + (n ? n : '') + '</i></button>';
+          return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (jourSemaineIndex(x) === 0 ? ' lundi' : '') + '" data-a="jourAller" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
+            JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em><i>' + (n ? n : '') + '</i></button>';
         }).join('') + '</div>' +
-        '<button type="button" class="bouton-icone sombre suivant" data-a="jourSemaine" data-v="1" aria-label="Semaine suivante">' + icone('chevron') + '</button>' +
         '<label class="bj-cal" aria-label="Choisir une date">' + icone('calendrier') + '<input type="date" data-f="jourDate" value="' + esc(d) + '"></label></div>';
   }
   // programme d'un jour hors tournée en cours : archive du téléphone, sinon tournée publiée (feuille Plannings)
@@ -1319,7 +1353,7 @@
     // même jour de la semaine, à partir d'aujourd'hui
     return prochaineOccurrence(jourSemaineIndex(valeur), t, true);
   }
-  function reprendreProgramme(type, valeur, cibleChoisie) {
+  function reprendreProgramme(type, valeur, cibleChoisie, force) {
     var semaine = anciensProgrammes().filter(function (x) { return x.lundi === (type === 'semaine' ? valeur : lundiDe(valeur)); })[0];
     if (!semaine) return;
     var source = {};
@@ -1342,7 +1376,11 @@
     });
     var cibles = ensemble(Object.keys(vers).map(function (k) { return vers[k]; }));
     var aRemplacer = S.plan.filter(function (a) { return cibles[a.date] && a.etat !== 'valide' && !a.corrige; });
-    if (aRemplacer.some(function (a) { return a.statut; }) && !confirm('Des comptes rendus non enregistrés sur ces jours seront perdus. Continuer ?')) return;
+    if (aRemplacer.some(function (a) { return a.statut; }) && !force) {
+      confirmerPuis('Comptes rendus non enregistrés', 'Des comptes rendus non enregistrés sur ces jours seront perdus. Continuer ?', 'Oui, continuer',
+        function () { reprendreProgramme(type, valeur, cibleChoisie, true); });
+      return;
+    }
     // sauvegarde : « Revenir à l'ancienne planification » reste possible tant que la reprise n'est pas conservée
     S.ui.annulReprise = { plan: JSON.parse(JSON.stringify(S.plan)), programme: JSON.parse(JSON.stringify(S.programme)),
       libelle: (type === 'semaine' ? 'Semaine du ' + dateCourte(valeur) + ' reprise sur ' : 'Programme du ' + dateCourte(valeur) + ' repris sur ') +
@@ -1431,11 +1469,19 @@
     S.programme = { etat: 'valide', valideLe: pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) };
     sauver(); publierPlan(true);
     S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée' };
+    S.ui.flashValide = Date.now() + 4000; setTimeout(function () { S.ui.flashValide = 0; rendreSiPossible(); }, 4100);
     rendre();
   }
-  function confirmerPuis(titre, message, libelleOui, action) {
-    S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action };
+  // 3.19.0 : toute question se pose en trois boutons : Oui (appliquer), Non (refuser ; action propre à la question,
+  // sinon retour à l'écran), Sortir (fermer sans rien changer et quitter le parcours en cours)
+  function confirmerPuis(titre, message, libelleOui, action, siNon) {
+    S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action, non: siNon || null };
     rendre();
+  }
+  function piedQuestion(ouiAttrs, ouiLib, nonAction) {
+    return '<button class="bouton-texte sortir-question" type="button" data-a="sortirQuestion">Sortir</button>' +
+      '<button class="bouton" type="button" data-a="' + (nonAction || 'fermerFeuille') + '">Non</button>' +
+      '<button class="bouton bouton-plein" type="button" ' + ouiAttrs + '>' + ouiLib + '</button>';
   }
 
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
@@ -1540,13 +1586,13 @@
           h += rdv.length ? '<ul class="liste-imposes">' + rdv.map(function (im) {
             var pr = praticien(im.code), passe = im.dateRdv < dates[0];
             return '<li><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
-              '<span class="discret bloc-texte">RDV du ' + dateFr(im.dateRdv) + (im.prisLe ? ', pris le ' + dateFr(im.prisLe) : '') +
-              (passe ? ' · date passée : placé au plus tôt' : '') + (function () {
+              '<span class="discret bloc-texte">RDV du ' + dateFr(im.dateRdv).slice(0, -5) +
+              (passe ? ', date passée : au plus tôt' : '') + (function () {
                 // RDV un jour sans présence connue : placé à la prochaine présence connue, et on le dit
                 var crs = ctx().parCode[im.code] || [], jour = jourSemaineIndex(im.dateRdv);
                 if (passe || crs.some(function (cr) { return cr.jourIdx === jour; })) return '';
                 var suiv = dates.filter(function (d) { return d >= im.dateRdv && !estFerie(d) && crs.some(function (cr) { return cr.jourIdx === jourSemaineIndex(d); }); })[0];
-                return '<br>Pas de présence connue ce jour-là : ' + (suiv ? 'placé le ' + dateFr(suiv) + ' (prochaine présence)' : 'aucune présence connue d\'ici la fin de la période');
+                return suiv ? ' reporté au ' + dateFr(suiv).slice(0, -5) + ' pour absence' : ', absent sur la période';
               })() + '</span></div><span class="etiquette p1">RDV</span></li>';
           }).join('') + '</ul>' : '<p class="discret" style="margin:4px 0 0">Aucun RDV pris sur cette période.</p>';
           h += '<div class="imposes-tete" style="margin-top:12px"><span class="sous-etape" style="margin:0">Prioritaires ajoutés</span>' +
@@ -1599,7 +1645,9 @@
   function rendreProgramme() {
     var dates = datesAffichees();
     if (S.programme.etat === 'valide') {
-      return '<section class="bandeau-prog valide"><div><b>Tournée confirmée</b><span>' +
+      // 3.19.0 : le bandeau vert ne s'affiche que quelques secondes après la confirmation
+      if (!(S.ui.flashValide && Date.now() < S.ui.flashValide)) return '';
+      return '<section class="bandeau-prog valide flash"><div><b>Tournée confirmée</b><span>' +
         (S.programme.valideLe ? 'Le ' + esc(S.programme.valideLe) : '') + (S.programme.modifieLe ? ', modifiée le ' + esc(S.programme.modifieLe) : '') +
         '. Visible par l\'équipe ; vos changements sont publiés automatiquement.</span></div></section>';
     }
@@ -1967,7 +2015,8 @@
   function rendreArret(a) {
     var ouvert = S.ui.ouvert === a.uid, verrou = a.etat === 'valide';
     var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') +
-      (a.statut ? (estKo(a.statut) ? (verrou ? ' absent' : ' absent-attente') : (verrou ? ' fait' : ' fait-attente')) : '');   // plein = enregistré, vide de couleur = à enregistrer
+      (a.statut ? (estKo(a.statut) ? (verrou ? ' absent' : ' absent-attente') : (verrou ? ' fait' : ' fait-attente')) : '') +   // plein = enregistré, vide de couleur = à enregistrer
+      (S.ui.flashOk && S.ui.flashOk[a.uid] ? ' vient-enregistrer' : '');
     var e = '';
     e += badgeConv(a.conventionne);
     var pv = praticien(a.code) || {}, der = pv.derniere && (!a.derniere || pv.derniere > a.derniere) ? pv.derniere : a.derniere;
@@ -2183,10 +2232,18 @@
       '<div class="defile" role="group" aria-label="Aire thérapeutique"><button type="button" class="puce" data-a="aireProduit" data-v="" aria-pressed="' + !aire + '">Tous</button>' +
       aires.map(function (x) { return '<button type="button" class="puce" data-a="aireProduit" data-v="' + esc(x) + '" aria-pressed="' + (aire === x) + '">' + esc(AIRES_COURTES[x] || x) + '</button>'; }).join('') + '</div>';
     if (!l.length) return h + '<div class="vide"><strong>Aucun produit</strong>Aucune fiche ne correspond.</div>';
-    var aireCourante = null;
+    // 3.19.0 : une section repliable par aire thérapeutique (ouverte d'office si un filtre ou une recherche est actif)
+    var aireCourante = null, ouvertes = S.ui.airesOuvertes = S.ui.airesOuvertes || {}, toutOuvert = !!(aire || q);
+    var parAire = {}; l.forEach(function (f) { parAire[f.aire] = (parAire[f.aire] || 0) + 1; });
     h += '<div class="liste-gammes">';
     gammesProduits(l).forEach(function (g) {
-      if (!aire && g.aire !== aireCourante) { aireCourante = g.aire; h += '<div class="aire-titre">' + esc(g.aire || '') + '</div>'; }
+      if (g.aire !== aireCourante) {
+        aireCourante = g.aire;
+        var ouv = toutOuvert || ouvertes[g.aire];
+        h += '<button type="button" class="aire-titre aire-bascule" data-a="aireBascule" data-v="' + esc(g.aire || '') + '" aria-expanded="' + !!ouv + '"><span>' + esc(g.aire || '') +
+          '</span><small>' + parAire[g.aire] + ' produit' + (parAire[g.aire] > 1 ? 's' : '') + '</small>' + icone('chevron') + '</button>';
+      }
+      if (!(toutOuvert || ouvertes[g.aire])) return;
       var nom = String(g.nom || '').replace(/\s*\(.*\)$/, ''), mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
       h += '<div class="ligne-gamme"><div class="lg-tete"><b>' + esc(nom) + '</b>' + (mol ? '<small>' + esc(mol) + '</small>' : '') + '</div><div class="lg-produits">' +
         g.fiches.slice().sort(function (x, y) { return (y.produit === nom) - (x.produit === nom); }).map(function (f) {
@@ -2509,6 +2566,13 @@
   // seule la question en cours est ouverte ; une fois toutes répondues, une seule ligne résume l'ensemble.
   S.ui.etapesF = LS.get('etapesFiltres', {});
   S.ui.rechOuverte = LS.get('rechOuverte', false);
+  // dernière question répondue sur la page de recherche : retour aux résultats (les critères se replient en une phrase)
+  function finRecherche() {
+    if (S.ui.tab !== 'praticiens' || !S.ui.rechOuverte) return false;
+    var et = etatEtapes();
+    if (!etapesFiltres(S.ui.filtres).every(function (e) { return et.ok[e.id]; })) return false;
+    S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre(); window.scrollTo(0, 0); return true;
+  }
   function etatEtapes() { var k = cleFiltres(); return S.ui.etapesF[k] || (S.ui.etapesF[k] = { ok: {} }); }
   function sauverEtapes() { LS.set('etapesFiltres', S.ui.etapesF); }
   function puceEtape(k, v, lib, actif, m, auto) {
@@ -2555,8 +2619,8 @@
     ];
     return l.filter(function (e) { return e.si !== false; });
   }
-  function barreFiltres(f, q) {
-    var h = '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
+  function barreFiltres(f, q, sansSaisie) {
+    var h = sansSaisie ? '' : '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(q) + '" aria-label="Rechercher un praticien"></div></div>';
     var et = etatEtapes(), ok = et.ok, etapes = etapesFiltres(f), n = etapes.length;
     var enCours = etapes.filter(function (e) { return !ok[e.id]; })[0];
@@ -2610,23 +2674,20 @@
     // la fiche ouverte (par exemple juste créée) reste en tête de liste
     var io = liste.map(function (p) { return p.code; }).indexOf(S.ui.contactOuvert);
     if (io > 0 && S.ui.contactEnTete === S.ui.contactOuvert) liste.unshift(liste.splice(io, 1)[0]);
+    // 3.19.0 : les critères s'ouvrent sur une page à part (même onglet) ; dès les résultats affichés, ils disparaissent
+    // au profit d'une phrase (nombre de praticiens et critères appliqués) et de « Tout effacer »
+    if (S.ui.rechOuverte) {
+      return '<div class="page-entree"><button type="button" class="retour" data-a="rechFermer">' + icone('chevron') + 'Recherche</button>' +
+        '<h2 class="titre-vue">Critères de recherche</h2><p class="sous-titre">Une question à la fois ; les résultats s\'affichent à la fin.</p>' +
+        '<section class="bloc">' + barreFiltres(f, S.ui.recherche, true) + '</section>' +
+        '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (liste.length ? 'les ' + liste.length + ' résultat' + (liste.length > 1 ? 's' : '') : 'les résultats') + '</button></div>';
+    }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Recherche</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Ajouter</button></div>' +
       '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>';
-    // comme « Planifier » : un résumé et un bouton « Recherche » qui déploie la recherche ; « Fermer » la replie
-    if (S.ui.rechOuverte) {
-      h += '<section class="bloc"><div class="tete-bloc"><h3>Recherche</h3><button class="bouton-texte fermer-bloc" type="button" data-a="rechFermer">' + icone('fermer') + 'Fermer</button></div>' +
-        barreFiltres(f, S.ui.recherche) + '</section>';
-    } else {
-      // même récapitulatif que Planifier : une tuile par critère, qui ouvre exactement ce critère
-      var courts = { qui: 'Praticiens', spec: 'Spécialités', com: 'Communes', valeur: 'Potentiel, engagé', suivi: 'Suivi', ordre: 'Tri' };
-      h += '<section class="bloc resume-plan"><div class="tete-bloc"><h3>Critères de recherche</h3>' +
-        '<button class="bouton petit" data-a="rechOuvrir" type="button">' + icone('loupe') + 'Recherche</button></div>' +
-        (S.ui.recherche ? '<p class="discret" style="margin:0 0 8px">Nom ou lieu : « ' + esc(S.ui.recherche) + ' »</p>' : '') +
-        '<div class="tuiles-resume">' + etapesFiltres(f).map(function (e) {
-          return '<button type="button" class="tuile" data-a="rechTuile" data-v="' + e.id + '"><small>' + courts[e.id] + '</small><b>' + esc(e.resume()) + '</b></button>';
-        }).join('') + '</div></section>';
-    }
+    h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
+        esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
+    h += '<button class="bouton bouton-large bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + 'Rechercher par critères</button>';
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
     if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Tout effacer et recommencer</button></div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères. Retirez un filtre.</div>';
@@ -2981,7 +3042,7 @@
       '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
       '<label class="champ"><span>WhatsApp de votre responsable (compte rendu de la journée)</span><input type="tel" id="cfgWaResp" inputmode="tel" placeholder="Facultatif" value="' + esc(c.waResp || '') + '"></label>' +
       '<label class="interrupteur"><span>Toujours ouvrir WhatsApp Web</span><input type="checkbox" id="cfgWaWeb"' + (c.waWeb ? ' checked' : '') + '></label>' +
-      '<div class="champ"><span>Point de départ de mes tournées</span>' + selecteurListe('cfgDepart', { titre: 'Point de départ', dom: true, valeur: c.depart || '', vide: 'Choisir un quartier…', sections: sectionsQuartiers() }) + '</div>' +
+      '<div class="champ"><span>Mon quartier</span>' + selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: c.depart || '', vide: 'Choisir un quartier…', sections: sectionsQuartiers() }) + '</div>' +
       '<button class="bouton bouton-plein bouton-large" type="button" data-a="enregistrerMoi">Enregistrer</button></section>';
     var th = LS.get('theme', 'clair');
     h += '<section class="bloc"><h3>Apparence</h3><div class="segment" role="group" aria-label="Thème" style="margin:0">' +
@@ -2993,19 +3054,18 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="partager" style="margin-bottom:6px">Partager l\'application</button>' +
         '<p class="discret" style="margin:0">Le lien donne accès à la base : envoyez-le uniquement à vos collègues.</p></section>';
     }
-    h += '<section class="bloc"><h3 style="margin-top:0">Installer sur le téléphone</h3>' +
-      (S.ui.installEvt ? '<button class="bouton bouton-plein bouton-large" type="button" data-a="installer">Installer l\'application</button>' :
-        '<p class="discret" style="margin:0">Android (Chrome) : menu ⋮ puis « Installer l\'application ». iPhone (Safari) : bouton Partager puis « Sur l\'écran d\'accueil ».</p>') +
-      '</section>';
+    // 3.19.0 : un bouton, comme « Partager » ; masqué quand l'application est déjà installée
+    if (!estInstallee()) h += '<section class="bloc"><h3 style="margin-top:0">Installer sur le téléphone</h3>' +
+      '<button class="bouton bouton-plein bouton-large" type="button" data-a="installer">' + icone('telecharger') + 'Installer l\'application</button></section>';
     h += '<section class="bloc"><h3>MediPlanner</h3><p class="discret" style="margin-top:0">Version ' + APP_VERSION +
       '. Les mises à jour sont signalées par un bandeau en haut de l\'écran ; vos données restent sur le téléphone.</p>' +
-      '<div class="rangee"><button class="bouton" type="button" data-a="verifierMaj">Rechercher une mise à jour</button>' +
+      '<div class="rangee"><button class="bouton" type="button" data-a="verifierMaj">Recherche MàJ</button>' +
       '<button class="bouton" type="button" data-a="ouvrirLancement">Écran d\'accueil</button></div></section>';
     // Avancé : connexion à la base, synchronisation, démonstration, effacement
     h += '<details class="bloc avance"' + (!c.url || S.ui.erreur ? ' open' : '') + '><summary><b>Avancé</b><span class="discret">Connexion à la base et données du téléphone</span></summary>' +
-      '<h3>Saisie</h3><label class="interrupteur"><span>Modifier les jours passés<small class="discret bloc-texte">Saisir ou corriger les comptes rendus des jours précédents</small></span>' +
+      '<h3>Saisie</h3><label class="interrupteur"><span>Autoriser modification des jours passés</span>' +
         '<input type="checkbox" data-f="modifPasse"' + (c.modifPasse ? ' checked' : '') + '></label>' +
-      '<label class="interrupteur"><span>Saisir les jours à venir<small class="discret bloc-texte">Saisir un compte rendu sur un jour futur (sinon simple aperçu)</small></span>' +
+      '<label class="interrupteur"><span>Autoriser modification des jours à venir</span>' +
         '<input type="checkbox" data-f="saisieFutur"' + (c.saisieFutur ? ' checked' : '') + '></label>' +
       '<h3>Connexion au Google Sheet</h3>' +
       '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
@@ -3159,10 +3219,10 @@
     if (f.choix) {
       var x = f.choix;
       if (f.garder) return { corps: '<p style="margin-top:0">Ajouter <b>' + esc(x.nom) + '</b> ' + etoiles(x.note) + ' (' + esc(x.heure) + ', ' + esc(x.lieu) + ', ' + esc(x.quartier) + ') à votre journée,<br>en remplacement de <b>' + esc(a.nom) + '</b> (' + esc(statutLibelle(a).toLowerCase()) + ') ?</p><p class="discret">Le compte rendu de ' + esc(a.nom) + ' est conservé. L\'ordre de passage sera recalculé.</p>',
-        pied: '<button class="bouton" type="button" data-a="remplacerNon">Non</button><button class="bouton bouton-plein" type="button" data-a="remplacerOui">Oui, ajouter</button>' };
+        pied: piedQuestion('data-a="remplacerOui"', 'Oui, ajouter', 'remplacerNon') };
       return { corps: '<p style="margin-top:0">Remplacer <b>' + esc(a.nom) + '</b> (' + esc(a.heure) + ', ' + esc(a.lieu) + ')<br>par <b>' + esc(x.nom) + '</b> ' + etoiles(x.note) +
           ' (' + esc(x.heure) + ', ' + esc(x.lieu) + ', ' + esc(x.quartier) + ') ?</p><p class="discret">' + majuscule(dateLongue(a.date)) + '. L\'ordre de passage sera recalculé.</p>',
-        pied: '<button class="bouton" type="button" data-a="remplacerNon">Non</button><button class="bouton bouton-plein" type="button" data-a="remplacerOui">Oui, remplacer</button>' };
+        pied: piedQuestion('data-a="remplacerOui"', 'Oui, remplacer', 'remplacerNon') };
     }
     var l = candidatsRemplacement(a);
     if (!l.length) return '<p class="discret" style="margin-top:0">Aucun autre praticien disponible ce jour-là selon vos critères (communes, spécialités, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>';
@@ -3184,15 +3244,22 @@
         return '<button type="button" class="tuile" data-a="ajouterJourChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
       }).join('') + '</div>';
   };
+  FEUILLES.installer = function () {
+    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    return '<p style="margin-top:0">' + (ios ? 'Dans Safari : ' + icone('partager') + ' Partager, puis « Sur l\'écran d\'accueil ».' :
+      'Dans Chrome : menu ⋮, puis « Installer l\'application » (ou « Ajouter à l\'écran d\'accueil »).') + '</p>';
+  };
+  function estInstallee() {
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  }
   FEUILLES.confirmer = function (f) {
     return { corps: '<p style="margin-top:0">' + f.message + '</p>',
-      pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non</button><button class="bouton bouton-plein" type="button" data-a="confirmerOui">' + esc(f.oui) + '</button>' };
+      pied: piedQuestion('data-a="confirmerOui"', esc(f.oui), 'confirmerNon') };
   };
 
   FEUILLES.valide = function () {
     return { corps: '<p style="margin-top:0">Votre tournée est confirmée et visible par l\'équipe. Vous pouvez toujours la modifier.</p><p class="discret">Voulez-vous l\'envoyer sur WhatsApp ?</p>',
-      pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non, merci</button>' +
-        '<button class="bouton bouton-plein wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer</button>' };
+      pied: piedQuestion('data-a="ouvrirExport"', icone('whatsapp') + 'Envoyer') };
   };
 
   // Choix multiple générique (spécialités ciblées par la tournée)
@@ -3222,8 +3289,7 @@
           dateFr(d) + '<small>' + (i ? '+' + (i * 7) + ' j' : 'prochaine') + (estFerie(d) ? ', férié' : absent(d) ? ', absent' : dejaLa(d) ? ', déjà prévu' : '') + '</small></button>';
       }).join('') + '</div></div>' +
       '<p style="margin:14px 0 0">Ajouter <b>' + esc(c.prat.nom) + '</b> à votre tournée du <b>' + dateFr(f.d) + '</b> ?</p></div>';
-    return { corps: h, pied: '<button class="bouton" type="button" data-a="fermerFeuille">Non</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="planifierDateOui">Oui, ajouter</button>' };
+    return { corps: h, pied: piedQuestion('data-a="planifierDateOui"', 'Oui, ajouter') };
   };
   FEUILLES.listeChoix = function (f) {
     var cfg = S.ui.listes[f.id] || {}, n = 0;
@@ -3569,14 +3635,18 @@
     return Promise.race([rafraichirEquipe(), new Promise(function (r) { setTimeout(r, 8000); })]);
   }
 
-  function lancerTirage(portee) {
+  function lancerTirage(portee, force) {
     var p = S.params;
     if (p.mode === 'jour' && jourSemaineIndex(p.dateRef) > 4) { toast('Choisissez un jour de semaine.'); return; }
     if (p.mode === 'jour' && estFerie(p.dateRef)) { toast('Ce jour est férié. Choisissez un autre jour.'); return; }
     var feriesSemaine = p.mode === 'semaine' ? joursOuvres(lundiDe(p.dateRef)).filter(estFerie) : [];
     if (feriesSemaine.length) toast('Jour férié exclu de la semaine : ' + feriesSemaine.map(dateCourte).join(', ') + '.', 4000);
     var renseignees = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide' && !a.corrige; }).length;
-    if (renseignees && !confirm(renseignees + ' compte(s) rendu(s) non enregistré(s) seront perdus. Continuer ?')) return;
+    if (renseignees && !force) {
+      confirmerPuis('Comptes rendus non enregistrés', renseignees + ' compte' + (renseignees > 1 ? 's' : '') + ' rendu' + (renseignees > 1 ? 's' : '') + ' non enregistré' + (renseignees > 1 ? 's' : '') + ' seront perdus. Continuer ?',
+        'Oui, continuer', function () { lancerTirage(portee, true); });
+      return;
+    }
     avantTirage().then(function () {
       var periode = datesPeriode();
       var cible = portee === 'jour' ? [S.ui.jour] : (portee === 'semaine' ? Array.from(new Set(S.plan.map(function (a) { return a.date; }))).sort() : periode);
@@ -3670,6 +3740,7 @@
       }
       if (estKo(a.statut)) ko++;
       a.etat = 'valide'; delete a.corrige; delete a.empreinte;
+      (S.ui.flashOk = S.ui.flashOk || {})[a.uid] = true;
       // seul un RDV confirmé est placé d'office dans la tournée
       if (a.prochaine && a.prochaine > a.date && (a.cr ? a.rdvConfirme : true)) etapes.push({ code: a.code, apres: a.prochaine, etape: true, dateRdv: a.prochaine, prisLe: v.date });
     });
@@ -3758,8 +3829,11 @@
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 120000 });
   }
 
-  function chargerDemo() {
-    if (pret() && !S.config.demo && !confirm('Remplacer les données synchronisées par des données de démonstration ?')) return;
+  function chargerDemo(force) {
+    if (pret() && !S.config.demo && force !== true) {
+      confirmerPuis('Démonstration', 'Remplacer les données synchronisées par des données de démonstration ?', 'Oui, remplacer', function () { chargerDemo(true); });
+      return;
+    }
     S.config.demo = true;
     var b = genererBaseFictive(aujourdhui());
     S.data = { version: VERSION_DONNEES, praticiens: b.praticiens, presences: b.presences, quartiers: quartiersDefautObjets(),
@@ -3832,7 +3906,10 @@
       allerAuJour(d);
     },
     jourAujourdhui: function () { allerAuJour(aujourdhui()); },
-    jourAller: function (el) { allerAuJour(el.dataset.v); },
+    jourAller: function (el) {
+      var b = el.parentNode; if (b) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
+      allerAuJour(el.dataset.v);
+    },
     jourSemaine: function (el) { allerAuJour(ajouterJours(lundiDe(jourAffiche()), 7 * +el.dataset.v)); },
     ouvrirVisite: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -3909,7 +3986,8 @@
     validerProgramme: function () {
       var dates = datesAffichees();
       confirmerPuis('Confirmer la tournée', 'Confirmer votre tournée ' + (S.params.mode === 'semaine' ? 'de la semaine du ' + dateFr(dates[0]) : 'du ' + dateFr(dates[0])) +
-        ' ? Elle sera visible par l\'équipe.<br><span class="discret">Non : vous revenez à la tournée en brouillon pour l\'ajuster.</span>', 'Oui, confirmer', confirmerProgramme);
+        ' ? Elle sera visible par l\'équipe.<br><span class="discret">Non : vous reprenez le parcours de planification. Sortir : rien ne change.</span>', 'Oui, confirmer', confirmerProgramme,
+        function () { etapesPDepuisDebut(); S.ui.voirParams = true; S.ui.pagePlanif = true; rendre(); window.scrollTo(0, 0); });
     },
     confirmerProgrammeDirect: function () { confirmerProgramme(); },
 
@@ -4068,15 +4146,16 @@
       toast('Réglages enregistrés. Synchronisation…');
       synchroniser(false).then(function () { if (pret()) { S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); } });
     },
-    demo: chargerDemo,
+    demo: function () { chargerDemo(); },
     reinitialiser: function () {
       var msg = enAttente() ? enAttente() + ' élément(s) non envoyé(s) (comptes rendus, fiches) seront perdus. ' : '';
-      if (!confirm(msg + 'Effacer toutes les données de l\'application sur ce téléphone ?')) return;
-      LS.vider(); location.reload();
+      confirmerPuis('Effacer les données', msg + 'Effacer toutes les données de l\'application sur ce téléphone ?', 'Oui, effacer', function () { LS.vider(); location.reload(); });
     },
     installer: function () {
-      var evt = S.ui.installEvt; if (!evt) return;
-      evt.prompt(); evt.userChoice.then(function () { S.ui.installEvt = null; rendre(); });
+      var evt = S.ui.installEvt;
+      if (evt) { evt.prompt(); evt.userChoice.then(function () { S.ui.installEvt = null; rendre(); }); return; }
+      // iPhone : Apple n'autorise pas l'installation par un bouton ; on montre le geste en une ligne
+      S.ui.feuille = { type: 'installer', titre: 'Installer l\'application' }; rendre();
     },
     // Ciblage de la tournée
     paramPotentiel: function (el) {
@@ -4119,6 +4198,11 @@
       S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true }; rendre();
     },
     confirmerOui: function () { var f = S.ui.feuille; S.ui.feuille = null; if (f && f.action) f.action(); else rendre(); },
+    confirmerNon: function () { var f = S.ui.feuille; S.ui.feuille = null; if (f && f.non) f.non(); else rendre(); },
+    sortirQuestion: function () {
+      // quitter sans rien changer : la question se ferme, le parcours en cours aussi (carte ouverte, page de planification ou de recherche)
+      S.ui.feuille = null; S.ui.ouvert = null; S.ui.pagePlanif = false; S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre();
+    },
     conflitGarder: function (el) { var a = arret(el.dataset.uid); if (!a) return; a.conflitOk = true; LS.set('plan', S.plan); rendre(); },
     ajouterProches: function (el) {
       // médecins (selon les spécialités de la tournée) ou pharmacies près de ma position, pour le jour affiché dans « Aujourd'hui »
@@ -4226,7 +4310,7 @@
       if (Array.isArray(f[k])) { var i = f[k].indexOf(v); if (i >= 0) f[k].splice(i, 1); else f[k].push(v); }
       else f[k] = f[k] === v ? 'tous' : v;
       if (el.dataset.fin) { var et = etatEtapes(); Object.keys(QUESTIONS_FILTRES).forEach(function (q) { et.ok[q] = true; }); et.ouvert = false; sauverEtapes(); }
-      majFiltres(f); rendre();
+      majFiltres(f); if (!finRecherche()) rendre();
     },
     filtreType: function (el) { var f = filtresCour(); f.type = el.dataset.v; majFiltres(f); rendre(); },
     multiToggle: function (el) { var f = S.ui.feuille, i = f.sel.indexOf(el.dataset.v); if (i >= 0) f.sel.splice(i, 1); else f.sel.push(el.dataset.v); rendre(); },
@@ -4247,7 +4331,7 @@
       if (k === 'tri') { S.ui.tri = v; LS.set('tri', v); }
       else { if (el.dataset.m === '1') { var i = f[k].indexOf(v); if (i >= 0) f[k].splice(i, 1); else f[k].push(v); } else f[k] = v; majFiltres(f); }
       if (el.dataset.auto) { etatEtapes().ok[el.dataset.auto] = true; sauverEtapes(); }
-      rendre();
+      if (!finRecherche()) rendre();
     },
     rechTuile: function (el) {
       var et = etatEtapes(); et.ouvert = false;
@@ -4256,12 +4340,13 @@
     },
     produitOuvrir: function (el) { S.ui.feuille = { type: 'ficheProduit', titre: el.dataset.v, produit: el.dataset.v, pleine: true, ouvertes: {} }; rendre(); var c = document.querySelector('.feuille-corps'); if (c) c.scrollTop = 0; },
     ficheSection: function (el) { var f = S.ui.feuille; f.ouvertes[el.dataset.v] = !f.ouvertes[el.dataset.v]; rendre(); },
+    aireBascule: function (el) { var o = S.ui.airesOuvertes = S.ui.airesOuvertes || {}; o[el.dataset.v] = !o[el.dataset.v]; rendre(); },
     aireProduit: function (el) { S.ui.aireProduit = el.dataset.v; rendre(); },
     rechOuvrir: function () {
-      var et = etatEtapes(); et.ok = {}; et.ouvert = false; sauverEtapes(); S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre(); },
+      var et = etatEtapes(); et.ok = {}; et.ouvert = false; sauverEtapes(); S.ui.rechOuverte = true; LS.set('rechOuverte', true); rendre(); window.scrollTo(0, 0); },
     rechFermer: function () { S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre(); window.scrollTo(0, 0); },
     etapePrec: function (el) { etatEtapes().ok[el.dataset.v] = false; sauverEtapes(); rendre(); },
-    etapeOk: function (el) { etatEtapes().ok[el.dataset.v] = true; sauverEtapes(); rendre(); },
+    etapeOk: function (el) { etatEtapes().ok[el.dataset.v] = true; sauverEtapes(); if (!finRecherche()) rendre(); },
     etapePasser: function (el) {
       var f = filtresCour(), vide = JSON.parse(JSON.stringify(FILTRES_VIDES));
       QUESTIONS_FILTRES[el.dataset.v].cles.forEach(function (k) { f[k] = vide[k]; }); majFiltres(f);
@@ -4489,6 +4574,8 @@
     var d = {
       relancer: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
       plus: '<path d="M12 5v14M5 12h14"/>',
+      partager: '<path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5v10h14V11h-1"/>',
+      telecharger: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
       fermer: '<path d="M6 6l12 12M18 6 6 18"/>',
       epingle: '<path d="M9 3h6l-1 6 4 4H6l4-4-1-6Z"/><path d="M12 13v8"/>',
       carte: '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>',
@@ -4701,6 +4788,11 @@
     S.ui.lancementAuto = true;
     S.ui.lancementFin = Date.now() + 1000 * (S.ui.nouveautes && S.ui.nouveautes.length ? DELAI_LANCEMENT_NOUVEAUTES : DELAI_LANCEMENT);
   }
+  // 3.19.0 : à l'ouverture, Journée montre toujours aujourd'hui
+  (function () {
+    var t = aujourdhui();
+    if (datesPlan().indexOf(t) >= 0) { S.ui.jour = t; S.ui.jourVue = null; } else { S.ui.jourVue = t; }
+  })();
   rendre();
   if (configureParLien) toast('Application configurée. Synchronisation…');
   if (connecte()) synchroniser(!configureParLien).then(function () {

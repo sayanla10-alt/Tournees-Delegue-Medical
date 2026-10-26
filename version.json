@@ -1,8 +1,10 @@
 {
-  "version": "3.18.0",
-  "date": "2026-10-25",
+  "version": "3.19.0",
+  "date": "2026-10-26",
   "notes": [
-    "Médecins en bleu, pharmacies en violet",
-    "« Planifier le … » ouvre Planifier à l'étape 2"
+    "Journée sur aujourd'hui, bande des jours défilante",
+    "Oui / Non / Sortir",
+    "Recherche et Produits plus compacts",
+    "Animations discrètes"
   ]
 }

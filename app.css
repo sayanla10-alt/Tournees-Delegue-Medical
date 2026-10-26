@@ -681,9 +681,7 @@ body.avec-barre main { padding-bottom: 90px; }
   .navigation svg { width: 20px; height: 20px; }
   .estimation b { font-size: 16px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; animation: none !important; }
-}
+
 @media (forced-colors: active) {
   .graph .serie { fill: Highlight; }
   .graph .piste { fill: GrayText; }
@@ -967,8 +965,16 @@ details.avance h3 { margin-top: 18px; }
 .bande-jours .bouton-icone { flex: none; width: 34px; height: 34px; }
 .bande-jours .bouton-icone svg { transform: rotate(90deg); }
 .bande-jours .bouton-icone.suivant svg { transform: rotate(-90deg); }
-.bj-jours { flex: 1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
-.bj-jour { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 4px; border: 1px solid var(--trait); border-radius: 12px; background: var(--papier); color: var(--encre); }
+.bj-jours { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding: 6px 2px 8px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.bj-jours::-webkit-scrollbar { display: none; }
+.bj-jour { flex: none; width: 54px; scroll-snap-align: center; display: flex; flex-direction: column; align-items: center; gap: 0; padding: 5px 0 4px; border: 1px solid var(--trait); border-radius: 12px; background: var(--papier); color: var(--encre);
+  transition: transform .2s ease, background-color .2s ease, box-shadow .2s ease; }
+.bj-jour em { font-style: normal; font-size: 10px; color: var(--gris); line-height: 1.1; }
+.bj-jour.lundi { margin-left: 8px; }
+.bj-jour[aria-pressed="true"] { transform: scale(1.12); box-shadow: 0 4px 12px rgba(10, 108, 116, .28); position: relative; z-index: 1; }
+.bj-jour[aria-pressed="true"] em { color: inherit; opacity: .9; }
 .bj-jour small { font-size: 11px; color: var(--gris); text-transform: capitalize; }
 .bj-jour b { font-size: 16px; line-height: 1.1; }
 .bj-jour i { font-style: normal; font-size: 10.5px; color: var(--primaire); min-height: 13px; }
@@ -1038,3 +1044,33 @@ details.avance h3 { margin-top: 18px; }
 .ligne-plan.t-pharma { box-shadow: inset 4px 0 0 var(--violet); }
 .arret.ouvert .arret-carte.t-med { box-shadow: inset 4px 0 0 var(--bleu), 0 0 0 1px var(--primaire); }
 .arret.ouvert .arret-carte.t-pharma { box-shadow: inset 4px 0 0 var(--violet), 0 0 0 1px var(--primaire); }
+
+/* 3.19.0 : questions Oui / Non / Sortir */
+.feuille-pied .sortir-question { margin-right: auto; color: var(--gris); font-weight: 600; padding: 10px 6px; }
+.bandeau-prog.flash { animation: flash-fondu 4s ease forwards; }
+@keyframes flash-fondu { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* 3.19.0 : Produits, sections repliables par aire */
+.aire-bascule { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; text-align: left; cursor: pointer; }
+.aire-bascule span { flex: 1; }
+.aire-bascule small { font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--gris); }
+.aire-bascule svg { width: 16px; height: 16px; transition: transform .2s ease; }
+.aire-bascule[aria-expanded="true"] svg { transform: rotate(180deg); }
+.bouton-criteres { margin: 0 0 10px; }
+
+/* 3.19.0 : animations discrètes */
+@keyframes entrer { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes eclore { 0% { transform: scale(.6); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+#vue.vue-entre > * { animation: entrer .26s ease-out both; }
+#vue.vue-entre > *:nth-child(2) { animation-delay: .03s; }
+#vue.vue-entre > *:nth-child(3) { animation-delay: .06s; }
+#vue.vue-entre > *:nth-child(4) { animation-delay: .09s; }
+#vue.vue-entre > *:nth-child(n+5) { animation-delay: .12s; }
+.cr-question.nouvelle { animation: entrer .22s ease-out both; }
+.arret.vient-ouvrir .arret-carte { animation: entrer .2s ease-out both; }
+.arret.vient-enregistrer .arret-noeud { animation: eclore .5s ease-out; }
+.bouton, .puce, .bj-jour, .tuile, .cr-fait, .pastille-produit { transition: transform .12s ease, background-color .15s ease, color .15s ease, border-color .15s ease; }
+.bouton:active, .puce:active, .tuile:active, .cr-fait:active, .pastille-produit:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
