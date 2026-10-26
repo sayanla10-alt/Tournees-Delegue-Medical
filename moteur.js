@@ -104,7 +104,8 @@ var Moteur = (function () {
 
   // ------------------------------------------------------------------ Simulation horaire
   function item(a) {
-    var rdv = heureVersMinutes(a.rdv);
+    // rdv : heure imposée ; fixe : visite déjà faite, laissée à son heure ; avance : visite ramenée « maintenant » (GPS)
+    var rdv = heureVersMinutes(a.rdv || a.fixe || a.avance);
     return { a: a, coord: a.lat !== null && a.lat !== undefined && a.lat !== '' ? { lat: +a.lat, lon: +a.lon } : null,
              tot: rdv !== null ? rdv : heureVersMinutes(a.debut),
              tard: rdv !== null ? rdv + R.toleranceRdv : heureVersMinutes(a.fin) - R.dureeVisite };

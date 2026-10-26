@@ -1,9 +1,9 @@
 {
-  "version": "3.22.3",
+  "version": "3.23.0",
   "date": "2026-10-26",
   "notes": [
-    "Produits : première aire dépliée par défaut",
-    "+ Médecin / + Pharmacie : par ma position ou selon mes filtres",
-    "Planifier : tous les jours planifiés dans la frise"
+    "Journée : visite proche ramenée « maintenant » (GPS)",
+    "Pharmacie ouverte à proximité signalée avec sa distance",
+    "Produits : première aire dépliée par défaut"
   ]
 }
