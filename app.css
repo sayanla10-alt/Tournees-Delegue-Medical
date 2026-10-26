@@ -1184,3 +1184,11 @@ details.avance h3 { margin-top: 18px; }
 /* 3.24.14 : Planifier, Envoyer par WhatsApp centré */
 .rangee-wa { display: flex; justify-content: center; margin: 4px 0 12px; }
 .rangee-wa .bouton.wa { width: auto; min-width: 60%; justify-content: center; padding: 0 22px; }
+
+/* 3.24.15 : fiche produit, bande de tous les produits à faire glisser */
+.feuille-pied:has(.bande-produits) { display: block; padding-left: 0; padding-right: 0; }
+.bande-produits { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px calc(50% - 50px) 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.bande-produits::-webkit-scrollbar { display: none; }
+.bp-produit { flex: none; scroll-snap-align: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--trait); border-radius: 20px; background: var(--papier); color: var(--encre);
+  font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .2s, color .2s, transform .2s; }
+.bp-produit[aria-pressed="true"] { background: var(--primaire); border-color: var(--primaire); color: #fff; transform: scale(1.05); }

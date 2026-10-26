@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.14';
+  var APP_VERSION = '3.24.15';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.15', ['Produits : dans la fiche, plus de bouton Fermer (la croix en haut suffit) ; en bas, tous les produits à faire glisser, le produit affiché au centre']],
     ['3.24.14', ['Bilan : s\'ouvre toujours sur le Tableau de bord', 'Planifier : bouton « Envoyer par WhatsApp » avec son icône, centré', 'L\'écran ne bouge plus à chaque synchronisation ou rafraîchissement : les animations ne se jouent qu\'à l\'ouverture d\'un écran, et la position de lecture est gardée']],
     ['3.24.13', ['Réglages : le bouton « Installer l\'application » est toujours visible ; s\'il est déjà installé, il affiche « Application installée »']],
     ['3.24.12', ['Journée : sous la jauge, « X/Y réalisées · Z % renseignées » (comptes rendus saisis, visite faite ou non)']],
@@ -3550,6 +3551,17 @@
       '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><b>' + esc(f.titre || '') + '</b><button type="button" class="bouton-icone sombre" data-a="fermerFeuille" aria-label="Fermer">' + icone('fermer') + '</button></div>' +
       '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
     if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
+    // bande des produits : le produit choisi glisse au centre (depuis la position précédente)
+    var bp = el.querySelector('.bande-produits'), sel = bp && bp.querySelector('[aria-pressed="true"]');
+    if (sel) {
+      var cible = sel.offsetLeft - (bp.clientWidth - sel.offsetWidth) / 2;
+      if (S.ui.bpDepart !== undefined && S.ui.bpDepart !== null && !nouvelle) {
+        bp.scrollLeft = S.ui.bpDepart;
+        try { bp.scrollTo({ left: cible, behavior: reduireAnimations() ? 'auto' : 'smooth' }); } catch (e) { bp.scrollLeft = cible; }
+      } else bp.scrollLeft = cible;
+      bp.addEventListener('scroll', function () { S.ui.bpDepart = bp.scrollLeft; }, { passive: true });
+      S.ui.bpDepart = bp.scrollLeft;
+    }
   }
   // fiche d'un produit : l'essentiel ouvert (indications, contre-indications, arguments), le reste à déplier
   FEUILLES.ficheProduit = function (fe) {
@@ -3564,11 +3576,16 @@
         (ouvert ? '<ul>' + it.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
     });
     h += '<p class="discret fiche-pied">' + esc(f.laboratoire || '') + (f.sources ? ' · Sources : ' + esc(f.sources) : '') + '</p>';
-    // produit précédent / suivant dans la même gamme
-    var memes = fichesProduits().filter(function (x) { return x.gamme === f.gamme; }), i = memes.indexOf(f);
-    var pied = (memes.length > 1 ? (i > 0 ? '<button class="bouton" type="button" data-a="produitOuvrir" data-v="' + esc(memes[i - 1].produit) + '">' + esc(memes[i - 1].produit) + '</button>' : '') +
-      (i < memes.length - 1 ? '<button class="bouton" type="button" data-a="produitOuvrir" data-v="' + esc(memes[i + 1].produit) + '">' + esc(memes[i + 1].produit) + '</button>' : '') : '') +
-      '<button class="bouton bouton-plein" type="button" data-a="fermerFeuille">Fermer</button>';
+    // 3.24.15 : en bas, tous les produits de la liste (même ordre que l'onglet), à faire glisser comme les dates de Journée ;
+    // le produit affiché est au centre, en couleur ; on ferme avec la croix en haut
+    var ordre = [];
+    gammesProduits(fichesProduits()).forEach(function (g) {
+      var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '');
+      g.fiches.slice().sort(function (x, y) { return (y.produit === nom) - (x.produit === nom); }).forEach(function (x) { ordre.push(x.produit); });
+    });
+    var pied = '<div class="bande-produits" role="group" aria-label="Produits">' + ordre.map(function (n) {
+      return '<button type="button" class="bp-produit" data-a="produitOuvrir" data-v="' + esc(n) + '" aria-pressed="' + (n === f.produit) + '">' + esc(n) + '</button>';
+    }).join('') + '</div>';
     return { corps: h, pied: pied };
   };
 
