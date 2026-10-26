@@ -1,7 +1,7 @@
 {
-  "version": "3.25.2",
+  "version": "3.25.3",
   "date": "2026-10-26",
   "notes": [
-    "Recherche parmi les praticiens filtrés (communes du jour)"
+    "Champ de recherche retiré de la fenêtre Ajouter"
   ]
 }

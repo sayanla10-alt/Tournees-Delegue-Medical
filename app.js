@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.2';
+  var APP_VERSION = '3.25.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.3', ['Fenêtre « Ajouter » : champ de recherche retiré, la recherche se fait dans la liste « Selon mes filtres »']],
     ['3.25.2', ['Ajouter selon mes filtres (communes du jour) : champ de recherche en tête pour chercher parmi les praticiens déjà filtrés']],
     ['3.25.1', ['Autour de moi : champ de recherche libre en tête (nom, spécialité, établissement, commune), résultats dès les premières lettres, selon vos filtres, du plus proche au plus loin',
       'Même champ de recherche, avec la loupe, dans toutes les fenêtres d\'ajout']],
@@ -3863,9 +3864,7 @@
     }).join('') + '</ul>';
   }
   FEUILLES.ajouterTournee = function (f) {
-    var q = (f && f.q) || '';
-    var rech = champRechercheLibre('rechAjout', q) +
-      '<div id="resAjout">' + resultatsAjout(q) + '</div>';
+    var rech = '';   // 3.25.3 : la recherche se fait dans la liste « Selon mes filtres »
     var t = S.ui.typeAjout, qui = t === 'Médecin' ? 'Médecins' : t === 'Pharmacie' ? 'Pharmacies' : 'Praticiens';
     var filtres = libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour)) + (t === 'Médecin' && (S.params.specialites || []).length ? ' · ' + libelleListe(S.params.specialites, '') : '');
     return rech + '<div class="choix-ajout">' + [['position', 'cible', 'Par ma position', qui + ' présents près de vous'],
