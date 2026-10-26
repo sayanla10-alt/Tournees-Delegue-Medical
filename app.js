@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.16';
+  var APP_VERSION = '3.24.17';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.17', ['Réglages : libellé « WhatsApp Superviseur »']],
     ['3.24.16', ['Compte Rendu de la journée : bouton « Envoyer au superviseur » par WhatsApp (numéro renseigné dans Réglages)']],
     ['3.24.15', ['Produits : dans la fiche, plus de bouton Fermer (la croix en haut suffit) ; en bas, tous les produits à faire glisser, le produit affiché au centre']],
     ['3.24.14', ['Bilan : s\'ouvre toujours sur le Tableau de bord', 'Planifier : bouton « Envoyer par WhatsApp » avec son icône, centré', 'L\'écran ne bouge plus à chaque synchronisation ou rafraîchissement : les animations ne se jouent qu\'à l\'ouverture d\'un écran, et la position de lecture est gardée']],
@@ -3489,7 +3490,7 @@
     h += '<section class="bloc"><h3 style="margin-top:0">Mon profil</h3>' +
       champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)') +
       '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
-      '<label class="champ"><span>WhatsApp de votre superviseur (compte rendu de la journée)</span><input type="tel" id="cfgWaResp" inputmode="tel" placeholder="Facultatif" value="' + esc(c.waResp || '') + '"></label>' +
+      '<label class="champ"><span>WhatsApp Superviseur</span><input type="tel" id="cfgWaResp" inputmode="tel" placeholder="Facultatif" value="' + esc(c.waResp || '') + '"></label>' +
       '<label class="interrupteur"><span>Toujours ouvrir WhatsApp Web</span><input type="checkbox" id="cfgWaWeb"' + (c.waWeb ? ' checked' : '') + '></label>' +
       '<div class="champ"><span>Mon quartier</span>' + selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: c.depart || '', vide: 'Choisir un quartier…', sections: sectionsQuartiers() }) + '</div>' +
       '<button class="bouton bouton-plein bouton-large" type="button" data-a="enregistrerMoi">Enregistrer</button></section>';
