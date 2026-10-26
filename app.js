@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.1';
+  var APP_VERSION = '3.25.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.2', ['Ajouter selon mes filtres (communes du jour) : champ de recherche en tête pour chercher parmi les praticiens déjà filtrés']],
     ['3.25.1', ['Autour de moi : champ de recherche libre en tête (nom, spécialité, établissement, commune), résultats dès les premières lettres, selon vos filtres, du plus proche au plus loin',
       'Même champ de recherche, avec la loupe, dans toutes les fenêtres d\'ajout']],
     ['3.25.0', ['Heures proposées entre 7 h 30 et 19 h ; une visite faite tard ne décale plus les suivantes',
@@ -3878,27 +3879,38 @@
     if (!l.length) l = Array.from(new Set(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.commune; }).filter(Boolean)));
     return l;
   }
-  FEUILLES.ajouterCommunes = function () {
+  // 3.25.2 : champ de recherche en tête, pour chercher parmi les praticiens déjà filtrés (communes du jour, critères)
+  FEUILLES.ajouterCommunes = function (f) {
+    var d = S.ui.dateAjout || S.ui.jour, com = Object.keys(ensemble(communesDuJour(d))), q = (f && f.q) || '';
+    return '<p class="discret" style="margin-top:0">Présents le ' + esc(dateLongue(d)) + (com.length ? ' dans ' + esc(libelleCommunes(com)) : '') + ', hors de votre tournée et non prévus par un collègue.</p>' +
+      champRechercheLibre('rechCommunes', q) + '<div id="resCommunes">' + resultatsCommunes(q) + '</div>';
+  };
+  function resultatsCommunes(q) {
     var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesDuJour(d)), filtre = filtreCibles(), ex = exclusCollegues([d]);
+    var mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
       if (dans[cr.code] || ex[cr.code] || (Object.keys(com).length && !com[cr.commune]) || (filtre && S.ui.typeAjout !== 'Pharmacie' && !filtre(p)) || absentLe(p, d)) return;
       if (S.ui.typeAjout && (S.ui.typeAjout === 'Pharmacie') !== (p.type === 'Pharmacie')) return;
+      if (mots.length) {
+        var txt = normaliser([p.nom, p.specialite, cr.lieu, cr.quartier, cr.commune].join(' '));
+        if (!mots.every(function (m) { return txt.indexOf(m) >= 0; })) return;
+      }
       var x = { cr: cr, score: Moteur.scoreDe(p, d) };
       if (!vus[cr.code] || x.score > vus[cr.code].score) vus[cr.code] = x;
     });
-    var l = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) { return y.score - x.score; }).slice(0, 30);
-    if (!l.length) return '<p class="discret" style="margin-top:0">Aucun autre praticien présent ce jour-là dans ' + esc(libelleCommunes(Object.keys(com))) + ', selon vos critères.</p>';
-    return '<p class="discret" style="margin-top:0">Présents le ' + dateFr(d) + ' dans ' + esc(libelleCommunes(Object.keys(com))) + ', hors de votre tournée et non prévus par un collègue.</p>' +
+    var tous = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) { return y.score - x.score; }), l = tous.slice(0, mots.length ? 60 : 30);
+    if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là dans ' + esc(libelleCommunes(Object.keys(com))) + ', selon vos critères.') + '</p>';
+    return (mots.length ? '<p class="discret">' + tous.length + ' résultat' + (tous.length > 1 ? 's' : '') + '.</p>' : '') +
       '<ul class="liste">' + l.map(function (x) {
         var cr = x.cr, p = cr.prat;
-        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-v="' + esc(cr.cle) + '">' +
+        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
           '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, cr.lieu, cr.quartier])) + '</span>' +
           '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button></li>';
-      }).join('') + '</ul>';
-  };
+      }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : précisez la recherche.</p>' : '');
+  }
   FEUILLES.installer = function () {
     var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
     return '<p style="margin-top:0">' + (ios ? 'Dans Safari : ' + icone('partager') + ' Partager, puis « Sur l\'écran d\'accueil ».' :
@@ -5265,6 +5277,9 @@
     if (f === 'produits') {
       var ap = arret(el.dataset.uid), ref = ap ? produitsPour(ap) : produitsRef();
       if (ap) { ap.produits = listeProduits(ap.produits).filter(function (x) { return ref.indexOf(x) >= 0; }).concat(listeProduits(el.value)).join(', '); LS.set('plan', S.plan); }
+    }
+    if (f === 'rechCommunes' && S.ui.feuille) {
+      S.ui.feuille.q = el.value; var zc = document.getElementById('resCommunes'); if (zc) zc.innerHTML = resultatsCommunes(el.value);
     }
     if (f === 'rechAutourLibre') {
       S.ui.rechAutourLibre = el.value; var za = document.getElementById('resAutourLibre'), zl = document.getElementById('autourListe');

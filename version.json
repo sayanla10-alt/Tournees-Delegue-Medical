@@ -1,8 +1,7 @@
 {
-  "version": "3.25.1",
+  "version": "3.25.2",
   "date": "2026-10-26",
   "notes": [
-    "Recherche libre en tête d'Autour de moi",
-    "Même champ de recherche dans toutes les fenêtres d'ajout"
+    "Recherche parmi les praticiens filtrés (communes du jour)"
   ]
 }
