@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.17.2';
+  var APP_VERSION = '3.18.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.18.0', ['Médecins en bleu, pharmacies en violet : pastille « Médecin » / « Pharmacie » devant le nom et liseré de couleur sur les cartes (Journée, Planifier, Recherche, Autour de moi, Historique)']],
     ['3.17.2', ['Journée › « Planifier le … » : Planifier s\'ouvre directement à l\'étape 2 (la période est déjà réglée sur ce jour)']],
     ['3.17.1', ['Journée : le bouton « Planifier le … » apparaît aussi quand aucune tournée n\'existe ; un week-end ou un jour férié propose le prochain jour ouvré']],
     ['3.17.0', ['Journée : un jour sans visite propose « Planifier le … » (Planifier s\'ouvre réglé sur ce jour)',
@@ -1039,7 +1040,7 @@
     if (!prevus.length) return '<div class="vide"><strong>Rien de prévu ce jour-là</strong>Aucune tournée publiée pour cette date.</div>' + boutonPlanifierJour(d);
     h += '<p class="bilan-jour"><b>' + prevus.length + ' visite' + (prevus.length > 1 ? 's' : '') + ' prévue' + (prevus.length > 1 ? 's' : '') + '</b>.</p>';
     h += '<ul class="liste">' + prevus.map(function (x) {
-      return '<li class="element"><div class="element-tete"><div><b>' + esc(x.heure || '--:--') + '</b> · <b>' + esc(x.nom || '') + '</b> ' + etoiles(x.note) +
+      return '<li class="element' + classeType(x) + '"><div class="element-tete"><div><b>' + esc(x.heure || '--:--') + '</b> · ' + pastilleType(x) + '<b>' + esc(x.nom || '') + '</b> ' + etoiles(x.note) +
         '<span class="discret bloc-texte">' + esc([x.specialite, x.lieu, x.quartier].filter(Boolean).join(', ')) + '</span></div></div></li>';
     }).join('') + '</ul>';
     return h + '<button class="bouton bouton-plein bouton-large" type="button" data-a="jourReprendre" data-v="' + d + '">' + icone('relancer') + 'Reprendre ce programme</button>';
@@ -1445,9 +1446,9 @@
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici</span>';
     e += etiquetteCollegues(a.code, a.date);
-    return '<li class="ligne-plan' + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
+    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
       '<span class="lp-heure">' + esc(a.heure) + '</span>' +
-      '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '"><b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
+      '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
         '<span class="discret bloc-texte">' + esc(a.specialite) + ', ' + esc(a.quartier) + '</span>' + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
       (verrou ? '<span class="lp-fait" title="Compte rendu enregistré">' + icone('valider') + '</span>' :
         '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
@@ -1985,9 +1986,9 @@
     var h = '<li class="' + cls + '" data-p="' + (+a.note === 3 ? 1 : 3) + '">' +
       '<div class="arret-heure"><b>' + esc(a.heure || (a.creneau ? a.creneau.slice(0, 5) : '--:--')) + '</b>' + (a.debut || a.fin ? '<small>' + esc(a.debut) + '-' + esc(a.fin) + '</small>' : '') + '</div>' +
       '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
-      '<div><div class="arret-carte">' +
+      '<div><div class="arret-carte' + classeType(a) + '">' +
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
-          '<span class="arret-nom">' + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
+          '<span class="arret-nom">' + pastilleType(a) + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
           (ouvert ? '<span class="arret-lieu">' + esc(a.specialite) + ', ' + esc(a.lieu) + '</span>' +
             '<span class="arret-lieu">' + esc(a.quartier) + ', ' + esc(a.commune) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : '<span class="arret-lieu">' + esc([a.lieu, a.quartier].filter(Boolean).join(', ')) + '</span>' + ligneEtat(a)) +
@@ -2269,11 +2270,15 @@
     return ajouterJours(depuis, delta);
   }
 
+  // 3.18.0 : type de praticien en couleur (médecin bleu, pharmacie violet), avec le mot pour ne pas dépendre de la couleur
+  function estPharmacie(o) { var t = o && (o.type || (praticien(o.code) || {}).type); return t === 'Pharmacie'; }
+  function pastilleType(o) { var ph = estPharmacie(o); return '<i class="type-pastille ' + (ph ? 't-pharma' : 't-med') + '">' + (ph ? 'Pharmacie' : 'Médecin') + '</i>'; }
+  function classeType(o) { return estPharmacie(o) ? ' t-pharma' : ' t-med'; }
   function rendreProposition(x, i, date) {
     var c = x.c, p = c.prat;
     var deja = S.plan.some(function (a) { return a.date === date && a.code === p.code; });
-    return '<li class="element"><div class="element-tete"><div>' +
-      '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+    return '<li class="element' + classeType(p) + '"><div class="element-tete"><div>' +
+      '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + esc(p.specialite) + ', ' + esc(c.lieu) + '</span>' +
       '<span class="discret bloc-texte">' + esc(c.quartier) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</span>' +
       '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, date)) + '</span>' +
@@ -2628,8 +2633,8 @@
     h += '<ul class="liste">';
     liste.slice(0, S.ui.limite).forEach(function (p) {
       var ouvert = S.ui.contactOuvert === p.code, lieux = c.presencesParCode[p.code] || [];
-      h += '<li class="element"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
-        '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+      h += '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
+        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
         '<span class="discret bloc-texte">' + esc(p.specialite) + ', ' + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
           esc(Array.from(new Set(lieux.map(function (x) { return x.commune; }))).join(', ')) + '</span>' +
         '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
@@ -2950,8 +2955,8 @@
     var liste = S.ui.histFiltre === 'equipe' ? tout : hist;
     if (!liste.length) return h + '<div class="vide"><strong>Aucune visite enregistrée</strong>Les comptes rendus enregistrés dans « Journée » apparaîtront ici.</div>';
     return h + '<ul class="liste">' + liste.slice(0, 150).map(function (v) {
-      return '<li class="element"><div class="element-tete"><div>' +
-        '<span class="element-titre">' + esc(v.nom) + '</span>' +
+      return '<li class="element' + classeType(v) + '"><div class="element-tete"><div>' +
+        '<span class="element-titre">' + pastilleType(v) + esc(v.nom) + '</span>' +
         '<span class="discret bloc-texte">' + esc(v.lieu) + ', ' + esc(v.quartier) + '</span>' +
         (v.activite ? '<span class="bloc-texte discret" style="margin-top:4px">' + esc(v.activite) + '</span>' : '') +
         (v.produits ? '<span class="bloc-texte discret" style="margin-top:4px">Produits : ' + esc(v.produits) + '</span>' : '') +

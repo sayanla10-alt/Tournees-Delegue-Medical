@@ -40,6 +40,8 @@
   --vert-trait: #B6DCC6;
   --rouge: #B3362E;
   --rouge-pale: #FAE5E3;
+  --violet: #6A3FA0;
+  --violet-pale: #EFE7F8;
   --voile: rgba(8, 22, 30, .5);
   --ombre: 0 1px 2px rgba(14, 34, 48, .06), 0 3px 10px rgba(14, 34, 48, .05);
   /* données (validées : contraste >= 3:1 sur la surface, chroma suffisant) */
@@ -61,7 +63,7 @@
     --trait: #22343E; --primaire: #3BB7B5; --primaire-2: #5CCBC8; --primaire-pale: #12343A; --sur-primaire: #04191C;
     --bleu: #8DBBF2; --bleu-pale: #172B44; --entete-1: #0B1E2C; --entete-2: #0D363B;
     --ambre: #F0B44C; --ambre-pale: #33270F; --ambre-trait: #5A4419; --vert: #66CF96; --vert-pale: #12301F; --vert-trait: #24563A;
-    --rouge: #F29389; --rouge-pale: #3A1A18; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
+    --rouge: #F29389; --rouge-pale: #3A1A18; --violet: #C7A8F0; --violet-pale: #2A1E3B; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
     --d-serie: #1FA8A4; --d-objectif: #C98118; --d-piste: #22363F; --d-grille: #1B2C34; --carte-fond: #0D1A21; --carte-texte: #B8CAD1;
     color-scheme: dark;
   }
@@ -71,7 +73,7 @@
   --trait: #22343E; --primaire: #3BB7B5; --primaire-2: #5CCBC8; --primaire-pale: #12343A; --sur-primaire: #04191C;
   --bleu: #8DBBF2; --bleu-pale: #172B44; --entete-1: #0B1E2C; --entete-2: #0D363B;
   --ambre: #F0B44C; --ambre-pale: #33270F; --ambre-trait: #5A4419; --vert: #66CF96; --vert-pale: #12301F; --vert-trait: #24563A;
-  --rouge: #F29389; --rouge-pale: #3A1A18; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
+  --rouge: #F29389; --rouge-pale: #3A1A18; --violet: #C7A8F0; --violet-pale: #2A1E3B; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
   --d-serie: #1FA8A4; --d-objectif: #C98118; --d-piste: #22363F; --d-grille: #1B2C34; --carte-fond: #0D1A21; --carte-texte: #B8CAD1;
   color-scheme: dark;
 }
@@ -1024,3 +1026,15 @@ details.avance h3 { margin-top: 18px; }
 .arret.absent-attente .arret-noeud { background: var(--papier); border-color: var(--rouge); }
 .arret.fait-attente .arret-noeud { background: var(--papier); border-color: var(--vert); }
 .jour-du-jour { vertical-align: middle; font-size: 12px; margin-left: 4px; position: relative; top: -3px; }
+
+/* 3.18.0 : type de praticien (médecin bleu, pharmacie violet) */
+.type-pastille { display: inline-block; font-style: normal; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 999px; margin-right: 6px; vertical-align: 2px; line-height: 1.5; }
+.type-pastille.t-med { color: var(--bleu); background: var(--bleu-pale); }
+.type-pastille.t-pharma { color: var(--violet); background: var(--violet-pale); }
+.arret-carte.t-med, .element.t-med { box-shadow: inset 4px 0 0 var(--bleu), var(--ombre); }
+.arret-carte.t-pharma, .element.t-pharma { box-shadow: inset 4px 0 0 var(--violet), var(--ombre); }
+.ligne-plan.t-med { box-shadow: inset 4px 0 0 var(--bleu); }
+.ligne-plan.t-pharma { box-shadow: inset 4px 0 0 var(--violet); }
+.arret.ouvert .arret-carte.t-med { box-shadow: inset 4px 0 0 var(--bleu), 0 0 0 1px var(--primaire); }
+.arret.ouvert .arret-carte.t-pharma { box-shadow: inset 4px 0 0 var(--violet), 0 0 0 1px var(--primaire); }

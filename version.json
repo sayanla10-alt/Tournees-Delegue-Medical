@@ -1,7 +1,8 @@
 {
-  "version": "3.17.2",
+  "version": "3.18.0",
   "date": "2026-10-25",
   "notes": [
+    "Médecins en bleu, pharmacies en violet",
     "« Planifier le … » ouvre Planifier à l'étape 2"
   ]
 }
