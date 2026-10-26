@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.12';
+  var APP_VERSION = '3.24.13';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.13', ['Réglages : le bouton « Installer l\'application » est toujours visible ; s\'il est déjà installé, il affiche « Application installée »']],
     ['3.24.12', ['Journée : sous la jauge, « X/Y réalisées · Z % renseignées » (comptes rendus saisis, visite faite ou non)']],
     ['3.24.11', ['Journée : sous la jauge, « X/Y réalisées · Z % »']],
     ['3.24.10', ['Planifier : « Reprendre un ancien programme » centré sous « Planifier ma tournée »']],
@@ -3487,8 +3488,10 @@
         '<p class="discret" style="margin:0">Le lien donne accès à la base : envoyez-le uniquement à vos collègues.</p></section>';
     }
     // 3.19.0 : un bouton, comme « Partager » ; masqué quand l'application est déjà installée
-    if (!estInstallee()) h += '<section class="bloc"><h3 style="margin-top:0">Installer sur le téléphone</h3>' +
-      '<button class="bouton bouton-plein bouton-large" type="button" data-a="installer">' + icone('telecharger') + 'Installer l\'application</button></section>';
+    // 3.24.13 : toujours visible ; déjà installée (ouverte depuis l'icône), le bouton le dit au lieu de disparaître
+    h += '<section class="bloc"><h3 style="margin-top:0">Installer sur le téléphone</h3>' + (estInstallee() ?
+      '<button class="bouton bouton-large" type="button" disabled aria-disabled="true">' + icone('valider') + 'Application installée</button>' :
+      '<button class="bouton bouton-plein bouton-large" type="button" data-a="installer">' + icone('telecharger') + 'Installer l\'application</button>') + '</section>';
     h += '<section class="bloc"><h3>MediPlanner</h3><p class="discret" style="margin-top:0">Version ' + APP_VERSION +
       '. Les mises à jour sont signalées par un bandeau en haut de l\'écran ; vos données restent sur le téléphone.</p>' +
       '<div class="rangee"><button class="bouton" type="button" data-a="verifierMaj">Recherche MàJ</button>' +
