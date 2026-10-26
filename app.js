@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.23.3';
+  var APP_VERSION = '3.23.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.23.4', ['Journée, Planifier, Recherche, Autour de moi : sous-titres sans redite (pas de « Pharmacien » ni du nom de la pharmacie répété ; la spécialité reste pour les médecins)']],
     ['3.23.3', ['Planifier : plus d\'alerte « médecins prévus par un collègue » ; chaque ligne concernée affiche directement « Prévu par … »']],
     ['3.23.2', ['Cartes de la journée : distance entre vous et chaque visite à faire (symbole de position), pour choisir qui voir en priorité',
                'L\'alerte « médecins prévus par un collègue » ne s\'affiche plus que dans Planifier',
@@ -1326,7 +1327,7 @@
         tr = trajetMini(dk, minutesTrajet(dk, qp ? qp.quartier.commune : '', suivante.commune, now));
       } else if (suivante.dist > 0) tr = trajetMini(suivante.dist, suivante.trajet !== undefined ? suivante.trajet : Math.round(suivante.dist * REGLAGES_MOTEUR.minutesParKm));
       h += '<div class="suivante"><small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
-        '<span class="discret bloc-texte">' + esc([suivante.lieu, suivante.quartier].filter(Boolean).join(', ')) + '</span>' + tr +
+        (lieuQuartier(suivante) ? '<span class="discret bloc-texte">' + esc(lieuQuartier(suivante)) + '</span>' : '') + tr +
         actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte rendu de cette visite</button></div>';
     }
@@ -1745,7 +1746,7 @@
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
       '<span class="lp-heure">' + esc(a.heure) + '</span>' +
       '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
-        '<span class="discret bloc-texte">' + esc(a.specialite) + ', ' + esc(a.quartier) + '</span>' + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
+        (infosSansDoublon(a, [a.specialite, a.quartier]) ? '<span class="discret bloc-texte">' + esc(infosSansDoublon(a, [a.specialite, a.quartier])) + '</span>' : '') + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
       (verrou ? '<span class="lp-fait" title="Compte rendu enregistré">' + icone('valider') + '</span>' :
         '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
           (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
@@ -2293,9 +2294,9 @@
       '<div><div class="arret-carte' + classeType(a) + '">' +
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
           '<span class="arret-nom">' + pastilleType(a) + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
-          (ouvert ? '<span class="arret-lieu">' + esc(a.specialite) + ', ' + esc(a.lieu) + '</span>' +
+          (ouvert ? (lieuEtSpec(a) ? '<span class="arret-lieu">' + esc(lieuEtSpec(a)) + '</span>' : '') +
             '<span class="arret-lieu">' + esc(a.quartier) + ', ' + esc(a.commune) + '</span>' +
-            '<span class="etiquettes">' + e + '</span>' : '<span class="arret-lieu">' + esc([a.lieu, a.quartier].filter(Boolean).join(', ')) + '</span>' + ligneEtat(a)) +
+            '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + esc(lieuQuartier(a)) + '</span>' : '') + ligneEtat(a)) +
         '</button>' +
         (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && !futurVerrouille(a.date) ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
     if (ouvert) {
@@ -2592,6 +2593,27 @@
     var ph = estPharmacie(o), lib = ph ? 'Pharmacie' : 'Médecin';
     return '<i class="type-pastille ' + (ph ? 't-pharma' : 't-med') + (grand ? ' grand' : '') + '" role="img" aria-label="' + lib + '" title="' + lib + '">' + icone(ph ? 'pharmacie' : 'medecin') + '</i>';
   }
+  // 3.23.4 : pas de doublon sous le titre : le lieu n'est pas répété quand c'est le nom (pharmacies),
+  // et « Pharmacien » n'est pas écrit (le symbole de la pharmacie le dit)
+  function lieuAffiche(a) {
+    var l = normaliser(nomSansType(a.lieu)), n = normaliser(nomSansType(a.nom));
+    return !l || l === n || n.indexOf(l) >= 0 || l.indexOf(n) >= 0 ? '' : a.lieu;
+  }
+  // sous-titre sans redite : pas de spécialité pour une pharmacie, rien de ce que le nom dit déjà
+  function infosSansDoublon(o, l) {
+    var n = normaliser(nomSansType(o.nom)), ph = estPharmacie(o), vus = {};
+    return l.filter(function (x, i) {
+      if (!x || (i === 0 && ph && x === o.specialite)) return false;
+      var k = normaliser(nomSansType(x));
+      if (!k || vus[k] || n.indexOf(k) >= 0 || k.indexOf(n) >= 0) return false;
+      vus[k] = true; return true;
+    }).join(', ');
+  }
+  function lieuQuartier(a) {
+    var n = normaliser(a.nom), q = a.quartier && n.indexOf(normaliser(a.quartier)) >= 0 ? '' : a.quartier;
+    return [lieuAffiche(a), q].filter(Boolean).join(', ');
+  }
+  function lieuEtSpec(a) { return [estPharmacie(a) ? '' : a.specialite, lieuAffiche(a)].filter(Boolean).join(', '); }
   function nomSansType(nom) { return String(nom || '').replace(/^\s*pharmacie\s+/i, ''); }
   function metres(km) { return Math.max(10, Math.round(km * 100) * 10) + ' mètres'; }
   function classeType(o) { return estPharmacie(o) ? ' t-pharma' : ' t-med'; }
@@ -2600,7 +2622,7 @@
     var deja = S.plan.some(function (a) { return a.date === date && a.code === p.code; });
     return '<li class="element' + classeType(p) + '"><div class="element-tete"><div>' +
       '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-      '<span class="discret bloc-texte">' + esc(p.specialite) + ', ' + esc(c.lieu) + '</span>' +
+      '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, c.lieu])) + '</span>' +
       '<span class="discret bloc-texte">' + esc(c.quartier) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</span>' +
       '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, date)) + '</span>' +
       etiquetteCollegues(p.code, date) + '</span></div>' +
@@ -2955,7 +2977,7 @@
       var ouvert = S.ui.contactOuvert === p.code, lieux = c.presencesParCode[p.code] || [];
       h += '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
         '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-        '<span class="discret bloc-texte">' + esc(p.specialite) + ', ' + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
+        '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : esc(p.specialite) + ', ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
           esc(Array.from(new Set(lieux.map(function (x) { return x.commune; }))).join(', ')) + '</span>' +
         '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
         (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(p.statut) + '</span>' : '') +
@@ -3543,7 +3565,7 @@
         var p = x.cr.prat;
         return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '">' +
           '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-          '<span class="discret bloc-texte">' + esc(p.specialite) + ', ' + esc(x.cr.lieu) + ', ' + esc(x.cr.quartier) + '</span>' +
+          '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
           '<span class="discret bloc-texte">' + x.cr.creneau + ' ' + minutesVersHeure(x.cr.debut) + '-' + minutesVersHeure(x.cr.fin) + ' · passage vers ' + esc(x.heure) +
             (x.dist < 99 ? ' · ' + km(x.dist) + ' du lieu remplacé' : '') + '</span>' +
           '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, a.date)) + '</span>' +
@@ -3587,7 +3609,7 @@
         var cr = x.cr, p = cr.prat;
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-v="' + esc(cr.cle) + '">' +
           '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-          '<span class="discret bloc-texte">' + esc(p.specialite) + ', ' + esc(cr.lieu) + ', ' + esc(cr.quartier) + '</span>' +
+          '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, cr.lieu, cr.quartier])) + '</span>' +
           '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button></li>';
       }).join('') + '</ul>';
   };
