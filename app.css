@@ -1187,7 +1187,7 @@ details.avance h3 { margin-top: 18px; }
 
 /* 3.24.15 : fiche produit, bande de tous les produits à faire glisser */
 .feuille-pied:has(.bande-produits) { display: block; padding-left: 0; padding-right: 0; }
-.bande-produits { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px calc(50% - 50px) 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.bande-produits { display: flex; gap: 6px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 0 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .bande-produits::-webkit-scrollbar { display: none; }
 .bp-produit { flex: none; scroll-snap-align: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--trait); border-radius: 20px; background: var(--papier); color: var(--encre);
   font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .2s, color .2s, transform .2s; }

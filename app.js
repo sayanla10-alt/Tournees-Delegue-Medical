@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.18';
+  var APP_VERSION = '3.24.19';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.19', ['Fiche produit : la bande des produits tourne en boucle (après le dernier, le premier revient, dans les deux sens)']],
     ['3.24.18', ['Compte Rendu de visite : « Choisir » au lieu de « Choisir… (plusieurs possibles) »']],
     ['3.24.17', ['Réglages : libellé « WhatsApp Superviseur »']],
     ['3.24.16', ['Compte Rendu de la journée : bouton « Envoyer au superviseur » par WhatsApp (numéro renseigné dans Réglages)']],
@@ -3558,14 +3559,24 @@
       '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
     if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
     // bande des produits : le produit choisi glisse au centre (depuis la position précédente)
-    var bp = el.querySelector('.bande-produits'), sel = bp && bp.querySelector('[aria-pressed="true"]');
+    var bp = el.querySelector('.bande-produits'), sel = bp && bp.querySelector('[data-copie="1"][aria-pressed="true"]');
     if (sel) {
+      var debuts = bp.querySelectorAll('[data-debut]'), W = debuts[1].offsetLeft - debuts[0].offsetLeft;
       var cible = sel.offsetLeft - (bp.clientWidth - sel.offsetWidth) / 2;
-      if (S.ui.bpDepart !== undefined && S.ui.bpDepart !== null && !nouvelle) {
-        bp.scrollLeft = S.ui.bpDepart;
+      // depuis la position précédente, ramenée dans la copie du milieu au plus près de la cible
+      var dep = S.ui.bpDepart;
+      if (dep !== undefined && dep !== null && !nouvelle) {
+        while (dep - cible > W / 2) dep -= W;
+        while (cible - dep > W / 2) dep += W;
+        bp.scrollLeft = dep;
         try { bp.scrollTo({ left: cible, behavior: reduireAnimations() ? 'auto' : 'smooth' }); } catch (e) { bp.scrollLeft = cible; }
       } else bp.scrollLeft = cible;
-      bp.addEventListener('scroll', function () { S.ui.bpDepart = bp.scrollLeft; }, { passive: true });
+      bp.addEventListener('scroll', function () {
+        // boucle : on saute d'une copie (contenu identique, saut invisible) quand on approche d'un bord
+        if (bp.scrollLeft < W * 0.5) bp.scrollLeft += W;
+        else if (bp.scrollLeft > W * 1.5) bp.scrollLeft -= W;
+        S.ui.bpDepart = bp.scrollLeft;
+      }, { passive: true });
       S.ui.bpDepart = bp.scrollLeft;
     }
   }
@@ -3589,8 +3600,13 @@
       var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '');
       g.fiches.slice().sort(function (x, y) { return (y.produit === nom) - (x.produit === nom); }).forEach(function (x) { ordre.push(x.produit); });
     });
-    var pied = '<div class="bande-produits" role="group" aria-label="Produits">' + ordre.map(function (n) {
-      return '<button type="button" class="bp-produit" data-a="produitOuvrir" data-v="' + esc(n) + '" aria-pressed="' + (n === f.produit) + '">' + esc(n) + '</button>';
+    // 3.24.19 : bande en boucle (après le dernier, le premier revient) : la liste est répétée 3 fois,
+    // on reste dans la copie du milieu ; les copies de bord sont invisibles pour les lecteurs d'écran
+    var pied = '<div class="bande-produits boucle" role="group" aria-label="Produits">' + [0, 1, 2].map(function (k) {
+      return ordre.map(function (n, j) {
+        return '<button type="button" class="bp-produit" data-a="produitOuvrir" data-v="' + esc(n) + '" data-copie="' + k + '"' + (j === 0 ? ' data-debut="1"' : '') +
+          (k !== 1 ? ' aria-hidden="true" tabindex="-1"' : '') + ' aria-pressed="' + (n === f.produit) + '">' + esc(n) + '</button>';
+      }).join('');
     }).join('') + '</div>';
     return { corps: h, pied: pied };
   };
