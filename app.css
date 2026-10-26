@@ -1031,6 +1031,10 @@ details.avance h3 { margin-top: 18px; }
 /* 3.14.0 */
 .arret.absent-attente .arret-noeud { background: var(--papier); border-color: var(--rouge); }
 .arret.fait-attente .arret-noeud { background: var(--papier); border-color: var(--vert); }
+.etiquette.rel-passe { background: var(--bleu-pale); color: var(--bleu); border-color: transparent; }
+.etiquette.rel-passe2 { background: var(--papier-2); color: var(--bleu); border-color: var(--trait); }
+.etiquette.rel-futur { background: var(--ambre-pale); color: var(--ambre); border-color: var(--ambre-trait); }
+.etiquette.rel-futur2 { background: var(--papier-2); color: var(--ambre); border-color: var(--ambre-trait); }
 .jour-du-jour { vertical-align: middle; font-size: 12px; margin-left: 4px; position: relative; top: -3px; }
 
 /* 3.18.0 : type de praticien (médecin bleu, pharmacie violet) */
