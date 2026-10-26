@@ -1,10 +1,9 @@
 {
-  "version": "3.19.0",
+  "version": "3.20.0",
   "date": "2026-10-26",
   "notes": [
-    "Journée sur aujourd'hui, bande des jours défilante",
-    "Oui / Non / Sortir",
-    "Recherche et Produits plus compacts",
-    "Animations discrètes"
+    "Planifier en agenda : tous les jours planifiés dans l'ordre",
+    "Accepter / Recalculer encore",
+    "Ajouter à la tournée"
   ]
 }

@@ -1074,3 +1074,17 @@ details.avance h3 { margin-top: 18px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* 3.20.0 : Planifier en agenda */
+.frise-plan { margin-top: 4px; }
+.bj-jour .etat-jour { font-style: normal; font-size: 10.5px; font-weight: 700; min-height: 13px; }
+.bj-jour .etat-jour.ok { color: var(--vert); }
+.bj-jour .etat-jour.brouillon { color: var(--ambre); }
+.bj-jour[aria-pressed="true"] .etat-jour { color: inherit; }
+.bj-jour.passe:not([aria-pressed="true"]) { opacity: .7; }
+.tete-jour-plan { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }
+.tete-jour-plan .bilan-jour { flex: 1 1 100%; margin: 0; }
+.wa-mini { margin-left: auto; color: #128C7E; border: 1.5px solid currentColor; border-radius: 50%; width: 36px; height: 36px; display: grid; place-items: center; background: var(--papier); }
+.wa-mini svg { width: 20px; height: 20px; }
+.bandeau-prog.accepter { border-color: var(--primaire); background: var(--primaire-pale); }
+.rangee-tirage { display: grid; grid-template-columns: 1fr; gap: 8px; }
