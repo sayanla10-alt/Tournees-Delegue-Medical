@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.20';
+  var APP_VERSION = '3.24.21';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.21', ['Fenêtres (fiche produit, choix, questions…) : on ferme avec la flèche retour en haut à gauche, comme dans Compte Rendu ; plus de croix', 'Carte de visite : « Quitter » avec la flèche retour']],
     ['3.24.20', ['Visite proche (GPS) : proposée à moins de 500 m (au lieu de 300 m), si le praticien est encore présent au moins 10 minutes (au lieu de 20)']],
     ['3.24.19', ['Fiche produit : la bande des produits tourne en boucle (après le dernier, le premier revient, dans les deux sens)']],
     ['3.24.18', ['Compte Rendu de visite : « Choisir » au lieu de « Choisir… (plusieurs possibles) »']],
@@ -2440,7 +2441,7 @@
         h += '<div class="cr-enregistre">' +
           '<div class="tuiles-resume">' + resumeCompteRendu(a, true) + '</div>' +
           '<div class="rangee-actions" style="margin:10px 0 0">' + (passeVerrouille(a.date) ? '' : '<button class="bouton petit" type="button" data-a="corriger" data-uid="' + a.uid + '">' + icone('crayon') + 'Modifier</button>') +
-          '<button class="bouton petit" type="button" data-a="quitterCarte">' + icone('fermer') + 'Quitter</button></div></div>';
+          '<button class="bouton petit avec-retour" type="button" data-a="quitterCarte">' + icone('chevron') + 'Quitter</button></div></div>';
       }
       h += '</div>';
     }
@@ -3556,7 +3557,7 @@
     var nouvelle = !defil || el.dataset.ouverte !== f.type;
     el.dataset.type = f.type + (f.etape || ''); el.dataset.ouverte = f.type;
     el.innerHTML = '<div class="voile" data-a="fermerFeuille"></div><div class="feuille' + (f.pleine ? ' pleine' : '') + (nouvelle ? ' anim' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(f.titre || '') + '">' +
-      '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><b>' + esc(f.titre || '') + '</b><button type="button" class="bouton-icone sombre" data-a="fermerFeuille" aria-label="Fermer">' + icone('fermer') + '</button></div>' +
+      '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="fermerFeuille" aria-label="Retour">' + icone('chevron') + '</button><b>' + esc(f.titre || '') + '</b></div>' +
       '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
     if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
     // bande des produits : le produit choisi glisse au centre (depuis la position précédente)

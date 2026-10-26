@@ -1192,3 +1192,10 @@ details.avance h3 { margin-top: 18px; }
 .bp-produit { flex: none; scroll-snap-align: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--trait); border-radius: 20px; background: var(--papier); color: var(--encre);
   font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: background .2s, color .2s, transform .2s; }
 .bp-produit[aria-pressed="true"] { background: var(--primaire); border-color: var(--primaire); color: #fff; transform: scale(1.05); }
+
+/* 3.24.21 : on ferme avec la flèche retour (en haut à gauche), comme les pages */
+.feuille-tete { justify-content: flex-start; gap: 2px; padding-left: 6px; }
+.retour-feuille { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--primaire); cursor: pointer; }
+.retour-feuille:active { background: var(--primaire-pale); }
+.retour-feuille svg { width: 22px; height: 22px; transform: rotate(90deg); }
+.avec-retour svg { transform: rotate(90deg); }
