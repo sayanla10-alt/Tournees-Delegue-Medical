@@ -1075,9 +1075,6 @@ details.avance h3 { margin-top: 18px; }
 .arret.vient-enregistrer .arret-noeud { animation: eclore .5s ease-out; }
 .bouton, .puce, .bj-jour, .tuile, .cr-fait, .pastille-produit { transition: transform .12s ease, background-color .15s ease, color .15s ease, border-color .15s ease; }
 .bouton:active, .puce:active, .tuile:active, .cr-fait:active, .pastille-produit:active { transform: scale(.97); }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; animation: none !important; }
-}
 
 /* 3.20.0 : Planifier en agenda */
 .frise-plan { margin-top: 4px; }
@@ -1139,3 +1136,29 @@ details.avance h3 { margin-top: 18px; }
 .dist-moi { display: inline-flex; align-items: center; gap: 3px; margin-left: 10px; font-weight: 700; color: var(--gris); white-space: nowrap; }
 .dist-moi svg { width: 13px; height: 13px; }
 .dist-moi.tout-pres { color: var(--primaire); }
+
+/* 3.24.0 : animations plus vivantes */
+@keyframes arriver { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes remplir { from { width: 0; } }
+@keyframes pulse-anneau { 0% { box-shadow: 0 0 0 0 rgba(10, 108, 116, .45); } 70% { box-shadow: 0 0 0 10px rgba(10, 108, 116, 0); } 100% { box-shadow: 0 0 0 0 rgba(10, 108, 116, 0); } }
+@keyframes rebond { 0% { transform: translateY(0); } 35% { transform: translateY(-5px) scale(1.12); } 65% { transform: translateY(1px); } 100% { transform: none; } }
+@keyframes onde { from { transform: scale(0); opacity: .35; } to { transform: scale(2.4); opacity: 0; } }
+@keyframes attention { 0%, 100% { transform: none; } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(1px); } }
+#vue.vue-entre .arret, #vue.vue-entre .ligne-plan, #vue.vue-entre .liste > .element, #vue.vue-entre .kpi, #vue.vue-entre .ligne-gamme, #vue.vue-entre .tuile {
+  animation: arriver .42s cubic-bezier(.2, .8, .25, 1) both; animation-delay: calc(var(--i, 0) * 45ms + 60ms); }
+#vue.vue-entre .bj-jour { animation: arriver .35s ease-out both; animation-delay: calc(var(--i, 0) * 12ms); }
+#vue.vue-entre .progression i, #vue.vue-entre .jauge i { animation: remplir .9s cubic-bezier(.2, .8, .25, 1) both; animation-delay: .2s; }
+.arret.prochaine .arret-noeud { animation: pulse-anneau 1.8s ease-out infinite; }
+.navigation button.rebond svg { animation: rebond .45s ease-out; }
+.bouton, .puce, .tuile, .bj-jour, .pastille-produit { position: relative; overflow: hidden; }
+.onde { position: absolute; border-radius: 50%; background: currentColor; pointer-events: none; animation: onde .6s ease-out forwards; }
+.toast { transform: translateY(18px) scale(.96); transition: opacity .25s, transform .35s cubic-bezier(.2, 1.4, .4, 1); }
+.toast.visible { transform: none; }
+.bandeau-proche { animation: arriver .35s ease-out both, attention .6s ease-in-out .5s; }
+.feuille.anim { animation: monter .32s cubic-bezier(.2, 1.2, .35, 1); }
+.bj-jour[aria-pressed="true"] { transition: transform .3s cubic-bezier(.2, 1.4, .4, 1), background-color .2s ease, box-shadow .2s ease; }
+.aire-bascule svg, .groupe-bascule svg { transition: transform .3s cubic-bezier(.2, 1.4, .4, 1); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  .onde { display: none; }
+}

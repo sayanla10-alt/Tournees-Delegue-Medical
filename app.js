@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.23.4';
+  var APP_VERSION = '3.24.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.0', ['Animations plus vivantes : cartes en cascade, prochaine visite qui pulse, barres et jauges qui se remplissent, chiffres qui défilent, onde au toucher, rebond de l\'onglet, notifications glissantes']],
     ['3.23.4', ['Journée, Planifier, Recherche, Autour de moi : sous-titres sans redite (pas de « Pharmacien » ni du nom de la pharmacie répété ; la spécialité reste pour les médecins)']],
     ['3.23.3', ['Planifier : plus d\'alerte « médecins prévus par un collègue » ; chaque ligne concernée affiche directement « Prévu par … »']],
     ['3.23.2', ['Cartes de la journée : distance entre vous et chaque visite à faire (symbole de position), pour choisir qui voir en priorité',
@@ -872,7 +873,21 @@
   // (nouvel écran, nouvelle question d'un parcours, carte qu'on vient d'ouvrir, compte rendu qu'on vient d'enregistrer)
   function animerRendu(tab) {
     var v = $('vue'), cle = tab + '|' + (S.ui.rechOuverte ? 1 : 0) + '|' + (S.ui.voirParams ? 1 : 0) + '|' + (S.ui.jourVue || S.ui.jour || '');
-    if (cle !== S.ui.cleVue) { v.classList.remove('vue-entre'); void v.offsetWidth; v.classList.add('vue-entre'); S.ui.cleVue = cle; }
+    var nouvelEcran = cle !== S.ui.cleVue;
+    if (nouvelEcran) {
+      v.classList.remove('vue-entre'); void v.offsetWidth; v.classList.add('vue-entre'); S.ui.cleVue = cle;
+      // 3.24.0 : les cartes, lignes et indicateurs arrivent l'un après l'autre (cascade)
+      v.querySelectorAll('.arret, .ligne-plan, .liste > .element, .kpi, .ligne-gamme, .tuile, .bj-jour').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 14)); });
+      if (!reduireAnimations()) compterChiffres(v);
+    }
+    // la prochaine visite du jour respire (anneau qui pulse sur la ligne du temps)
+    var t = aujourdhui(), now = minutesMaintenant(), proch = S.plan.filter(function (x) { return x.date === t && !x.statut && (heureVersMinutes(x.heure) === null || heureVersMinutes(x.heure) >= now - 20); })[0];
+    if (proch && tab === 'jour') { var bp = v.querySelector('.arret .carte-bouton[data-uid="' + proch.uid + '"]'); if (bp) bp.closest('.arret').classList.add('prochaine'); }
+    if (tab !== S.ui.ongletAnime) {
+      var nb = document.querySelector('.navigation button[aria-current="page"]');
+      if (nb) { nb.classList.remove('rebond'); void nb.offsetWidth; nb.classList.add('rebond'); }
+      S.ui.ongletAnime = tab;
+    }
     var q = v.querySelector('.cr-question .etape-titre'), kq = q ? q.textContent : '';
     if (q && kq !== S.ui.cleQuestion) q.parentNode.classList.add('nouvelle');
     S.ui.cleQuestion = kq;
@@ -881,6 +896,27 @@
     S.ui.dernierOuvert = S.ui.ouvert;
     if (S.ui.flashOk) { var f = S.ui.flashOk; setTimeout(function () { if (S.ui.flashOk === f) S.ui.flashOk = null; }, 900); }
   }
+  // chiffres des indicateurs qui défilent de 0 à leur valeur
+  function compterChiffres(v) {
+    v.querySelectorAll('.kpi > b, .chiffre > b').forEach(function (b) {
+      var txt = b.textContent, m = txt.match(/^(\d+)(.*)$/); if (!m || +m[1] < 2) return;
+      var fin = +m[1], suite = m[2], debut = performance.now();
+      (function pas(t) {
+        var p = Math.min(1, (t - debut) / 700), e = 1 - Math.pow(1 - p, 3);
+        b.textContent = Math.round(fin * e) + suite;
+        if (p < 1) requestAnimationFrame(pas);
+      })(debut);
+    });
+  }
+  // onde au toucher des boutons
+  document.addEventListener('pointerdown', function (e) {
+    var b = e.target.closest && e.target.closest('.bouton, .puce, .tuile, .bj-jour, .pastille-produit');
+    if (!b || reduireAnimations()) return;
+    var r = b.getBoundingClientRect(), o = document.createElement('span'), s = Math.max(r.width, r.height);
+    o.className = 'onde'; o.style.width = o.style.height = s + 'px';
+    o.style.left = (e.clientX - r.left - s / 2) + 'px'; o.style.top = (e.clientY - r.top - s / 2) + 'px';
+    b.appendChild(o); setTimeout(function () { o.remove(); }, 600);
+  }, { passive: true });
   // bande des jours : le jour choisi glisse au centre (depuis la position précédente, pour garder le mouvement)
   function centrerBandeJours() {
     var b = document.querySelector('.bj-jours'), s = b && b.querySelector('.bj-jour[aria-pressed="true"]');

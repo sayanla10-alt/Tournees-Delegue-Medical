@@ -1,9 +1,9 @@
 {
-  "version": "3.23.4",
+  "version": "3.24.0",
   "date": "2026-10-26",
   "notes": [
-    "Trajets en symboles : distance, à pied, en voiture",
-    "Symboles médecin / pharmacie au lieu du mot",
-    "Pharmacie proche : « Y aller ? » avec la distance en mètres"
+    "Animations plus vivantes",
+    "Sous-titres sans redite",
+    "Trajets en symboles : distance, à pied, en voiture"
   ]
 }
