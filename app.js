@@ -9,10 +9,19 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.23';
+  var APP_VERSION = '3.25.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.0', ['Heures proposées entre 7 h 30 et 19 h ; une visite faite tard ne décale plus les suivantes',
+               'Filtres : Cardiologue, Diabétologue, Endocrinologue et Généraliste cochés par défaut, modifiables',
+               'Réglages › Avancé : un seul interrupteur « Saisie avancée » (jours passés et à venir) ; sans lui, une visite à venir s\'affiche sans compte rendu',
+               'Planifier : demain sélectionné par défaut et centré ; jours passés grisés ; « Communes visitées » replié',
+               'Ajouter : recherche libre dès les premières lettres (nom, spécialité, établissement, commune)',
+               '« Ajouter manuellement » et « Recalculer automatiquement » ; les médecins épinglés restent au recalcul',
+               'Tournée : « Accepter » puis « Envoyer par WhatsApp », ou « Ne pas accepter » (continuer à modifier, quitter sans valider)',
+               'Journée : « Finaliser le compte rendu » centré ; en fin de journée, parcours dans l\'ordre des heures de validation',
+               'Accueil modernisé, ouverture après 2 secondes ou d\'un toucher']],
     ['3.24.23', ['Journée : une visite renseignée passe en bas, dans « Effectuées » (toujours dans l\'ordre des heures) ; les visites à faire les plus proches restent en haut', 'Planifier : impossible de planifier un jour passé ; une semaine entamée ne planifie que les jours à venir', 'Planifier n\'affiche plus les jours passés ; ils restent mémorisés et se retrouvent dans « Reprendre un ancien programme »']],
     ['3.24.22', ['Pharmacies : nouvelles officines, y compris hors Abidjan (zone « Intérieur »)']],
     ['3.24.21', ['Fenêtres (fiche produit, choix, questions…) : on ferme avec la flèche retour en haut à gauche, comme dans Compte Rendu ; plus de croix', 'Carte de visite : « Quitter » avec la flèche retour']],
@@ -188,7 +197,7 @@
     for (var i = 0; i < 3; i++) { var d = (+x[i] || 0) - (+y[i] || 0); if (d) return d; }
     return 0;
   }
-  var DELAI_LANCEMENT = 5, DELAI_LANCEMENT_NOUVEAUTES = 10;   // secondes avant le lancement automatique
+  var DELAI_LANCEMENT = 2, DELAI_LANCEMENT_NOUVEAUTES = 10;   // secondes avant le lancement automatique
 
   // ------------------------------------------------------------------ Stockage local
   var PREFIXE = 'tournees.';
@@ -244,7 +253,7 @@
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, eqSel: LS.get('eqSel', []), jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
-      couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: LS.get('couvOuverte', false),
+      couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: false,
       statsVue: 'tableau', annulReprise: LS.get('annulReprise', null), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
       autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 2, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
@@ -262,13 +271,19 @@
     });
     LS.set('etatsJours', S.jours);
   }
-  var FILTRES_VIDES = { specialites: [], communes: [], potentiels: [], visite: 'tous', conv: 'tous', type: 'tous', equipe: 'tous' };
+  // 3.25.0 : spécialités cochées par défaut partout (modifiables dans chaque filtre)
+  var SPECS_DEFAUT = ['Cardiologue', 'Diabétologue', 'Endocrinologue', 'Généraliste'];
+  var FILTRES_VIDES = { specialites: SPECS_DEFAUT.slice(), communes: [], potentiels: [], visite: 'tous', conv: 'tous', type: 'tous', equipe: 'tous' };
   S.ui.filtres = Object.assign({}, FILTRES_VIDES, LS.get('filtres', {}));
   S.ui.pharmaciesProches = S.ui.tab === 'autour' ? LS.get('proches', false) : false;
   if (S.ui.pharmaciesProches === true) S.ui.pharmaciesProches = 'Pharmacie';
   S.ui.filtresAutour = Object.assign({}, FILTRES_VIDES, LS.get('filtresAutour', {}));
   // « Pharmacien » n'est plus une spécialité filtrable (2.2.4)
   [S.ui.filtres, S.ui.filtresAutour].forEach(function (f) { f.specialites = (f.specialites || []).filter(function (x) { return x !== 'Pharmacien'; }); });
+  if (!LS.get('specsDefaut325', false)) {
+    S.ui.filtres.specialites = SPECS_DEFAUT.slice(); S.ui.filtresAutour.specialites = SPECS_DEFAUT.slice();
+    LS.set('filtres', S.ui.filtres); LS.set('filtresAutour', S.ui.filtresAutour);
+  }
   // 2.2.0 : nouveaux réglages par défaut (une seule fois)
   if (!LS.get('defauts220', false)) {
     S.ui.autour.moment = 'maintenant'; S.ui.autour.rayon = 2; LS.set('autour', S.ui.autour);
@@ -289,13 +304,16 @@
   }
   var defautParams = { mode: 'semaine', dateRef: semaineParDefaut(aujourdhui()), communes: [], parJour: false,
                        communesJour: {}, maxJour: 8, delai: 7, eviterCollegues: true,
-                       specialites: [], typeCibles: 'medecins', potentiels: [] };
+                       specialites: SPECS_DEFAUT.slice(), typeCibles: 'medecins', potentiels: [] };
   S.params = Object.assign({}, defautParams, S.params || {});
   if (!Array.isArray(S.params.communes)) S.params.communes = [];
   if (!Array.isArray(S.params.specialites)) S.params.specialites = [];
+  if (!LS.get('specsDefaut325', false)) { S.params.specialites = SPECS_DEFAUT.slice(); LS.set('params', S.params); LS.set('specsDefaut325', true); }
   // v2.0.4 : par défaut, tournée sans pharmacies (réglage appliqué une fois aux téléphones existants)
   if (!S.params.defauts204) { S.params.typeCibles = 'medecins'; S.params.defauts204 = true; LS.set('params', S.params); }
   if (!Array.isArray(S.params.potentiels)) S.params.potentiels = [];
+  // 3.25.0 : la période proposée commence demain (J+1), y compris après rafraîchissement
+  if (!S.params.dateRef || S.params.dateRef <= aujourdhui()) { S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); LS.set('params', S.params); }
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);
 
   // 3.22.0 : copie de secours du téléphone, une par jour sur 7 jours (comptes rendus et fiches non envoyés, agenda,
@@ -1348,7 +1366,7 @@
       var nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
       h += '<section class="synthese-jour"><div class="sj-ligne"><span>' + compteursJour(d, l) + '</span></div>' +
         barreRealise(nf, l.length, l.filter(function (a) { return a.statut; }).length) +
-        '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : (d > t ? 'Saisie anticipée activée : touchez une visite pour saisir son compte rendu.' : 'Touchez une visite pour saisir ou modifier son compte rendu.')) + '</small></section>';
+        '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (« Saisie avancée » désactivée dans Réglages › Avancé).' : (d > t ? 'Saisie anticipée activée : touchez une visite pour saisir son compte rendu.' : 'Touchez une visite pour saisir ou modifier son compte rendu.')) + '</small></section>';
       h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';
       if (l.length) h += blocRemplacant(d);
       if (programmeDuJour(d).length) h += '<div class="rangee-actions pied-jour"><button class="bouton petit" type="button" data-a="ouvrirAnciens">' + icone('relancer') + 'Reprendre ce programme un autre jour</button></div>';
@@ -1393,7 +1411,8 @@
     if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
     // 3.24.23 : les visites renseignées passent en bas (« Effectuées », dans l'ordre des heures) ;
     // en haut restent les visites à faire, les plus proches d'abord
-    var parHeure = function (x, y) { return (heureVersMinutes(x.heure) || 0) - (heureVersMinutes(y.heure) || 0); };
+    var hv = function (x) { return heureVersMinutes((x.statut && x.valideA) || x.heure) || 0; };
+    var parHeure = function (x, y) { return hv(x) - hv(y); };
     var aFaire = duJour.filter(function (a) { return !a.statut; }), faites = duJour.filter(function (a) { return a.statut; }).sort(parHeure);
     ['Matin', 'Soir'].forEach(function (cren) {
       var liste = aFaire.filter(function (a) { return a.creneau === cren; });
@@ -1408,7 +1427,8 @@
       });
       h += '</ol>';
     });
-    if (faites.length) h += '<div class="creneau-titre">Effectuées · ' + faites.length + '</div><ol class="ligne faites">' + faites.map(rendreArret).join('') + '</ol>';
+    // fin de journée (tout est renseigné) : le parcours réel, dans l'ordre des heures de validation
+    if (faites.length) h += '<div class="creneau-titre">' + (aFaire.length ? 'Effectuées · ' + faites.length : 'Parcours de la journée · ' + faites.length + ' visite' + (faites.length > 1 ? 's' : '')) + '</div><ol class="ligne faites">' + faites.map(rendreArret).join('') + '</ol>';
     h += blocRemplacant(d);
     return h;
   };
@@ -1424,7 +1444,7 @@
     var liste = S.ui.jourVue ? arretsHorsJour(d) : S.plan.filter(function (a) { return a.date === d; });
     return '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
       '<h2 class="titre-vue">Compte Rendu</h2><p class="sous-titre">' + majuscule(dateLongue(d)) + ' : rempli à partir de vos visites, à compléter puis à valider.</p>' +
-      (futurVerrouille(d) ? '<div class="vide"><strong>Journée à venir</strong>Le compte rendu se fait le jour même ou après (ou activez « Saisir les jours à venir » dans Réglages › Avancé).</div>' : rendreRapportJour(d, liste, passeVerrouille(d), true));
+      (futurVerrouille(d) ? '<div class="vide"><strong>Journée à venir</strong>Le compte rendu se fait le jour même ou après (ou activez « Saisie avancée » dans Réglages › Avancé).</div>' : rendreRapportJour(d, liste, passeVerrouille(d), true));
   };
 
   // « Maintenant » : ce qu'il y a à faire tout de suite, selon l'heure
@@ -1450,7 +1470,7 @@
     }
     if (!sans.length) {
       return h + '<p>Toutes les visites sont renseignées. Finalisez le compte rendu.</p>' +
-        '<button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></section>';
+        '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div></section>';
     }
     if (aSaisir.length) {
       h += '<div class="a-saisir"><b>' + icone('crayon') + aSaisir.length + ' compte' + (aSaisir.length > 1 ? 's' : '') + ' rendu' + (aSaisir.length > 1 ? 's' : '') + ' à saisir</b>' +
@@ -1666,7 +1686,10 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="voirParams">' + icone('calendrier') + 'Planifier ma tournée</button>' +
         boutonAnciens('margin-top:10px');
     }
-    var dates = datesF; choisirJour(dates);
+    var dates = datesF;
+    // 3.25.0 : à l'ouverture (et après rafraîchissement), demain est sélectionné par défaut
+    if (!S.ui.planInit) { S.ui.planInit = true; var j1 = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); S.ui.jour = dates.filter(function (x) { return x >= j1; })[0] || dates[dates.length - 1]; }
+    choisirJour(dates);
     var d = S.ui.jour, enAttente = S.ui.aAccepter === d;
     if (S.ui.annulReprise) {
       h += '<section class="bandeau-prog reprise"><div><b>Programme repris</b><span>' + esc(S.ui.annulReprise.libelle) +
@@ -1674,7 +1697,7 @@
         '<button class="bouton bouton-plein" type="button" data-a="repriseConserver">' + icone('valider') + 'Conserver</button>' +
         '<button class="bouton" type="button" data-a="repriseAnnuler">Revenir à l\'ancienne</button></div></section>';
     } else if (!enAttente) h += rendreProgramme();
-    h += frisePlanifier(dates, d);
+    h += frisePlanifier(datesPlan().filter(function (x) { return x < aujourdhui(); }).slice(-5).concat(dates), d);
     var duJour = S.plan.filter(function (a) { return a.date === d; });
     var n3 = duJour.filter(function (a) { return +a.note === 3; }).length;
     var totalKm = duJour.reduce(function (s, a) { return s + (a.dist || 0); }, 0);
@@ -1683,15 +1706,18 @@
       ', environ ' + km(totalKm) + (n3 ? ', dont ' + n3 + ' ★★★' : '') + '.</p>' + etat +
 '</div>' +
       // 3.24.14 : bouton texte + icône, centré
-      (jourConfirme(d) && !enAttente ? '<div class="rangee-wa"><button class="bouton wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer par WhatsApp</button></div>' : '');
+      '';
     h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
     if (enAttente) {
       h += '<section class="bandeau-prog accepter"><div><b>Nouvelle sélection</b><span>Elle vous convient ? Acceptez-la, ou recalculez encore (les médecins gardés restent).</span></div>' +
-        '<div class="rangee"><button class="bouton" type="button" data-a="recalculerEncore">' + icone('relancer') + 'Recalculer encore</button>' +
+        '<div class="rangee"><button class="bouton" type="button" data-a="refuserProgramme" data-v="jour">Ne pas accepter</button>' +
         '<button class="bouton bouton-plein" type="button" data-a="accepterJour">' + icone('valider') + 'Accepter</button></div></section>';
     } else {
-      h += '<div class="rangee rangee-tirage"><button class="bouton bouton-plein" type="button" data-a="ajouterTournee">' + icone('plus') + 'Ajouter à la tournée</button>' +
-        '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Recalculer ce jour</button></div>';
+      // 3.25.0 : boutons renommés ; les médecins épinglés « Garder » (et ceux ajoutés à la main) restent au recalcul,
+      // la journée se reconstruit autour d'eux, même si un programme existe déjà
+      h += '<div class="rangee rangee-tirage"><button class="bouton bouton-plein" type="button" data-a="ajouterTournee">' + icone('plus') + 'Ajouter manuellement</button>' +
+        '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Recalculer automatiquement</button></div>' +
+        '<p class="discret aide-garder">' + icone('epingle') + 'Épinglez « Garder » les médecins à voir absolument : le recalcul reconstruit la journée autour d\'eux.</p>';
     }
     h += rendreCouverture(dates);
     h += boutonAnciens('margin-top:14px');
@@ -1703,7 +1729,7 @@
     return '<div class="bande-jours frise-plan"><div class="bj-jours" role="group" aria-label="Jours planifiés">' + dates.map(function (x, i) {
       var n = S.plan.filter(function (a) { return a.date === x; }).length, ok = jourConfirme(x);
       var saut = i > 0 && joursEcoules(dates[i - 1], x) > 3;
-      return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (x < t ? ' passe' : '') + (saut ? ' lundi' : '') + '" data-a="jour" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
+      return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (x < t ? ' passe grise' : '') + (saut ? ' lundi' : '') + '"' + (x < t ? ' disabled aria-disabled="true" title="Jour passé"' : ' data-a="jour" data-v="' + x + '"') + ' aria-pressed="' + (x === d) + '"><small>' +
         JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em>' +
         '<i class="etat-jour ' + (ok ? 'ok' : 'brouillon') + '">' + (ok ? '✓ ' : '• ') + n + '</i></button>';
     }).join('') + '</div></div>';
@@ -2050,7 +2076,8 @@
     if (!b.length) return h;
     return h + '<section class="bandeau-prog"><div><b>Brouillon</b><span>' + (b.length > 1 ? b.length + ' jours à confirmer : ' : 'À confirmer : ') +
       b.slice(0, 6).map(dateCourte).join(', ') + (b.length > 6 ? '…' : '') + '</span></div>' +
-      '<div class="rangee"><button class="bouton bouton-plein" type="button" data-a="validerProgramme">' + icone('valider') + 'Confirmer</button></div></section>';
+      '<div class="rangee"><button class="bouton" type="button" data-a="refuserProgramme">Ne pas accepter</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="accepterProgramme">' + icone('valider') + 'Accepter</button></div></section>';
   }
 
   // ------------------------------------------------------------------ Compte Rendu de visite (arbre de décision, 3.5.0)
@@ -2438,7 +2465,7 @@
     e += etiquetteCollegues(a.code, a.date);
 
     var h = '<li class="' + cls + '" data-p="' + (+a.note === 3 ? 1 : 3) + '">' +
-      '<div class="arret-heure"><b>' + esc(a.heure || (a.creneau ? a.creneau.slice(0, 5) : '--:--')) + '</b>' + (a.debut || a.fin ? '<small>' + esc(a.debut) + '-' + esc(a.fin) + '</small>' : '') + '</div>' +
+      '<div class="arret-heure"><b>' + esc((a.statut && a.valideA) || a.heure || (a.creneau ? a.creneau.slice(0, 5) : '--:--')) + '</b>' + (a.debut || a.fin ? '<small>' + esc(a.debut) + '-' + esc(a.fin) + '</small>' : '') + '</div>' +
       '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
       '<div><div class="arret-carte' + classeType(a) + '">' +
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
@@ -2452,9 +2479,15 @@
       var pa = praticien(a.code) || {};
       h += '<div class="arret-detail">' +
         actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune });
-      if (passeVerrouille(a.date) && !(a.statut && verrou)) {
+      if (futurVerrouille(a.date) && !(a.statut && verrou)) {
+        // 3.25.0 : jour à venir sans « Saisie avancée » : pas de compte rendu, la planification reste possible
+        h += '<div class="bandeau" style="margin-top:10px"><p><b>Visite à venir.</b> Le compte rendu se saisit le jour même. ' +
+          'Pour saisir à l\'avance : roue crantée › Avancé › « Saisie avancée ».</p></div>' +
+          '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
+          '<button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
+      } else if (passeVerrouille(a.date) && !(a.statut && verrou)) {
         h += '<div class="bandeau" style="margin-top:10px"><p><b>Jour passé.</b> La saisie des comptes rendus des jours passés est désactivée. ' +
-          'Pour l\'activer : roue crantée › Avancé › « Modifier les jours passés ».</p></div>' +
+          'Pour l\'activer : roue crantée › Avancé › « Saisie avancée ».</p></div>' +
           '<div class="rangee-actions bas-carte"><button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else if (!verrou) {
         h += rendreCompteRendu(a);
@@ -3544,10 +3577,8 @@
       '<button class="bouton" type="button" data-a="ouvrirLancement">Écran d\'accueil</button></div></section>';
     // Avancé : connexion à la base, synchronisation, démonstration, effacement
     h += '<details class="bloc avance"' + (!c.url || S.ui.erreur ? ' open' : '') + '><summary><b>Avancé</b><span class="discret">Connexion à la base et données du téléphone</span></summary>' +
-      '<h3>Saisie</h3><label class="interrupteur"><span>Autoriser modification des jours passés</span>' +
-        '<input type="checkbox" data-f="modifPasse"' + (c.modifPasse ? ' checked' : '') + '></label>' +
-      '<label class="interrupteur"><span>Autoriser modification des jours à venir</span>' +
-        '<input type="checkbox" data-f="saisieFutur"' + (c.saisieFutur ? ' checked' : '') + '></label>' +
+      '<h3>Saisie</h3><label class="interrupteur"><span>Saisie avancée<small class="discret bloc-texte">Comptes rendus des jours passés et à venir. Désactivée : seul le jour même se saisit ; la planification des jours à venir reste possible.</small></span>' +
+        '<input type="checkbox" data-f="saisieAvancee"' + (c.modifPasse && c.saisieFutur ? ' checked' : '') + '></label>' +
       '<h3>Connexion au Google Sheet</h3>' +
       '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
       '<label class="champ"><span>Jeton d\'accès</span><input type="text" id="cfgToken" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(c.token) + '"></label>' +
@@ -3754,16 +3785,48 @@
             (x.ok ? '' : '<span class="etiquette alerte">Horaire difficile à tenir</span>') + '</span></button></li>';
       }).join('') + '</ul>';
   };
-  FEUILLES.ajouterJour = function () {
-    return '<p class="discret" style="margin-top:0">Complétez votre journée avec un praticien présent près de vous.</p><div class="choix-ajout">' +
+  FEUILLES.ajouterJour = function (f) {
+    var q = (f && f.q) || '';
+    return '<label class="champ recherche-ajout" style="margin-top:0"><input type="search" aria-label="Rechercher un praticien" data-f="rechAjout" placeholder="Nom, spécialité, établissement, commune…" value="' + esc(q) + '" autocomplete="off"></label>' +
+      '<div id="resAjout">' + resultatsAjout(q) + '</div>' +
+      '<p class="discret" style="margin-top:0">Ou complétez votre journée avec un praticien présent près de vous.</p><div class="choix-ajout">' +
       [['Médecin', 'plus', 'Médecin', 'Présents près de vous, selon vos spécialités'], ['Pharmacie', 'plus', 'Pharmacie', 'Ouvertes près de vous'], ['autour', 'cible', 'Autour de moi', 'Tous les praticiens, avec filtres']].map(function (x) {
         return '<button type="button" class="tuile" data-a="ajouterJourChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
       }).join('') + '</div>';
   };
-  FEUILLES.ajouterTournee = function () {
+  // 3.25.0 : recherche libre (nom, spécialité, établissement, quartier, commune) parmi les praticiens présents ce jour-là,
+  // selon les filtres de la tournée, dès les premières lettres
+  function resultatsAjout(q) {
+    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    if (!mots.length) return '';
+    if (j > 4) return '<p class="discret">Aucun praticien présent le week-end.</p>';
+    var filtre = filtreCibles(), dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
+    (ctx().parJour[j] || []).forEach(function (cr) {
+      var p = cr.prat;
+      if (dans[cr.code] || absentLe(p, d) || (filtre && !filtre(p))) return;
+      if (S.ui.typeAjout && (S.ui.typeAjout === 'Pharmacie') !== (p.type === 'Pharmacie')) return;
+      var txt = normaliser([p.nom, p.specialite, cr.lieu, cr.quartier, cr.commune].join(' '));
+      if (!mots.every(function (m) { return txt.indexOf(m) >= 0; })) return;
+      var x = { cr: cr, score: Moteur.scoreDe(p, d) };
+      if (!vus[cr.code] || x.score > vus[cr.code].score) vus[cr.code] = x;
+    });
+    var l = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) { return y.score - x.score; }).slice(0, 30);
+    if (!l.length) return '<p class="discret">Aucun praticien présent le ' + dateFr(d) + ' ne correspond, selon vos filtres.</p>';
+    return '<ul class="liste">' + l.map(function (x) {
+      var cr = x.cr, p = cr.prat;
+      return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
+        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+        '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, cr.lieu, cr.quartier, cr.commune])) + '</span>' +
+        '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button></li>';
+    }).join('') + '</ul>';
+  }
+  FEUILLES.ajouterTournee = function (f) {
+    var q = (f && f.q) || '';
+    var rech = '<label class="champ recherche-ajout" style="margin-top:0"><input type="search" aria-label="Rechercher un praticien" data-f="rechAjout" placeholder="Nom, spécialité, établissement, commune…" value="' + esc(q) + '" autocomplete="off"></label>' +
+      '<div id="resAjout">' + resultatsAjout(q) + '</div>';
     var t = S.ui.typeAjout, qui = t === 'Médecin' ? 'Médecins' : t === 'Pharmacie' ? 'Pharmacies' : 'Praticiens';
     var filtres = libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour)) + (t === 'Médecin' && (S.params.specialites || []).length ? ' · ' + libelleListe(S.params.specialites, '') : '');
-    return '<div class="choix-ajout">' + [['position', 'cible', 'Par ma position', qui + ' présents près de vous'],
+    return rech + '<div class="choix-ajout">' + [['position', 'cible', 'Par ma position', qui + ' présents près de vous'],
       ['communes', 'filtre', 'Selon mes filtres', filtres]].map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
     }).join('') + '</div>';
@@ -3808,11 +3871,16 @@
       pied: piedQuestion('data-a="confirmerOui"', esc(f.oui), 'confirmerNon') };
   };
 
+  FEUILLES.refusProgramme = function () {
+    return { corps: '<p style="margin-top:0">La tournée reste en <b>brouillon</b> : elle n\'est ni validée ni partagée.</p>',
+      pied: '<button class="bouton" type="button" data-a="quitterSansValider">Quitter sans valider</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="continuerModifier">' + icone('crayon') + 'Continuer à modifier</button>' };
+  };
   FEUILLES.valide = function (f) {
     var l = f.dates || [];
     return { corps: '<p style="margin-top:0">' + (l.length === 1 ? majuscule(dateLongue(l[0])) + ' est confirmé' : (l.length ? l.length + ' jours sont confirmés' : 'Votre tournée est confirmée')) +
-        ' et visible par l\'équipe. Vous pouvez toujours ' + (l.length > 1 ? 'les' : 'le') + ' modifier.</p><p class="discret">L\'envoyer par WhatsApp ?</p>',
-      pied: piedQuestion('data-a="ouvrirExport"', icone('whatsapp') + 'Envoyer') };
+        ' et visible par l\'équipe.</p>',
+      pied: '<button class="bouton bouton-plein bouton-large wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer par WhatsApp</button>' };
   };
 
   // Choix multiple générique (spécialités ciblées par la tournée)
@@ -4294,6 +4362,8 @@
         if (a.corrige && S.data.historique) S.data.historique.forEach(function (x, i) { if (x.uid === v.uid) S.data.historique[i] = Object.assign({}, x, v); });
       }
       if (estKo(a.statut)) ko++;
+      // 3.25.0 : heure de validation (première saisie le jour même) : elle fait foi pour l'ordre de la journée
+      if (!a.valideA && a.date === t) a.valideA = minutesVersHeure(minutesMaintenant());
       a.etat = 'valide'; delete a.corrige; delete a.empreinte;
       (S.ui.flashOk = S.ui.flashOk || {})[a.uid] = true;
       // seul un RDV confirmé est placé d'office dans la tournée
@@ -4409,6 +4479,9 @@
       if (el.dataset.tab === 'semaine' && S.ui.tab !== 'semaine' && (!S.plan.length || S.ui.voirParams)) etapesPDepuisDebut();
       // 3.24.14 : Bilan s'ouvre toujours sur le Tableau de bord
       if (el.dataset.tab === 'bilan' && S.ui.tab !== 'bilan') { S.ui.statsVue = 'tableau'; LS.set('statsVue', 'tableau'); }
+      // 3.25.0 : Planifier et Journée gardent chacun leur jour sélectionné (Planifier : demain par défaut)
+      if (S.ui.tab === 'semaine' && el.dataset.tab !== 'semaine') { S.ui.jourPlan = S.ui.jour; S.ui.jour = S.ui.jourJournee || aujourdhui(); }
+      else if (S.ui.tab !== 'semaine' && el.dataset.tab === 'semaine') { S.ui.jourJournee = S.ui.jour; if (S.ui.jourPlan) S.ui.jour = S.ui.jourPlan; else S.ui.planInit = false; }
       S.ui.tab = el.dataset.tab; S.ui.pharmaciesProches = false;
       if (S.ui.tab === 'historique') { S.ui.tab = 'bilan'; S.ui.statsVue = 'historique'; } S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);
@@ -4476,7 +4549,7 @@
       if (a.date !== jourAffiche() && !a.hors) { S.ui.jour = a.date; S.ui.jourVue = null; }
       S.ui.tab = 'jour'; S.ui.ouvert = a.uid; rendre(); centrerCarte(a.uid);
     },
-    ajouterJour: function () { S.ui.feuille = { type: 'ajouterJour', titre: 'Ajouter à la journée' }; rendre(); },
+    ajouterJour: function () { S.ui.dateAjout = jourAffiche(); S.ui.typeAjout = null; S.ui.feuille = { type: 'ajouterJour', titre: 'Ajouter à la journée' }; rendre(); },
     ajouterJourChoix: function (el) {
       S.ui.feuille = null; var v = el.dataset.v;
       if (v === 'autour') ACTIONS.ouvrirAutour(); else ACTIONS.ajouterProches({ dataset: { v: v } });
@@ -4576,6 +4649,15 @@
       r.uids[el.dataset.uid] = true; LS.set('refusProches', r); rendre();
     },
     accepterJour: function () { var d = S.ui.aAccepter || S.ui.jour; confirmerProgramme([d]); },
+    // 3.25.0 : Accepter valide puis propose WhatsApp ; Ne pas accepter : continuer à modifier ou quitter sans valider
+    accepterProgramme: function () { confirmerProgramme(joursBrouillon()); },
+    refuserProgramme: function (el) { S.ui.feuille = { type: 'refusProgramme', titre: 'Tournée non acceptée', jour: el.dataset.v === 'jour' }; rendre(); },
+    continuerModifier: function () {
+      var j = S.ui.feuille && S.ui.feuille.jour; S.ui.feuille = null;
+      if (j) { S.ui.aAccepter = null; rendre(); toast('Ajoutez, retirez ou épinglez des médecins, puis recalculez.'); return; }
+      etapesPDepuisDebut(); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0);
+    },
+    quitterSansValider: function () { S.ui.feuille = null; S.ui.aAccepter = null; S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0); toast('Tournée laissée en brouillon, non envoyée à l\'équipe.'); },
     recalculerEncore: function () { lancerTirage('jour'); },
     confirmerProgrammeDirect: function () { confirmerProgramme(); },
 
@@ -4604,8 +4686,10 @@
     },
     ajouterCandidat: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v), d = S.ui.dateAjout || S.ui.jour; if (!c) return;
+      var fAvant = S.ui.feuille && JSON.parse(JSON.stringify(S.ui.feuille));
+      var retourAjout = function () { S.ui.feuille = el.dataset.r === 'recherche' && fAvant ? fAvant : { type: 'ajouterCommunes', titre: 'Communes du ' + dateCourte(d), pleine: true }; rendre(); };
       confirmerPuis('Ajouter à la tournée', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ') au ' + dateFr(d) + ' ?', 'Ajouter',
-        function () { ajouterArret(c, d); rendre(); }, function () { S.ui.feuille = { type: 'ajouterCommunes', titre: 'Communes du ' + dateCourte(d), pleine: true }; rendre(); });
+        function () { ajouterArret(c, d); rendre(); }, retourAjout);
     },
     exportPortee: function (el) { S.ui.feuille.portee = el.dataset.v; rendre(); },
     envoyerWhatsapp: function () { window.open(urlWhatsapp(S.ui.feuille.texte), '_blank', 'noopener'); },
@@ -4617,7 +4701,7 @@
       S.ui.feuille = null; rendre();
     },
     couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; LS.set('couvPortee', S.ui.couvPortee); rendre(); },
-    couvOuvrir: function () { S.ui.couvOuverte = !S.ui.couvOuverte; LS.set('couvOuverte', S.ui.couvOuverte); rendre(); },
+    couvOuvrir: function () { S.ui.couvOuverte = !S.ui.couvOuverte; rendre(); },
     couvFiltre: function (el) { S.ui.couvFiltre = el.dataset.v; LS.set('couvFiltre', S.ui.couvFiltre); rendre(); },
     // Communes
     choisirCommunes: function (el) {
@@ -5141,6 +5225,9 @@
       var ap = arret(el.dataset.uid), ref = ap ? produitsPour(ap) : produitsRef();
       if (ap) { ap.produits = listeProduits(ap.produits).filter(function (x) { return ref.indexOf(x) >= 0; }).concat(listeProduits(el.value)).join(', '); LS.set('plan', S.plan); }
     }
+    if (f === 'rechAjout' && S.ui.feuille) {
+      S.ui.feuille.q = el.value; var zr = document.getElementById('resAjout'); if (zr) zr.innerHTML = resultatsAjout(el.value);
+    }
     if (f === 'chercheOption') {
       var fe = S.ui.feuille; fe.q = fe.q || {}; fe.q[el.dataset.g] = el.value;
       var q = normaliser(el.value), g = el.closest('.groupe-filtre');
@@ -5186,6 +5273,7 @@
     if (f === 'fiche') majChampFiche(el, true);
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
     if (f === 'importSecours' && el.files && el.files[0]) { importerSecours(el.files[0]); el.value = ''; }
+    if (f === 'saisieAvancee') { S.config.modifPasse = S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie avancée activée : jours passés et à venir modifiables.' : 'Saisie avancée désactivée : seul le jour même se saisit.'); rendre(); }
     if (f === 'saisieFutur') { S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie des jours à venir activée.' : 'Jours à venir en aperçu seul.'); }
     if (f === 'modifPasse') { S.config.modifPasse = el.checked; LS.set('config', S.config); toast(el.checked ? 'Modification des jours passés activée.' : 'Jours passés en lecture seule.'); }
     if (f === 'choixNom') { var bloc = $(el.id + 'Bloc'); if (bloc) bloc.hidden = el.value !== '__autre'; }
@@ -5307,9 +5395,10 @@
     else if (S.ui.sync === 'erreur' || !navigator.onLine || S.ui.sync === 'horsligne') etat = ['local', 'Hors ligne : données locales'];
     else etat = ['ok', 'Base de données opérationnelle'];
     if (pret() && S.data.syncedAt) detail = 'Synchro ' + new Date(S.data.syncedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    var h = '<div class="lancement" role="dialog" aria-modal="true" aria-labelledby="titreLancement">' +
-      '<div class="lancement-tete"><img src="icon-192.png" alt=""><h1 id="titreLancement">MediPlanner</h1>' +
-      '<p>Tournées de visites médicales, planning des praticiens et suivi d\'équipe</p>' +
+    // 3.25.0 : accueil plein écran, sans décompte ; ouverture après 2 s, ou tout de suite d'un toucher
+    var h = '<div class="lancement moderne" role="dialog" aria-modal="true" aria-labelledby="titreLancement">' +
+      '<div class="lancement-tete"><div class="logo-halo"><img src="icon-192.png" alt=""></div><h1 id="titreLancement">MediPlanner</h1>' +
+      '<p>Tournées médicales, planning des praticiens et suivi d\'équipe</p>' +
       '<span class="version">v' + APP_VERSION + '</span></div><div class="lancement-corps">' +
       '<div class="etat-base ' + etat[0] + '">' + etat[1] + (detail ? '<small>' + esc(detail) + '</small>' : '') + '</div>';
     if (pret()) {
@@ -5330,10 +5419,7 @@
     if (S.ui.nouveautes && S.ui.nouveautes.length) {
       h += '<div class="nouveautes"><b>Nouveautés de la mise à jour ' + APP_VERSION + '</b><ul>' + S.ui.nouveautes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
     }
-    if (pret() && S.ui.lancementAuto) {
-      h += '<div class="decompte"><span id="decompteTexte">Lancement automatique dans ' + Math.max(0, Math.ceil((S.ui.lancementFin - Date.now()) / 1000)) + ' s</span>' +
-        '<div class="jauge"><i id="decompteBarre" style="width:0%"></i></div></div>';
-    }
+    h += '<p class="lancement-astuce">Touchez l\'écran pour ouvrir</p>';
     h += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="jour">Lancer l\'application</button>' +
         '<button class="bouton" type="button" data-a="fermerLancement" data-tab="bilan" style="margin-top:10px">Voir mon bilan</button>'
       : '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="jour">Lancer l\'application</button>';
@@ -5349,9 +5435,7 @@
     var total = S.ui.lancementFin - Date.now();
     minuteurLancement = setInterval(function () {
       if (!S.ui.lancement || !S.ui.lancementAuto) { clearInterval(minuteurLancement); minuteurLancement = null; return; }
-      var reste = S.ui.lancementFin - Date.now(), t = $('decompteTexte'), b = $('decompteBarre');
-      if (t) t.textContent = 'Lancement automatique dans ' + Math.max(0, Math.ceil(reste / 1000)) + ' s';
-      if (b) b.style.width = Math.min(100, 100 * (1 - reste / total)) + '%';
+      var reste = S.ui.lancementFin - Date.now();
       if (reste <= 0) {
         clearInterval(minuteurLancement); minuteurLancement = null;
         S.ui.lancement = false; S.ui.lancementAuto = false;
@@ -5365,9 +5449,11 @@
     S.ui.lancementAuto = false;
     var d = document.querySelector('#lancement .decompte'); if (d) d.remove();
   }
-  document.addEventListener('pointerdown', function (e) {
-    if (S.ui.lancementAuto && e.target.closest && e.target.closest('.lancement') && !e.target.closest('[data-a]')) arreterDecompte();
-  }, true);
+  // un toucher sur l'accueil (hors boutons) ouvre l'application tout de suite
+  document.addEventListener('click', function (e) {
+    if (!S.ui.lancement || !e.target.closest || !e.target.closest('#lancement') || e.target.closest('[data-a]')) return;
+    S.ui.lancement = false; S.ui.lancementAuto = false; S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0);
+  });
 
   // ------------------------------------------------------------------ Mises à jour (service worker)
   // Une nouvelle version s'installe en arrière-plan puis attend : le bandeau propose « Mise à jour ».

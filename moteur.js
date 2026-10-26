@@ -105,10 +105,15 @@ var Moteur = (function () {
   // ------------------------------------------------------------------ Simulation horaire
   function item(a) {
     // rdv : heure imposée ; fixe : visite déjà faite, laissée à son heure ; avance : visite ramenée « maintenant » (GPS)
-    var rdv = heureVersMinutes(a.rdv || a.fixe || a.avance);
-    return { a: a, coord: a.lat !== null && a.lat !== undefined && a.lat !== '' ? { lat: +a.lat, lon: +a.lon } : null,
-             tot: rdv !== null ? rdv : heureVersMinutes(a.debut),
-             tard: rdv !== null ? rdv + R.toleranceRdv : heureVersMinutes(a.fin) - R.dureeVisite };
+    // 3.25.0 : les heures proposées restent dans la journée de travail (R.debutTravail - R.finTravail) ;
+    // une visite déjà faite garde son heure réelle mais ne décale pas les suivantes hors de cette plage
+    var coord = a.lat !== null && a.lat !== undefined && a.lat !== '' ? { lat: +a.lat, lon: +a.lon } : null;
+    var fixe = heureVersMinutes(a.fixe);
+    if (fixe !== null) return { a: a, coord: coord, tot: fixe, tard: fixe + R.toleranceRdv, fixe: true };
+    var rdv = heureVersMinutes(a.rdv || a.avance), deb = heureVersMinutes(a.debut), fin = heureVersMinutes(a.fin);
+    var tot = rdv !== null ? rdv : (deb === null ? R.debutTravail : deb);
+    var tard = rdv !== null ? rdv + R.toleranceRdv : (fin === null ? R.finTravail : fin) - R.dureeVisite;
+    return { a: a, coord: coord, tot: Math.max(tot, R.debutTravail), tard: Math.min(tard, R.finTravail - R.dureeVisite) };
   }
   function dist(x, y) { return x && y ? distanceKm(x.coord, y.coord) : 0; }
 
@@ -118,6 +123,11 @@ var Moteur = (function () {
   function simuler(items) {
     var t = null, prev = null, debuts = [], retards = [], nbRetards = 0;
     items.forEach(function (it) {
+      if (it.fixe) {   // visite faite : son heure réelle, sans retard ; elle ne pousse les suivantes que dans la plage de travail
+        debuts.push(it.tot); retards.push(false);
+        if (it.tot >= R.debutTravail && it.tot <= R.finTravail) { t = Math.max(t === null ? 0 : t, it.tot + R.dureeVisite); prev = it; }
+        return;
+      }
       var trajet = trajetMin(prev, it, t);
       var arrivee = t === null ? it.tot : t + trajet;
       var deb = Math.max(arrivee, it.tot);

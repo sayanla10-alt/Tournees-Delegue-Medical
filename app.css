@@ -1199,3 +1199,34 @@ details.avance h3 { margin-top: 18px; }
 .retour-feuille:active { background: var(--primaire-pale); }
 .retour-feuille svg { width: 22px; height: 22px; transform: rotate(90deg); }
 .avec-retour svg { transform: rotate(90deg); }
+
+/* 3.25.0 : frise Planifier centrée ; jours passés grisés, non sélectionnables */
+.frise-plan .bj-jours { justify-content: safe center; }
+.frise-plan .bj-jour.grise { opacity: .38; filter: grayscale(1); pointer-events: none; cursor: default; }
+
+.aide-garder { text-align: center; margin: 6px 0 0; font-size: .82rem; }
+.aide-garder svg { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+
+/* 3.25.0 : accueil modernisé, plein écran */
+#lancement:has(.moderne) { padding: 0; background: radial-gradient(120% 80% at 50% 0%, var(--entete-2), var(--entete-1) 70%); cursor: pointer; }
+.lancement.moderne { max-width: none; width: 100%; height: 100%; max-height: none; border-radius: 0; background: transparent; box-shadow: none;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; animation: apparaitre .5s ease-out; }
+.lancement.moderne .lancement-tete { background: none; text-align: center; padding: 28px 24px 8px; border-radius: 0; }
+.lancement.moderne .logo-halo { width: 104px; height: 104px; margin: 0 auto 18px; border-radius: 30px; display: grid; place-items: center;
+  background: rgba(255,255,255,.14); box-shadow: 0 0 0 10px rgba(255,255,255,.06), 0 18px 40px rgba(0,0,0,.25); animation: pulse-halo 2.4s ease-in-out infinite; }
+.lancement.moderne .lancement-tete img { width: 76px; height: 76px; border-radius: 20px; margin: 0; }
+.lancement.moderne .lancement-tete h1 { font-size: 38px; letter-spacing: -.5px; }
+.lancement.moderne .lancement-tete p { font-size: 15px; max-width: 22em; margin: 8px auto 0; }
+.lancement.moderne .lancement-corps { width: 100%; max-width: 440px; padding: 14px 20px 24px; color: #fff; }
+.lancement.moderne .etat-base { justify-content: center; background: rgba(255,255,255,.14); color: #fff; backdrop-filter: blur(8px); }
+.lancement.moderne .etat-base small { color: rgba(255,255,255,.75); margin-left: 8px; }
+.lancement.moderne .metrique { border: 0; background: rgba(255,255,255,.12); backdrop-filter: blur(8px); color: #fff; }
+.lancement.moderne .metrique span, .lancement.moderne .discret { color: rgba(255,255,255,.8); }
+.lancement.moderne .nouveautes { background: rgba(255,255,255,.95); color: var(--encre); }
+.lancement.moderne .bouton { border-radius: 14px; }
+.lancement.moderne .bouton:not(.bouton-plein) { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.3); }
+.lancement.moderne .bouton-plein { background: #fff; color: var(--entete-1); border-color: #fff; }
+.lancement-astuce { text-align: center; font-size: 12.5px; color: rgba(255,255,255,.7); margin: 0 0 12px; }
+@keyframes apparaitre { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes pulse-halo { 0%,100% { box-shadow: 0 0 0 10px rgba(255,255,255,.06), 0 18px 40px rgba(0,0,0,.25); } 50% { box-shadow: 0 0 0 18px rgba(255,255,255,.03), 0 18px 40px rgba(0,0,0,.25); } }
+@media (prefers-reduced-motion: reduce) { .lancement.moderne, .lancement.moderne .logo-halo { animation: none; } }

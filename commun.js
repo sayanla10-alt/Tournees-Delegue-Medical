@@ -147,6 +147,8 @@ var REGLAGES_MOTEUR = {
   minutesPont: 10,             // traversée de la lagune (Plateau / Treichville : ponts souvent saturés)
   communesSud: ['Treichville', 'Marcory', 'Koumassi', 'Port-Bouët'],
   dureeVisite: 20,             // minutes passées par visite
+  debutTravail: 450,           // 07:30 : aucune visite proposée avant
+  finTravail: 1140,            // 19:00 : toutes les visites proposées sont finies
   toleranceRdv: 10,            // minutes de retard tolérées sur un RDV fixé
   horaireMatinDefaut: '08:00-12:00',
   horaireSoirDefaut: '15:00-19:00',

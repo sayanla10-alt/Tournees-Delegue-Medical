@@ -1,8 +1,13 @@
 {
-  "version": "3.24.23",
+  "version": "3.25.0",
   "date": "2026-10-26",
   "notes": [
-    "Planifier : pas de jour passé",
-    "Jours passés dans « Reprendre un ancien programme »"
+    "Heures réalistes",
+    "Spécialités par défaut",
+    "Saisie avancée",
+    "Planifier J+1",
+    "Recherche dans Ajouter",
+    "Accepter puis WhatsApp",
+    "Accueil modernisé"
   ]
 }
