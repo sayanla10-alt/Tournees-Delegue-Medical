@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.11';
+  var APP_VERSION = '3.24.12';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.12', ['Journée : sous la jauge, « X/Y réalisées · Z % renseignées » (comptes rendus saisis, visite faite ou non)']],
     ['3.24.11', ['Journée : sous la jauge, « X/Y réalisées · Z % »']],
     ['3.24.10', ['Planifier : « Reprendre un ancien programme » centré sous « Planifier ma tournée »']],
     ['3.24.9', ['Planifier : tous les jours planifiés, même en partie, restent affichés ; un jour n\'est plus écarté ni effacé de la base parce qu\'il manquait sur le téléphone', 'Les jours écartés par erreur reviennent automatiquement']],
@@ -366,10 +367,11 @@
   function dateLongue(iso) { var p = iso.split('-'); return nomJour(iso).toLowerCase() + ' ' + (+p[2]) + ' ' + MOIS[+p[1] - 1]; }
   function majuscule(s) { return s.replace(/^./, function (c) { return c.toUpperCase(); }); }
   // 3.24.1 : part du planning du jour réalisée (visites faites / visites prévues), barre et pourcentage
-  function barreRealise(faites, prevues) {
-    var p = prevues ? Math.round(100 * faites / prevues) : 0;
+  // 3.24.12 : la ligne du dessous donne la part des visites renseignées (compte rendu saisi, faite ou non)
+  function barreRealise(faites, prevues, renseignees) {
+    var p = prevues ? Math.round(100 * faites / prevues) : 0, pr = prevues ? Math.round(100 * (renseignees || 0) / prevues) : 0;
     return '<div class="sj-taux"><div class="progression" role="progressbar" aria-label="Réalisé" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + p + '"><i style="width:' + p + '%"></i></div>' +
-      '<b class="' + (p >= 100 ? 'complet' : '') + '">' + p + ' %</b><small>' + faites + '/' + prevues + ' réalisée' + (faites > 1 ? 's' : '') + ' · ' + p + ' %</small></div>';
+      '<b class="' + (p >= 100 ? 'complet' : '') + '">' + p + ' %</b><small>' + faites + '/' + prevues + ' réalisée' + (faites > 1 ? 's' : '') + ' · ' + pr + ' % renseignée' + (pr > 1 ? 's' : '') + '</small></div>';
   }
   // 3.23.2 : trajet en symboles : distance, minutes à pied, minutes en voiture (vol d'oiseau x détour routier)
   function trajetMini(kmVol, minVoiture) {
@@ -1313,7 +1315,7 @@
       if (!l.length) return '<div class="vide"><strong>Aucune visite ce jour-là</strong>Ni tournée archivée ni compte rendu pour cette date.</div>' + boutonPlanifierJour(d);
       var nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
       h += '<section class="synthese-jour"><div class="sj-ligne"><span>' + compteursJour(d, l) + '</span></div>' +
-        barreRealise(nf, l.length) +
+        barreRealise(nf, l.length, l.filter(function (a) { return a.statut; }).length) +
         '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : (d > t ? 'Saisie anticipée activée : touchez une visite pour saisir son compte rendu.' : 'Touchez une visite pour saisir ou modifier son compte rendu.')) + '</small></section>';
       h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';
       if (l.length) h += blocRemplacant(d);
@@ -1353,7 +1355,7 @@
     var infos = [est ? minutesVersHeure(est.debut) + ' → ' + minutesVersHeure(est.fin) : '', com.length ? esc(libelleCommunes(com)) : ''].filter(Boolean).join(' · ');
     h += '<section class="synthese-jour"><div class="sj-ligne"><span>' + compteursJour(d, duJour) + (infos ? '<small class="discret bloc-texte">' + infos + '</small>' : '') + '</span>' +
         (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' +
-      barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length) +
+      barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length, duJour.filter(function (a) { return a.statut; }).length) +
       '</section>';
     if (!futurVerrouille(d) && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
