@@ -1,9 +1,9 @@
 {
-  "version": "3.24.0",
+  "version": "3.24.1",
   "date": "2026-10-26",
   "notes": [
+    "Journée : % du planning réalisé",
     "Animations plus vivantes",
-    "Sous-titres sans redite",
-    "Trajets en symboles : distance, à pied, en voiture"
+    "Sous-titres sans redite"
   ]
 }

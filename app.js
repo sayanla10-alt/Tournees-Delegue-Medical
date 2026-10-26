@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.24.0';
+  var APP_VERSION = '3.24.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.24.1', ['Journée : pourcentage du planning du jour réalisé, avec la barre de progression (visites faites / visites prévues)']],
     ['3.24.0', ['Animations plus vivantes : cartes en cascade, prochaine visite qui pulse, barres et jauges qui se remplissent, chiffres qui défilent, onde au toucher, rebond de l\'onglet, notifications glissantes']],
     ['3.23.4', ['Journée, Planifier, Recherche, Autour de moi : sous-titres sans redite (pas de « Pharmacien » ni du nom de la pharmacie répété ; la spécialité reste pour les médecins)']],
     ['3.23.3', ['Planifier : plus d\'alerte « médecins prévus par un collègue » ; chaque ligne concernée affiche directement « Prévu par … »']],
@@ -354,6 +355,12 @@
   function dateCourte(iso) { var p = iso.split('-'); return JOURS_COURTS[jourSemaineIndex(iso)] + ' ' + p[2] + '/' + p[1]; }
   function dateLongue(iso) { var p = iso.split('-'); return nomJour(iso).toLowerCase() + ' ' + (+p[2]) + ' ' + MOIS[+p[1] - 1]; }
   function majuscule(s) { return s.replace(/^./, function (c) { return c.toUpperCase(); }); }
+  // 3.24.1 : part du planning du jour réalisée (visites faites / visites prévues), barre et pourcentage
+  function barreRealise(faites, prevues) {
+    var p = prevues ? Math.round(100 * faites / prevues) : 0;
+    return '<div class="sj-taux"><div class="progression" role="progressbar" aria-label="Réalisé" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + p + '"><i style="width:' + p + '%"></i></div>' +
+      '<b class="' + (p >= 100 ? 'complet' : '') + '">' + p + ' %</b><small>' + faites + '/' + prevues + ' réalisée' + (faites > 1 ? 's' : '') + '</small></div>';
+  }
   // 3.23.2 : trajet en symboles : distance, minutes à pied, minutes en voiture (vol d'oiseau x détour routier)
   function trajetMini(kmVol, minVoiture) {
     var route = kmVol * REGLAGES_MOTEUR.detourRoutier, pied = Math.max(1, Math.round(route / 4.8 * 60));
@@ -898,7 +905,7 @@
   }
   // chiffres des indicateurs qui défilent de 0 à leur valeur
   function compterChiffres(v) {
-    v.querySelectorAll('.kpi > b, .chiffre > b').forEach(function (b) {
+    v.querySelectorAll('.kpi > b, .chiffre > b, .sj-taux > b').forEach(function (b) {
       var txt = b.textContent, m = txt.match(/^(\d+)(.*)$/); if (!m || +m[1] < 2) return;
       var fin = +m[1], suite = m[2], debut = performance.now();
       (function pas(t) {
@@ -1250,7 +1257,7 @@
       var sans = l.filter(function (a) { return !a.statut || a.etat !== 'valide'; }).length, nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
       h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
         (sans ? ' · <b class="txt-alerte">' + sans + ' sans compte rendu</b>' : '') + '</span></div>' +
-        '<div class="progression"><i style="width:' + Math.round(100 * (l.length - sans) / l.length) + '%"></i></div>' +
+        barreRealise(nf, l.length) +
         '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : (d > t ? 'Saisie anticipée activée : touchez une visite pour saisir son compte rendu.' : 'Touchez une visite pour saisir ou modifier son compte rendu.')) + '</small></section>';
       h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';
       if (l.length) h += blocRemplacant(d);
@@ -1290,8 +1297,7 @@
     h += '<section class="synthese-jour"><div class="sj-ligne"><span><b>' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') + '</b>' +
         (est ? ' · ' + minutesVersHeure(est.debut) + ' → ' + minutesVersHeure(est.fin) : '') + (com.length ? ' · ' + esc(libelleCommunes(com)) : '') + '</span>' +
         (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' +
-      '<div class="progression" role="progressbar" aria-valuemin="0" aria-valuemax="' + duJour.length + '" aria-valuenow="' + renseignees + '"><i style="width:' +
-        (duJour.length ? Math.round(100 * renseignees / duJour.length) : 0) + '%"></i></div>' +
+      barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length) +
       '</section>';
     if (!futurVerrouille(d) && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
