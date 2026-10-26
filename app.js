@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.22.0';
+  var APP_VERSION = '3.22.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.22.1', ['Journée, en bas : + Médecin, + Pharmacie et Autour de moi (par ma position ou dans les communes du jour) pour remplacer au pied levé un praticien qui n\'est plus disponible']],
     ['3.22.0', ['Nouveau praticien sans position prise sur place : coordonnées GPS cherchées automatiquement sur Google Maps et inscrites dans la base',
                'Mon profil : un nom absent de la liste est ajouté aux délégués dans la base',
                'Sauvegarde : copie complète de la base chaque nuit dans Drive (7 copies) ; copie de secours du téléphone sur 7 jours, à exporter ou reprendre dans Réglages › Avancé']],
@@ -1162,6 +1163,16 @@
     faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) { var a = arretDeVisite(v, null, d); a.horsTournee = true; l.push(a); } });
     return l.sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
   }
+  // 3.22.1 : en bas de Journée, de quoi remplacer au pied levé un praticien qui n'est plus disponible :
+  // + Médecin, + Pharmacie (présents près de moi), Autour de moi (par ma position ou dans les communes du jour)
+  function blocRemplacant(d) {
+    if (d < aujourdhui() || jourSemaineIndex(d) > 4) return '';
+    return '<section class="bloc-remplacant"><p class="discret">Un praticien n\'est plus disponible ? Trouvez un remplaçant :</p>' +
+      '<div class="rangee-3"><button class="bouton" type="button" data-a="ajouterProches" data-v="Médecin" data-d="' + d + '">' + icone('plus') + 'Médecin</button>' +
+      '<button class="bouton" type="button" data-a="ajouterProches" data-v="Pharmacie" data-d="' + d + '">' + icone('plus') + 'Pharmacie</button>' +
+      '<button class="bouton" type="button" data-a="ajouterTournee" data-d="' + d + '">' + icone('cible') + 'Autour de moi</button></div>' +
+      '<button class="bouton-texte" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button></section>';
+  }
   // jour sans visite (aujourd'hui ou à venir, jour ouvré) : planifier directement cette journée
   function boutonPlanifierJour(d) {
     if (d < aujourdhui()) return '';
@@ -1181,6 +1192,7 @@
         '<div class="progression"><i style="width:' + Math.round(100 * (l.length - sans) / l.length) + '%"></i></div>' +
         '<small class="discret">' + (passeVerrouille(d) ? 'Consultation seule (modification des jours passés désactivée dans Réglages › Avancé).' : (d > t ? 'Saisie anticipée activée : touchez une visite pour saisir son compte rendu.' : 'Touchez une visite pour saisir ou modifier son compte rendu.')) + '</small></section>';
       h += '<ol class="ligne">' + l.map(rendreArret).join('') + '</ol>';
+      if (l.length) h += blocRemplacant(d);
       if (programmeDuJour(d).length) h += '<div class="rangee-actions pied-jour"><button class="bouton petit" type="button" data-a="ouvrirAnciens">' + icone('relancer') + 'Reprendre ce programme un autre jour</button></div>';
       return h;
     }
@@ -1235,8 +1247,7 @@
       });
       h += '</ol>';
     });
-    h += '<div class="rangee-actions pied-jour"><button class="bouton petit" type="button" data-a="ajouterJour">' + icone('plus') + 'Ajouter à la journée</button>' +
-      '<button class="bouton petit" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button></div>';
+    h += blocRemplacant(d);
     return h;
   };
   // accès au compte rendu (page à part, dans le même onglet)
@@ -3435,7 +3446,7 @@
   };
   FEUILLES.ajouterTournee = function () {
     return '<div class="choix-ajout">' + [['position', 'cible', 'Autour de ma position', 'Praticiens présents près de vous ce jour-là'],
-      ['communes', 'carte', 'Dans les communes du jour', libelleCommunes(communesDuJour(S.ui.jour))]].map(function (x) {
+      ['communes', 'carte', 'Dans les communes du jour', libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour))]].map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
     }).join('') + '</div>';
   };
@@ -3446,7 +3457,7 @@
     return l;
   }
   FEUILLES.ajouterCommunes = function () {
-    var d = S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesDuJour(d)), filtre = filtreCibles(), ex = exclusCollegues([d]);
+    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesDuJour(d)), filtre = filtreCibles(), ex = exclusCollegues([d]);
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
@@ -4230,9 +4241,12 @@
       if (l.length === 1) S.ui.jour = l[0];
       S.ui.feuille = { type: 'exporter', titre: 'Envoyer par WhatsApp', portee: l.length > 1 ? 'semaine' : 'jour' }; rendre();
     },
-    ajouterTournee: function () { S.ui.feuille = { type: 'ajouterTournee', titre: 'Ajouter au ' + dateCourte(S.ui.jour) }; rendre(); },
+    ajouterTournee: function (el) {
+      S.ui.dateAjout = (el && el.dataset && el.dataset.d) || S.ui.jour;
+      S.ui.feuille = { type: 'ajouterTournee', titre: S.ui.tab === 'jour' ? 'Autour de moi, ' + dateCourte(S.ui.dateAjout) : 'Ajouter au ' + dateCourte(S.ui.dateAjout) }; rendre();
+    },
     ajouterTourneeChoix: function (el) {
-      var j = S.ui.jour;
+      var j = S.ui.dateAjout || S.ui.jour;
       if (el.dataset.v === 'position') {
         S.ui.feuille = null;
         Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null }); LS.set('autour', S.ui.autour);
@@ -4242,7 +4256,7 @@
       S.ui.feuille = { type: 'ajouterCommunes', titre: 'Communes du ' + dateCourte(j), pleine: true }; rendre();
     },
     ajouterCandidat: function (el) {
-      var c = Moteur.creneauParCle(ctx(), el.dataset.v), d = S.ui.jour; if (!c) return;
+      var c = Moteur.creneauParCle(ctx(), el.dataset.v), d = S.ui.dateAjout || S.ui.jour; if (!c) return;
       confirmerPuis('Ajouter à la tournée', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ') au ' + dateFr(d) + ' ?', 'Oui, ajouter',
         function () { ajouterArret(c, d); rendre(); }, function () { S.ui.feuille = { type: 'ajouterCommunes', titre: 'Communes du ' + dateCourte(d), pleine: true }; rendre(); });
     },
@@ -4497,7 +4511,7 @@
     conflitGarder: function (el) { var a = arret(el.dataset.uid); if (!a) return; a.conflitOk = true; LS.set('plan', S.plan); rendre(); },
     ajouterProches: function (el) {
       // médecins (selon les spécialités de la tournée) ou pharmacies près de ma position, pour le jour affiché dans « Aujourd'hui »
-      var j = S.ui.jour || aujourdhui(), type = el.dataset.v === 'Médecin' ? 'Médecin' : 'Pharmacie';
+      var j = el.dataset.d || S.ui.jour || aujourdhui(), type = el.dataset.v === 'Médecin' ? 'Médecin' : 'Pharmacie';
       S.ui.filtresAutour = Object.assign(JSON.parse(JSON.stringify(FILTRES_VIDES)), { type: type },
         type === 'Médecin' ? { specialites: (S.params.specialites || []).slice() } : {}); LS.set('filtresAutour', S.ui.filtresAutour);
       S.ui.rechercheAutour = '';

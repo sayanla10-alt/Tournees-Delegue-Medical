@@ -1101,3 +1101,12 @@ details.avance h3 { margin-top: 18px; }
 .puce-filtre svg { width: 17px; height: 17px; color: var(--primaire); flex: none; }
 .puce-filtre b { color: var(--gris); font-size: 11px; }
 .qq-quand .puce-filtre { flex: 1; justify-content: center; }
+
+/* 3.22.1 : remplaçant au pied levé (bas de Journée) */
+.bloc-remplacant { margin: 16px 0 6px; padding: 12px; border: 1px dashed var(--trait); border-radius: var(--r); background: var(--papier); }
+.bloc-remplacant p { margin: 0 0 10px; }
+.rangee-3 { display: grid; grid-template-columns: 1fr 1.05fr 1.15fr; gap: 6px; }
+.rangee-3 .bouton { padding: 4px 6px; font-size: 13.5px; gap: 4px; white-space: normal; line-height: 1.15; text-align: center; }
+.rangee-3 .bouton svg { width: 16px; height: 16px; flex: none; }
+.bloc-remplacant .bouton-texte { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; }
+.bloc-remplacant .bouton-texte svg { width: 16px; height: 16px; }

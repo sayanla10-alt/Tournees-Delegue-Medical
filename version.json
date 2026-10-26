@@ -1,9 +1,9 @@
 {
-  "version": "3.22.0",
+  "version": "3.22.1",
   "date": "2026-10-26",
   "notes": [
+    "Journée : + Médecin, + Pharmacie, Autour de moi de retour en bas",
     "GPS automatique des nouveaux praticiens",
-    "Sauvegardes de la base et du téléphone",
-    "Bilan et Équipe : filtre Qui / Quand"
+    "Sauvegardes de la base et du téléphone"
   ]
 }
