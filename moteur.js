@@ -47,7 +47,7 @@ var Moteur = (function () {
       (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(pr);
       var q = idxQ[bas(pr.quartier)];
       var lat = parseFloat(String(pr.lat).replace(',', '.')), lon = parseFloat(String(pr.lon).replace(',', '.'));
-      var coord = isFinite(lat) && isFinite(lon) && lat !== 0 ? { lat: lat, lon: lon } : (q ? { lat: q.lat, lon: q.lon } : null);
+      var coord = isFinite(lat) && isFinite(lon) && lat !== 0 ? { lat: lat, lon: lon } : (q ? { lat: q.lat, lon: q.lon, approx: true } : null);
       var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
       var st = stats[String(pr.id)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
       JOURS_CLES.forEach(function (cle, j) {
@@ -354,7 +354,7 @@ var Moteur = (function () {
     var meilleurs = {};
     ctx.parJour[j].forEach(function (c) {
       var pharma = c.prat && c.prat.type === 'Pharmacie';
-      var d = distanceKm(pos, c.coord);
+      var d = distanceVol(pos, c.coord);   // 3.25.9 : vol d'oiseau depuis le téléphone
       if (d > rayon) return;
       var fin = pharma ? c.fin : c.fin - R.dureeVisite;
       var etat = minute === null ? (c.creneau === 'Matin' ? 'matin' : 'soir') :

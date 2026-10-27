@@ -1239,3 +1239,6 @@ details.avance h3 { margin-top: 18px; }
 .sug-liste button:active, .sug-liste button:hover { background: var(--primaire-pale); }
 .sug-liste b { display: block; font-size: 15px; }
 .sug-liste small { color: var(--gris); font-size: 13px; }
+/* 3.25.9 : lieu à positionner sur place */
+.pos-approx { margin: 8px 0 0; font-size: 13px; }
+.pos-approx .bouton-texte { display: inline-flex; align-items: center; gap: 4px; }

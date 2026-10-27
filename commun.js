@@ -262,6 +262,8 @@ function calcScore(note, jours, dernierStatut) {
   return Math.round((note * 100 + retard * 100 + bonus) * 10) / 10;
 }
 
+// 3.25.9 : distance à vol d'oiseau en km (position du téléphone -> lieu), sans coefficient routier
+function distanceVol(a, b) { var d = distanceKm(a, b); return d >= 99 ? 99 : d / REGLAGES_MOTEUR.detourRoutier; }
 // a, b : objets { lat, lon }. Distance routière estimée en km.
 function distanceKm(a, b) {
   if (!a || !b || !isFinite(a.lat) || !isFinite(b.lat)) return 99;
