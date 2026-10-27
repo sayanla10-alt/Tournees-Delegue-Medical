@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.12';
+  var APP_VERSION = '3.25.13';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.13', ['Choisir un quartier : rangé par commune, une seule commune ouverte à la fois (la dernière ouverte), les autres repliées']],
     ['3.25.11', ['Nouveau praticien ou pharmacie : « Récupérer la position » juste après les horaires du matin et du soir']],
     ['3.25.10', ['Pharmacies à proximité : les pharmacies sans position GPS de votre quartier sont aussi proposées (distance « ≈ »), et si rien n\'est dans le rayon, les plus proches au-delà s\'affichent',
       'Compte rendu de pharmacie enregistré : un produit par carte (état, quantité, anomalie), les uns après les autres']],
@@ -554,7 +555,17 @@
     if (o.aide) h += '<p class="discret groupe-aide">' + esc(o.aide) + '</p>';
     if (o.recherche) h += '<div class="recherche petite">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="' + o.id + '" placeholder="Rechercher…" value="' +
       esc((f.q && f.q[o.id]) || '') + '" aria-label="Rechercher dans ' + esc(o.titre) + '"></div>';
-    if (o.sections) {
+    if (o.sections && o.accordeon) {
+      // 3.25.13 : sections repliables (une seule ouverte) : la dernière ouverte, sinon celle de la valeur choisie
+      var memo = LS.get('secOuverte', {}), ouv = f.secOuverte !== undefined ? f.secOuverte : memo[o.accordeon];
+      if (ouv === undefined || ouv === null) ouv = ((o.sections.filter(function (sec) { return sec.options.some(function (op) { return op.v === val; }); })[0]) || {}).titre || '';
+      o.sections.forEach(function (sec, k) {
+        var ferme = ouv !== sec.titre;
+        h += '<div class="section-choix"><button type="button" class="aire-titre aire-bascule" data-a="sectionBascule" data-acc="' + esc(o.accordeon) + '" data-v="' + esc(sec.titre) + '" aria-expanded="' + !ferme + '"><span>' + esc(sec.titre) + '</span>' +
+          '<small>' + sec.options.length + '</small>' + icone('chevron') + '</button>' +
+          '<div class="puces" data-ferme="' + (ferme ? 1 : 0) + '"' + (ferme && !q ? ' hidden' : '') + '>' + sec.options.map(puce).join('') + '</div></div>';
+      });
+    } else if (o.sections) {
       o.sections.forEach(function (sec) {
         h += '<div class="section-choix"><div class="sous-titre-zone"><span>' + esc(sec.titre) + '</span>' +
           (o.multiple ? '<button type="button" class="lien-action" data-a="sectionToute" data-chemin="' + o.chemin + '">Toute la zone</button>' : '') + '</div>' +
@@ -4038,7 +4049,7 @@
   FEUILLES.listeChoix = function (f) {
     var cfg = S.ui.listes[f.id] || {}, n = 0;
     var map = function (l) { return l.map(function (o) { n++; return { v: o[0], lib: o[1] }; }); };
-    var o = { id: 'l', titre: 'Un seul choix', chemin: 'sel', recherche: true };
+    var o = { id: 'l', titre: 'Un seul choix', chemin: 'sel', recherche: true, accordeon: String(f.id).replace(/\d+$/, '') };
     if (cfg.sections) o.sections = cfg.sections.map(function (x) { return { titre: x.titre, options: map(x.options) }; }); else o.options = map(cfg.options || []);
     if (n <= 8) o.recherche = false;
     return groupeChoix(f, o);
@@ -5279,6 +5290,14 @@
       vs.forEach(function (v) { var i = l.indexOf(v); if (tous && i >= 0) l.splice(i, 1); if (!tous && i < 0) l.push(v); });
       rendre();
     },
+    sectionBascule: function (el) {
+      var f = S.ui.feuille, cle = el.dataset.acc, v = el.dataset.v, memo = LS.get('secOuverte', {});
+      var actuel = f.secOuverte !== undefined ? f.secOuverte : memo[cle];
+      f.secOuverte = actuel === v && el.getAttribute('aria-expanded') === 'true' ? '' : v;
+      memo[cle] = f.secOuverte; LS.set('secOuverte', memo);
+      rendreFeuille();
+      var b = document.querySelector('.feuille [data-a="sectionBascule"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(v) : v) + '"]'); if (b) b.scrollIntoView({ block: 'nearest' });
+    },
     basculeGroupe: function (el) { var f = S.ui.feuille; f.ouverts = f.ouverts || {}; f.ouverts[el.dataset.v] = !f.ouverts[el.dataset.v]; rendre(); },
     filtreRapide: function (el) {
       var f = filtresCour(), k = el.dataset.k, v = el.dataset.v;
@@ -5489,6 +5508,7 @@
       var fe = S.ui.feuille; fe.q = fe.q || {}; fe.q[el.dataset.g] = el.value;
       var q = normaliser(el.value), g = el.closest('.groupe-filtre');
       g.querySelectorAll('.puce').forEach(function (b) { b.hidden = !!q && b.dataset.lib.indexOf(q) < 0; });
+      g.querySelectorAll('.puces[data-ferme]').forEach(function (p) { p.hidden = !q && p.dataset.ferme === '1'; });
       g.querySelectorAll('.section-choix').forEach(function (sec) { sec.hidden = !sec.querySelector('.puce:not([hidden])'); });
     }
     if (f === 'jourDate' && el.value) { allerAuJour(el.value); return; }
