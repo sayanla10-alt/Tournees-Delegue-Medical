@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.15';
+  var APP_VERSION = '3.25.16';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.16', ['+ Médecin / + Pharmacie : « Selon mes filtres » reprend toujours les filtres de l\'onglet Rechercher, communes comprises']],
     ['3.25.15', ['Autour de moi à 0,5 km : seulement les présents maintenant',
       'Compte rendu : après chaque réponse, la question suivante reste au milieu de l\'écran',
       'Compte rendu de pharmacie : chaque produit dans sa propre carte',
@@ -3978,13 +3979,20 @@
   FEUILLES.ajouterTournee = function (f) {
     var rech = '';   // 3.25.3 : la recherche se fait dans la liste « Selon mes filtres »
     var t = S.ui.typeAjout, qui = t === 'Médecin' ? 'Médecins' : t === 'Pharmacie' ? 'Pharmacies' : 'Praticiens';
-    var spR = t ? (S.ui.filtres.specialites || []) : (S.params.specialites || []);
-    var filtres = libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour)) + (t === 'Médecin' && spR.length ? ' · ' + libelleListe(spR, '') : '');
+    var filtres = t ? libelleFiltresRecherche(t) : libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour)) + ((S.params.specialites || []).length ? ' · ' + libelleListe(S.params.specialites, '') : '');
     return rech + '<div class="choix-ajout">' + [['position', 'cible', 'Par ma position', qui + ' présents près de vous'],
       ['communes', 'filtre', 'Selon mes filtres', filtres]].map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
     }).join('') + '</div>';
   };
+  // 3.25.16 : + Médecin / + Pharmacie : « Selon mes filtres » = exactement les filtres de l'onglet Rechercher (communes comprises)
+  function libelleFiltresRecherche(t) {
+    var f = filtresRechercheType(t), g = {};
+    criteresActifs(f).forEach(function (x) { if (x[0] !== 'type') (g[x[0]] = g[x[0]] || []).push(x[2]); });
+    var l = ['communes', 'specialites', 'potentiels', 'visite', 'conv', 'equipe'].filter(function (k) { return g[k]; }).map(function (k) { return libelleListe(g[k], ''); });
+    return l.length ? l.join(' · ') : 'Aucun filtre dans Rechercher : tous';
+  }
+  function communesAjout(d) { return S.ui.typeAjout ? (S.ui.filtres.communes || []).slice() : communesDuJour(d); }
   // communes du jour : celles de la planification (par jour si réglé), sinon celles des visites déjà prévues
   function communesDuJour(d) {
     var l = communesPour(d) || [];
@@ -3993,12 +4001,12 @@
   }
   // 3.25.2 : champ de recherche en tête, pour chercher parmi les praticiens déjà filtrés (communes du jour, critères)
   FEUILLES.ajouterCommunes = function (f) {
-    var d = S.ui.dateAjout || S.ui.jour, com = Object.keys(ensemble(communesDuJour(d))), q = (f && f.q) || '';
+    var d = S.ui.dateAjout || S.ui.jour, com = Object.keys(ensemble(communesAjout(d))), q = (f && f.q) || '';
     return '<p class="discret" style="margin-top:0">Présents le ' + esc(dateLongue(d)) + (com.length ? ' dans ' + esc(libelleCommunes(com)) : '') + ', hors de votre tournée et non prévus par un collègue.</p>' +
       champRechercheLibre('rechCommunes', q) + '<div id="resCommunes">' + resultatsCommunes(q) + '</div>';
   };
   function resultatsCommunes(q) {
-    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesDuJour(d)), filtre = filtreAjout(), ex = exclusCollegues([d]);
+    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesAjout(d)), filtre = filtreAjout(), ex = exclusCollegues([d]);
     var mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
@@ -4018,7 +4026,7 @@
     var tous = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) {
       return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score;
     }), l = tous.slice(0, mots.length ? 60 : 30);
-    if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là dans ' + esc(libelleCommunes(Object.keys(com))) + ', selon vos critères.') + '</p>';
+    if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là' + (Object.keys(com).length ? ' dans ' + esc(libelleCommunes(Object.keys(com))) : '') + ', selon vos critères.') + '</p>';
     return (mots.length ? '<p class="discret">' + tous.length + ' résultat' + (tous.length > 1 ? 's' : '') + '.</p>' : '') +
       '<ul class="liste">' + l.map(function (x) {
         var cr = x.cr, p = cr.prat;
@@ -4976,12 +4984,12 @@
         S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true);
         return;
       }
-      S.ui.feuille = { type: 'ajouterCommunes', titre: 'Communes du ' + dateCourte(j), pleine: true }; rendre();
+      S.ui.feuille = { type: 'ajouterCommunes', titre: (S.ui.typeAjout ? 'Selon mes filtres, ' : 'Communes du ') + dateCourte(j), pleine: true }; rendre();
     },
     ajouterCandidat: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v), d = S.ui.dateAjout || S.ui.jour; if (!c) return;
       var fAvant = S.ui.feuille && JSON.parse(JSON.stringify(S.ui.feuille));
-      var retourAjout = function () { S.ui.feuille = el.dataset.r === 'recherche' && fAvant ? fAvant : { type: 'ajouterCommunes', titre: 'Communes du ' + dateCourte(d), pleine: true }; rendre(); };
+      var retourAjout = function () { S.ui.feuille = el.dataset.r === 'recherche' && fAvant ? fAvant : { type: 'ajouterCommunes', titre: (S.ui.typeAjout ? 'Selon mes filtres, ' : 'Communes du ') + dateCourte(d), pleine: true }; rendre(); };
       confirmerPuis('Ajouter à la tournée', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ') au ' + dateFr(d) + ' ?', 'Ajouter',
         function () { ajouterArret(c, d); rendre(); }, retourAjout);
     },

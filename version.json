@@ -1,7 +1,7 @@
 {
-  "version": "3.25.15",
-  "date": "2026-10-26",
+  "version": "3.25.16",
+  "date": "2026-10-27",
   "notes": [
-    "Établissement assisté dans Nouveau praticien"
+    "+ Médecin / + Pharmacie : « Selon mes filtres » = filtres de l'onglet Rechercher"
   ]
 }
