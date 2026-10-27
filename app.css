@@ -1242,3 +1242,5 @@ details.avance h3 { margin-top: 18px; }
 /* 3.25.9 : lieu à positionner sur place */
 .pos-approx { margin: 8px 0 0; font-size: 13px; }
 .pos-approx .bouton-texte { display: inline-flex; align-items: center; gap: 4px; }
+/* 3.25.12 : « Récupérer la position » centré, coordonnées en dessous */
+.gps-ligne.gps-centre { flex-direction: column; justify-content: center; text-align: center; margin-top: 4px; }
