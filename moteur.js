@@ -366,8 +366,8 @@ var Moteur = (function () {
       if (!m || x.ordre < m.ordre || (x.ordre === m.ordre && x.dist < m.dist)) meilleurs[k] = x;
     });
     return Object.keys(meilleurs).map(function (k) { return meilleurs[k]; }).sort(function (a, b) {
-      return a.ordre - b.ordre || (a.ordre === 1 && minute !== null ? a.c.debut - b.c.debut : 0) ||
-        Math.floor(a.dist) - Math.floor(b.dist) || b.score - a.score;
+      // 3.25.8 : du plus proche au plus loin (présents d'abord, puis plus tard dans la journée)
+      return a.ordre - b.ordre || a.dist - b.dist || b.score - a.score;
     });
   }
 

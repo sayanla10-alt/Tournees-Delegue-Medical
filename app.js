@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.7';
+  var APP_VERSION = '3.25.8';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.8', ['Autour de moi, + Médecin, + Pharmacie, Selon mes filtres : résultats du plus proche au plus loin de votre position ; ceux déjà dans votre tournée sont omis',
+      'Ajout du jour : les visites restantes s\'enchaînent depuis votre position']],
     ['3.25.7', ['Autour de moi, + Médecin, + Pharmacie : votre position est recalculée à chaque ouverture ou rafraîchissement, avant d\'afficher les résultats']],
     ['3.25.5', ['Nouveau praticien : l\'établissement se saisit en quelques lettres, avec les établissements déjà connus (quartier et position repris), pour éviter les doublons']],
     ['3.25.4', ['Messages WhatsApp (programme et compte rendu) mieux présentés : titres en gras, puces, sections aérées, heures et établissements numérotés']],
@@ -2741,9 +2743,10 @@
     if (jourSemaineIndex(date) > 4) return '<p class="discret">Aucun praticien présent le week-end.</p>';
     var fa = S.ui.filtresAutour, filtre = criteresActifs(fa).length ? ensemble(filtrerPraticiens(fa, '').map(function (p) { return p.code; })) : null;
     var avecPos = A.lat !== null, pos = avecPos ? { lat: A.lat, lon: A.lon } : { lat: 5.345, lon: -4.02 };
+    var dansT = ensemble(S.plan.filter(function (a) { return a.date === date; }).map(function (a) { return a.code; }));
     var l = Moteur.autourDe(ctx(), pos, date, m.minute, Infinity).filter(function (x) {
       var c = x.c, p = c.prat;
-      if ((A.ref && c.code === A.ref.code) || (filtre && !filtre[c.code]) || absentLe(p, date)) return false;
+      if ((A.ref && c.code === A.ref.code) || (filtre && !filtre[c.code]) || absentLe(p, date) || dansT[c.code]) return false;
       var txt = normaliser([p.nom, p.specialite, c.lieu, c.quartier, c.commune].join(' '));
       return mots.every(function (w) { return txt.indexOf(w) >= 0; });
     });
@@ -2800,8 +2803,10 @@
     }
     h += bandeauFeries([date]);
     var fa = S.ui.filtresAutour, filtre = criteresActifs(fa).length ? ensemble(filtrerPraticiens(fa, '').map(function (p) { return p.code; })) : null;
+    // 3.25.8 : ceux déjà dans ma tournée ce jour-là sont omis
+    var dansTournee = ensemble(S.plan.filter(function (a) { return a.date === date; }).map(function (a) { return a.code; }));
     var res = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, A.rayon)
-      .filter(function (x) { return (!A.ref || x.c.code !== A.ref.code) && (!filtre || filtre[x.c.code]); });
+      .filter(function (x) { return (!A.ref || x.c.code !== A.ref.code) && (!filtre || filtre[x.c.code]) && !dansTournee[x.c.code]; });
     S.ui.resAutour = res;
     var groupes = minute === null ? [['matin', 'Le matin'], ['soir', 'Le soir']] :
       [['present', 'Présents maintenant'], ['plustard', 'Plus tard dans la journée']];
@@ -3921,7 +3926,12 @@
       var x = { cr: cr, score: Moteur.scoreDe(p, d) };
       if (!vus[cr.code] || x.score > vus[cr.code].score) vus[cr.code] = x;
     });
-    var tous = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) { return y.score - x.score; }), l = tous.slice(0, mots.length ? 60 : 30);
+    // 3.25.8 : position connue (GPS récent ou Autour de moi) : du plus proche au plus loin
+    var pos = positionActuelle();
+    Object.keys(vus).forEach(function (k) { vus[k].dist = pos && vus[k].cr.coord ? distanceKm(pos, vus[k].cr.coord) : null; });
+    var tous = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) {
+      return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score;
+    }), l = tous.slice(0, mots.length ? 60 : 30);
     if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là dans ' + esc(libelleCommunes(Object.keys(com))) + ', selon vos critères.') + '</p>';
     return (mots.length ? '<p class="discret">' + tous.length + ' résultat' + (tous.length > 1 ? 's' : '') + '.</p>' : '') +
       '<ul class="liste">' + l.map(function (x) {
@@ -3929,7 +3939,7 @@
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
           '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, cr.lieu, cr.quartier])) + '</span>' +
-          '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button></li>';
+          '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + (x.dist !== null && x.dist !== undefined ? ' · <b>' + km(x.dist) + '</b>' : '') + '</span></button></li>';
       }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : précisez la recherche.</p>' : '');
   }
   FEUILLES.installer = function () {
@@ -4325,8 +4335,12 @@
   function arret(uid) { return S.plan.filter(function (a) { return a.uid === uid; })[0] || (S.horsPlan || []).filter(function (a) { return a.uid === uid; })[0]; }
 
   function reordonner(date) {
-    var autres = S.plan.filter(function (a) { return a.date !== date; });
-    var jour = Moteur.ordonnerJour(S.plan.filter(function (a) { return a.date === date; }), departCoord());
+    var autres = S.plan.filter(function (a) { return a.date !== date; }), duJour = S.plan.filter(function (a) { return a.date === date; });
+    var g = S.ui.posGps && Date.now() - S.ui.posGps.t < 15 * 60000 ? S.ui.posGps : null, jour;
+    // 3.25.8 : aujourd'hui, avec une position GPS récente : les visites faites restent, les autres s'enchaînent depuis ma position
+    if (date === aujourdhui() && g && duJour.some(function (a) { return !a.statut; })) {
+      jour = duJour.filter(function (a) { return a.statut; }).concat(Moteur.ordonnerJour(duJour.filter(function (a) { return !a.statut; }), { lat: g.lat, lon: g.lon }));
+    } else jour = Moteur.ordonnerJour(duJour, departCoord());
     S.plan = autres.concat(jour).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
     trierPlan();
   }
@@ -4565,7 +4579,7 @@
     navigator.geolocation.getCurrentPosition(function (pos) {
       var A = S.ui.autour, r = Moteur.quartierLePlusProche(pos.coords.latitude, pos.coords.longitude, quartiers());
       S.ui.localisation = false;
-      A.lat = pos.coords.latitude; A.lon = pos.coords.longitude; A.src = 'gps';
+      A.lat = pos.coords.latitude; A.lon = pos.coords.longitude; A.src = 'gps'; S.ui.posGps = { lat: A.lat, lon: A.lon, t: Date.now() };
       A.label = r ? 'ma position (près ' + (/^[aeiouyéèàâîôûAEIOUYÉÈÀÂÎÔÛ]/.test(r.quartier.quartier) ? 'd\'' : 'de ') + r.quartier.quartier + ')' : 'ma position';
       LS.set('autour', A); rendre();
       if (r && r.km > 8) toast('Vous semblez hors d\'Abidjan. Quartier le plus proche : ' + r.quartier.quartier + '.');
@@ -4573,6 +4587,11 @@
       S.ui.localisation = false; if (S.ui.tab === 'autour') rendre();
       toast('Position indisponible. Autorisez la localisation ou choisissez un quartier.');
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  }
+  // 3.25.8 : position actuelle connue : GPS de moins de 15 min, sinon le point choisi dans « Autour de moi »
+  function positionActuelle() {
+    var g = S.ui.posGps; if (g && Date.now() - g.t < 15 * 60000) return { lat: g.lat, lon: g.lon };
+    var A = S.ui.autour; return A && A.lat !== null && A.lat !== undefined ? { lat: A.lat, lon: A.lon } : null;
   }
   // position issue du GPS (et non d'un quartier choisi) : à recalculer à chaque ouverture
   function positionGps() { var A = S.ui.autour; return A.src === 'gps' || (!A.src && /^ma position/.test(A.label || '')) || A.lat === null; }
