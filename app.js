@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.9';
+  var APP_VERSION = '3.25.10';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.10', ['Pharmacies à proximité : les pharmacies sans position GPS de votre quartier sont aussi proposées (distance « ≈ »), et si rien n\'est dans le rayon, les plus proches au-delà s\'affichent',
+      'Compte rendu de pharmacie enregistré : un produit par carte (état, quantité, anomalie), les uns après les autres']],
     ['3.25.9', ['Distances mesurées à vol d\'oiseau depuis la position réelle du téléphone (mesure la plus précise sur quelques secondes, rafraîchie chaque minute)',
       'Lieu sans position GPS : distance « ≈ » au centre du quartier, avec « Je suis devant : enregistrer sa position »',
       'Fiche : « Je suis sur place » prend une mesure fraîche et précise, qui remplace la position de la base à l\'enregistrement',
@@ -2412,7 +2414,20 @@
     if (r.complements && !/^Échantillons/.test(r.complements)) l.push(r.complements);
     if (r.commentaire) l.push((crDe(a).faite === 'non' ? 'Précision : ' : 'Bilan : ') + r.commentaire);
     if (r.suite) l.push(r.suite + ' le ' + dateCourte(r.prochaine));
+    // 3.25.10 : pharmacie : un produit par carte (état, quantité, anomalie), les uns après les autres
+    var cartesStock = '';
+    if (tuiles && estPharmacie(a) && r.stocks) {
+      var cs = crDe(a), st = cs.stocks || {};
+      l = l.map(function (x) { return x.indexOf('Stocks : ') === 0 ? '\u0000stocks' : x; });
+      cartesStock = Object.keys(st).filter(function (p) { return st[p] && st[p].etat; }).map(function (p) {
+        var x = st[p];
+        return '<div class="tuile statique"><small>' + esc(p) + '</small><b>' + esc(x.etat) + '</b>' +
+          (x.qte ? '<span class="discret bloc-texte">Quantité : ' + esc(x.qte) + '</span>' : '') +
+          (x.anomalie ? '<span class="discret bloc-texte">' + esc(x.anomalie) + (x.lot ? ', lot ' + esc(x.lot) : '') + '</span>' : '') + '</div>';
+      }).join('') + (cs.autresStock ? '<div class="tuile statique large"><small>Autres produits</small><b>' + esc(cs.autresStock) + '</b></div>' : '');
+    }
     if (tuiles) return '<div class="tuile statique"><small>Résultat</small><b>' + esc(a.statut || '') + '</b></div>' + l.map(function (x) {
+      if (x === '\u0000stocks') return cartesStock;
       var i = x.indexOf(' : '), lab = i > 0 ? x.slice(0, i) : (r.suite && x.indexOf(r.suite) === 0 ? 'Suite' : 'Note'), val = i > 0 ? x.slice(i + 3) : x;
       return '<div class="tuile statique' + (val.length > 40 ? ' large' : '') + '"><small>' + esc(lab) + '</small><b>' + parLigne(val) + '</b></div>';
     }).join('');
@@ -2827,9 +2842,17 @@
     groupes.forEach(function (g) {
       var l = res.map(function (x, i) { return { x: x, i: i }; }).filter(function (o) { return o.x.etat === g[0]; });
       h += '<h3>' + g[1] + ' (' + l.length + ')</h3>';
-      if (!l.length) { h += '<p class="discret">Aucun praticien dans ce rayon.</p>'; return; }
+      if (!l.length) { h += '<p class="discret">Aucun ' + (S.ui.pharmaciesProches === 'Pharmacie' ? 'pharmacie' : 'praticien') + ' dans ce rayon.</p>'; return; }
       h += '<ul class="liste">' + l.slice(0, 25).map(function (o) { return rendreProposition(o.x, o.i, date); }).join('') + '</ul>';
     });
+    // 3.25.10 : rien dans le rayon : les plus proches au-delà, pour ne jamais laisser la page vide
+    if (!res.length) {
+      var plus = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, Infinity)
+        .filter(function (x) { return (!A.ref || x.c.code !== A.ref.code) && (!filtre || filtre[x.c.code]) && !dansTournee[x.c.code]; }).slice(0, 5);
+      var base = S.ui.resAutour.length;
+      S.ui.resAutour = S.ui.resAutour.concat(plus);
+      if (plus.length) h += '<h3>Les plus proches, au-delà de ' + String(A.rayon).replace('.', ',') + ' km</h3><ul class="liste">' + plus.map(function (x, k) { return rendreProposition(x, base + k, date); }).join('') + '</ul>';
+    }
     if (A.ref) {
       var autres = (ctx().parCode[A.ref.code] || []).filter(function (c) { return c.cle !== A.ref.cle; });
       h += '<h3>Autres présences de ' + esc(A.ref.nom) + '</h3>';

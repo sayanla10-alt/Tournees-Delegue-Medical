@@ -355,7 +355,8 @@ var Moteur = (function () {
     ctx.parJour[j].forEach(function (c) {
       var pharma = c.prat && c.prat.type === 'Pharmacie';
       var d = distanceVol(pos, c.coord);   // 3.25.9 : vol d'oiseau depuis le téléphone
-      if (d > rayon) return;
+      // 3.25.10 : lieu sans GPS (centre du quartier) : retenu s'il peut être dans le rayon (marge de 1 km)
+      if ((c.coord && c.coord.approx ? Math.max(0, d - 1) : d) > rayon) return;
       var fin = pharma ? c.fin : c.fin - R.dureeVisite;
       var etat = minute === null ? (c.creneau === 'Matin' ? 'matin' : 'soir') :
         (c.debut <= minute && minute <= fin ? 'present' : (c.debut > minute ? 'plustard' : 'termine'));
