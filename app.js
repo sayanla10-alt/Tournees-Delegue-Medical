@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.14';
+  var APP_VERSION = '3.25.15';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.15', ['Autour de moi à 0,5 km : seulement les présents maintenant',
+      'Compte rendu : après chaque réponse, la question suivante reste au milieu de l\'écran',
+      'Compte rendu de pharmacie : chaque produit dans sa propre carte',
+      'Journée : visites faites dans l\'ordre des heures d\'enregistrement, visites à faire du plus proche au plus loin',
+      'Journée, + Médecin et + Pharmacie : les filtres par défaut sont toujours ceux de l\'onglet Recherche']],
     ['3.25.14', ['Position : la dernière connue est gardée en mémoire, les résultats s\'affichent tout de suite ; elle est recalculée en arrière-plan au rafraîchissement, à la réouverture et toutes les 2 minutes',
       'Autour de moi : 0,5 km par défaut',
       'Pharmacie ouverte à moins de 500 m : signalée à chaque rafraîchissement ou recalcul de position, sur tous les onglets']],
@@ -475,6 +480,13 @@
     return h ? h + ' h' + (m ? ' ' + pad2(m) : '') : m + ' min';
   }
   // Filtre du tirage : types de praticiens, spécialités et potentiels ciblés
+  // 3.25.15 : + Médecin / + Pharmacie (Journée) : toujours les filtres de l'onglet Recherche, type imposé
+  function filtresRechercheType(type) { return Object.assign(JSON.parse(JSON.stringify(S.ui.filtres)), { type: type }); }
+  function filtreAjout() {
+    if (!S.ui.typeAjout) return filtreCibles();
+    var ok = ensemble(filtrerPraticiens(filtresRechercheType(S.ui.typeAjout), '').map(function (p) { return p.code; }));
+    return function (p) { return !!ok[p.code]; };
+  }
   function filtreCibles() {
     var p = S.params, t = p.typeCibles || 'tous', sp = {}, po = {};
     (p.specialites || []).forEach(function (x) { sp[x] = true; });
@@ -1445,12 +1457,18 @@
     var hv = function (x) { return heureVersMinutes((x.statut && x.valideA) || x.heure) || 0; };
     var parHeure = function (x, y) { return hv(x) - hv(y); };
     var aFaire = duJour.filter(function (a) { return !a.statut; }), faites = duJour.filter(function (a) { return a.statut; }).sort(parHeure);
+    // 3.25.15 : aujourd'hui, avec ma position : les visites pas encore vues du plus proche au plus loin
+    var gp = d === t && S.ui.posGps && Date.now() - S.ui.posGps.t < 15 * 60000 ? S.ui.posGps : null, parProximite = false;
+    if (gp) {
+      var dm = {}; aFaire.forEach(function (a) { var c = coordPrecise(a) || coordArret(a); dm[a.uid] = c ? distanceVol(gp, c) : 99; });
+      aFaire.sort(function (x, y) { return dm[x.uid] - dm[y.uid]; }); parProximite = true;
+    }
     ['Matin', 'Soir'].forEach(function (cren) {
       var liste = aFaire.filter(function (a) { return a.creneau === cren; });
       if (!liste.length) return;
       h += '<div class="creneau-titre">' + cren + '</div><ol class="ligne">';
       liste.forEach(function (a, i) {
-        if (i > 0 && a.dist > 0) {
+        if (i > 0 && a.dist > 0 && !parProximite) {
           h += '<li class="troncon"><div></div><div class="arret-rail"></div>' +
             trajetMini(a.dist, a.trajet !== undefined ? a.trajet : Math.round(a.dist * REGLAGES_MOTEUR.minutesParKm)) + '</li>';
         }
@@ -2410,6 +2428,16 @@
   }
   function validerEtape(a, id) { var c = crDe(a); c.ok = c.ok || {}; c.ok[id] = true; LS.set('plan', S.plan); }
 
+  // 3.25.15 : compte rendu : après chaque réponse, la question suivante (ou le choix touché) reste au milieu de l'écran
+  function centrerQuestion(uid) {
+    var c = document.querySelector('.arret.ouvert .cr-question') || document.querySelector('.arret.ouvert .actions-cr') || document.querySelector('.arret.ouvert');
+    if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  function centrerChoix(el) {
+    var sel = '[data-a="' + el.dataset.a + '"][data-uid="' + el.dataset.uid + '"][data-k="' + (el.dataset.k || '') + '"][data-v="' + (el.dataset.v || '') + '"]';
+    var b = null; try { b = document.querySelector(sel); } catch (e) {}
+    (b || document.querySelector('.arret.ouvert .cr-question') || {}).scrollIntoView && (b || document.querySelector('.arret.ouvert .cr-question')).scrollIntoView({ block: 'center' });
+  }
   function boutonEnregistrer(a) {
     var m = manquesCr(a);
     return '<div class="actions-cr">' + (m.length ?
@@ -2851,8 +2879,11 @@
     var res = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, A.rayon)
       .filter(function (x) { return (!A.ref || x.c.code !== A.ref.code) && (!filtre || filtre[x.c.code]) && !dansTournee[x.c.code]; });
     S.ui.resAutour = res;
+    // 3.25.15 : à 0,5 km (proximité immédiate), seulement ceux présents maintenant
+    var immediat = +A.rayon === 0.5 && minute !== null;
+    if (immediat) res = res.filter(function (x) { return x.etat === 'present'; }), S.ui.resAutour = res;
     var groupes = minute === null ? [['matin', 'Le matin'], ['soir', 'Le soir']] :
-      [['present', 'Présents maintenant'], ['plustard', 'Plus tard dans la journée']];
+      (immediat ? [['present', 'Présents maintenant']] : [['present', 'Présents maintenant'], ['plustard', 'Plus tard dans la journée']]);
     h += '<p class="discret">' + majuscule(dateLongue(date)) + (minute !== null ? ', ' + minutesVersHeure(minute) : '') +
       ', autour de ' + esc(A.label || 'votre position') + (A.src === 'gps' && A.prec ? ' (précision ± ' + A.prec + ' m)' : '') + ' : ' + res.length + (S.ui.filtresAutour.type === 'Pharmacie' ? ' pharmacie' : (S.ui.filtresAutour.type === 'Médecin' ? ' médecin' : ' praticien')) + (res.length > 1 ? 's' : '') + '.</p>';
     groupes.forEach(function (g) {
@@ -2862,7 +2893,7 @@
       h += '<ul class="liste">' + l.slice(0, 25).map(function (o) { return rendreProposition(o.x, o.i, date); }).join('') + '</ul>';
     });
     // 3.25.10 : rien dans le rayon : les plus proches au-delà, pour ne jamais laisser la page vide
-    if (!res.length) {
+    if (!res.length && !immediat) {
       var plus = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, Infinity)
         .filter(function (x) { return (!A.ref || x.c.code !== A.ref.code) && (!filtre || filtre[x.c.code]) && !dansTournee[x.c.code]; }).slice(0, 5);
       var base = S.ui.resAutour.length;
@@ -3924,7 +3955,7 @@
     var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
     if (!mots.length) return '';
     if (j > 4) return '<p class="discret">Aucun praticien présent le week-end.</p>';
-    var filtre = filtreCibles(), dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
+    var filtre = filtreAjout(), dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
       if (dans[cr.code] || absentLe(p, d) || (filtre && !filtre(p))) return;
@@ -3947,7 +3978,8 @@
   FEUILLES.ajouterTournee = function (f) {
     var rech = '';   // 3.25.3 : la recherche se fait dans la liste « Selon mes filtres »
     var t = S.ui.typeAjout, qui = t === 'Médecin' ? 'Médecins' : t === 'Pharmacie' ? 'Pharmacies' : 'Praticiens';
-    var filtres = libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour)) + (t === 'Médecin' && (S.params.specialites || []).length ? ' · ' + libelleListe(S.params.specialites, '') : '');
+    var spR = t ? (S.ui.filtres.specialites || []) : (S.params.specialites || []);
+    var filtres = libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour)) + (t === 'Médecin' && spR.length ? ' · ' + libelleListe(spR, '') : '');
     return rech + '<div class="choix-ajout">' + [['position', 'cible', 'Par ma position', qui + ' présents près de vous'],
       ['communes', 'filtre', 'Selon mes filtres', filtres]].map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
@@ -3966,12 +3998,12 @@
       champRechercheLibre('rechCommunes', q) + '<div id="resCommunes">' + resultatsCommunes(q) + '</div>';
   };
   function resultatsCommunes(q) {
-    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesDuJour(d)), filtre = filtreCibles(), ex = exclusCollegues([d]);
+    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesDuJour(d)), filtre = filtreAjout(), ex = exclusCollegues([d]);
     var mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
-      if (dans[cr.code] || ex[cr.code] || (Object.keys(com).length && !com[cr.commune]) || (filtre && S.ui.typeAjout !== 'Pharmacie' && !filtre(p)) || absentLe(p, d)) return;
+      if (dans[cr.code] || ex[cr.code] || (Object.keys(com).length && !com[cr.commune]) || (filtre && !filtre(p)) || absentLe(p, d)) return;
       if (S.ui.typeAjout && (S.ui.typeAjout === 'Pharmacie') !== (p.type === 'Pharmacie')) return;
       if (mots.length) {
         var txt = normaliser([p.nom, p.specialite, cr.lieu, cr.quartier, cr.commune].join(' '));
@@ -5179,17 +5211,17 @@
     },
     crChoix: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
-      majCr(a, el.dataset.k, el.dataset.v); validerEtape(a, el.dataset.k); rendre();
+      majCr(a, el.dataset.k, el.dataset.v); validerEtape(a, el.dataset.k); rendre(); centrerQuestion(a.uid);
     },
-    crOk: function (el) { var a = arret(el.dataset.uid); if (!a) return; validerEtape(a, el.dataset.v); rendre(); },
+    crOk: function (el) { var a = arret(el.dataset.uid); if (!a) return; validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid); },
     crPasser: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var champs = { precision: ['precision'], bilan: ['bilan'], commentaire: ['commentaire'], besoin: ['besoinTexte'] }[el.dataset.v] || [];
       champs.forEach(function (k) { majCr(a, k, ''); });
       if (el.dataset.v === 'besoin') crDe(a).besoin = [];
-      syncCr(a); validerEtape(a, el.dataset.v); rendre();
+      syncCr(a); validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid);
     },
-    crEditer: function (el) { var a = arret(el.dataset.uid); if (!a) return; editerEtape(a, el.dataset.v); rendre(); },
+    crEditer: function (el) { var a = arret(el.dataset.uid); if (!a) return; editerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid); },
     crDate: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
@@ -5221,15 +5253,14 @@
       }
       // médecins (selon les spécialités de la tournée) ou pharmacies près de ma position, pour le jour affiché dans « Aujourd'hui »
       var j = el.dataset.d || S.ui.jour || aujourdhui(), type = el.dataset.v === 'Médecin' ? 'Médecin' : 'Pharmacie';
-      S.ui.filtresAutour = Object.assign(JSON.parse(JSON.stringify(FILTRES_VIDES)), { type: type },
-        type === 'Médecin' ? { specialites: (S.params.specialites || []).slice() } : {}); LS.set('filtresAutour', S.ui.filtresAutour);
+      S.ui.filtresAutour = filtresRechercheType(type); LS.set('filtresAutour', S.ui.filtresAutour);
       S.ui.rechercheAutour = ''; S.ui.rechAutourLibre = '';
       Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null });
       LS.set('autour', S.ui.autour);
       S.ui.tab = 'autour'; S.ui.pharmaciesProches = type; positionConnue(); rendre(); window.scrollTo(0, 0);
       localiser(true, 'position', true);
     },
-    crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); },
+    crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); centrerChoix(el); },
     crRemplacer: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       syncCr(a); validerVisites(a.uid);
@@ -5256,7 +5287,7 @@
     crVal: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var k = el.dataset.k, actuel = k.split('.').reduce(function (o, x) { return o && o[x]; }, crDe(a));
-      majCr(a, k, actuel === el.dataset.v && el.dataset.v ? '' : el.dataset.v); rendre();
+      majCr(a, k, actuel === el.dataset.v && el.dataset.v ? '' : el.dataset.v); rendre(); centrerChoix(el);
     },
     listeOuvrir: function (el) {
       var id = el.dataset.liste, cfg = S.ui.listes[id]; if (!cfg) return;
