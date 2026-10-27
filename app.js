@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.10';
+  var APP_VERSION = '3.25.11';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.11', ['Nouveau praticien ou pharmacie : « Récupérer la position » juste après les horaires du matin et du soir']],
     ['3.25.10', ['Pharmacies à proximité : les pharmacies sans position GPS de votre quartier sont aussi proposées (distance « ≈ »), et si rien n\'est dans le rayon, les plus proches au-delà s\'affichent',
       'Compte rendu de pharmacie enregistré : un produit par carte (état, quantité, anomalie), les uns après les autres']],
     ['3.25.9', ['Distances mesurées à vol d\'oiseau depuis la position réelle du téléphone (mesure la plus précise sur quelques secondes, rafraîchie chaque minute)',
@@ -4235,7 +4236,10 @@
           '<div class="grille-2">' +
           champFiche('hm' + i, 'Horaires du matin', '<input type="text" data-f="fiche" data-k="horaireMatin" data-i="' + i + '" value="' + esc(l.horaireMatin) + '"' + (m ? '' : ' disabled') + attrInvalide(f, 'hm' + i) + '>', f, m) +
           champFiche('hs' + i, 'Horaires du soir', '<input type="text" data-f="fiche" data-k="horaireSoir" data-i="' + i + '" value="' + esc(l.horaireSoir) + '"' + (so ? '' : ' disabled') + attrInvalide(f, 'hs' + i) + '>', f, so) +
-          '</div></div>';
+          '</div>' +
+          // 3.25.11 : position du lieu récupérée sur place, juste après les horaires
+          '<div class="gps-ligne"><button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'Récupérer la position</button>' +
+            (l.lat && l.lon ? '<span>GPS : ' + (+String(l.lat).replace(',', '.')).toFixed(5) + ', ' + (+String(l.lon).replace(',', '.')).toFixed(5) + '</span>' : '<span>Pas de position GPS</span>') + '</div></div>';
       });
       h += '<button class="bouton bouton-large" type="button" data-a="ficheAjouterLieu">' + icone('plus') + 'Ajouter un lieu d\'exercice</button>';
       h += '<div class="lieu-bloc" style="margin-top:12px"><div class="lieu-tete"><b>Absence (congés, formation…)</b></div>' +
@@ -4255,7 +4259,7 @@
             appliquer: (function (k) { return function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[k].quartier = v; delete fe.err['quartier' + k]; } }; })(i) }), f, true, q ? 'Commune : ' + esc(q.commune) + ', ' + esc(q.zone) : '') +
           '<div class="gps-ligne">' + (l.lat && l.lon ? 'GPS : ' + (+l.lat).toFixed(5) + ', ' + (+l.lon).toFixed(5) +
             ' <button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="' + i + '">Effacer</button>' : 'Pas de position GPS') +
-            ' <button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'Je suis sur place</button></div></div>';
+            '</div></div>';
       });
       h += '<dl class="recap bloc"><dt>Praticien</dt><dd>' + esc(d.nom) + ' ' + etoiles(d.note) + '</dd><dt>Spécialité</dt><dd>' +
         esc(d.type === 'Pharmacie' ? 'Pharmacien' : (d.specialite === '__autre' ? d.autreSpec : d.specialite)) + (d.conventionne === 'Oui' ? ', engagé' : '') + '</dd>' +
