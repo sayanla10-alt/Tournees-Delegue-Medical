@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.13';
+  var APP_VERSION = '3.25.14';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.14', ['Position : la dernière connue est gardée en mémoire, les résultats s\'affichent tout de suite ; elle est recalculée en arrière-plan au rafraîchissement, à la réouverture et toutes les 2 minutes',
+      'Autour de moi : 0,5 km par défaut',
+      'Pharmacie ouverte à moins de 500 m : signalée à chaque rafraîchissement ou recalcul de position, sur tous les onglets']],
     ['3.25.13', ['Choisir un quartier : rangé par commune, une seule commune ouverte à la fois (la dernière ouverte), les autres repliées']],
     ['3.25.11', ['Nouveau praticien ou pharmacie : « Récupérer la position » juste après les horaires du matin et du soir']],
     ['3.25.10', ['Pharmacies à proximité : les pharmacies sans position GPS de votre quartier sont aussi proposées (distance « ≈ »), et si rien n\'est dans le rayon, les plus proches au-delà s\'affichent',
@@ -273,7 +276,7 @@
       collegue: null, eqSel: LS.get('eqSel', []), jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
       couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: false,
       statsVue: 'tableau', annulReprise: LS.get('annulReprise', null), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
-      autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 2, ref: null }),
+      autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 0.5, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
       filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false
     }
@@ -304,7 +307,7 @@
   }
   // 2.2.0 : nouveaux réglages par défaut (une seule fois)
   if (!LS.get('defauts220', false)) {
-    S.ui.autour.moment = 'maintenant'; S.ui.autour.rayon = 2; LS.set('autour', S.ui.autour);
+    S.ui.autour.moment = 'maintenant'; S.ui.autour.rayon = 0.5; LS.set('autour', S.ui.autour);
     S.ui.couvPortee = 'jour'; S.ui.couvFiltre = 'couvertes'; LS.set('couvPortee', 'jour'); LS.set('couvFiltre', 'couvertes');
     LS.set('defauts220', true);
   }
@@ -1523,6 +1526,7 @@
   // une visite prévue plus tard, à moins de 500 m et dont le praticien est présent à cette heure, est proposée « maintenant »
   var RAYON_PROCHE_KM = 0.5, MARGE_PRESENCE_MIN = 10;   // 3.24.20 : 500 m, au moins 10 min de présence restantes
   function suivrePosition() {
+    return;   // 3.25.14 : remplacé par le recalcul global (localiser, toutes les PERIODE_GPS_MIN minutes)
     if (S.ui.gpsMinuteur || !navigator.geolocation) return;
     var lire = function () {
       if (S.ui.tab !== 'jour' || jourAffiche() !== aujourdhui() || document.hidden) return;
@@ -2832,7 +2836,7 @@
     h += barreFiltres(S.ui.filtresAutour, '', true);
     }
 
-    if (S.ui.localisation === true) return fin(h + '<div class="vide"><strong>Position en cours de mise à jour…</strong>Les résultats s\'affichent dès que votre position est recalculée.</div>');
+    if (S.ui.localisation && A.lat === null) return fin(h + '<div class="vide"><strong>Recherche de votre position…</strong>Les résultats s\'affichent dès qu\'elle est trouvée.</div>');
     if (A.lat === null) return fin(h + '<div class="vide"><strong>Où êtes-vous ?</strong>Utilisez votre position ou choisissez un quartier.</div>');
     var date, minute;
     if (A.moment === 'maintenant') { date = aujourdhui(); minute = minutesMaintenant(); }
@@ -4624,38 +4628,59 @@
     return true;
   }
 
-  // 3.25.9 : position du téléphone lue en continu quelques secondes : on garde la mesure la plus précise
-  // (arrêt dès ± 25 m, ou après 12 s) ; jamais de position en cache. discret : sans écran d'attente (rafraîchissement automatique)
-  function localiser(discret) {
-    if (!navigator.geolocation) { toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
+  // 3.25.14 : la dernière position du téléphone est gardée en mémoire : les recherches s'affichent tout de suite avec elle,
+  // et la position est recalculée en arrière-plan (au rafraîchissement, à la réouverture, puis toutes les PERIODE_GPS_MIN minutes).
+  // discret : sans message ; sinon (bouton « Actualiser ») : message et position GPS imposée même si un quartier était choisi
+  var PERIODE_GPS_MIN = 2;
+  function localiser(discret, declencheur, forcerGps) {
+    if (!navigator.geolocation) { if (!discret) toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
     if (S.ui.localisation) return;
-    S.ui.localisation = discret ? 'discret' : true; if (!discret && S.ui.tab === 'autour') rendre();
-    if (!discret) toast('Recherche de votre position…');
-    var best = null, fini = false, id = null, minuteur = null;
-    function terminer() {
-      if (fini) return; fini = true;
-      if (id !== null) navigator.geolocation.clearWatch(id); clearTimeout(minuteur);
+    S.ui.localisation = discret ? 'discret' : true;
+    if (!discret) { toast('Recherche de votre position…'); if (S.ui.tab === 'autour') rendre(); }
+    mesurePrecise(function (p) {
       S.ui.localisation = false;
-      if (!best) { if (S.ui.tab === 'autour') rendre(); if (!discret) toast('Position indisponible. Autorisez la localisation ou choisissez un quartier.'); return; }
-      var A = S.ui.autour, la = best.coords.latitude, lo = best.coords.longitude, prec = Math.round(best.coords.accuracy || 0);
-      var r = Moteur.quartierLePlusProche(la, lo, quartiers());
-      A.lat = la; A.lon = lo; A.src = 'gps'; A.prec = prec; A.t = Date.now();
-      S.ui.posGps = { lat: la, lon: lo, t: Date.now(), prec: prec };
-      A.label = r ? 'ma position (près ' + (/^[aeiouyéèàâîôûAEIOUYÉÈÀÂÎÔÛ]/.test(r.quartier.quartier) ? 'd\'' : 'de ') + r.quartier.quartier + ')' : 'ma position';
-      LS.set('autour', A); rendre();
-      if (!discret && prec > 150) toast('Position imprécise (± ' + prec + ' m). Activez la « localisation précise » du téléphone, ou sortez à découvert.');
+      S.ui.posGps = { lat: p.lat, lon: p.lon, t: Date.now(), prec: p.prec }; LS.set('derniereGps', S.ui.posGps);
+      var A = S.ui.autour, r = Moteur.quartierLePlusProche(p.lat, p.lon, quartiers());
+      if (!discret || forcerGps || positionGps()) {
+        A.lat = p.lat; A.lon = p.lon; A.src = 'gps'; A.prec = p.prec; A.t = Date.now();
+        A.label = r ? 'ma position (près ' + (/^[aeiouyéèàâîôûAEIOUYÉÈÀÂÎÔÛ]/.test(r.quartier.quartier) ? 'd\'' : 'de ') + r.quartier.quartier + ')' : 'ma position';
+        LS.set('autour', A);
+      }
+      rendreSiPossible();
+      alerteProximite(declencheur === 'ouverture' || !discret);
+      if (!discret && p.prec > 150) toast('Position imprécise (± ' + p.prec + ' m). Activez la « localisation précise » du téléphone, ou sortez à découvert.');
       else if (!discret && r && r.km > 8) toast('Vous semblez hors d\'Abidjan. Quartier le plus proche : ' + r.quartier.quartier + '.');
-    }
-    id = navigator.geolocation.watchPosition(function (p) {
-      if (!best || precisionDe(p) < precisionDe(best)) best = p;
-      if (precisionDe(best) <= 25) terminer();
-    }, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-    minuteur = setTimeout(terminer, 12000);
+    }, function () {
+      S.ui.localisation = false; if (S.ui.tab === 'autour') rendreSiPossible();
+      if (!discret) toast('Position indisponible. Autorisez la localisation ou choisissez un quartier.');
+    });
   }
-  // pendant que « Autour de moi » est affiché (position GPS), la position est rafraîchie chaque minute
-  setInterval(function () {
-    if (S.ui.tab === 'autour' && !document.hidden && positionGps() && S.ui.autour.lat !== null && !S.ui.localisation) localiser(true);
-  }, 60000);
+  // « Par ma position » : la dernière position connue du téléphone sert tout de suite (résultats immédiats)
+  function positionConnue() {
+    var g = S.ui.posGps, A = S.ui.autour; if (!g) return;
+    var r = Moteur.quartierLePlusProche(g.lat, g.lon, quartiers());
+    A.lat = g.lat; A.lon = g.lon; A.src = 'gps'; A.prec = g.prec;
+    A.label = r ? 'ma position (près ' + (/^[aeiouyéèàâîôûAEIOUYÉÈÀÂÎÔÛ]/.test(r.quartier.quartier) ? 'd\'' : 'de ') + r.quartier.quartier + ')' : 'ma position';
+    LS.set('autour', A);
+  }
+  // recalcul périodique, quel que soit l'onglet (application au premier plan)
+  setInterval(function () { if (!document.hidden) localiser(true, 'periodique'); }, PERIODE_GPS_MIN * 60000);
+  // 3.25.14 : pharmacie ouverte à proximité signalée à chaque rafraîchissement ou réouverture (et dès qu'une nouvelle apparaît),
+  // utile dans un quartier mal connu ; « Non » la masque pour la journée
+  function alerteProximite(forcer) {
+    var el = $('alerteProche');
+    var plan = S.plan.filter(function (a) { return a.date === aujourdhui(); }), ph = pret() ? pharmacieProche(plan) : null;
+    if (!ph) { if (el) el.hidden = true; return; }
+    if (!forcer && S.ui.derniereAlerte === ph.c.code) return;
+    S.ui.derniereAlerte = ph.c.code;
+    if (S.ui.tab === 'jour' && jourAffiche() === aujourdhui()) return;   // Journée l'affiche déjà en tête
+    if (!el) { el = document.createElement('div'); el.id = 'alerteProche'; el.className = 'alerte-proche'; document.body.appendChild(el); }
+    el.innerHTML = '<div class="bandeau-proche t-pharma">' + pastilleType(ph.c.prat, true) + '<p><b>' + esc(nomSansType(ph.c.prat.nom)) + '</b> est à <b>' + metres(ph.d) + '</b>' +
+      ', ouverte jusqu\'à ' + minutesVersHeure(ph.c.fin) + ' (' + esc(vuDepuis(ph.c.prat.derniere)) + '). Y aller ?</p>' +
+      '<div class="rangee"><button class="bouton" type="button" data-a="pharmaNon" data-v="' + esc(ph.c.code) + '">Non</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="pharmaOui" data-v="' + esc(ph.c.cle) + '">Y aller</button></div></div>';
+    el.hidden = false;
+  }
   // 3.25.9 : une mesure GPS fraîche et précise (meilleure lecture sur 12 s au plus, arrêt dès ± 25 m)
   function mesurePrecise(ok, ko) {
     if (!navigator.geolocation) { if (ko) ko(); return; }
@@ -4682,11 +4707,12 @@
   // position issue du GPS (et non d'un quartier choisi) : à recalculer à chaque ouverture
   // 3.25.9 : rayons proposés autour de moi
   var RAYONS = [0.5, 2, 5, 10];
-  if (RAYONS.indexOf(+S.ui.autour.rayon) < 0) { S.ui.autour.rayon = +S.ui.autour.rayon > 10 ? 10 : 2; LS.set('autour', S.ui.autour); }
+  // 3.25.14 : 0,5 km par défaut (une fois pour tous)
+  if (!LS.get('rayon05', false) || RAYONS.indexOf(+S.ui.autour.rayon) < 0) { S.ui.autour.rayon = 0.5; LS.set('autour', S.ui.autour); LS.set('rayon05', true); }
+  // dernière position connue du téléphone (mémoire), utilisée tout de suite au démarrage
+  if (!S.ui.posGps) { var dg = LS.get('derniereGps', null); if (dg && isFinite(dg.lat)) S.ui.posGps = dg; }
   function positionGps() { var A = S.ui.autour; return A.src === 'gps' || (!A.src && /^ma position/.test(A.label || '')) || A.lat === null; }
-  function relocaliserSiBesoin() {
-    if (S.ui.tab === 'autour' && positionGps() && !S.ui.localisation) localiser();
-  }
+  function relocaliserSiBesoin(declencheur) { if (!S.ui.localisation) localiser(true, declencheur); }
 
   function chargerDemo(force) {
     if (pret() && !S.config.demo && force !== true) {
@@ -4869,12 +4895,14 @@
       var n = arret(a.uid); toast(a.nom + (el.dataset.ajout ? ' ajouté' : ' ramené') + ' maintenant (' + (n ? n.heure : a.avance) + ') ; les visites suivantes sont recalculées.', 4500);
     },
     pharmaOui: function (el) {
+      if ($('alerteProche')) $('alerteProche').hidden = true;
       var c = Moteur.creneauParCle(ctx(), el.dataset.v), t = aujourdhui(); if (!c) return;
       if (!ajouterArret(c, t)) { rendre(); return; }
       var a = S.plan.filter(function (x) { return x.date === t && x.code === c.code; })[0];
       ACTIONS.procheOui({ dataset: { uid: a.uid, ajout: '1' } });
     },
     pharmaNon: function (el) {
+      if ($('alerteProche')) $('alerteProche').hidden = true;
       var r = LS.get('refusPharmacies', {}); if (r.d !== aujourdhui()) r = { d: aujourdhui(), codes: {} };
       r.codes[el.dataset.v] = true; LS.set('refusPharmacies', r); rendre();
     },
@@ -4913,7 +4941,7 @@
       if (el.dataset.v === 'position') {
         S.ui.feuille = null;
         Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null }); LS.set('autour', S.ui.autour);
-        S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); ACTIONS.localiser();
+        S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true);
         return;
       }
       S.ui.feuille = { type: 'ajouterCommunes', titre: 'Communes du ' + dateCourte(j), pleine: true }; rendre();
@@ -5198,8 +5226,8 @@
       S.ui.rechercheAutour = ''; S.ui.rechAutourLibre = '';
       Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null });
       LS.set('autour', S.ui.autour);
-      S.ui.tab = 'autour'; S.ui.pharmaciesProches = type; rendre(); window.scrollTo(0, 0);
-      localiser();
+      S.ui.tab = 'autour'; S.ui.pharmaciesProches = type; positionConnue(); rendre(); window.scrollTo(0, 0);
+      localiser(true, 'position', true);
     },
     crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); },
     crRemplacer: function (el) {
@@ -5635,10 +5663,10 @@
   window.addEventListener('offline', function () { S.ui.sync = 'horsligne'; afficherEntete(); });
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.ui.installEvt = e; if (S.ui.tab === 'reglages') rendre(); });
   // 3.25.7 : à chaque ouverture (ou rafraîchissement) de l'application sur « Autour de moi », la position est recalculée
-  setTimeout(relocaliserSiBesoin, 0);
+  setTimeout(function () { relocaliserSiBesoin('ouverture'); }, 0);
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') return;
-    relocaliserSiBesoin();
+    relocaliserSiBesoin('ouverture');
     var age = S.data && S.data.syncedAt ? Date.now() - new Date(S.data.syncedAt).getTime() : Infinity;
     if (enAttente() || age > 10 * 60 * 1000) synchroniser(true);
     else rafraichirEquipe().then(function (ok) { if (ok) rendreSiPossible(); });
