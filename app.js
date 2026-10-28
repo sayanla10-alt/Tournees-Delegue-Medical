@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.19';
+  var APP_VERSION = '3.25.20';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
-  var JOURNAL = [     ['3.25.18', ['Onglet Contacts renommé Répertoire']],
+  var JOURNAL = [
+    ['3.25.20', ['Journée, Autour de moi : critères et filtres uniformisés avec l\'onglet Répertoire']],
+    ['3.25.18', ['Onglet Contacts renommé Répertoire']],
     ['3.25.16', ['+ Médecin / + Pharmacie : « Selon mes filtres » reprend toujours les filtres de l\'onglet Rechercher, communes comprises']],
     ['3.25.15', ['Autour de moi à 0,5 km : seulement les présents maintenant',
       'Compte rendu : après chaque réponse, la question suivante reste au milieu de l\'écran',
@@ -318,7 +320,7 @@
     LS.set('defauts220', true);
   }
   // Contacts et Autour ont chacun leur propre jeu de filtres, conservé jusqu'à modification
-  function cleFiltres() { return S.ui.tab === 'autour' ? 'filtresAutour' : 'filtres'; }
+  function cleFiltres() { return 'filtres'; }
   function filtresCour() { return S.ui[cleFiltres()]; }
   function rechercheCour() { return S.ui.tab === 'autour' ? S.ui.rechercheAutour : S.ui.recherche; }
   function majFiltres(f) { S.ui[cleFiltres()] = f; LS.set(cleFiltres(), f); S.ui.limite = 40; }
@@ -484,8 +486,8 @@
   // 3.25.15 : + Médecin / + Pharmacie (Journée) : toujours les filtres de l'onglet Recherche, type imposé
   function filtresRechercheType(type) { return Object.assign(JSON.parse(JSON.stringify(S.ui.filtres)), { type: type }); }
   function filtreAjout() {
-    if (!S.ui.typeAjout) return filtreCibles();
-    var ok = ensemble(filtrerPraticiens(filtresRechercheType(S.ui.typeAjout), '').map(function (p) { return p.code; }));
+    var f = S.ui.typeAjout ? filtresRechercheType(S.ui.typeAjout) : S.ui.filtres;
+    var ok = ensemble(filtrerPraticiens(f, '').map(function (p) { return p.code; }));
     return function (p) { return !!ok[p.code]; };
   }
   function filtreCibles() {
@@ -3979,7 +3981,7 @@
   FEUILLES.ajouterTournee = function (f) {
     var rech = '';   // 3.25.3 : la recherche se fait dans la liste « Selon mes filtres »
     var t = S.ui.typeAjout, qui = t === 'Médecin' ? 'Médecins' : t === 'Pharmacie' ? 'Pharmacies' : 'Praticiens';
-    var filtres = t ? libelleFiltresRecherche(t) : libelleCommunes(communesDuJour(S.ui.dateAjout || S.ui.jour)) + ((S.params.specialites || []).length ? ' · ' + libelleListe(S.params.specialites, '') : '');
+    var filtres = libelleFiltresRecherche(t);
     return rech + '<div class="choix-ajout">' + [['position', 'cible', 'Par ma position', qui + ' présents près de vous'],
       ['communes', 'filtre', 'Selon mes filtres', filtres]].map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
@@ -3992,7 +3994,10 @@
     var l = ['communes', 'specialites', 'potentiels', 'visite', 'conv', 'equipe'].filter(function (k) { return g[k]; }).map(function (k) { return libelleListe(g[k], ''); });
     return l.length ? l.join(' · ') : 'Aucun filtre dans Rechercher : tous';
   }
-  function communesAjout(d) { return S.ui.typeAjout ? (S.ui.filtres.communes || []).slice() : communesDuJour(d); }
+  function communesAjout(d) {
+    var c = (S.ui.filtres.communes || []).slice();
+    return c.length ? c : communesDuJour(d);
+  }
   // communes du jour : celles de la planification (par jour si réglé), sinon celles des visites déjà prévues
   function communesDuJour(d) {
     var l = communesPour(d) || [];
@@ -4972,6 +4977,8 @@
       S.ui.feuille = { type: 'exporter', titre: 'Envoyer par WhatsApp', portee: l.length > 1 ? 'semaine' : 'jour' }; rendre();
     },
     ajouterTournee: function (el) {
+      S.ui.filtresAutour = JSON.parse(JSON.stringify(S.ui.filtres));
+      LS.set('filtresAutour', S.ui.filtresAutour);
       S.ui.dateAjout = (el && el.dataset && el.dataset.d) || S.ui.jour; S.ui.typeAjout = null;
       S.ui.feuille = { type: 'ajouterTournee', titre: S.ui.tab === 'jour' ? 'Autour de moi, ' + dateCourte(S.ui.dateAjout) : 'Ajouter au ' + dateCourte(S.ui.dateAjout) }; rendre();
     },
@@ -4980,6 +4987,8 @@
       if (el.dataset.v === 'position' && S.ui.typeAjout) { S.ui.feuille = null; ACTIONS.ajouterProches({ dataset: { v: S.ui.typeAjout, d: j, src: 'position' } }); return; }
       if (el.dataset.v === 'position') {
         S.ui.feuille = null;
+        S.ui.filtresAutour = JSON.parse(JSON.stringify(S.ui.filtres));
+        LS.set('filtresAutour', S.ui.filtresAutour);
         Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null }); LS.set('autour', S.ui.autour);
         S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true);
         return;
