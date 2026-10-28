@@ -71,8 +71,8 @@ var CHAMPS_PHARMACIES = [
   ['prochaine', 'ProchaineEtape'], ['source', 'Source']
 ];
 var HORAIRES_PHARMACIE = ['08:00-12:30', '15:00-20:00'];
-var ACTIVITES_DEFAUT = ['Routine', 'Présentation produit', 'EPU', 'Échantillons', 'Réunion', 'Staff', 'Déjeuner', 'Garde', 'Cadeaux', 'Dépistage', 'Autre'];
-var ACTIVITES_PHARMACIE_DEFAUT = ['Routine', 'Stocks', 'Commande', 'PLV', 'Formation', 'Échantillons', 'Animation', 'Retour ou échange', 'Autre'];
+var ACTIVITES_DEFAUT = ['Routine', 'Présentation produit', 'Échantillons', 'Cadeaux', 'EPU', 'Staff', 'Réunion', 'Déjeuner', 'Garde', 'Dépistage', 'Autre'];
+var ACTIVITES_PHARMACIE_DEFAUT = ['Routine', 'Présentation produit', 'Échantillons', 'Cadeaux', 'Stocks', 'Commande', 'PLV', 'Formation', 'Animation', 'Retour ou échange', 'Autre'];
 // anciens libellés, remplacés automatiquement (base et historique)
 var ACTIVITES_RENOMMEES = { 'Visite de routine (rappel)': 'Routine', 'Réunion / staff': 'Réunion', 'Remise d\'échantillons': 'Échantillons',
   'Autre activité': 'Autre', 'Vérification des stocks': 'Stocks', 'Prise de commande': 'Commande', 'Mise en avant / PLV': 'PLV',
