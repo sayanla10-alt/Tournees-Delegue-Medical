@@ -18,6 +18,7 @@
    ============================================================================= */
 
 var GEO_FEUILLE_PHARMACIES = 'Pharmacies';
+var GEO_FEUILLE_PRESENCES = 'Presences';
 var GEO_FEUILLE_QUARTIERS = 'Quartiers';
 var CLE_GOOGLE_MAPS_DEFAUT = 'AIzaSyC63aSjjzFZMJsWdoYPjVJV9TB08P53_nk'; // Renseigné pour stone-ward-375014 (surchargé par Script Properties si présent)
 
@@ -385,6 +386,127 @@ function executerLotGeocodagePharmacies_(limiteMax) {
                       : 'Aucune pharmacie à compléter : toutes ont un GPS et un quartier.';
     Logger.log(msg);
     try { SpreadsheetApp.getUi().alert('Géolocalisation des pharmacies', msg, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
+    return msg;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ---------------------------------------------------------------- Traitement de la feuille Presences (centres de santé)
+function testerGeocodage5Presences() { return executerLotGeocodagePresences_(5); }
+function completerGeolocPresences() { return executerLotGeocodagePresences_(30); }
+function completerGeolocToutesPresences() { return executerLotGeocodagePresences_(200); }
+
+function executerLotGeocodagePresences_(limiteMax) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var ss = SpreadsheetApp.getActive();
+    var sh = ss.getSheetByName(GEO_FEUILLE_PRESENCES) || ss.getSheetByName('Présences');
+    if (!sh || sh.getLastRow() < 2) return 'Feuille Presences absente ou vide.';
+
+    var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normGeo_);
+    function col(nomCol) { return ent.indexOf(normGeo_(nomCol)); }
+
+    var cLieu = col('Lieu/Etablissement');
+    if (cLieu < 0) cLieu = col('Lieu');
+    if (cLieu < 0) cLieu = col('Etablissement');
+    if (cLieu < 0) cLieu = 3; // Colonne D par défaut
+
+    var cQuart = col('Quartier');
+    var cCom = col('Commune');
+    var cNom = col('Nom');
+    var cCode = col('CodeContact');
+
+    var cLat = col('Latitude');
+    if (cLat < 0) cLat = col('Lattitude');
+
+    var cLon = col('Longitude');
+
+    // Si les colonnes Latitude / Longitude n'existent pas encore, les créer
+    if (cLat < 0 || cLon < 0) {
+      var derniereCol = sh.getLastColumn();
+      if (cLat < 0) {
+        cLat = derniereCol;
+        sh.getRange(1, cLat + 1).setValue('Latitude');
+        derniereCol++;
+      }
+      if (cLon < 0) {
+        cLon = derniereCol;
+        sh.getRange(1, cLon + 1).setValue('Longitude');
+      }
+    }
+
+    var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+    var ref = chargerRefQuartiersGeo_();
+    var cacheEtab = {}; // Cache pour mutualiser les établissements (ex. plusieurs médecins au CHU de Treichville)
+
+    // Pré-remplir le cache à partir des lignes qui possèdent déjà des coordonnées
+    for (var k = 0; k < data.length; k++) {
+      var lk = data[k];
+      var nomEtab = String(lk[cLieu] || '').trim();
+      var latVal = parseFloat(String(lk[cLat] || '').replace(',', '.'));
+      var lonVal = parseFloat(String(lk[cLon] || '').replace(',', '.'));
+      if (nomEtab && !isNaN(latVal) && !isNaN(lonVal)) {
+        var cle = normGeo_(nomEtab);
+        if (!cacheEtab[cle]) {
+          cacheEtab[cle] = {
+            lat: latVal,
+            lon: lonVal,
+            quartier: cQuart >= 0 ? String(lk[cQuart] || '').trim() : '',
+            commune: cCom >= 0 ? String(lk[cCom] || '').trim() : '',
+            titre: nomEtab
+          };
+        }
+      }
+    }
+
+    var traites = 0, trouves = 0, details = [];
+
+    for (var i = 0; i < data.length && traites < limiteMax; i++) {
+      var r = data[i];
+      var etab = String(r[cLieu] || '').trim();
+      if (!etab) continue;
+
+      var latStr = String(r[cLat] || '').trim();
+      var lonStr = String(r[cLon] || '').trim();
+      var manqueGps = !latStr || latStr === 'NL' || !lonStr || lonStr === 'NL' || isNaN(parseFloat(latStr.replace(',', '.')));
+
+      if (!manqueGps) continue;
+
+      traites++;
+      var cleEtab = normGeo_(etab);
+      var q = cQuart >= 0 ? String(r[cQuart] || '').trim() : '';
+      var com = cCom >= 0 ? String(r[cCom] || '').trim() : '';
+      var g = cacheEtab[cleEtab];
+      var provenance = 'Cache établissement';
+
+      if (!g) {
+        g = geocoderLieu(etab, q, com, '', '', ref);
+        provenance = 'Google Maps API';
+        if (g) {
+          cacheEtab[cleEtab] = g;
+        }
+      }
+
+      var ident = etab + (q ? ' (' + q + ')' : '');
+      if (g) {
+        trouves++;
+        sh.getRange(i + 2, cLat + 1).setValue(g.lat);
+        sh.getRange(i + 2, cLon + 1).setValue(g.lon);
+        if ((!q || q === 'NL') && g.quartier && cQuart >= 0) {
+          sh.getRange(i + 2, cQuart + 1).setValue(g.quartier);
+        }
+        details.push('✓ ' + ident + ' → ' + g.titre + ' | ' + g.lat + ', ' + g.lon + ' [' + provenance + ']');
+      } else {
+        details.push('✗ ' + ident + ' → non trouvé');
+      }
+    }
+
+    var msg = traites ? (trouves + ' / ' + traites + ' lieux de présence géolocalisés :\n\n' + details.join('\n'))
+                      : 'Tous les lieux de présence ont déjà leurs coordonnées GPS (Latitude / Longitude).';
+    Logger.log(msg);
+    try { SpreadsheetApp.getUi().alert('Géolocalisation des lieux de présence', msg, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
     return msg;
   } finally {
     lock.releaseLock();
