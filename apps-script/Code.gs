@@ -951,14 +951,15 @@ function enregistrerFiche(b) {
     // --- Praticiens : mise à jour de la ligne existante ou ajout avec un nouveau code
     var entP = shP.getRange(1, 1, 1, shP.getLastColumn()).getValues()[0].map(normaliser);
     var posP = CHAMPS_PRATICIENS.map(function (c) { return entP.indexOf(normaliser(c[1])); });
-    var cCode = posP[indexChamp(CHAMPS_PRATICIENS, 'code')];
+    var cCode = posP[indexChamp(CHAMPS_PRATICIENS, 'code')], cNom = posP[indexChamp(CHAMPS_PRATICIENS, 'nom')];
     var nP = Math.max(shP.getLastRow() - 1, 0);
     var dataP = nP ? shP.getRange(2, 1, nP, entP.length).getValues() : [];
-    var code = String(p.code || ''), ligne = -1, max = { MED: 0, PHA: 0 };
+    var code = String(p.code || ''), ligne = -1, max = { MED: 0, PHA: 0 }, nomNorm = normaliser(nom);
     dataP.forEach(function (l, i) {
       var c = String(l[cCode]), m = c.match(/^(MED|PHA)-(\d+)$/);
       if (m && +m[2] > max[m[1]]) max[m[1]] = +m[2];
       if (code && c === code) ligne = i;
+      else if (ligne < 0 && (!code || /^TMP-/.test(code)) && cNom >= 0 && normaliser(l[cNom]) === nomNorm) { ligne = i; code = c; }
     });
     if (ligne < 0) {
       var pre = type === 'Pharmacie' ? 'PHA' : 'MED';
@@ -990,7 +991,7 @@ function enregistrerFiche(b) {
     var mesLignes = [], maxId = 0, anciensCode = String(p.code || '');
     dataR.forEach(function (l, i) {
       if (+l[rId] > maxId) maxId = +l[rId];
-      if (anciensCode && String(l[rCode]) === anciensCode) mesLignes.push(i);
+      if ((anciensCode && String(l[rCode]) === anciensCode) || (code && String(l[rCode]) === code)) mesLignes.push(i);
     });
     var ids = {}, coords = {};
     var lignesR = lieux.map(function (x) {
@@ -1028,10 +1029,14 @@ function enregistrerPharmacie(ss, p, lieu) {
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   var pos = CHAMPS_PHARMACIES.map(function (c) { return ent.indexOf(normaliser(c[1])); });
   var n = Math.max(sh.getLastRow() - 1, 0), data = n ? sh.getRange(2, 1, n, ent.length).getValues() : [];
-  var cCode = pos[indexChamp(CHAMPS_PHARMACIES, 'code')], code = String(p.code || ''), ligne = -1, max = 1000;
+  var cCode = pos[indexChamp(CHAMPS_PHARMACIES, 'code')], cNom = pos[indexChamp(CHAMPS_PHARMACIES, 'nom')], cQuart = pos[indexChamp(CHAMPS_PHARMACIES, 'quartier')];
+  var code = String(p.code || ''), ligne = -1, max = 1000, nomNorm = normaliser(p.nom), quartNorm = normaliser(lieu.quartier);
   data.forEach(function (l, i) {
     var m = String(l[cCode]).match(/^PHA-(\d+)$/); if (m && +m[1] > max) max = +m[1];
     if (code && String(l[cCode]) === code) ligne = i;
+    else if (ligne < 0 && (!code || /^TMP-/.test(code)) && cNom >= 0 && normaliser(l[cNom]) === nomNorm && (!quartNorm || cQuart < 0 || !l[cQuart] || normaliser(l[cQuart]) === quartNorm)) {
+      ligne = i; code = String(l[cCode]);
+    }
   });
   if (ligne < 0) code = 'PHA-' + (max + 1);
   var q = {};

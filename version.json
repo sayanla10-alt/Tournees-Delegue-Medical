@@ -1,9 +1,8 @@
 {
-  "version": "3.25.22",
-  "date": "2026-10-28",
-  "notes": [
-    "Planifier : bouton « Accepter » sous Ajouter manuellement et Recalculer automatiquement",
-    "Répertoire : nouvelle phrase d'introduction",
-    "Autour de moi : critères et filtres uniformisés avec l'onglet Répertoire"
-  ]
+    "date":  "2026-10-28",
+    "version":  "3.25.23",
+    "notes":  [
+                  "Planifier : défilement automatique vers Nouvelle sélection après un recalcul et boutons raccourcis",
+                  "Répertoire : position GPS dès la 1re étape avec enregistrement immédiat, parcours adapté Médecin / Pharmacie et détection anti-doublons en direct"
+              ]
 }
