@@ -9,10 +9,10 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.16';
+  var APP_VERSION = '3.25.17';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
-  var JOURNAL = [
+  var JOURNAL = [     ['3.25.17', ['Onglet Recherche renommé Contacts']],
     ['3.25.16', ['+ Médecin / + Pharmacie : « Selon mes filtres » reprend toujours les filtres de l\'onglet Rechercher, communes comprises']],
     ['3.25.15', ['Autour de moi à 0,5 km : seulement les présents maintenant',
       'Compte rendu : après chaque réponse, la question suivante reste au milieu de l\'écran',
@@ -3296,12 +3296,12 @@
     // 3.19.0 : les critères s'ouvrent sur une page à part (même onglet) ; dès les résultats affichés, ils disparaissent
     // au profit d'une phrase (nombre de praticiens et critères appliqués) et de « Tout effacer »
     if (S.ui.rechOuverte) {
-      return '<div class="page-entree"><button type="button" class="retour" data-a="rechFermer">' + icone('chevron') + 'Recherche</button>' +
+      return '<div class="page-entree"><button type="button" class="retour" data-a="rechFermer">' + icone('chevron') + 'Contacts</button>' +
         '<h2 class="titre-vue">Critères de recherche</h2><p class="sous-titre">Une question à la fois ; les résultats s\'affichent à la fin.</p>' +
         '<section class="bloc">' + barreFiltres(f, S.ui.recherche, true) + '</section>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (liste.length ? 'les ' + liste.length + ' résultat' + (liste.length > 1 ? 's' : '') : 'les résultats') + '</button></div>';
     }
-    var h = '<div class="tete-vue"><h2 class="titre-vue">Recherche</h2>' +
+    var h = '<div class="tete-vue"><h2 class="titre-vue">Contacts</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Ajouter</button></div>' +
       '<p class="sous-titre">Médecins et pharmacies : recherche, fiche, jours de présence et contact.</p>';
     h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
