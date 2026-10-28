@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.30';
+  var APP_VERSION = '3.25.31';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.31', ['Communes : zones géographiques repliables en accordéon compact avec badges de sélection et dépliage automatique à la recherche']],
     ['3.25.30', ['Planifier : critères verrouillés strictement sur 2 lignes fixes en grille responsive']],
     ['3.25.29', ['Nouveau contact (Médecin) : sélection d\'un établissement connu avec auto-complétion instantanée du quartier, de la commune et du GPS',
       'Nouveau contact (Pharmacie) : saisie fluide (nom en 1er, localisation GPS / quartier déduite)',
@@ -626,21 +627,43 @@
     if (o.aide) h += '<p class="discret groupe-aide">' + esc(o.aide) + '</p>';
     if (o.recherche) h += '<div class="recherche petite">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="' + o.id + '" placeholder="Rechercher…" value="' +
       esc((f.q && f.q[o.id]) || '') + '" aria-label="Rechercher dans ' + esc(o.titre) + '"></div>';
-    if (o.sections && o.accordeon) {
-      // 3.25.13 : sections repliables (une seule ouverte) : la dernière ouverte, sinon celle de la valeur choisie
-      var memo = LS.get('secOuverte', {}), ouv = f.secOuverte !== undefined ? f.secOuverte : memo[o.accordeon];
-      if (ouv === undefined || ouv === null) ouv = ((o.sections.filter(function (sec) { return sec.options.some(function (op) { return op.v === val; }); })[0]) || {}).titre || '';
-      o.sections.forEach(function (sec, k) {
-        var ferme = ouv !== sec.titre;
-        h += '<div class="section-choix"><button type="button" class="aire-titre aire-bascule" data-a="sectionBascule" data-acc="' + esc(o.accordeon) + '" data-v="' + esc(sec.titre) + '" aria-expanded="' + !ferme + '"><span>' + esc(sec.titre) + '</span>' +
-          '<small>' + sec.options.length + '</small>' + icone('chevron') + '</button>' +
-          '<div class="puces" data-ferme="' + (ferme ? 1 : 0) + '"' + (ferme && !q ? ' hidden' : '') + '>' + sec.options.map(puce).join('') + '</div></div>';
-      });
-    } else if (o.sections) {
+    if (o.sections) {
+      // 3.25.31 : sections repliables en accordéon (zones géographiques, quartiers…)
+      var accCle = o.accordeon || o.id || 'sections';
+      var memo = LS.get('secOuverte', {});
+      var ouv = (f.secOuvertes && f.secOuvertes[accCle] !== undefined)
+        ? f.secOuvertes[accCle]
+        : (f.secOuverte !== undefined && accCle === 'l' ? f.secOuverte : undefined);
+      if (ouv === undefined || ouv === null) {
+        if (o.multiple) {
+          var secAvecSel = o.sections.filter(function (sec) {
+            return sec.options.some(function (op) { return sel && sel[op.v]; });
+          })[0];
+          ouv = secAvecSel ? secAvecSel.titre : (memo[accCle] !== undefined ? memo[accCle] : (o.sections[0] ? o.sections[0].titre : ''));
+        } else {
+          var secAvecVal = o.sections.filter(function (sec) {
+            return sec.options.some(function (op) { return op.v === val; });
+          })[0];
+          ouv = secAvecVal ? secAvecVal.titre : (memo[accCle] !== undefined ? memo[accCle] : (o.sections[0] ? o.sections[0].titre : ''));
+        }
+        f.secOuvertes = f.secOuvertes || {};
+        f.secOuvertes[accCle] = ouv;
+      }
       o.sections.forEach(function (sec) {
-        h += '<div class="section-choix"><div class="sous-titre-zone"><span>' + esc(sec.titre) + '</span>' +
-          (o.multiple ? '<button type="button" class="lien-action" data-a="sectionToute" data-chemin="' + o.chemin + '">Tous</button>' : '') + '</div>' +
-          '<div class="puces">' + sec.options.map(puce).join('') + '</div></div>';
+        var nbSel = o.multiple ? sec.options.filter(function (op) { return sel && sel[op.v]; }).length : (sec.options.some(function (op) { return op.v === val; }) ? 1 : 0);
+        var nbTot = sec.options.length;
+        var aMatch = !q || sec.options.some(function (op) { return normaliser(op.lib).indexOf(q) >= 0; });
+        var ferme = q ? !aMatch : (ouv !== sec.titre);
+        var ariaExp = q ? aMatch : !ferme;
+        h += '<div class="section-choix' + (ariaExp ? ' ouverte' : '') + (nbSel ? ' a-selection' : '') + '"' + (q && !aMatch ? ' hidden' : '') + '>' +
+          '<div class="section-choix-tete">' +
+          '<button type="button" class="aire-titre aire-bascule" data-a="sectionBascule" data-acc="' + esc(accCle) + '" data-v="' + esc(sec.titre) + '" aria-expanded="' + ariaExp + '">' +
+          '<span class="sec-titre">' + esc(sec.titre) + '</span>' +
+          (nbSel ? '<span class="compteur">' + nbSel + '</span>' : '') +
+          '<small>' + nbTot + '</small>' + icone('chevron') + '</button>' +
+          (o.multiple ? '<button type="button" class="lien-action section-tous" data-a="sectionToute" data-chemin="' + o.chemin + '" title="Tout sélectionner ou effacer dans ' + esc(sec.titre) + '">Tous</button>' : '') +
+          '</div>' +
+          '<div class="puces" data-ferme="' + (ferme ? 1 : 0) + '"' + (ferme && !q ? ' hidden' : '') + '>' + sec.options.map(puce).join('') + '</div></div>';
       });
     } else {
       var puceTous = o.multiple && totalOpts > 1 && !q
@@ -4275,7 +4298,7 @@
 
 
   FEUILLES.communes = function (f) {
-    var h = groupeChoix(f, { id: 'communes', titre: 'Communes', chemin: 'sel', multiple: true, sections: sectionsCommunes(), recherche: true,
+    var h = groupeChoix(f, { id: 'communes', titre: 'Communes', chemin: 'sel', multiple: true, sections: sectionsCommunes(), recherche: true, accordeon: 'communes',
       aide: f.cle === 'tout' ? 'Aucune sélection = toutes les communes.' : 'Aucune sélection = les communes choisies pour la semaine.' });
     return { corps: h, pied: '<button class="bouton" type="button" data-a="communesToutes">Tous</button><button class="bouton" type="button" data-a="communesAucune">Effacer</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="communesOk">' + (f.sel.length ? 'Valider · ' + f.sel.length + ' commune' + (f.sel.length > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
@@ -4633,7 +4656,7 @@
         groupeChoix(f, { id: 'spec', titre: 'Spécialités', chemin: 'brouillon.specialites', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes',
           options: specialitesListe().map(function (x) { return { v: x.nom, lib: x.nom, n: x.n }; }),
           aide: b.type === 'tous' ? 'S\'appliquent aux médecins seulement ; les pharmacies restent affichées.' : '' }),
-      com: groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes', sections: sectionsCommunes(),
+      com: groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes', sections: sectionsCommunes(), accordeon: 'com',
         aide: 'Lieux d\'exercice du praticien. Pour un établissement ou un quartier, utilisez la recherche de la liste.' }),
       valeur: groupeChoix(f, { id: 'pot', titre: 'Potentiel de prescription', chemin: 'brouillon.potentiels', multiple: true, tousVide: true,
           options: opt([['A', '★★★', 'fort'], ['B', '★★', 'moyen'], ['C', '★', 'faible']]) }) +
@@ -6301,18 +6324,25 @@
     groupeAucun: function (el) { var c = cheminObjet(el.dataset.chemin); c.o[c.k] = []; rendre(); },
     sectionToute: function (el) {
       var c = cheminObjet(el.dataset.chemin), l = c.o[c.k], vs = [];
+      if (!l) l = c.o[c.k] = [];
       el.closest('.section-choix').querySelectorAll('.puce:not(.puce-tous)').forEach(function (b) { if (b.dataset.v) vs.push(b.dataset.v); });
-      var tous = vs.every(function (v) { return l.indexOf(v) >= 0; });
+      var tous = vs.length > 0 && vs.every(function (v) { return l.indexOf(v) >= 0; });
       vs.forEach(function (v) { var i = l.indexOf(v); if (tous && i >= 0) l.splice(i, 1); if (!tous && i < 0) l.push(v); });
       rendre();
     },
     sectionBascule: function (el) {
-      var f = S.ui.feuille, cle = el.dataset.acc, v = el.dataset.v, memo = LS.get('secOuverte', {});
-      var actuel = f.secOuverte !== undefined ? f.secOuverte : memo[cle];
-      f.secOuverte = actuel === v && el.getAttribute('aria-expanded') === 'true' ? '' : v;
-      memo[cle] = f.secOuverte; LS.set('secOuverte', memo);
+      var f = S.ui.feuille, cle = el.dataset.acc || 'defaut', v = el.dataset.v, memo = LS.get('secOuverte', {});
+      f.secOuvertes = f.secOuvertes || {};
+      var actuel = f.secOuvertes[cle] !== undefined ? f.secOuvertes[cle] : (f.secOuverte !== undefined ? f.secOuverte : memo[cle]);
+      var nouveau = actuel === v && el.getAttribute('aria-expanded') === 'true' ? '' : v;
+      f.secOuvertes[cle] = nouveau;
+      f.secOuverte = nouveau;
+      memo[cle] = nouveau;
+      LS.set('secOuverte', memo);
       rendreFeuille();
-      var b = document.querySelector('.feuille [data-a="sectionBascule"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(v) : v) + '"]'); if (b) b.scrollIntoView({ block: 'nearest' });
+      var b = document.querySelector('.feuille [data-a="sectionBascule"][data-acc="' + (window.CSS && CSS.escape ? CSS.escape(cle) : cle) + '"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(v) : v) + '"]') ||
+              document.querySelector('.feuille [data-a="sectionBascule"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(v) : v) + '"]');
+      if (b) b.scrollIntoView({ block: 'nearest' });
     },
     basculeGroupe: function (el) { var f = S.ui.feuille; f.ouverts = f.ouverts || {}; f.ouverts[el.dataset.v] = !f.ouverts[el.dataset.v]; rendre(); },
     filtreRapide: function (el) {
@@ -6642,7 +6672,21 @@
         g.querySelectorAll('.puce').forEach(function (b) { b.hidden = !!q && b.dataset.lib && b.dataset.lib.indexOf(q) < 0; });
         g.querySelectorAll('.puces[data-ferme]').forEach(function (p) { p.hidden = !q && p.dataset.ferme === '1'; });
         var zAutres = g.querySelector('#autresSpecs'); if (zAutres && fe) zAutres.hidden = !q && !fe.autresOuvert;
-        g.querySelectorAll('.section-choix').forEach(function (sec) { sec.hidden = !sec.querySelector('.puce:not([hidden])'); });
+        g.querySelectorAll('.section-choix').forEach(function (sec) {
+          var puces = sec.querySelector('.puces');
+          var aPuce = !q || !!sec.querySelector('.puce:not([hidden])');
+          sec.hidden = !!q && !aPuce;
+          var btn = sec.querySelector('.aire-bascule');
+          if (btn) {
+            var exp = q ? aPuce : (puces ? puces.dataset.ferme !== '1' : true);
+            btn.setAttribute('aria-expanded', String(exp));
+          }
+          if (q) {
+            sec.classList.toggle('ouverte', aPuce);
+          } else if (puces) {
+            sec.classList.toggle('ouverte', puces.dataset.ferme !== '1');
+          }
+        });
       }
     }
     if (f === 'jourDate' && el.value) { allerAuJour(el.value); return; }

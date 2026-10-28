@@ -1,10 +1,7 @@
 {
-  "version": "3.25.30",
+  "version": "3.25.31",
   "date": "2026-10-28",
   "notes": [
-    "Planifier : critères verrouillés strictement sur 2 lignes fixes en grille responsive",
-    "Nouveau contact (Médecin) : auto-complétion instantanée du quartier, de la commune et du GPS dès le choix de l'hôpital",
-    "Nouveau contact (Pharmacie) : saisie fluide (nom en 1er, localisation GPS / quartier déduite)",
-    "Réception délégués : jours et plages cochés par défaut pour enregistrement immédiat sans étape superflue"
+    "Communes : zones géographiques repliables en accordéon compact avec badges de sélection et dépliage automatique à la recherche"
   ]
 }
