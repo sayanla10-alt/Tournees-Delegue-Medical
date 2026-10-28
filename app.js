@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.27';
+  var APP_VERSION = '3.25.28';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.28', ['Planifier : critères d\'en-tête organisés sur 2 lignes fixes (gain d\'espace vertical garanti)',
+      'Répertoire : bouton +Ajouter descendu au même niveau que « Rechercher par critères », largeurs et hauteurs harmonisées',
+      'Programme WhatsApp : retrait des heures de chaque RDV dans le texte partagé',
+      'Position & Distances : rafraîchissement automatique toutes les 5 minutes, à la réouverture et au rafraîchissement',
+      'Précision GPS : détection « Sur place » immédiate sous 35 m et amélioration de la localisation devant les pharmacies']],
     ['3.25.27', ['Planifier : résumé des critères condensé sur 2 lignes (Communes, Praticiens, Spécialités / Potentiel, Rythme, RDV) pour libérer l\'espace',
       'Planifier (Spécialités) : étape 4 allégée (seul le cœur de cible s\'affiche) ; dans « Liste complète », barre de recherche élargie et autres spécialités repliées par défaut',
       'Compte rendu : parcours différencié Médecin (Types de visite médicale) vs Pharmacie (Activités en pharmacie) sans mention croisée',
@@ -1003,6 +1008,7 @@
       S.ui.enCours = false;
       importerAgenda();
       rendreSiPossible();
+      localiser(true, 'sync', true);
       if (S.ui.aPublier && !tentePub && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
     });
   }
@@ -2000,12 +2006,16 @@
     var com = p.mode === 'semaine' && p.parJour ? 'Par jour' : libelleCommunes(p.communes);
     var spec = p.typeCibles === 'pharmacies' ? 'Pharmacies' : (p.specialites && p.specialites.length ? (p.specialites.length === coeurDeCible().length && coeurDeCible().every(function (s) { return p.specialites.indexOf(s) >= 0; }) ? 'Cœur (' + p.specialites.length + ')' : p.specialites.length + ' spéc.') : 'Toutes spéc.');
     var rdvN = rdvProchaines(dates).length + S.imposes.length;
-    return '<div class="defile barre-criteres-plan" role="group" aria-label="Critères de la tournée">' +
-      '<button type="button" class="puce petite" data-a="resumeEditer" data-v="quand">' + icone('calendrier') + '<span>' + esc(per) + '</span></button>' +
-      '<button type="button" class="puce petite" data-a="resumeEditer" data-v="ou">' + icone('carte') + '<span>' + esc(com) + '</span></button>' +
-      '<button type="button" class="puce petite" data-a="resumeEditer" data-v="spec">' + icone('filtre') + '<span>' + esc(spec) + '</span></button>' +
-      '<button type="button" class="puce petite" data-a="resumeEditer" data-v="rythme"><span>' + p.maxJour + '/j · ' + p.delai + 'j</span></button>' +
-      '<button type="button" class="puce petite" data-a="ouvrirRecherche">' + icone('plus') + '<span>' + (rdvN ? rdvN + ' RDV/Prio' : 'RDV / Prio') + '</span></button>' +
+    return '<div class="barre-criteres-plan" role="group" aria-label="Critères de la tournée">' +
+      '<div class="rangee-criteres rangee-criteres-1">' +
+        '<button type="button" class="puce petite" data-a="resumeEditer" data-v="quand">' + icone('calendrier') + '<span>' + esc(per) + '</span></button>' +
+        '<button type="button" class="puce petite" data-a="resumeEditer" data-v="ou">' + icone('carte') + '<span>' + esc(com) + '</span></button>' +
+      '</div>' +
+      '<div class="rangee-criteres rangee-criteres-2">' +
+        '<button type="button" class="puce petite" data-a="resumeEditer" data-v="spec">' + icone('filtre') + '<span>' + esc(spec) + '</span></button>' +
+        '<button type="button" class="puce petite" data-a="resumeEditer" data-v="rythme"><span>' + p.maxJour + '/j · ' + p.delai + 'j</span></button>' +
+        '<button type="button" class="puce petite" data-a="ouvrirRecherche">' + icone('plus') + '<span>' + (rdvN ? rdvN + ' RDV/Prio' : 'RDV / Prio') + '</span></button>' +
+      '</div>' +
     '</div>';
   }
   VUES.semaine = function () {
@@ -3359,7 +3369,11 @@
   }
   function lieuEtSpec(a) { return [estPharmacie(a) ? '' : a.specialite, lieuAffiche(a)].filter(Boolean).join(', '); }
   function nomSansType(nom) { return String(nom || '').replace(/^\s*pharmacie\s+/i, ''); }
-  function metres(km) { return Math.max(10, Math.round(km * 100) * 10) + ' mètres'; }
+  function metres(km) {
+    if (km <= 0.035) return 'sur place (< 35 m)';
+    var m = Math.max(10, Math.round(km * 100) * 10);
+    return m <= 30 ? 'sur place (< 30 m)' : m + ' mètres';
+  }
   function classeType(o) { return estPharmacie(o) ? ' t-pharma' : ' t-med'; }
   function rendreProposition(x, i, date, src, avecDist) {
     var c = x.c, p = c.prat;
@@ -3722,12 +3736,14 @@
         '<section class="bloc">' + barreFiltres(f, S.ui.recherche, true) + '</section>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (liste.length ? 'les ' + liste.length + ' résultat' + (liste.length > 1 ? 's' : '') : 'les résultats') + '</button></div>';
     }
-    var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire</h2>' +
-      '<button class="bouton petit bouton-plein" type="button" data-a="nouvelleFiche">' + icone('plus') + 'Ajouter</button></div>' +
+    var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire</h2></div>' +
       '<p class="sous-titre">Médecins et pharmacies : Répertoire à modifier ou filtrer par critère pour une recherche.</p>';
     h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
-    h += '<button class="bouton bouton-large bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + 'Rechercher par critères</button>';
+    h += '<div class="rangee-criteres-ajouter">' +
+      '<button class="bouton bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + '<span>Rechercher par critères</span></button>' +
+      '<button class="bouton bouton-plein bouton-ajouter-rep" type="button" data-a="nouvelleFiche">' + icone('plus') + '<span>Ajouter</span></button>' +
+      '</div>';
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
     if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri tri-centre"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Réinitialiser les filtres et recommencer</button></div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères. Retirez un filtre.</div>';
@@ -5005,7 +5021,7 @@
       ordre.forEach(function (k, n) {
         var x = parLieu[k];
         lignes.push(''); lignes.push('*' + (n + 1) + '. ' + k + '*' + (x.commune && k.indexOf(x.commune) < 0 ? ' _(' + x.commune + ')_' : ''));
-        x.noms.forEach(function (m) { lignes.push('• ' + (m.heure ? m.heure + '  ' : '') + m.nom); });
+        x.noms.forEach(function (m) { lignes.push('• ' + m.nom); });
       });
       blocs.push(lignes.join('\n'));
     });
@@ -5318,14 +5334,17 @@
     return true;
   }
 
-  // 3.25.14 : la dernière position du téléphone est gardée en mémoire : les recherches s'affichent tout de suite avec elle,
-  // et la position est recalculée en arrière-plan (au rafraîchissement, à la réouverture, puis toutes les PERIODE_GPS_MIN minutes).
+  // 3.25.28 : rafraîchissement toutes les 5 minutes, à la réouverture et au rafraîchissement
   // discret : sans message ; sinon (bouton « Actualiser ») : message et position GPS imposée même si un quartier était choisi
-  var PERIODE_GPS_MIN = 2;
+  var PERIODE_GPS_MIN = 5;
   function localiser(discret, declencheur, forcerGps) {
     if (!navigator.geolocation) { if (!discret) toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
-    if (S.ui.localisation) return;
+    if (S.ui.localisation) {
+      if (S.ui.localisationT && Date.now() - S.ui.localisationT > 10000) S.ui.localisation = false;
+      else return;
+    }
     S.ui.localisation = discret ? 'discret' : true;
+    S.ui.localisationT = Date.now();
     if (!discret) { toast('Recherche de votre position…'); if (S.ui.tab === 'autour') rendre(); }
     mesurePrecise(function (p) {
       S.ui.localisation = false;
@@ -5371,7 +5390,7 @@
       '<button class="bouton bouton-plein" type="button" data-a="pharmaOui" data-v="' + esc(ph.c.cle) + '">Y aller</button></div></div>';
     el.hidden = false;
   }
-  // 3.25.9 : une mesure GPS fraîche et précise (meilleure lecture sur 12 s au plus, arrêt dès ± 25 m)
+  // 3.25.28 : mesure GPS réactive et précise (arrêt dès précision <= 35 m, contrôle rapide en tête)
   function mesurePrecise(ok, ko) {
     if (!navigator.geolocation) { if (ko) ko(); return; }
     var best = null, fini = false, id = null, t = null;
@@ -5380,14 +5399,29 @@
       if (id !== null) navigator.geolocation.clearWatch(id); clearTimeout(t);
       if (best) ok({ lat: best.coords.latitude, lon: best.coords.longitude, prec: Math.round(best.coords.accuracy || 0) }); else if (ko) ko();
     }
+    try {
+      navigator.geolocation.getCurrentPosition(function (p) {
+        if (fini) return;
+        if (!best || precisionDe(p) < precisionDe(best)) best = p;
+        if (precisionDe(best) <= 35) terminer();
+      }, function () {}, { enableHighAccuracy: true, timeout: 3500, maximumAge: 30000 });
+    } catch (e) {}
     id = navigator.geolocation.watchPosition(function (p) {
+      if (fini) return;
       if (!best || precisionDe(p) < precisionDe(best)) best = p;
-      if (precisionDe(best) <= 25) terminer();
-    }, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-    t = setTimeout(terminer, 12000);
+      if (precisionDe(best) <= 35) terminer();
+    }, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+    t = setTimeout(terminer, 8000);
   }
   function precisionDe(p) { var a = p && p.coords && p.coords.accuracy; return a === null || a === undefined || isNaN(a) ? 9999 : a; }
-  function distanceCourte(k) { return k < 1 ? Math.max(10, Math.round(k * 100) * 10) + ' m' : km(k); }
+  function distanceCourte(k) {
+    if (k <= 0.035) return 'Sur place';
+    if (k < 1) {
+      var m = Math.max(10, Math.round(k * 100) * 10);
+      return m <= 30 ? 'Sur place (< 30 m)' : m + ' m';
+    }
+    return km(k);
+  }
   function gpsPrecis() { var g = S.ui.posGps; return !!(g && Date.now() - g.t < 5 * 60000 && g.prec && g.prec <= 60); }
   // 3.25.8 : position actuelle connue : GPS de moins de 15 min, sinon le point choisi dans « Autour de moi »
   function positionActuelle() {
@@ -6694,8 +6728,10 @@
   window.addEventListener('online', function () { synchroniser(true); });
   window.addEventListener('offline', function () { S.ui.sync = 'horsligne'; afficherEntete(); });
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.ui.installEvt = e; if (S.ui.tab === 'reglages') rendre(); });
-  // 3.25.7 : à chaque ouverture (ou rafraîchissement) de l'application sur « Autour de moi », la position est recalculée
+  // 3.25.28 : recalcul de la position et des distances à l'ouverture, réouverture, focus et réveil
   setTimeout(function () { relocaliserSiBesoin('ouverture'); }, 0);
+  window.addEventListener('pageshow', function () { relocaliserSiBesoin('ouverture'); });
+  window.addEventListener('focus', function () { relocaliserSiBesoin('ouverture'); });
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') return;
     relocaliserSiBesoin('ouverture');

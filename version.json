@@ -1,11 +1,11 @@
 {
-  "version": "3.25.27",
+  "version": "3.25.28",
   "date": "2026-10-28",
   "notes": [
-    "Planifier : résumé des critères sur 2 lignes pour libérer de l'espace",
-    "Planifier (Spécialités) : étape 4 allégée, recherche élargie et autres spécialités repliées",
-    "Compte rendu : parcours strictement différencié Médecin vs Pharmacie",
-    "Compte rendu : médicaments présentés 2 par ligne en grille claire",
-    "Compte rendu : prochaine étape avec option +1 j (Demain)"
+    "Planifier : barre des critères organisée sur 2 lignes fixes pour gagner de la place",
+    "Répertoire : bouton +Ajouter aligné et harmonisé au même niveau que Rechercher par critères",
+    "Programme WhatsApp : suppression des heures de chaque RDV dans le message",
+    "Position & Distances : recalcul automatique toutes les 5 minutes, à la réouverture et au rafraîchissement",
+    "Précision GPS : détection « Sur place » sous 35 m et réactivité améliorée devant les officines"
   ]
 }
