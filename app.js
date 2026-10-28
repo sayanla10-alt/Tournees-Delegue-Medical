@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.28';
+  var APP_VERSION = '3.25.29';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.29', ['Nouveau contact (Médecin) : sélection d\'un établissement connu avec auto-complétion instantanée du quartier, de la commune et du GPS',
+      'Nouveau contact (Pharmacie) : saisie fluide (nom en 1er, localisation GPS / quartier déduite)',
+      'Jours & Heures de réception délégués : tous cochés par défaut pour permettre l\'enregistrement direct']],
     ['3.25.28', ['Planifier : critères d\'en-tête organisés sur 2 lignes fixes (gain d\'espace vertical garanti)',
       'Répertoire : bouton +Ajouter descendu au même niveau que « Rechercher par critères », largeurs et hauteurs harmonisées',
       'Programme WhatsApp : retrait des heures de chaque RDV dans le texte partagé',
@@ -4734,11 +4737,24 @@
     }).join('') + '</ul>';
   }
   function lieuVide(estPharma) {
-    return { id: '', lieu: '', quartier: '', jours: [0, 1, 2, 3, 4].map(function () { return { matin: true, soir: !!estPharma }; }),
+    return { id: '', lieu: '', quartier: '', jours: [0, 1, 2, 3, 4].map(function () { return { matin: true, soir: true }; }),
              horaireMatin: REGLAGES_MOTEUR.horaireMatinDefaut, horaireSoir: REGLAGES_MOTEUR.horaireSoirDefaut, lat: '', lon: '' };
   }
   function brouillonFiche(code) {
-    if (!code) return { code: '', type: 'Médecin', nom: '', telephone: '', specialite: '', autreSpec: '', note: 2, conventionne: 'Non', actif: 'Oui', lieux: [lieuVide(false)] };
+    if (!code) {
+      var l0 = lieuVide(false);
+      if (S.ui.posGps && isFinite(S.ui.posGps.lat)) {
+        var rq = Moteur.quartierLePlusProche(S.ui.posGps.lat, S.ui.posGps.lon, quartiers());
+        if (rq && rq.quartier) {
+          l0.quartier = rq.quartier.quartier;
+          l0.commune = rq.quartier.commune;
+          l0.lat = S.ui.posGps.lat;
+          l0.lon = S.ui.posGps.lon;
+          l0.prec = S.ui.posGps.prec;
+        }
+      }
+      return { code: '', type: 'Médecin', nom: '', telephone: '', specialite: '', autreSpec: '', note: 2, conventionne: 'Non', actif: 'Oui', lieux: [l0] };
+    }
     var p = (S.data.praticiens || []).filter(function (x) { return x.code === code; })[0] || {};
     var estPh = p.type === 'Pharmacie';
     var lieux = (S.data.presences || []).filter(function (x) { return x.code === code; }).map(function (x) {
@@ -4812,27 +4828,29 @@
         return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
       }).join('') + '</div>' +
       '<div class="segment" role="group" aria-label="Étapes" style="margin-bottom:10px">' +
-        '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (e === 0) + '">' + (estPh ? '1. Pharmacie & Position' : '1. Médecin & Hôpital') + '</button>' +
-        '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">' + (estPh ? '2. Horaires' : '2. Hôpitaux & Jours (' + d.lieux.length + ')') + '</button>' +
+        '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (e === 0) + '">' + (estPh ? '1. Pharmacie & Lieu' : '1. Médecin & Hôpital') + '</button>' +
+        '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">' + (estPh ? '2. Réception délégués' : '2. Jours & Hôpitaux (' + d.lieux.length + ')') + '</button>' +
       '</div>';
 
     if (e === 0) {
       var q0 = quartiers().filter(function (x) { return x.quartier === l0.quartier; })[0];
       if (estPh) {
-        // PHARMACIE : lieu fixe unique → capter la position GPS tout en haut + quartier + identité en un seul écran rapide
-        h += '<div class="lieu-bloc" style="margin-bottom:10px;padding:10px">' +
+        // PHARMACIE : Nom d'abord avec détection anti-doublon en direct, puis localisation fixe
+        h += champFiche('nom', 'Nom de la pharmacie *',
+          '<input type="text" data-f="fiche" data-k="nom" autocomplete="off" value="' + esc(d.nom) + '" placeholder="Ex. Pharmacie des Lagunes"' + attrInvalide(f, 'nom') + '>', f, true) +
+        '<div id="doublonsFiche">' + rendreDoublonsFiche(d) + '</div>' +
+        '<div class="lieu-bloc" style="margin-bottom:10px;padding:10px">' +
+          '<div class="lieu-tete" style="margin-bottom:6px"><b>Localisation fixe de l\'officine</b>' +
+            (l0.lat && l0.lon ? '<span class="badge-discret ok-gps" style="background:var(--vert-pale,#e6f7ec);color:var(--vert,#1e7e34)">✓ GPS fixé</span>' : '') + '</div>' +
           '<div class="gps-ligne" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px">' +
             '<button type="button" class="bouton bouton-plein petit" data-a="ficheGps" data-i="0">' + icone('cible') + (l0.lat && l0.lon ? 'Actualiser GPS ici' : 'Captez ma position GPS') + '</button>' +
-            (l0.lat && l0.lon ? '<span class="discret">GPS fixe : <b>' + (+String(l0.lat).replace(',', '.')).toFixed(4) + ', ' + (+String(l0.lon).replace(',', '.')).toFixed(4) + '</b> <button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="0">✕</button></span>' : '<span class="discret">Position fixe de la pharmacie</span>') +
+            (l0.lat && l0.lon ? '<span class="discret">GPS : <b>' + (+String(l0.lat).replace(',', '.')).toFixed(4) + ', ' + (+String(l0.lon).replace(',', '.')).toFixed(4) + '</b> <button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="0">✕</button></span>' : '<span class="discret">Position fixe de la pharmacie</span>') +
           '</div>' +
           champFiche('quartier0', 'Quartier *', selecteurListe('ficheQuartier0', { titre: 'Quartier', valeur: l0.quartier, vide: 'Choisir un quartier (ou via GPS)…', invalide: !!f.err.quartier0, sections: sectionsQuartiers(),
             appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[0].quartier = v; delete fe.err.quartier0; } } }), f, true, q0 ? 'Commune : ' + esc(q0.commune) : '') +
-        '</div>' +
-        champFiche('nom', 'Nom de la pharmacie *',
-          '<input type="text" data-f="fiche" data-k="nom" autocomplete="off" value="' + esc(d.nom) + '" placeholder="Ex. Pharmacie des Lagunes"' + attrInvalide(f, 'nom') + '>', f, true) +
-        '<div id="doublonsFiche">' + rendreDoublonsFiche(d) + '</div>';
+        '</div>';
       } else {
-        // MÉDECIN : se déplace d'hôpital en hôpital → Identité & Spécialité d'abord, puis Hôpital principal (qui porte son propre quartier/GPS)
+        // MÉDECIN : Nom et Spécialité, puis Hôpital principal (avec auto-complétion du quartier et GPS)
         h += champFiche('nom', 'Nom du médecin *',
           '<input type="text" data-f="fiche" data-k="nom" autocomplete="off" value="' + esc(d.nom) + '" placeholder="Ex. Dr Kouassi Aya"' + attrInvalide(f, 'nom') + '>', f, true) +
         '<div id="doublonsFiche">' + rendreDoublonsFiche(d) + '</div>';
@@ -4852,6 +4870,7 @@
 
         h += '<div class="lieu-bloc" style="margin-bottom:10px;padding:10px">' +
           '<div class="lieu-tete" style="margin-bottom:4px"><b>Hôpital / Établissement principal</b>' +
+            (l0.quartier && l0.lat ? '<span class="badge-discret ok-gps" style="background:var(--vert-pale,#e6f7ec);color:var(--vert,#1e7e34);margin-left:6px">✓ Quartier & GPS auto-remplis</span>' : '') +
             (d.lieux.length > 1 ? '<span class="badge-discret">+' + (d.lieux.length - 1) + ' autre(s)</span>' : '') + '</div>' +
           champFiche('lieu0', 'Nom de l\'hôpital ou clinique *', '<input type="text" data-f="fiche" data-k="lieu" data-i="0" value="' + esc(l0.lieu) + '" placeholder="Touchez un hôpital ci-dessous ou tapez son nom…"' + attrInvalide(f, 'lieu0') + ' autocomplete="off">', f, true) +
           '<div class="sug-lieux" id="sugLieu0">' + suggestionsLieu(l0.lieu, 0) + '</div>' +
@@ -4881,9 +4900,11 @@
         if (estPh && i > 0) return;
         var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
         var q = quartiers().filter(function (x) { return x.quartier === l.quartier; })[0];
-        h += '<div class="lieu-bloc"><div class="lieu-tete"><b>' + (estPh ? esc(d.nom || 'Horaires de la pharmacie') : 'Hôpital / Lieu ' + (i + 1) + (l.lieu ? ' · ' + esc(l.lieu) : '')) + '</b>' +
+        h += '<div class="lieu-bloc"><div class="lieu-tete"><b>' + (estPh ? esc(d.nom || 'Horaires de réception de la pharmacie') : 'Hôpital / Lieu ' + (i + 1) + (l.lieu ? ' · ' + esc(l.lieu) : '')) + '</b>' +
           (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte" data-a="ficheRetirerLieu" data-i="' + i + '">Supprimer</button>' : '') + '</div>';
-        if (!estPh) {
+        if (estPh) {
+          h += '<p class="sous-titre" style="margin:0 0 8px">Jours et plages où l\'officine reçoit les délégués médicaux (tous cochés par défaut).</p>';
+        } else {
           h += champFiche('lieu' + i, 'Établissement ou cabinet *', '<input type="text" data-f="fiche" data-k="lieu" data-i="' + i + '" value="' + esc(l.lieu) + '" placeholder="Ex. CHU, Clinique…"' + attrInvalide(f, 'lieu' + i) + ' autocomplete="off">', f, true) +
             '<div class="sug-lieux" id="sugLieu' + i + '">' + suggestionsLieu(l.lieu, i) + '</div>' +
             champFiche('quartier' + i, 'Quartier *', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: l.quartier, vide: 'Choisir un quartier…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
@@ -4920,10 +4941,10 @@
 
     var pied = (e === 0
       ? '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">Annuler</button>' +
-        '<button class="bouton" type="button" data-a="ficheEtape" data-v="1">' + (estPh ? 'Horaires →' : 'Hôpitaux & Jours →') + '</button>' +
+        '<button class="bouton" type="button" data-a="ficheEtape" data-v="1">' + (estPh ? 'Jours de réception →' : 'Jours & Horaires →') + '</button>' +
         '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>'
       : '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">Annuler</button>' +
-        '<button class="bouton" type="button" data-a="ficheEtape" data-v="-1">← Profil</button>' +
+        '<button class="bouton" type="button" data-a="ficheEtape" data-v="-1">← 1. Identité & Lieu</button>' +
         '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>');
     return { corps: h, pied: pied };
   };
@@ -6459,8 +6480,9 @@
       var f = S.ui.feuille, i = +el.dataset.i, e = ((S.ui.sugLieux || {})[i] || [])[+el.dataset.v]; if (!f || !e) return;
       var l = f.d.lieux[i]; l.lieu = e.lieu; delete f.err['lieu' + i];
       if (e.quartier && quartiers().some(function (q) { return q.quartier === e.quartier; })) { l.quartier = e.quartier; delete f.err['quartier' + i]; }
-      if (e.lat && !l.lat) { l.lat = e.lat; l.lon = e.lon; }
-      rendre(); toast('Établissement repris : ' + e.lieu + '.');
+      if (e.commune) l.commune = e.commune;
+      if (e.lat) { l.lat = e.lat; l.lon = e.lon; }
+      rendre(); toast('Établissement repris : ' + e.lieu + (e.quartier ? ' (' + e.quartier + ')' : '') + '.');
     },
     ficheGps: function (el) {
       var l = S.ui.feuille.d.lieux[+el.dataset.i];
@@ -6468,15 +6490,16 @@
       toast('Recherche de votre position précise…');
       mesurePrecise(function (p) {
         var avant = l.lat && l.lon ? { lat: parseFloat(String(l.lat).replace(',', '.')), lon: parseFloat(String(l.lon).replace(',', '.')) } : null;
-        l.lat = +p.lat.toFixed(6); l.lon = +p.lon.toFixed(6);
+        l.lat = +p.lat.toFixed(6); l.lon = +p.lon.toFixed(6); l.prec = p.prec;
         var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
-        if (r && (!l.quartier || l.quartier === 'NL')) {
+        if (r && r.quartier) {
           l.quartier = r.quartier.quartier;
+          l.commune = r.quartier.commune;
           if (S.ui.feuille && S.ui.feuille.err) delete S.ui.feuille.err['quartier' + el.dataset.i];
         }
         var ecart = avant && isFinite(avant.lat) ? distanceVol(avant, { lat: l.lat, lon: l.lon }) : 0;
         rendre();
-        toast('GPS capté (± ' + p.prec + ' m)' + (ecart > 0.02 ? ', écart ' + distanceCourte(ecart) : '') + '. Touchez « Enregistrer » pour terminer.');
+        toast('GPS capté : ' + (l.quartier ? l.quartier + ' (± ' + p.prec + ' m)' : '± ' + p.prec + ' m') + '.');
       }, function () { toast('Position indisponible. Autorisez la localisation.'); });
     },
     ficheGpsEffacer: function (el) { var l = S.ui.feuille.d.lieux[+el.dataset.i]; l.lat = ''; l.lon = ''; rendre(); },
@@ -6575,7 +6598,23 @@
     if (f === 'cr') { var ac = arret(el.dataset.uid); if (ac) majCr(ac, el.dataset.k, el.value); }
     if (f === 'fiche') {
       majChampFiche(el, false);
-      if (el.dataset.k === 'lieu') { var zs = document.getElementById('sugLieu' + el.dataset.i); if (zs) zs.innerHTML = suggestionsLieu(el.value, +el.dataset.i); }
+      if (el.dataset.k === 'lieu') {
+        var idxL = +el.dataset.i, valL = el.value.trim();
+        var zs = document.getElementById('sugLieu' + idxL);
+        if (zs) zs.innerHTML = suggestionsLieu(valL, idxL);
+        if (valL.length >= 3 && S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.lieux[idxL]) {
+          var nrm = normaliser(valL);
+          var mtch = etablissementsConnus().filter(function (et) { return normaliser(et.lieu) === nrm; })[0];
+          if (mtch && mtch.quartier) {
+            var lObj = S.ui.feuille.d.lieux[idxL];
+            lObj.quartier = mtch.quartier;
+            if (mtch.commune) lObj.commune = mtch.commune;
+            if (mtch.lat) { lObj.lat = mtch.lat; lObj.lon = mtch.lon; }
+            delete S.ui.feuille.err['quartier' + idxL];
+            delete S.ui.feuille.err['lieu' + idxL];
+          }
+        }
+      }
       if (el.dataset.k === 'nom' || el.dataset.k === 'telephone') {
         if (S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.type === 'Pharmacie' && el.dataset.k === 'nom') S.ui.feuille.d.lieux[0].lieu = el.value;
         var zd = document.getElementById('doublonsFiche'); if (zd && S.ui.feuille) zd.innerHTML = rendreDoublonsFiche(S.ui.feuille.d);
