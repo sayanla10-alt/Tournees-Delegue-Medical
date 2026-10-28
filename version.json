@@ -1,8 +1,1 @@
-{
-    "date":  "2026-10-28",
-    "version":  "3.25.23",
-    "notes":  [
-                  "Planifier : défilement automatique vers Nouvelle sélection après un recalcul et boutons raccourcis",
-                  "Répertoire : position GPS dès la 1re étape avec enregistrement immédiat, parcours adapté Médecin / Pharmacie et détection anti-doublons en direct"
-              ]
-}
+{"version":"3.25.24"}

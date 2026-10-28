@@ -1251,3 +1251,50 @@ details.avance h3 { margin-top: 18px; }
 .cr-question .ligne-stock, .ligne-stock { background: var(--papier, #fff); border: 1px solid var(--trait); border-radius: var(--r); padding: 10px 12px; margin: 0 0 10px; }
 .cr-question .ligne-stock:last-child, .ligne-stock:last-child { border-bottom: 1px solid var(--trait); }
 .cr-question .ligne-stock > b, .ligne-stock > b { font-size: 15px; color: var(--primaire); }
+
+/* 3.25.24 : alignement des grilles 2 colonnes, compteurs Rythme de visite, Gammes A & B dans le CR, puce Tous, option Aujourd'hui et animations de glissé */
+.grille-2 { align-items: end; }
+.grille-2 > .champ { display: flex; flex-direction: column; justify-content: space-between; height: 100%; }
+.grille-rythme { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; margin: 8px 0 4px; }
+.champ-rythme { display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; padding: 10px 8px 8px; border: 1px solid var(--trait); border-radius: 14px; background: var(--fond); margin: 0; }
+.champ-rythme > span { font-size: 13px; font-weight: 700; color: var(--encre); line-height: 1.25; min-height: 2.5em; display: flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+.champ-compteur { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+.champ-compteur input[type="number"] { width: 58px; min-height: 40px; padding: 4px 6px; text-align: center; font: 700 18px/1 var(--titre); color: var(--primaire); border-radius: 10px; background: var(--papier); -moz-appearance: textfield; }
+.champ-compteur input[type="number"]::-webkit-outer-spin-button,
+.champ-compteur input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.btn-pas { width: 36px; height: 36px; border-radius: 10px; border: 1.5px solid var(--trait); background: var(--papier); color: var(--primaire); font: 700 20px/1 var(--texte); display: grid; place-items: center; cursor: pointer; flex: none; user-select: none; }
+.btn-pas:active { background: var(--primaire); color: var(--sur-primaire); border-color: var(--primaire); transform: scale(.93); }
+.rythme-unite { font-size: 11.5px; color: var(--gris); margin-top: 4px; font-weight: 500; }
+
+/* Gamme A & Gamme B dans le compte rendu de visite */
+.gammes-cr { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.gamme-cr-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.gamme-cr-bloc { padding: 10px 12px; border: 1px solid var(--trait); border-radius: 12px; background: var(--fond); }
+.gamme-cr-titre { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.gamme-cr-titre b { font-size: 13.5px; color: var(--primaire); letter-spacing: .01em; }
+.gamme-cr-titre b small { font-weight: 500; color: var(--gris); font-size: 12px; }
+.puce-tous { font-weight: 700; border-style: dashed; }
+.puce-tous[aria-pressed="true"] { border-style: solid; }
+
+/* Option « Ajouter à aujourd'hui (visite inopinée) » */
+.choix.choix-aujourdhui { border-color: var(--primaire); background: var(--primaire-pale); }
+
+/* Animations fluides des cliqués-glissés (dates, bande produits, filtres horizontaux) */
+.bj-jours, .bande-produits, .defile, .jours { cursor: grab; scroll-behavior: smooth; }
+.bj-jours.anim-scroll, .bande-produits.anim-scroll, .defile.anim-scroll, .jours.anim-scroll { scroll-snap-type: none !important; scroll-behavior: auto !important; }
+.bj-jours.en-glisse, .bande-produits.en-glisse, .defile.en-glisse, .jours.en-glisse { cursor: grabbing; scroll-snap-type: none !important; scroll-behavior: auto !important; user-select: none; }
+.bj-jours.en-glisse > *, .bande-produits.en-glisse > *, .defile.en-glisse > *, .jours.en-glisse > * { pointer-events: none; }
+.bj-jour, .bp-produit, .jours .jour {
+  transition: transform .28s cubic-bezier(.22, 1.35, .36, 1), background-color .2s ease, border-color .2s ease, color .2s ease, box-shadow .25s ease;
+  will-change: transform;
+}
+.bj-jour:active, .bp-produit:active, .jours .jour:active { transform: scale(.93); }
+@keyframes glisseJourDroite { from { opacity: .45; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes glisseJourGauche { from { opacity: .45; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+#vue.jour-glisse-d .synthese-jour, #vue.jour-glisse-d .maintenant, #vue.jour-glisse-d .ligne, #vue.jour-glisse-d .tete-jour-plan, #vue.jour-glisse-d .bandeau-prog {
+  animation: glisseJourDroite .26s cubic-bezier(.22, 1, .36, 1) both;
+}
+#vue.jour-glisse-g .synthese-jour, #vue.jour-glisse-g .maintenant, #vue.jour-glisse-g .ligne, #vue.jour-glisse-g .tete-jour-plan, #vue.jour-glisse-g .bandeau-prog {
+  animation: glisseJourGauche .26s cubic-bezier(.22, 1, .36, 1) both;
+}
+

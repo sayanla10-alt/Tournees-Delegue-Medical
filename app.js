@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.23';
+  var APP_VERSION = '3.25.24';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.24', ['Compte rendu de visite : produits présentés rangés en Gamme A (Zyltan, Lesstrol, Eurythmic, Tensicard) et Gamme B, avec présélection automatique des derniers produits choisis',
+      'Compte rendu de visite : « Étape suivante » sans saisie par défaut',
+      'Planifier : option « Ajouter à aujourd\'hui (visite inopinée) » pour forcer un RDV ou médecin prioritaire en dépit du programme',
+      'Planifier › Rythme de visite : compteurs centrés et alignés (« Visites par jour » et « Ne pas revoir avant »)',
+      'Bouton « Tous » sur toutes les questions à choix multiples, phrases d\'introduction sur Planifier, Équipe, Bilan et Rattraper, et animations fluides des bandeaux de dates']],
     ['3.25.23', ['Planifier : défilement automatique vers « Nouvelle sélection » après un recalcul et boutons raccourcis',
       'Répertoire (Ajouter / Modifier) : prise de position GPS dès la 1re étape avec enregistrement immédiat possible, parcours adapté Médecin / Pharmacie et détection anti-doublons en direct']],
     ['3.25.22', ['Planifier : parcours de confirmation et d\'envoi WhatsApp épuré étape par étape (choix Ce jour / Tous les jours, question Oui/Non avant l\'aperçu WhatsApp, retour à la liste précédente après un recalcul)']],
@@ -566,11 +571,12 @@
         esc(op.lib) + (op.n !== undefined ? '<small>' + op.n + '</small>' : '') + '</button>';
     }
     var nb = o.multiple ? val.length : 0;
+    var totalOpts = o.sections ? o.sections.reduce(function (s, sec) { return s + sec.options.length; }, 0) : (o.options ? o.options.length : 0);
     var resume = o.multiple ? (nb ? (nb <= 2 ? val.join(', ') : nb + ' choisis') : (o.resume || 'Tous')) : '';
     var h = '<section class="groupe-filtre' + (ouvert ? ' ouvert' : '') + '" data-groupe="' + o.id + '">' +
       '<div class="groupe-tete">' + (o.repliable ? '<button type="button" class="groupe-bascule" data-a="basculeGroupe" data-v="' + o.id + '" aria-expanded="' + ouvert + '">' : '<div class="groupe-bascule">') +
       '<b>' + esc(o.titre) + '</b>' + (nb ? '<span class="compteur">' + nb + '</span>' : '') + (o.repliable ? '<small>' + esc(resume) + '</small>' + icone('chevron') + '</button>' : '</div>') +
-      (o.multiple && ouvert ? '<span class="groupe-actions"><button type="button" class="lien-action" data-a="groupeTout" data-chemin="' + o.chemin + '">Tout</button>' +
+      (o.multiple && ouvert ? '<span class="groupe-actions"><button type="button" class="lien-action" data-a="groupeTout" data-chemin="' + o.chemin + '">Tous</button>' +
         (nb ? '<button type="button" class="lien-action" data-a="groupeAucun" data-chemin="' + o.chemin + '">Effacer</button>' : '') + '</span>' : '') + '</div>';
     if (!ouvert) return h + '</section>';
     if (o.aide) h += '<p class="discret groupe-aide">' + esc(o.aide) + '</p>';
@@ -589,10 +595,15 @@
     } else if (o.sections) {
       o.sections.forEach(function (sec) {
         h += '<div class="section-choix"><div class="sous-titre-zone"><span>' + esc(sec.titre) + '</span>' +
-          (o.multiple ? '<button type="button" class="lien-action" data-a="sectionToute" data-chemin="' + o.chemin + '">Toute la zone</button>' : '') + '</div>' +
+          (o.multiple ? '<button type="button" class="lien-action" data-a="sectionToute" data-chemin="' + o.chemin + '">Tous</button>' : '') + '</div>' +
           '<div class="puces">' + sec.options.map(puce).join('') + '</div></div>';
       });
-    } else h += '<div class="puces">' + o.options.map(puce).join('') + '</div>';
+    } else {
+      var puceTous = o.multiple && totalOpts > 1 && !q
+        ? '<button type="button" class="puce puce-tous" data-a="' + (o.tousVide ? 'groupeAucun' : 'groupeToutToggle') + '" data-chemin="' + o.chemin + '" aria-pressed="' + (o.tousVide ? (!nb || nb === totalOpts) : nb === totalOpts) + '">Tous</button>'
+        : '';
+      h += '<div class="puces">' + puceTous + o.options.map(puce).join('') + '</div>';
+    }
     return h + '</section>';
   }
   function cheminObjet(chemin) {
@@ -662,8 +673,61 @@
     });
     LS.set('produits', l);
   }
-  // Produits de la gamme (feuille Listes, colonne Produits) proposés en puces ; les autres en saisie libre
-  function produitsRef() { return (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT; }
+  // 3.25.24 : Produits ordonnés comme dans l'onglet Produits et séparés en 2 gammes :
+  // Gamme A (tous les Zyltan / Losartan AM, Lesstrol, Eurythmic, Tensicard) et Gamme B (les autres)
+  function estGammeA(prod, gamme) {
+    var k = normaliser(String(prod || '') + ' ' + String(gamme || ''));
+    if (k.indexOf('lesskaa') >= 0) return false;
+    return /zyltan|losartanam|lesstrol|lestrol|eurithmic|eurythmic|tensicard/.test(k);
+  }
+  function rangFamilleGammeA(prod, gamme) {
+    var k = normaliser(String(prod || '') + ' ' + String(gamme || ''));
+    if (/zyltan|losartanam/.test(k)) return 0;
+    if (/lesstrol|lestrol/.test(k)) return 1;
+    if (/eurithmic|eurythmic/.test(k)) return 2;
+    if (/tensicard/.test(k)) return 3;
+    return 9;
+  }
+  function produitsParGamme() {
+    var fiches = (typeof fichesProduits === 'function' ? fichesProduits() : FICHES_PRODUITS_DEFAUT) || [];
+    var gammes = typeof gammesProduits === 'function' ? gammesProduits(fiches) : [];
+    var gA = [], gB = [], vus = {};
+    var famA = gammes.filter(function (g) { return estGammeA('', g.nom); }).slice().sort(function (a, b) {
+      return rangFamilleGammeA('', a.nom) - rangFamilleGammeA('', b.nom);
+    });
+    var famB = gammes.filter(function (g) { return !estGammeA('', g.nom); });
+    famA.forEach(function (g) {
+      var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '');
+      g.fiches.slice().sort(function (x, y) { return (y.produit === nom) - (x.produit === nom); }).forEach(function (f) {
+        if (!vus[f.produit]) { vus[f.produit] = true; gA.push(f.produit); }
+      });
+    });
+    famB.forEach(function (g) {
+      var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '');
+      g.fiches.slice().sort(function (x, y) { return (y.produit === nom) - (x.produit === nom); }).forEach(function (f) {
+        if (!vus[f.produit]) { vus[f.produit] = true; gB.push(f.produit); }
+      });
+    });
+    var brut = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT;
+    brut.forEach(function (p) {
+      if (!p || vus[p] || (p === 'Lestrol 20' && vus['Lesstrol 20'])) return;
+      vus[p] = true;
+      if (estGammeA(p, '')) gA.push(p); else gB.push(p);
+    });
+    return { gammeA: gA, gammeB: gB, tous: gA.concat(gB) };
+  }
+  function produitsRef() { return produitsParGamme().tous; }
+  function derniersProduitsCr() {
+    var ref = produitsRef(), mem = LS.get('derniersProduitsCr', null);
+    if (Array.isArray(mem)) return mem.filter(function (p) { return ref.indexOf(p) >= 0; });
+    var l = S.plan.filter(function (a) { return a.statut && !estPharmacie(a) && a.produits; }).slice(-1)[0]
+      || (S.queue || []).filter(function (v) { return v.type !== 'Pharmacie' && v.produits; }).slice(-1)[0]
+      || ((S.data && S.data.historique) || []).filter(function (v) { return (!v.delegue || estMoi(v.delegue)) && v.type !== 'Pharmacie' && v.produits; })[0];
+    return l ? listeProduits(l.produits).filter(function (p) { return ref.indexOf(p) >= 0; }) : [];
+  }
+  function memoriserDerniersProduitsCr(prods) {
+    if (Array.isArray(prods)) LS.set('derniersProduitsCr', prods.slice());
+  }
   function listeProduits(t) { return String(t || '').split(/\s*[,;]\s*/).map(function (x) { return x.trim(); }).filter(Boolean); }
   function autresProduits(t, ref) { ref = ref || produitsRef(); return listeProduits(t).filter(function (x) { return ref.indexOf(x) < 0; }); }
   function estPharmacie(a) { return (a.type || (praticien(a.code) || {}).type) === 'Pharmacie'; }
@@ -965,9 +1029,15 @@
     // 3.24.14 : un rafraîchissement du même écran (synchronisation, minuterie) ne rejoue aucune animation
     // et garde la position de lecture : l'écran ne bouge plus
     var vue = $('vue'), y = window.scrollY;
-    vue.classList.remove('vue-entre');
+    var bjAvant = vue.querySelector('.bj-jours'), actAvant = bjAvant && bjAvant.querySelector('.bj-jour[aria-pressed="true"]');
+    var dateAvant = actAvant && actAvant.dataset ? actAvant.dataset.v : null;
+    if (bjAvant && S.ui.bjDepart === undefined && actAvant) {
+      S.ui.bjAvantDate = dateAvant;
+      S.ui.bjAvantLeft = actAvant.getBoundingClientRect().left - bjAvant.getBoundingClientRect().left;
+    }
+    vue.classList.remove('vue-entre', 'jour-glisse-d', 'jour-glisse-g');
     vue.innerHTML = (VUES[tab] || VUES.jour)();
-    animerRendu(tab);
+    animerRendu(tab, dateAvant);
     if (!vue.classList.contains('vue-entre') && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
     centrerBandeJours();
     dessinerCartes();
@@ -975,14 +1045,20 @@
     rendreLancement();
     afficherEntete(); afficherBarre(); afficherNav();
     datesEnFrancais();
+    initGlisseHorizontale();
   }
   // 3.19.0 : animations discrètes, seulement quand quelque chose change vraiment
   // (nouvel écran, nouvelle question d'un parcours, carte qu'on vient d'ouvrir, compte rendu qu'on vient d'enregistrer)
-  function animerRendu(tab) {
-    var v = $('vue'), cle = tab + '|' + (S.ui.rechOuverte ? 1 : 0) + '|' + (S.ui.voirParams ? 1 : 0) + '|' + (S.ui.jourVue || S.ui.jour || '');
+  function animerRendu(tab, dateAvant) {
+    var dCour = S.ui.jourVue || S.ui.jour || '';
+    var v = $('vue'), cle = tab + '|' + (S.ui.rechOuverte ? 1 : 0) + '|' + (S.ui.voirParams ? 1 : 0) + '|' + dCour;
     var nouvelEcran = cle !== S.ui.cleVue;
     if (nouvelEcran) {
-      void v.offsetWidth; v.classList.add('vue-entre'); S.ui.cleVue = cle;
+      void v.offsetWidth; v.classList.add('vue-entre');
+      if (dateAvant && dCour && dateAvant !== dCour && (tab === 'jour' || tab === 'semaine')) {
+        v.classList.add(dCour > dateAvant ? 'jour-glisse-d' : 'jour-glisse-g');
+      }
+      S.ui.cleVue = cle;
       // 3.24.0 : les cartes, lignes et indicateurs arrivent l'un après l'autre (cascade)
       v.querySelectorAll('.arret, .ligne-plan, .liste > .element, .kpi, .ligne-gamme, .tuile, .bj-jour').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 14)); });
       if (!reduireAnimations()) compterChiffres(v);
@@ -1027,15 +1103,78 @@
     o.style.left = (e.clientX - r.left - s / 2) + 'px'; o.style.top = (e.clientY - r.top - s / 2) + 'px';
     b.appendChild(o); setTimeout(function () { o.remove(); }, 600);
   }, { passive: true });
+  // 3.25.24 : glissement fluide (courbe cubic-bezier) et cliqué-glissé avec inertie sur les bandeaux horizontaux
+  function glisserHorizontal(el, depart, cible, duree) {
+    if (!el) return;
+    if (reduireAnimations() || Math.abs(cible - depart) < 2) { el.scrollLeft = cible; return; }
+    if (el.__animId) cancelAnimationFrame(el.__animId);
+    el.classList.add('anim-scroll');
+    el.scrollLeft = depart;
+    var t0 = performance.now(), d = duree || 360;
+    function pas(t) {
+      var p = Math.min(1, (t - t0) / d);
+      var ease = 1 - Math.pow(1 - p, 3);
+      el.scrollLeft = depart + (cible - depart) * ease;
+      if (p < 1) el.__animId = requestAnimationFrame(pas);
+      else { el.__animId = null; el.classList.remove('anim-scroll'); }
+    }
+    el.__animId = requestAnimationFrame(pas);
+  }
   // bande des jours : le jour choisi glisse au centre (depuis la position précédente, pour garder le mouvement)
   function centrerBandeJours() {
     var b = document.querySelector('.bj-jours'), s = b && b.querySelector('.bj-jour[aria-pressed="true"]');
-    if (!s) return;
+    if (!s) { S.ui.bjDepart = null; S.ui.bjAvantDate = null; return; }
     var cible = s.offsetLeft - (b.clientWidth - s.offsetWidth) / 2;
     if (S.ui.bjDepart !== undefined && S.ui.bjDepart !== null) {
-      b.scrollLeft = s.offsetLeft - S.ui.bjDepart; S.ui.bjDepart = null;
-      try { b.scrollTo({ left: cible, behavior: reduireAnimations() ? 'auto' : 'smooth' }); } catch (e) { b.scrollLeft = cible; }
-    } else b.scrollLeft = cible;
+      var dep = s.offsetLeft - S.ui.bjDepart;
+      S.ui.bjDepart = null; S.ui.bjAvantDate = null;
+      glisserHorizontal(b, dep, cible, 360);
+    } else if (S.ui.bjAvantDate && S.ui.bjAvantDate !== s.dataset.v) {
+      var ancien = b.querySelector('.bj-jour[data-v="' + S.ui.bjAvantDate + '"]');
+      var dep2 = ancien ? ancien.offsetLeft - (S.ui.bjAvantLeft || (b.clientWidth - ancien.offsetWidth) / 2) : b.scrollLeft;
+      S.ui.bjAvantDate = null;
+      glisserHorizontal(b, dep2, cible, 380);
+    } else {
+      S.ui.bjAvantDate = null;
+      b.scrollLeft = cible;
+    }
+  }
+  function initGlisseHorizontale() {
+    document.querySelectorAll('.bj-jours, .bande-produits, .defile, .jours').forEach(function (el) {
+      if (el.__glisseInit) return;
+      el.__glisseInit = true;
+      var actif = false, bouge = false, startX = 0, startScroll = 0, lastX = 0, lastT = 0, vx = 0;
+      el.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'touch' || e.button > 0) return;
+        if (el.__animId) { cancelAnimationFrame(el.__animId); el.__animId = null; }
+        actif = true; bouge = false; startX = lastX = e.clientX; startScroll = el.scrollLeft; lastT = performance.now(); vx = 0;
+      });
+      el.addEventListener('pointermove', function (e) {
+        if (!actif) return;
+        var dx = e.clientX - startX;
+        if (!bouge && Math.abs(dx) > 5) { bouge = true; el.classList.add('en-glisse', 'anim-scroll'); }
+        if (!bouge) return;
+        var now = performance.now(), dt = Math.max(1, now - lastT);
+        vx = (lastX - e.clientX) / dt;
+        lastX = e.clientX; lastT = now;
+        el.scrollLeft = startScroll - dx;
+      });
+      function fin() {
+        if (!actif) return;
+        actif = false;
+        el.classList.remove('en-glisse');
+        if (!bouge) { el.classList.remove('anim-scroll'); return; }
+        el.__bloqueClic = Date.now() + 180;
+        var cible = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, el.scrollLeft + vx * 220));
+        glisserHorizontal(el, el.scrollLeft, cible, 340);
+      }
+      el.addEventListener('pointerup', fin);
+      el.addEventListener('pointercancel', fin);
+      el.addEventListener('pointerleave', fin);
+      el.addEventListener('click', function (e) {
+        if (el.__bloqueClic && Date.now() < el.__bloqueClic) { e.stopPropagation(); e.preventDefault(); }
+      }, true);
+    });
   }
   function reduireAnimations() { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
   // Calendriers : affichage français JJ-Mmm-AAAA (ex. 26-Oct-2026), quel que soit le réglage du téléphone.
@@ -1650,7 +1789,9 @@
         rendu: function () { return '<textarea data-f="rapport" data-k="concurrence" placeholder="Produit, prix, action du concurrent…">' + esc(R.concurrence || '') + '</textarea>'; } },
       { id: 'besoins', titre: 'Besoins', resume: function () { var b = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []); return b.length ? b.join(', ') : 'Aucun'; },
         rendu: function () {
-          return '<div class="puces">' + BESOINS_JOUR.map(function (x) { return '<button type="button" class="puce" data-a="rapBesoin" data-v="' + esc(x) + '" aria-pressed="' + ((R.besoins || []).indexOf(x) >= 0) + '">' + esc(x) + '</button>'; }).join('') + '</div>' +
+          var tousB = (R.besoins || []).length === BESOINS_JOUR.length;
+          return '<div class="puces"><button type="button" class="puce puce-tous" data-a="rapBesoin" data-v="__tous" aria-pressed="' + tousB + '">Tous</button>' +
+            BESOINS_JOUR.map(function (x) { return '<button type="button" class="puce" data-a="rapBesoin" data-v="' + esc(x) + '" aria-pressed="' + ((R.besoins || []).indexOf(x) >= 0) + '">' + esc(x) + '</button>'; }).join('') + '</div>' +
             '<textarea data-f="rapport" data-k="besoinsTexte" placeholder="Précisez si besoin" style="margin-top:8px">' + esc(R.besoinsTexte || '') + '</textarea>';
         } },
       { id: 'km', titre: 'Kilomètres parcourus', resume: function () { return R.km ? R.km + ' km' : 'Estimation : ' + km(s.km); },
@@ -1753,11 +1894,11 @@
         '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; la tournée proposée s\'affiche à la fin.</p>' + rendreParams() + '</div>';
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
-      '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('calendrier') + 'Planifier</button></div>';
+      '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('calendrier') + 'Planifier</button></div>' +
+      '<p class="sous-titre">Préparez votre tournée : une journée ou une semaine, ajustez vos visites et confirmez votre programme.</p>';
     var datesF = datesPlanAvenir();
     if (!datesF.length) {
-      return h + '<p class="sous-titre">Préparez votre tournée : une journée ou une semaine, une question à la fois.</p>' +
-        '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Planifier » pour préparer votre tournée.</div>' +
+      return h + '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Planifier » pour préparer votre tournée.</div>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="voirParams">' + icone('calendrier') + 'Planifier ma tournée</button>' +
         boutonAnciens('margin-top:10px');
     }
@@ -2067,21 +2208,38 @@
         } },
       { id: 'spec', titre: 'Spécialités', si: p.typeCibles !== 'pharmacies', facultatif: true, resume: function () { return libelleListe(p.specialites, 'Toutes'); },
         rendu: function () {
-          return '<p class="discret" style="margin:4px 0 8px">' + esc(libelleListe(p.specialites, 'Toutes les spécialités')) + (p.typeCibles === 'tous' ? ' (les pharmacies restent incluses)' : '') + '</p>' +
-            '<button type="button" class="bouton petit" data-a="choisirSpecialites">' + icone('loupe') + 'Choisir les spécialités</button>';
+          var estDef = p.specialites.length === SPECS_DEFAUT.length && SPECS_DEFAUT.every(function (s) { return p.specialites.indexOf(s) >= 0; });
+          return '<div class="puces" style="margin:6px 0 8px">' +
+            '<button type="button" class="puce puce-tous" data-a="paramSpecToutes" aria-pressed="' + (!p.specialites.length) + '">Toutes</button>' +
+            '<button type="button" class="puce" data-a="paramSpecDefaut" aria-pressed="' + estDef + '">Cœur de cible (4)</button>' +
+            '<button type="button" class="puce" data-a="choisirSpecialites">' + icone('loupe') + 'Choisir…</button></div>' +
+            '<p class="discret" style="margin:0">' + esc(libelleListe(p.specialites, 'Toutes les spécialités')) + (p.typeCibles === 'tous' ? ' (les pharmacies restent incluses)' : '') + '</p>';
         } },
       { id: 'valeur', titre: 'Potentiel', facultatif: true, resume: function () { return p.potentiels.length ? p.potentiels.map(function (x) { return ETOILES[x]; }).join(' · ') : 'Tous'; },
         rendu: function () {
-          return '<div class="puces">' + ['A', 'B', 'C'].map(function (x) {
-            return '<button type="button" class="puce" data-a="paramPotentiel" data-v="' + x + '" aria-pressed="' + (p.potentiels.indexOf(x) >= 0) + '">' + ETOILES[x] + '<small>' + LIB_POTENTIEL[x] + '</small></button>';
-          }).join('') + '</div><span class="aide-champ">Aucun choix : tous les potentiels.</span>';
+          var tousP = !p.potentiels.length || p.potentiels.length === 3;
+          return '<div class="puces">' +
+            '<button type="button" class="puce puce-tous" data-a="paramPotentiel" data-v="tous" aria-pressed="' + tousP + '">Tous</button>' +
+            ['A', 'B', 'C'].map(function (x) {
+              return '<button type="button" class="puce" data-a="paramPotentiel" data-v="' + x + '" aria-pressed="' + (p.potentiels.indexOf(x) >= 0) + '">' + ETOILES[x] + '<small>' + LIB_POTENTIEL[x] + '</small></button>';
+            }).join('') + '</div>';
         } },
       { id: 'rythme', titre: 'Rythme de visite', resume: function () {
           return p.maxJour + '/jour · ' + p.delai + ' j mini' + (!S.config.demo && p.eviterCollegues !== false ? ' · hors collègues' : ''); },
         rendu: function () {
-          return '<div class="grille-2" style="margin-top:8px">' +
-              '<label class="champ"><span>Visites par jour</span><input type="number" min="1" max="20" inputmode="numeric" data-f="param" data-k="maxJour" value="' + p.maxJour + '"></label>' +
-              '<label class="champ"><span>Ne pas revoir avant (jours)</span><input type="number" min="0" max="365" inputmode="numeric" data-f="param" data-k="delai" value="' + p.delai + '"></label></div>' +
+          return '<div class="grille-2 grille-rythme" style="margin-top:8px">' +
+              '<div class="champ champ-rythme"><span>Visites par jour</span>' +
+                '<div class="champ-compteur">' +
+                  '<button type="button" class="btn-pas" data-a="paramPas" data-k="maxJour" data-pas="-1" aria-label="Moins">−</button>' +
+                  '<input type="number" min="1" max="20" inputmode="numeric" data-f="param" data-k="maxJour" value="' + p.maxJour + '">' +
+                  '<button type="button" class="btn-pas" data-a="paramPas" data-k="maxJour" data-pas="1" aria-label="Plus">+</button>' +
+                '</div><small class="rythme-unite">visites / jour</small></div>' +
+              '<div class="champ champ-rythme"><span>Ne pas revoir avant</span>' +
+                '<div class="champ-compteur">' +
+                  '<button type="button" class="btn-pas" data-a="paramPas" data-k="delai" data-pas="-1" aria-label="Moins">−</button>' +
+                  '<input type="number" min="0" max="365" inputmode="numeric" data-f="param" data-k="delai" value="' + p.delai + '">' +
+                  '<button type="button" class="btn-pas" data-a="paramPas" data-k="delai" data-pas="1" aria-label="Plus">+</button>' +
+                '</div><small class="rythme-unite">jours minimum</small></div></div>' +
             (S.config.demo ? '' : '<label class="interrupteur" style="margin-bottom:0"><span>Éviter les médecins déjà prévus par un collègue</span>' +
               '<input type="checkbox" data-f="param" data-k="eviterCollegues"' + (p.eviterCollegues !== false ? ' checked' : '') + '></label>');
         } },
@@ -2110,7 +2268,9 @@
           h += S.imposes.length ? '<ul class="liste-imposes">' + S.imposes.map(function (im, i) {
             var pr = praticien(im.code);
             var c = im.cle ? Moteur.creneauParCle(ctx(), im.cle) : null;
-            var quand = im.date ? dateFr(im.date) + (c ? ', ' + c.creneau.toLowerCase() + ', ' + esc(c.lieu) : '') : 'Au meilleur moment de la période';
+            var quand = im.force && im.date === aujourdhui()
+              ? 'Aujourd\'hui (' + dateCourte(im.date) + ') · visite inopinée'
+              : (im.date ? dateFr(im.date) + (c ? ', ' + c.creneau.toLowerCase() + ', ' + esc(c.lieu) : '') : 'Au meilleur moment de la période');
             return '<li><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
               '<span class="discret bloc-texte">' + quand + (im.rdv ? ', RDV ' + esc(im.rdv) : '') + '</span></div>' +
               '<button type="button" class="bouton-icone sombre" data-a="retirerImpose" data-i="' + i + '" aria-label="Retirer">' + icone('fermer') + '</button></li>';
@@ -2188,7 +2348,9 @@
       var lp = listeProduits(a.produits), ref = produitsRef();
       c.produits = lp.filter(function (x) { return ref.indexOf(x) >= 0; }); c.autres = lp.filter(function (x) { return ref.indexOf(x) < 0; }).join(', ');
       if (c.produits.length || c.autres) c.presentes = 'oui';
-      if (a.prochaine) { c.suite = c.faite === 'non' ? 'reprogrammer' : 'visite'; c.suiteType = 'rdv'; c.date = a.prochaine; }
+      else if (!a.statut && !estPharmacie(a)) c.produits = derniersProduitsCr().slice();
+      // 3.25.24 : Étape suivante : aucune saisie par défaut à l'ouverture d'un nouveau CR
+      if (a.statut && a.prochaine) { c.suite = c.faite === 'non' ? 'reprogrammer' : 'visite'; c.suiteType = 'rdv'; c.date = a.prochaine; }
       a.cr = c;
     }
     return a.cr;
@@ -2284,7 +2446,32 @@
   }
   function multiCr(a, cle, options, vals) {
     if (options.length > 4) return selecteurCr(a, cle, options, vals || [], true, 'Choisir');
-    return '<div class="puces">' + options.map(function (o) { return puceCr(a, cle, o, o, (vals || []).indexOf(o) >= 0, true); }).join('') + '</div>';
+    var v = vals || [], tous = options.length > 1 && v.length === options.length;
+    return '<div class="puces">' +
+      (options.length > 1 ? '<button type="button" class="puce puce-tous" data-a="crMultiTous" data-uid="' + a.uid + '" data-k="' + cle + '" aria-pressed="' + tous + '">Tous</button>' : '') +
+      options.map(function (o) { return puceCr(a, cle, o, o, v.indexOf(o) >= 0, true); }).join('') + '</div>';
+  }
+  function rendreChoixProduitsCr(a, cle, vals) {
+    var pg = produitsParGamme(), sel = vals || [];
+    var tousA = pg.gammeA.length > 0 && pg.gammeA.every(function (p) { return sel.indexOf(p) >= 0; });
+    var tousB = pg.gammeB.length > 0 && pg.gammeB.every(function (p) { return sel.indexOf(p) >= 0; });
+    var tous = pg.tous.length > 0 && pg.tous.every(function (p) { return sel.indexOf(p) >= 0; });
+    var h = '<div class="gammes-cr">';
+    h += '<div class="gamme-cr-actions"><span class="discret">' + (sel.length ? sel.length + ' sélectionné' + (sel.length > 1 ? 's' : '') : 'Aucun produit sélectionné') + '</span>' +
+      '<span><button type="button" class="lien-action" data-a="crProduitsTous" data-uid="' + a.uid + '" data-k="' + cle + '">' + (tous ? 'Tout décocher' : 'Tous') + '</button>' +
+      (sel.length ? ' · <button type="button" class="lien-action" data-a="crProduitsAucun" data-uid="' + a.uid + '" data-k="' + cle + '">Effacer</button>' : '') + '</span></div>';
+    if (pg.gammeA.length) {
+      h += '<div class="gamme-cr-bloc"><div class="gamme-cr-titre"><span><b>Gamme A</b> <small>Zyltan, Lesstrol, Eurythmic, Tensicard</small></span>' +
+        '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="A">' + (tousA ? 'Décocher A' : 'Tous') + '</button></div>' +
+        '<div class="puces">' + pg.gammeA.map(function (p) { return puceCr(a, cle, p, p, sel.indexOf(p) >= 0, true); }).join('') + '</div></div>';
+    }
+    if (pg.gammeB.length) {
+      h += '<div class="gamme-cr-bloc"><div class="gamme-cr-titre"><span><b>Gamme B</b> <small>Autres produits</small></span>' +
+        '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="B">' + (tousB ? 'Décocher B' : 'Tous') + '</button></div>' +
+        '<div class="puces">' + pg.gammeB.map(function (p) { return puceCr(a, cle, p, p, sel.indexOf(p) >= 0, true); }).join('') + '</div></div>';
+    }
+    h += '</div>';
+    return h;
   }
   function ouiNonCr(a, cle, val) { return choixCr(a, cle, [['oui', 'Oui'], ['non', 'Non']], val); }
   function ouiNonCrAncien(a, cle, val) { return '<div class="statuts deux">' + [['oui', 'Oui'], ['non', 'Non']].map(function (o) {
@@ -2336,7 +2523,7 @@
       if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes); }, function () { return oui(c.presentes); });
       if (c.presentes === 'oui' || im.presentes) {
         e('produits', 'Produits présentés', 'continuer', function () {
-          return multiCr(a, 'produits', cat, c.produits) + '<input type="text" list="listeProduits" data-f="cr" data-uid="' + a.uid + '" data-k="autres" value="' + esc(c.autres || '') +
+          return rendreChoixProduitsCr(a, 'produits', c.produits) + '<input type="text" list="listeProduits" data-f="cr" data-uid="' + a.uid + '" data-k="autres" value="' + esc(c.autres || '') +
             '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits();
         }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
         e('reactions', 'Réaction du médecin', 'continuer', function () {
@@ -2384,7 +2571,7 @@
   }
   function etapesSuite(a, c, options, e) {
     var lib = function (v) { return ((options.filter(function (o) { return o[0] === v; })[0]) || [])[1] || ''; };
-    e('suite', 'Suite', 'auto', function () { return choixCr(a, 'suite', options, c.suite); }, function () { return lib(c.suite); });
+    e('suite', 'Étape suivante', 'auto', function () { return choixCr(a, 'suite', options, c.suite); }, function () { return lib(c.suite); });
     if (!c.suite || c.suite === 'aucune') return;
     e('suiteType', 'Rappel ou RDV confirmé ?', 'auto', function () { return choixCr(a, 'suiteType', [['rappel', 'Rappel'], ['rdv', 'RDV confirmé']], c.suiteType); },
       function () { return c.suiteType === 'rdv' ? 'RDV confirmé' : 'Rappel'; });
@@ -2401,7 +2588,7 @@
   var TITRES_COURTS = { 'La visite a-t-elle été faite ?': 'Visite faite', 'Trouver un remplaçant à proximité ?': 'Remplaçant', 'Type(s) de visite': 'Types',
     'Activité(s)': 'Activités', 'Produits présentés ?': 'Présentés', 'Produits présentés': 'Produits', 'Réaction du médecin': 'Réaction',
     'Échantillons remis ?': 'Échantillons', 'Échantillons remis (quantités)': 'Échantillons', 'Échantillons (quantités)': 'Échantillons',
-    'Rappel ou RDV confirmé ?': 'Rappel / RDV', 'Prochaine étape le': 'Date', 'Stocks vérifiés ?': 'Stocks', 'Stock par produit': 'Stocks',
+    'Étape suivante': 'Suite', 'Rappel ou RDV confirmé ?': 'Rappel / RDV', 'Prochaine étape le': 'Date', 'Stocks vérifiés ?': 'Stocks', 'Stock par produit': 'Stocks',
     'Commande passée ?': 'Commande', 'Commande (quantités)': 'Quantités', 'Besoin de réapprovisionnement': 'Besoin' };
   function titreCourt(t) { return TITRES_COURTS[t] || t; }
   function rendreCompteRendu(a) {
@@ -2500,6 +2687,7 @@
     else o[k] = valeur;
     if (cle === 'faite' && valeur === 'oui') { c.motif = ''; c.remplacant = ''; }
     if (cle === 'suite' && valeur === 'aucune') { c.suiteType = ''; c.date = ''; }
+    if (cle === 'produits' && !estPharmacie(a)) memoriserDerniersProduitsCr(c.produits);
     syncCr(a); LS.set('plan', S.plan);
   }
 
@@ -2842,8 +3030,8 @@
   // ------------------------------------------------------------------ Vue : autour de moi
   VUES.autour = function () {
     var A = S.ui.autour, h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
-      '<h2 class="titre-vue">' + (S.ui.pharmaciesProches ? (S.ui.pharmaciesProches === 'Médecin' ? 'Médecins' : 'Pharmacies') + ' à proximité' : 'Autour de moi') + '</h2>' +
-      '<p class="sous-titre">' + (S.ui.pharmaciesProches === 'Médecin' ? 'Les médecins présents près de votre position, selon vos spécialités, à ajouter à votre tournée du jour.' : S.ui.pharmaciesProches ? 'Les pharmacies ouvertes près de votre position, à ajouter à votre tournée du jour.' : 'Médecin absent, trou dans la journée : trouvez qui est présent près de vous.') + '</p>';
+      '<h2 class="titre-vue">' + (A.ref ? 'Rattraper une visite' : S.ui.pharmaciesProches ? (S.ui.pharmaciesProches === 'Médecin' ? 'Médecins' : 'Pharmacies') + ' à proximité' : 'Autour de moi') + '</h2>' +
+      '<p class="sous-titre">' + (A.ref ? 'Trouvez un praticien présent à proximité pour remplacer la visite annulée ou compléter votre journée.' : S.ui.pharmaciesProches === 'Médecin' ? 'Les médecins présents près de votre position, selon vos spécialités, à ajouter à votre tournée du jour.' : S.ui.pharmaciesProches ? 'Les pharmacies ouvertes près de votre position, à ajouter à votre tournée du jour.' : 'Médecin absent, trou dans la journée : trouvez qui est présent près de vous.') + '</p>';
     if (A.ref) {
       h += '<div class="bandeau"><p>Remplacement de <b>' + esc(A.ref.nom) + '</b> (' + esc(A.ref.heure) + ', ' + esc(A.ref.quartier) +
         '), marqué « Absent ». <button type="button" class="bouton-texte" data-a="finRef">Terminer</button></p></div>';
@@ -3023,7 +3211,7 @@
   VUES.equipe = function () {
     var nomMoi = moi() || 'Moi', p = S.ui.eqPortee || 'semaine', ref = S.ui.eqDate || aujourdhui();
     var dates = p === 'semaine' ? joursOuvres(lundiDe(ref)) : [ref];
-    var h = '<h2 class="titre-vue">Équipe</h2>' + barreQuiQuand('equipe') +
+    var h = '<h2 class="titre-vue">Équipe</h2><p class="sous-titre">Tournées planifiées et visites réalisées par vous et vos collègues.</p>' + barreQuiQuand('equipe') +
       (ref !== aujourdhui() ? '<p class="discret" style="margin:-4px 0 10px"><button type="button" class="bouton-texte" data-a="eqAujourdhui">Revenir à aujourd\'hui</button></p>' : '');
 
     var tout = donneesEquipe(dates);
@@ -3232,7 +3420,8 @@
           var r = f.potentiels.map(function (x) { return ETOILES[x]; }); if (f.conv !== 'tous') r.push(f.conv === 'oui' ? 'Engagés' : 'Non engagés');
           return r.length ? r.join(' · ') : 'Tous'; },
         rendu: function () {
-          return '<span class="sous-etape">Potentiel</span><div class="puces">' + [['A', '★★★ fort'], ['B', '★★ moyen'], ['C', '★ faible']].map(function (x) { return puceEtape('potentiels', x[0], x[1], f.potentiels.indexOf(x[0]) >= 0, true); }).join('') + '</div>' +
+          return '<span class="sous-etape">Potentiel</span><div class="puces"><button type="button" class="puce puce-tous" data-a="etapeFiltre" data-k="potentiels" data-v="tous" aria-pressed="' + (!f.potentiels.length || f.potentiels.length === 3) + '">Tous</button>' +
+            [['A', '★★★ fort'], ['B', '★★ moyen'], ['C', '★ faible']].map(function (x) { return puceEtape('potentiels', x[0], x[1], f.potentiels.indexOf(x[0]) >= 0, true); }).join('') + '</div>' +
             '<span class="sous-etape">Engagé</span><div class="puces">' + [['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']].map(function (x) { return puceEtape('conv', x[0], x[1], f.conv === x[0]); }).join('') + '</div>';
         } },
       { id: 'suivi', resume: function () {
@@ -3416,13 +3605,15 @@
       (nav ? '<button type="button" class="bouton-icone sombre suivant" data-a="quandDecaler" data-o="' + onglet + '" data-v="1" aria-label="Période suivante">' + icone('chevron') + '</button>' : '') + '</div></div>';
   }
   FEUILLES.qui = function (f) {
-    var noms = nomsDelegues();
+    var noms = nomsDelegues(), tousChoisis = noms.length > 0 && noms.every(function (n) { return f.liste.indexOf(n) >= 0; });
     return '<div class="segment" role="group" aria-label="Qui" style="margin-top:0">' + [['moi', 'Moi'], ['tous', 'Toute l\'équipe'], ['liste', 'Choisir']].map(function (x) {
         return '<button type="button" data-a="quiMode" data-v="' + x[0] + '" aria-pressed="' + (f.qui === x[0]) + '">' + x[1] + '</button>';
       }).join('') + '</div>' +
-      (f.qui === 'liste' ? '<p class="discret" style="margin:4px 0 8px">Touchez les délégués à réunir dans le bilan.</p><div class="puces">' + noms.map(function (n) {
-        return '<button type="button" class="puce" data-a="quiToggle" data-v="' + esc(n) + '" aria-pressed="' + (f.liste.indexOf(n) >= 0) + '">' + esc(n) + (estMoi(n) ? ' (moi)' : '') + '</button>';
-      }).join('') + '</div>' : '') +
+      (f.qui === 'liste' ? '<p class="discret" style="margin:4px 0 8px">Touchez les délégués à réunir dans le bilan.</p><div class="puces">' +
+        (noms.length > 1 ? '<button type="button" class="puce puce-tous" data-a="quiTous" aria-pressed="' + tousChoisis + '">Tous</button>' : '') +
+        noms.map(function (n) {
+          return '<button type="button" class="puce" data-a="quiToggle" data-v="' + esc(n) + '" aria-pressed="' + (f.liste.indexOf(n) >= 0) + '">' + esc(n) + (estMoi(n) ? ' (moi)' : '') + '</button>';
+        }).join('') + '</div>' : '') +
       '<button class="bouton bouton-plein bouton-large" type="button" data-a="quiAppliquer" style="margin-top:14px">Appliquer</button>';
   };
   FEUILLES.quand = function (f) {
@@ -3493,6 +3684,7 @@
   VUES.bilan = function () {
     var vueH = S.ui.statsVue === 'historique';
     var tete = '<h2 class="titre-vue">Bilan</h2>' +
+      '<p class="sous-titre">' + (vueH ? 'Historique complet des comptes rendus de visite sur la période.' : 'Suivi de vos indicateurs, objectifs et couverture par commune et spécialité.') + '</p>' +
       segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique']], vueH ? 'historique' : 'tableau') + barreQuiQuand('bilan');
     if (vueH) return tete + VUES.historique(true);
     var st = S.ui.stats, r = calculerStats(), b = r.bornes;
@@ -3793,8 +3985,7 @@
       if (dep !== undefined && dep !== null && !nouvelle) {
         while (dep - cible > W / 2) dep -= W;
         while (cible - dep > W / 2) dep += W;
-        bp.scrollLeft = dep;
-        try { bp.scrollTo({ left: cible, behavior: reduireAnimations() ? 'auto' : 'smooth' }); } catch (e) { bp.scrollLeft = cible; }
+        glisserHorizontal(bp, dep, cible, 340);
       } else bp.scrollLeft = cible;
       bp.addEventListener('scroll', function () {
         // boucle : on saute d'une copie (contenu identique, saut invisible) quand on approche d'un bord
@@ -3804,6 +3995,7 @@
       }, { passive: true });
       S.ui.bpDepart = bp.scrollLeft;
     }
+    initGlisseHorizontale();
   }
   // fiche d'un produit : l'essentiel ouvert (indications, contre-indications, arguments), le reste à déplier
   FEUILLES.ficheProduit = function (fe) {
@@ -3840,7 +4032,7 @@
   FEUILLES.communes = function (f) {
     var h = groupeChoix(f, { id: 'communes', titre: 'Communes', chemin: 'sel', multiple: true, sections: sectionsCommunes(), recherche: true,
       aide: f.cle === 'tout' ? 'Aucune sélection = toutes les communes.' : 'Aucune sélection = les communes choisies pour la semaine.' });
-    return { corps: h, pied: '<button class="bouton" type="button" data-a="communesAucune">Effacer</button>' +
+    return { corps: h, pied: '<button class="bouton" type="button" data-a="communesToutes">Tous</button><button class="bouton" type="button" data-a="communesAucune">Effacer</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="communesOk">' + (f.sel.length ? 'Valider · ' + f.sel.length + ' commune' + (f.sel.length > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
   };
 
@@ -3860,25 +4052,28 @@
           esc(Array.from(new Set((c.presencesParCode[p.code] || []).map(function (x) { return x.commune; }))).join(', ')) + '</span></button></li>';
       }).join('') + '</ul>';
     }
-    var p = c.prat[f.code], dates = datesPeriode();
+    var p = c.prat[f.code], dates = datesPeriode(), tAuj = aujourdhui();
     var options = [];
     dates.forEach(function (d) {
       var j = jourSemaineIndex(d);
       (c.parCode[f.code] || []).forEach(function (cr) { if (cr.jourIdx === j) options.push({ d: d, c: cr }); });
     });
+    var defAuj = f.cle === '__aujourdhui' || (!f.cle && !options.length);
     h += '<p><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(p.specialite) + '</span></p>';
-    h += '<p class="discret">Présences sur la période :</p>';
-    h += '<div class="choix-creneaux"><label class="choix"><input type="radio" name="impCle" value=""' + (!f.cle ? ' checked' : '') + '><span><b>Au meilleur moment</b><small>L\'application choisit le jour le plus pratique</small></span></label>' +
+    h += '<p class="discret">Quand planifier cette visite ?</p>';
+    h += '<div class="choix-creneaux">' +
+      '<label class="choix choix-aujourdhui"><input type="radio" name="impCle" value="__aujourdhui"' + (defAuj ? ' checked' : '') + '><span><b>Ajouter à aujourd\'hui (' + dateCourte(tAuj) + ') — visite inopinée</b><small>Forcer dans la journée d\'aujourd\'hui, en dépit du programme</small></span></label>' +
+      (options.length ? '<label class="choix"><input type="radio" name="impCle" value=""' + (!f.cle && !defAuj ? ' checked' : '') + '><span><b>Au meilleur moment</b><small>L\'application choisit le jour le plus pratique</small></span></label>' : '') +
       options.map(function (o) {
         var v = o.d + '|' + o.c.cle;
         return '<label class="choix"><input type="radio" name="impCle" value="' + esc(v) + '"' + (f.cle === v ? ' checked' : '') + '><span><b>' +
           majuscule(dateCourte(o.d)) + ', ' + o.c.creneau.toLowerCase() + ' ' + minutesVersHeure(o.c.debut) + '-' + minutesVersHeure(o.c.fin) + '</b><small>' +
           esc(o.c.lieu) + ', ' + esc(o.c.quartier) + '</small></span></label>';
       }).join('') + '</div>';
-    if (!options.length) h += '<p class="discret" style="color:var(--rouge)">Ce praticien n\'est présent aucun jour de la période choisie.</p>';
+    if (!options.length) h += '<p class="discret">Aucune présence sur la période : vous pouvez néanmoins forcer l\'ajout à aujourd\'hui.</p>';
     h += '<label class="champ"><span>Heure de RDV (facultatif)</span><input type="time" id="impRdv" value="' + esc(f.rdv || '') + '"></label>' +
       '<div class="rangee"><button class="bouton" type="button" data-a="retourRecherche">Retour</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="ajouterImpose"' + (options.length ? '' : ' disabled') + '>Ajouter</button></div>';
+      '<button class="bouton bouton-plein" type="button" data-a="ajouterImpose">Ajouter</button></div>';
     return h;
   };
 
@@ -3945,8 +4140,8 @@
         pied: piedQuestion('data-a="remplacerOui"', 'Remplacer', 'remplacerNon') };
     }
     var l = candidatsRemplacement(a);
-    if (!l.length) return '<p class="discret" style="margin-top:0">Aucun autre praticien disponible ce jour-là selon vos critères (communes, spécialités, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>';
-    return '<p class="discret" style="margin-top:0">Praticiens présents le ' + dateFr(a.date) + ', hors de votre tournée et non prévus par un collègue, selon vos critères. Choisissez celui qui remplacera <b>' + esc(a.nom) + '</b> :</p>' +
+    if (!l.length) return '<p class="sous-titre" style="margin-top:0">Choisissez un praticien disponible pour rattraper et remplacer cette visite.</p><p class="discret">Aucun autre praticien disponible ce jour-là selon vos critères (communes, spécialités, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>';
+    return '<p class="sous-titre" style="margin-top:0">Choisissez un praticien disponible pour rattraper et remplacer <b>' + esc(a.nom) + '</b> dans votre tournée du ' + dateFr(a.date) + ' :</p>' +
       '<ul class="liste">' + l.map(function (x) {
         var p = x.cr.prat;
         return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '">' +
@@ -4103,7 +4298,7 @@
     var h = groupeChoix(f, { id: 'multi', titre: f.titreGroupe || 'Choix', chemin: 'sel', multiple: true, recherche: f.options.length > 8, aide: f.aide,
       options: f.options.map(function (o) { return { v: o.nom, lib: o.nom, n: o.n }; }) });
     var total = f.sel.reduce(function (s2, v) { var o = f.options.filter(function (x) { return x.nom === v; })[0]; return s2 + (o && o.n ? o.n : 0); }, 0);
-    return { corps: h, pied: '<button class="bouton" type="button" data-a="multiAucun">Effacer</button>' +
+    return { corps: h, pied: '<button class="bouton" type="button" data-a="multiTous">Tous</button><button class="bouton" type="button" data-a="multiAucun">Effacer</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="multiOk">' + (f.sel.length ? 'Valider · ' + total + ' médecin' + (total > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
   };
 
@@ -4136,9 +4331,19 @@
     return groupeChoix(f, o);
   };
   FEUILLES.crListe = function (f) {
-    var h = groupeChoix(f, { id: 'l', titre: f.multi ? 'Plusieurs choix possibles' : 'Un seul choix', chemin: 'sel', multiple: f.multi, recherche: f.options.length > 8,
-      options: f.options.map(function (o) { return { v: o[0], lib: o[1] }; }) });
-    return f.multi ? { corps: h, pied: '<button class="bouton" type="button" data-a="crListeAucun">Effacer</button>' +
+    var estProd = f.cle === 'produits' || f.cle === 'besoin' || f.cle === 'actionProduits';
+    var o = { id: 'l', titre: f.multi ? 'Plusieurs choix possibles' : 'Un seul choix', chemin: 'sel', multiple: f.multi, recherche: f.options.length > 8 };
+    if (estProd) {
+      var g = produitsParGamme();
+      o.sections = [
+        { titre: 'Gamme A (Zyltan, Lesstrol, Eurythmic, Tensicard)', options: g.gammeA.map(function (p) { return { v: p, lib: p }; }) },
+        { titre: 'Gamme B (autres produits)', options: g.gammeB.map(function (p) { return { v: p, lib: p }; }) }
+      ];
+    } else {
+      o.options = f.options.map(function (op) { return { v: op[0], lib: op[1] }; });
+    }
+    var h = groupeChoix(f, o);
+    return f.multi ? { corps: h, pied: '<button class="bouton" type="button" data-a="crListeTous">Tous</button><button class="bouton" type="button" data-a="crListeAucun">Effacer</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="crListeOk">Valider' + (f.sel.length ? ' · ' + f.sel.length : '') + '</button>' } : h;
   };
   FEUILLES.filtres = function (f) {
@@ -4153,7 +4358,7 @@
           aide: b.type === 'tous' ? 'S\'appliquent aux médecins seulement ; les pharmacies restent affichées.' : '' }),
       com: groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes', sections: sectionsCommunes(),
         aide: 'Lieux d\'exercice du praticien. Pour un établissement ou un quartier, utilisez la recherche de la liste.' }),
-      valeur: groupeChoix(f, { id: 'pot', titre: 'Potentiel de prescription', chemin: 'brouillon.potentiels', multiple: true,
+      valeur: groupeChoix(f, { id: 'pot', titre: 'Potentiel de prescription', chemin: 'brouillon.potentiels', multiple: true, tousVide: true,
           options: opt([['A', '★★★', 'fort'], ['B', '★★', 'moyen'], ['C', '★', 'faible']]) }) +
         groupeChoix(f, { id: 'conv', titre: 'Engagé', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }),
       suivi: groupeChoix(f, { id: 'visite', titre: 'Dernière visite (un seul choix)', chemin: 'brouillon.visite', options: opt([['tous', 'Toutes'], ['jamais', 'Jamais visité'],
@@ -4386,7 +4591,12 @@
             '<div class="gps-ligne gps-centre" style="margin-bottom:8px"><button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'Captez GPS</button>' +
               (l.lat && l.lon ? '<span>GPS : ' + (+String(l.lat).replace(',', '.')).toFixed(4) + ', ' + (+String(l.lon).replace(',', '.')).toFixed(4) + '</span>' : '<span>Pas de GPS</span>') + '</div>';
         }
-        h += '<div class="grille-dispo" role="group" aria-label="Présences du lieu ' + (i + 1) + '"><span></span><span class="entete-col">Matin</span><span class="entete-col">Soir</span>' +
+        var tousM = l.jours.every(function (j) { return j.matin; }), tousS = l.jours.every(function (j) { return j.soir; });
+        h += '<div class="puces" style="margin-bottom:8px">' +
+          '<button type="button" class="puce petite puce-tous" data-a="ficheJoursTous" data-i="' + i + '" data-c="tout" aria-pressed="' + (tousM && tousS) + '">Toute la semaine</button>' +
+          '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="matin" aria-pressed="' + tousM + '">Tous les matins</button>' +
+          '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="soir" aria-pressed="' + tousS + '">Tous les soirs</button></div>' +
+          '<div class="grille-dispo" role="group" aria-label="Présences du lieu ' + (i + 1) + '"><span></span><span class="entete-col">Matin</span><span class="entete-col">Soir</span>' +
           JOURS.map(function (j, k) {
             return '<span class="jour-nom">' + j + '</span>' +
               '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="matin" aria-pressed="' + l.jours[k].matin + '" aria-label="' + j + ' matin">' + (l.jours[k].matin ? 'Oui' : '–') + '</button>' +
@@ -4756,7 +4966,53 @@
       return !qui || estMoi(qui);
     }).map(function (p) { return { code: p.code, apres: p.prochaine < dates[0] ? dates[0] : p.prochaine, etape: true, dateRdv: p.prochaine, prisLe: prisLe[p.code + '|' + p.prochaine] || '' }; });
   }
+  function forcerArretJour(code, d, rdv) {
+    var c = ctx(), p = c.prat[code];
+    if (!p) return false;
+    var ex = S.plan.filter(function (a) { return a.date === d && a.code === code; })[0];
+    if (ex) {
+      ex.impose = true; ex.garde = true; ex.inopinee = true;
+      if (rdv) ex.rdv = rdv;
+      reordonner(d);
+      return true;
+    }
+    var jIdx = jourSemaineIndex(d), now = minutesMaintenant(), estSoir = d === aujourdhui() && now >= 13 * 60;
+    var tousCr = c.parCode[code] || [];
+    var cr = tousCr.filter(function (x) { return x.jourIdx === jIdx && x.creneau === (estSoir ? 'Soir' : 'Matin'); })[0] ||
+             tousCr.filter(function (x) { return x.jourIdx === jIdx; })[0] ||
+             tousCr[0];
+    if (!cr) {
+      var pr = (c.presencesParCode[code] || [])[0] || { id: 'IMP-' + code, lieu: p.type === 'Pharmacie' ? p.nom : 'Cabinet', quartier: '', commune: '', zone: '' };
+      var qObj = quartiers().filter(function (q) { return q.quartier === pr.quartier; })[0];
+      var coord = (pr.lat && pr.lon) ? { lat: +pr.lat, lon: +pr.lon } : (qObj ? { lat: +qObj.lat, lon: +qObj.lon, approx: true } : null);
+      cr = {
+        cle: (pr.id || code) + '|' + Math.min(jIdx, 4) + '|' + (estSoir ? 'Soir' : 'Matin'),
+        idPresence: pr.id || '', code: code, prat: p,
+        lieu: pr.lieu || (p.type === 'Pharmacie' ? p.nom : 'Cabinet'),
+        quartier: pr.quartier || '', commune: pr.commune || (qObj ? qObj.commune : ''), zone: pr.zone || (qObj ? qObj.zone : ''),
+        jourIdx: Math.min(jIdx, 4), jour: JOURS[Math.min(jIdx, 4)] || 'Aujourd\'hui',
+        creneau: estSoir ? 'Soir' : 'Matin',
+        debut: estSoir ? 15 * 60 : 8 * 60,
+        fin: estSoir ? 18 * 60 + 30 : 12 * 60 + 30,
+        coord: coord
+      };
+    }
+    var a = Moteur.arretDepuisCreneau(cr, d);
+    a.jour = JOURS[Math.min(jIdx, 4)] || a.jour;
+    if (cr.jourIdx !== jIdx) {
+      a.creneau = estSoir ? 'Soir' : 'Matin';
+      a.debut = estSoir ? '15:00' : '08:00';
+      a.fin = estSoir ? '18:30' : '12:30';
+    }
+    a.impose = true; a.garde = true; a.etat = 'ajoute'; a.inopinee = true;
+    if (rdv) a.rdv = rdv;
+    S.plan.push(a);
+    reordonner(d);
+    if (!S.jours[d]) mettreBrouillon([d]);
+    return true;
+  }
   function placerImpose(im) {
+    if (im.force && im.date) return forcerArretJour(im.code, im.date, im.rdv);
     var c = ctx(), dates = datesPeriode(), best = null;
     (c.parCode[im.code] || []).forEach(function (cr) {
       dates.forEach(function (d) {
@@ -4975,8 +5231,15 @@
     },
     rapEditer: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); },
     rapBesoin: function (el) {
-      var R = rapportOuCree(jourAffiche()), l = R.besoins || (R.besoins = []), i = l.indexOf(el.dataset.v);
-      if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v); sauverRapports(); rendre();
+      var R = rapportOuCree(jourAffiche()), l = R.besoins || (R.besoins = []), v = el.dataset.v;
+      if (v === '__tous') {
+        var tous = BESOINS_JOUR.every(function (b) { return l.indexOf(b) >= 0; });
+        R.besoins = tous ? [] : BESOINS_JOUR.slice();
+      } else {
+        var i = l.indexOf(v);
+        if (i >= 0) l.splice(i, 1); else l.push(v);
+      }
+      sauverRapports(); rendre();
     },
     rapValider: function (el) {
       var d = el.dataset.v, R = rapportOuCree(d);
@@ -5204,6 +5467,11 @@
       l.forEach(function (c) { var i = f.sel.indexOf(c); if (tous && i >= 0) f.sel.splice(i, 1); if (!tous && i < 0) f.sel.push(c); });
       rendre();
     },
+    communesToutes: function () {
+      var f = S.ui.feuille;
+      f.sel = communesListe().map(function (c) { return c.commune; });
+      rendre();
+    },
     communesAucune: function () { S.ui.feuille.sel = []; rendre(); },
     communesOk: function () {
       var f = S.ui.feuille;
@@ -5217,8 +5485,20 @@
     retourRecherche: function () { S.ui.feuille.code = null; rendre(); },
     ajouterImpose: function () {
       var f = S.ui.feuille, choix = document.querySelector('input[name=impCle]:checked'), rdv = ($('impRdv').value || '').trim();
+      var val = choix ? choix.value : '';
+      if (val === '__aujourdhui') {
+        var tAuj = aujourdhui(), imAuj = { code: f.code, date: tAuj, force: true };
+        if (rdv) imAuj.rdv = rdv;
+        S.imposes = S.imposes.filter(function (x) { return x.code !== imAuj.code; }).concat([imAuj]);
+        forcerArretJour(f.code, tAuj, rdv);
+        S.ui.jour = tAuj; S.ui.jourVue = null;
+        if (!S.ui.voirParams) S.ui.tab = 'jour';
+        S.ui.feuille = null; sauver(); rendre(); publierPlan();
+        toast('Ajouté à aujourd\'hui (' + dateCourte(tAuj) + ', visite inopinée).');
+        return;
+      }
       var im = { code: f.code };
-      if (choix && choix.value) { var p = choix.value.split('|'); im.date = p[0]; im.cle = p.slice(1).join('|'); }
+      if (val) { var p = val.split('|'); im.date = p[0]; im.cle = p.slice(1).join('|'); }
       if (rdv) im.rdv = rdv;
       S.imposes = S.imposes.filter(function (x) { return x.code !== im.code; }).concat([im]);
       var place = S.plan.length ? placerImpose(im) : false;
@@ -5282,6 +5562,12 @@
     quiOuvrir: function () { S.ui.feuille = { type: 'qui', titre: 'Délégués', qui: S.ui.fq.qui, liste: S.ui.fq.liste.slice() }; rendre(); },
     quiMode: function (el) { var f = S.ui.feuille; f.qui = el.dataset.v; if (f.qui === 'liste' && !f.liste.length && moi()) f.liste = [moi()]; rendre(); },
     quiToggle: function (el) { var f = S.ui.feuille, i = f.liste.indexOf(el.dataset.v); if (i >= 0) f.liste.splice(i, 1); else f.liste.push(el.dataset.v); rendre(); },
+    quiTous: function () {
+      var f = S.ui.feuille, noms = nomsDelegues();
+      var tous = noms.every(function (n) { return f.liste.indexOf(n) >= 0; });
+      f.liste = tous ? [] : noms.slice();
+      rendre();
+    },
     quiAppliquer: function () {
       var f = S.ui.feuille; S.ui.fq = { qui: f.qui === 'liste' && !f.liste.length ? 'moi' : f.qui, liste: f.qui === 'liste' ? f.liste : [] };
       LS.set('filtreQui', S.ui.fq); S.ui.feuille = null; S.ui.eqOuverts = {}; S.ui.jourEquipe = null; rendre();
@@ -5390,8 +5676,17 @@
     },
     // Ciblage de la tournée
     paramPotentiel: function (el) {
+      if (el.dataset.v === 'tous') { S.params.potentiels = []; LS.set('params', S.params); rendre(); return; }
       var l = S.params.potentiels, i = l.indexOf(el.dataset.v);
       if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
+      LS.set('params', S.params); rendre();
+    },
+    paramSpecToutes: function () { S.params.specialites = []; LS.set('params', S.params); rendre(); },
+    paramSpecDefaut: function () { S.params.specialites = SPECS_DEFAUT.slice(); LS.set('params', S.params); rendre(); },
+    paramPas: function (el) {
+      var k = el.dataset.k, pas = +el.dataset.v || 0;
+      if (k === 'maxJour') S.params.maxJour = Math.max(1, Math.min(20, (+S.params.maxJour || 8) + pas));
+      else if (k === 'delai') S.params.delai = Math.max(0, Math.min(90, (S.params.delai !== undefined ? +S.params.delai : 7) + pas));
       LS.set('params', S.params); rendre();
     },
     choisirSpecialites: function () {
@@ -5403,7 +5698,17 @@
       var a = arret(el.dataset.uid); if (!a) return;
       majCr(a, el.dataset.k, el.dataset.v); validerEtape(a, el.dataset.k); rendre(); centrerQuestion(a.uid);
     },
-    crOk: function (el) {        var a = arret(el.dataset.uid); if (!a) return;        if (el.dataset.v === 'produits') {          var c = crDe(a); c.reactions = c.reactions || {};          produitsPresentes(c).forEach(function (p) {            if (!Object.prototype.hasOwnProperty.call(c.reactions, p)) c.reactions[p] = 'Intéressé';          });        }        validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid);      },
+    crOk: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      if (el.dataset.v === 'produits') {
+        var c = crDe(a); c.reactions = c.reactions || {};
+        if (!estPharmacie(a)) memoriserDerniersProduitsCr(c.produits);
+        produitsPresentes(c).forEach(function (p) {
+          if (!Object.prototype.hasOwnProperty.call(c.reactions, p)) c.reactions[p] = 'Intéressé';
+        });
+      }
+      validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid);
+    },
     crPasser: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var champs = { precision: ['precision'], bilan: ['bilan'], commentaire: ['commentaire'], besoin: ['besoinTexte'] }[el.dataset.v] || [];
@@ -5451,6 +5756,45 @@
       localiser(true, 'position', true);
     },
     crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); centrerChoix(el); },
+    crMultiTous: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var k = el.dataset.k, c = crDe(a), opts = (S.ui.crOptions[a.uid + '|' + k] || []).map(function (o) { return o[0]; });
+      var l = Array.isArray(c[k]) ? c[k] : [];
+      var tous = opts.length > 0 && opts.every(function (v) { return l.indexOf(v) >= 0; });
+      c[k] = tous ? [] : opts.slice();
+      if (k === 'produits' && !estPharmacie(a)) memoriserDerniersProduitsCr(c.produits);
+      syncCr(a); LS.set('plan', S.plan); rendre();
+    },
+    crProduitsTous: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var k = el.dataset.k || 'produits', c = crDe(a), tous = produitsRef();
+      var l = Array.isArray(c[k]) ? c[k] : [];
+      var toutCoche = tous.length > 0 && tous.every(function (p) { return l.indexOf(p) >= 0; });
+      c[k] = toutCoche ? [] : tous.slice();
+      if (k === 'produits' && !estPharmacie(a)) memoriserDerniersProduitsCr(c.produits);
+      syncCr(a); LS.set('plan', S.plan); rendre();
+    },
+    crProduitsAucun: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var k = el.dataset.k || 'produits', c = crDe(a);
+      c[k] = [];
+      if (k === 'produits' && !estPharmacie(a)) memoriserDerniersProduitsCr([]);
+      syncCr(a); LS.set('plan', S.plan); rendre();
+    },
+    crGammeTous: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var k = el.dataset.k || 'produits', g = produitsParGamme(), cible = el.dataset.g === 'A' ? g.gammeA : g.gammeB;
+      var c = crDe(a), l = Array.isArray(c[k]) ? c[k].slice() : [];
+      var tous = cible.length > 0 && cible.every(function (p) { return l.indexOf(p) >= 0; });
+      cible.forEach(function (p) {
+        var i = l.indexOf(p);
+        if (tous && i >= 0) l.splice(i, 1);
+        else if (!tous && i < 0) l.push(p);
+      });
+      c[k] = l;
+      if (k === 'produits' && !estPharmacie(a)) memoriserDerniersProduitsCr(c.produits);
+      syncCr(a); LS.set('plan', S.plan); rendre();
+    },
     crRemplacer: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       syncCr(a); validerVisites(a.uid);
@@ -5516,11 +5860,18 @@
         sel: multi ? (c[cle] || []).slice() : (c[cle] || '') };
       rendre();
     },
+    crListeTous: function () {
+      var f = S.ui.feuille;
+      f.sel = f.options.map(function (o) { return o[0]; });
+      rendre();
+    },
     crListeAucun: function () { S.ui.feuille.sel = []; rendre(); },
     crListeOk: function () {
       var f = S.ui.feuille, a = arret(f.uid); S.ui.feuille = null;
       if (a) {
-        crDe(a)[f.cle] = f.sel.slice(); syncCr(a); LS.set('plan', S.plan);
+        crDe(a)[f.cle] = f.sel.slice();
+        if (f.cle === 'produits' && !estPharmacie(a)) memoriserDerniersProduitsCr(f.sel);
+        syncCr(a); LS.set('plan', S.plan);
         // comme Planifier : la liste validée passe à la question suivante (sauf s'il reste un champ à remplir dans la question)
         if (f.sel.length && (f.cle === 'types')) validerEtape(a, f.cle);
       }
@@ -5528,13 +5879,23 @@
     },
     groupeTout: function (el) {
       var c = cheminObjet(el.dataset.chemin), l = c.o[c.k];
-      el.closest('.groupe-filtre').querySelectorAll('.puce:not([hidden])').forEach(function (b) { if (l.indexOf(b.dataset.v) < 0) l.push(b.dataset.v); });
+      el.closest('.groupe-filtre').querySelectorAll('.puce:not(.puce-tous):not([hidden])').forEach(function (b) { if (b.dataset.v && l.indexOf(b.dataset.v) < 0) l.push(b.dataset.v); });
+      rendre();
+    },
+    groupeToutToggle: function (el) {
+      var c = cheminObjet(el.dataset.chemin), l = c.o[c.k];
+      if (el.dataset.vide === '1') { c.o[c.k] = []; rendre(); return; }
+      var vs = [];
+      el.closest('.groupe-filtre').querySelectorAll('.puce:not(.puce-tous):not([hidden])').forEach(function (b) { if (b.dataset.v) vs.push(b.dataset.v); });
+      var tous = vs.length > 0 && vs.every(function (v) { return l.indexOf(v) >= 0; });
+      if (tous) c.o[c.k] = [];
+      else vs.forEach(function (v) { if (l.indexOf(v) < 0) l.push(v); });
       rendre();
     },
     groupeAucun: function (el) { var c = cheminObjet(el.dataset.chemin); c.o[c.k] = []; rendre(); },
     sectionToute: function (el) {
       var c = cheminObjet(el.dataset.chemin), l = c.o[c.k], vs = [];
-      el.closest('.section-choix').querySelectorAll('.puce').forEach(function (b) { vs.push(b.dataset.v); });
+      el.closest('.section-choix').querySelectorAll('.puce:not(.puce-tous)').forEach(function (b) { if (b.dataset.v) vs.push(b.dataset.v); });
       var tous = vs.every(function (v) { return l.indexOf(v) >= 0; });
       vs.forEach(function (v) { var i = l.indexOf(v); if (tous && i >= 0) l.splice(i, 1); if (!tous && i < 0) l.push(v); });
       rendre();
@@ -5557,6 +5918,11 @@
     },
     filtreType: function (el) { var f = filtresCour(); f.type = el.dataset.v; majFiltres(f); rendre(); },
     multiToggle: function (el) { var f = S.ui.feuille, i = f.sel.indexOf(el.dataset.v); if (i >= 0) f.sel.splice(i, 1); else f.sel.push(el.dataset.v); rendre(); },
+    multiTous: function () {
+      var f = S.ui.feuille;
+      f.sel = f.options.map(function (o) { return o.nom; });
+      rendre();
+    },
     multiAucun: function () { S.ui.feuille.sel = []; rendre(); },
     multiOk: function () {
       var f = S.ui.feuille; S.params[f.cle] = f.sel.slice(); LS.set('params', S.params);
@@ -5572,6 +5938,7 @@
     etapeFiltre: function (el) {
       var f = filtresCour(), k = el.dataset.k, v = el.dataset.v;
       if (k === 'tri') { S.ui.tri = v; LS.set('tri', v); }
+      else if (k === 'potentiels' && v === 'tous') { f.potentiels = []; majFiltres(f); }
       else { if (el.dataset.m === '1') { var i = f[k].indexOf(v); if (i >= 0) f[k].splice(i, 1); else f[k].push(v); } else f[k] = v; majFiltres(f); }
       if (el.dataset.auto) { etatEtapes().ok[el.dataset.auto] = true; sauverEtapes(); }
       if (!finRecherche()) rendre();
@@ -5666,6 +6033,18 @@
     ficheJour: function (el) {
       var l = S.ui.feuille.d.lieux[+el.dataset.i], j = l.jours[+el.dataset.j];
       j[el.dataset.c] = !j[el.dataset.c];
+      if (S.ui.feuille.err['jours' + el.dataset.i]) S.ui.feuille.err = erreursEtape(S.ui.feuille.d, 1);
+      rendre();
+    },
+    ficheJoursTous: function (el) {
+      var l = S.ui.feuille.d.lieux[+el.dataset.i], c = el.dataset.c;
+      if (c === 'tout') {
+        var tout = l.jours.every(function (j) { return j.matin && j.soir; });
+        l.jours.forEach(function (j) { j.matin = !tout; j.soir = !tout; });
+      } else {
+        var tous = l.jours.every(function (j) { return j[c]; });
+        l.jours.forEach(function (j) { j[c] = !tous; });
+      }
       if (S.ui.feuille.err['jours' + el.dataset.i]) S.ui.feuille.err = erreursEtape(S.ui.feuille.d, 1);
       rendre();
     },
