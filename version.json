@@ -1,7 +1,9 @@
 {
-  "version": "3.25.20",
+  "version": "3.25.21",
   "date": "2026-10-28",
   "notes": [
-    "Journée, Autour de moi : critères et filtres uniformisés avec l'onglet Répertoire"
+    "Planifier : bouton « Accepter » sous Ajouter manuellement et Recalculer automatiquement",
+    "Répertoire : nouvelle phrase d'introduction",
+    "Autour de moi : critères et filtres uniformisés avec l'onglet Répertoire"
   ]
 }
