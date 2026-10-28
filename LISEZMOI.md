@@ -1,6 +1,6 @@
 # MediPlanner
 
-Version 3.24.21
+Version 3.25.17
 
 L'application, installée sur le téléphone, construit la tournée du jour ou de la semaine à partir du **planning propre à chaque médecin**, évite les médecins déjà ciblés par les collègues et envoie le programme validé sur WhatsApp. La base de données est un Google Sheet modifiable depuis l'ordinateur.
 
@@ -115,8 +115,8 @@ L'application suit la journée du délégué, en 5 onglets.
 - **Produits** : aide-mémoire de visite par gamme (Zyltan H, Zyltan AM, Losartan AM, Telmikaa, Tensicard, Rozukaa 10 et 20, Lesstrol 20, Eurythmic, Antiplatt) : indications, contre-indications, posologie, précautions, effets indésirables, arguments clés. Données dans la feuille « Fiches produits » du Google Sheet, modifiable.
 - Planifier : bouton **Planifier** ; la planification de la tournée se fait une option à la fois **Période > Communes ciblées > Praticiens à visiter > Spécialités > Potentiel > Rythme de visite > RDV et prioritaires** ; chaque réponse se replie en une ligne modifiable, puis « Proposer ma tournée ».
 - Équipe : touchez un ou plusieurs délégués pour les isoler ; « Toute l'équipe » les affiche tous, un bloc repliable par délégué.
-- Recherche : un résumé des critères et un bouton **Recherche** qui les déploie ; **Fermer la recherche** les replie.
-- Recherche et Autour de moi : filtres dans l'ordre des questions **Qui ? > Quelle spécialité ? > Où ? > Quelle valeur ? > Quel suivi ? > Dans quel ordre ?**. Une seule question à la fois, comme le compte rendu ; chaque réponse se replie en une ligne modifiable, puis une ligne « Critères » résume tout. Les raccourcis (★★★, Non visité +30 j, À revoir, Jamais visité, Engagés) sont proposés à la première question.
+- Contacts : médecins et pharmacies, un résumé des critères et un bouton **Rechercher par critères** qui les déploie ; **Fermer la recherche** les replie.
+- Contacts et Autour de moi : filtres dans l'ordre des questions **Qui ? > Quelle spécialité ? > Où ? > Quelle valeur ? > Quel suivi ? > Dans quel ordre ?**. Une seule question à la fois, comme le compte rendu ; chaque réponse se replie en une ligne modifiable, puis une ligne « Critères » résume tout. Les raccourcis (★★★, Non visité +30 j, À revoir, Jamais visité, Engagés) sont proposés à la première question.
 - Aujourd'hui : **+ Médecin** (médecins présents près de vous, selon vos spécialités), **+ Pharmacie** et **Autour de moi**, sur une même ligne. Le jour choisi reste affiché après un rafraîchissement.
 - Médecin déjà prévu par un collègue : la carte demande **« Le remplacer ? »** ; Oui affiche les praticiens disponibles ce jour-là (pré-filtrés selon vos critères et les horaires), vous choisissez puis confirmez ; Non le garde. Toute modification de la tournée (retirer, ajouter, remplacer) demande une confirmation.
 - **Autour de moi** (bouton en haut) : qui est présent maintenant ou à un autre moment, près de vous ou d'un quartier, avec les mêmes filtres que Praticiens.
@@ -129,7 +129,7 @@ L'application suit la journée du délégué, en 5 onglets.
 - **Confirmer la tournée** : elle devient visible par l'équipe ; elle reste modifiable et chaque changement est publié. **Envoyer sur WhatsApp** : « Planning du … (votre nom) », puis chaque établissement et ses médecins, précédés d'une puce.
 - **Communes visitées** : carte et liste des communes visitées ou non (par vous et par l'équipe), au jour ou à la semaine.
 
-**3. Recherche** (les praticiens) : recherche, une phrase qui résume les critères retenus, Tout / Médecins / Pharmacies, filtres rapides et avancés, tri. La fiche affiche les actions rapides, le dernier commentaire, le prochain RDV et les jours de présence (touchez M ou S pour planifier) ; **Ajouter à ma tournée** ou **Modifier la fiche** ; **Ajouter** pour créer une fiche en 4 étapes.
+**3. Contacts** (les praticiens) : recherche, une phrase qui résume les critères retenus, Tout / Médecins / Pharmacies, filtres rapides et avancés, tri. La fiche affiche les actions rapides, le dernier commentaire, le prochain RDV et les jours de présence (touchez M ou S pour planifier) ; **Ajouter à ma tournée** ou **Modifier la fiche** ; **Ajouter** pour créer une fiche en 4 étapes.
 
 **4. Équipe** : choisissez **Jour** ou **Semaine**, puis la date (flèches ou calendrier) : pour vous et chaque collègue, ce qui a été planifié et ce qui a été fait (visites faites, non faites, sans compte rendu, hors tournée), avec « Toute l'équipe » pour tout voir ensemble, le détail de chaque visite (type, produits, commentaire) et la carte du jour en bas. Tournées conservées 62 jours.
 
