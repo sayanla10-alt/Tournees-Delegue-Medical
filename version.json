@@ -1,7 +1,8 @@
 {
-  "version": "3.25.31",
+  "version": "3.25.32",
   "date": "2026-10-28",
   "notes": [
+    "Nouveau médecin : liste des hôpitaux suggérés triée par proximité réelle (position GPS et quartier) avec affichage de la distance",
     "Communes : zones géographiques repliables en accordéon compact avec badges de sélection et dépliage automatique à la recherche"
   ]
 }

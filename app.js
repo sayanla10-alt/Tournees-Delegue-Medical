@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.31';
+  var APP_VERSION = '3.25.32';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.32', ['Nouveau médecin : liste des hôpitaux suggérés triée par proximité réelle (position GPS et quartier) avec affichage de la distance']],
     ['3.25.31', ['Communes : zones géographiques repliables en accordéon compact avec badges de sélection et dépliage automatique à la recherche']],
     ['3.25.30', ['Planifier : critères verrouillés strictement sur 2 lignes fixes en grille responsive']],
     ['3.25.29', ['Nouveau contact (Médecin) : sélection d\'un établissement connu avec auto-complétion instantanée du quartier, de la commune et du GPS',
@@ -4740,24 +4741,58 @@
     var t = normaliser(q || ''), mots = t ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
     S.ui.sugLieux = S.ui.sugLieux || {}; S.ui.sugLieux[i] = [];
     var tous = etablissementsConnus();
+
+    // 3.25.32 : Tri intelligent par proximité géographique (position GPS du délégué en priorité, sinon son quartier/secteur)
+    var posRef = null;
+    if (S.ui.posGps && isFinite(S.ui.posGps.lat) && S.ui.posGps.lat) {
+      posRef = { lat: S.ui.posGps.lat, lon: S.ui.posGps.lon };
+    } else if (S.user && S.user.quartier) {
+      var rqU = quartiers().filter(function (x) { return x.quartier === S.user.quartier; })[0];
+      if (rqU && isFinite(rqU.lat)) posRef = { lat: rqU.lat, lon: rqU.lon };
+    }
+
+    tous.forEach(function (e) {
+      var coord = (isFinite(e.lat) && isFinite(e.lon) && e.lat) ? { lat: e.lat, lon: e.lon } : null;
+      if (!coord && e.quartier) {
+        var rq = quartiers().filter(function (x) { return x.quartier === e.quartier; })[0];
+        if (rq && isFinite(rq.lat)) coord = { lat: rq.lat, lon: rq.lon };
+      }
+      e.dist = posRef && coord ? distanceKm(posRef, coord) : 999;
+      var memeQuart = S.user && S.user.quartier && e.quartier === S.user.quartier;
+      var memeCom = S.user && S.user.commune && e.commune === S.user.commune;
+      e.scoreLoc = memeQuart ? 0 : (memeCom ? 1 : 2);
+    });
+
     if (!mots.length) {
-      var freq = tous.slice().sort(function (a, b) { return b.n - a.n || a.lieu.localeCompare(b.lieu, 'fr'); }).slice(0, 6);
-      S.ui.sugLieux[i] = freq;
-      if (!freq.length) return '';
-      return '<div class="puces" style="margin:4px 0 6px">' + freq.map(function (e, k) {
-        return '<button type="button" class="puce petite" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '">' + esc(e.lieu) + (e.quartier ? ' <small class="discret">(' + esc(e.quartier) + ')</small>' : '') + '</button>';
+      var tri = tous.slice().sort(function (a, b) {
+        if (posRef) return (a.dist - b.dist) || (b.n - a.n) || a.lieu.localeCompare(b.lieu, 'fr');
+        return (a.scoreLoc - b.scoreLoc) || (b.n - a.n) || a.lieu.localeCompare(b.lieu, 'fr');
+      }).slice(0, 6);
+      S.ui.sugLieux[i] = tri;
+      if (!tri.length) return '';
+      var libTitre = posRef && S.ui.posGps ? '📍 Hôpitaux proches de votre position :' : (S.user && S.user.quartier ? 'Hôpitaux de votre secteur (' + esc(S.user.quartier) + ') :' : 'Établissements fréquents :');
+      return '<div class="discret" style="font-size:11.5px;margin:6px 0 3px;font-weight:600">' + libTitre + '</div>' +
+        '<div class="puces" style="margin:2px 0 6px">' + tri.map(function (e, k) {
+        var distTxt = e.dist < 50 ? (e.dist < 1 ? Math.round(e.dist * 1000) + ' m' : km(e.dist)) : '';
+        return '<button type="button" class="puce petite" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '">' +
+          esc(e.lieu) + (e.quartier ? ' <small class="discret">(' + esc(e.quartier) + (distTxt ? ' · ' + distTxt : '') + ')</small>' : '') + '</button>';
       }).join('') + '</div>';
     }
     if (t.length < 2) return '';
     var l = tous.filter(function (e) { return mots.every(function (m) { return e.txt.indexOf(m) >= 0; }); });
-    if (l.some(function (e) { return normaliser(e.lieu) === t; })) return '<p class="aide-champ ok-lieu">' + icone('valider') + 'Établissement connu (quartier repris automatiquement).</p>';
-    var rang = function (e) { var n = normaliser(e.lieu); return (mots.every(function (m) { return n.indexOf(m) >= 0; }) ? 0 : 2) + (n.indexOf(mots[0]) === 0 ? 0 : 1); };
-    l.sort(function (a, b) { return rang(a) - rang(b) || b.n - a.n || a.lieu.localeCompare(b.lieu, 'fr'); });
+    if (l.some(function (e) { return normaliser(e.lieu) === t; })) return '<p class="aide-champ ok-lieu">' + icone('valider') + 'Établissement connu (quartier et GPS repris automatiquement).</p>';
+    var rang = function (e) {
+      var n = normaliser(e.lieu);
+      var r = (mots.every(function (m) { return n.indexOf(m) >= 0; }) ? 0 : 2) + (n.indexOf(mots[0]) === 0 ? 0 : 1);
+      return r * 100 + (posRef && e.dist < 100 ? e.dist : e.scoreLoc * 10);
+    };
+    l.sort(function (a, b) { return rang(a) - rang(b) || (a.dist - b.dist) || (b.n - a.n) || a.lieu.localeCompare(b.lieu, 'fr'); });
     l = l.slice(0, 5); S.ui.sugLieux[i] = l;
     if (!l.length) return '';
     return '<ul class="sug-liste">' + l.map(function (e, k) {
+      var distTxt = e.dist < 50 ? (e.dist < 1 ? Math.round(e.dist * 1000) + ' m' : km(e.dist)) : '';
       return '<li><button type="button" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '"><b>' + esc(e.lieu) + '</b><small>' +
-        esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + ' · ' + e.n + ' praticien' + (e.n > 1 ? 's' : '') + '</small></button></li>';
+        esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + (distTxt ? ' · ' + distTxt : '') + ' · ' + e.n + ' praticien' + (e.n > 1 ? 's' : '') + '</small></button></li>';
     }).join('') + '</ul>';
   }
   function lieuVide(estPharma) {
