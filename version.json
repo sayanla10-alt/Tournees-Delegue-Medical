@@ -1,1 +1,8 @@
-{"version":"3.25.25"}
+{
+  "version": "3.25.26",
+  "date": "2026-10-28",
+  "notes": [
+    "Correction de l'écran blanc au rafraîchissement",
+    "Déblocage et fluidité de l'onglet Recherche / Répertoire"
+  ]
+}

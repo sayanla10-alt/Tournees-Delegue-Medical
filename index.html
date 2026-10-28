@@ -16,6 +16,19 @@
   <script>
     // Thème choisi (Auto, Clair, Sombre) appliqué avant l'affichage pour éviter un flash
     try { var t = JSON.parse(localStorage.getItem('tournees.theme') || '"clair"'); if (t === 'clair' || t === 'sombre') document.documentElement.dataset.theme = t; } catch (e) {}
+    // Protection anti-écran blanc globale au démarrage
+    window.onerror = function (msg, url, line, col, err) {
+      console.error('Erreur globale MediPlanner:', msg, url, line, col, err);
+      var vue = document.getElementById('vue');
+      if (vue && !vue.innerHTML.trim()) {
+        vue.innerHTML = '<div style="padding:40px 20px;text-align:center;font-family:sans-serif">' +
+          '<h2 style="font-size:20px;margin-bottom:8px;color:#0B4F6C">MediPlanner</h2>' +
+          '<p style="color:#555;font-size:14px;margin-bottom:20px">Une anomalie est survenue lors de l\'affichage.</p>' +
+          '<button type="button" onclick="location.reload()" style="background:#0B4F6C;color:#fff;border:0;padding:12px 24px;border-radius:12px;font-weight:600;font-size:15px;cursor:pointer">Recharger l\'application</button>' +
+          '<br><button type="button" onclick="try{localStorage.removeItem(\'tournees.onglet\');localStorage.removeItem(\'tournees.rechOuverte\');localStorage.removeItem(\'tournees.etapesFiltres\');location.reload();}catch(e){}" style="background:transparent;border:0;color:#888;margin-top:16px;font-size:13px;text-decoration:underline;cursor:pointer">Réinitialiser l\'affichage</button>' +
+          '</div>';
+      }
+    };
   </script>
   <link rel="stylesheet" href="app.css">
 </head>

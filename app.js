@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.25';
+  var APP_VERSION = '3.25.26';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.26', ['Correction : réactivité et affichage de l\'onglet Recherche / Répertoire',
+      'Résilience au rafraîchissement : protection contre les écrans blancs avec récupération automatique',
+      'Comparaison robuste du cœur de cible dans les filtres de recherche']],
     ['3.25.25', ['Compte rendu de visite : « Type(s) de visite » unifié et organisé (choix communs + spécifiques Médecin ou Pharmacie), avec présélection automatique des choix précédents',
       'Compte rendu de visite : Gamme A et Gamme B en accordéon (une seule ouverte à la fois) et produits regroupés par famille (Zyltan, Lesstrol, Telmikaa, Rozukaa…)',
       'Compte rendu de visite : « Étape suivante » (étape 9) positionnée sur « Aucune » par défaut',
@@ -288,7 +291,7 @@
     ui: {
       tab: (function () {
         // 3.0.0 : nouveaux onglets du parcours (anciens noms convertis)
-        var t = LS.get('onglet', 'jour'), anciens = { tournee: 'jour', contacts: 'praticiens', stats: 'bilan', historique: 'bilan' };
+        var t = LS.get('onglet', 'jour'), anciens = { tournee: 'jour', contacts: 'praticiens', recherche: 'praticiens', stats: 'bilan', historique: 'bilan' };
         t = anciens[t] || t;
         return ['jour', 'semaine', 'autour', 'rapport', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
       })(), jour: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.j : null; })(),
@@ -1087,7 +1090,7 @@
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
-      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : S.ui.tab;
+      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : S.ui.tab);
       if (b.dataset.tab === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
@@ -1114,7 +1117,20 @@
       S.ui.bjAvantLeft = actAvant.getBoundingClientRect().left - bjAvant.getBoundingClientRect().left;
     }
     vue.classList.remove('vue-entre', 'jour-glisse-d', 'jour-glisse-g');
-    vue.innerHTML = (VUES[tab] || VUES.jour)();
+    try {
+      vue.innerHTML = (VUES[tab] || VUES.jour)();
+    } catch (errVue) {
+      console.error('Erreur rendu vue ' + tab + ':', errVue);
+      S.ui.tab = 'jour';
+      S.ui.rechOuverte = false;
+      LS.set('rechOuverte', false);
+      LS.set('onglet', 'jour');
+      try {
+        vue.innerHTML = (VUES.jour || function () { return '<div class="vide">Erreur d\'affichage. Rechargement sur la journée...</div>'; })();
+      } catch (e2) {
+        vue.innerHTML = '<div class="vide"><strong>Erreur d\'affichage</strong>Touchez un onglet ci-dessous ou rechargez la page.</div>';
+      }
+    }
     animerRendu(tab, dateAvant);
     if (!vue.classList.contains('vue-entre') && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
     centrerBandeJours();
@@ -3585,6 +3601,17 @@
     return '<button type="button" class="puce" data-a="etapeFiltre" data-k="' + k + '" data-v="' + esc(v) + '" data-m="' + (m ? 1 : 0) + '"' + (auto ? ' data-auto="' + auto + '"' : '') +
       ' aria-pressed="' + actif + '">' + esc(lib) + '</button>';
   }
+  function memeEnsembleSpecs(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    var sa = a.filter(function (x) { return x && x !== 'Pharmacien'; }).sort();
+    var sb = b.filter(function (x) { return x && x !== 'Pharmacien'; }).sort();
+    if (sa.length !== sb.length) return false;
+    for (var i = 0; i < sa.length; i++) {
+      if (sa[i] !== sb[i]) return false;
+    }
+    return true;
+  }
+
   function etapesFiltres(f) {
     var vis = [['tous', 'Toutes'], ['jamais', 'Jamais visité'], ['30', 'Non visité +30 j'], ['retard', 'En retard sur la cadence'], ['revoir', 'À revoir'], ['recent', 'Vu il y a moins de 30 j']];
     var l = [
@@ -3869,6 +3896,9 @@
   }
   function taux(a, b) { return b ? Math.round(100 * a / b) : null; }
   function txt(n) { return n === null || n === undefined ? 'n.d.' : n + ' %'; }
+
+  VUES.recherche = VUES.praticiens;
+  VUES.contacts = VUES.praticiens;
 
   VUES.bilan = function () {
     var vueH = S.ui.statsVue === 'historique';
