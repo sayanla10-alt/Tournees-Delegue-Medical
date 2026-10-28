@@ -22,7 +22,7 @@ var FEUILLES = {
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour'
 };
-var VERSION_SERVEUR = '3.9.0';
+var VERSION_SERVEUR = '3.25.26';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -36,6 +36,8 @@ function onOpen() {
     .addItem('Convertir l\'ancienne feuille BaseDonnees', 'convertirAncienneBase')
     .addItem('Compléter les données manquantes (base de test)', 'completerBaseTest')
     .addItem('Importer les pharmacies réelles (OpenStreetMap)', 'importerPharmacies')
+    .addItem('Tester la géolocalisation précise (5 pharmacies max)', 'testerGeocodage5Pharmacies')
+    .addItem('Compléter la géolocalisation des pharmacies (par lot de 25)', 'completerGeolocPharmacies')
     .addSeparator()
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Sauvegardes')
       .addItem('Installer la sauvegarde quotidienne', 'installerSauvegardeQuotidienne')
@@ -1046,8 +1048,14 @@ function enregistrerPharmacie(ss, p, lieu) {
   var modif = { code: code, nom: String(p.nom || '').trim(), quartier: lieu.quartier || '', commune: q.commune || lieu.commune || '', zone: q.zone || lieu.zone || '',
     telephone: String(p.telephone || ''), note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
     actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui', horaireMatin: lieu.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: lieu.horaireSoir || HORAIRES_PHARMACIE[1] };
-  if (lieu.lat && lieu.lon) { modif.lat = +lieu.lat; modif.lon = +lieu.lon; }
-  else { var g = geocoderLieu(p.nom, lieu.quartier, modif.commune); if (g) { modif.lat = g.lat; modif.lon = g.lon; } }
+  if (lieu.lat && lieu.lon && lieu.lat !== 'NL' && lieu.lon !== 'NL') { modif.lat = +lieu.lat; modif.lon = +lieu.lon; }
+  else {
+    var g = geocoderLieu(p.nom, lieu.quartier, modif.commune, p.telephone, p.titulaire);
+    if (g) {
+      modif.lat = g.lat; modif.lon = g.lon;
+      if ((!modif.quartier || modif.quartier === 'NL') && g.quartier) modif.quartier = g.quartier;
+    }
+  }
   if (ligne < 0) { modif.nbVisites = 0; modif.source = 'Application'; }
   CHAMPS_PHARMACIES.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
   if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]); else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
@@ -1162,27 +1170,358 @@ function onEdit(e) {
   }
 }
 
-// ---------------------------------------------------------------- 3.9.0 : coordonnées GPS par Google Maps
-// Quand le délégué n'est pas sur place, l'établissement est cherché sur Google Maps (nom, quartier, commune, Abidjan).
-// Un résultat hors du Grand Abidjan est ignoré (le quartier sert alors de repère, comme avant). Résultats gardés 6 h en cache.
-function geocoderLieu(lieu, quartier, commune) {
-  var adr = [lieu, quartier, commune, 'Abidjan', 'Côte d\'Ivoire'].filter(function (x) { return String(x || '').trim(); }).join(', ');
-  var cache = null, k = '';
-  try {
-    if (typeof Maps === 'undefined') return null;
-    cache = CacheService.getScriptCache(); k = 'geo:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, adr));
-    var c = cache.get(k);
-    if (c) return c === 'x' ? null : JSON.parse(c);
-    var r = Maps.newGeocoder().setRegion('ci').setLanguage('fr').geocode(adr);
-    var g = r && r.status === 'OK' && r.results && r.results[0] && r.results[0].geometry && r.results[0].geometry.location;
-    if (g && g.lat > 5.15 && g.lat < 5.65 && g.lng > -4.35 && g.lng < -3.65) {
-      var o = { lat: Math.round(g.lat * 1e6) / 1e6, lon: Math.round(g.lng * 1e6) / 1e6 };
-      cache.put(k, JSON.stringify(o), 21600);
-      return o;
+// ---------------------------------------------------------------- 3.25.26 : Géolocalisation précise multi-sources (Côte d'Ivoire entière)
+// Corrige les 5 causes d'échec de l'ancien geocoderLieu :
+// 1. Couvre toute la Côte d'Ivoire (lat 4.3..10.8, lon -8.6..-2.4) et pas seulement Abidjan.
+// 2. Ignore les valeurs "NL" et évite les doublons "Plateau, Plateau".
+// 3. Corrige les erreurs d'OCR connues de la "Liste terrain (photos)" et teste les variantes sans "Grande"/"Nouvelle"/"Principale" ni mots de quartier.
+// 4. Interroge Google Maps Embed (POI direct + résolution des CID catégoriels) -> ArcGIS World Geocoder (POI uniquement, rejette City/Locality) -> Maps.newGeocoder() (rejette APPROXIMATE).
+// 5. Retourne { lat, lon, quartier, adresse, titre, source, score } pour renseigner à la fois le Quartier précis et le GPS.
+
+var CORRECTIONS_OCR_PHARMACIES = {
+  'grande pharmacie du semeur': 'Grande Pharmacie du Sanwi',
+  'nouvelle pharmacie adiam': 'Nouvelle Pharmacie du Marché d\'Adjamé',
+  'nouvelle pharmacie de la rive': 'Pharmacie de la Mé',
+  'nouvelle pharmacie des operas': 'Pharmacie Les Harmonies',
+  'nouvelle pharmacie elic': 'Pharmacie Eliel',
+  'pharmacie adya': 'Pharmacie Abya'
+};
+
+var MOTS_VIDES_GEO = {
+  grande: 1, nouvelle: 1, pharmacie: 1, phcie: 1, de: 1, du: 1, des: 1, la: 1, le: 1, les: 1,
+  d: 1, l: 1, et: 1, a: 1, au: 1, aux: 1, en: 1, sur: 1, cote: 1, ivoire: 1, abidjan: 1,
+  principale: 1, ste: 1, st: 1, saint: 1, sainte: 1, nlle: 1, gde: 1
+};
+
+var MOTS_LIEUX_GEO = {
+  riviera: 1, cocody: 1, yopougon: 1, abobo: 1, adjame: 1, koumassi: 1, marcory: 1, treichville: 1,
+  port: 1, bouet: 1, plateau: 1, attiekoube: 1, anyama: 1, bingerville: 1, songon: 1, angre: 1,
+  palmeraie: 1, ii: 1, '2': 1, plateaux: 1, zone: 1, '4': 1, niangon: 1, toits: 1, rouges: 1,
+  dokui: 1, pk18: 1, gonzagueville: 1, remblais: 1, bietry: 1, vridi: 1, wassakara: 1, sogefiha: 1,
+  kenya: 1, maroc: 1, anono: 1, abatta: 1, mbadon: 1, bonoumin: 1, faya: 1, akouedo: 1
+};
+
+function normGeo_(s) { return sansAccents(String(s || '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+
+function distanceEditionGeo_(a, b) {
+  var n = a.length, m = b.length;
+  if (!n) return m;
+  if (!m) return n;
+  var prev = [], curr = [], i, j;
+  for (j = 0; j <= m; j++) prev[j] = j;
+  for (i = 1; i <= n; i++) {
+    curr[0] = i;
+    for (j = 1; j <= m; j++) {
+      var cout = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cout);
     }
-    cache.put(k, 'x', 3600);
-  } catch (e) { /* quota ou service indisponible : on garde le repère du quartier */ }
-  return null;
+    for (j = 0; j <= m; j++) prev[j] = curr[j];
+  }
+  return prev[m];
+}
+
+function motsClesGeo_(s, sansLieux) {
+  var w = normGeo_(s).split(/\s+/).filter(function (x) {
+    return x && x.length >= 2 && !MOTS_VIDES_GEO[x];
+  });
+  if (sansLieux) {
+    var w2 = w.filter(function (x) { return !MOTS_LIEUX_GEO[x]; });
+    if (w2.length) return w2;
+  }
+  return w;
+}
+
+function scoreCandidatGeo_(nomCible, nomCand, telCible, htmlCand, titulaireCible) {
+  if (telCible && htmlCand) {
+    var ch = String(telCible).replace(/\D/g, '');
+    if (ch.length >= 8) {
+      var u8 = ch.slice(-8);
+      var reTel = new RegExp(u8.split('').join('\\s*'));
+      if (reTel.test(htmlCand)) return 1.0;
+    }
+  }
+  if (titulaireCible && htmlCand) {
+    var tParts = normGeo_(String(titulaireCible).replace(/^dr\.?\s*/i, '')).split(/\s+/).filter(function (x) { return x.length >= 4; });
+    var hNorm = normGeo_(htmlCand), hits = 0;
+    tParts.forEach(function (tp) { if (hNorm.indexOf(tp) >= 0) hits++; });
+    if (hits >= 2) return 0.98;
+  }
+  var best = 0;
+  [false, true].forEach(function (strip) {
+    var tList = motsClesGeo_(nomCible, strip), cList = motsClesGeo_(nomCand, strip);
+    if (!tList.length || !cList.length) return;
+    var total = 0;
+    tList.forEach(function (t) {
+      var wBest = 0;
+      cList.forEach(function (c) {
+        if (t === c) { wBest = 1.0; return; }
+        if (t.length >= 4 && c.length >= 4 && (t.indexOf(c) >= 0 || c.indexOf(t) >= 0)) wBest = Math.max(wBest, 0.85);
+        var ed = distanceEditionGeo_(t, c), mx = Math.max(t.length, c.length);
+        if (mx >= 4 && ed <= 1) wBest = Math.max(wBest, 0.80);
+        else if (mx >= 5 && ed <= 2 && t.charAt(0) === c.charAt(0)) wBest = Math.max(wBest, 0.70);
+      });
+      total += wBest;
+    });
+    var sc = total / Math.max(tList.length, cList.length);
+    if (sc > best) best = sc;
+  });
+  return Math.round(best * 100) / 100;
+}
+
+function chargerRefQuartiersGeo_() {
+  var parCommune = {}, centres = {};
+  try {
+    var ss = SpreadsheetApp.getActive(), shQ = ss && ss.getSheetByName(FEUILLES.quartiers);
+    var src = (shQ && shQ.getLastRow() > 1) ? shQ.getRange(2, 1, shQ.getLastRow() - 1, 5).getValues() : (typeof QUARTIERS_DEFAUT !== 'undefined' ? QUARTIERS_DEFAUT : []);
+    src.forEach(function (v) {
+      var lat = parseFloat(String(v[3]).replace(',', '.')), lon = parseFloat(String(v[4]).replace(',', '.'));
+      if (isNaN(lat) || isNaN(lon)) return;
+      var qObj = { commune: String(v[0]).trim(), quartier: String(v[1]).trim(), zone: String(v[2]).trim(), lat: lat, lon: lon };
+      var ck = normaliser(qObj.commune);
+      (parCommune[ck] = parCommune[ck] || []).push(qObj);
+    });
+    Object.keys(parCommune).forEach(function (ck) {
+      var l = parCommune[ck], sLat = 0, sLon = 0;
+      l.forEach(function (x) { sLat += x.lat; sLon += x.lon; });
+      centres[ck] = { lat: sLat / l.length, lon: sLon / l.length };
+    });
+  } catch (e) {}
+  return { parCommune: parCommune, centres: centres };
+}
+
+function resoudreQuartierGeoloc_(lat, lon, commune, addrText, origQuartier, ref) {
+  var ck = normaliser(commune || ''), addrNorm = normaliser(addrText || '');
+  var listeQ = (ref && ref.parCommune && ref.parCommune[ck]) || [];
+  for (var i = 0; i < listeQ.length; i++) {
+    var qn = normaliser(listeQ[i].quartier);
+    if (qn.length >= 3 && addrNorm.indexOf(qn) >= 0) return listeQ[i].quartier;
+  }
+  var cleanAddr = String(addrText || '')
+    .replace(/^[^,]+,\s*/, '')
+    .replace(/,?\s*Abidjan.*$/i, '')
+    .replace(/,?\s*C[oô]te d'Ivoire.*$/i, '')
+    .replace(/\b\d{2}\s*BP\s*\d+[^,]*,?\s*/gi, '')
+    .replace(/^[A-Z0-9]{4}\+[A-Z0-9]{2,3}\s*[^,]*,?\s*/, '')
+    .replace(/^[,\s]+|[,\s]+$/g, '');
+  var origPropre = (origQuartier && origQuartier !== 'NL') ? String(origQuartier).trim() : '';
+  if (origPropre && normaliser(origPropre) !== ck) {
+    if (cleanAddr && cleanAddr.length >= 3 && normaliser(cleanAddr) !== normaliser(origPropre) && normaliser(cleanAddr) !== ck) {
+      return origPropre + ' (' + cleanAddr + ')';
+    }
+    return origPropre;
+  }
+  var plusProche = null, minD = 999;
+  listeQ.forEach(function (q) {
+    var d = distanceKm({ lat: lat, lon: lon }, q);
+    if (d < minD) { minD = d; plusProche = q; }
+  });
+  if (plusProche && minD <= 4.5) {
+    if (cleanAddr && cleanAddr.length >= 4 && normaliser(cleanAddr) !== normaliser(plusProche.quartier) && normaliser(cleanAddr) !== ck) {
+      return plusProche.quartier + ' (' + cleanAddr + ')';
+    }
+    return plusProche.quartier;
+  }
+  if (cleanAddr && cleanAddr.length >= 3) return cleanAddr;
+  return origPropre || commune || '';
+}
+
+function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
+  var nom = String(lieu || '').trim();
+  if (!nom) return null;
+  var qPropre = (quartier && String(quartier).trim() !== 'NL') ? String(quartier).trim() : '';
+  var comPropre = (commune && String(commune).trim() !== 'NL') ? String(commune).trim() : '';
+  var cleCache = 'geo3:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, [nom, qPropre, comPropre, telephone || ''].join('|')));
+  var cache = null;
+  try {
+    cache = CacheService.getScriptCache();
+    var c = cache.get(cleCache);
+    if (c) return c === 'x' ? null : JSON.parse(c);
+  } catch (e) {}
+
+  var ref = refOpt || chargerRefQuartiersGeo_();
+  var ck = normaliser(comPropre);
+  var comRef = (ref.centres && ref.centres[ck]) || null;
+
+  var nomCle = normGeo_(nom);
+  var nomRecherche = CORRECTIONS_OCR_PHARMACIES[nomCle] || nom;
+  var sansPrefixe = nomRecherche.replace(/^(Grande\s+|Nouvelle\s+|Pharmacie\s+Principale\s+de\s+|Pharmacie\s+Principale\s+d'|Nouvelle\s+Pharmacie\s+Principale\s+de\s+)/i, 'Pharmacie ');
+  var motsCoeur = motsClesGeo_(nomRecherche, true);
+  var nomCoeur = 'Pharmacie ' + motsCoeur.join(' ');
+  var qPart = (qPropre && normaliser(qPropre) !== ck) ? (qPropre + ', ') : '';
+
+  var requetes = [
+    nomRecherche + ', ' + qPart + comPropre + ', Côte d\'Ivoire',
+    sansPrefixe + ', ' + qPart + comPropre + ', Côte d\'Ivoire',
+    nomCoeur + ', ' + comPropre + ', Côte d\'Ivoire',
+    sansPrefixe + ', ' + comPropre + ', Abidjan, Côte d\'Ivoire',
+    sansPrefixe + ', Côte d\'Ivoire',
+    nomCoeur + ', Abidjan, Côte d\'Ivoire'
+  ].filter(function (q, idx, arr) { return arr.indexOf(q) === idx; });
+
+  var vusCid = {}, meilleur = null;
+  var reSpot = /\["0x[0-9a-f]+:0x[0-9a-f]+","([^"]+)",\[(-?\d+\.\d+),(-?\d+\.\d+)\],"(\d+)"\],"([^"]+)"/;
+  var reCids = /\["[^"]+","(\d{10,22})"\],"\/g\/[^"]+",null,\[(-?\d+),(-?\d+)\]/g;
+
+  function evaluerPoi_(titre, adr, lat, lon, htmlSrc, sourceNom) {
+    if (isNaN(lat) || isNaN(lon) || lat <= 4.3 || lat >= 10.8 || lon <= -8.6 || lon >= -2.4) return null;
+    var sc = scoreCandidatGeo_(nomRecherche, titre, telephone, htmlSrc, titulaire);
+    var dCom = comRef ? distanceKm({ lat: lat, lon: lon }, comRef) : 0;
+    if ((sc >= 0.55 && dCom <= 22) || sc >= 0.85) {
+      var qRes = resoudreQuartierGeoloc_(lat, lon, comPropre, adr, qPropre, ref);
+      var cand = {
+        lat: Math.round(lat * 1e6) / 1e6,
+        lon: Math.round(lon * 1e6) / 1e6,
+        quartier: qRes,
+        adresse: adr,
+        titre: titre,
+        source: sourceNom,
+        score: sc,
+        distKm: Math.round(dCom * 10) / 10
+      };
+      if (!meilleur || sc > meilleur.score) meilleur = cand;
+      return cand;
+    }
+    return null;
+  }
+
+  // 1. Google Maps Embed (POI direct + résolution des CID catégoriels)
+  if (typeof UrlFetchApp !== 'undefined') {
+    for (var iq = 0; iq < requetes.length; iq++) {
+      try {
+        var url = 'https://www.google.com/maps?q=' + encodeURIComponent(requetes[iq]) + '&output=embed&hl=fr';
+        var html = UrlFetchApp.fetch(url, { muteHttpExceptions: true, headers: { 'Accept-Language': 'fr-FR,fr;q=0.9' } }).getContentText();
+        var m1 = reSpot.exec(html);
+        if (m1) {
+          vusCid[m1[4]] = true;
+          var c1 = evaluerPoi_(m1[5], m1[1], parseFloat(m1[2]), parseFloat(m1[3]), html, 'GMaps-Direct');
+          if (c1 && c1.score >= 0.85 && c1.distKm <= 22) break;
+        }
+        var mCid, nbVerif = 0;
+        reCids.lastIndex = 0;
+        while ((mCid = reCids.exec(html)) !== null && nbVerif < 6) {
+          var cid = mCid[1];
+          if (vusCid[cid]) continue;
+          vusCid[cid] = true;
+          nbVerif++;
+          var h2 = UrlFetchApp.fetch('https://www.google.com/maps?cid=' + cid + '&output=embed&hl=fr', { muteHttpExceptions: true, headers: { 'Accept-Language': 'fr-FR,fr;q=0.9' } }).getContentText();
+          var m2 = reSpot.exec(h2);
+          if (m2) {
+            var c2 = evaluerPoi_(m2[5], m2[1], parseFloat(m2[2]), parseFloat(m2[3]), h2, 'GMaps-CID');
+            if (c2 && c2.score >= 0.85 && c2.distKm <= 22) break;
+          }
+        }
+        if (meilleur && meilleur.score >= 0.75) break;
+      } catch (e) {}
+    }
+
+    // 2. Fallback ArcGIS World Geocoder (strictement POI, exclut City/Locality)
+    if (!meilleur || meilleur.score < 0.75) {
+      var reqArc = [nomRecherche + ', ' + qPart + comPropre, sansPrefixe + ', ' + qPart + comPropre, nomCoeur + ', ' + comPropre];
+      for (var ia = 0; ia < reqArc.length; ia++) {
+        try {
+          var arcUrl = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?SingleLine=' +
+            encodeURIComponent(reqArc[ia]) + '&countryCode=CIV&maxLocations=5&outFields=PlaceName,Place_addr,Type,Score&f=json';
+          var arcJson = JSON.parse(UrlFetchApp.fetch(arcUrl, { muteHttpExceptions: true }).getContentText());
+          var cands = (arcJson && arcJson.candidates) || [];
+          for (var ic = 0; ic < cands.length; ic++) {
+            var tp = (cands[ic].attributes && cands[ic].attributes.Type) || '';
+            if (/^(City|Locality|Neighborhood|Administrative|Postal)$/i.test(tp)) continue;
+            evaluerPoi_(cands[ic].attributes.PlaceName || '', cands[ic].attributes.Place_addr || '',
+              parseFloat(cands[ic].location.y), parseFloat(cands[ic].location.x), '', 'ArcGIS-POI');
+          }
+          if (meilleur && meilleur.score >= 0.75) break;
+        } catch (e) {}
+      }
+    }
+  }
+
+  // 3. Fallback Maps.newGeocoder() (uniquement si résultat précis non-APPROXIMATE)
+  if (!meilleur && typeof Maps !== 'undefined') {
+    try {
+      var adrMaps = [sansPrefixe, qPropre, comPropre, 'Côte d\'Ivoire'].filter(Boolean).join(', ');
+      var r = Maps.newGeocoder().setRegion('ci').setLanguage('fr').geocode(adrMaps);
+      var res0 = r && r.status === 'OK' && r.results && r.results[0];
+      var types0 = (res0 && res0.types) || [];
+      var locType = (res0 && res0.geometry && res0.geometry.location_type) || '';
+      var estPoi = types0.indexOf('pharmacy') >= 0 || types0.indexOf('establishment') >= 0 || types0.indexOf('point_of_interest') >= 0 || locType === 'ROOFTOP';
+      var g = res0 && res0.geometry && res0.geometry.location;
+      if (estPoi && g && g.lat > 4.3 && g.lat < 10.8 && g.lng > -8.6 && g.lng < -2.4) {
+        var qMaps = resoudreQuartierGeoloc_(g.lat, g.lng, comPropre, res0.formatted_address || '', qPropre, ref);
+        meilleur = { lat: Math.round(g.lat * 1e6) / 1e6, lon: Math.round(g.lng * 1e6) / 1e6, quartier: qMaps, adresse: res0.formatted_address || '', titre: nom, source: 'Maps-Service', score: 0.75 };
+      }
+    } catch (e) {}
+  }
+
+  try {
+    if (cache) cache.put(cleCache, meilleur ? JSON.stringify(meilleur) : 'x', meilleur ? 21600 : 3600);
+  } catch (e) {}
+  return meilleur;
+}
+
+// Teste et met à jour au maximum 5 pharmacies ayant des coordonnées ou un quartier manquants ("NL" ou vide)
+function testerGeocodage5Pharmacies() {
+  return executerLotGeocodagePharmacies_(5, true);
+}
+
+// Complète par lot contrôlé (25 max par exécution pour respecter le temps Apps Script)
+function completerGeolocPharmacies() {
+  return executerLotGeocodagePharmacies_(25, true);
+}
+
+function executerLotGeocodagePharmacies_(limiteMax, afficherAlerte) {
+  var lock = verrouiller();
+  try {
+    var ss = SpreadsheetApp.getActive(), sh = ss.getSheetByName(FEUILLES.pharmacies);
+    if (!sh || sh.getLastRow() < 2) return { ok: false, message: 'Feuille Pharmacies absente ou vide.' };
+    var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+    var cCode = ent.indexOf(normaliser('CodeContact')), cNom = ent.indexOf(normaliser('Nom'));
+    var cTit = ent.indexOf(normaliser('Titulaire')), cQuart = ent.indexOf(normaliser('Quartier'));
+    var cCom = ent.indexOf(normaliser('Commune')), cTel = ent.indexOf(normaliser('Téléphone'));
+    var cLat = ent.indexOf(normaliser('Latitude')), cLon = ent.indexOf(normaliser('Longitude'));
+    var n = sh.getLastRow() - 1, data = sh.getRange(2, 1, n, sh.getLastColumn()).getValues();
+    var ref = chargerRefQuartiersGeo_();
+    var traites = 0, trouves = 0, details = [];
+
+    for (var i = 0; i < data.length && traites < limiteMax; i++) {
+      var r = data[i], latVal = String(r[cLat] || '').trim(), lonVal = String(r[cLon] || '').trim(), qVal = String(r[cQuart] || '').trim();
+      var manqueGps = !latVal || latVal === 'NL' || !lonVal || lonVal === 'NL' || isNaN(parseFloat(latVal.replace(',', '.')));
+      var manqueQuartier = !qVal || qVal === 'NL';
+      if (!manqueGps && !manqueQuartier) continue;
+
+      traites++;
+      var g = geocoderLieu(r[cNom], qVal, r[cCom], cTel >= 0 ? r[cTel] : '', cTit >= 0 ? r[cTit] : '', ref);
+      if (g && g.lat && g.lon) {
+        trouves++;
+        sh.getRange(i + 2, cLat + 1).setValue(g.lat);
+        sh.getRange(i + 2, cLon + 1).setValue(g.lon);
+        if (manqueQuartier && g.quartier) sh.getRange(i + 2, cQuart + 1).setValue(g.quartier);
+        details.push('✓ ' + r[cCode] + ' ' + r[cNom] + ' (' + r[cCom] + ') → Quartier: ' + (g.quartier || qVal) + ' | GPS: ' + g.lat + ', ' + g.lon + ' [' + g.source + ']');
+      } else {
+        details.push('✗ ' + r[cCode] + ' ' + r[cNom] + ' (' + r[cCom] + ') → Non résolu');
+      }
+    }
+    var msg = 'Géolocalisation terminée (' + trouves + '/' + traites + ' pharmacies résolues sur ce lot de ' + limiteMax + ' max) :\n\n' + details.join('\n');
+    Logger.log(msg);
+    if (afficherAlerte) {
+      try { SpreadsheetApp.getUi().alert('Géolocalisation des pharmacies', msg, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
+    }
+    return { ok: true, traites: traites, trouves: trouves, details: details };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Formules personnalisées pour Google Sheets (évite #NAME? sur =GEOCODE_GOOGLE, =GET_LAT_LONG, =PLACE)
+function GEOCODE_GOOGLE(adresse) {
+  var g = geocoderLieu(adresse, '', '');
+  return g ? (g.lat + ', ' + g.lon) : 'Introuvable';
+}
+function GET_LAT_LONG(adresse) {
+  return GEOCODE_GOOGLE(adresse);
+}
+function PLACE(adresse) {
+  var g = geocoderLieu(adresse, '', '');
+  return g ? (g.titre + ' — ' + (g.quartier || g.adresse || '') + ' (' + g.lat + ', ' + g.lon + ')') : 'Introuvable';
 }
 
 // ---------------------------------------------------------------- 3.9.0 : délégué ajouté depuis l'application
