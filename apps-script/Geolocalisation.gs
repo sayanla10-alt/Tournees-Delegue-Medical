@@ -19,6 +19,7 @@
 
 var GEO_FEUILLE_PHARMACIES = 'Pharmacies';
 var GEO_FEUILLE_QUARTIERS = 'Quartiers';
+var CLE_GOOGLE_MAPS_DEFAUT = ''; // Laisser vide si stocké dans Propriétés du script sous le nom 'MAPS_API_KEY'
 
 // Erreurs de lecture de la "Liste terrain (photos)" vérifiées (téléphone / titulaire)
 var CORRECTIONS_OCR_PHARMACIES = {
@@ -45,6 +46,14 @@ var MOTS_LIEUX_GEO = {
 };
 
 // ---------------------------------------------------------------- Outils
+function recupererCleGoogleMaps_() {
+  try {
+    var p = PropertiesService.getScriptProperties().getProperty('MAPS_API_KEY');
+    if (p && p.trim()) return p.trim();
+  } catch (e) {}
+  return CLE_GOOGLE_MAPS_DEFAUT || '';
+}
+
 function normGeo_(s) {
   return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -229,6 +238,55 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
     return cand;
   }
   function sur_(c) { return c && c.score >= 0.85 && c.distKm <= 22; }
+
+  // 0. Google Maps Platform API officielle (Geocoding API & Places API New avec MAPS_API_KEY)
+  var cleApi = recupererCleGoogleMaps_();
+  if (cleApi && !sur_(meilleur)) {
+    for (var iq0 = 0; iq0 < requetes.length && !sur_(meilleur); iq0++) {
+      try {
+        var urlGeo = 'https://maps.googleapis.com/maps/api/geocode/json?address=' +
+                     encodeURIComponent(requetes[iq0]) + '&components=country:CI&language=fr&key=' + cleApi;
+        var rGeo = JSON.parse(UrlFetchApp.fetch(urlGeo, optsHttp).getContentText());
+        if (rGeo && rGeo.status === 'OK' && rGeo.results && rGeo.results.length) {
+          for (var ir = 0; ir < rGeo.results.length; ir++) {
+            var item = rGeo.results[ir];
+            var g = item.geometry && item.geometry.location;
+            var locType = (item.geometry && item.geometry.location_type) || '';
+            var types = item.types || [];
+            if (!g || isNaN(g.lat) || isNaN(g.lng)) continue;
+            var estCentroide = types.indexOf('locality') >= 0 || types.indexOf('administrative_area_level_1') >= 0;
+            if (estCentroide && locType === 'APPROXIMATE') continue;
+            var nomTrouve = item.formatted_address ? item.formatted_address.split(',')[0] : nomRecherche;
+            if (sur_(evaluer_(nomTrouve, item.formatted_address || '', g.lat, g.lng, '', 'GMaps-API'))) break;
+          }
+        }
+      } catch (e) {}
+    }
+    // Si non trouvé via Geocoding, interroger Places API (New) Text Search
+    if (!meilleur || meilleur.score < 0.75) {
+      try {
+        var qPlaces = [nomRecherche, qPropre, comPropre, 'Côte d\'Ivoire'].filter(Boolean).join(' ');
+        var resPlaces = UrlFetchApp.fetch('https://places.googleapis.com/v1/places:searchText', {
+          method: 'post',
+          contentType: 'application/json',
+          headers: {
+            'X-Goog-Api-Key': cleApi,
+            'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.types'
+          },
+          payload: JSON.stringify({ textQuery: qPlaces, languageCode: 'fr', regionCode: 'ci' }),
+          muteHttpExceptions: true
+        });
+        var jsPlaces = JSON.parse(resPlaces.getContentText());
+        if (jsPlaces && jsPlaces.places && jsPlaces.places.length) {
+          var p0 = jsPlaces.places[0];
+          if (p0.location && !isNaN(p0.location.latitude) && !isNaN(p0.location.longitude)) {
+            var t0 = (p0.displayName && p0.displayName.text) || nomRecherche;
+            evaluer_(t0, p0.formattedAddress || '', p0.location.latitude, p0.location.longitude, '', 'Places-API-New');
+          }
+        }
+      } catch (e) {}
+    }
+  }
 
   // 1. Google Maps : fiche directe, sinon liste de résultats (chaque CID est ouvert pour lire nom, adresse, GPS)
   for (var iq = 0; iq < requetes.length && !sur_(meilleur); iq++) {

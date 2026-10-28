@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.29';
+  var APP_VERSION = '3.25.30';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.30', ['Planifier : critères verrouillés strictement sur 2 lignes fixes en grille responsive']],
     ['3.25.29', ['Nouveau contact (Médecin) : sélection d\'un établissement connu avec auto-complétion instantanée du quartier, de la commune et du GPS',
       'Nouveau contact (Pharmacie) : saisie fluide (nom en 1er, localisation GPS / quartier déduite)',
       'Jours & Heures de réception délégués : tous cochés par défaut pour permettre l\'enregistrement direct']],
