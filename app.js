@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.26';
+  var APP_VERSION = '3.25.27';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.27', ['Planifier : résumé des critères condensé sur 2 lignes (Communes, Praticiens, Spécialités / Potentiel, Rythme, RDV) pour libérer l\'espace',
+      'Planifier (Spécialités) : étape 4 allégée (seul le cœur de cible s\'affiche) ; dans « Liste complète », barre de recherche élargie et autres spécialités repliées par défaut',
+      'Compte rendu : parcours différencié Médecin (Types de visite médicale) vs Pharmacie (Activités en pharmacie) sans mention croisée',
+      'Compte rendu : produits et médicaments présentés en grille symétrique à 2 par ligne, claire et aérée',
+      'Compte rendu : prochaine étape enrichie avec l\'option « +1 j » (Demain) aux côtés de +7 j, +14 j et +30 j']],
     ['3.25.26', ['Correction : réactivité et affichage de l\'onglet Recherche / Répertoire',
       'Résilience au rafraîchissement : protection contre les écrans blancs avec récupération automatique',
       'Comparaison robuste du cœur de cible dans les filtres de recherche']],
@@ -2293,7 +2298,8 @@
     var coeur = coeurDeCible(), s = sel || [];
     var estCoeur = s.length > 0 && s.length === coeur.length && coeur.every(function (x) { return s.indexOf(x) >= 0; });
     var liste = [], vus = {};
-    coeur.concat(SPECS_DEFAUT_BASE).concat(s).concat(specialitesListe().map(function (x) { return x.nom; })).forEach(function (nom) {
+    // 3.25.27 : n'affiche sur la page que le cœur de cible (+ sélectionnées) ; les autres sont dans « Liste complète… »
+    coeur.concat(s).forEach(function (nom) {
       if (nom && nom !== 'Pharmacien' && !vus[nom]) { vus[nom] = true; liste.push(nom); }
     });
     return '<div class="puces" style="margin:6px 0 8px">' +
@@ -2598,21 +2604,18 @@
       (options.length > 1 ? '<button type="button" class="puce puce-tous" data-a="crMultiTous" data-uid="' + a.uid + '" data-k="' + cle + '" aria-pressed="' + tous + '">Tous</button>' : '') +
       options.map(function (o) { return puceCr(a, cle, o, o, v.indexOf(o) >= 0, true); }).join('') + '</div>';
   }
-  // 3.25.25 : Types de visite organisés en Communs (Médecin & Pharmacie) et Spécifiques à chacun, avec choix précédents pré-cochés
+  // 3.25.27 : Parcours et types de visite strictement différenciés Médecin vs Pharmacie (sans mention croisée)
   function rendreChoixTypesCr(a, vals) {
-    var ph = estPharmacie(a), g = groupesTypesCr(ph), sel = vals || [];
-    S.ui.crOptions[a.uid + '|types'] = optionsNorm(g.tous);
-    var toutCoche = g.tous.length > 0 && g.tous.every(function (t) { return sel.indexOf(t) >= 0; });
+    var ph = estPharmacie(a), sel = vals || [];
+    var list = ph ? activitesPharmacie() : activites();
+    S.ui.crOptions[a.uid + '|types'] = optionsNorm(list);
+    var toutCoche = list.length > 0 && list.every(function (t) { return sel.indexOf(t) >= 0; });
     var h = '<div class="gammes-cr">';
-    h += '<div class="gamme-cr-actions"><span class="discret">' + (sel.length ? sel.length + ' sélectionné' + (sel.length > 1 ? 's' : '') + ' : ' + esc(sel.join(', ')) : 'Choisissez au moins un type') + '</span>' +
+    h += '<div class="gamme-cr-actions"><span class="discret">' + (sel.length ? sel.length + ' sélectionné' + (sel.length > 1 ? 's' : '') + ' : ' + esc(sel.join(', ')) : (ph ? 'Choisissez au moins une activité' : 'Choisissez au moins un type')) + '</span>' +
       '<span><button type="button" class="lien-action" data-a="crMultiTous" data-uid="' + a.uid + '" data-k="types">' + (toutCoche ? 'Tout décocher' : 'Tous') + '</button>' +
       (sel.length ? ' · <button type="button" class="lien-action" data-a="crTypesAucun" data-uid="' + a.uid + '">Effacer</button>' : '') + '</span></div>';
-    h += '<div class="gamme-cr-bloc"><div class="gamme-cr-titre"><span><b>Communs</b> <small>Médecin & Pharmacie</small></span></div>' +
-      '<div class="puces">' + g.communs.map(function (t) { return puceCr(a, 'types', t, t, sel.indexOf(t) >= 0, true); }).join('') + '</div></div>';
-    if (g.specifiques.length) {
-      h += '<div class="gamme-cr-bloc"><div class="gamme-cr-titre"><span><b>' + (ph ? 'Spécifiques Pharmacie' : 'Spécifiques Médecin') + '</b></span></div>' +
-        '<div class="puces">' + g.specifiques.map(function (t) { return puceCr(a, 'types', t, t, sel.indexOf(t) >= 0, true); }).join('') + '</div></div>';
-    }
+    h += '<div class="gamme-cr-bloc"><div class="gamme-cr-titre"><span><b>' + (ph ? 'Activités en pharmacie' : 'Types de visite médicale') + '</b></span></div>' +
+      '<div class="puces puces-types-cr">' + list.map(function (t) { return puceCr(a, 'types', t, t, sel.indexOf(t) >= 0, true); }).join('') + '</div></div>';
     h += '</div>';
     return h;
   }
@@ -2663,7 +2666,7 @@
               '</button>' +
               (fm.produits.length > 1 ? '<button type="button" class="lien-action" data-a="crFamilleTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="' + codeG + '" data-f="' + esc(fm.nom) + '">' + (tousF ? 'Aucun' : 'Tous') + '</button>' : '') +
             '</div>' +
-            (fOuverte ? '<div class="puces">' + fm.produits.map(function (p) { return puceCr(a, cle, p, p, sel.indexOf(p) >= 0, true); }).join('') + '</div>' : '') +
+            (fOuverte ? '<div class="puces puces-produits-2">' + fm.produits.map(function (p) { return puceCr(a, cle, p, p, sel.indexOf(p) >= 0, true); }).join('') + '</div>' : '') +
           '</div>';
         });
         h += '</div>';
@@ -2718,8 +2721,8 @@
       return l;
     }
     if (!ph) {
-      e('types', 'Type(s) de visite', 'continuer', function () { return rendreChoixTypesCr(a, c.types); }, function () { return (c.types || []).join(', '); },
-        function () { return (c.types || []).length ? '' : 'choisissez au moins un type'; });
+      e('types', 'Type(s) de visite médicale', 'continuer', function () { return rendreChoixTypesCr(a, c.types); }, function () { return (c.types || []).join(', '); },
+        function () { return (c.types || []).length ? '' : 'choisissez au moins un type de visite médicale'; });
       if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes); }, function () { return oui(c.presentes); });
       if (c.presentes === 'oui' || im.presentes) {
         e('produits', 'Produits présentés', 'continuer', function () {
@@ -2739,8 +2742,8 @@
       return l;
     }
     e('interlocuteur', 'Interlocuteur', 'auto', function () { return choixCr(a, 'interlocuteur', INTERLOCUTEURS, c.interlocuteur); }, function () { return c.interlocuteur; });
-    e('types', 'Type(s) de visite', 'continuer', function () { return rendreChoixTypesCr(a, c.types); }, function () { return (c.types || []).join(', '); },
-      function () { return (c.types || []).length ? '' : 'choisissez au moins un type de visite'; });
+    e('types', 'Activité(s) en pharmacie', 'continuer', function () { return rendreChoixTypesCr(a, c.types); }, function () { return (c.types || []).join(', '); },
+      function () { return (c.types || []).length ? '' : 'choisissez au moins une activité en pharmacie'; });
     if (!im.stocks) e('stocksVerif', 'Stocks vérifiés ?', 'auto', function () { return choixCr(a, 'stocksVerif', [['oui', 'Oui'], ['non', 'Non']], c.stocksVerif); }, function () { return oui(c.stocksVerif); });
     if (c.stocksVerif === 'oui' || im.stocks) {
       e('stocks', 'Stock par produit', 'continuer', function () {
@@ -2780,16 +2783,19 @@
     e('suiteType', 'Rappel ou RDV confirmé ?', 'auto', function () { return choixCr(a, 'suiteType', [['rappel', 'Rappel'], ['rdv', 'RDV confirmé']], c.suiteType); },
       function () { return c.suiteType === 'rdv' ? 'RDV confirmé' : 'Rappel'; });
     e('date', 'Prochaine étape le', 'auto', function () {
-      return '<div class="rangee-prochaine">' + [7, 14, 30].map(function (n) {
+      return '<div class="rangee-prochaine">' + [1, 7, 14, 30].map(function (n) {
         var d = ajouterJours(a.date, n);
-        return '<button type="button" class="puce" data-a="crDate" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (c.date === d) + '">+' + n + ' j</button>';
-      }).join('') + '</div><label class="champ" style="margin:10px 0 0"><span>Ou une date</span><input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date de la prochaine étape"></label>' +
+        var lib = n === 1 ? '+1 j' : '+' + n + ' j';
+        var sous = n === 1 ? 'Demain' : (n === 7 ? '1 sem.' : (n === 14 ? '2 sem.' : '1 mois'));
+        return '<button type="button" class="puce puce-prochaine" data-a="crDate" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + (c.date === d) + '">' +
+          '<b>' + lib + '</b><small>' + sous + '</small></button>';
+      }).join('') + '</div><label class="champ" style="margin:10px 0 0"><span>Ou une date précise</span><input type="date" data-f="crSelect" data-uid="' + a.uid + '" data-k="date" value="' + esc(c.date || '') + '" aria-label="Date de la prochaine étape"></label>' +
         '<span class="aide-champ">' + (c.suiteType === 'rappel' ? 'Rappel : il s\'affiche ce jour-là dans « Journée », sans modifier la tournée.' :
           'RDV confirmé : ' + (estPharmacie(a) ? 'la pharmacie est placée' : 'le praticien est placé') + ' d\'office ce jour-là dans vos tournées.') + '</span>';
     }, function () { return c.date ? majuscule(dateLongue(c.date)) : ''; });
   }
   // libellés courts des réponses repliées (comme Planifier : « Période  Journée du… »)
-  var TITRES_COURTS = { 'La visite a-t-elle été faite ?': 'Visite faite', 'Trouver un remplaçant à proximité ?': 'Remplaçant', 'Type(s) de visite': 'Types',
+  var TITRES_COURTS = { 'Type(s) de visite médicale': 'Types', 'Activité(s) en pharmacie': 'Activités', 'La visite a-t-elle été faite ?': 'Visite faite', 'Trouver un remplaçant à proximité ?': 'Remplaçant', 'Type(s) de visite': 'Types',
     'Activité(s)': 'Types', 'Produits présentés ?': 'Présentés', 'Produits présentés': 'Produits', 'Réaction du médecin': 'Réaction',
     'Échantillons remis ?': 'Échantillons', 'Échantillons remis (quantités)': 'Échantillons', 'Échantillons (quantités)': 'Échantillons',
     'Étape suivante': 'Suite', 'Rappel ou RDV confirmé ?': 'Rappel / RDV', 'Prochaine étape le': 'Date', 'Stocks vérifiés ?': 'Stocks', 'Stock par produit': 'Stocks',
@@ -4514,6 +4520,38 @@
 
   // Choix multiple générique (spécialités ciblées par la tournée)
   FEUILLES.multi = function (f) {
+    if (f.cle === 'specialites') {
+      var coeur = coeurDeCible(), sel = f.sel || [], q = normaliser((f.q && f.q.multi) || '');
+      var coeurMap = {}, coeurOpts = [], autresOpts = [];
+      coeur.forEach(function (nom) { coeurMap[nom] = true; });
+      sel.forEach(function (nom) { coeurMap[nom] = true; });
+      f.options.forEach(function (o) {
+        if (coeurMap[o.nom]) coeurOpts.push(o);
+        else autresOpts.push(o);
+      });
+      function puceM(o) {
+        var actif = sel.indexOf(o.nom) >= 0;
+        return '<button type="button" class="puce" data-a="multiToggle" data-v="' + esc(o.nom) +
+          '" data-lib="' + esc(normaliser(o.nom)) + '" aria-pressed="' + actif + '"' + (q && normaliser(o.nom).indexOf(q) < 0 ? ' hidden' : '') + '>' +
+          esc(o.nom) + (o.n !== undefined ? '<small>' + o.n + '</small>' : '') + '</button>';
+      }
+      var total = sel.reduce(function (s2, v) { var o = f.options.filter(function (x) { return x.nom === v; })[0]; return s2 + (o && o.n ? o.n : 0); }, 0);
+      var h = '<div class="groupe-filtre ouvert" data-groupe="multi">';
+      if (f.aide) h += '<p class="discret groupe-aide" style="margin-top:0">' + esc(f.aide) + '</p>';
+      h += '<div class="recherche recherche-large">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="multi" placeholder="Rechercher une spécialité…" value="' +
+        esc((f.q && f.q.multi) || '') + '" aria-label="Rechercher une spécialité"></div>';
+      h += '<div class="sous-titre-zone" style="margin:10px 0 6px"><span>Cœur de cible & sélectionnées (' + coeurOpts.length + ')</span></div>' +
+        '<div class="puces">' + coeurOpts.map(puceM).join('') + '</div>';
+      if (autresOpts.length) {
+        var ouv = !!(f.autresOuvert || q);
+        h += '<div class="section-choix" style="margin-top:14px">' +
+          '<button type="button" class="aire-titre aire-bascule" data-a="multiToggleAutres" aria-expanded="' + ouv + '"><span>Autres spécialités</span><small>' + autresOpts.length + '</small>' + icone('chevron') + '</button>' +
+          '<div class="puces" id="autresSpecs" data-ferme="1"' + (!ouv ? ' hidden' : '') + '>' + autresOpts.map(puceM).join('') + '</div></div>';
+      }
+      h += '</div>';
+      return { corps: h, pied: '<button class="bouton" type="button" data-a="multiTous">Tous</button><button class="bouton" type="button" data-a="multiAucun">Effacer</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="multiOk">' + (sel.length ? 'Valider · ' + total + ' médecin' + (total > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
+    }
     var h = groupeChoix(f, { id: 'multi', titre: f.titreGroupe || 'Choix', chemin: 'sel', multiple: true, recherche: f.options.length > 8, aide: f.aide,
       options: f.options.map(function (o) { return { v: o.nom, lib: o.nom, n: o.n }; }) });
     var total = f.sel.reduce(function (s2, v) { var o = f.options.filter(function (x) { return x.nom === v; })[0]; return s2 + (o && o.n ? o.n : 0); }, 0);
@@ -6230,6 +6268,7 @@
     },
     filtreType: function (el) { var f = filtresCour(); f.type = el.dataset.v; majFiltres(f); rendre(); },
     multiToggle: function (el) { var f = S.ui.feuille, i = f.sel.indexOf(el.dataset.v); if (i >= 0) f.sel.splice(i, 1); else f.sel.push(el.dataset.v); rendre(); },
+    multiToggleAutres: function () { var f = S.ui.feuille; if (f) { f.autresOuvert = !f.autresOuvert; rendreFeuille(); } },
     multiTous: function () {
       var f = S.ui.feuille;
       f.sel = f.options.map(function (o) { return o.nom; });
@@ -6524,10 +6563,13 @@
     }
     if (f === 'chercheOption') {
       var fe = S.ui.feuille; fe.q = fe.q || {}; fe.q[el.dataset.g] = el.value;
-      var q = normaliser(el.value), g = el.closest('.groupe-filtre');
-      g.querySelectorAll('.puce').forEach(function (b) { b.hidden = !!q && b.dataset.lib.indexOf(q) < 0; });
-      g.querySelectorAll('.puces[data-ferme]').forEach(function (p) { p.hidden = !q && p.dataset.ferme === '1'; });
-      g.querySelectorAll('.section-choix').forEach(function (sec) { sec.hidden = !sec.querySelector('.puce:not([hidden])'); });
+      var q = normaliser(el.value), g = el.closest('.groupe-filtre') || el.closest('.feuille-corps');
+      if (g) {
+        g.querySelectorAll('.puce').forEach(function (b) { b.hidden = !!q && b.dataset.lib && b.dataset.lib.indexOf(q) < 0; });
+        g.querySelectorAll('.puces[data-ferme]').forEach(function (p) { p.hidden = !q && p.dataset.ferme === '1'; });
+        var zAutres = g.querySelector('#autresSpecs'); if (zAutres && fe) zAutres.hidden = !q && !fe.autresOuvert;
+        g.querySelectorAll('.section-choix').forEach(function (sec) { sec.hidden = !sec.querySelector('.puce:not([hidden])'); });
+      }
     }
     if (f === 'jourDate' && el.value) { allerAuJour(el.value); return; }
     if (f === 'rapport') { var Rr = rapportOuCree(jourAffiche()); Rr[el.dataset.k] = el.value; sauverRapports(); return; }

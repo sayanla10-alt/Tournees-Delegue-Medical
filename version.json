@@ -1,8 +1,11 @@
 {
-  "version": "3.25.26",
+  "version": "3.25.27",
   "date": "2026-10-28",
   "notes": [
-    "Correction de l'écran blanc au rafraîchissement",
-    "Déblocage et fluidité de l'onglet Recherche / Répertoire"
+    "Planifier : résumé des critères sur 2 lignes pour libérer de l'espace",
+    "Planifier (Spécialités) : étape 4 allégée, recherche élargie et autres spécialités repliées",
+    "Compte rendu : parcours strictement différencié Médecin vs Pharmacie",
+    "Compte rendu : médicaments présentés 2 par ligne en grille claire",
+    "Compte rendu : prochaine étape avec option +1 j (Demain)"
   ]
 }
