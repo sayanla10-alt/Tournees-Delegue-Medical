@@ -19,7 +19,7 @@
 
 var GEO_FEUILLE_PHARMACIES = 'Pharmacies';
 var GEO_FEUILLE_QUARTIERS = 'Quartiers';
-var CLE_GOOGLE_MAPS_DEFAUT = ''; // Laisser vide si stocké dans Propriétés du script sous le nom 'MAPS_API_KEY'
+var CLE_GOOGLE_MAPS_DEFAUT = 'AIzaSyC63aSjjzFZMJsWdoYPjVJV9TB08P53_nk'; // Renseigné pour stone-ward-375014 (surchargé par Script Properties si présent)
 
 // Erreurs de lecture de la "Liste terrain (photos)" vérifiées (téléphone / titulaire)
 var CORRECTIONS_OCR_PHARMACIES = {
