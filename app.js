@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.21';
+  var APP_VERSION = '3.25.22';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.22', ['Planifier : parcours de confirmation et d\'envoi WhatsApp épuré étape par étape (choix Ce jour / Tous les jours, question Oui/Non avant l\'aperçu WhatsApp, retour à la liste précédente après un recalcul)']],
     ['3.25.21', ['Planifier : bouton « Accepter » sous Ajouter manuellement et Recalculer automatiquement', 'Répertoire : nouvelle phrase d\'introduction', 'Autour de moi : critères et filtres uniformisés avec l\'onglet Répertoire']],
     ['3.25.18', ['Onglet Contacts renommé Répertoire']],
     ['3.25.16', ['+ Médecin / + Pharmacie : « Selon mes filtres » reprend toujours les filtres de l\'onglet Rechercher, communes comprises']],
@@ -1781,15 +1782,20 @@
       '';
     h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
     if (enAttente) {
-      h += '<section class="bandeau-prog accepter"><div><b>Nouvelle sélection</b><span>Elle vous convient ? Acceptez-la, ou recalculez encore (les médecins gardés restent).</span></div>' +
+      h += '<section class="bandeau-prog accepter"><div><b>Nouvelle sélection</b><span>Elle vous convient ? Acceptez-la, ou refusez pour revenir en arrière ou recalculer.</span></div>' +
         '<div class="rangee"><button class="bouton" type="button" data-a="refuserProgramme" data-v="jour">Ne pas accepter</button>' +
         '<button class="bouton bouton-plein" type="button" data-a="accepterJour">' + icone('valider') + 'Accepter</button></div></section>';
-    } else {
-      // 3.25.0 : boutons renommés ; les médecins épinglés « Garder » (et ceux ajoutés à la main) restent au recalcul,
-      // la journée se reconstruit autour d'eux, même si un programme existe déjà
+    } else if (!jourConfirme(d)) {
+      // État B : Jour en brouillon -> Ajouter, Recalculer, et bouton principal Accepter
       h += '<div class="rangee rangee-tirage"><button class="bouton bouton-plein" type="button" data-a="ajouterTournee">' + icone('plus') + 'Ajouter manuellement</button>' +
         '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Recalculer automatiquement</button></div>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="accepterJour" style="margin-top:8px">' + icone('valider') + 'Accepter</button>' +
+        '<p class="discret aide-garder">' + icone('epingle') + 'Épinglez « Garder » les médecins à voir absolument : le recalcul reconstruit la journée autour d\'eux.</p>';
+    } else {
+      // État C : Jour déjà confirmé -> Accepter disparaît au profit de Partager sur WhatsApp
+      h += '<div class="rangee rangee-tirage"><button class="bouton bouton-plein" type="button" data-a="ajouterTournee">' + icone('plus') + 'Ajouter manuellement</button>' +
+        '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + 'Recalculer automatiquement</button></div>' +
+        '<button class="bouton bouton-large" type="button" data-a="partagerJourWhatsapp" style="margin-top:8px">' + icone('whatsapp') + 'Partager sur WhatsApp</button>' +
         '<p class="discret aide-garder">' + icone('epingle') + 'Épinglez « Garder » les médecins à voir absolument : le recalcul reconstruit la journée autour d\'eux.</p>';
     }
     h += rendreCouverture(dates);
@@ -1945,6 +1951,7 @@
     if (!garder) { S.rejetes[a.code] = true; S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
     var n = Moteur.arretDepuisCreneau(cr, a.date); n.etat = 'ajoute'; n.garde = true;
     S.plan.push(n); reordonner(a.date);
+    if (S.ui.tab === 'semaine') mettreBrouillon([a.date]);
     S.ui.feuille = null; S.ui.ouvert = null; marquerModifie(); sauver(); rendre(); publierPlan();
     var placé = arret(n.uid);
     toast((garder ? n.nom + ' ajouté en remplacement de ' + a.nom : a.nom + ' remplacé par ' + n.nom) + (placé ? ' (' + placé.heure + ', ' + n.quartier + ')' : '') + '.', 5000);
@@ -1956,17 +1963,21 @@
     S.rejetes[a.code] = true;
     S.imposes = S.imposes.filter(function (im) { return im.code !== a.code; });
     reordonner(a.date);
+    if (S.ui.tab === 'semaine' && S.plan.some(function (x) { return x.date === a.date; })) mettreBrouillon([a.date]);
     S.ui.ouvert = null; sauver(); rendre(); publierPlan();
     toast(a.nom + ' retiré de la tournée.');
   }
   // Confirmation avant tout changement de la tournée
-  // confirme les jours donnés (par défaut tous les jours en brouillon), puis propose l'envoi par WhatsApp
-  function confirmerProgramme(dates) {
-    dates = dates && dates.length ? dates : joursBrouillon();
-    confirmerJours(dates); S.ui.aAccepter = null;
+  // confirme les jours donnés (par défaut le jour affiché), puis propose l'envoi par WhatsApp (Oui / Non / Retour)
+  function confirmerProgramme(dates, depuisChoix) {
+    dates = dates && dates.length ? dates : [S.ui.jour];
+    var avantJours = {};
+    dates.forEach(function (d) { avantJours[d] = S.jours[d] ? JSON.parse(JSON.stringify(S.jours[d])) : { etat: 'proposition', valideLe: '', modifieLe: '' }; });
+    var avantAAccepter = S.ui.aAccepter;
+    confirmerJours(dates); S.ui.aAccepter = null; S.ui.avantTirage = null;
     S.ui.flashTexte = dates.length === 1 ? majuscule(dateLongue(dates[0])) + ' confirmé' : dates.length + ' jours confirmés';
     sauver(); publierPlan(true);
-    S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée', dates: dates };
+    S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée ✓', dates: dates, avantJours: avantJours, avantAAccepter: avantAAccepter, depuisChoix: !!depuisChoix, retourAction: 'annulerConfirmation' };
     S.ui.flashValide = Date.now() + 4000; setTimeout(function () { S.ui.flashValide = 0; rendreSiPossible(); }, 4100);
     rendre();
   }
@@ -2142,15 +2153,11 @@
   function rendreProgramme() {
     var h = '';
     // 3.19.0 : le bandeau vert ne s'affiche que quelques secondes après la confirmation
+    // 3.25.22 : suppression du bandeau Brouillon en haut d'écran (gain de place mobile ; le badge et les boutons du bas suffisent)
     if (S.ui.flashValide && Date.now() < S.ui.flashValide) {
       h += '<section class="bandeau-prog valide flash"><div><b>Tournée confirmée</b><span>' + esc(S.ui.flashTexte || '') + '. Visible par l\'équipe.</span></div></section>';
     }
-    var b = joursBrouillon();
-    if (!b.length) return h;
-    return h + '<section class="bandeau-prog"><div><b>Brouillon</b><span>' + (b.length > 1 ? b.length + ' jours à confirmer : ' : 'À confirmer : ') +
-      b.slice(0, 6).map(dateCourte).join(', ') + (b.length > 6 ? '…' : '') + '</span></div>' +
-      '<div class="rangee"><button class="bouton" type="button" data-a="refuserProgramme">Ne pas accepter</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="accepterProgramme">' + icone('valider') + 'Accepter</button></div></section>';
+    return h;
   }
 
   // ------------------------------------------------------------------ Compte Rendu de visite (arbre de décision, 3.5.0)
@@ -3772,7 +3779,7 @@
     var nouvelle = !defil || el.dataset.ouverte !== f.type;
     el.dataset.type = f.type + (f.etape || ''); el.dataset.ouverte = f.type;
     el.innerHTML = '<div class="voile" data-a="fermerFeuille"></div><div class="feuille' + (f.pleine ? ' pleine' : '') + (nouvelle ? ' anim' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(f.titre || '') + '">' +
-      '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="fermerFeuille" aria-label="Retour">' + icone('chevron') + '</button><b>' + esc(f.titre || '') + '</b></div>' +
+      '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="' + (f.retourAction || 'fermerFeuille') + '" aria-label="Retour">' + icone('chevron') + '</button><b>' + esc(f.titre || '') + '</b></div>' +
       '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
     if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
     // bande des produits : le produit choisi glisse au centre (depuis la position précédente)
@@ -3875,19 +3882,26 @@
   };
 
   FEUILLES.exporter = function (f) {
-    var t = aujourdhui(), dates = f.portee === 'jour' ? [S.ui.jour] : datesPlan().filter(function (d) { return d >= t && jourConfirme(d); });
+    var t = aujourdhui(), confirmes = datesPlan().filter(function (d) { return d >= t && jourConfirme(d); });
+    if (confirmes.length <= 1) f.portee = 'jour';
+    var dates = f.portee === 'jour' ? [S.ui.jour] : confirmes;
     var texte = texteProgramme(dates);
     f.texte = texte;
     var num = normaliserNumero(S.config.whatsapp);
-    return '<div class="segment" role="group" aria-label="Contenu"><button type="button" data-a="exportPortee" data-v="jour" aria-pressed="' + (f.portee === 'jour') + '">Le ' + dateCourte(S.ui.jour) + '</button>' +
-      '<button type="button" data-a="exportPortee" data-v="semaine" aria-pressed="' + (f.portee !== 'jour') + '">Jours confirmés à venir</button></div>' +
+    var corps = (confirmes.length > 1 ? '<div class="segment" role="group" aria-label="Contenu"><button type="button" data-a="exportPortee" data-v="jour" aria-pressed="' + (f.portee === 'jour') + '">Ce jour (' + dateCourte(S.ui.jour) + ')</button>' +
+      '<button type="button" data-a="exportPortee" data-v="semaine" aria-pressed="' + (f.portee !== 'jour') + '">Tous les jours confirmés (' + confirmes.length + ')</button></div>' : '') +
       '<pre class="apercu">' + esc(texte) + '</pre>' +
       (texte.length > 3500 ? '<p class="discret">Message long : si WhatsApp le coupe, envoyez jour par jour.</p>' : '') +
-      (num ? '<p class="discret">Envoi vers votre numéro +' + esc(num) + (S.config.waWeb || !estMobile() ? ', avec WhatsApp Web.' : ', avec l\'application WhatsApp.') + '</p>' :
-        '<p class="discret">Renseignez votre numéro dans les Réglages pour l\'envoyer directement dans votre conversation.</p>') +
-      '<button class="bouton bouton-plein bouton-large wa" type="button" data-a="envoyerWhatsapp">' + icone('whatsapp') + 'Envoyer par WhatsApp</button>' +
-      '<div class="rangee" style="margin-top:10px"><button class="bouton" type="button" data-a="copierTexte">Copier le texte</button>' +
-      (navigator.share ? '<button class="bouton" type="button" data-a="partagerTexte">Partager…</button>' : '') + '</div>';
+      '<div class="rangee" style="margin-top:8px"><button class="bouton petit" type="button" data-a="copierTexte">Copier le texte</button>' +
+      (navigator.share ? '<button class="bouton petit" type="button" data-a="partagerTexte">Partager…</button>' : '') + '</div>' +
+      (num ? '<p class="discret" style="margin-bottom:0">Destinataire : +' + esc(num) + '</p>' :
+        '<p class="discret" style="margin-bottom:0">Astuce : renseignez votre numéro dans les Réglages pour un envoi direct.</p>');
+    return {
+      corps: corps,
+      pied: '<button class="bouton-texte sortir-question" type="button" data-a="retourExport">← Retour</button>' +
+        '<button class="bouton" type="button" data-a="fermerFeuille">Ne pas envoyer</button>' +
+        '<button class="bouton bouton-plein wa" type="button" data-a="envoyerWhatsapp">' + icone('whatsapp') + 'Envoyer sur WhatsApp</button>'
+    };
   };
 
   FEUILLES.anciens = function (f) {
@@ -4052,16 +4066,37 @@
       pied: piedQuestion('data-a="confirmerOui"', esc(f.oui), 'confirmerNon') };
   };
 
+  FEUILLES.choixAccepter = function (f) {
+    var d = f.jour || S.ui.jour, b = f.jours || joursBrouillon();
+    return {
+      corps: '<p style="margin-top:0">Voulez-vous confirmer uniquement le <b>' + esc(dateLongue(d)) + '</b> ou les <b>' + b.length + ' jours</b> en brouillon ?</p>' +
+        '<p class="discret" style="margin-bottom:0">Jours en brouillon : ' + esc(b.slice(0, 6).map(dateCourte).join(', ')) + (b.length > 6 ? '…' : '') + '.</p>',
+      pied: '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">← Retour</button>' +
+        '<button class="bouton" type="button" data-a="accepterPortee" data-v="jour">Ce jour</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="accepterPortee" data-v="tous">' + icone('valider') + 'Les ' + b.length + ' jours</button>'
+    };
+  };
+
   FEUILLES.refusProgramme = function () {
-    return { corps: '<p style="margin-top:0">La tournée reste en <b>brouillon</b> : elle n\'est ni validée ni partagée.</p>',
-      pied: '<button class="bouton" type="button" data-a="quitterSansValider">Quitter sans valider</button>' +
-        '<button class="bouton bouton-plein" type="button" data-a="continuerModifier">' + icone('crayon') + 'Continuer à modifier</button>' };
+    var d = S.ui.aAccepter || S.ui.jour, aSauve = S.ui.avantTirage && S.ui.avantTirage.date === d;
+    return {
+      corps: '<p style="margin-top:0">Ce nouveau tirage du <b>' + esc(dateLongue(d)) + '</b> ne vous convient pas.</p>' +
+        '<p class="discret" style="margin-bottom:0">' + (aSauve ? 'Voulez-vous remettre votre liste précédente ou relancer un autre tirage ?' : 'Voulez-vous relancer un autre tirage ou modifier la liste à la main ?') + '</p>',
+      pied: '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">← Retour</button>' +
+        '<button class="bouton" type="button" data-a="recalculerEncore">' + icone('relancer') + 'Autre tirage</button>' +
+        (aSauve ? '<button class="bouton bouton-plein" type="button" data-a="restaurerAvantTirage">↩ Liste précédente</button>' :
+          '<button class="bouton bouton-plein" type="button" data-a="continuerModifier">' + icone('crayon') + 'Modifier à la main</button>')
+    };
   };
   FEUILLES.valide = function (f) {
     var l = f.dates || [];
-    return { corps: '<p style="margin-top:0">' + (l.length === 1 ? majuscule(dateLongue(l[0])) + ' est confirmé' : (l.length ? l.length + ' jours sont confirmés' : 'Votre tournée est confirmée')) +
-        ' et visible par l\'équipe.</p>',
-      pied: '<button class="bouton bouton-plein bouton-large wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer par WhatsApp</button>' };
+    return {
+      corps: '<p style="margin-top:0"><b>' + (l.length === 1 ? majuscule(dateLongue(l[0])) + ' est confirmé' : (l.length ? l.length + ' jours sont confirmés' : 'Votre tournée est confirmée')) +
+        '</b> et visible par l\'équipe.</p><p class="discret" style="margin-bottom:0">Souhaitez-vous maintenant la partager par WhatsApp ?</p>',
+      pied: '<button class="bouton-texte sortir-question" type="button" data-a="annulerConfirmation">← Retour</button>' +
+        '<button class="bouton" type="button" data-a="fermerFeuille">Non, terminé</button>' +
+        '<button class="bouton bouton-plein wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Oui, préparer l\'envoi</button>'
+    };
   };
 
   // Choix multiple générique (spécialités ciblées par la tournée)
@@ -4502,6 +4537,19 @@
     avantTirage().then(function () {
       var periode = datesPeriode();
       var cible = portee === 'jour' ? [S.ui.jour] : periode;
+      if (portee === 'jour') {
+        var dTir = S.ui.jour;
+        if (!S.ui.avantTirage || S.ui.avantTirage.date !== dTir || S.ui.aAccepter !== dTir) {
+          S.ui.avantTirage = {
+            date: dTir,
+            arrets: JSON.parse(JSON.stringify(S.plan.filter(function (a) { return a.date === dTir; }))),
+            jourEtat: S.jours[dTir] ? JSON.parse(JSON.stringify(S.jours[dTir])) : null,
+            rejetes: JSON.parse(JSON.stringify(S.rejetes || {}))
+          };
+        }
+      } else {
+        S.ui.avantTirage = null;
+      }
       if (portee === 'nouveau') S.rejetes = {};
       // Médecins écartés au nouveau tirage : ceux qui étaient proposés et non conservés
       if (portee === 'jour' || portee === 'semaine') {
@@ -4623,6 +4671,7 @@
     a.etat = 'ajoute'; a.garde = true;
     S.plan.push(a);
     reordonner(date);
+    if (S.ui.tab === 'semaine') mettreBrouillon([date]);
     S.ui.jour = date;
     sauver(); publierPlan();
     var cib = cibleParCollegues(c.code, date);
@@ -4953,17 +5002,65 @@
       var r = LS.get('refusProches', {}); if (r.d !== aujourdhui()) r = { d: aujourdhui(), uids: {} };
       r.uids[el.dataset.uid] = true; LS.set('refusProches', r); rendre();
     },
-    accepterJour: function () { var d = S.ui.aAccepter || S.ui.jour; confirmerProgramme([d]); },
-    // 3.25.0 : Accepter valide puis propose WhatsApp ; Ne pas accepter : continuer à modifier ou quitter sans valider
-    accepterProgramme: function () { confirmerProgramme(joursBrouillon()); },
-    refuserProgramme: function (el) { S.ui.feuille = { type: 'refusProgramme', titre: 'Tournée non acceptée', jour: el.dataset.v === 'jour' }; rendre(); },
+    accepterJour: function () {
+      var d = S.ui.aAccepter || S.ui.jour, b = joursBrouillon();
+      if (b.indexOf(d) < 0 && !jourConfirme(d)) b.push(d);
+      var autres = b.filter(function (x) { return x !== d; });
+      if (autres.length > 0) {
+        S.ui.feuille = { type: 'choixAccepter', titre: 'Confirmer la tournée', jour: d, jours: b.slice().sort() };
+        rendre();
+        return;
+      }
+      confirmerProgramme([d], false);
+    },
+    accepterPortee: function (el) {
+      var f = S.ui.feuille || {}, d = f.jour || S.ui.jour, b = f.jours || joursBrouillon();
+      confirmerProgramme(el.dataset.v === 'jour' ? [d] : b, true);
+    },
+    annulerConfirmation: function () {
+      var f = S.ui.feuille || {}, l = f.dates || [];
+      if (f.avantJours) {
+        Object.keys(f.avantJours).forEach(function (d) { S.jours[d] = f.avantJours[d]; });
+      } else {
+        mettreBrouillon(l);
+      }
+      if (f.avantAAccepter) S.ui.aAccepter = f.avantAAccepter;
+      S.ui.flashValide = 0;
+      sauver(); publierPlan(true);
+      var b = joursBrouillon();
+      if (f.depuisChoix && b.length > 1) {
+        S.ui.feuille = { type: 'choixAccepter', titre: 'Confirmer la tournée', jour: S.ui.jour, jours: b };
+      } else {
+        S.ui.feuille = null;
+        toast('Confirmation annulée : retour au brouillon.');
+      }
+      rendre();
+    },
+    // 3.25.22 : Accepter valide puis propose WhatsApp (Oui/Non/Retour) ; Ne pas accepter : revenir à la liste précédente ou relancer un tirage
+    accepterProgramme: function () { confirmerProgramme(joursBrouillon(), false); },
+    refuserProgramme: function (el) { S.ui.feuille = { type: 'refusProgramme', titre: 'Refuser cette sélection ?', jour: el.dataset.v === 'jour' }; rendre(); },
     continuerModifier: function () {
       var j = S.ui.feuille && S.ui.feuille.jour; S.ui.feuille = null;
       if (j) { S.ui.aAccepter = null; rendre(); toast('Ajoutez, retirez ou épinglez des médecins, puis recalculez.'); return; }
       etapesPDepuisDebut(); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0);
     },
     quitterSansValider: function () { S.ui.feuille = null; S.ui.aAccepter = null; S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0); toast('Tournée laissée en brouillon, non envoyée à l\'équipe.'); },
-    recalculerEncore: function () { lancerTirage('jour'); },
+    recalculerEncore: function () { S.ui.feuille = null; lancerTirage('jour'); },
+    restaurerAvantTirage: function () {
+      var av = S.ui.avantTirage;
+      S.ui.feuille = null; S.ui.aAccepter = null;
+      if (av && av.date) {
+        S.plan = S.plan.filter(function (a) { return a.date !== av.date; }).concat(av.arrets || []);
+        trierPlan();
+        if (av.jourEtat) S.jours[av.date] = av.jourEtat;
+        if (av.rejetes) S.rejetes = av.rejetes;
+        S.ui.avantTirage = null;
+        sauver(); rendre(); publierPlan(true);
+        toast('Liste précédente restaurée.');
+        return;
+      }
+      rendre();
+    },
     confirmerProgrammeDirect: function () { confirmerProgramme(); },
 
     corriger: function (el) {
@@ -4972,7 +5069,17 @@
     ouvrirExport: function () {
       var f = S.ui.feuille, l = f && f.type === 'valide' ? f.dates || [] : [S.ui.jour];
       if (l.length === 1) S.ui.jour = l[0];
-      S.ui.feuille = { type: 'exporter', titre: 'Envoyer par WhatsApp', portee: l.length > 1 ? 'semaine' : 'jour' }; rendre();
+      S.ui.feuille = { type: 'exporter', titre: 'Aperçu du message WhatsApp', portee: l.length > 1 ? 'semaine' : 'jour', retourValide: f && f.type === 'valide' ? f : null, retourAction: 'retourExport' };
+      rendre();
+    },
+    partagerJourWhatsapp: function () {
+      S.ui.feuille = { type: 'exporter', titre: 'Aperçu du message WhatsApp', portee: 'jour', retourValide: null, retourAction: 'fermerFeuille' };
+      rendre();
+    },
+    retourExport: function () {
+      var f = S.ui.feuille;
+      if (f && f.retourValide) { S.ui.feuille = f.retourValide; rendre(); return; }
+      S.ui.feuille = null; rendre();
     },
     ajouterTournee: function (el) {
       S.ui.filtresAutour = JSON.parse(JSON.stringify(S.ui.filtres));
@@ -5001,7 +5108,12 @@
         function () { ajouterArret(c, d); rendre(); }, retourAjout);
     },
     exportPortee: function (el) { S.ui.feuille.portee = el.dataset.v; rendre(); },
-    envoyerWhatsapp: function () { window.open(urlWhatsapp(S.ui.feuille.texte), '_blank', 'noopener'); },
+    envoyerWhatsapp: function () {
+      var txt = S.ui.feuille && S.ui.feuille.texte;
+      if (!txt) return;
+      window.open(urlWhatsapp(txt), '_blank', 'noopener');
+      S.ui.feuille = null; rendre();
+    },
     copierTexte: function () { copier(S.ui.feuille.texte); },
     partagerTexte: function () { navigator.share({ title: 'Programme de tournée', text: S.ui.feuille.texte }).catch(function () {}); },
     fermerFeuille: function () {
