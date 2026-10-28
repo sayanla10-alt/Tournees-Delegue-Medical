@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.18';
+  var APP_VERSION = '3.25.19';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [     ['3.25.18', ['Onglet Contacts renommé Répertoire']],
@@ -2336,7 +2336,7 @@
         }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
       }
       if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant); }, function () { return oui(c.echant); });
-      if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', cat, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
+      if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
       e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
       etapesSuite(a, c, SUITES.medecin, e);
       return l;
@@ -2362,7 +2362,7 @@
     else if (c.commande === 'non') e('besoin', 'Besoin de réapprovisionnement', 'facultatif', function () { return multiCr(a, 'besoin', cat, c.besoin) + texteCr(a, 'besoinTexte', c.besoinTexte, 'Autres besoins'); },
       function () { var b = (c.besoin || []).concat(c.besoinTexte ? [c.besoinTexte] : []); return b.length ? b.join(', ') : 'aucun'; });
     var t = c.types || [];
-    if (t.indexOf('Échantillons') >= 0) e('echQ', 'Échantillons (quantités)', 'continuer', function () { return tableQ(a, 'echQ', cat, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
+    if (t.indexOf('Échantillons') >= 0) e('echQ', 'Échantillons (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
     if (t.indexOf('Retour ou échange') >= 0) e('retour', 'Retour ou échange', 'continuer', function () { return tableQ(a, 'retourQ', cat, c.retourQ) + texteCr(a, 'retourMotif', c.retourMotif, 'Motif du retour ou de l\'échange'); },
       function () { return (listeQ(c.retourQ) || 'aucune quantité') + (c.retourMotif ? ' (' + c.retourMotif + ')' : ''); });
     var act = t.filter(function (x) { return ['PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
@@ -5221,7 +5221,7 @@
       var a = arret(el.dataset.uid); if (!a) return;
       majCr(a, el.dataset.k, el.dataset.v); validerEtape(a, el.dataset.k); rendre(); centrerQuestion(a.uid);
     },
-    crOk: function (el) { var a = arret(el.dataset.uid); if (!a) return; validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid); },
+    crOk: function (el) {        var a = arret(el.dataset.uid); if (!a) return;        if (el.dataset.v === 'produits') {          var c = crDe(a); c.reactions = c.reactions || {};          produitsPresentes(c).forEach(function (p) {            if (!Object.prototype.hasOwnProperty.call(c.reactions, p)) c.reactions[p] = 'Intéressé';          });        }        validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid);      },
     crPasser: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var champs = { precision: ['precision'], bilan: ['bilan'], commentaire: ['commentaire'], besoin: ['besoinTexte'] }[el.dataset.v] || [];
