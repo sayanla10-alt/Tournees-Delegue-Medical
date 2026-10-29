@@ -18,7 +18,7 @@
    ============================================================================= */
 
 var FEUILLES = {
-  praticiens: 'Praticiens', presences: 'Presences', hist: 'Historique', quartiers: 'Quartiers',
+  praticiens: 'Praticiens', presences: 'Presences', etablissements: 'Etablissements', hist: 'Historique', quartiers: 'Quartiers',
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour'
 };
@@ -184,7 +184,7 @@ function preparerFeuille(ss, nom, entetes) {
 }
 
 function ordonnerFeuilles(ss) {
-  [FEUILLES.praticiens, FEUILLES.presences, FEUILLES.pharmacies, FEUILLES.plannings, FEUILLES.hist, FEUILLES.quartiers, FEUILLES.listes]
+  [FEUILLES.praticiens, FEUILLES.presences, FEUILLES.etablissements, FEUILLES.pharmacies, FEUILLES.plannings, FEUILLES.hist, FEUILLES.quartiers, FEUILLES.listes]
     .forEach(function (n, i) {
       var sh = ss.getSheetByName(n);
       if (sh) { ss.setActiveSheet(sh); ss.moveActiveSheet(i + 1); }
@@ -299,6 +299,7 @@ function doPost(e) {
     if (body.action === 'valider') return json(enregistrerVisites(body.visites || []));
     if (body.action === 'planning') return json(publierPlanning(body));
     if (body.action === 'fiche') return json(ficheUnique(body));
+    if (body.action === 'etablissement') return json(enregistrerEtablissement(body.etablissement || body));
     if (body.action === 'rapport') return json(enregistrerRapport(body.rapport || {}));
     if (body.action === 'delegue') return json(ajouterDelegue(body.nom));
     return json({ ok: false, erreur: 'Action inconnue.' });
@@ -370,6 +371,8 @@ function lireTout(sig, hdepuis) {
   var listes = lireListes(ss, tz), statuts = lireStatuts(ss);
   var ref = { praticiens: praticiens, presences: presences, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
   var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
+  var shEtab = ss.getSheetByName(FEUILLES.etablissements);
+  ref.etablissements = shEtab ? lireObjets(shEtab, CHAMPS_ETABLISSEMENTS, tz).filter(function (e) { return String(e.nom || '').trim() !== ''; }) : [];
   ref.activites = listes.activites; ref.produits = listes.produits; ref.activitesPharmacie = listes.activitesPharmacie;
   ref.fiches = lireObjets(ss.getSheetByName(FEUILLES.fiches), CHAMPS_FICHES, tz).filter(function (f) { return String(f.produit).trim() !== ''; });
   empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
@@ -662,6 +665,8 @@ function assurerStructure(ss) {
   else completerEntetes(ss.getSheetByName(FEUILLES.praticiens), CHAMPS_PRATICIENS);
   assurerListes(ss);
   if (!ss.getSheetByName(FEUILLES.presences)) preparerFeuille(ss, FEUILLES.presences, CHAMPS_PRESENCES.map(function (c) { return c[1]; }));
+  if (!ss.getSheetByName(FEUILLES.etablissements)) preparerFeuille(ss, FEUILLES.etablissements, CHAMPS_ETABLISSEMENTS.map(function (c) { return c[1]; }));
+  else completerEntetes(ss.getSheetByName(FEUILLES.etablissements), CHAMPS_ETABLISSEMENTS);
 }
 
 function renommerEntete(sh, ancien, nouveau) {
@@ -1061,6 +1066,87 @@ function enregistrerPharmacie(ss, p, lieu) {
   if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]); else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
   var ids = {}; if (lieu.id) ids[lieu.id] = 'P-' + code;
   return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
+}
+
+// Établissement (hôpital, clinique, FSU COM, dispensaire...) créé ou modifié depuis l'application
+function enregistrerEtablissement(b) {
+  var nom = String(b.nom || '').trim();
+  if (nom.length < 2) return { ok: false, erreur: 'Nom de l\'établissement manquant.' };
+  var lock = verrouiller();
+  try {
+    var ss = SpreadsheetApp.getActive();
+    assurerStructure(ss);
+    var sh = ss.getSheetByName(FEUILLES.etablissements);
+    var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+    var pos = CHAMPS_ETABLISSEMENTS.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+    var n = Math.max(sh.getLastRow() - 1, 0), data = n ? sh.getRange(2, 1, n, ent.length).getValues() : [];
+    var cCode = pos[indexChamp(CHAMPS_ETABLISSEMENTS, 'code')], cNom = pos[indexChamp(CHAMPS_ETABLISSEMENTS, 'nom')];
+    var code = String(b.code || ''), ligne = -1, max = 0, nomNorm = normaliser(nom);
+    data.forEach(function (l, i) {
+      var c = String(l[cCode]);
+      var m = c.match(/^ETAB-(\d+)$/i);
+      if (m && +m[1] > max) max = +m[1];
+      if (code && c === code) ligne = i;
+      else if (ligne < 0 && (!code || /^TMP-/i.test(code)) && cNom >= 0 && normaliser(l[cNom]) === nomNorm) {
+        ligne = i; code = c;
+      }
+    });
+    if (ligne < 0 && (!code || /^TMP-/i.test(code))) {
+      code = 'ETAB-' + ('00' + (max + 1)).slice(-3);
+    }
+    var v = ligne >= 0 ? data[ligne].slice() : ent.map(function () { return ''; });
+    var modif = {
+      code: code,
+      nom: nom,
+      categorie: String(b.categorie || ''),
+      commune: String(b.commune || ''),
+      quartier: String(b.quartier || ''),
+      zone: String(b.zone || ''),
+      telephone: String(b.telephone || ''),
+      reperes: String(b.reperes || '')
+    };
+    if (b.lat !== undefined && b.lon !== undefined && b.lat !== '' && b.lon !== '') {
+      modif.lat = +String(b.lat).replace(',', '.');
+      modif.lon = +String(b.lon).replace(',', '.');
+    }
+    CHAMPS_ETABLISSEMENTS.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
+    if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]);
+    else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
+
+    // Cascade GPS et quartier vers la feuille Presences si lat/lon modifiés
+    var cascades = 0;
+    if (isFinite(modif.lat) && isFinite(modif.lon) && modif.lat) {
+      var shR = ss.getSheetByName(FEUILLES.presences);
+      if (shR && shR.getLastRow() > 1) {
+        var entR = shR.getRange(1, 1, 1, shR.getLastColumn()).getValues()[0].map(normaliser);
+        var cLieu = entR.indexOf(normaliser('Lieu/Etablissement'));
+        var cLatR = entR.indexOf(normaliser('Latitude'));
+        var cLonR = entR.indexOf(normaliser('Longitude'));
+        var cQuartR = entR.indexOf(normaliser('Quartier'));
+        var cComR = entR.indexOf(normaliser('Commune'));
+        if (cLieu >= 0 && cLatR >= 0 && cLonR >= 0) {
+          var nR = shR.getLastRow() - 1;
+          var valR = shR.getRange(2, 1, nR, entR.length).getValues();
+          var modifR = false;
+          valR.forEach(function (row) {
+            if (normaliser(row[cLieu]) === nomNorm) {
+              row[cLatR] = modif.lat;
+              row[cLonR] = modif.lon;
+              if (modif.quartier && cQuartR >= 0 && (!row[cQuartR] || normaliser(row[cQuartR]) === 'nl')) row[cQuartR] = modif.quartier;
+              if (modif.commune && cComR >= 0 && (!row[cComR] || normaliser(row[cComR]) === 'nl')) row[cComR] = modif.commune;
+              cascades++;
+              modifR = true;
+            }
+          });
+          if (modifR) shR.getRange(2, 1, nR, entR.length).setValues(valR);
+        }
+      }
+    }
+
+    return { ok: true, code: code, nom: nom, lat: modif.lat, lon: modif.lon, cascades: cascades };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
 }
 
 // ---------------------------------------------------------------- Pharmacies réelles (OpenStreetMap)

@@ -1356,9 +1356,33 @@ details.avance h3 { margin-top: 18px; }
 .pos-approx .bouton-texte { display: inline-flex; align-items: center; gap: 4px; }
 /* 3.25.12 : « Récupérer la position » centré, coordonnées en dessous */
 .gps-ligne.gps-centre { flex-direction: column; justify-content: center; text-align: center; margin-top: 4px; }
-/* 3.25.14 : pharmacie à proximité signalée sur tous les onglets */
-.alerte-proche { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 60; max-width: 560px; margin: 0 auto; box-shadow: 0 8px 24px rgba(0,0,0,.18); border-radius: var(--r); }
+/* 3.25.14 & 3.25.40 : pharmacie à proximité signalée sur tous les onglets, déplaçable au pouce */
+.alerte-proche { position: fixed; left: 12px; right: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 60; max-width: 560px; margin: 0 auto; box-shadow: 0 8px 24px rgba(0,0,0,.18); border-radius: var(--r); touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; transition: box-shadow .2s ease; }
+.alerte-proche.en-glisse { cursor: grabbing; box-shadow: 0 14px 32px rgba(0,0,0,.3); opacity: 0.95; }
+.alerte-proche .drag-poignee { display: flex; justify-content: center; align-items: center; padding: 6px 0 2px; cursor: grab; }
+.alerte-proche .drag-barre { width: 38px; height: 4px; background: rgba(0,0,0,.22); border-radius: 2px; }
 .alerte-proche .bandeau-proche { margin: 0; }
+
+/* 3.25.40 : accordéon des lieux multiples dans la fiche praticien (un seul ouvert à la fois) */
+.lieu-bloc-plie {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  background: var(--papier, #fff);
+  border: 1px solid var(--trait, #cbd5e1);
+  border-left: 4px solid var(--primaire, #0B4F6C);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.lieu-bloc-plie:hover { background: var(--fond-discret, #f8fafc); border-color: var(--primaire, #0B4F6C); }
+.lieu-plie-info { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.lieu-plie-textes { display: flex; flex-direction: column; min-width: 0; }
+.lieu-plie-nom { font-size: 14px; color: var(--texte, #1e293b); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lieu-plie-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 /* 3.25.15 : compte rendu de pharmacie : un produit par carte */
 .cr-question .ligne-stock, .ligne-stock { background: var(--papier, #fff); border: 1px solid var(--trait); border-radius: var(--r); padding: 10px 12px; margin: 0 0 10px; }
 .cr-question .ligne-stock:last-child, .ligne-stock:last-child { border-bottom: 1px solid var(--trait); }

@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.39';
+  var APP_VERSION = '3.25.40';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.40', [
+      'Répertoire des Hôpitaux dans la BDD : création de l\'onglet dédié « Etablissements » avec 260 centres de santé (CHU, CHR, Hôpitaux, FSU COM, Cliniques...) et GPS certifiés',
+      'Distances réelles : application d\'un coefficient fixe x 1,5 sur toutes les distances pour refléter la réalité du terrain routier',
+      'Notification de pharmacie proche : déplaçable au pouce en direct d\'un simple glissement si elle masque une zone de lecture ou de saisie',
+      'Ajout & Modification médecin : accordéon exclusif sur les jours & horaires (seul un lieu est déplié à la fois, les autres restent pliés)'
+    ]],
     ['3.25.39', [
       'Onglet Produits : rétablissement strict et fidèle de la disposition d\'origine (nom à gauche, molécules et pastilles compactes à droite)',
       'CR visite (Étape 4) : styles parfaitement isolés pour préserver l\'intégrité totale du catalogue produits'
@@ -5133,26 +5139,50 @@
       if (p.type === 'Pharmacie' || /^PHA-/i.test(p.code)) pharCodes[p.code] = true;
     });
 
-    // Pré-remplir avec les hôpitaux de référence
-    HOPITAUX_DEFAUT.forEach(function (h) {
-      var k = normaliser(h.lieu);
-      vus[k] = { lieu: h.lieu, quartier: h.quartier, commune: h.commune, lat: h.lat, lon: h.lon, n: 1, txt: normaliser(h.lieu + ' ' + h.quartier + ' ' + h.commune) };
+    // 1. Établissements centralisés de la BDD (onglet Etablissements)
+    ((S.data && S.data.etablissements) || []).forEach(function (et) {
+      var nom = String(et.nom || '').trim(); if (!nom) return;
+      var k = normaliser(nom);
+      var la = parseFloat(String(et.lat || '').replace(',', '.')), lo = parseFloat(String(et.lon || '').replace(',', '.'));
+      vus[k] = {
+        code: et.code || '',
+        lieu: nom,
+        categorie: et.categorie || '',
+        quartier: et.quartier || '',
+        commune: et.commune || '',
+        zone: et.zone || '',
+        lat: isFinite(la) ? la : '',
+        lon: isFinite(lo) ? lo : '',
+        telephone: et.telephone || '',
+        reperes: et.reperes || '',
+        n: 0,
+        txt: normaliser(nom + ' ' + (et.quartier || '') + ' ' + (et.commune || '') + ' ' + (et.categorie || ''))
+      };
       l.push(vus[k]);
     });
 
+    // 2. Pré-remplir avec les hôpitaux de référence si non déjà présents
+    HOPITAUX_DEFAUT.forEach(function (h) {
+      var k = normaliser(h.lieu);
+      if (!vus[k]) {
+        vus[k] = { code: '', lieu: h.lieu, categorie: 'Hôpital', quartier: h.quartier, commune: h.commune, lat: h.lat, lon: h.lon, n: 1, txt: normaliser(h.lieu + ' ' + h.quartier + ' ' + h.commune) };
+        l.push(vus[k]);
+      }
+    });
+
+    // 3. Compléter avec les présences réelles et compter le nombre de praticiens
     ((S.data && S.data.presences) || []).forEach(function (x) {
       var nom = String(x.lieu || '').trim(); if (!nom || /^NL$/i.test(nom)) return;
-      // Exclure formellement les pharmacies : une pharmacie n'est pas un hôpital ou centre de santé
       if (pharCodes[x.code] || /^PHA-/i.test(x.code) || /^(pharmacie|phcie|grande pharmacie|nouvelle pharmacie)\b/i.test(nom)) return;
       var k = normaliser(nom), e = vus[k];
-      if (!e) { e = vus[k] = { lieu: nom, quartier: '', commune: '', lat: '', lon: '', n: 0, txt: k }; l.push(e); }
+      if (!e) { e = vus[k] = { code: '', lieu: nom, categorie: '', quartier: '', commune: '', lat: '', lon: '', n: 0, txt: k }; l.push(e); }
       e.n++;
       if (!e.quartier && x.quartier && !/^NL$/i.test(x.quartier)) e.quartier = x.quartier;
       if (!e.commune && x.commune) e.commune = x.commune;
       var la = parseFloat(String(x.lat).replace(',', '.')), lo = parseFloat(String(x.lon).replace(',', '.'));
       if (!e.lat && isFinite(la) && isFinite(lo) && la) { e.lat = la; e.lon = lo; }
     });
-    l.forEach(function (e) { e.txt = normaliser(e.lieu + ' ' + e.quartier + ' ' + e.commune); });
+    l.forEach(function (e) { e.txt = normaliser(e.lieu + ' ' + (e.quartier || '') + ' ' + (e.commune || '') + ' ' + (e.categorie || '')); });
     return l;
   }
   function suggestionsLieu(q, i) {
@@ -5401,12 +5431,41 @@
 
     if (e === 1) {
       if (f.err.lieux) h += '<p class="erreur-texte">' + esc(f.err.lieux) + '</p>';
+      if (typeof f.lieuOuvert !== 'number' || f.lieuOuvert < 0 || f.lieuOuvert >= d.lieux.length) {
+        f.lieuOuvert = 0;
+      }
       d.lieux.forEach(function (l, i) {
         if (estPh && i > 0) return;
-        var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
         var q = quartiers().filter(function (x) { return x.quartier === l.quartier; })[0];
-        h += '<div class="lieu-bloc"><div class="lieu-tete"><b>' + (estPh ? esc(d.nom || 'Horaires de réception de la pharmacie') : 'Hôpital / Lieu ' + (i + 1) + (l.lieu ? ' · ' + esc(l.lieu) : '')) + '</b>' +
-          (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte" data-a="ficheRetirerLieu" data-i="' + i + '">Supprimer</button>' : '') + '</div>';
+        var estOuvert = (i === f.lieuOuvert);
+
+        if (!estPh && !estOuvert) {
+          // Lieu replié en accordéon (un seul ouvert à la fois)
+          var nbJ = l.jours ? l.jours.filter(function (j) { return j.matin || j.soir; }).length : 0;
+          var resumeJ = nbJ === 5 ? 'Toute la semaine' : (nbJ > 0 ? nbJ + ' j/semaine' : 'Aucun jour');
+          h += '<div class="lieu-bloc-plie" data-a="ficheOuvrirLieu" data-i="' + i + '">' +
+            '<div class="lieu-plie-info">' +
+              '<span class="badge-discret">Lieu ' + (i + 1) + '</span>' +
+              '<div class="lieu-plie-textes">' +
+                '<b class="lieu-plie-nom">' + esc(l.lieu || 'Établissement à renseigner') + '</b>' +
+                '<small class="discret">' + esc([l.quartier, l.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + ' · ' + resumeJ + (l.lat && l.lon ? ' · ✓ GPS' : '') + '</small>' +
+              '</div>' +
+            '</div>' +
+            '<div class="lieu-plie-actions">' +
+              '<button type="button" class="bouton petit" data-a="ficheOuvrirLieu" data-i="' + i + '">Déplier ▼</button>' +
+              (d.lieux.length > 1 ? '<button type="button" class="bouton-texte sortir-question" data-a="ficheRetirerLieu" data-i="' + i + '" title="Supprimer ce lieu">✕</button>' : '') +
+            '</div>' +
+          '</div>';
+          return;
+        }
+
+        // Lieu ouvert
+        var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
+        h += '<div class="lieu-bloc"><div class="lieu-tete"><b>' + (estPh ? esc(d.nom || 'Horaires de réception de la pharmacie') : (d.lieux.length > 1 ? '▼ ' : '') + 'Hôpital / Lieu ' + (i + 1) + (l.lieu ? ' · ' + esc(l.lieu) : '')) + '</b>' +
+          '<div>' +
+            (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte" data-a="ficheReplierLieu" data-i="' + i + '" style="margin-right:6px">Replier ▲</button>' : '') +
+            (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte sortir-question" data-a="ficheRetirerLieu" data-i="' + i + '">Supprimer</button>' : '') +
+          '</div></div>';
         if (estPh) {
           h += '<p class="sous-titre" style="margin:0 0 8px">Jours et plages où l\'officine reçoit les délégués médicaux (tous cochés par défaut).</p>';
         } else {
@@ -5414,8 +5473,13 @@
             '<div class="sug-lieux" id="sugLieu' + i + '">' + suggestionsLieu(l.lieu, i) + '</div>' +
             champFiche('quartier' + i, 'Quartier *', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: l.quartier, vide: 'Choisir un quartier…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
               appliquer: (function (k) { return function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[k].quartier = v; delete fe.err['quartier' + k]; } }; })(i) }), f, true, q ? 'Commune : ' + esc(q.commune) : '') +
-            '<div class="gps-ligne gps-centre" style="margin-bottom:8px"><button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'GPS de ce lieu</button>' +
-              (l.lat && l.lon ? '<span>GPS : ' + (+String(l.lat).replace(',', '.')).toFixed(4) + ', ' + (+String(l.lon).replace(',', '.')).toFixed(4) + '</span>' : '<span>Pas de GPS</span>') + '</div>';
+            '<div class="gps-ligne gps-centre" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+              '<div style="display:flex;align-items:center;gap:6px">' +
+                '<button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'GPS de ce lieu</button>' +
+                (l.lat && l.lon ? '<button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="' + i + '" title="Effacer GPS">✕</button>' : '') +
+              '</div>' +
+              (l.lat && l.lon ? '<span>GPS : <b>' + (+String(l.lat).replace(',', '.')).toFixed(4) + ', ' + (+String(l.lon).replace(',', '.')).toFixed(4) + '</b></span>' : '<span class="discret">Pas de GPS</span>') +
+            '</div>';
         }
         var tousM = l.jours.every(function (j) { return j.matin; }), tousS = l.jours.every(function (j) { return j.soir; });
         h += '<div class="dispo-raccourcis" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin:0 0 10px">' +
@@ -5914,6 +5978,48 @@
   }
   // recalcul périodique, quel que soit l'onglet (application au premier plan)
   setInterval(function () { if (!document.hidden) localiser(true, 'periodique'); }, PERIODE_GPS_MIN * 60000);
+  // 3.25.40 : notification de pharmacie proche déplaçable au pouce en direct
+  function attacherGlissementPouce(el) {
+    if (!el || el._dragAttache) return;
+    el._dragAttache = true;
+    var startX = 0, startY = 0, curX = 0, curY = 0, enGlisse = false;
+
+    function onDebut(e) {
+      if (e.target.closest('button')) return;
+      var pt = e.touches ? e.touches[0] : e;
+      startX = pt.clientX - curX;
+      startY = pt.clientY - curY;
+      enGlisse = true;
+      el.classList.add('en-glisse');
+    }
+
+    function onBouge(e) {
+      if (!enGlisse) return;
+      var pt = e.touches ? e.touches[0] : e;
+      var nx = pt.clientX - startX;
+      var ny = pt.clientY - startY;
+      if (e.cancelable && (Math.abs(nx - curX) > 2 || Math.abs(ny - curY) > 2)) e.preventDefault();
+      curX = nx;
+      curY = ny;
+      el.style.transform = 'translate3d(' + curX + 'px, ' + curY + 'px, 0)';
+    }
+
+    function onFin() {
+      if (!enGlisse) return;
+      enGlisse = false;
+      el.classList.remove('en-glisse');
+    }
+
+    el.addEventListener('touchstart', onDebut, { passive: true });
+    window.addEventListener('touchmove', onBouge, { passive: false });
+    window.addEventListener('touchend', onFin, { passive: true });
+    window.addEventListener('touchcancel', onFin, { passive: true });
+
+    el.addEventListener('pointerdown', onDebut);
+    window.addEventListener('pointermove', onBouge);
+    window.addEventListener('pointerup', onFin);
+  }
+
   // 3.25.14 : pharmacie ouverte à proximité signalée à chaque rafraîchissement ou réouverture (et dès qu'une nouvelle apparaît),
   // utile dans un quartier mal connu ; « Non » la masque pour la journée
   function alerteProximite(forcer) {
@@ -5923,8 +6029,15 @@
     if (!forcer && S.ui.derniereAlerte === ph.c.code) return;
     S.ui.derniereAlerte = ph.c.code;
     if (S.ui.tab === 'jour' && jourAffiche() === aujourdhui()) return;   // Journée l'affiche déjà en tête
-    if (!el) { el = document.createElement('div'); el.id = 'alerteProche'; el.className = 'alerte-proche'; document.body.appendChild(el); }
-    el.innerHTML = '<div class="bandeau-proche t-pharma">' + pastilleType(ph.c.prat, true) + '<p><b>' + esc(nomSansType(ph.c.prat.nom)) + '</b> est à <b>' + metres(ph.d) + '</b>' +
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'alerteProche';
+      el.className = 'alerte-proche';
+      document.body.appendChild(el);
+      attacherGlissementPouce(el);
+    }
+    el.innerHTML = '<div class="drag-poignee" title="Glisser au pouce pour déplacer"><span class="drag-barre"></span></div>' +
+      '<div class="bandeau-proche t-pharma">' + pastilleType(ph.c.prat, true) + '<p><b>' + esc(nomSansType(ph.c.prat.nom)) + '</b> est à <b>' + metres(ph.d) + '</b>' +
       ', ouverte jusqu\'à ' + minutesVersHeure(ph.c.fin) + ' (' + esc(vuDepuis(ph.c.prat.derniere)) + '). Y aller ?</p>' +
       '<div class="rangee"><button class="bouton" type="button" data-a="pharmaNon" data-v="' + esc(ph.c.code) + '">Non</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="pharmaOui" data-v="' + esc(ph.c.cle) + '">Y aller</button></div></div>';
@@ -7063,8 +7176,31 @@
       if (S.ui.feuille.err['jours' + el.dataset.i]) S.ui.feuille.err = erreursEtape(S.ui.feuille.d, 1);
       rendre();
     },
-    ficheAjouterLieu: function () { S.ui.feuille.d.lieux.push(lieuVide(false)); rendre(); },
-    ficheRetirerLieu: function (el) { S.ui.feuille.d.lieux.splice(+el.dataset.i, 1); S.ui.feuille.err = {}; rendre(); },
+    ficheOuvrirLieu: function (el) {
+      var f = S.ui.feuille;
+      if (f) { f.lieuOuvert = +el.dataset.i; rendre(); }
+    },
+    ficheReplierLieu: function () {
+      var f = S.ui.feuille;
+      if (f) { f.lieuOuvert = -1; rendre(); }
+    },
+    ficheAjouterLieu: function () {
+      var f = S.ui.feuille;
+      if (f && f.d && f.d.lieux) {
+        f.d.lieux.push(lieuVide(false));
+        f.lieuOuvert = f.d.lieux.length - 1;
+        rendre();
+      }
+    },
+    ficheRetirerLieu: function (el) {
+      var f = S.ui.feuille;
+      if (f && f.d && f.d.lieux) {
+        f.d.lieux.splice(+el.dataset.i, 1);
+        if (f.lieuOuvert >= f.d.lieux.length) f.lieuOuvert = Math.max(0, f.d.lieux.length - 1);
+        S.ui.feuille.err = {};
+        rendre();
+      }
+    },
     ficheChoixLieu: function (el) {
       var f = S.ui.feuille, i = +el.dataset.i, e = ((S.ui.sugLieux || {})[i] || [])[+el.dataset.v]; if (!f || !e) return;
       var l = f.d.lieux[i]; l.lieu = e.lieu; delete f.err['lieu' + i];

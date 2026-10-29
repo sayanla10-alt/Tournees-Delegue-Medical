@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    commun.js : référentiel, modèle de données et fonctions partagées (version 3)
    Ce fichier est IDENTIQUE dans l'application (commun.js) et dans Google Apps
    Script (Commun.gs). Toute modification doit être reportée dans les deux.
@@ -69,6 +69,13 @@ var CHAMPS_PHARMACIES = [
   ['horaireSoir', 'HoraireSoir'], ['note', 'Note'], ['conventionne', 'Engagé'], ['derniere', 'DateDerniereVisite'],
   ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'], ['nbVisites', 'NbVisites'], ['actif', 'Actif'],
   ['prochaine', 'ProchaineEtape'], ['source', 'Source']
+];
+
+// Répertoire des hôpitaux et établissements de santé (CHU, Cliniques, FSU COM, Centres Médicaux, etc.)
+var CHAMPS_ETABLISSEMENTS = [
+  ['code', 'CodeEtab'], ['nom', 'Nom'], ['categorie', 'Categorie'], ['commune', 'Commune'],
+  ['quartier', 'Quartier'], ['zone', 'Zone'], ['lat', 'Latitude'], ['lon', 'Longitude'],
+  ['telephone', 'Téléphone'], ['reperes', 'Repères']
 ];
 var HORAIRES_PHARMACIE = ['08:00-12:30', '15:00-20:00'];
 var ACTIVITES_DEFAUT = ['Routine', 'Présentation produit', 'Échantillons', 'Cadeaux', 'EPU', 'Staff', 'Réunion', 'Déjeuner', 'Garde', 'Dépistage', 'Autre'];
@@ -712,7 +719,7 @@ var REGLAGES_MOTEUR = {
   penaliteKm: 25,              // points de score retirés par km de détour ajouté à la tournée
   rayonAutourKm: 5,            // rayon par défaut de « Autour de moi »
   nbPropositions: 15,
-  detourRoutier: 1.3,          // coefficient vol d'oiseau -> distance routière
+  detourRoutier: 1.5,          // coefficient fixe vol d'oiseau -> distance réelle estimée (x 1,5)
   minutesParKm: 3,             // vitesse moyenne en ville (~20 km/h, trafic d'Abidjan)
   facteurPointe: 1.6,          // trajets plus lents aux heures de pointe
   heuresPointe: [[420, 570], [990, 1170]],   // 7:00-9:30 et 16:30-19:30
@@ -847,8 +854,8 @@ function calcScore(note, jours, dernierStatut) {
   return Math.round((note * 100 + retard * 100 + bonus) * 10) / 10;
 }
 
-// 3.25.9 : distance à vol d'oiseau en km (position du téléphone -> lieu), sans coefficient routier
-function distanceVol(a, b) { var d = distanceKm(a, b); return d >= 99 ? 99 : d / REGLAGES_MOTEUR.detourRoutier; }
+// 3.25.40 : distance routière réelle estimée en km avec coefficient fixe x 1,5 demandé
+function distanceVol(a, b) { var d = distanceKm(a, b); return d >= 99 ? 99 : d; }
 // a, b : objets { lat, lon }. Distance routière estimée en km.
 function distanceKm(a, b) {
   if (!a || !b || !isFinite(a.lat) || !isFinite(b.lat)) return 99;
@@ -1215,7 +1222,7 @@ if (typeof module !== 'undefined' && module.exports) {
     lettrePotentiel: lettrePotentiel, SPECIALITES_DEFAUT: SPECIALITES_DEFAUT,
     completerDonneesFictives: completerDonneesFictives, hachage: hachage,
     minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,
-    CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES,
+    CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, CHAMPS_ETABLISSEMENTS: CHAMPS_ETABLISSEMENTS, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES,
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
