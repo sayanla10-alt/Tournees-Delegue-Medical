@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.34';
+  var APP_VERSION = '3.25.35';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.35', [
+      'Planifier : liste des médecins épurée avec Titre, Nom, Spécialité, Hôpital où on le voit ce jour (abrégé si long) et Secteur de l\'hôpital, sans coordonnées GPS (réservées aux pharmacies)',
+      'Filtres de l\'application : harmonisation totale de toutes les communes et spécialités autour du filtre maître de l\'onglet Répertoire / Recherche',
+      'CR visite (Étape 4) : disposition exacte des produits en lignes par molécule à gauche et pastilles de sélection à droite (conforme à la capture)',
+      'Feuille Presences : vérification du ciblage automatique sur les colonnes uniques Latitude / Longitude'
+    ]],
     ['3.25.34', [
       'Répertoire : le clic sur un praticien scrolle fluidement pour centrer la fiche au milieu de l\'écran',
       'CR visite (Étape 4) : accordéon Gamme A / Gamme B (une seule ouverte à la fois) et familles présentées par 2 par ligne avec pastilles de sélection compactes',
@@ -385,7 +391,32 @@
   function rechercheCour() { return S.ui.tab === 'autour' ? S.ui.rechercheAutour : S.ui.recherche; }
   function majFiltres(f) {
     if (f && Array.isArray(f.specialites) && f.specialites.length) sauverCoeurDeCible(f.specialites);
-    S.ui[cleFiltres()] = f; LS.set(cleFiltres(), f); S.ui.limite = 40;
+    S.ui[cleFiltres()] = f;
+    LS.set(cleFiltres(), f);
+    S.ui.limite = 40;
+    // 3.25.35 : Harmonisation totale avec le filtre maître (Recherche / Répertoire)
+    if (f) {
+      if (Array.isArray(f.communes)) {
+        S.params.communes = f.communes.slice();
+        LS.set('params', S.params);
+        if (S.ui.filtresAutour) {
+          S.ui.filtresAutour.communes = f.communes.slice();
+          LS.set('filtresAutour', S.ui.filtresAutour);
+        }
+      }
+      if (Array.isArray(f.specialites)) {
+        S.params.specialites = f.specialites.slice();
+        LS.set('params', S.params);
+        if (S.ui.filtresAutour) {
+          S.ui.filtresAutour.specialites = f.specialites.slice();
+          LS.set('filtresAutour', S.ui.filtresAutour);
+        }
+      }
+      if (Array.isArray(f.potentiels)) {
+        S.params.potentiels = f.potentiels.slice();
+        LS.set('params', S.params);
+      }
+    }
   }
   S.ui.stats = Object.assign({ periode: 'semaine', debut: '', fin: '', portee: 'moi', objectif: 40, vueSpec: 'base' }, LS.get('stats', {}));
   // L'ancienne tournée publiée est retirée de la feuille Plannings pour ne pas bloquer les collègues
@@ -408,6 +439,18 @@
   // v2.0.4 : par défaut, tournée sans pharmacies (réglage appliqué une fois aux téléphones existants)
   if (!S.params.defauts204) { S.params.typeCibles = 'medecins'; S.params.defauts204 = true; LS.set('params', S.params); }
   if (!Array.isArray(S.params.potentiels)) S.params.potentiels = [];
+  // 3.25.35 : Harmonisation immédiate de tous les filtres de l'application (le filtre maître est dans Répertoire / Recherche)
+  if (S.ui.filtres && Array.isArray(S.ui.filtres.communes) && S.ui.filtres.communes.length) {
+    S.params.communes = S.ui.filtres.communes.slice();
+    if (S.ui.filtresAutour) S.ui.filtresAutour.communes = S.ui.filtres.communes.slice();
+    LS.set('params', S.params);
+    LS.set('filtresAutour', S.ui.filtresAutour);
+  } else if (S.params && Array.isArray(S.params.communes) && S.params.communes.length) {
+    S.ui.filtres.communes = S.params.communes.slice();
+    if (S.ui.filtresAutour) S.ui.filtresAutour.communes = S.params.communes.slice();
+    LS.set('filtres', S.ui.filtres);
+    LS.set('filtresAutour', S.ui.filtresAutour);
+  }
   // 3.25.0 : la période proposée commence demain (J+1), y compris après rafraîchissement
   if (!S.params.dateRef || S.params.dateRef <= aujourdhui()) { S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); LS.set('params', S.params); }
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);
@@ -1453,12 +1496,14 @@
   }
   function datesPeriode() { return datesAffichees().filter(function (d) { return !estFerie(d); }); }
   function communesPour(date) {
-    var p = S.params, l = p.communes;
+    var p = S.params;
     if (p.mode === 'semaine' && p.parJour) {
       var j = p.communesJour[jourSemaineIndex(date)];
-      if (j && j.length) l = j;
+      if (j && j.length) return j;
     }
-    return l && l.length ? l : null;
+    // 3.25.35 : Le filtre maître est dans Répertoire (S.ui.filtres.communes)
+    var fCom = (S.ui.filtres && Array.isArray(S.ui.filtres.communes) && S.ui.filtres.communes.length) ? S.ui.filtres.communes : p.communes;
+    return fCom && fCom.length ? fCom : null;
   }
   function departCoord() {
     var q = quartiers().filter(function (x) { return x.quartier === S.config.depart; })[0];
@@ -2308,6 +2353,42 @@
       '<button class="bouton bouton-plein" type="button" ' + ouiAttrs + '>' + ouiLib + '</button>';
   }
 
+  // 3.25.35 : Abréviation intelligente des établissements trop longs
+  function abregerHopital(nom) {
+    if (!nom) return '';
+    var s = String(nom).trim();
+    s = s.replace(/^Centre Hospitalier Universitaire\s+de\s+/i, 'CHU ');
+    s = s.replace(/^Centre Hospitalier Universitaire\s+/i, 'CHU ');
+    s = s.replace(/^Hôpital Militaire d'Abidjan\s*\(HMA\)/i, 'HMA');
+    s = s.replace(/^Hôpital Militaire d'Abidjan/i, 'HMA');
+    s = s.replace(/^Hôpital Général\s+de\s+/i, 'HG ');
+    s = s.replace(/^Hôpital Général\s+/i, 'HG ');
+    s = s.replace(/^Institut de Cardiologie d'Abidjan\s*\(ICA\)/i, 'ICA');
+    s = s.replace(/^PISAM\s*\(.*?\)/i, 'PISAM');
+    s = s.replace(/^Polyclinique\s+Sainte\s+Anne-Marie\b/i, 'PISAM');
+    s = s.replace(/^Polyclinique\s+des\s+/i, 'Poly. ');
+    s = s.replace(/^Polyclinique\s+du\s+/i, 'Poly. ');
+    s = s.replace(/^Polyclinique\s+/i, 'Poly. ');
+    s = s.replace(/^Centre Hospitalier Régional\s+de\s+/i, 'CHR ');
+    s = s.replace(/^Centre Hospitalier Régional\s+/i, 'CHR ');
+    s = s.replace(/^Clinique Médicale\s+/i, 'Clinique ');
+    s = s.replace(/\s+de\s+/i, ' ');
+    return s.trim();
+  }
+
+  // 3.25.35 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour et Secteur de l'hôpital (sans GPS/quartier précis)
+  function infosMedecinPlan(a) {
+    var pObj = (typeof praticien === 'function' && praticien(a.code)) || {};
+    var lieuBrut = a.lieu || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lieu) || '';
+    var hopital = abregerHopital(lieuBrut);
+    var secteur = a.commune || a.secteur || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].commune) || '';
+    var morceaux = [];
+    if (a.specialite) morceaux.push(a.specialite);
+    if (hopital) morceaux.push(hopital);
+    if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) morceaux.push(secteur);
+    return morceaux.join(' · ');
+  }
+
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
   function rendreLignePlan(a) {
     var verrou = a.etat === 'valide', e = '';
@@ -2316,10 +2397,17 @@
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici</span>';
     e += etiquetteCollegues(a.code, a.date);
+
+    // Titre/Nom, Spécialité, Hôpital où on le voit ce jour et Secteur de l'hôpital
+    // Pas de localisation précise (quartier précis, distance GPS) : réservée aux pharmacies qui ne bougent pas
+    var sousTitre = estPharmacie(a)
+      ? infosSansDoublon(a, [a.lieu, a.quartier, a.commune])
+      : infosMedecinPlan(a);
+
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
       '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
       '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
-        (infosSansDoublon(a, [a.specialite, a.quartier]) ? '<span class="discret bloc-texte">' + esc(infosSansDoublon(a, [a.specialite, a.quartier])) + '</span>' : '') + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
+        (sousTitre ? '<span class="discret bloc-texte">' + esc(sousTitre) + '</span>' : '') + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
       (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
         '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
           (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
@@ -2670,8 +2758,8 @@
     h += '</div>';
     return h;
   }
-  // 3.25.33 : Présentation des produits en lignes par gamme/molécule avec pastilles (conforme à la disposition souhaitée)
-  function libellePastilleCr(nomGamme, prod) {
+  // 3.25.35 : Présentation des produits en lignes par gamme/molécule avec pastilles à droite (conforme à la capture)
+  function libellePastilleCr(nomGamme, prod, totalFiches) {
     var nom = String(nomGamme || '').replace(/\s*\(.*\)$/, '').trim();
     var p = String(prod || '').trim();
     if (p === nom) return nom;
@@ -2680,6 +2768,7 @@
       if (/^\d+$/.test(court)) court += ' mg';
       return court;
     }
+    if (totalFiches === 1) return p;
     return p;
   }
 
@@ -2731,8 +2820,8 @@
         '</div>';
 
       if (ouvert) {
-        // Médicaments proposés par deux par ligne pour rationaliser l'espace
-        h += '<div class="grille-gamme-2">';
+        // 3.25.35 : Disposition exacte conforme à la capture (lignes horizontales par famille avec pastilles à droite)
+        h += '<div class="liste-gammes-cr">';
         fams.forEach(function (g) {
           var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '').trim();
           var mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
@@ -2741,14 +2830,14 @@
             return (y.produit === nom) - (x.produit === nom);
           });
 
-          h += '<div class="carte-famille-cr">' +
-            '<div class="carte-famille-tete">' +
+          h += '<div class="ligne-gamme">' +
+            '<div class="lg-tete">' +
               '<b>' + esc(nom) + '</b>' +
               (mol ? '<small>' + esc(mol) + '</small>' : '') +
             '</div>' +
-            '<div class="carte-famille-produits">' +
+            '<div class="lg-produits">' +
             fichesTriees.map(function (f) {
-              var court = libellePastilleCr(nom, f.produit);
+              var court = libellePastilleCr(nom, f.produit, g.fiches.length);
               var estSel = sel.indexOf(f.produit) >= 0;
               return '<button type="button" class="pastille-produit" data-a="crMulti" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(f.produit) + '" aria-pressed="' + estSel + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
             }).join('') +
@@ -4513,10 +4602,21 @@
     var l = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) { return y.score - x.score; }).slice(0, 30);
     if (!l.length) return '<p class="discret">Aucun praticien présent le ' + dateFr(d) + ' ne correspond, selon vos filtres.</p>';
     return '<ul class="liste">' + l.map(function (x) {
-      var cr = x.cr, p = cr.prat;
+      var cr = x.cr, p = cr.prat, st = '';
+      if (p.type === 'Pharmacie') {
+        st = infosSansDoublon(p, [cr.lieu, cr.quartier, cr.commune]);
+      } else {
+        var hopital = abregerHopital(cr.lieu || (p.lieux && p.lieux[0] && p.lieux[0].lieu) || '');
+        var secteur = cr.commune || p.commune || '';
+        var m = [];
+        if (p.specialite) m.push(p.specialite);
+        if (hopital) m.push(hopital);
+        if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) m.push(secteur);
+        st = m.join(' · ');
+      }
       return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
         '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-        '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, cr.lieu, cr.quartier, cr.commune])) + '</span>' +
+        (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
         '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button></li>';
     }).join('') + '</ul>';
   }
@@ -4574,11 +4674,25 @@
     if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là' + (Object.keys(com).length ? ' dans ' + esc(libelleCommunes(Object.keys(com))) : '') + ', selon vos critères.') + '</p>';
     return (mots.length ? '<p class="discret">' + tous.length + ' résultat' + (tous.length > 1 ? 's' : '') + '.</p>' : '') +
       '<ul class="liste">' + l.map(function (x) {
-        var cr = x.cr, p = cr.prat;
+        var cr = x.cr, p = cr.prat, st = '', details = cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d));
+        if (p.type === 'Pharmacie') {
+          st = infosSansDoublon(p, [cr.lieu, cr.quartier]);
+          if (x.dist !== null && x.dist !== undefined) {
+            details += ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' + (x.approx ? ' <small>(position du quartier)</small>' : '');
+          }
+        } else {
+          var hopital = abregerHopital(cr.lieu || (p.lieux && p.lieux[0] && p.lieux[0].lieu) || '');
+          var secteur = cr.commune || p.commune || '';
+          var m = [];
+          if (p.specialite) m.push(p.specialite);
+          if (hopital) m.push(hopital);
+          if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) m.push(secteur);
+          st = m.join(' · ');
+        }
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
           '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-          '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, cr.lieu, cr.quartier])) + '</span>' +
-          '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + (x.dist !== null && x.dist !== undefined ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' + (x.approx ? ' <small>(position du quartier)</small>' : '') : '') + '</span></button></li>';
+          (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
+          '<span class="discret bloc-texte">' + details + '</span></button></li>';
       }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : précisez la recherche.</p>' : '');
   }
   FEUILLES.installer = function () {
@@ -6048,7 +6162,14 @@
     communesAucune: function () { S.ui.feuille.sel = []; rendre(); },
     communesOk: function () {
       var f = S.ui.feuille;
-      if (f.cle === 'tout') S.params.communes = f.sel.slice(); else S.params.communesJour[f.cle] = f.sel.slice();
+      if (f.cle === 'tout') {
+        S.params.communes = f.sel.slice();
+        // 3.25.35 : Harmonisation avec le filtre maître (Répertoire / Recherche)
+        if (S.ui.filtres) { S.ui.filtres.communes = f.sel.slice(); LS.set('filtres', S.ui.filtres); }
+        if (S.ui.filtresAutour) { S.ui.filtresAutour.communes = f.sel.slice(); LS.set('filtresAutour', S.ui.filtresAutour); }
+      } else {
+        S.params.communesJour[f.cle] = f.sel.slice();
+      }
       if (f.cle === 'tout' && !(S.params.mode === 'semaine' && S.params.parJour)) { S.ui.etapesP.ok.ou = true; sauverEtapesP(); }
       LS.set('params', S.params); S.ui.feuille = null; rendre();
     },

@@ -1,9 +1,10 @@
 {
-  "version": "3.25.34",
+  "version": "3.25.35",
   "date": "2026-10-29",
   "notes": [
-    "Répertoire : défilement fluide et centrage de l'écran sur le praticien cliqué",
-    "CR visite (Étape 4) : accordéon Gamme A / Gamme B (une seule ouverte à la fois) et familles 2 par ligne avec pastilles",
-    "Nouveau médecin : normalisation automatique vers l'écriture officielle des hôpitaux (anti-fautes, anti-doublons)"
+    "Planifier : liste des médecins avec Titre, Nom, Spécialité, Hôpital où on le voit ce jour (abrégé si long) et Secteur de l'hôpital (sans GPS/quartier précis)",
+    "Filtres de l'application : harmonisation totale de toutes les sections avec le filtre maître de l'onglet Recherche / Répertoire",
+    "CR visite (Étape 4) : disposition exacte des produits en lignes horizontales par famille avec pastilles à droite (conforme à la capture)",
+    "Feuille Presences : confirmation du pointage automatique sur les colonnes uniques sans doublon"
   ]
 }

@@ -1483,6 +1483,9 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .gamme-cr-meta svg { width: 16px; height: 16px; transition: transform .2s ease; }
 .gamme-cr-bascule[aria-expanded="true"] .gamme-cr-meta svg { transform: rotate(180deg); }
 
+.liste-gammes-cr { border: 1px solid var(--trait); border-radius: 12px; background: var(--papier, #fff); overflow: hidden; margin: 4px 0 2px; }
+.liste-gammes-cr .ligne-gamme { padding: 10px 14px; }
+.liste-gammes-cr .ligne-gamme:first-child { border-top: 0; }
 .grille-gamme-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 8px; background: var(--fond, #f8fafb); }
 @media (max-width: 330px) { .grille-gamme-2 { grid-template-columns: 1fr; } }
 .carte-famille-cr { background: var(--papier, #fff); border: 1px solid var(--trait); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(10, 30, 45, .04); }
