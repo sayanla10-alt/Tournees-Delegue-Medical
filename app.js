@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.1';
+  var APP_VERSION = '3.26.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.2', [
+      'Boutons produits compacts & élégants : hauteur physique réduite à 34 px avec hitbox tactile invisible de 44 px au pouce',
+      'Harmonie visuelle conservée : aucune déformation des cartes ni encombrement d\'écran'
+    ]],
     ['3.26.1', [
       'Hot reload Service Worker : activation instantanée sans attente et rafraîchissement automatique des écrans mobiles',
       'Purge cache d\'urgence : le bouton « Recharger l\'application » désenregistre le worker obsolète et force la dernière version du serveur',
@@ -4719,15 +4723,173 @@
   VUES.recherche = VUES.praticiens;
   VUES.contacts = VUES.praticiens;
 
-  // 3.25.42 : Onglet Suivi unifié regroupant Bilan et Tournées Équipe
+  // 3.26.0 : Onglet Suivi unifié regroupant Bilan, Tournées Équipe et Audit Données/GPS
   VUES.suivi = function () {
     var sousVue = S.ui.suiviVue || 'bilan';
-    var tete = '<div class="tete-vue"><h2 class="titre-vue">Suivi d\'activité</h2></div>' +
-      '<p class="sous-titre">Indicateurs de performance et visibilité des tournées de l\'équipe.</p>' +
+    var tete = '<div class="tete-vue"><h2 class="titre-vue">Suivi & Contrôle</h2></div>' +
+      '<p class="sous-titre">Indicateurs de performance, tournées d\'équipe et audit qualité des données.</p>' +
       '<div class="segment-suivi">' +
-      segment('Sous-onglet Suivi', 'suiviVue', [['bilan', 'Bilan & Stats'], ['equipe', 'Tournées Équipe']], sousVue) +
+      segment('Sous-onglet Suivi', 'suiviVue', [['bilan', 'Bilan & Stats'], ['equipe', 'Tournées Équipe'], ['audit', 'Audit Données & GPS']], sousVue) +
       '</div>';
-    return tete + (sousVue === 'equipe' ? VUES.equipe(true) : VUES.bilan(true));
+    return tete + (sousVue === 'equipe' ? VUES.equipe(true) : (sousVue === 'audit' ? VUES.audit(true) : VUES.bilan(true)));
+  };
+
+  VUES.audit = function (integre) {
+    if (!S.data || !S.data.praticiens || !S.data.praticiens.length) {
+      return (integre ? '' : '<div class="tete-vue"><h2 class="titre-vue">Audit Données & GPS</h2></div>') +
+        '<div class="vide"><strong>Aucune donnée</strong>Connectez un Google Sheet ou chargez les données de démonstration pour auditer la base.</div>';
+    }
+
+    var prats = S.data.praticiens, pres = S.data.presences || [], qList = quartiers();
+    var qMap = {}; qList.forEach(function (q) { qMap[(q.quartier || '').trim().toLowerCase()] = q; });
+    var presParCode = {}; pres.forEach(function (p) { (presParCode[p.code] = presParCode[p.code] || []).push(p); });
+
+    var filtreAnomalie = S.ui.auditFiltre || 'tous';
+
+    var total = prats.length;
+    var sansGps = [], horsCi = [], ecartGeo = [], sansPresence = [], conformes = 0;
+    var coordGroupes = {};
+
+    prats.forEach(function (p) {
+      var sesPres = presParCode[p.code] || [];
+      var estPh = p.type === 'Pharmacie' || /^PHA-/i.test(p.code);
+      var p0 = sesPres[0] || {};
+      var lat = parseFloat(String(p0.lat || p.lat || '').replace(',', '.'));
+      var lon = parseFloat(String(p0.lon || p.lon || '').replace(',', '.'));
+      var aGps = isFinite(lat) && isFinite(lon) && (lat !== 0 || lon !== 0);
+      var dansCi = aGps && (lat >= 4.3 && lat <= 10.8) && (lon >= -8.6 && lon <= -2.4);
+
+      var anomalie = null;
+
+      if (!sesPres.length && !estPh) {
+        sansPresence.push({ p: p, pres: p0, motif: 'Aucun créneau ni établissement renseigné' });
+        anomalie = 'sansPresence';
+      } else if (!aGps) {
+        sansGps.push({ p: p, pres: p0, motif: 'Coordonnées GPS manquantes ou à zéro' });
+        anomalie = 'sansGps';
+      } else if (!dansCi) {
+        horsCi.push({ p: p, pres: p0, motif: 'Coordonnées hors Côte d\'Ivoire (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')' });
+        anomalie = 'horsCi';
+      } else {
+        var cleCoord = lat.toFixed(3) + '|' + lon.toFixed(3);
+        coordGroupes[cleCoord] = coordGroupes[cleCoord] || [];
+        coordGroupes[cleCoord].push({ p: p, pres: p0, lat: lat, lon: lon });
+
+        var quartNom = (p0.quartier || p.quartier || '').trim().toLowerCase();
+        var qRef = qMap[quartNom];
+        if (!quartNom || quartNom === 'nl') {
+          ecartGeo.push({ p: p, pres: p0, motif: 'Quartier non renseigné ou non localisé (NL)' });
+          anomalie = 'ecartGeo';
+        } else if (qRef && isFinite(qRef.lat)) {
+          var dist = distanceVol({ lat: lat, lon: lon }, { lat: qRef.lat, lon: qRef.lon });
+          if (dist > 8) {
+            ecartGeo.push({ p: p, pres: p0, motif: 'Écart de ' + Math.round(dist) + ' km avec le quartier ' + qRef.quartier + ' (' + qRef.commune + ')' });
+            anomalie = 'ecartGeo';
+          }
+        }
+      }
+
+      if (!anomalie) conformes++;
+    });
+
+    var centroides = [];
+    Object.keys(coordGroupes).forEach(function (k) {
+      var grp = coordGroupes[k];
+      if (grp.length >= 3) {
+        grp.forEach(function (item) {
+          centroides.push({ p: item.p, pres: item.pres, motif: 'Centroïde suspect : ' + grp.length + ' établissements au même point (' + item.lat.toFixed(4) + ', ' + item.lon.toFixed(4) + ')' });
+        });
+      }
+    });
+
+    var scoreSante = Math.round((conformes / total) * 100);
+
+    var h = (integre ? '' : '<div class="tete-vue"><h2 class="titre-vue">Audit Qualité BDD & GPS</h2></div>') +
+      '<p class="sous-titre">Diagnostic automatique de la base praticiens et pharmacies selon les règles géographiques de Côte d\'Ivoire.</p>';
+
+    var coulScore = scoreSante >= 85 ? 'var(--vert,#1e7e34)' : (scoreSante >= 65 ? 'var(--ambre,#d97706)' : 'var(--rouge,#dc2626)');
+    h += '<div class="bloc" style="margin-bottom:12px;padding:14px;background:var(--papier,#fff);border:1px solid var(--trait,#e2e8f0);border-radius:12px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+        '<b>Santé globale de la base</b>' +
+        '<b style="font-size:1.3rem;color:' + coulScore + '">' + scoreSante + ' %</b>' +
+      '</div>' +
+      '<div style="width:100%;height:10px;background:var(--trait,#e2e8f0);border-radius:5px;overflow:hidden">' +
+        '<div style="width:' + scoreSante + '%;height:100%;background:' + coulScore + ';transition:width .3s"></div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.8rem;color:var(--gris,#64748b)">' +
+        '<span>' + conformes + ' conformes sur ' + total + '</span>' +
+        '<span>' + (total - conformes) + ' point(s) à optimiser</span>' +
+      '</div>' +
+    '</div>';
+
+    h += '<div class="kpis" style="margin-bottom:14px">' +
+      '<button type="button" class="kpi" data-a="auditFiltrer" data-v="sansGps" style="cursor:pointer;border:2px solid ' + (filtreAnomalie === 'sansGps' ? 'var(--primaire,#0A6C74)' : 'transparent') + '">' +
+        '<b style="color:' + (sansGps.length ? 'var(--rouge,#dc2626)' : 'inherit') + '">' + sansGps.length + '</b>' +
+        '<span>Sans GPS</span><small>Coordonnées vides ou 0</small></button>' +
+      '<button type="button" class="kpi" data-a="auditFiltrer" data-v="centroide" style="cursor:pointer;border:2px solid ' + (filtreAnomalie === 'centroide' ? 'var(--primaire,#0A6C74)' : 'transparent') + '">' +
+        '<b style="color:' + (centroides.length ? 'var(--ambre,#d97706)' : 'inherit') + '">' + centroides.length + '</b>' +
+        '<span>Centroïdes piégés</span><small>≥ 3 POI au même point</small></button>' +
+      '<button type="button" class="kpi" data-a="auditFiltrer" data-v="ecartGeo" style="cursor:pointer;border:2px solid ' + (filtreAnomalie === 'ecartGeo' ? 'var(--primaire,#0A6C74)' : 'transparent') + '">' +
+        '<b style="color:' + (ecartGeo.length ? 'var(--ambre,#d97706)' : 'inherit') + '">' + ecartGeo.length + '</b>' +
+        '<span>Écarts Quartier</span><small>> 8 km ou quartier NL</small></button>' +
+      '<button type="button" class="kpi" data-a="auditFiltrer" data-v="horsCi" style="cursor:pointer;border:2px solid ' + (filtreAnomalie === 'horsCi' ? 'var(--primaire,#0A6C74)' : 'transparent') + '">' +
+        '<b style="color:' + (horsCi.length ? 'var(--rouge,#dc2626)' : 'inherit') + '">' + horsCi.length + '</b>' +
+        '<span>Hors Côte d\'Ivoire</span><small>Hors limites nationales</small></button>' +
+    '</div>';
+
+    var listeAffichable = [];
+    if (filtreAnomalie === 'sansGps') listeAffichable = sansGps;
+    else if (filtreAnomalie === 'centroide') listeAffichable = centroides;
+    else if (filtreAnomalie === 'ecartGeo') listeAffichable = ecartGeo;
+    else if (filtreAnomalie === 'horsCi') listeAffichable = horsCi;
+    else if (filtreAnomalie === 'sansPresence') listeAffichable = sansPresence;
+    else {
+      listeAffichable = sansGps.concat(centroides).concat(ecartGeo).concat(horsCi).concat(sansPresence);
+    }
+
+    var titreFiltre = {
+      tous: 'Toutes les anomalies détectées (' + listeAffichable.length + ')',
+      sansGps: 'Établissements sans GPS (' + sansGps.length + ')',
+      centroide: 'Pièges de centroïde (' + centroides.length + ')',
+      ecartGeo: 'Incohérences de quartier / distance (' + ecartGeo.length + ')',
+      horsCi: 'Coordonnées hors limites CI (' + horsCi.length + ')',
+      sansPresence: 'Sans créneaux de visite (' + sansPresence.length + ')'
+    }[filtreAnomalie] || 'Anomalies';
+
+    h += '<div class="tete-bloc" style="display:flex;align-items:center;justify-content:space-between;margin:12px 0 8px">' +
+      '<h3 style="margin:0;font-size:1rem">' + titreFiltre + '</h3>' +
+      (filtreAnomalie !== 'tous' ? '<button type="button" class="bouton-texte" data-a="auditFiltrer" data-v="tous">Tout réafficher</button>' : '') +
+      '</div>';
+
+    if (!listeAffichable.length) {
+      h += '<div class="vide" style="padding:20px 10px;text-align:center"><strong>✓ Aucune anomalie dans cette catégorie</strong>Toutes les fiches de ce groupe sont conformes.</div>';
+    } else {
+      h += '<ul class="liste liste-audit" style="display:flex;flex-direction:column;gap:8px;padding:0;margin:0;list-style:none">';
+      listeAffichable.slice(0, 30).forEach(function (item) {
+        var p = item.p, pr = item.pres || {};
+        var estPh = p.type === 'Pharmacie' || /^PHA-/i.test(p.code);
+        var nomLieu = pr.lieu || p.nom || '';
+        var quartierNom = pr.quartier || p.quartier || 'Quartier non renseigné';
+        var communeNom = pr.commune || p.commune || '';
+        h += '<li style="background:var(--papier,#fff);border:1px solid var(--trait,#e2e8f0);border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px">' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
+              '<b>' + esc(p.nom) + '</b>' +
+              '<span class="etiquette ' + (estPh ? '' : 'ok') + '" style="font-size:0.75rem">' + (estPh ? 'Pharmacie' : esc(p.specialite || 'Médecin')) + '</span>' +
+            '</div>' +
+            '<div class="discret" style="font-size:0.8rem;margin-top:2px">' + esc(nomLieu) + (quartierNom ? ' · ' + esc(quartierNom) : '') + (communeNom ? ' (' + esc(communeNom) + ')' : '') + '</div>' +
+            '<div style="color:var(--rouge,#dc2626);font-size:0.75rem;margin-top:4px;font-weight:600">⚠ ' + esc(item.motif) + '</div>' +
+          '</div>' +
+          '<button type="button" class="bouton petit bouton-plein" data-a="modifierFiche" data-v="' + esc(p.code) + '" style="white-space:nowrap">Corriger</button>' +
+        '</li>';
+      });
+      h += '</ul>';
+      if (listeAffichable.length > 30) {
+        h += '<p class="discret" style="text-align:center;margin-top:10px">Affichage des 30 premières anomalies sur ' + listeAffichable.length + ' au total.</p>';
+      }
+    }
+
+    return h;
   };
 
   VUES.bilan = function (integre) {
