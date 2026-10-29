@@ -1,10 +1,10 @@
 {
-  "version": "3.25.48",
+  "version": "3.25.49",
   "date": "2026-10-29",
   "notes": [
-    "Correction affichage : résolution immédiate de l'erreur au lancement",
-    "Visite non réalisée / Absent fluide : options de motif directes sous le pouce, écran toujours parfaitement centré sans saut ni défilement bizarre",
-    "Action immédiate sur absence : proposition instantanée de Remplacer sur place (+50 pts) ou d'enregistrer l'absence en 1 touche",
-    "Secteurs Abobo affinés : intégration explicite de Derrière rails, Sagbé, Samaké, Abobo-Té et Dépôt SOTRA"
+    "Bande des produits fluide : suppression totale du défilement abusif et des sauts lors du choix d'un médicament",
+    "Découpage BDD des 3 grandes communes : Abobo, Cocody et Yopougon sectorisés directement dans la feuille Quartiers de la base de données",
+    "Réactivité intégrale BDD : toute modification dans le Google Sheet (renommage de secteur, ajout de quartier) pilote immédiatement l'application",
+    "Mise à jour en 1 clic : nouveau bouton dans le menu MediPlanner du classeur pour installer les 4 secteurs détaillés"
   ]
 }

@@ -33,6 +33,7 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('MediPlanner')
     .addItem('Initialiser le classeur (structure + base fictive)', 'initialiser')
     .addItem('Régénérer la base fictive', 'regenererBaseFictive')
+    .addItem('Mettre à jour la feuille Quartiers (secteurs détaillés)', 'mettreAJourQuartiersSecteurs')
     .addItem('Convertir l\'ancienne feuille BaseDonnees', 'convertirAncienneBase')
     .addItem('Compléter les données manquantes (base de test)', 'completerBaseTest')
     .addItem('Importer les pharmacies réelles (OpenStreetMap)', 'importerPharmacies')
@@ -106,6 +107,12 @@ function ecrireBaseFictive(ss) {
   formaterPraticiens(ss);
   formaterPresences(ss);
   return base.praticiens.length + ' praticiens et ' + base.presences.length + ' lieux de présence générés.';
+}
+
+function mettreAJourQuartiersSecteurs() {
+  var ss = SpreadsheetApp.getActive();
+  ecrireQuartiers(ss);
+  SpreadsheetApp.getUi().alert('Quartiers et secteurs', 'La feuille "' + FEUILLES.quartiers + '" a été mise à jour avec succès avec les 4 secteurs détaillés.', SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
 function ecrireQuartiers(ss) {

@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.48';
+  var APP_VERSION = '3.25.49';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.49', [
+      'Bande des produits fluide au pouce : suppression totale du défilement abusif et des sauts lors du choix d\'un médicament',
+      'Découpage BDD des 3 grandes communes : Abobo, Cocody et Yopougon sectorisés directement dans la feuille Quartiers de la base de données',
+      'Réactivité intégrale BDD : toute modification dans le Google Sheet (renommage de secteur, ajout de quartier) pilote immédiatement l\'application',
+      'Mise à jour en 1 clic : nouveau bouton dans le menu MediPlanner du classeur pour installer les 4 secteurs détaillés'
+    ]],
     ['3.25.48', [
       'Visite non réalisée / Absent fluide : options de motif directes sous le pouce, écran toujours parfaitement centré sans saut ni défilement bizarre',
       'Action immédiate sur absence : proposition instantanée de Remplacer sur place (+50 pts) ou d\'enregistrer l\'absence en 1 touche',
@@ -837,18 +843,49 @@
   }
   function valeurChemin(chemin) { var c = cheminObjet(chemin); return c.o[c.k]; }
   function sectionsCommunes() {
-    var secs = [], idx = {};
-    communesListe().forEach(function (c) {
-      if (idx[c.zone] === undefined) { idx[c.zone] = secs.length; secs.push({ titre: c.zone, options: [] }); }
-      if (typeof ZONES_GRANDES_COMMUNES !== 'undefined' && ZONES_GRANDES_COMMUNES[c.commune]) {
-        secs[idx[c.zone]].options.push({ v: c.commune, lib: c.commune + ' (Toute la commune)' });
-        ZONES_GRANDES_COMMUNES[c.commune].forEach(function (z) {
-          secs[idx[c.zone]].options.push({ v: z.nom, lib: z.lib });
-        });
-      } else {
-        secs[idx[c.zone]].options.push({ v: c.commune, lib: c.commune });
+    var secs = [];
+    var qs = (typeof quartiers === 'function') ? quartiers() : [];
+    var groupes = {};
+    var quartiersParSecteur = {};
+
+    qs.forEach(function (q) {
+      var sec = q.commune;
+      quartiersParSecteur[sec] = quartiersParSecteur[sec] || [];
+      if (quartiersParSecteur[sec].indexOf(q.quartier) < 0) {
+        quartiersParSecteur[sec].push(q.quartier);
+      }
+      var z = q.zone || 'Zone Autre';
+      groupes[z] = groupes[z] || {};
+      var par = (typeof communeParente === 'function') ? communeParente(sec) : sec.split(/\s*[-–—]\s*/)[0].trim();
+      groupes[z][par] = groupes[z][par] || [];
+      if (groupes[z][par].indexOf(sec) < 0) {
+        groupes[z][par].push(sec);
       }
     });
+
+    var zonesOrdonnees = ZONES.slice();
+    Object.keys(groupes).forEach(function (z) { if (zonesOrdonnees.indexOf(z) < 0) zonesOrdonnees.push(z); });
+
+    zonesOrdonnees.forEach(function (z) {
+      if (!groupes[z]) return;
+      var opts = [];
+      var parents = Object.keys(groupes[z]).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+      parents.forEach(function (par) {
+        var secteurs = groupes[z][par];
+        if (secteurs.length === 1 && secteurs[0] === par) {
+          opts.push({ v: par, lib: par });
+        } else {
+          opts.push({ v: par, lib: par + ' (Toute la commune)' });
+          secteurs.sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (sec) {
+            var qList = (quartiersParSecteur[sec] || []).slice(0, 4).join(', ');
+            var libSec = sec + (qList ? ' (' + qList + (quartiersParSecteur[sec].length > 4 ? ', …' : '') + ')' : '');
+            opts.push({ v: sec, lib: libSec });
+          });
+        }
+      });
+      if (opts.length) secs.push({ titre: z, options: opts });
+    });
+
     return secs;
   }
   // Sélecteur moderne (remplace les listes déroulantes) : bouton « valeur ▾ » qui ouvre une liste à puces avec recherche,
@@ -1445,7 +1482,7 @@
     }
   }
   function initGlisseHorizontale() {
-    document.querySelectorAll('.bj-jours, .bande-produits, .defile, .jours').forEach(function (el) {
+    document.querySelectorAll('.bj-jours, .defile, .jours').forEach(function (el) {
       if (el.__glisseInit) return;
       el.__glisseInit = true;
       var actif = false, bouge = false, startX = 0, startScroll = 0, lastX = 0, lastT = 0, vx = 0;
@@ -4851,25 +4888,17 @@
       '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="' + (f.retourAction || 'fermerFeuille') + '" aria-label="Retour">' + icone('chevron') + '</button><b>' + esc(f.titre || '') + '</b></div>' +
       '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
     if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
-    // bande des produits : le produit choisi glisse au centre (depuis la position précédente)
-    var bp = el.querySelector('.bande-produits'), sel = bp && bp.querySelector('[data-copie="1"][aria-pressed="true"]');
+    // 3.25.49 : Bande des produits fluide : centrage doux du produit sélectionné sans saut ni boucle
+    var bp = el.querySelector('.bande-produits'), sel = bp && bp.querySelector('.bp-produit[aria-pressed="true"]');
     if (sel) {
-      var debuts = bp.querySelectorAll('[data-debut]'), W = debuts[1].offsetLeft - debuts[0].offsetLeft;
-      var cible = sel.offsetLeft - (bp.clientWidth - sel.offsetWidth) / 2;
-      // depuis la position précédente, ramenée dans la copie du milieu au plus près de la cible
-      var dep = S.ui.bpDepart;
-      if (dep !== undefined && dep !== null && !nouvelle) {
-        while (dep - cible > W / 2) dep -= W;
-        while (cible - dep > W / 2) dep += W;
-        glisserHorizontal(bp, dep, cible, 340);
-      } else bp.scrollLeft = cible;
-      bp.addEventListener('scroll', function () {
-        // boucle : on saute d'une copie (contenu identique, saut invisible) quand on approche d'un bord
-        if (bp.scrollLeft < W * 0.5) bp.scrollLeft += W;
-        else if (bp.scrollLeft > W * 1.5) bp.scrollLeft -= W;
-        S.ui.bpDepart = bp.scrollLeft;
-      }, { passive: true });
-      S.ui.bpDepart = bp.scrollLeft;
+      setTimeout(function () {
+        var cible = sel.offsetLeft - (bp.clientWidth - sel.offsetWidth) / 2;
+        if (nouvelle) {
+          bp.scrollLeft = Math.max(0, cible);
+        } else {
+          bp.scrollTo({ left: Math.max(0, cible), behavior: 'smooth' });
+        }
+      }, 40);
     }
     initGlisseHorizontale();
     // 3.25.42 : Gestuelle swipe-down sur poignée/en-tête pour fermer au pouce
@@ -4953,14 +4982,11 @@
       var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '');
       g.fiches.slice().sort(function (x, y) { return (y.produit === nom) - (x.produit === nom); }).forEach(function (x) { ordre.push(x.produit); });
     });
-    // 3.24.19 : bande en boucle (après le dernier, le premier revient) : la liste est répétée 3 fois,
-    // on reste dans la copie du milieu ; les copies de bord sont invisibles pour les lecteurs d'écran
-    var pied = '<div class="bande-produits boucle" role="group" aria-label="Produits">' + [0, 1, 2].map(function (k) {
-      return ordre.map(function (n, j) {
-        return '<button type="button" class="bp-produit" data-a="produitOuvrir" data-v="' + esc(n) + '" data-copie="' + k + '"' + (j === 0 ? ' data-debut="1"' : '') +
-          (k !== 1 ? ' aria-hidden="true" tabindex="-1"' : '') + ' aria-pressed="' + (n === f.produit) + '">' + esc(n) + '</button>';
-      }).join('');
-    }).join('') + '</div>';
+    // 3.25.49 : Bande des produits fluide au pouce (liste directe, sans saut ni duplication en boucle)
+    var pied = '<div class="bande-produits" role="group" aria-label="Produits">' +
+      ordre.map(function (n) {
+        return '<button type="button" class="bp-produit" data-a="produitOuvrir" data-v="' + esc(n) + '" aria-pressed="' + (n === f.produit) + '">' + esc(n) + '</button>';
+      }).join('') + '</div>';
     return { corps: h, pied: pied };
   };
 
