@@ -106,12 +106,12 @@ var CHAMPS_PLAN = [
 // Découpage en 4 secteurs pour les grandes communes (Abobo, Cocody, Yopougon) et communes du Grand Abidjan
 var QUARTIERS_DEFAUT = [
   // Abobo (Zone Nord) - 4 secteurs
-  ['Abobo – Nord & PK', 'PK 18', 'Zone Nord', 5.455, -4.050],
-  ['Abobo – Nord & PK', 'N\'Dotré', 'Zone Nord', 5.475, -4.045],
-  ['Abobo – Nord & PK', 'Anonkoua Kouté', 'Zone Nord', 5.445, -4.048],
-  ['Abobo – Nord & PK', 'Belle Ville', 'Zone Nord', 5.460, -4.040],
-  ['Abobo – Nord & PK', 'Biabou', 'Zone Nord', 5.435, -4.005],
-  ['Abobo – Nord & PK', 'Akeikoi', 'Zone Nord', 5.450, -4.015],
+  ['Abobo – Nord & PK18', 'PK 18', 'Zone Nord', 5.455, -4.050],
+  ['Abobo – Nord & PK18', 'N\'Dotré', 'Zone Nord', 5.475, -4.045],
+  ['Abobo – Nord & PK18', 'Anonkoua Kouté', 'Zone Nord', 5.445, -4.048],
+  ['Abobo – Nord & PK18', 'Belle Ville', 'Zone Nord', 5.460, -4.040],
+  ['Abobo – Nord & PK18', 'Biabou', 'Zone Nord', 5.435, -4.005],
+  ['Abobo – Nord & PK18', 'Akeikoi', 'Zone Nord', 5.450, -4.015],
 
   ['Abobo – Centre & Mairie', 'Samaké', 'Zone Nord', 5.420, -4.020],
   ['Abobo – Centre & Mairie', 'Gare', 'Zone Nord', 5.418, -4.020],

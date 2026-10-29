@@ -1,10 +1,10 @@
 {
-  "version": "3.26.5",
+  "version": "3.26.6",
   "date": "2026-10-30",
   "notes": [
-    "Suppression des doublons dans Suivi & Équipe : retrait de la rangée de boutons délégués en haut qui dupliquait la liste du bas",
-    "Gain d'espace mobile : suppression des sous-titres verbeux et phrases longues inutiles",
-    "Navigation directe & intuitive : sélection de collègue directement depuis sa carte, retour d'une touche",
-    "Communes & Secteurs : sélection globale en 1 touche ou choix individuel de 1, 2, 3 secteurs sans conflit"
+    "Nomenclature exacte des 3 grandes communes (4 secteurs chacune)",
+    "Cocody : Angré, Deux Plateaux, Riviera, Centre",
+    "Yopougon : Niangon, Maroc & Toits Rouges, Centre & Mairie, Sud & Gesco",
+    "Abobo : Nord & PK18, Centre & Mairie, Baoulé & Avocatier, Sud & Plaque"
   ]
 }

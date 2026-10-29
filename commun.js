@@ -106,12 +106,12 @@ var CHAMPS_PLAN = [
 // Découpage en 4 secteurs pour les grandes communes (Abobo, Cocody, Yopougon) et communes du Grand Abidjan
 var QUARTIERS_DEFAUT = [
   // Abobo (Zone Nord) - 4 secteurs
-  ['Abobo – Nord & PK', 'PK 18', 'Zone Nord', 5.455, -4.050],
-  ['Abobo – Nord & PK', 'N\'Dotré', 'Zone Nord', 5.475, -4.045],
-  ['Abobo – Nord & PK', 'Anonkoua Kouté', 'Zone Nord', 5.445, -4.048],
-  ['Abobo – Nord & PK', 'Belle Ville', 'Zone Nord', 5.460, -4.040],
-  ['Abobo – Nord & PK', 'Biabou', 'Zone Nord', 5.435, -4.005],
-  ['Abobo – Nord & PK', 'Akeikoi', 'Zone Nord', 5.450, -4.015],
+  ['Abobo – Nord & PK18', 'PK 18', 'Zone Nord', 5.455, -4.050],
+  ['Abobo – Nord & PK18', 'N\'Dotré', 'Zone Nord', 5.475, -4.045],
+  ['Abobo – Nord & PK18', 'Anonkoua Kouté', 'Zone Nord', 5.445, -4.048],
+  ['Abobo – Nord & PK18', 'Belle Ville', 'Zone Nord', 5.460, -4.040],
+  ['Abobo – Nord & PK18', 'Biabou', 'Zone Nord', 5.435, -4.005],
+  ['Abobo – Nord & PK18', 'Akeikoi', 'Zone Nord', 5.450, -4.015],
 
   ['Abobo – Centre & Mairie', 'Samaké', 'Zone Nord', 5.420, -4.020],
   ['Abobo – Centre & Mairie', 'Gare', 'Zone Nord', 5.418, -4.020],
@@ -1306,10 +1306,10 @@ var ZONES_GRANDES_COMMUNES = {
     { nom: 'Yopougon – Sud & Gesco', lib: 'Yopougon – Sud & Gesco (Port-Bouët 2, Kouté, Zone Industrielle, Sable)', mots: ['port-bouet 2', 'port bouet 2', 'koute', 'gesco', 'industrielle', 'sable', 'millionnaire', 'nouveau quartier', 'acadie'] }
   ],
   'Abobo': [
-    { nom: 'Abobo – Nord & PK', lib: 'Abobo – Nord & PK (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville, Biabou)', mots: ['pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi', 'agneby'] },
-    { nom: 'Abobo – Centre, Gare & Rails', lib: 'Abobo – Centre, Gare & Rails (Samaké, Gare, Derrière rails, Mairie, Habitat)', mots: ['samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha', 'rail', 'rails', 'derriere rail', 'derriere rails'] },
+    { nom: 'Abobo – Nord & PK18', lib: 'Abobo – Nord & PK18 (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville, Biabou)', mots: ['pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi', 'agneby'] },
+    { nom: 'Abobo – Centre & Mairie', lib: 'Abobo – Centre & Mairie (Samaké, Gare, Derrière rails, Mairie, Habitat)', mots: ['samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha', 'rail', 'rails', 'derriere rail', 'derriere rails'] },
     { nom: 'Abobo – Baoulé & Avocatier', lib: 'Abobo – Baoulé & Avocatier (Abobo Baoulé, Avocatier, Clouetcha, Dépôt SOTRA, Abobo-Té)', mots: ['baoule', 'avocatier', 'clouetcha', 'sotra', 'te', 'abobo te', 'abobo-te'] },
-    { nom: 'Abobo – Sud, Sagbé & Plaque', lib: 'Abobo – Sud, Sagbé & Plaque (Sagbé, Plaque 1 & 2, Anador, Houphouët-Boigny, Dokui)', mots: ['sagbe', 'plaque', 'anador', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
+    { nom: 'Abobo – Sud & Plaque', lib: 'Abobo – Sud & Plaque (Sagbé, Plaque 1 & 2, Anador, Houphouët-Boigny, Dokui)', mots: ['sagbe', 'plaque', 'anador', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
   ]
 };
 

@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.5';
+  var APP_VERSION = '3.26.6';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.6', [
+      'Nomenclature stricte des 3 grandes communes : Cocody (Angré, Deux Plateaux, Riviera, Centre), Yopougon (Niangon, Maroc & Toits Rouges, Centre & Mairie, Sud & Gesco), Abobo (Nord & PK18, Centre & Mairie, Baoulé & Avocatier, Sud & Plaque)',
+      'Ordre d\'affichage et repères harmonisés dans toute l\'application et la base'
+    ]],
     ['3.26.5', [
       'Suppression des doublons dans Suivi & Équipe : retrait de la rangée de boutons délégués en haut qui dupliquait la liste du bas',
       'Gain d\'espace mobile : suppression des sous-titres verbeux et phrases longues pour un affichage direct et épuré',
@@ -833,7 +837,27 @@
     }
     return s;
   }
+  var ORDRE_SECTEURS = [
+    // 1. Cocody
+    'Cocody – Angré',
+    'Cocody – Deux Plateaux',
+    'Cocody – Riviera',
+    'Cocody – Centre',
+    // 2. Yopougon
+    'Yopougon – Niangon',
+    'Yopougon – Maroc & Toits Rouges',
+    'Yopougon – Centre & Mairie',
+    'Yopougon – Sud & Gesco',
+    // 3. Abobo
+    'Abobo – Nord & PK18',
+    'Abobo – Centre & Mairie',
+    'Abobo – Baoulé & Avocatier',
+    'Abobo – Sud & Plaque'
+  ];
   function secteursDeGrandeCommune(par) {
+    if (par === 'Cocody') return ['Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre'];
+    if (par === 'Yopougon') return ['Yopougon – Niangon', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Centre & Mairie', 'Yopougon – Sud & Gesco'];
+    if (par === 'Abobo') return ['Abobo – Nord & PK18', 'Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Sud & Plaque'];
     var qs = (typeof quartiers === 'function') ? quartiers() : [];
     var set = {};
     qs.forEach(function (q) {
@@ -841,13 +865,11 @@
         set[q.commune] = true;
       }
     });
-    var res = Object.keys(set);
-    if (!res.length) {
-      if (par === 'Cocody') return ['Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre'];
-      if (par === 'Yopougon') return ['Yopougon – Niangon', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Centre & Mairie', 'Yopougon – Sud & Gesco'];
-      if (par === 'Abobo') return ['Abobo – Nord & PK', 'Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Sud & Plaque'];
-    }
-    return res;
+    return Object.keys(set).sort(function (a, b) {
+      var ia = ORDRE_SECTEURS.indexOf(a), ib = ORDRE_SECTEURS.indexOf(b);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      return a.localeCompare(b, 'fr');
+    });
   }
   function communesListe() {
     var vus = {}, l = [];
@@ -1132,7 +1154,7 @@
       'Yopougon – Maroc & Toits Rouges': 'Maroc · Toits Rouges · Sideci',
       'Yopougon – Centre & Mairie': 'CHU · Saint-André · Siporex',
       'Yopougon – Sud & Gesco': 'Port-Bouët 2 · Selmer · Gesco',
-      'Abobo – Nord & PK': 'PK 18 · N\'Dotré · Belle Ville',
+      'Abobo – Nord & PK18': 'PK 18 · N\'Dotré · Belle Ville',
       'Abobo – Centre & Mairie': 'Samaké · Gare · Mairie · Habitat',
       'Abobo – Baoulé & Avocatier': 'Abobo Baoulé · Avocatier · SOTRA',
       'Abobo – Sud & Plaque': 'Sagbé · Plaque 1-2 · Anador'
@@ -1151,7 +1173,11 @@
         } else {
           // Seules les 3 grandes communes (Abobo, Cocody, Yopougon) sont segmentées en 4 sous-secteurs
           opts.push({ v: par, lib: par + ' (Toute la commune)', parent: true, commune: par });
-          secteurs.sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (sec) {
+          secteurs.sort(function (a, b) {
+            var ia = ORDRE_SECTEURS.indexOf(a), ib = ORDRE_SECTEURS.indexOf(b);
+            if (ia >= 0 && ib >= 0) return ia - ib;
+            return a.localeCompare(b, 'fr');
+          }).forEach(function (sec) {
             var nomCourt = sec.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '');
             var rep = reperesOfficiels[sec] || (quartiersParSecteur[sec] || []).slice(0, 3).join(' · ');
             opts.push({
