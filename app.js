@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.43';
+  var APP_VERSION = '3.25.44';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.44', [
+      'Remplacement immédiat sur place : proposition instantanée des confrères du même établissement dès qu\'un médecin est absent (+ bonus de proximité)',
+      'Clôture de journée anticipée : finalisation du compte rendu possible dès que toutes les visites sont faites (avec rappel le soir à 18 h 30)',
+      'Fiche médecin sans doublon : passage direct au planning hebdomadaire sans ressaisir l\'établissement principal',
+      'Rapport WhatsApp structuré : regroupement élégant des visites par établissement dans le compte rendu du soir'
+    ]],
     ['3.25.43', [
       'Zones tactiles invisibles : extension des zones de frappe au toucher (>= 44 px) sans altérer le design sobre et élégant',
       'Mode Express dans les réglages : activation optionnelle d\'un formulaire CR en 1 seul écran synthétique pour les visites de routine'
@@ -1940,8 +1946,11 @@
       }
     }
     if (!sans.length) {
-      if (finJournee && !crValide) {
-        corps += '<p>Toutes les visites sont renseignées. Finalisez le compte rendu de la journée.</p>' +
+      if (!crValide) {
+        var msgCloture = finJournee
+          ? 'Fin de journée : toutes vos visites sont renseignées. Pensez à finaliser votre compte rendu de la journée.'
+          : 'Toutes les visites prévues sont renseignées. Vous pouvez dès maintenant finaliser et envoyer votre compte rendu de la journée.';
+        corps += '<p>' + msgCloture + '</p>' +
           '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div>';
       }
       return corps ? '<section class="maintenant"><h3>Maintenant</h3>' + corps + '</section>' : '';
@@ -1963,7 +1972,7 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte Rendu de cette visite</button></div>';
     }
     if (finJournee && !crValide) {
-      corps += '<div class="rappel-cr-soir"><p>Fin de journée : pensez à finaliser votre compte rendu.</p>' +
+      corps += '<div class="rappel-cr-soir"><p>Rappel 18 h 30 : pensez à finaliser votre compte rendu de la journée.</p>' +
         '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div></div>';
     }
     return corps ? '<section class="maintenant"><h3>Maintenant</h3>' + corps + '</section>' : '';
@@ -2125,7 +2134,9 @@
   function sectionWa(titre, items, vide) {
     var l = (items || []).filter(function (x) { return String(x || '').trim(); });
     if (!l.length && vide === undefined) return [];
-    return ['', '*' + titre + '*' + (l.length > 1 ? ' (' + l.length + ')' : '')].concat(l.length ? l.map(function (x) { return '• ' + x; }) : ['_' + vide + '_']);
+    return ['', '*' + titre + '*' + (l.length > 1 ? ' (' + l.length + ')' : '')].concat(l.length ? l.map(function (x) {
+      return (x.indexOf('📍') === 0 || x.indexOf('   •') === 0 || x.indexOf('• ') === 0) ? x : '• ' + x;
+    }) : ['_' + vide + '_']);
   }
   function heureVisite(a) { return (a.statut && a.valideA) || a.heure || ''; }
   function texteRapport(d) {
@@ -2139,8 +2150,29 @@
     if (pot) l.push('• Potentiel vu : ' + pot);
     l.push('• Trajet : ' + (R.km ? R.km + ' km (réels)' : km(s.km)) + (s.est ? ', de ' + minutesVersHeure(s.est.debut) + ' à ' + minutesVersHeure(s.est.fin) : ''));
     if (s.communes.length) l.push('• Communes : ' + s.communes.join(', '));
-    l = l.concat(sectionWa('Visites faites', faites.map(function (a) { var h = heureVisite(a); return (h ? h + '  ' : '') + '*' + a.nom + '*' + (a.lieu ? ', ' + a.lieu : ''); })));
-    l = l.concat(sectionWa('Visites non faites', s.nonFaites.map(function (a) { return a.nom + ' : ' + String(statutLibelle(a) || '').toLowerCase(); })));
+
+    // 3.25.44 : Regroupement par établissement pour plus de clarté
+    var groupes = [], parLieu = {};
+    faites.forEach(function (a) {
+      var k = String(a.lieu || a.quartier || '').trim() || 'Autre lieu';
+      if (!parLieu[k]) {
+        parLieu[k] = { lieu: k, commune: a.commune || '', items: [] };
+        groupes.push(parLieu[k]);
+      }
+      var h = heureVisite(a);
+      parLieu[k].items.push((h ? h + '  ' : '') + '*' + a.nom + '*' + (a.produits ? ' _(' + a.produits + ')_' : ''));
+    });
+    var lignesFaites = [];
+    groupes.forEach(function (g) {
+      if (groupes.length > 1 || g.items.length > 1) {
+        lignesFaites.push('📍 *' + g.lieu + '*' + (g.commune && g.lieu.indexOf(g.commune) < 0 ? ' _(' + g.commune + ')_' : ''));
+        g.items.forEach(function (it) { lignesFaites.push('   • ' + it); });
+      } else {
+        lignesFaites.push(g.items[0] + (g.lieu ? ' (' + g.lieu + ')' : ''));
+      }
+    });
+    l = l.concat(sectionWa('Visites faites', lignesFaites));
+    l = l.concat(sectionWa('Visites non faites', s.nonFaites.map(function (a) { return a.nom + (a.lieu ? ' (' + a.lieu + ')' : '') + ' : ' + String(statutLibelle(a) || '').toLowerCase(); })));
     l = l.concat(sectionWa('Produits présentés', prod));
     l = l.concat(sectionWa('Échantillons remis', s.echantillons));
     l = l.concat(sectionWa('Commandes', s.commandes));
@@ -2360,22 +2392,28 @@
       '<button class="bouton petit" type="button" data-a="conflitGarder" data-uid="' + a.uid + '">Non, je le garde</button></div></div>';
   }
   // Candidats pour remplacer une visite : présents ce jour-là, hors tournée, non prévus par un collègue, selon les critères de la tournée ;
-  // ceux qui s'insèrent sans retard d'abord, puis par priorité et proximité du lieu remplacé
+  // ceux du même établissement d'abord (+ bonus), ceux qui s'insèrent sans retard, puis par priorité et proximité du lieu remplacé
   function candidatsRemplacement(a) {
     var d = a.date, j = jourSemaineIndex(d), c = ctx(), filtre = filtreCibles(), ex = exclusCollegues([d]);
     var dansPlan = ensemble(S.plan.filter(function (x) { return x.date === d; }).map(function (x) { return x.code; }));
     var origine = coordArret(a), vus = {}, l = [];
+    var lieuA = normaliser(a.lieu || '');
     (c.parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
       if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || (filtre && !filtre(p)) || absentLe(p, d)) return;
       if (d === aujourdhui() && cr.fin <= minutesMaintenant()) return;   // aujourd'hui : seulement ceux encore présents
       if (joursEcoules(p.derniere, d) < (+S.params.delai || 0)) return;
       var dist = origine && cr.coord ? distanceKm(origine, cr.coord) : 99;
-      var x = { cr: cr, dist: dist, score: Moteur.scoreDe(p, d) };
+      var lieuCr = normaliser(cr.lieu || '');
+      var memeLieu = !!(lieuA && lieuCr && (lieuA === lieuCr || (lieuA.length >= 4 && lieuCr.indexOf(lieuA) >= 0) || (lieuCr.length >= 4 && lieuA.indexOf(lieuCr) >= 0)));
+      var x = { cr: cr, dist: dist, score: Moteur.scoreDe(p, d) + (memeLieu ? 50 : 0), memeLieu: memeLieu };
       if (!vus[cr.code] || x.dist < vus[cr.code].dist) vus[cr.code] = x;
     });
     Object.keys(vus).forEach(function (k) { l.push(vus[k]); });
-    l.sort(function (x, y) { return (y.score - 20 * y.dist) - (x.score - 20 * x.dist); });
+    l.sort(function (x, y) {
+      if (y.memeLieu !== x.memeLieu) return y.memeLieu ? 1 : -1;
+      return (y.score - 20 * y.dist) - (x.score - 20 * x.dist);
+    });
     var jour = S.plan.filter(function (x) { return x.date === d && x.uid !== a.uid; });
     return l.slice(0, 25).map(function (x) {
       var n = Moteur.arretDepuisCreneau(x.cr, d);
@@ -2384,7 +2422,10 @@
       x.heure = place ? place.heure : n.heure; x.ok = !essai.some(function (y) { return y.retard; });
       if (d === aujourdhui() && heureVersMinutes(x.heure) !== null && heureVersMinutes(x.heure) < minutesMaintenant()) x.heure = minutesVersHeure(Math.ceil(minutesMaintenant() / 5) * 5);   // aujourd'hui : au plus tôt maintenant
       return x;
-    }).sort(function (x, y) { return (y.ok ? 1 : 0) - (x.ok ? 1 : 0); }).slice(0, 12);
+    }).sort(function (x, y) {
+      if (y.memeLieu !== x.memeLieu) return y.memeLieu ? 1 : -1;
+      return (y.ok ? 1 : 0) - (x.ok ? 1 : 0);
+    }).slice(0, 12);
   }
   function remplacerArret(uid) {
     var a = arret(uid); if (!a) return;
@@ -4980,7 +5021,7 @@
           '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
           '<span class="discret bloc-texte">' + x.cr.creneau + ' ' + minutesVersHeure(x.cr.debut) + '-' + minutesVersHeure(x.cr.fin) + ' · passage vers ' + esc(x.heure) +
             (x.dist < 99 ? ' · ' + km(x.dist) + ' du lieu remplacé' : '') + '</span>' +
-          '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, a.date)) + '</span>' +
+          '<span class="etiquettes">' + (x.memeLieu ? '<span class="etiquette ok">Même établissement</span>' : '') + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, a.date)) + '</span>' +
             (x.ok ? '' : '<span class="etiquette alerte">Horaire difficile à tenir</span>') + '</span></button></li>';
       }).join('') + '</ul>';
   };
@@ -5714,8 +5755,15 @@
           '</div></div>';
         if (estPh) {
           h += '<p class="sous-titre" style="margin:0 0 8px">Jours et plages où l\'officine reçoit les délégués médicaux (tous cochés par défaut).</p>';
+        } else if (i === 0 && (l.lieu || l.quartier) && !f.editerLieu0 && !f.err.lieu0 && !f.err.quartier0) {
+          // 3.25.44 : Lieu 1 déjà renseigné à l'étape 1 — résumé compact sans doublon pour afficher directement la grille des jours
+          h += '<div class="lieu-resume-simple" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--fond-carte,#f8f9fa);border:1px solid var(--bordure,#e2e8f0);border-radius:8px;padding:8px 12px;margin:0 0 10px">' +
+            '<div><b style="font-size:0.95rem">' + esc(l.lieu || 'Établissement principal') + '</b>' +
+            '<div class="discret" style="font-size:0.8rem">' + esc([l.quartier, l.commune || (q ? q.commune : '')].filter(Boolean).join(', ')) + (l.lat && l.lon ? ' · ✓ GPS fixé' : '') + '</div></div>' +
+            '<button type="button" class="bouton-texte" data-a="ficheEditerLieu0" style="font-size:0.8rem">Modifier l\'adresse</button>' +
+            '</div>';
         } else {
-          h += champFiche('lieu' + i, 'Établissement ou cabinet *', '<input type="text" data-f="fiche" data-k="lieu" data-i="' + i + '" value="' + esc(l.lieu) + '" placeholder="Ex. CHU, Clinique…"' + attrInvalide(f, 'lieu' + i) + ' autocomplete="off">', f, true) +
+          h += champFiche('lieu' + i, (i === 0 ? 'Nom de l\'hôpital ou clinique *' : 'Établissement ou cabinet *'), '<input type="text" data-f="fiche" data-k="lieu" data-i="' + i + '" value="' + esc(l.lieu) + '" placeholder="Ex. CHU, Clinique…"' + attrInvalide(f, 'lieu' + i) + ' autocomplete="off">', f, true) +
             '<div class="sug-lieux" id="sugLieu' + i + '">' + suggestionsLieu(l.lieu, i) + '</div>' +
             champFiche('quartier' + i, 'Quartier *', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: l.quartier, vide: 'Choisir un quartier…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
               appliquer: (function (k) { return function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[k].quartier = v; delete fe.err['quartier' + k]; } }; })(i) }), f, true, q ? 'Commune : ' + esc(q.commune) : '') +
@@ -6076,9 +6124,17 @@
     if (placees) marquerModifie();
     ctxCache.data = null;
     S.ui.ouvert = null;
+    // 3.25.44 : si la visite est enregistrée comme absente/non réalisée aujourd'hui, proposer directement le remplacement sous le pouce
+    var aKoSeul = aValider.length === 1 && estKo(aValider[0].statut) && !aValider[0].hors && aValider[0].date === t;
+    if (aKoSeul) {
+      var cands = candidatsRemplacement(aValider[0]);
+      if (cands && cands.length) {
+        S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + aValider[0].nom, pleine: true, uid: aValider[0].uid, choix: null, garder: true };
+      }
+    }
     sauver(); rendre();
     var nCorr = aValider.filter(function (a) { return a.uid && S.queue.some(function (q) { return q.uid === a.uid && q.correction; }); }).length;
-    toast((nCorr === aValider.length ? (nCorr > 1 ? nCorr + ' comptes rendus modifiés' : 'Compte Rendu modifié') : aValider.length + ' compte(s) rendu(s) enregistré(s)') + (ko ? '. ' + ko + ' visite(s) non réalisée(s) : utilisez « Remplacer ».' : '.') +
+    toast((nCorr === aValider.length ? (nCorr > 1 ? nCorr + ' comptes rendus modifiés' : 'Compte Rendu modifié') : aValider.length + ' compte(s) rendu(s) enregistré(s)') + (ko ? '. ' + ko + ' visite(s) non réalisée(s).' : '.') +
       (placees ? ' Prochaine étape ajoutée à votre tournée.' : ''), 4500);
     publierPlan(!placees);
   }
@@ -7495,6 +7551,10 @@
     ficheReplierLieu: function () {
       var f = S.ui.feuille;
       if (f) { f.lieuOuvert = -1; rendre(); }
+    },
+    ficheEditerLieu0: function () {
+      var f = S.ui.feuille;
+      if (f) { f.editerLieu0 = !f.editerLieu0; rendre(); }
     },
     ficheAjouterLieu: function () {
       var f = S.ui.feuille;

@@ -1,9 +1,10 @@
 {
-  "version": "3.25.43",
+  "version": "3.25.44",
   "date": "2026-10-29",
   "notes": [
-    "Zones tactiles invisibles (>= 44 px) : toucher facile et précis en marchant sans déformer le design visuel",
-    "Compte rendu express dans les réglages : activation optionnelle d'un formulaire CR en 1 seul écran synthétique sous le pouce",
-    "Bascule fluide Express / Complet : possibilité de passer du mode rapide au formulaire détaillé d'un simple toucher"
+    "Remplacement immédiat sur place : proposition instantanée des confrères du même établissement dès qu'un médecin est absent (+ bonus de proximité)",
+    "Clôture de journée anticipée : finalisation du compte rendu possible dès que toutes les visites sont faites (avec rappel le soir à 18 h 30)",
+    "Fiche médecin sans doublon : passage direct au planning hebdomadaire sans ressaisir l'établissement principal",
+    "Rapport WhatsApp structuré : regroupement élégant des visites par établissement dans le compte rendu du soir"
   ]
 }
