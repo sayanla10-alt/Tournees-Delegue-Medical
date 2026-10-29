@@ -1,8 +1,11 @@
 {
-  "version": "3.25.32",
-  "date": "2026-10-28",
+  "version": "3.25.33",
+  "date": "2026-10-29",
   "notes": [
-    "Nouveau médecin : liste des hôpitaux suggérés triée par proximité réelle (position GPS et quartier) avec affichage de la distance",
-    "Communes : zones géographiques repliables en accordéon compact avec badges de sélection et dépliage automatique à la recherche"
+    "CR visite médecin (Étape 4) : produits en lignes épurées par gamme/molécule avec pastilles et filtre Gamme A/B/Tous",
+    "Planifier : boutons Ajouter et Recalculer côte à côte, bouton Accepter centré en bas",
+    "Répertoire : recherche prioritaire par nom de praticien (exclusion des faux positifs de communes)",
+    "Nouveau médecin : hôpitaux sans pharmacie triés par GPS, spécialité nettoyée et ordonnée en 3 blocs",
+    "Jours de réception : raccourcis réorganisés (Toute la semaine en haut, Tous les matins et soirs en bas)"
   ]
 }
