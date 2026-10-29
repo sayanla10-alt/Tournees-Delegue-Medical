@@ -2867,9 +2867,9 @@
     var nbSelA = prodsA.filter(function (p) { return sel.indexOf(p) >= 0; }).length;
     var nbSelB = prodsB.filter(function (p) { return sel.indexOf(p) >= 0; }).length;
 
-    // 3.25.34 : Une seule gamme ouverte à la fois pour rationaliser l'espace
+    // 3.25.36 : Gamme B repliée par défaut (détail invisible si refermé), Gamme A ouverte
     if (!S.ui.gammeCrOuverte) {
-      S.ui.gammeCrOuverte = (nbSelB > 0 && nbSelA === 0) ? 'B' : 'A';
+      S.ui.gammeCrOuverte = 'A';
     }
     var gOuv = S.ui.gammeCrOuverte;
 
@@ -2892,10 +2892,10 @@
       h += '<div class="gamme-cr-bloc' + (ouvert ? ' ouverte' : ' repliee') + '" style="margin-bottom:8px">' +
         '<div class="gamme-cr-entete">' +
           '<button type="button" class="gamme-cr-bascule" data-a="crGammeBascule" data-g="' + codeG + '" aria-expanded="' + ouvert + '">' +
-            '<span><b>' + titreG + '</b> <small>' + sousG + '</small></span>' +
+            '<span><b>' + titreG + '</b>' + (ouvert && sousG ? ' <small>' + sousG + '</small>' : '') + '</span>' +
             '<span class="gamme-cr-meta">' + (nbSel ? '<i class="compteur">' + nbSel + '</i>' : '<small>' + fams.length + ' fam.</small>') + icone('chevron') + '</span>' +
           '</button>' +
-          (prods.length > 1 ? '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="' + codeG + '">' + (tousG ? 'Décocher ' + codeG : 'Tous') + '</button>' : '') +
+          (ouvert && prods.length > 1 ? '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="' + codeG + '">' + (tousG ? 'Décocher ' + codeG : 'Tous') + '</button>' : '') +
         '</div>';
 
       if (ouvert) {
