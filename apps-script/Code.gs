@@ -605,7 +605,7 @@ function versIso(v, tz) {
 // ensuite modifiable librement dans le classeur : l'application affiche ce qu'elle contient
 function assurerFichesProduits(ss) {
   var sh = ss.getSheetByName(FEUILLES.fiches);
-  if (sh) { completerEntetes(sh, CHAMPS_FICHES); return sh; }
+  if (sh) { completerEntetes(sh, CHAMPS_FICHES); synchroniserFichesAvecListes(ss, sh); return sh; }
   sh = ss.insertSheet(FEUILLES.fiches);
   var ent = CHAMPS_FICHES.map(function (c) { return c[1]; });
   sh.getRange(1, 1, 1, ent.length).setValues([ent]).setFontWeight('bold').setFontColor('#ffffff').setBackground(COULEUR_ENTETE);
@@ -614,7 +614,72 @@ function assurerFichesProduits(ss) {
   sh.setFrozenRows(1); sh.setFrozenColumns(3);
   [150, 150, 110, 200, 180, 280, 300, 230, 280, 220, 300, 160, 240].forEach(function (w, i) { sh.setColumnWidth(i + 1, w); });
   sh.getRange(2, 3, lignes.length, 1).setFontWeight('bold');
+  synchroniserFichesAvecListes(ss, sh);
   return sh;
+}
+
+// 3.25.40 : Synchronisation avec Listes!K : tout produit ajouté dans Listes!K absent de Fiches produits est créé avec ses infos
+// Les produits retirés de Listes!K ne sont JAMAIS supprimés de Fiches produits
+function synchroniserFichesAvecListes(ss, sh) {
+  if (!sh) return;
+  var tz = ss.getSpreadsheetTimeZone();
+  var listes = lireListes(ss, tz);
+  var prodsListe = listes.produits || [];
+  if (!prodsListe.length) return;
+
+  var existants = lireObjets(sh, CHAMPS_FICHES, tz);
+  var vus = {};
+  existants.forEach(function (f) { vus[normaliser(f.produit)] = true; });
+
+  var aAjouter = [];
+  prodsListe.forEach(function (nom) {
+    nom = String(nom || '').trim();
+    if (!nom || vus[normaliser(nom)]) return;
+    vus[normaliser(nom)] = true;
+
+    // Chercher modèle de la même gamme
+    var kn = normaliser(nom);
+    var model = existants.filter(function (f) {
+      var kf = normaliser(f.produit);
+      return kn.indexOf(kf) === 0 || kf.indexOf(kn) === 0 || normaliser(f.gamme).indexOf(kn.split(' ')[0]) >= 0;
+    })[0];
+
+    var gamme = nom, aire = 'Cardiologie & Métabolisme', classe = '';
+    if (model) {
+      gamme = model.gamme; aire = model.aire; classe = model.classe;
+    } else {
+      if (/zyltan|losartan/i.test(nom)) { gamme = 'Zyltan (losartan)'; aire = 'Hypertension artérielle'; classe = 'ARA II'; }
+      else if (/lesstrol|lestrol/i.test(nom)) { gamme = 'Lesstrol (atorvastatine)'; aire = 'Cholestérol et risque cardiovasculaire'; classe = 'Statine'; }
+      else if (/tensicard/i.test(nom)) { gamme = 'Tensicard (aténolol)'; aire = 'Hypertension artérielle'; classe = 'Bêtabloquant'; }
+      else if (/eurythmic/i.test(nom)) { gamme = 'Eurythmic (amiodarone)'; aire = 'Troubles du rythme cardiaque'; classe = 'Antiarythmique'; }
+      else if (/telmikaa/i.test(nom)) { gamme = 'Telmikaa (telmisartan)'; aire = 'Hypertension artérielle'; classe = 'ARA II'; }
+      else if (/rozukaa/i.test(nom)) { gamme = 'Rozukaa (rosuvastatine)'; aire = 'Cholestérol et risque cardiovasculaire'; classe = 'Statine'; }
+      else if (/antiplatt/i.test(nom)) { gamme = 'Antiplatt (clopidogrel)'; aire = 'Prévention de la thrombose'; classe = 'Antiagrégant plaquettaire'; }
+      else if (/myonit/i.test(nom)) { gamme = 'Myonit (trinitrine)'; aire = 'Angine de poitrine'; classe = 'Dérivé nitré'; }
+    }
+
+    var obj = {
+      gamme: gamme,
+      aire: aire,
+      produit: nom,
+      dci: model ? model.dci : nom,
+      classe: classe,
+      indications: model ? model.indications : 'Indication officielle selon notice du produit',
+      contreIndications: model ? model.contreIndications : '',
+      posologie: model ? model.posologie : 'Selon prescription médicale',
+      precautions: model ? model.precautions : '',
+      effetsIndesirables: model ? model.effetsIndesirables : '',
+      arguments: model ? model.arguments : ''
+    };
+    var row = CHAMPS_FICHES.map(function (c) { return obj[c[0]] || ''; });
+    aAjouter.push(row);
+  });
+
+  if (aAjouter.length > 0) {
+    var startRow = sh.getLastRow() + 1;
+    sh.getRange(startRow, 1, aAjouter.length, aAjouter[0].length).setValues(aAjouter).setWrap(true).setVerticalAlignment('top');
+    sh.getRange(startRow, 3, aAjouter.length, 1).setFontWeight('bold');
+  }
 }
 
 // 3.8.0 : comptes rendus de la journée, une ligne par délégué et par jour (remplacée à chaque nouvelle validation)

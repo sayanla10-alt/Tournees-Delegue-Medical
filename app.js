@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.40';
+  var APP_VERSION = '3.25.41';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.41', [
+      'Produits dans le CR Visite : alignement strict sur la BDD (onglet Listes, colonne K) — tout retrait dans Listes!K retire le produit du CR sans toucher à sa fiche',
+      'Auto-complétion des fiches produits : l\'ajout d\'un produit dans Listes!K déduit ses informations manquantes et l\'ajoute aux fiches consultables',
+      'Onglet Produits : garantie que tous les produits actifs de la liste sont consultables avec leur monographie complète'
+    ]],
     ['3.25.40', [
       'Répertoire des Hôpitaux dans la BDD : création de l\'onglet dédié « Etablissements » avec 260 centres de santé (CHU, CHR, Hôpitaux, FSU COM, Cliniques...) et GPS certifiés',
       'Distances réelles : application d\'un coefficient fixe x 1,5 sur toutes les distances pour refléter la réalité du terrain routier',
@@ -872,7 +877,14 @@
     return 9;
   }
   function produitsParGamme() {
-    var fiches = (typeof fichesProduits === 'function' ? fichesProduits() : FICHES_PRODUITS_DEFAUT) || [];
+    var brut = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT;
+    var autorises = {};
+    brut.forEach(function (p) { autorises[normaliser(p)] = true; });
+
+    var fichesToutes = (typeof fichesProduits === 'function' ? fichesProduits() : FICHES_PRODUITS_DEFAUT) || [];
+    // 3.25.40 : Le catalogue actif du CR correspond strictement aux produits de Listes!K
+    var fiches = fichesToutes.filter(function (f) { return autorises[normaliser(f.produit)]; });
+    if (!fiches.length) fiches = fichesToutes;
     var gammes = typeof gammesProduits === 'function' ? gammesProduits(fiches) : [];
     var gA = [], gB = [], vus = {};
     var famA = gammes.filter(function (g) { return estGammeA('', g.nom); }).slice().sort(function (a, b) {
@@ -891,7 +903,6 @@
         if (!vus[f.produit]) { vus[f.produit] = true; gB.push(f.produit); }
       });
     });
-    var brut = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT;
     brut.forEach(function (p) {
       if (!p || vus[p] || (p === 'Lestrol 20' && vus['Lesstrol 20'])) return;
       vus[p] = true;
@@ -2874,7 +2885,14 @@
   }
 
   function rendreChoixProduitsCr(a, cle, vals) {
-    var fiches = (typeof fichesProduits === 'function' ? fichesProduits() : FICHES_PRODUITS_DEFAUT) || [];
+    var brut = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT;
+    var autorises = {};
+    brut.forEach(function (p) { autorises[normaliser(p)] = true; });
+
+    var fichesToutes = (typeof fichesProduits === 'function' ? fichesProduits() : FICHES_PRODUITS_DEFAUT) || [];
+    // 3.25.40 : Seuls les produits listés dans Listes!K sont affichés dans le CR visite
+    var fiches = fichesToutes.filter(function (f) { return autorises[normaliser(f.produit)]; });
+    if (!fiches.length) fiches = fichesToutes;
     var gammes = typeof gammesProduits === 'function' ? gammesProduits(fiches) : [];
     var sel = vals || [];
 
@@ -3456,7 +3474,69 @@
   var ORDRE_AIRES = ['Hypertension artérielle', 'Hypertension et cœur', 'Cholestérol et risque cardiovasculaire', 'Troubles du rythme cardiaque', 'Angine de poitrine', 'Prévention de la thrombose', 'Métabolisme et neuropathie'];
   var SECTIONS_FICHE = [['indications', 'Indications', 'ind'], ['contreIndications', 'Contre-indications', 'ci'], ['posologie', 'Posologie', 'pos'],
     ['precautions', 'Précautions et interactions', 'pre'], ['effets', 'Effets indésirables', 'ei'], ['arguments', 'Arguments clés pour la visite', 'arg']];
-  function fichesProduits() { var l = (S.data && S.data.fiches) || []; return l.length ? l : FICHES_PRODUITS_DEFAUT; }
+  function deduireFicheProduit(nom, existantes) {
+    nom = String(nom || '').trim();
+    var kn = normaliser(nom);
+    var parent = (existantes || []).filter(function (f) {
+      var kf = normaliser(f.produit);
+      return kn.indexOf(kf) === 0 || kf.indexOf(kn) === 0 || normaliser(f.gamme).indexOf(kn.split(' ')[0]) >= 0;
+    })[0];
+
+    if (parent) {
+      return {
+        gamme: parent.gamme,
+        aire: parent.aire,
+        produit: nom,
+        dci: parent.dci || nom,
+        classe: parent.classe || '',
+        indications: parent.indications || '',
+        contreIndications: parent.contreIndications || '',
+        posologie: parent.posologie || '',
+        precautions: parent.precautions || '',
+        effetsIndesirables: parent.effetsIndesirables || '',
+        arguments: parent.arguments || ''
+      };
+    }
+    var gamme = nom, aire = 'Cardiologie & Métabolisme', classe = '';
+    if (/zyltan|losartan/i.test(nom)) { gamme = 'Zyltan (losartan)'; aire = 'Hypertension artérielle'; classe = 'ARA II'; }
+    else if (/lesstrol|lestrol/i.test(nom)) { gamme = 'Lesstrol (atorvastatine)'; aire = 'Cholestérol et risque cardiovasculaire'; classe = 'Statine'; }
+    else if (/tensicard/i.test(nom)) { gamme = 'Tensicard (aténolol)'; aire = 'Hypertension artérielle'; classe = 'Bêtabloquant'; }
+    else if (/eurythmic/i.test(nom)) { gamme = 'Eurythmic (amiodarone)'; aire = 'Troubles du rythme cardiaque'; classe = 'Antiarythmique'; }
+    else if (/telmikaa/i.test(nom)) { gamme = 'Telmikaa (telmisartan)'; aire = 'Hypertension artérielle'; classe = 'ARA II'; }
+    else if (/rozukaa/i.test(nom)) { gamme = 'Rozukaa (rosuvastatine)'; aire = 'Cholestérol et risque cardiovasculaire'; classe = 'Statine'; }
+    else if (/antiplatt/i.test(nom)) { gamme = 'Antiplatt (clopidogrel)'; aire = 'Prévention de la thrombose'; classe = 'Antiagrégant plaquettaire'; }
+    else if (/myonit/i.test(nom)) { gamme = 'Myonit (trinitrine)'; aire = 'Angine de poitrine'; classe = 'Dérivé nitré'; }
+
+    return {
+      gamme: gamme,
+      aire: aire,
+      produit: nom,
+      dci: nom,
+      classe: classe,
+      indications: 'Indication officielle selon notice du produit',
+      contreIndications: '',
+      posologie: 'Selon prescription médicale',
+      precautions: '',
+      effetsIndesirables: '',
+      arguments: ''
+    };
+  }
+  function fichesProduits() {
+    var l = (S.data && S.data.fiches) || [];
+    var fiches = (l.length ? l : FICHES_PRODUITS_DEFAUT).slice();
+    var prodsListes = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT;
+    var vus = {};
+    fiches.forEach(function (f) { vus[normaliser(f.produit)] = true; });
+    prodsListes.forEach(function (p) {
+      var kp = normaliser(p);
+      if (!vus[kp]) {
+        var nouv = deduireFicheProduit(p, fiches);
+        fiches.push(nouv);
+        vus[kp] = true;
+      }
+    });
+    return fiches;
+  }
   function lignesFiche(t) { return String(t || '').split(/\n|;\s*(?=[A-ZÉÈÀÂÎÔ])/).map(function (x) { return x.replace(/^[•\-\s]+/, '').trim(); }).filter(Boolean); }
   // Disposition compacte : une ligne par gamme (nom, molécule) avec ses produits en pastilles ; un filtre par aire thérapeutique.
   // La fiche ne s'ouvre qu'au toucher d'un produit, dans une fenêtre ; ses rubriques secondaires se déplient à la demande.

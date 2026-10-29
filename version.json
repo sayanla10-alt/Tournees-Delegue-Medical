@@ -1,10 +1,10 @@
 {
-  "version": "3.25.40",
+  "version": "3.25.41",
   "date": "2026-10-29",
   "notes": [
-    "BDD Répertoire : création de l'onglet Etablissements avec 260 centres de santé certifiés et synchronisation automatique",
-    "Distances réelles : coefficient fixe x 1,5 sur toutes les distances calculées et affichées",
-    "Notification pharmacie proche : déplaçable au pouce d'un glissement libre sur l'écran",
-    "Fiche praticien : accordéon exclusif sur les lieux (un seul lieu ouvert à la fois)"
+    "Produits CR Visite : affichage strictement piloté par l'onglet Listes (colonne K) de la BDD",
+    "Fiches produits : conservation intégrale des fiches existantes lors du retrait de Listes!K",
+    "Auto-complétion : déduction et ajout automatique des fiches pour tout nouveau produit ajouté dans Listes!K",
+    "Onglet Produits : présence et consultation garanties de tous les produits actifs"
   ]
 }
