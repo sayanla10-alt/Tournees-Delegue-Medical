@@ -261,7 +261,7 @@ var Moteur = (function () {
     var cands = [];
     ctx.parJour[j].forEach(function (c) {
       if (utilises[c.code] || (o.exclus && o.exclus[c.code])) return;
-      if (dans && !dans[c.commune]) return;
+      if (dans && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans) : dans[c.commune])) return;
       if (o.accepte && !o.accepte(c.prat)) return;
       if (absentLe(c.prat, date)) return;
       var je = joursEcoules(c.prat.derniere, date);

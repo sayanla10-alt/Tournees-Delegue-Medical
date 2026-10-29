@@ -1,11 +1,9 @@
 {
-  "version": "3.25.45",
+  "version": "3.25.46",
   "date": "2026-10-29",
   "notes": [
-    "Arguments clés de vente : ajout en 1er point du Prix indicatif (FCFA) et de la prise en charge CNAM / MUGEF-CI",
-    "Planifier fluide au pouce : barre d'actions flottante (Accepter, Recalculer, Ajouter) toujours accessible sans faire défiler",
-    "Planifier sans éjection : toucher une visite ouvre ses actions (Changer de jour, Remplacer, Retirer) sans quitter la planification",
-    "Suivi d'équipe intuitif : accès direct à « Toute l'équipe » d'une touche sans masquer la liste des collègues",
-    "KPI ★★★ territorialisé : ratio de praticiens prioritaires calculé sur votre secteur réel au lieu du pays entier"
+    "Secteurs détaillés par commune : découpage de Cocody, Yopougon et Abobo en 4 sous-secteurs pour planifier uniquement sur votre zone",
+    "Sélection flexible : choix de toute la commune ou d'un secteur précis (Angré, Riviera, Niangon, PK18, etc.)",
+    "Filtrage automatique : affectation instantanée des praticiens selon leur quartier et établissement sans ressaisie"
   ]
 }

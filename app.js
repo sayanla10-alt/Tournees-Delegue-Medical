@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.45';
+  var APP_VERSION = '3.25.46';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.46', [
+      'Secteurs détaillés par commune : découpage de Cocody, Yopougon et Abobo en 4 sous-secteurs pour planifier uniquement sur votre zone',
+      'Sélection flexible : choix de toute la commune ou d\'un secteur précis (Angré, Riviera, Niangon, PK18, etc.)',
+      'Filtrage automatique : affectation instantanée des praticiens selon leur quartier et établissement sans ressaisie'
+    ]],
     ['3.25.45', [
       'Arguments clés de vente : ajout en 1er point du Prix indicatif (FCFA) et de la prise en charge CNAM / MUGEF-CI',
       'Planifier fluide au pouce : barre d\'actions flottante (Accepter, Recalculer, Ajouter) toujours accessible sans faire défiler',
@@ -669,7 +674,8 @@
   }
   function libelleCommunes(l) {
     if (!l || !l.length) return 'Toutes les communes';
-    return l.length <= 3 ? l.join(', ') : l.slice(0, 2).join(', ') + ' et ' + (l.length - 2) + ' autres';
+    var nets = l.map(function (x) { return String(x || '').replace(/\s*\(Toute la commune\)$/, ''); });
+    return nets.length <= 3 ? nets.join(', ') : nets.slice(0, 2).join(', ') + ' et ' + (nets.length - 2) + ' autres';
   }
 
   function libelleListe(l, tous) {
@@ -829,7 +835,14 @@
     var secs = [], idx = {};
     communesListe().forEach(function (c) {
       if (idx[c.zone] === undefined) { idx[c.zone] = secs.length; secs.push({ titre: c.zone, options: [] }); }
-      secs[idx[c.zone]].options.push({ v: c.commune, lib: c.commune });
+      if (typeof ZONES_GRANDES_COMMUNES !== 'undefined' && ZONES_GRANDES_COMMUNES[c.commune]) {
+        secs[idx[c.zone]].options.push({ v: c.commune, lib: c.commune + ' (Toute la commune)' });
+        ZONES_GRANDES_COMMUNES[c.commune].forEach(function (z) {
+          secs[idx[c.zone]].options.push({ v: z.nom, lib: z.lib });
+        });
+      } else {
+        secs[idx[c.zone]].options.push({ v: c.commune, lib: c.commune });
+      }
     });
     return secs;
   }
@@ -4099,7 +4112,7 @@
       if (f.conv === 'oui' && !p.conv) return false;
       if (f.conv === 'non' && p.conv) return false;
       var lieux = c.presencesParCode[p.code] || [];
-      if (f.communes.length && !lieux.some(function (x) { return co[x.commune]; })) return false;
+      if (f.communes.length && !lieux.some(function (x) { return typeof communeCorrespondante === 'function' ? communeCorrespondante(x, co) : co[x.commune]; })) return false;
       if (f.visite !== 'tous') {
         var j = p.derniere ? joursEcoules(p.derniere, t) : Infinity;
         if (f.visite === '30' && j <= 30) return false;
@@ -5154,7 +5167,7 @@
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
-      if (dans[cr.code] || ex[cr.code] || (Object.keys(com).length && !com[cr.commune]) || (filtre && !filtre(p)) || absentLe(p, d)) return;
+      if (dans[cr.code] || ex[cr.code] || (Object.keys(com).length && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(cr, com) : com[cr.commune])) || (filtre && !filtre(p)) || absentLe(p, d)) return;
       if (S.ui.typeAjout && (S.ui.typeAjout === 'Pharmacie') !== (p.type === 'Pharmacie')) return;
       if (mots.length) {
         var txt = normaliser([p.nom, p.specialite, cr.lieu, cr.quartier, cr.commune].join(' '));

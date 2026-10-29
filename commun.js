@@ -1209,6 +1209,52 @@ var CHAMPS_RAPPORTS = [
   ['concurrence', 'Concurrence'], ['besoins', 'Besoins'], ['km', 'Kilomètres'], ['maj', 'Mise à jour']
 ];
 
+// Découpage des grandes communes d'Abidjan en 4 grands sous-secteurs pour les tournées délégués
+var ZONES_GRANDES_COMMUNES = {
+  'Cocody': [
+    { nom: 'Cocody – Angré', lib: 'Cocody – Angré (7e/8e tranche, CHU Angré, Djorobité)', mots: ['angre', 'tranche', 'chu angre', 'djorobite', 'djorogobite', 'chateau', 'mahou', 'petroivoire', 'besakoi'] },
+    { nom: 'Cocody – Deux Plateaux', lib: 'Cocody – Deux Plateaux (Vallons, Aghien, ENA, Attoban)', mots: ['plateaux', 'plateau', 'vallon', 'aghien', 'ena', 'attoban', 'palmas', 'latrille', 'socece', 'sococe'] },
+    { nom: 'Cocody – Riviera', lib: 'Cocody – Riviera (Riviera 1-4, Palmeraie, Faya, M\'Badon, Anono)', mots: ['riviera', 'palmeraie', 'faya', 'mbadon', 'm\'badon', 'anono', 'bonoumin', 'abatta', 'akouedo', 'golf', 'ciad'] },
+    { nom: 'Cocody – Centre', lib: 'Cocody – Centre (Saint-Jean, Danga, CHU Cocody, Mermoz)', mots: ['saint-jean', 'st jean', 'danga', 'chu cocody', 'mermoz', 'blockhauss', 'ambassade', 'lycee technique', 'arts', 'universite', 'centre', 'cannebiere', 'nestle'] }
+  ],
+  'Yopougon': [
+    { nom: 'Yopougon – Niangon', lib: 'Yopougon – Niangon (Nord, Sud, Académie, Lokoua, Cité Verte)', mots: ['niangon', 'academie', 'lokoua', 'verte', 'texaco', 'lubafrique'] },
+    { nom: 'Yopougon – Maroc & Toits Rouges', lib: 'Yopougon – Maroc & Toits Rouges (Bel Air, Sideci, Selmer)', mots: ['maroc', 'toits rouges', 'bel air', 'sideci', 'selmer', 'cie', 'nouveau bureau', 'carrefour'] },
+    { nom: 'Yopougon – Centre & Mairie', lib: 'Yopougon – Centre & Mairie (CHU Yop., Saint-André, Siporex, Keneya)', mots: ['chu yop', 'saint-andre', 'st andre', 'siporex', 'mairie', 'keneya', 'pompiers', 'wassakara', 'justice', 'ficgayo'] },
+    { nom: 'Yopougon – Sud & Gesco', lib: 'Yopougon – Sud & Gesco (Port-Bouët 2, Kouté, Zone Industrielle, Sable)', mots: ['port-bouet 2', 'port bouet 2', 'koute', 'gesco', 'industrielle', 'sable', 'millionnaire', 'nouveau quartier', 'acadie'] }
+  ],
+  'Abobo': [
+    { nom: 'Abobo – Nord & PK', lib: 'Abobo – Nord & PK (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville)', mots: ['pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi'] },
+    { nom: 'Abobo – Centre & Mairie', lib: 'Abobo – Centre & Mairie (Samaké, Gare, Mairie, Habitat, Banco)', mots: ['samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha'] },
+    { nom: 'Abobo – Baoulé & Avocatier', lib: 'Abobo – Baoulé & Avocatier (Abobo Baoulé, Avocatier, Clouetcha)', mots: ['baoule', 'avocatier', 'clouetcha', 'sotra', 'te'] },
+    { nom: 'Abobo – Sud & Plaque', lib: 'Abobo – Sud & Plaque (Plaque 1 & 2, Anador, Sagbé, Houphouët-Boigny)', mots: ['plaque', 'anador', 'sagbe', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
+  ]
+};
+
+function zoneDeQuartier(commune, quartier, lieu) {
+  var comNorm = normaliser(commune || '');
+  var comCle = (comNorm.indexOf('cocody') >= 0 ? 'Cocody' : (comNorm.indexOf('yopougon') >= 0 ? 'Yopougon' : (comNorm.indexOf('abobo') >= 0 ? 'Abobo' : '')));
+  if (!comCle || !ZONES_GRANDES_COMMUNES[comCle]) return '';
+  var texte = normaliser((quartier || '') + ' ' + (lieu || ''));
+  var zones = ZONES_GRANDES_COMMUNES[comCle];
+  for (var i = 0; i < zones.length; i++) {
+    var z = zones[i];
+    for (var j = 0; j < z.mots.length; j++) {
+      if (texte.indexOf(normaliser(z.mots[j])) >= 0) return z.nom;
+    }
+  }
+  return zones[zones.length - 1].nom;
+}
+
+function communeCorrespondante(c, dans) {
+  if (!dans) return true;
+  var com = c.commune || '';
+  if (dans[com] || dans[com + ' (Toute la commune)']) return true;
+  var zone = zoneDeQuartier(com, c.quartier, c.lieu);
+  if (zone && dans[zone]) return true;
+  return false;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     VERSION_DONNEES: VERSION_DONNEES, JOURS: JOURS, JOURS_CLES: JOURS_CLES, CRENEAUX: CRENEAUX, DISPOS: DISPOS,
@@ -1225,6 +1271,7 @@ if (typeof module !== 'undefined' && module.exports) {
     CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, CHAMPS_ETABLISSEMENTS: CHAMPS_ETABLISSEMENTS, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES,
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
-    quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
+    quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
+    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, zoneDeQuartier: zoneDeQuartier, communeCorrespondante: communeCorrespondante
   };
 }
