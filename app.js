@@ -9,10 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.44';
+  var APP_VERSION = '3.25.45';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.45', [
+      'Arguments clés de vente : ajout en 1er point du Prix indicatif (FCFA) et de la prise en charge CNAM / MUGEF-CI',
+      'Planifier fluide au pouce : barre d\'actions flottante (Accepter, Recalculer, Ajouter) toujours accessible sans faire défiler',
+      'Planifier sans éjection : toucher une visite ouvre ses actions (Changer de jour, Remplacer, Retirer) sans quitter la planification',
+      'Suivi d\'équipe intuitif : accès direct à « Toute l\'équipe » d\'une touche sans masquer la liste des collègues',
+      'KPI ★★★ territorialisé : ratio de praticiens prioritaires calculé sur votre secteur réel au lieu du pays entier'
+    ]],
     ['3.25.44', [
       'Remplacement immédiat sur place : proposition instantanée des confrères du même établissement dès qu\'un médecin est absent (+ bonus de proximité)',
       'Clôture de journée anticipée : finalisation du compte rendu possible dès que toutes les visites sont faites (avec rappel le soir à 18 h 30)',
@@ -2260,21 +2267,23 @@
     h += '<div class="tete-jour-plan"><div class="bilan-jour"><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
       ' <small class="discret">(' + nMatin + ' matin' + (nSoir ? ', ' + nSoir + ' soir' : '') + (n3 ? ' · ' + n3 + ' ★★★' : '') + ' · ' + km(totalKm) + (comJour.length ? ' · ' + esc(libelleCommunes(comJour)) : '') + ')</small></div>' + etat + '</div>';
     h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
+    var actionsPlan = '';
     if (enAttente) {
-      h += '<section class="bandeau-prog accepter"><div><b>Nouvelle sélection</b><span>Conserver ce tirage ?</span></div>' +
+      actionsPlan = '<section class="bandeau-prog accepter"><div><b>Nouvelle sélection</b><span>Conserver ce tirage ?</span></div>' +
         '<div class="rangee"><button class="bouton" type="button" data-a="refuserProgramme" data-v="jour">Refuser</button>' +
         '<button class="bouton bouton-plein" type="button" data-a="accepterJour">' + icone('valider') + 'Accepter</button></div></section>';
     } else if (!jourConfirme(d)) {
       // État B : Jour en brouillon -> Ajouter & Recalculer côte à côte, Accepter centré en bas
-      h += '<div class="rangee-tirage"><button class="bouton" type="button" data-a="ajouterTournee">' + icone('plus') + '<span>Ajouter</span></button>' +
+      actionsPlan = '<div class="rangee-tirage"><button class="bouton" type="button" data-a="ajouterTournee">' + icone('plus') + '<span>Ajouter</span></button>' +
         '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + '<span>Recalculer</span></button></div>' +
         '<div style="text-align:center"><button class="bouton bouton-plein bouton-accepter-plan" type="button" data-a="accepterJour">' + icone('valider') + '<span>Accepter</span></button></div>';
     } else {
       // État C : Jour déjà confirmé -> Ajouter & Recalculer côte à côte, WhatsApp centré en bas
-      h += '<div class="rangee-tirage"><button class="bouton" type="button" data-a="ajouterTournee">' + icone('plus') + '<span>Ajouter</span></button>' +
+      actionsPlan = '<div class="rangee-tirage"><button class="bouton" type="button" data-a="ajouterTournee">' + icone('plus') + '<span>Ajouter</span></button>' +
         '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + '<span>Recalculer</span></button></div>' +
         '<div style="text-align:center"><button class="bouton bouton-plein bouton-accepter-plan wa" type="button" data-a="partagerJourWhatsapp">' + icone('whatsapp') + '<span>WhatsApp</span></button></div>';
     }
+    h += '<div class="barre-plan-actions-flottante">' + actionsPlan + '</div>';
     h += rendreCouverture(dates);
     h += boutonAnciens('margin-top:14px');
     return h;
@@ -3993,8 +4002,15 @@
     if (fq.qui !== 'tous' && !sel.length) return h + '<div class="vide"><strong>Rien sur cette période</strong>Aucune visite pour ' + esc(libelleQui()) + '. Choisissez d\'autres délégués ou une autre date.</div>';
     if (noms.length === 1) sel = [];
     var tous = !sel.length, libSel = tous ? 'Toute l\'équipe' : sel.join(', ');
-    var visibles = tous ? noms : sel;
-    h += '<ul class="liste resume-equipe">' + visibles.map(function (n) { return ligne(n, tout.filter(function (x) { return x.delegue === n; })); }).join('') + '</ul>';
+    h += '<div class="bande-equipe-puces" style="display:flex;align-items:center;gap:6px;overflow-x:auto;padding:2px 0 8px;margin:4px 0 8px">' +
+      '<button type="button" class="puce petite' + (tous ? ' puce-active' : '') + '" data-a="collegueTous" aria-pressed="' + tous + '">👥 Toute l\'équipe</button>' +
+      noms.map(function (n) {
+        var actif = sel.indexOf(n) >= 0;
+        return '<button type="button" class="puce petite' + (actif ? ' puce-active' : '') + '" data-a="collegue" data-v="' + esc(n) + '" aria-pressed="' + actif + '">' +
+          esc(n === nomMoi ? n + ' (moi)' : n) + '</button>';
+      }).join('') +
+      '</div>';
+    h += '<ul class="liste resume-equipe">' + noms.map(function (n) { return ligne(n, tout.filter(function (x) { return x.delegue === n; })); }).join('') + '</ul>';
 
     var siens = tous ? tout : tout.filter(function (x) { return sel.indexOf(x.delegue) >= 0; });
     // semaine : un jour à la fois
@@ -4478,8 +4494,10 @@
     var ouvres = joursEntre(b[0], b[1]).filter(function (d) { return jourSemaineIndex(d) < 5; }).length;
     var objectif = Math.round((+st.objectif || 0) / 5 * ouvres * nbDel);
     var prat = ctx().prat, nA = 0, nAok = 0;
+    var filtre = !eq ? filtreCibles() : null;
     Object.keys(prat).forEach(function (k) {
       var p = prat[k]; if (p.note !== 3) return;
+      if (filtre && !filtre(p)) return;
       nA++; if (joursEcoules(p.derniere, t) <= REGLAGES_MOTEUR.cadence[3]) nAok++;
     });
     return { bornes: b, equipe: eq, visites: visites, effectives: effectives, plan: plan, echus: echus, faits: faits,
@@ -4875,7 +4893,18 @@
     var ouvertes = fe.ouvertes || {};
     var h = '<p class="fp-dci"><b>' + esc(f.dci) + '</b></p><p class="fiche-classe" style="margin-top:2px">' + esc(f.classe || '') + '</p>';
     SECTIONS_FICHE.forEach(function (sec) {
-      var it = lignesFiche(f[sec[0]]); if (!it.length) return;
+      var it = lignesFiche(f[sec[0]]);
+      // 3.25.45 : Arguments clés — ajout en 1er point de la mention Prix indicatif (FCFA) et prise en charge CNAM / MUGEF-CI
+      if (sec[0] === 'arguments') {
+        var tarifStr = f.prix ? f.prix + ' FCFA' : (f.tarif || 'Tarif indicatif conventionné (FCFA)');
+        var cnamStr = f.cnam || 'remboursable CNAM (70%)';
+        var mugefStr = f.mugef || 'prise en charge MUGEF-CI';
+        var ligneCI = 'Prix indicatif (' + tarifStr + ') et prise en charge ' + cnamStr + ' / ' + mugefStr;
+        if (!it.some(function (x) { return x.indexOf('CNAM') >= 0 || x.indexOf('MUGEF') >= 0; })) {
+          it = [ligneCI].concat(it);
+        }
+      }
+      if (!it.length) return;
       var essentiel = sec[2] === 'ind' || sec[2] === 'ci' || sec[2] === 'arg', ouvert = essentiel || ouvertes[sec[0]];
       h += '<div class="fiche-section ' + sec[2] + (essentiel ? '' : ' repliable') + '">' +
         (essentiel ? '<h4>' + sec[1] + '</h4>' : '<button type="button" class="fp-bascule" data-a="ficheSection" data-v="' + sec[0] + '" aria-expanded="' + !!ouvert + '"><h4>' + sec[1] + '</h4>' + icone('chevron') + '</button>') +
@@ -4998,6 +5027,24 @@
         }).join('') + '</div></section>';
     }).join('');
     return h + '<p class="discret">Touchez un jour pour ne reprendre que celui-ci.</p>';
+  };
+
+  FEUILLES.visitePlan = function (f) {
+    var a = arret(f.uid);
+    if (!a) return '<p class="discret">Visite introuvable.</p>';
+    var sousTitre = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier, a.commune]) : infosMedecinPlan(a);
+    return '<div class="fiche-entete" style="margin-bottom:12px">' +
+      '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) + '</span>' +
+      (sousTitre ? '<p class="discret" style="margin:4px 0 8px">' + esc(sousTitre) + '</p>' : '') +
+      '<p style="margin:0"><b>' + majuscule(dateLongue(a.date)) + '</b> · Passage vers <b>' + esc(a.heure || '--:--') + '</b> (' + esc(a.creneau || '') + ')</p>' +
+      '</div>' +
+      '<div class="choix-ajout">' +
+        '<button type="button" class="tuile" data-a="planChangerJour" data-uid="' + a.uid + '"><b>' + icone('calendrier') + 'Changer de jour</b><small>Déplacer vers un autre jour ouvré</small></button>' +
+        '<button type="button" class="tuile" data-a="completerJour" data-uid="' + a.uid + '"><b>' + icone('relancer') + 'Remplacer</b><small>Choisir un autre praticien pour ce créneau</small></button>' +
+        '<button type="button" class="tuile" data-a="garderPlan" data-uid="' + a.uid + '"><b>' + icone('epingle') + (a.garde ? 'Ne plus garder' : 'Épingler / Garder') + '</b><small>' + (a.garde ? 'Actuellement protégé du recalcul' : 'Protéger ce praticien lors des recalculs') + '</small></button>' +
+        '<button type="button" class="tuile" data-a="retirerPlan" data-uid="' + a.uid + '"><b>' + icone('fermer') + 'Retirer</b><small>Enlever de la tournée du ' + dateCourte(a.date) + '</small></button>' +
+        '<button type="button" class="tuile" data-a="voirDansJournee" data-uid="' + a.uid + '"><b>' + icone('chevron') + 'Voir dans Journée</b><small>Basculer vers la vue détaillée du jour</small></button>' +
+      '</div>';
   };
 
   FEUILLES.remplacer = function (f) {
@@ -6529,7 +6576,31 @@
       S.ui.jour = null; sauver(); rendre(); publierPlan(true); toast('Retour à l\'ancienne planification.');
     },
     fermerParams: function () { S.ui.voirParams = false; rendre(); window.scrollTo(0, 0); },
-    voirVisite: function (el) { S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' }); },
+    voirVisite: function (el) {
+      if (S.ui.tab === 'semaine') {
+        var a = arret(el.dataset.uid);
+        if (a) {
+          S.ui.feuille = { type: 'visitePlan', titre: a.nom, uid: a.uid };
+          rendre();
+          return;
+        }
+      }
+      S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' });
+    },
+    planChangerJour: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var c = (ctx().parCode[a.code] || []).filter(function (cr) { return String(cr.idPresence) === String(a.idPresence); })[0] || (ctx().parCode[a.code] || [])[0];
+      if (c) {
+        S.ui.feuille = { type: 'planifierDate', cle: c.cle, d: a.date, d0: prochainJourOuvre(a.date), uidDeplacer: a.uid, titre: 'Déplacer ' + a.nom };
+      } else {
+        S.ui.feuille = null;
+        toast('Créneau de présence introuvable.');
+      }
+      rendre();
+    },
+    garderPlan: function (el) { ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
+    retirerPlan: function (el) { ACTIONS.retirer(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; },
+    voirDansJournee: function (el) { S.ui.feuille = null; S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); },
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); relocaliserSiBesoin(); },
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
@@ -6871,7 +6942,21 @@
     planifierDateChoix: function (el) { S.ui.feuille.d = el.dataset.v; rendre(); },
     planifierDateOui: function () {
       var f = S.ui.feuille, c = Moteur.creneauParCle(ctx(), f.cle); S.ui.feuille = null;
-      if (c && ajouterArret(c, f.d)) { S.ui.tab = 'jour'; S.ui.jour = f.d; window.scrollTo(0, 0); }
+      if (f && f.uidDeplacer) {
+        var aOld = arret(f.uidDeplacer);
+        if (aOld) {
+          S.plan = S.plan.filter(function (x) { return x.uid !== aOld.uid; });
+          reordonner(aOld.date);
+        }
+      }
+      if (c && ajouterArret(c, f.d)) {
+        if (f && f.uidDeplacer) {
+          S.ui.jour = f.d;
+          toast(c.prat.nom + ' déplacé au ' + dateFr(f.d) + '.');
+        } else {
+          S.ui.tab = 'jour'; S.ui.jour = f.d; window.scrollTo(0, 0);
+        }
+      }
       rendre();
     },
     // Autour de moi
@@ -6916,8 +7001,18 @@
     filtre: function (el) { S.ui.filtre = el.dataset.v; S.ui.limite = 40; rendre(); },
     plus: function () { S.ui.limite += 40; rendre(); },
     collegue: function (el) {
-      // toucher un délégué de la synthèse l'isole (sélection « Choisir »)
-      var v = el.dataset.v; S.ui.fq = { qui: 'liste', liste: [v] }; LS.set('filtreQui', S.ui.fq); S.ui.eqOuverts = {}; S.ui.jourEquipe = null; rendre();
+      // 3.25.45 : toucher le collègue sélectionné réinitialise à Toute l'équipe
+      var v = el.dataset.v;
+      if (S.ui.fq && S.ui.fq.qui === 'liste' && S.ui.fq.liste.length === 1 && S.ui.fq.liste[0] === v) {
+        S.ui.fq = { qui: 'tous', liste: [] };
+      } else {
+        S.ui.fq = { qui: 'liste', liste: [v] };
+      }
+      LS.set('filtreQui', S.ui.fq); S.ui.eqOuverts = {}; S.ui.jourEquipe = null; rendre();
+    },
+    collegueTous: function () {
+      S.ui.fq = { qui: 'tous', liste: [] };
+      LS.set('filtreQui', S.ui.fq); S.ui.eqOuverts = {}; S.ui.jourEquipe = null; rendre();
     },
     quiOuvrir: function () { S.ui.feuille = { type: 'qui', titre: 'Délégués', qui: S.ui.fq.qui, liste: S.ui.fq.liste.slice() }; rendre(); },
     quiMode: function (el) { var f = S.ui.feuille; f.qui = el.dataset.v; if (f.qui === 'liste' && !f.liste.length && moi()) f.liste = [moi()]; rendre(); },

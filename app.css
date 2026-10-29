@@ -1205,6 +1205,17 @@ details.avance h3 { margin-top: 18px; }
 .rangee-tirage { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100% !important; margin-bottom: 8px !important; }
 .rangee-tirage .bouton { display: flex !important; align-items: center !important; justify-content: center !important; height: 44px !important; min-height: 44px !important; }
 .bouton-accepter-plan { display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto 10px !important; width: 100% !important; max-width: 280px !important; height: 44px !important; min-height: 44px !important; font-weight: 700 !important; }
+.barre-plan-actions-flottante {
+  position: sticky;
+  bottom: calc(var(--haut-nav, 60px) + env(safe-area-inset-bottom, 0px));
+  background: var(--papier, #fff);
+  padding: 8px 10px;
+  z-index: 15;
+  border-top: 1px solid var(--trait, #e2e8f0);
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+  margin: 8px -10px 12px;
+  border-radius: var(--r, 8px);
+}
 
 /* 3.21.0 : filtre Qui / Quand (Bilan, Équipe) */
 .barre-qq { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 12px; }
