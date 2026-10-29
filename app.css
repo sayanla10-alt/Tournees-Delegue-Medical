@@ -1045,18 +1045,18 @@ details.avance h3 { margin-top: 18px; }
 .liste-gammes { margin-top: 4px; border: 1px solid var(--trait); border-radius: 14px; background: var(--papier); overflow: hidden; }
 .aire-titre { padding: 8px 14px 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--primaire); background: var(--fond); border-top: 1px solid var(--trait); }
 .aire-titre:first-child { border-top: 0; }
-.ligne-gamme { display: flex; align-items: center; gap: 10px; padding: 9px 12px 9px 14px; border-top: 1px solid var(--trait); }
+.ligne-gamme { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--trait); }
 .aire-titre + .ligne-gamme { border-top: 0; }
-.lg-tete { flex: 0 0 80px; min-width: 0; display: flex; flex-direction: column; }
-.lg-tete b { font-size: 15px; }
-.lg-tete small { font-size: 12px; color: var(--gris); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lg-produits { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-items: center; }
-.lg-produits.seul { display: flex; justify-content: flex-end; }
-.pastille-produit { min-height: 42px; height: 42px; padding: 0 12px; width: 100%; box-sizing: border-box; border-radius: 21px; border: 1.5px solid var(--primaire); background: var(--papier); color: var(--primaire); font-weight: 700; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-align: center; transition: all .15s ease; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lg-produits.seul .pastille-produit { width: auto; min-width: 110px; max-width: 180px; padding: 0 16px; }
-.pastille-produit.court { font-size: 14.5px; font-weight: 800; letter-spacing: .02em; }
-.pastille-produit.moyen { font-size: 13px; font-weight: 700; }
-.pastille-produit.long { font-size: 11.5px; font-weight: 700; padding: 0 6px; letter-spacing: -0.2px; }
+.lg-tete { flex: 0 0 76px; min-width: 0; display: flex; flex-direction: column; }
+.lg-tete b { font-size: 14px; line-height: 1.15; }
+.lg-tete small { font-size: 11.5px; color: var(--gris); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg-produits { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: center; }
+.lg-produits.seul { display: flex; justify-content: flex-end; width: 100%; }
+.pastille-produit { min-height: 35px; height: 35px; padding: 0 8px; width: 100%; box-sizing: border-box; border-radius: 9px; border: 1.5px solid var(--primaire); background: var(--papier); color: var(--primaire); font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-align: center; transition: all .15s ease; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-produits.seul .pastille-produit { width: 100%; min-width: 150px; max-width: 210px; padding: 0 14px; }
+.pastille-produit.court { font-size: 13.5px; font-weight: 800; letter-spacing: .02em; }
+.pastille-produit.moyen { font-size: 12.5px; font-weight: 700; }
+.pastille-produit.long { font-size: 11.5px; font-weight: 700; padding: 0 4px; letter-spacing: -0.2px; }
 .pastille-produit:active { transform: scale(.96); }
 .pastille-produit[aria-pressed="true"] { background: var(--primaire) !important; color: var(--sur-primaire) !important; border-color: var(--primaire) !important; box-shadow: 0 2px 6px rgba(11, 107, 116, .35) !important; }
 .pastille-produit[aria-pressed="true"]::before { content: "✓ "; font-weight: 800; margin-right: 4px; }
@@ -1479,17 +1479,19 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 /* Accordéon Gamme A / Gamme B (une seule ouverte à la fois) et Familles de produits par 2 par ligne */
 .gamme-cr-bloc { border: 1.5px solid var(--trait); border-radius: 12px; background: var(--fond); overflow: hidden; transition: border-color .2s ease; }
 .gamme-cr-bloc.ouverte { border-color: var(--primaire); background: var(--papier, #fff); }
-.gamme-cr-entete { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: var(--fond); }
+.gamme-cr-bloc.repliee { border-color: var(--trait); background: var(--fond); }
+.gamme-cr-entete { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 12px; background: var(--fond); }
+.gamme-cr-entete.gamme-compacte { padding: 6px 12px; min-height: 36px; }
 .gamme-cr-bloc.ouverte > .gamme-cr-entete { border-bottom: 1px solid var(--trait); background: var(--primaire-pale); }
-.gamme-cr-bascule { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: none; border: 0; padding: 2px 0; font: inherit; color: var(--encre); text-align: left; cursor: pointer; }
-.gamme-cr-bascule b { font-size: 14.5px; color: var(--primaire); }
+.gamme-cr-bascule { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: none; border: 0; padding: 0; font: inherit; color: var(--encre); text-align: left; cursor: pointer; }
+.gamme-cr-bascule b { font-size: 14px; color: var(--primaire); white-space: nowrap; }
 .gamme-cr-bascule small { font-size: 12px; color: var(--gris); font-weight: normal; margin-left: 4px; }
-.gamme-cr-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--gris); font-weight: 600; flex-shrink: 0; }
-.gamme-cr-meta svg { width: 16px; height: 16px; transition: transform .2s ease; }
+.gamme-cr-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--gris); font-weight: 600; flex-shrink: 0; }
+.gamme-cr-meta svg { width: 15px; height: 15px; transition: transform .2s ease; }
 .gamme-cr-bascule[aria-expanded="true"] .gamme-cr-meta svg { transform: rotate(180deg); }
 
-.liste-gammes-cr { border: 1px solid var(--trait); border-radius: 12px; background: var(--papier, #fff); overflow: hidden; margin: 4px 0 2px; }
-.liste-gammes-cr .ligne-gamme { padding: 10px 14px; }
+.liste-gammes-cr { border: 1px solid var(--trait); border-radius: 12px; background: var(--papier, #fff); overflow: hidden; margin: 3px 0; }
+.liste-gammes-cr .ligne-gamme { padding: 8px 10px; }
 .liste-gammes-cr .ligne-gamme:first-child { border-top: 0; }
 .grille-gamme-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 8px; background: var(--fond, #f8fafb); }
 @media (max-width: 330px) { .grille-gamme-2 { grid-template-columns: 1fr; } }

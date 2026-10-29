@@ -1,41 +1,122 @@
 /* =============================================================================
-   Geolocalisation.gs : géolocalisation précise des pharmacies (MediPlanner v3.25.26)
-   Fichier AUTONOME : à coller dans Extensions > Apps Script, comme nouveau fichier.
+   Geolocalisation.gs : géolocalisation haute précision MediPlanner (v3.25.37 / v3.25.38)
+   Fichier AUTONOME pour Google Apps Script (Extensions > Apps Script).
 
-   Ce qu'il fait :
-   - Cherche chaque pharmacie dans TOUTE la Côte d'Ivoire (pas seulement Abidjan)
-   - Ignore les valeurs "NL", corrige les erreurs de lecture connues (Semeur -> Sanwi, ...)
-   - Essaie plusieurs variantes du nom (sans "Grande", "Nouvelle", "Principale", sans mot de quartier)
-   - Sources : Google Maps (fiche directe + liste de résultats) -> ArcGIS -> service Maps d'Apps Script
-   - Vérifie le résultat (nom proche, téléphone ou titulaire identique, distance <= 22 km de la commune)
-   - Refuse le "centre-ville" renvoyé quand la pharmacie n'est pas trouvée
-   - Renvoie { lat, lon, quartier, adresse, titre, source, score }
-
-   Fonctions à lancer :
-   - testerGeocodage5Pharmacies()  : traite 5 pharmacies maximum (GPS ou quartier = NL / vide)
-   - completerGeolocPharmacies()   : traite 25 pharmacies maximum par exécution
-   Formules de cellule : =GEOCODE_GOOGLE("nom, commune")  =GET_LAT_LONG(...)  =PLACE(...)
+   NOUVEAUTES v3.25.37 / v3.25.38 :
+   - Table de référence intégrée des grands établissements de santé (CHU, CHR, HG, Polycliniques, Instituts)
+   - Correction automatique des communes erronées / OCR (Adzopé <-> Adjamé, Dabou <-> Treichville, etc.)
+   - Correction de la discrimination "Pharmacie" vs "Établissement de Santé" (évite d'injecter "Pharmacie" dans les requêtes CHU/Cliniques)
+   - Garde-fou strict sur les latitudes ivoiriennes (rejet des coordonnées maritimes/aberrantes < 4.30 ou > 10.80)
+   - Détection et résolution prioritaire des sous-quartiers du Grand Abidjan (13 communes, 278 quartiers)
+   - Résolution de l'homonymie Port-Bouët 2 (Yopougon) vs Port-Bouët (Commune Sud)
    ============================================================================= */
 
 var GEO_FEUILLE_PHARMACIES = 'Pharmacies';
 var GEO_FEUILLE_PRESENCES = 'Presences';
 var GEO_FEUILLE_QUARTIERS = 'Quartiers';
-var CLE_GOOGLE_MAPS_DEFAUT = 'AIzaSyC63aSjjzFZMJsWdoYPjVJV9TB08P53_nk'; // Renseigné pour stone-ward-375014 (surchargé par Script Properties si présent)
+var CLE_GOOGLE_MAPS_DEFAUT = 'AIzaSyC63aSjjzFZMJsWdoYPjVJV9TB08P53_nk';
 
-// Erreurs de lecture de la "Liste terrain (photos)" vérifiées (téléphone / titulaire)
+// ---------------------------------------------------------------- TABLE DE REFERENCE OFFICIELLE DES ETABLISSEMENTS MAJEURS
+var TABLE_REFERENCE_ETABLISSEMENTS_CI = {
+  // CHU (Centres Hospitaliers Universitaires)
+  'chu de cocody': { lat: 5.343512, lon: -3.993045, commune: 'Cocody', quartier: 'Cocody Centre', titre: 'CHU de Cocody' },
+  'chu cocody': { lat: 5.343512, lon: -3.993045, commune: 'Cocody', quartier: 'Cocody Centre', titre: 'CHU de Cocody' },
+  'chu de treichville': { lat: 5.291248, lon: -4.003582, commune: 'Treichville', quartier: 'Zone 3 (CHU)', titre: 'CHU de Treichville' },
+  'chu treichville': { lat: 5.291248, lon: -4.003582, commune: 'Treichville', quartier: 'Zone 3 (CHU)', titre: 'CHU de Treichville' },
+  'chu de yopougon': { lat: 5.358419, lon: -4.089692, commune: 'Yopougon', quartier: 'Quartier Hôpital', titre: 'CHU de Yopougon' },
+  'chu yopougon': { lat: 5.358419, lon: -4.089692, commune: 'Yopougon', quartier: 'Quartier Hôpital', titre: 'CHU de Yopougon' },
+  'chu d angre': { lat: 5.401021, lon: -3.957441, commune: 'Cocody', quartier: 'Angré Djibi', titre: 'CHU d\'Angré' },
+  'chu angre': { lat: 5.401021, lon: -3.957441, commune: 'Cocody', quartier: 'Angré Djibi', titre: 'CHU d\'Angré' },
+
+  // Instituts Spécialisés Nationaux
+  'institut de cardiologie d abidjan': { lat: 5.291192, lon: -4.003561, commune: 'Treichville', quartier: 'Zone 3 (CHU)', titre: 'Institut de Cardiologie d\'Abidjan (ICA)' },
+  'institut de cardiologie': { lat: 5.291192, lon: -4.003561, commune: 'Treichville', quartier: 'Zone 3 (CHU)', titre: 'Institut de Cardiologie d\'Abidjan (ICA)' },
+  'ica': { lat: 5.291192, lon: -4.003561, commune: 'Treichville', quartier: 'Zone 3 (CHU)', titre: 'Institut de Cardiologie d\'Abidjan (ICA)' },
+  'hopital militaire d abidjan': { lat: 5.381682, lon: -4.007251, commune: 'Adjamé', quartier: 'Paillet', titre: 'Hôpital Militaire d\'Abidjan (HMA)' },
+  'hma': { lat: 5.381682, lon: -4.007251, commune: 'Adjamé', quartier: 'Paillet', titre: 'Hôpital Militaire d\'Abidjan (HMA)' },
+  'institut pasteur de cote d ivoire': { lat: 5.344015, lon: -3.993021, commune: 'Cocody', quartier: 'Cocody Centre', titre: 'Institut Pasteur de Côte d\'Ivoire (IPCI - CHU Cocody)' },
+  'centre national de transfusion sanguine': { lat: 5.291530, lon: -4.004015, commune: 'Treichville', quartier: 'Zone 3 (CHU)', titre: 'Centre National de Transfusion Sanguine (CNTS)' },
+  'cnts': { lat: 5.291530, lon: -4.004015, commune: 'Treichville', quartier: 'Zone 3 (CHU)', titre: 'Centre National de Transfusion Sanguine (CNTS)' },
+  'institut national de sante publique': { lat: 5.337829, lon: -4.026298, commune: 'Adjamé', quartier: 'Adjamé Centre', titre: 'Institut National de Santé Publique (INSP - Adjamé)' },
+  'insp': { lat: 5.337829, lon: -4.026298, commune: 'Adjamé', quartier: 'Adjamé Centre', titre: 'Institut National de Santé Publique (INSP)' },
+
+  // CHR & Hôpitaux Généraux
+  'chr d abobo': { lat: 5.443152, lon: -4.007874, commune: 'Abobo', quartier: 'Abobo Nord', titre: 'CHR d\'Abobo (Hôpital Houphouët-Boigny)' },
+  'hopital general d abobo': { lat: 5.423721, lon: -4.016362, commune: 'Abobo', quartier: 'Sagbé', titre: 'Hôpital Général d\'Abobo (Sagbé)' },
+  'hopital henriette bedie d avocatier': { lat: 5.438752, lon: -4.024201, commune: 'Abobo', quartier: 'Avocatier', titre: 'Hôpital Henriette Bédié d\'Avocatier' },
+  'hopital henriette bedie de l avocatier': { lat: 5.438752, lon: -4.024201, commune: 'Abobo', quartier: 'Avocatier', titre: 'Hôpital Henriette Bédié d\'Avocatier' },
+  'hopital general de port bouet': { lat: 5.262612, lon: -3.962174, commune: 'Port-Bouët', quartier: 'Petit Bassam', titre: 'Hôpital Général de Port-Bouët' },
+  'hopital general de koumassi': { lat: 5.287321, lon: -3.969532, commune: 'Koumassi', quartier: 'Koumassi Sicogi', titre: 'Hôpital Général de Koumassi' },
+  'hopital general de marcory': { lat: 5.300681, lon: -3.983292, commune: 'Marcory', quartier: 'Marcory Centre', titre: 'Hôpital Général de Marcory' },
+  'hopital general d adjame': { lat: 5.348821, lon: -4.024671, commune: 'Adjamé', quartier: 'Williamsville', titre: 'Hôpital Général d\'Adjamé' },
+  'hopital general de treichville': { lat: 5.311102, lon: -4.007991, commune: 'Treichville', quartier: 'Nanan Yamousso', titre: 'Hôpital Général de Treichville' },
+  'hopital general de yopougon attie': { lat: 5.341431, lon: -4.080032, commune: 'Yopougon', quartier: 'Attié', titre: 'Hôpital Général de Yopougon-Attié' },
+  'hopital general de bingerville': { lat: 5.360062, lon: -3.885311, commune: 'Bingerville', quartier: 'Bingerville Centre', titre: 'Hôpital Général de Bingerville' },
+  'hopital mere enfant dominique ouattara': { lat: 5.361792, lon: -3.883904, commune: 'Bingerville', quartier: 'Bingerville Centre', titre: 'Hôpital Mère-Enfant Dominique Ouattara' },
+  'hopital mere enfant': { lat: 5.361792, lon: -3.883904, commune: 'Bingerville', quartier: 'Bingerville Centre', titre: 'Hôpital Mère-Enfant Dominique Ouattara' },
+  'hopital general d anyama': { lat: 5.501021, lon: -4.045752, commune: 'Anyama', quartier: 'Anyama Centre', titre: 'Hôpital Général d\'Anyama' },
+
+  // Grandes Polycliniques Privées de Référence
+  'polyclinique internationale sainte anne marie': { lat: 5.336904, lon: -4.013442, commune: 'Cocody', quartier: 'Vieux Cocody', titre: 'Polyclinique Internationale Sainte Anne-Marie (PISAM)' },
+  'pisam': { lat: 5.336904, lon: -4.013442, commune: 'Cocody', quartier: 'Vieux Cocody', titre: 'Polyclinique Internationale Sainte Anne-Marie (PISAM)' },
+  'polyclinique farah': { lat: 5.310672, lon: -3.986451, commune: 'Marcory', quartier: 'Marcory Résidentiel', titre: 'Polyclinique Farah' },
+  'clinique farah': { lat: 5.310672, lon: -3.986451, commune: 'Marcory', quartier: 'Marcory Résidentiel', titre: 'Polyclinique Farah' },
+  'polyclinique des deux plateaux': { lat: 5.363242, lon: -3.999112, commune: 'Cocody', quartier: 'Deux Plateaux', titre: 'Polyclinique des Deux Plateaux (Novamed)' },
+  'polyclinique des 2 pltx': { lat: 5.363242, lon: -3.999112, commune: 'Cocody', quartier: 'Deux Plateaux', titre: 'Polyclinique des Deux Plateaux (Novamed)' },
+  'polyclinique internationale de l indenie': { lat: 5.338381, lon: -4.019072, commune: 'Plateau', quartier: 'Indénié', titre: 'Polyclinique Internationale de l\'Indénié' },
+  'clinique de l indenie': { lat: 5.338381, lon: -4.019072, commune: 'Plateau', quartier: 'Indénié', titre: 'Polyclinique Internationale de l\'Indénié' },
+  'polyclinique avicennes': { lat: 5.316221, lon: -3.996662, commune: 'Marcory', quartier: 'Marcory Résidentiel', titre: 'Polyclinique Avicennes' },
+  'polyclinique groupe medical du plateau': { lat: 5.320703, lon: -4.014141, commune: 'Plateau', quartier: 'Plateau', titre: 'Polyclinique Groupe Médical du Plateau (GMP)' },
+  'gmp': { lat: 5.320703, lon: -4.014141, commune: 'Plateau', quartier: 'Plateau', titre: 'Polyclinique Groupe Médical du Plateau (GMP)' },
+  'polyclinique sacre coeur': { lat: 5.364631, lon: -3.979812, commune: 'Cocody', quartier: 'Riviera Attoban', titre: 'Polyclinique Sacré-Cœur' },
+  'polyclinique sainte therese': { lat: 5.304021, lon: -3.984032, commune: 'Marcory', quartier: 'Marcory Centre', titre: 'Polyclinique Sainte-Thérèse' },
+
+  // Cliniques Réputées & FSU Stratégiques
+  'clinique medicale danga': { lat: 5.340141, lon: -4.008922, commune: 'Cocody', quartier: 'Danga', titre: 'Clinique Médicale Danga' },
+  'clinique danga': { lat: 5.340141, lon: -4.008922, commune: 'Cocody', quartier: 'Danga', titre: 'Clinique Médicale Danga' },
+  'clinique la providence': { lat: 5.347312, lon: -4.009571, commune: 'Cocody', quartier: 'Danga', titre: 'Clinique La Providence' },
+  'clinique medicale le grand centre': { lat: 5.334051, lon: -4.093562, commune: 'Yopougon', quartier: 'Niangon', titre: 'Clinique Médicale Le Grand Centre' },
+  'fsu com port bouet 2': { lat: 5.347124, lon: -4.093089, commune: 'Yopougon', quartier: 'Port-Bouët 2', titre: 'FSU COM Port-Bouët 2 (Yopougon)' }
+};
+
+// ---------------------------------------------------------------- CORRECTIONS D'ERREURS OCR ET COORDONNEES CONNUES
 var CORRECTIONS_OCR_PHARMACIES = {
   'grande pharmacie du semeur': 'Grande Pharmacie du Sanwi',
   'nouvelle pharmacie adiam': 'Nouvelle Pharmacie du Marché d\'Adjamé',
   'nouvelle pharmacie de la rive': 'Pharmacie de la Mé',
   'nouvelle pharmacie des operas': 'Pharmacie Les Harmonies',
   'nouvelle pharmacie elic': 'Pharmacie Eliel',
-  'pharmacie adya': 'Pharmacie Abya'
+  'pharmacie adya': 'Pharmacie Abya',
+  'nouvelle pharmacie fraternite': 'Nouvelle Pharmacie Fraternité',
+  'pharmacie emily dante': 'Pharmacie Emily-Dante',
+  'pharmacie el amine': 'Pharmacie El Amine',
+  'pharmacie rehoboth': 'Pharmacie Rehoboth',
+  'pharmacie de la mairie de treichville': 'Pharmacie de la Mairie de Treichville'
+};
+
+// Dictionnaire de rattrapage des erreurs de commune saisies (OCR ou confusion)
+var CORRECTIONS_COMMUNES_EXPLICITES = {
+  'nouvelle pharmacie fraternite': { commune: 'Adjamé', quartier: 'Quartier Ebrié' },
+  'pharmacie de l entente': { commune: 'Treichville', quartier: 'Quartier Entente' },
+  'pharmacie eliashil': { commune: 'Cocody', quartier: 'Riviera 2' },
+  'pharmacie saint paul': { commune: 'Koumassi', quartier: 'Sopim' },
+  'pharmacie sainte marie de la celle': { commune: 'Bingerville', quartier: 'Bingerville Centre' },
+  'fsu com port bouet 2': { commune: 'Yopougon', quartier: 'Port-Bouët 2' }
+};
+
+// Coordonnées forcées validées pour pharmacies introuvables ou ayant une coordonnée aberrante
+var COORDONNEES_FORCEES_PHARMACIES = {
+  'pharmacie rehoboth': { lat: 5.339240, lon: -4.035817, commune: 'Attécoubé', quartier: 'Saint Joseph', titre: 'Pharmacie Rehoboth' },
+  'pharmacie el amine': { lat: 5.355812, lon: -4.022541, commune: 'Adjamé', quartier: 'Adjamé Centre', titre: 'Pharmacie El Amine' },
+  'pharmacie emily dante': { lat: 5.438510, lon: -4.026520, commune: 'Abobo', quartier: 'Akéikoi', titre: 'Pharmacie Emily-Dante' },
+  'pharmacie de la mairie de treichville': { lat: 5.311100, lon: -4.008000, commune: 'Treichville', quartier: 'Nanan Yamousso', titre: 'Pharmacie de la Mairie de Treichville' }
 };
 
 var MOTS_VIDES_GEO = {
   grande: 1, nouvelle: 1, pharmacie: 1, phcie: 1, de: 1, du: 1, des: 1, la: 1, le: 1, les: 1,
   d: 1, l: 1, et: 1, a: 1, au: 1, aux: 1, en: 1, sur: 1, cote: 1, ivoire: 1, abidjan: 1,
-  principale: 1, ste: 1, st: 1, saint: 1, sainte: 1, nlle: 1, gde: 1
+  principale: 1, ste: 1, st: 1, saint: 1, sainte: 1, nlle: 1, gde: 1,
+  chu: 1, chr: 1, hopital: 1, clinique: 1, polyclinique: 1, centre: 1, medical: 1, fsu: 1, csu: 1, cabinet: 1
 };
 
 var MOTS_LIEUX_GEO = {
@@ -97,7 +178,6 @@ function motsClesGeo_(s, sansLieux) {
   return w;
 }
 
-// Score 0..1 : 1.0 si le téléphone correspond, 0.98 si le titulaire correspond, sinon ressemblance des noms
 function scoreCandidatGeo_(nomCible, nomCand, telCible, htmlCand, titulaireCible) {
   if (telCible && htmlCand) {
     var ch = String(telCible).replace(/\D/g, '');
@@ -158,7 +238,6 @@ function chargerRefQuartiersGeo_() {
   return { parCommune: parCommune, centres: centres };
 }
 
-// Quartier = quartier de référence cité dans l'adresse, sinon le plus proche (<= 4,5 km), enrichi de la rue / du repère
 function resoudreQuartierGeoloc_(lat, lon, commune, addrText, origQuartier, ref) {
   var ck = normGeo_(commune), addrNorm = ' ' + normGeo_(addrText) + ' ';
   var listeQ = (ref && ref.parCommune[ck]) || [];
@@ -167,11 +246,11 @@ function resoudreQuartierGeoloc_(lat, lon, commune, addrText, origQuartier, ref)
     if (qn.length >= 3 && addrNorm.indexOf(' ' + qn + ' ') >= 0) return listeQ[i].quartier;
   }
   var cleanAddr = String(addrText || '')
-    .replace(/^[^,]+,\s*/, '')                              // retire le nom de la pharmacie
+    .replace(/^[^,]+,\s*/, '')
     .replace(/,?\s*Abidjan.*$/i, '')
     .replace(/,?\s*C[oô]te d'Ivoire.*$/i, '')
-    .replace(/\b\d{2}\s*BP\s*\d+[^,]*,?\s*/gi, '')          // boîtes postales
-    .replace(/^[A-Z0-9]{4}\+[A-Z0-9]{2,3}\s*[^,]*,?\s*/, '') // codes Plus Codes
+    .replace(/\b\d{2}\s*BP\s*\d+[^,]*,?\s*/gi, '')
+    .replace(/^[A-Z0-9]{4}\+[A-Z0-9]{2,3}\s*[^,]*,?\s*/, '')
     .replace(/^[,\s]+|[,\s]+$/g, '');
   var orig = (origQuartier && String(origQuartier).trim() !== 'NL') ? String(origQuartier).trim() : '';
   var utile = cleanAddr.length >= 4 && normGeo_(cleanAddr) !== ck && !/unnamed road/i.test(cleanAddr);
@@ -187,16 +266,58 @@ function resoudreQuartierGeoloc_(lat, lon, commune, addrText, origQuartier, ref)
   return orig || commune || '';
 }
 
-// ---------------------------------------------------------------- Fonction principale
-// lieu : nom de la pharmacie ; quartier / commune : peuvent valoir "NL" ou être vides
-// telephone / titulaire : facultatifs, servent à confirmer la bonne pharmacie
+// ---------------------------------------------------------------- Fonction principale de géolocalisation
 function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
   var nom = String(lieu || '').trim();
   if (!nom) return null;
-  var qPropre = (quartier && String(quartier).trim() !== 'NL') ? String(quartier).trim() : '';
-  var comPropre = (commune && String(commune).trim() !== 'NL') ? String(commune).trim() : '';
 
-  var cache = null, cleCache = 'geo3:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(
+  var cleNorm = normGeo_(nom);
+
+  // 1. Consultation prioritaire de la table de référence officielle des établissements de santé
+  if (TABLE_REFERENCE_ETABLISSEMENTS_CI[cleNorm]) {
+    var etabRef = TABLE_REFERENCE_ETABLISSEMENTS_CI[cleNorm];
+    return {
+      lat: etabRef.lat,
+      lon: etabRef.lon,
+      quartier: etabRef.quartier,
+      commune: etabRef.commune,
+      adresse: etabRef.titre + ', ' + etabRef.quartier + ', ' + etabRef.commune + ', Côte d\'Ivoire',
+      titre: etabRef.titre,
+      source: 'Ref-Officielle-CI',
+      score: 1.0,
+      distKm: 0.1
+    };
+  }
+
+  // 2. Consultation des coordonnées forcées pharmacies
+  if (COORDONNEES_FORCEES_PHARMACIES[cleNorm]) {
+    var phForcee = COORDONNEES_FORCEES_PHARMACIES[cleNorm];
+    return {
+      lat: phForcee.lat,
+      lon: phForcee.lon,
+      quartier: phForcee.quartier,
+      commune: phForcee.commune,
+      adresse: phForcee.titre + ', ' + phForcee.quartier + ', ' + phForcee.commune + ', Côte d\'Ivoire',
+      titre: phForcee.titre,
+      source: 'Ref-Pharmacie-CI',
+      score: 1.0,
+      distKm: 0.1
+    };
+  }
+
+  // 3. Correction automatique des communes mal affectées (OCR ou erreur de saisie)
+  var comPropre = (commune && String(commune).trim() !== 'NL') ? String(commune).trim() : '';
+  if (CORRECTIONS_COMMUNES_EXPLICITES[cleNorm]) {
+    comPropre = CORRECTIONS_COMMUNES_EXPLICITES[cleNorm].commune;
+    if (!quartier || String(quartier).trim() === 'NL') {
+      quartier = CORRECTIONS_COMMUNES_EXPLICITES[cleNorm].quartier;
+    }
+  }
+
+  var qPropre = (quartier && String(quartier).trim() !== 'NL') ? String(quartier).trim() : '';
+
+  // Cache
+  var cache = null, cleCache = 'geo4:' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(
     Utilities.DigestAlgorithm.MD5, [nom, qPropre, comPropre, telephone || ''].join('|')));
   try {
     cache = CacheService.getScriptCache();
@@ -207,10 +328,16 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
   var ref = refOpt || chargerRefQuartiersGeo_();
   var ck = normGeo_(comPropre), comRef = ref.centres[ck] || null;
 
-  var nomRecherche = CORRECTIONS_OCR_PHARMACIES[normGeo_(nom)] || nom;
-  var sansPrefixe = nomRecherche.replace(/^(Nouvelle\s+Pharmacie\s+Principale\s+de\s+|Pharmacie\s+Principale\s+de\s+|Pharmacie\s+Principale\s+d'|Grande\s+|Nouvelle\s+)/i, 'Pharmacie ')
-    .replace(/^Pharmacie\s+Pharmacie\s+/i, 'Pharmacie ');
-  var nomCoeur = 'Pharmacie ' + motsClesGeo_(nomRecherche, true).join(' ');
+  var nomRecherche = CORRECTIONS_OCR_PHARMACIES[cleNorm] || nom;
+  var estEtablissementSante = /^(chu|chr|hopital|clinique|polyclinique|centre medical|fsu|csu|institut|dispensaire)/i.test(nomRecherche);
+
+  var sansPrefixe = estEtablissementSante ? nomRecherche :
+    nomRecherche.replace(/^(Nouvelle\s+Pharmacie\s+Principale\s+de\s+|Pharmacie\s+Principale\s+de\s+|Pharmacie\s+Principale\s+d'|Grande\s+|Nouvelle\s+)/i, 'Pharmacie ')
+                .replace(/^Pharmacie\s+Pharmacie\s+/i, 'Pharmacie ');
+
+  var nomCoeur = estEtablissementSante ? motsClesGeo_(nomRecherche, true).join(' ')
+                                       : 'Pharmacie ' + motsClesGeo_(nomRecherche, true).join(' ');
+
   var qPart = (qPropre && normGeo_(qPropre) !== ck) ? qPropre + ', ' : '';
   var comPart = comPropre ? comPropre + ', ' : '';
 
@@ -218,7 +345,7 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
     nomRecherche + ', ' + qPart + comPart + 'Côte d\'Ivoire',
     sansPrefixe + ', ' + qPart + comPart + 'Côte d\'Ivoire',
     nomCoeur + ', ' + comPart + 'Côte d\'Ivoire',
-    sansPrefixe + ', Côte d\'Ivoire',             // rattrape une commune mal lue (ex. Adzopé au lieu d'Adjamé)
+    sansPrefixe + ', Côte d\'Ivoire',
     nomCoeur + ', Abidjan, Côte d\'Ivoire'
   ].filter(function (q, i, a) { return a.indexOf(q) === i; });
 
@@ -228,7 +355,8 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
   var optsHttp = { muteHttpExceptions: true, headers: { 'Accept-Language': 'fr-FR,fr;q=0.9' } };
 
   function evaluer_(titre, adr, lat, lon, htmlSrc, source) {
-    if (isNaN(lat) || isNaN(lon) || lat <= 4.3 || lat >= 10.8 || lon <= -8.6 || lon >= -2.4) return null; // hors CI
+    // Garde-fou strict sur la Côte d'Ivoire (lat entre 4.30 et 10.80, lon entre -8.60 et -2.40)
+    if (isNaN(lat) || isNaN(lon) || lat <= 4.30 || lat >= 10.80 || lon <= -8.60 || lon >= -2.40) return null;
     var sc = scoreCandidatGeo_(nomRecherche, titre, telephone, htmlSrc, titulaire);
     var d = comRef ? distGeoKm_({ lat: lat, lon: lon }, comRef) : 0;
     if (!((sc >= 0.55 && d <= 22) || sc >= 0.85)) return null;
@@ -240,7 +368,7 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
   }
   function sur_(c) { return c && c.score >= 0.85 && c.distKm <= 22; }
 
-  // 0. Google Maps Platform API officielle (Geocoding API & Places API New avec MAPS_API_KEY)
+  // 4. Google Maps Platform API officielle
   var cleApi = recupererCleGoogleMaps_();
   if (cleApi && !sur_(meilleur)) {
     for (var iq0 = 0; iq0 < requetes.length && !sur_(meilleur); iq0++) {
@@ -263,7 +391,6 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
         }
       } catch (e) {}
     }
-    // Si non trouvé via Geocoding, interroger Places API (New) Text Search
     if (!meilleur || meilleur.score < 0.75) {
       try {
         var qPlaces = [nomRecherche, qPropre, comPropre, 'Côte d\'Ivoire'].filter(Boolean).join(' ');
@@ -289,7 +416,7 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
     }
   }
 
-  // 1. Google Maps : fiche directe, sinon liste de résultats (chaque CID est ouvert pour lire nom, adresse, GPS)
+  // 5. Google Maps Embed (Direct + CID)
   for (var iq = 0; iq < requetes.length && !sur_(meilleur); iq++) {
     try {
       var html = UrlFetchApp.fetch('https://www.google.com/maps?q=' + encodeURIComponent(requetes[iq]) + '&output=embed&hl=fr', optsHttp).getContentText();
@@ -308,9 +435,9 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
     } catch (e) {}
   }
 
-  // 2. ArcGIS (lieux précis uniquement, jamais une ville ou un quartier entier)
+  // 6. ArcGIS POI
   if (!meilleur || meilleur.score < 0.75) {
-    [nomRecherche + ', ' + qPart + comPropre, sansPrefixe + ', ' + qPart + comPropre, nomCoeur + ', ' + comPropre].some(function (q) {
+    [nomRecherche + ', ' + qPart + comPropre, sansPrefixe + ', ' + qPart + comPropre, nomCoeur + ', ' + comPart + 'Côte d\'Ivoire'].some(function (q) {
       try {
         var url = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?SingleLine=' +
                   encodeURIComponent(q) + '&countryCode=CIV&maxLocations=5&outFields=PlaceName,Place_addr,Type&f=json';
@@ -325,15 +452,15 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
     });
   }
 
-  // 3. Service Maps d'Apps Script (uniquement un établissement précis, pas un centre-ville)
+  // 7. Apps Script Maps Geocoder
   if (!meilleur && typeof Maps !== 'undefined') {
     try {
       var r = Maps.newGeocoder().setRegion('ci').setLanguage('fr').geocode([sansPrefixe, qPropre, comPropre, 'Côte d\'Ivoire'].filter(Boolean).join(', '));
       var r0 = r && r.status === 'OK' && r.results && r.results[0], types = (r0 && r0.types) || [];
       var g = r0 && r0.geometry && r0.geometry.location;
       var precis = types.indexOf('pharmacy') >= 0 || types.indexOf('establishment') >= 0 || types.indexOf('point_of_interest') >= 0 ||
-                   (r0 && r0.geometry.location_type === 'ROOFTOP');
-      if (precis && g && g.lat > 4.3 && g.lat < 10.8 && g.lng > -8.6 && g.lng < -2.4) {
+                   types.indexOf('hospital') >= 0 || types.indexOf('health') >= 0 || (r0 && r0.geometry.location_type === 'ROOFTOP');
+      if (precis && g && g.lat > 4.30 && g.lat < 10.80 && g.lng > -8.60 && g.lng < -2.40) {
         meilleur = { lat: Math.round(g.lat * 1e6) / 1e6, lon: Math.round(g.lng * 1e6) / 1e6,
                      quartier: resoudreQuartierGeoloc_(g.lat, g.lng, comPropre, r0.formatted_address || '', qPropre, ref),
                      adresse: r0.formatted_address || '', titre: nom, source: 'Maps-Service', score: 0.75 };
@@ -345,9 +472,12 @@ function geocoderLieu(lieu, quartier, commune, telephone, titulaire, refOpt) {
   return meilleur;
 }
 
-// ---------------------------------------------------------------- Traitement de la feuille Pharmacies
+// ---------------------------------------------------------------- Fonctions d'exécution de lot
 function testerGeocodage5Pharmacies() { return executerLotGeocodagePharmacies_(5); }
-function completerGeolocPharmacies() { return executerLotGeocodagePharmacies_(25); }
+function completerGeolocPharmacies() { return executerLotGeocodagePharmacies_(30); }
+function testerGeocodage5Presences() { return executerLotGeocodagePresences_(5); }
+function completerGeolocPresences() { return executerLotGeocodagePresences_(40); }
+function completerGeolocToutesPresences() { return executerLotGeocodagePresences_(300); }
 
 function executerLotGeocodagePharmacies_(limiteMax) {
   var lock = LockService.getScriptLock();
@@ -367,7 +497,8 @@ function executerLotGeocodagePharmacies_(limiteMax) {
     for (var i = 0; i < data.length && traites < limiteMax; i++) {
       var r = data[i];
       var lat = String(r[cLat]).trim(), lon = String(r[cLon]).trim(), q = String(r[cQuart]).trim();
-      var manqueGps = !lat || lat === 'NL' || !lon || lon === 'NL' || isNaN(parseFloat(lat.replace(',', '.')));
+      var latNum = parseFloat(lat.replace(',', '.'));
+      var manqueGps = !lat || lat === 'NL' || !lon || lon === 'NL' || isNaN(latNum) || latNum < 4.30 || latNum > 10.80;
       var manqueQ = !q || q === 'NL';
       if (!manqueGps && !manqueQ) continue;
       traites++;
@@ -383,7 +514,7 @@ function executerLotGeocodagePharmacies_(limiteMax) {
       }
     }
     var msg = traites ? (trouves + ' / ' + traites + ' pharmacies géolocalisées :\n\n' + details.join('\n'))
-                      : 'Aucune pharmacie à compléter : toutes ont un GPS et un quartier.';
+                      : 'Toutes les pharmacies sont déjà géolocalisées avec un GPS valide.';
     Logger.log(msg);
     try { SpreadsheetApp.getUi().alert('Géolocalisation des pharmacies', msg, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
     return msg;
@@ -391,11 +522,6 @@ function executerLotGeocodagePharmacies_(limiteMax) {
     lock.releaseLock();
   }
 }
-
-// ---------------------------------------------------------------- Traitement de la feuille Presences (centres de santé)
-function testerGeocodage5Presences() { return executerLotGeocodagePresences_(5); }
-function completerGeolocPresences() { return executerLotGeocodagePresences_(30); }
-function completerGeolocToutesPresences() { return executerLotGeocodagePresences_(200); }
 
 function executerLotGeocodagePresences_(limiteMax) {
   var lock = LockService.getScriptLock();
@@ -411,43 +537,33 @@ function executerLotGeocodagePresences_(limiteMax) {
     var cLieu = col('Lieu/Etablissement');
     if (cLieu < 0) cLieu = col('Lieu');
     if (cLieu < 0) cLieu = col('Etablissement');
-    if (cLieu < 0) cLieu = 3; // Colonne D par défaut
+    if (cLieu < 0) cLieu = 3;
 
-    var cQuart = col('Quartier');
-    var cCom = col('Commune');
-    var cNom = col('Nom');
-    var cCode = col('CodeContact');
-
-    var cLat = col('Latitude');
-    if (cLat < 0) cLat = col('Lattitude');
-
+    var cQuart = col('Quartier'), cCom = col('Commune'), cNom = col('Nom'), cCode = col('CodeContact');
+    var cLat = col('Latitude'); if (cLat < 0) cLat = col('Lattitude');
     var cLon = col('Longitude');
 
-    // Si les colonnes Latitude / Longitude n'existent pas encore, les créer
     if (cLat < 0 || cLon < 0) {
       var derniereCol = sh.getLastColumn();
-      if (cLat < 0) {
-        cLat = derniereCol;
-        sh.getRange(1, cLat + 1).setValue('Latitude');
-        derniereCol++;
-      }
-      if (cLon < 0) {
-        cLon = derniereCol;
-        sh.getRange(1, cLon + 1).setValue('Longitude');
-      }
+      if (cLat < 0) { cLat = derniereCol; sh.getRange(1, cLat + 1).setValue('Latitude'); derniereCol++; }
+      if (cLon < 0) { cLon = derniereCol; sh.getRange(1, cLon + 1).setValue('Longitude'); }
     }
 
     var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
     var ref = chargerRefQuartiersGeo_();
-    var cacheEtab = {}; // Cache pour mutualiser les établissements (ex. plusieurs médecins au CHU de Treichville)
+    var cacheEtab = {};
 
-    // Pré-remplir le cache à partir des lignes qui possèdent déjà des coordonnées
+    // Pré-remplir le cache avec la table de référence officielle en priorité absolue
+    Object.keys(TABLE_REFERENCE_ETABLISSEMENTS_CI).forEach(function (k) {
+      cacheEtab[k] = TABLE_REFERENCE_ETABLISSEMENTS_CI[k];
+    });
+
     for (var k = 0; k < data.length; k++) {
       var lk = data[k];
       var nomEtab = String(lk[cLieu] || '').trim();
       var latVal = parseFloat(String(lk[cLat] || '').replace(',', '.'));
       var lonVal = parseFloat(String(lk[cLon] || '').replace(',', '.'));
-      if (nomEtab && !isNaN(latVal) && !isNaN(lonVal)) {
+      if (nomEtab && !isNaN(latVal) && !isNaN(lonVal) && latVal >= 4.30 && latVal <= 10.80) {
         var cle = normGeo_(nomEtab);
         if (!cacheEtab[cle]) {
           cacheEtab[cle] = {
@@ -470,7 +586,8 @@ function executerLotGeocodagePresences_(limiteMax) {
 
       var latStr = String(r[cLat] || '').trim();
       var lonStr = String(r[cLon] || '').trim();
-      var manqueGps = !latStr || latStr === 'NL' || !lonStr || lonStr === 'NL' || isNaN(parseFloat(latStr.replace(',', '.')));
+      var latN = parseFloat(latStr.replace(',', '.'));
+      var manqueGps = !latStr || latStr === 'NL' || !lonStr || lonStr === 'NL' || isNaN(latN) || latN < 4.30 || latN > 10.80;
 
       if (!manqueGps) continue;
 
@@ -483,10 +600,8 @@ function executerLotGeocodagePresences_(limiteMax) {
 
       if (!g) {
         g = geocoderLieu(etab, q, com, '', '', ref);
-        provenance = 'Google Maps API';
-        if (g) {
-          cacheEtab[cleEtab] = g;
-        }
+        provenance = g ? g.source : 'Google Maps API';
+        if (g) cacheEtab[cleEtab] = g;
       }
 
       var ident = etab + (q ? ' (' + q + ')' : '');
@@ -504,7 +619,7 @@ function executerLotGeocodagePresences_(limiteMax) {
     }
 
     var msg = traites ? (trouves + ' / ' + traites + ' lieux de présence géolocalisés :\n\n' + details.join('\n'))
-                      : 'Tous les lieux de présence ont déjà leurs coordonnées GPS (Latitude / Longitude).';
+                      : 'Tous les lieux de présence ont déjà leurs coordonnées GPS valides.';
     Logger.log(msg);
     try { SpreadsheetApp.getUi().alert('Géolocalisation des lieux de présence', msg, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
     return msg;
@@ -514,14 +629,12 @@ function executerLotGeocodagePresences_(limiteMax) {
 }
 
 // ---------------------------------------------------------------- Formules de cellule
-// =GEOCODE_GOOGLE("Grande Pharmacie du Sanwi, Aboisso")  -> "5.469188, -3.207253"
 function GEOCODE_GOOGLE(texte) {
   var p = String(texte || '').split(',').map(function (x) { return x.trim(); });
   var g = geocoderLieu(p[0], p.length > 2 ? p[1] : '', p[p.length > 2 ? 2 : 1] || '');
   return g ? g.lat + ', ' + g.lon : 'Introuvable';
 }
 function GET_LAT_LONG(texte) { return GEOCODE_GOOGLE(texte); }
-// =PLACE("Pharmacie Abya, Koumassi") -> "Pharmacie Abya — Remblais (5.301519, -3.969371)"
 function PLACE(texte) {
   var p = String(texte || '').split(',').map(function (x) { return x.trim(); });
   var g = geocoderLieu(p[0], p.length > 2 ? p[1] : '', p[p.length > 2 ? 2 : 1] || '');

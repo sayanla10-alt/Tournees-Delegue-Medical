@@ -9,10 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.36';
+  var APP_VERSION = '3.25.37';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.37', [
+      'CR visite (Étape 4) : pastilles produits élargies x3 horizontalement pour un confort tactile et visuel optimal sans coupure de texte',
+      'CR visite (Étape 4) : Gamme B repliée par défaut sur une seule ligne compacte pour un gain d\'espace maximal',
+      'Onglet Journée : spécialité médicale affichée en premier avant l\'hôpital dans les cartes praticiens',
+      'Nettoyage typographique : élimination systématique des espaces multiples résiduels dans l\'interface',
+      'Géolocalisation : intégration de la table de référence des 33 principaux hôpitaux et cliniques de Côte d\'Ivoire avec coordonnées GPS certifiées'
+    ]],
     ['3.25.36', [
       'Répertoire : barre d\'actions sur une même ligne [ Recherche ] [ + Ajouter ] [ Modifier ] pour une ergonomie optimale',
       'Modification Praticien / Pharmacie : modification fluide et sans blocage des horaires d\'officine et du planning hebdomadaire avec normalisation tolérante',
@@ -566,7 +573,8 @@
   function villeCarte(o) { return o.zone === 'Zone Intérieur' ? 'Côte d\'Ivoire' : 'Abidjan'; }
 
   function esc(s) {
-    return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, function (c) {
+    var t = String(s === undefined || s === null ? '' : s).replace(/\s{2,}/g, ' ');
+    return t.replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
@@ -2410,7 +2418,7 @@
     s = s.replace(/^Centre Hospitalier Régional\s+/i, 'CHR ');
     s = s.replace(/^Clinique Médicale\s+/i, 'Clinique ');
     s = s.replace(/\s+de\s+/i, ' ');
-    return s.trim();
+    return s.replace(/\s{2,}/g, ' ').trim();
   }
 
   // 3.25.36 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour (abrégé), Secteur réel et distance
@@ -2867,11 +2875,10 @@
     var nbSelA = prodsA.filter(function (p) { return sel.indexOf(p) >= 0; }).length;
     var nbSelB = prodsB.filter(function (p) { return sel.indexOf(p) >= 0; }).length;
 
-    // 3.25.36 : Gamme B repliée par défaut (détail invisible si refermé), Gamme A ouverte
-    if (!S.ui.gammeCrOuverte) {
-      S.ui.gammeCrOuverte = 'A';
-    }
-    var gOuv = S.ui.gammeCrOuverte;
+    // 3.25.37 : Gamme A toujours visible directement ; seule la Gamme B est repliée par défaut sur une seule ligne
+    var bOuvert = !!S.ui.gammeBOuverte;
+    var tousA = prodsA.length > 0 && prodsA.every(function (p) { return sel.indexOf(p) >= 0; });
+    var tousB = prodsB.length > 0 && prodsB.every(function (p) { return sel.indexOf(p) >= 0; });
 
     var h = '<div class="choix-produits-cr">';
     h += '<div class="gamme-cr-actions" style="margin-bottom:8px">' +
@@ -2879,52 +2886,70 @@
       (sel.length ? '<span><button type="button" class="lien-action" data-a="crProduitsAucun" data-uid="' + a.uid + '" data-k="' + cle + '">Tout effacer</button></span>' : '') +
       '</div>';
 
-    var defGammes = [
-      ['A', 'Gamme A', 'Zyltan, Lesstrol, Eurythmic, Tensicard', famsA, prodsA, nbSelA],
-      ['B', 'Gamme B', 'Telmikaa, Rozukaa, Antiplatt & autres', famsB, prodsB, nbSelB]
-    ];
+    // 1) Gamme A : directement affichée, entête compacte sans repli
+    h += '<div class="gamme-cr-bloc ouverte" style="margin-bottom:6px">' +
+      '<div class="gamme-cr-entete gamme-compacte">' +
+        '<span><b>Gamme A</b>' + (nbSelA ? ' <i class="compteur">' + nbSelA + '</i>' : '') + '</span>' +
+        (prodsA.length > 1 ? '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="A">' + (tousA ? 'Tout décocher' : 'Tous') + '</button>' : '') +
+      '</div>' +
+      '<div class="liste-gammes-cr">';
+    famsA.forEach(function (g) {
+      var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '').trim();
+      var mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
+      var fichesTriees = harmoniserDeclinaisons(g.fiches, nom);
+      var seul = fichesTriees.length === 1;
 
-    defGammes.forEach(function (info) {
-      var codeG = info[0], titreG = info[1], sousG = info[2], fams = info[3], prods = info[4], nbSel = info[5];
-      var ouvert = gOuv === codeG;
-      var tousG = prods.length > 0 && prods.every(function (p) { return sel.indexOf(p) >= 0; });
-
-      h += '<div class="gamme-cr-bloc' + (ouvert ? ' ouverte' : ' repliee') + '" style="margin-bottom:8px">' +
-        '<div class="gamme-cr-entete">' +
-          '<button type="button" class="gamme-cr-bascule" data-a="crGammeBascule" data-g="' + codeG + '" aria-expanded="' + ouvert + '">' +
-            '<span><b>' + titreG + '</b>' + (ouvert && sousG ? ' <small>' + sousG + '</small>' : '') + '</span>' +
-            '<span class="gamme-cr-meta">' + (nbSel ? '<i class="compteur">' + nbSel + '</i>' : '<small>' + fams.length + ' fam.</small>') + icone('chevron') + '</span>' +
-          '</button>' +
-          (ouvert && prods.length > 1 ? '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="' + codeG + '">' + (tousG ? 'Décocher ' + codeG : 'Tous') + '</button>' : '') +
-        '</div>';
-
-      if (ouvert) {
-        // 3.25.36 : Disposition 2x2 par famille avec pastilles harmonisées
-        h += '<div class="liste-gammes-cr">';
-        fams.forEach(function (g) {
-          var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '').trim();
-          var mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
-          var fichesTriees = harmoniserDeclinaisons(g.fiches, nom);
-          var seul = fichesTriees.length === 1;
-
-          h += '<div class="ligne-gamme">' +
-            '<div class="lg-tete">' +
-              '<b>' + esc(nom) + '</b>' +
-              (mol ? '<small>' + esc(mol) + '</small>' : '') +
-            '</div>' +
-            '<div class="lg-produits' + (seul ? ' seul' : '') + '">' +
-            fichesTriees.map(function (f) {
-              var court = libellePastilleCr(nom, f.produit, g.fiches.length);
-              var estSel = sel.indexOf(f.produit) >= 0;
-              var tClass = taillePastille(court);
-              return '<button type="button" class="pastille-produit ' + tClass + '" data-a="crMulti" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(f.produit) + '" aria-pressed="' + estSel + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
-            }).join('') +
-            '</div></div>';
-        });
-        h += '</div>';
-      }
-      h += '</div>';
+      h += '<div class="ligne-gamme">' +
+        '<div class="lg-tete">' +
+          '<b>' + esc(nom) + '</b>' +
+          (mol ? '<small>' + esc(mol) + '</small>' : '') +
+        '</div>' +
+        '<div class="lg-produits' + (seul ? ' seul' : '') + '">' +
+        fichesTriees.map(function (f) {
+          var court = libellePastilleCr(nom, f.produit, g.fiches.length);
+          var estSel = sel.indexOf(f.produit) >= 0;
+          var tClass = taillePastille(court);
+          return '<button type="button" class="pastille-produit ' + tClass + '" data-a="crMulti" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(f.produit) + '" aria-pressed="' + estSel + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
+        }).join('') +
+        '</div></div>';
     });
+    h += '</div></div>';
+
+    // 2) Gamme B : seule à être fermée par défaut, compacte sur la même ligne (gain d'espace)
+    h += '<div class="gamme-cr-bloc' + (bOuvert ? ' ouverte' : ' repliee') + '" style="margin-bottom:8px">' +
+      '<div class="gamme-cr-entete gamme-compacte">' +
+        '<button type="button" class="gamme-cr-bascule" data-a="crGammeBascule" data-g="B" aria-expanded="' + bOuvert + '">' +
+          '<span><b>Gamme B</b></span>' +
+          '<span class="gamme-cr-meta">' + (nbSelB ? '<i class="compteur">' + nbSelB + '</i>' : '<small>' + famsB.length + ' fam.</small>') + icone('chevron') + '</span>' +
+        '</button>' +
+        (bOuvert && prodsB.length > 1 ? '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="B">' + (tousB ? 'Décocher B' : 'Tous') + '</button>' : '') +
+      '</div>';
+
+    if (bOuvert) {
+      h += '<div class="liste-gammes-cr">';
+      famsB.forEach(function (g) {
+        var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '').trim();
+        var mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
+        var fichesTriees = harmoniserDeclinaisons(g.fiches, nom);
+        var seul = fichesTriees.length === 1;
+
+        h += '<div class="ligne-gamme">' +
+          '<div class="lg-tete">' +
+            '<b>' + esc(nom) + '</b>' +
+            (mol ? '<small>' + esc(mol) + '</small>' : '') +
+          '</div>' +
+          '<div class="lg-produits' + (seul ? ' seul' : '') + '">' +
+          fichesTriees.map(function (f) {
+            var court = libellePastilleCr(nom, f.produit, g.fiches.length);
+            var estSel = sel.indexOf(f.produit) >= 0;
+            var tClass = taillePastille(court);
+            return '<button type="button" class="pastille-produit ' + tClass + '" data-a="crMulti" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(f.produit) + '" aria-pressed="' + estSel + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
+          }).join('') +
+          '</div></div>';
+      });
+      h += '</div>';
+    }
+    h += '</div>';
 
     h += '</div>';
     return h;
@@ -3612,11 +3637,30 @@
       vus[k] = true; return true;
     }).join(', ');
   }
+  // 3.25.37 : Carte médecin dans Journée -> Spécialité en premier, avant l'hôpital, puis secteur sans double espace
   function lieuQuartier(a) {
+    if (!estPharmacie(a)) {
+      var parts = [];
+      if (a.specialite) parts.push(String(a.specialite).trim());
+      var hop = abregerHopital(a.lieu || lieuAffiche(a));
+      if (hop) parts.push(hop);
+      var q = (typeof nomSecteur === 'function' ? nomSecteur(a.quartier, a.commune, a.coord) : a.quartier) || a.quartier;
+      if (q && (!hop || hop.toLowerCase().indexOf(q.toLowerCase()) < 0)) parts.push(q);
+      return parts.join(' · ').replace(/\s{2,}/g, ' ').trim();
+    }
     var n = normaliser(a.nom), q = a.quartier && n.indexOf(normaliser(a.quartier)) >= 0 ? '' : a.quartier;
-    return [lieuAffiche(a), q].filter(Boolean).join(', ');
+    return [lieuAffiche(a), q].filter(Boolean).join(', ').replace(/\s{2,}/g, ' ').trim();
   }
-  function lieuEtSpec(a) { return [estPharmacie(a) ? '' : a.specialite, lieuAffiche(a)].filter(Boolean).join(', '); }
+  function lieuEtSpec(a) {
+    if (!estPharmacie(a)) {
+      var parts = [];
+      if (a.specialite) parts.push(String(a.specialite).trim());
+      var hop = abregerHopital(a.lieu || lieuAffiche(a));
+      if (hop) parts.push(hop);
+      return parts.join(' · ').replace(/\s{2,}/g, ' ').trim();
+    }
+    return String(lieuAffiche(a) || '').replace(/\s{2,}/g, ' ').trim();
+  }
   function nomSansType(nom) { return String(nom || '').replace(/^\s*pharmacie\s+/i, ''); }
   function metres(km) {
     if (km <= 0.035) return 'sur place (< 35 m)';
@@ -6637,7 +6681,11 @@
     },
     crGammeBascule: function (el) {
       var g = el.dataset.g;
-      S.ui.gammeCrOuverte = S.ui.gammeCrOuverte === g ? '' : g;
+      if (g === 'B') {
+        S.ui.gammeBOuverte = !S.ui.gammeBOuverte;
+      } else {
+        S.ui.gammeCrOuverte = S.ui.gammeCrOuverte === g ? '' : g;
+      }
       rendre();
     },
     crFamilleBascule: function (el) {

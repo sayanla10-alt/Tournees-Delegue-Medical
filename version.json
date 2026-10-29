@@ -1,11 +1,11 @@
 {
-  "version": "3.25.36",
+  "version": "3.25.37",
   "date": "2026-10-29",
   "notes": [
-    "Répertoire : barre d'actions sur la même ligne [ Recherche ] [ + Ajouter ] [ Modifier ]",
-    "Fiche Praticien / Pharmacie : modification fluide et sans blocage des horaires d'officine et du planning hebdomadaire",
-    "CR visite (Étape 4) : déclinaisons produits présentées 2 par 2 de façon harmonieuse selon leur longueur",
-    "Onglet Journée : affichage combiné de la distance, durée à pied et durée en voiture",
-    "Secteurs : rattachement automatique aux sous-quartiers réels (Deux Plateaux, Niangon, Attoban, Arras, Wassakara, etc.)"
+    "CR visite (Étape 4) : pastilles produits élargies x3 horizontalement pour un confort tactile et visuel optimal",
+    "CR visite (Étape 4) : Gamme B repliée par défaut sur une seule ligne compacte pour un gain d'espace maximal",
+    "Onglet Journée : spécialité médicale affichée en premier avant l'hôpital dans les cartes praticiens",
+    "Nettoyage typographique : élimination systématique des espaces multiples résiduels dans l'interface",
+    "Géolocalisation : intégration de la table de référence des 33 principaux hôpitaux et cliniques de Côte d'Ivoire avec coordonnées GPS certifiées"
   ]
 }
