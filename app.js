@@ -9,13 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.47';
+  var APP_VERSION = '3.25.48';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.25.47', [
+    ['3.25.48', [
       'Visite non réalisée / Absent fluide : options de motif directes sous le pouce, écran toujours parfaitement centré sans saut ni défilement bizarre',
-      'Action immédiate sur absence : proposition instantanée de Remplacer sur place (+50 pts) ou d''enregistrer l''absence en 1 touche',
+      'Action immédiate sur absence : proposition instantanée de Remplacer sur place (+50 pts) ou d\'enregistrer l\'absence en 1 touche',
       'Secteurs Abobo affinés : intégration explicite de Derrière rails, Sagbé, Samaké, Abobo-Té et Dépôt SOTRA'
     ]],
     ['3.25.46', [
