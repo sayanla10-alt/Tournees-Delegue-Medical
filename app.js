@@ -9,10 +9,18 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.41';
+  var APP_VERSION = '3.25.42';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.42', [
+      'Ergonomie pouce & navigation : passage à 5 onglets clés (fusion Équipe & Bilan en onglet « Suivi ») pour des cibles plus larges et confortables',
+      'Anti-perte de saisie : confirmation de sécurité avant de quitter une fiche praticien en cours de modification',
+      'Gestuelle mobile : glisser vers le bas (swipe-down) sur la poignée de la fenêtre pour la fermer au pouce',
+      'Navigation Android : intégration du bouton retour physique/geste système pour refermer les fenêtres sans quitter la PWA',
+      'Zéro impasse : bouton direct « Réinitialiser » dans les états vides de recherche et échappatoire rapide sur les produits du CR',
+      'Synchronisation résiliente : déconnexion de l\'envoi des fiches et des CR pour éviter tout blocage hors ligne'
+    ]],
     ['3.25.41', [
       'Produits dans le CR Visite : alignement strict sur la BDD (onglet Listes, colonne K) — tout retrait dans Listes!K retire le produit du CR sans toucher à sa fiche',
       'Auto-complétion des fiches produits : l\'ajout d\'un produit dans Listes!K déduit ses informations manquantes et l\'ajoute aux fiches consultables',
@@ -1107,7 +1115,10 @@
     S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete();
     var tentePub = false;
     // 1. fiches praticiens (codes définitifs), 2. comptes rendus, 3. tournée, 4. données à jour
-    var envoi = envoyerFiches().then(function () {
+    var envoi = envoyerFiches().catch(function (errF) {
+      console.warn('Erreur envoi fiches, poursuite des comptes rendus:', errF);
+      return null;
+    }).then(function () {
       return S.queue.length ? apiPost('valider', { visites: S.queue }).then(function (r) {
         var recus = {}; (r.recus || []).forEach(function (u) { recus[u] = true; });
         S.queue = S.queue.filter(function (v) { return !recus[v.uid]; });
@@ -1255,7 +1266,7 @@
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
-      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : S.ui.tab);
+      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'equipe' || S.ui.tab === 'bilan' || S.ui.tab === 'suivi' ? 'suivi' : S.ui.tab));
       if (b.dataset.tab === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
@@ -3037,7 +3048,8 @@
       if (c.presentes === 'oui' || im.presentes) {
         e('produits', 'Produits présentés', 'continuer', function () {
           return rendreChoixProduitsCr(a, 'produits', c.produits) + '<input type="text" list="listeProduits" data-f="cr" data-uid="' + a.uid + '" data-k="autres" value="' + esc(c.autres || '') +
-            '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits();
+            '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() +
+            '<div style="margin-top:10px;text-align:center"><button type="button" class="bouton-texte" data-a="crAucunProduit" data-uid="' + a.uid + '">Aucun produit présenté / Passer cette étape</button></div>';
         }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
         e('reactions', 'Réaction du médecin', 'continuer', function () {
           return '<div class="champs-cr">' + produitsPresentes(c).map(function (p) {
@@ -3555,7 +3567,7 @@
       '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechProduit" placeholder="Produit, molécule, indication…" value="' + esc(S.ui.rechProduit || '') + '" aria-label="Rechercher un produit"></div></div>' +
       '<div class="defile" role="group" aria-label="Aire thérapeutique"><button type="button" class="puce" data-a="aireProduit" data-v="" aria-pressed="' + !aire + '">Tous</button>' +
       aires.map(function (x) { return '<button type="button" class="puce" data-a="aireProduit" data-v="' + esc(x) + '" aria-pressed="' + (aire === x) + '">' + esc(AIRES_COURTES[x] || x) + '</button>'; }).join('') + '</div>';
-    if (!l.length) return h + '<div class="vide"><strong>Aucun produit</strong>Aucune fiche ne correspond.</div>';
+    if (!l.length) return h + '<div class="vide"><strong>Aucun produit</strong>Aucune fiche ne correspond.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="reinitFiltresProduits">' + icone('fermer') + 'Réinitialiser la recherche et les filtres</button></div></div>';
     // 3.19.0 : une section repliable par aire thérapeutique (ouverte d'office si un filtre ou une recherche est actif)
     // 3.22.3 : par défaut, seule la première aire est dépliée (le reste se déplie au toucher)
     if (!S.ui.airesOuvertes) { S.ui.airesOuvertes = {}; if (aires[0]) S.ui.airesOuvertes[aires[0]] = true; }
@@ -3820,10 +3832,10 @@
     S.ui.jourEquipe = null; LS.set('eqDate', S.ui.eqDate); rendre();
   }
 
-  VUES.equipe = function () {
+  VUES.equipe = function (integre) {
     var nomMoi = moi() || 'Moi', p = S.ui.eqPortee || 'semaine', ref = S.ui.eqDate || aujourdhui();
     var dates = p === 'semaine' ? joursOuvres(lundiDe(ref)) : [ref];
-    var h = '<h2 class="titre-vue">Équipe</h2><p class="sous-titre">Tournées planifiées et visites réalisées par vous et vos collègues.</p>' + barreQuiQuand('equipe') +
+    var h = (integre ? '' : '<h2 class="titre-vue">Équipe</h2><p class="sous-titre">Tournées planifiées et visites réalisées par vous et vos collègues.</p>') + barreQuiQuand('equipe') +
       (ref !== aujourdhui() ? '<p class="discret" style="margin:-4px 0 10px"><button type="button" class="bouton-texte" data-a="eqAujourdhui">Revenir à aujourd\'hui</button></p>' : '');
 
     var tout = donneesEquipe(dates);
@@ -4149,7 +4161,7 @@
       '</div>';
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
     if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri tri-centre"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Réinitialiser les filtres et recommencer</button></div>';
-    if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères. Retirez un filtre.</div>';
+    if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('fermer') + 'Réinitialiser tous les filtres et recommencer</button></div></div>';
     h += '<ul class="liste">';
     liste.slice(0, S.ui.limite).forEach(function (p) {
       var ouvert = S.ui.contactOuvert === p.code, lieux = c.presencesParCode[p.code] || [];
@@ -4346,10 +4358,21 @@
   VUES.recherche = VUES.praticiens;
   VUES.contacts = VUES.praticiens;
 
-  VUES.bilan = function () {
+  // 3.25.42 : Onglet Suivi unifié regroupant Bilan et Tournées Équipe
+  VUES.suivi = function () {
+    var sousVue = S.ui.suiviVue || 'bilan';
+    var tete = '<div class="tete-vue"><h2 class="titre-vue">Suivi d\'activité</h2></div>' +
+      '<p class="sous-titre">Indicateurs de performance et visibilité des tournées de l\'équipe.</p>' +
+      '<div class="segment-suivi">' +
+      segment('Sous-onglet Suivi', 'suiviVue', [['bilan', 'Bilan & Stats'], ['equipe', 'Tournées Équipe']], sousVue) +
+      '</div>';
+    return tete + (sousVue === 'equipe' ? VUES.equipe(true) : VUES.bilan(true));
+  };
+
+  VUES.bilan = function (integre) {
     var vueH = S.ui.statsVue === 'historique';
-    var tete = '<h2 class="titre-vue">Bilan</h2>' +
-      '<p class="sous-titre">' + (vueH ? 'Historique complet des comptes rendus de visite sur la période.' : 'Suivi de vos indicateurs, objectifs et couverture par commune et spécialité.') + '</p>' +
+    var tete = (integre ? '' : '<h2 class="titre-vue">Bilan</h2>' +
+      '<p class="sous-titre">' + (vueH ? 'Historique complet des comptes rendus de visite sur la période.' : 'Suivi de vos indicateurs, objectifs et couverture par commune et spécialité.') + '</p>') +
       segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique']], vueH ? 'historique' : 'tableau') + barreQuiQuand('bilan');
     if (vueH) return tete + VUES.historique(true);
     var st = S.ui.stats, r = calculerStats(), b = r.bornes;
@@ -4661,6 +4684,55 @@
       S.ui.bpDepart = bp.scrollLeft;
     }
     initGlisseHorizontale();
+    // 3.25.42 : Gestuelle swipe-down sur poignée/en-tête pour fermer au pouce
+    var fEl = el.querySelector('.feuille');
+    var poigneeEl = el.querySelector('.poignee');
+    var teteEl = el.querySelector('.feuille-tete');
+    if (fEl && (poigneeEl || teteEl)) {
+      var yDep = 0, glisseY = 0, enGlisseFeuille = false;
+      function debutGlisseF(e) {
+        if (e.target.closest('button')) return;
+        var pt = e.touches ? e.touches[0] : e;
+        yDep = pt.clientY;
+        glisseY = 0;
+        enGlisseFeuille = true;
+        fEl.classList.add('en-glisse-bas');
+      }
+      function bougeGlisseF(e) {
+        if (!enGlisseFeuille) return;
+        var pt = e.touches ? e.touches[0] : e;
+        var dy = pt.clientY - yDep;
+        if (dy > 0) {
+          glisseY = dy;
+          fEl.style.transform = 'translateY(' + dy + 'px)';
+          if (e.cancelable) e.preventDefault();
+        }
+      }
+      function finGlisseF() {
+        if (!enGlisseFeuille) return;
+        enGlisseFeuille = false;
+        fEl.classList.remove('en-glisse-bas');
+        if (glisseY > 75) {
+          fEl.style.transform = '';
+          ACTIONS.fermerFeuille();
+        } else {
+          fEl.style.transition = 'transform .2s ease';
+          fEl.style.transform = 'translateY(0)';
+          setTimeout(function () { if (fEl) fEl.style.transition = ''; }, 200);
+        }
+      }
+      if (poigneeEl) {
+        poigneeEl.addEventListener('touchstart', debutGlisseF, { passive: true });
+        poigneeEl.addEventListener('touchmove', bougeGlisseF, { passive: false });
+        poigneeEl.addEventListener('touchend', finGlisseF, { passive: true });
+      }
+      if (teteEl) {
+        teteEl.addEventListener('touchstart', debutGlisseF, { passive: true });
+        teteEl.addEventListener('touchmove', bougeGlisseF, { passive: false });
+        teteEl.addEventListener('touchend', finGlisseF, { passive: true });
+      }
+    }
+    gererHistoriqueModal(true);
   }
   // fiche d'un produit : l'essentiel ouvert (indications, contre-indications, arguments), le reste à déplier
   FEUILLES.ficheProduit = function (fe) {
@@ -6058,7 +6130,7 @@
   }
   // recalcul périodique, quel que soit l'onglet (application au premier plan)
   setInterval(function () { if (!document.hidden) localiser(true, 'periodique'); }, PERIODE_GPS_MIN * 60000);
-  // 3.25.40 : notification de pharmacie proche déplaçable au pouce en direct
+  // 3.25.40 & 3.25.42 : notification de pharmacie proche déplaçable au pouce en direct (prise sur la poignée, sans bloquer le scroll)
   function attacherGlissementPouce(el) {
     if (!el || el._dragAttache) return;
     el._dragAttache = true;
@@ -6066,6 +6138,7 @@
 
     function onDebut(e) {
       if (e.target.closest('button')) return;
+      if (!e.target.closest('.drag-poignee')) return;
       var pt = e.touches ? e.touches[0] : e;
       startX = pt.clientX - curX;
       startY = pt.clientY - curY;
@@ -6078,9 +6151,14 @@
       var pt = e.touches ? e.touches[0] : e;
       var nx = pt.clientX - startX;
       var ny = pt.clientY - startY;
-      if (e.cancelable && (Math.abs(nx - curX) > 2 || Math.abs(ny - curY) > 2)) e.preventDefault();
-      curX = nx;
-      curY = ny;
+      if (e.cancelable) e.preventDefault();
+      var rect = el.getBoundingClientRect();
+      var maxDx = (window.innerWidth - 60) - (rect.left - curX);
+      var minDx = 60 - (rect.right - curX);
+      var maxDy = (window.innerHeight - 80) - (rect.top - curY);
+      var minDy = 60 - (rect.bottom - curY);
+      curX = Math.max(minDx, Math.min(maxDx, nx));
+      curY = Math.max(minDy, Math.min(maxDy, ny));
       el.style.transform = 'translate3d(' + curX + 'px, ' + curY + 'px, 0)';
     }
 
@@ -6094,10 +6172,6 @@
     window.addEventListener('touchmove', onBouge, { passive: false });
     window.addEventListener('touchend', onFin, { passive: true });
     window.addEventListener('touchcancel', onFin, { passive: true });
-
-    el.addEventListener('pointerdown', onDebut);
-    window.addEventListener('pointermove', onBouge);
-    window.addEventListener('pointerup', onFin);
   }
 
   // 3.25.14 : pharmacie ouverte à proximité signalée à chaque rafraîchissement ou réouverture (et dès qu'une nouvelle apparaît),
@@ -6198,16 +6272,48 @@
 
   var ACTIONS = {
     nav: function (el) {
-      if (el.dataset.tab === 'semaine' && S.ui.tab !== 'semaine' && (!S.plan.length || S.ui.voirParams)) etapesPDepuisDebut();
-      // 3.24.14 : Bilan s'ouvre toujours sur le Tableau de bord
-      if (el.dataset.tab === 'bilan' && S.ui.tab !== 'bilan') { S.ui.statsVue = 'tableau'; LS.set('statsVue', 'tableau'); }
-      // 3.25.0 : Planifier et Journée gardent chacun leur jour sélectionné (Planifier : demain par défaut)
-      if (S.ui.tab === 'semaine' && el.dataset.tab !== 'semaine') { S.ui.jourPlan = S.ui.jour; S.ui.jour = S.ui.jourJournee || aujourdhui(); }
-      else if (S.ui.tab !== 'semaine' && el.dataset.tab === 'semaine') { S.ui.jourJournee = S.ui.jour; if (S.ui.jourPlan) S.ui.jour = S.ui.jourPlan; else S.ui.planInit = false; }
-      S.ui.tab = el.dataset.tab; S.ui.pharmaciesProches = false;
-      if (S.ui.tab === 'historique') { S.ui.tab = 'bilan'; S.ui.statsVue = 'historique'; } S.ui.feuille = null;
+      var dest = el.dataset.tab;
+      if (dest === 'semaine' && S.ui.tab !== 'semaine' && (!S.plan.length || S.ui.voirParams)) etapesPDepuisDebut();
+      // 3.25.42 : Gestion de l'onglet Suivi unifié et compatibilité avec equipe/bilan
+      if (dest === 'suivi' || dest === 'bilan' || dest === 'equipe') {
+        if (dest === 'bilan' || dest === 'equipe') {
+          S.ui.suiviVue = dest;
+          LS.set('suiviVue', dest);
+        } else if (!S.ui.suiviVue) {
+          S.ui.suiviVue = 'bilan';
+        }
+        if (dest === 'bilan' || (dest === 'suivi' && S.ui.suiviVue === 'bilan')) {
+          S.ui.statsVue = 'tableau'; LS.set('statsVue', 'tableau');
+        }
+        dest = 'suivi';
+      }
+      if (S.ui.tab === 'semaine' && dest !== 'semaine') { S.ui.jourPlan = S.ui.jour; S.ui.jour = S.ui.jourJournee || aujourdhui(); }
+      else if (S.ui.tab !== 'semaine' && dest === 'semaine') { S.ui.jourJournee = S.ui.jour; if (S.ui.jourPlan) S.ui.jour = S.ui.jourPlan; else S.ui.planInit = false; }
+      S.ui.tab = dest; S.ui.pharmaciesProches = false;
+      if (S.ui.tab === 'historique') { S.ui.tab = 'suivi'; S.ui.suiviVue = 'bilan'; S.ui.statsVue = 'historique'; }
+      S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);
-      if (S.ui.tab === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && S.ui.tab === 'equipe') rendreSiPossible(); });
+      if (S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe') rendreSiPossible(); });
+    },
+    suiviVue: function (el) {
+      S.ui.suiviVue = el.dataset.v;
+      LS.set('suiviVue', S.ui.suiviVue);
+      rendre();
+      if (S.ui.suiviVue === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && (S.ui.tab === 'suivi' || S.ui.tab === 'equipe')) rendreSiPossible(); });
+    },
+    reinitFiltresProduits: function () {
+      S.ui.rechProduit = '';
+      S.ui.aireProduit = '';
+      rendre();
+    },
+    crAucunProduit: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var c = a.cr;
+      c.presentes = 'non';
+      c.produits = [];
+      c.autres = '';
+      majCr(a);
+      rendre();
     },
     param: function (el) {
       S.params[el.dataset.k] = el.dataset.v; LS.set('params', S.params);
@@ -6498,8 +6604,14 @@
     },
     copierTexte: function () { copier(S.ui.feuille.texte); },
     partagerTexte: function () { navigator.share({ title: 'Programme de tournée', text: S.ui.feuille.texte }).catch(function () {}); },
-    fermerFeuille: function () {
+    fermerFeuille: function (el, force) {
       var f = S.ui.feuille;
+      if (f && f.type === 'fiche' && !force && f.donnees && (f.donnees.nom || (f.donnees.lieux && f.donnees.lieux.some(function (l) { return l.lieu || l.commune; })))) {
+        confirmerPuis('Abandonner les modifications ?', 'Vous avez des données non enregistrées sur cette fiche. Quitter sans enregistrer ?', 'Quitter', function () {
+          ACTIONS.fermerFeuille(null, true);
+        });
+        return;
+      }
       if (f && f.type === 'listeChoix') { S.ui.feuille = f.retour || null; if (f.dom) rendreFeuille(); else rendre(); return; }
       S.ui.feuille = null; rendre();
     },
@@ -7820,6 +7932,33 @@
   if (configureParLien) toast('Application configurée. Synchronisation…');
   if (connecte()) synchroniser(!configureParLien).then(function () {
     if (configureParLien && pret()) { S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); }
+  });
+
+  // 3.25.42 : Intégration du bouton retour physique / geste Android pour refermer les modales sans quitter la PWA
+  function gererHistoriqueModal(ouvert) {
+    try {
+      if (ouvert) {
+        if (!history.state || !history.state.mediplannerModal) {
+          history.pushState({ mediplannerModal: true }, '');
+        }
+      }
+    } catch (e) {}
+  }
+  window.addEventListener('popstate', function () {
+    if (S.ui.feuille) {
+      ACTIONS.fermerFeuille();
+      return;
+    }
+    if (S.ui.ouvert) {
+      S.ui.ouvert = null;
+      rendre();
+      return;
+    }
+    if (S.ui.contactOuvert) {
+      S.ui.contactOuvert = null;
+      rendre();
+      return;
+    }
   });
 
   // Accès pour les tests automatisés

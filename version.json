@@ -1,10 +1,12 @@
 {
-  "version": "3.25.41",
+  "version": "3.25.42",
   "date": "2026-10-29",
   "notes": [
-    "Produits CR Visite : affichage strictement piloté par l'onglet Listes (colonne K) de la BDD",
-    "Fiches produits : conservation intégrale des fiches existantes lors du retrait de Listes!K",
-    "Auto-complétion : déduction et ajout automatique des fiches pour tout nouveau produit ajouté dans Listes!K",
-    "Onglet Produits : présence et consultation garanties de tous les produits actifs"
+    "Navigation mobile : passage à 5 onglets larges et lisibles (fusion Équipe & Bilan en onglet Suivi)",
+    "Sécurité saisie : confirmation anti-perte de modifications sur la fiche praticien",
+    "Gestuelle tactile : glisser vers le bas (swipe-down) sur la poignée pour fermer une fenêtre",
+    "Touche retour Android : fermeture des modales au lieu de sortir de l'application",
+    "Fluidité recherche : bouton réinitialiser direct sur les listes vides et échappatoire CR produits",
+    "Synchronisation robuste : envoi des comptes rendus maintenu même en cas d'échec sur une fiche"
   ]
 }
