@@ -1330,8 +1330,16 @@ function zoneDeQuartier(commune, quartier, lieu) {
 
 function communeParente(nom) {
   if (!nom) return '';
-  var s = String(nom).split(/\s*[-–—]\s*/);
-  return s[0].trim();
+  var s = String(nom).trim();
+  // Seules les 3 grandes communes sont segmentées en sous-secteurs
+  var m = s.match(/^(Abobo|Cocody|Yopougon)\b/i);
+  if (m) {
+    var p = m[1].toLowerCase();
+    if (p === 'abobo') return 'Abobo';
+    if (p === 'cocody') return 'Cocody';
+    if (p === 'yopougon') return 'Yopougon';
+  }
+  return s;
 }
 
 function secteurDeQuartier(quartier, lieu, commune, listeQuartiers) {

@@ -9,10 +9,20 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.2';
+  var APP_VERSION = '3.26.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.4', [
+      'Cartes CR visites compactes & sobres : suppression des textes à rallonge sur les boutons et allègement vertical',
+      'Boutons d\'action épurés : « Enregistrer » et « Remplacer » sans phrases encombrantes',
+      'Parcours de visite fluide : retour aux étapes progressives compactes sans blocs massifs'
+    ]],
+    ['3.26.3', [
+      'Planifier - Refonte des secteurs : segmentation stricte réservée aux 3 grandes communes (Abobo, Cocody, Yopougon - 4 sous-secteurs chacune)',
+      'Communes d\'Abidjan épurées : toutes les autres communes (Port-Bouët, Marcory, Plateau, etc.) redeviennent des puces simples et compactes sans pollution visuelle',
+      'Cartes ergonomiques au pouce : bannières élégantes \'Toute la commune\' avec grilles 2 colonnes de sous-secteurs et repères clairs'
+    ]],
     ['3.26.2', [
       'Boutons produits compacts & élégants : hauteur physique réduite à 34 px avec hitbox tactile invisible de 44 px au pouce',
       'Harmonie visuelle conservée : aucune déformation des cartes ni encombrement d\'écran'
@@ -800,9 +810,29 @@
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
   }
   function estKo(statut) { return statut && !Moteur.estVisite(statut, statuts()); }
+  function estGrandeCommune(nom) {
+    if (!nom) return false;
+    var s = normaliser(nom);
+    return s.indexOf('abobo') === 0 || s.indexOf('cocody') === 0 || s.indexOf('yopougon') === 0;
+  }
+  function communeParente(nom) {
+    if (!nom) return '';
+    var s = String(nom).trim();
+    var m = s.match(/^(Abobo|Cocody|Yopougon)\b/i);
+    if (m) {
+      var p = m[1].toLowerCase();
+      if (p === 'abobo') return 'Abobo';
+      if (p === 'cocody') return 'Cocody';
+      if (p === 'yopougon') return 'Yopougon';
+    }
+    return s;
+  }
   function communesListe() {
     var vus = {}, l = [];
-    quartiers().forEach(function (q) { if (!vus[q.commune]) { vus[q.commune] = true; l.push({ commune: q.commune, zone: q.zone }); } });
+    quartiers().forEach(function (q) {
+      var com = communeParente(q.commune);
+      if (!vus[com]) { vus[com] = true; l.push({ commune: com, zone: q.zone }); }
+    });
     return l.sort(function (a, b) { return ZONES.indexOf(a.zone) - ZONES.indexOf(b.zone) || a.commune.localeCompare(b.commune, 'fr'); });
   }
   function libelleCommunes(l) {
@@ -897,8 +927,25 @@
     var q = normaliser((f.q && f.q[o.id]) || '');
     function puce(op) {
       var actif = o.multiple ? !!sel[op.v] : val === op.v;
+      var matchQ = !q || normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')).indexOf(q) >= 0;
+      var dataLib = esc(normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')));
+
+      if (op.parent) {
+        return '<div class="commune-parent-ligne"' + (!matchQ ? ' hidden' : '') + '>' +
+          '<button type="button" class="puce puce-parente" data-a="choix" data-chemin="' + o.chemin + '" data-m="' + (o.multiple ? 1 : 0) + '" data-v="' + esc(op.v) +
+          '" data-lib="' + dataLib + '" aria-pressed="' + actif + '">' +
+          '<span>' + icone('localisation') + '<b>' + esc(op.commune) + '</b></span>' +
+          '<small>Toute la commune</small></button></div>';
+      }
+      if (op.estSecteur) {
+        return '<button type="button" class="puce puce-secteur" data-a="choix" data-chemin="' + o.chemin + '" data-m="' + (o.multiple ? 1 : 0) + '" data-v="' + esc(op.v) +
+          '" data-lib="' + dataLib + '" aria-pressed="' + actif + '"' + (!matchQ ? ' hidden' : '') + '>' +
+          '<span class="sec-nom">' + esc(op.nomCourt || op.lib) + '</span>' +
+          (op.sousTitre ? '<small class="sec-reperes">' + esc(op.sousTitre) + '</small>' : '') +
+          '</button>';
+      }
       return '<button type="button" class="puce" data-a="choix" data-chemin="' + o.chemin + '" data-m="' + (o.multiple ? 1 : 0) + '" data-v="' + esc(op.v) +
-        '" data-lib="' + esc(normaliser(op.lib)) + '" aria-pressed="' + actif + '"' + (q && normaliser(op.lib).indexOf(q) < 0 ? ' hidden' : '') + '>' +
+        '" data-lib="' + dataLib + '" aria-pressed="' + actif + '"' + (!matchQ ? ' hidden' : '') + '>' +
         esc(op.lib) + (op.n !== undefined ? '<small>' + op.n + '</small>' : '') + '</button>';
     }
     var nb = o.multiple ? val.length : 0;
@@ -938,7 +985,7 @@
       o.sections.forEach(function (sec) {
         var nbSel = o.multiple ? sec.options.filter(function (op) { return sel && sel[op.v]; }).length : (sec.options.some(function (op) { return op.v === val; }) ? 1 : 0);
         var nbTot = sec.options.length;
-        var aMatch = !q || sec.options.some(function (op) { return normaliser(op.lib).indexOf(q) >= 0; });
+        var aMatch = !q || sec.options.some(function (op) { return normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')).indexOf(q) >= 0; });
         var ferme = q ? !aMatch : (ouv !== sec.titre);
         var ariaExp = q ? aMatch : !ferme;
         h += '<div class="section-choix' + (ariaExp ? ' ouverte' : '') + (nbSel ? ' a-selection' : '') + '"' + (q && !aMatch ? ' hidden' : '') + '>' +
@@ -979,7 +1026,7 @@
       }
       var z = q.zone || 'Zone Autre';
       groupes[z] = groupes[z] || {};
-      var par = (typeof communeParente === 'function') ? communeParente(sec) : sec.split(/\s*[-–—]\s*/)[0].trim();
+      var par = communeParente(sec);
       groupes[z][par] = groupes[z][par] || [];
       if (groupes[z][par].indexOf(sec) < 0) {
         groupes[z][par].push(sec);
@@ -989,20 +1036,45 @@
     var zonesOrdonnees = ZONES.slice();
     Object.keys(groupes).forEach(function (z) { if (zonesOrdonnees.indexOf(z) < 0) zonesOrdonnees.push(z); });
 
+    var reperesOfficiels = {
+      'Cocody – Angré': 'Angré · 7e/8e tranche · CHU',
+      'Cocody – Deux Plateaux': 'Vallons · Aghien · Attoban',
+      'Cocody – Riviera': 'Riviera 2-4 · Palmeraie · Faya',
+      'Cocody – Centre': 'Saint-Jean · Danga · CHU · Mermoz',
+      'Yopougon – Niangon': 'Nord · Sud · Académie · Cité Verte',
+      'Yopougon – Maroc & Toits Rouges': 'Maroc · Toits Rouges · Sideci',
+      'Yopougon – Centre & Mairie': 'CHU · Saint-André · Siporex',
+      'Yopougon – Sud & Gesco': 'Port-Bouët 2 · Selmer · Gesco',
+      'Abobo – Nord & PK': 'PK 18 · N\'Dotré · Belle Ville',
+      'Abobo – Centre & Mairie': 'Samaké · Gare · Mairie · Habitat',
+      'Abobo – Baoulé & Avocatier': 'Abobo Baoulé · Avocatier · SOTRA',
+      'Abobo – Sud & Plaque': 'Sagbé · Plaque 1-2 · Anador'
+    };
+
     zonesOrdonnees.forEach(function (z) {
       if (!groupes[z]) return;
       var opts = [];
       var parents = Object.keys(groupes[z]).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
       parents.forEach(function (par) {
         var secteurs = groupes[z][par];
-        if (secteurs.length === 1 && secteurs[0] === par) {
-          opts.push({ v: par, lib: par });
+        var estGrande = estGrandeCommune(par);
+        if (!estGrande) {
+          // Commune standard non segmentée (Plateau, Adjamé, Marcory, Port-Bouët, Bingerville...)
+          opts.push({ v: par, lib: par, commune: par });
         } else {
-          opts.push({ v: par, lib: par + ' (Toute la commune)' });
+          // Seules les 3 grandes communes (Abobo, Cocody, Yopougon) sont segmentées en 4 sous-secteurs
+          opts.push({ v: par, lib: par + ' (Toute la commune)', parent: true, commune: par });
           secteurs.sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (sec) {
-            var qList = (quartiersParSecteur[sec] || []).slice(0, 4).join(', ');
-            var libSec = sec + (qList ? ' (' + qList + (quartiersParSecteur[sec].length > 4 ? ', …' : '') + ')' : '');
-            opts.push({ v: sec, lib: libSec });
+            var nomCourt = sec.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '');
+            var rep = reperesOfficiels[sec] || (quartiersParSecteur[sec] || []).slice(0, 3).join(' · ');
+            opts.push({
+              v: sec,
+              lib: sec,
+              nomCourt: nomCourt,
+              sousTitre: rep,
+              estSecteur: true,
+              commune: par
+            });
           });
         }
       });
@@ -3074,7 +3146,7 @@
     if (o.length === 2) return '<div class="segment" role="group" style="margin:8px 0 0">' + o.map(function (x) {
       return '<button type="button" data-a="crChoix" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + esc(x[0]) + '" aria-pressed="' + (val === x[0]) + '">' + esc(x[1]) + '</button>';
     }).join('') + '</div>';
-    if (o.length > 8 && cle !== 'motif') return selecteurCr(a, cle, o, val ? [val] : [], false, 'Choisir…');
+    if (o.length > 5) return selecteurCr(a, cle, o, val ? [val] : [], false, 'Choisir…');
     return '<div class="puces">' + o.map(function (x) { return puceCr(a, cle, x[0], x[1], val === x[0]); }).join('') + '</div>';
   }
   function multiCr(a, cle, options, vals) {
@@ -3285,20 +3357,12 @@
     e('faite', 'La visite a-t-elle été faite ?', 'auto', function () { return ouiNonCr(a, 'faite', c.faite); }, function () { return oui(c.faite); });
     if (!c.faite) return l;
     if (c.faite === 'non') {
-      e('motif', 'Motif de non-visite', 'auto', function () { return choixCr(a, 'motif', motifsPour(a), c.motif); }, function () { return c.motif; });
-      if (!c.motif) return l;
-      e('actionNonFaite', 'Suite de la visite', 'auto', function () {
-        var hAction = '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">';
-        if (!a.hors) {
-          hAction += '<button class="bouton bouton-plein bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer immédiatement (sur place ou proche)</button>';
-        }
-        hAction += '<button class="bouton bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer l\'absence sans remplacer</button>';
-        hAction += '</div>';
-        hAction += '<div style="margin-top:12px"><details class="details-discret"><summary class="discret" style="cursor:pointer;font-size:0.85rem">+ Précision / commentaire (facultatif)</summary>' +
-          '<div style="margin-top:6px">' + texteCr(a, 'precision', c.precision, ph ? 'Ex. pharmacien en congé jusqu\'à lundi' : 'Ex. en bloc opératoire, revenir après 15 h', true) + '</div>' +
-          '</details></div>';
-        return hAction;
-      }, function () { return c.motif; });
+      e('motif', 'Motif', 'auto', function () { return choixCr(a, 'motif', motifsPour(a), c.motif); }, function () { return c.motif; });
+      e('precision', 'Précision', 'facultatif', function () { return texteCr(a, 'precision', c.precision, ph ? 'Ex. pharmacien en congé' : 'Ex. en bloc opératoire', true); },
+        function () { return c.precision || 'aucune'; });
+      e('remplacant', 'Remplacer à proximité ?', 'auto', function () { return choixCr(a, 'remplacant', [['oui', 'Oui'], ['non', 'Non']], c.remplacant); }, function () { return oui(c.remplacant); });
+      if (c.remplacant === 'oui') { l.push({ id: '__remplacer', fin: 'remplacer' }); return l; }
+      etapesSuite(a, c, SUITES.nonFaite, e);
       return l;
     }
     if (!ph) {
@@ -3459,8 +3523,8 @@
 
     // 6. Bouton de validation sous le pouce
     h += '<div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">' +
-      '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer le compte rendu</button>' +
-      '<div style="text-align:center"><button type="button" class="bouton-texte" data-a="basculerModeComplet" data-uid="' + a.uid + '">Passer au formulaire complet (échantillons, stocks…)</button></div>' +
+      '<button class="bouton bouton-plein" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer</button>' +
+      '<div style="text-align:center"><button type="button" class="bouton-texte" data-a="basculerModeComplet" data-uid="' + a.uid + '">Formulaire complet</button></div>' +
       '</div>';
 
     return h + '</div>';
@@ -3477,8 +3541,8 @@
     for (var i = 0; i < etapes.length; i++) {
       var s = etapes[i];
       if (s.fin === 'remplacer') {
-        return h + '<div class="actions-cr"><button class="bouton bouton-plein bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' +
-          icone('cible') + 'Enregistrer et ouvrir Autour de moi</button></div></div>';
+        return h + '<div class="actions-cr"><button class="bouton bouton-plein" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' +
+          icone('cible') + 'Remplacer</button></div></div>';
       }
       if (ok[s.id]) {
         h += '<button type="button" class="cr-fait" data-a="crEditer" data-uid="' + a.uid + '" data-v="' + s.id + '"><span>' + esc(titreCourt(s.titre)) + '</span><b>' + esc(s.resume()) + '</b>' + icone('crayon') + '</button>';
@@ -3527,8 +3591,8 @@
   function boutonEnregistrer(a) {
     var m = manquesCr(a);
     return '<div class="actions-cr">' + (m.length ?
-      '<button class="bouton bouton-large" type="button" disabled>' + icone('valider') + 'Enregistrer le compte rendu</button><span class="aide-champ">Pour enregistrer : ' + esc(m.join(', ')) + '.</span>' :
-      '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + (a.corrige ? 'Enregistrer la modification' : 'Enregistrer le compte rendu') + '</button>') + '</div>';
+      '<button class="bouton" type="button" disabled>' + icone('valider') + 'Enregistrer</button><span class="aide-champ">Pour enregistrer : ' + esc(m.join(', ')) + '.</span>' :
+      '<button class="bouton bouton-plein" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer</button>') + '</div>';
   }
   // une valeur par ligne : « Routine, Présentation produit » ou « A ; B » s'affichent l'un sous l'autre
   function parLigne(v) { return String(v || '').split(/\s*;\s*|,\s+(?=[A-ZÉÈÀÂÎÔ0-9★])/).filter(Boolean).map(esc).join('<br>'); }
@@ -5293,10 +5357,10 @@
 
 
   FEUILLES.communes = function (f) {
-    var h = groupeChoix(f, { id: 'communes', titre: 'Communes', chemin: 'sel', multiple: true, sections: sectionsCommunes(), recherche: true, accordeon: 'communes',
-      aide: f.cle === 'tout' ? 'Aucune sélection = toutes les communes.' : 'Aucune sélection = les communes choisies pour la semaine.' });
-    return { corps: h, pied: '<button class="bouton" type="button" data-a="communesToutes">Tous</button><button class="bouton" type="button" data-a="communesAucune">Effacer</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="communesOk">' + (f.sel.length ? 'Valider · ' + f.sel.length + ' commune' + (f.sel.length > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
+    var h = groupeChoix(f, { id: 'communes', titre: 'Communes & Secteurs', chemin: 'sel', multiple: true, sections: sectionsCommunes(), recherche: true, accordeon: 'communes',
+      aide: f.cle === 'tout' ? 'Sélectionnez des communes entières ou des sous-secteurs précis (Abobo, Cocody, Yopougon). Aucune sélection = toutes les communes.' : 'Aucune sélection = les communes choisies pour la semaine.' });
+    return { corps: h, pied: '<button class="bouton" type="button" data-a="communesToutes">Toutes</button><button class="bouton" type="button" data-a="communesAucune">Effacer</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="communesOk">' + (f.sel.length ? 'Valider (' + f.sel.length + ')' : 'Valider toutes') + '</button>' };
   };
 
   FEUILLES.recherche = function (f) {
@@ -7754,7 +7818,28 @@
     },
     choix: function (el) {
       var c = cheminObjet(el.dataset.chemin), v = el.dataset.v;
-      if (el.dataset.m === '1') { var l = c.o[c.k], i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v); }
+      if (el.dataset.m === '1') {
+        var l = c.o[c.k], i = l.indexOf(v);
+        if (i >= 0) {
+          l.splice(i, 1);
+        } else {
+          var par = (typeof communeParente === 'function') ? communeParente(v) : v;
+          var estGrande = (typeof estGrandeCommune === 'function') ? estGrandeCommune(v) : (['Abobo', 'Cocody', 'Yopougon'].indexOf(par) >= 0);
+          if (estGrande) {
+            if (v === par) {
+              // Clic sur "Toute la commune" (ex: Cocody) -> retirer les sous-secteurs individuels déjà cochés
+              for (var k = l.length - 1; k >= 0; k--) {
+                if (l[k] !== par && communeParente(l[k]) === par) l.splice(k, 1);
+              }
+            } else {
+              // Clic sur un sous-secteur (ex: Cocody – Angré) -> retirer la sélection globale "Toute la commune"
+              var idxPar = l.indexOf(par);
+              if (idxPar >= 0) l.splice(idxPar, 1);
+            }
+          }
+          l.push(v);
+        }
+      }
       else c.o[c.k] = v;
       var f = S.ui.feuille;
       if (f && f.type === 'listeChoix') {   // sélecteur : la valeur est appliquée et la liste se referme
@@ -7822,9 +7907,22 @@
     sectionToute: function (el) {
       var c = cheminObjet(el.dataset.chemin), l = c.o[c.k], vs = [];
       if (!l) l = c.o[c.k] = [];
-      el.closest('.section-choix').querySelectorAll('.puce:not(.puce-tous)').forEach(function (b) { if (b.dataset.v) vs.push(b.dataset.v); });
+      var secEl = el.closest('.section-choix');
+      var pucesP = secEl.querySelectorAll('.puce-parente, .puce:not(.puce-secteur):not(.puce-tous)');
+      var cibles = pucesP.length ? pucesP : secEl.querySelectorAll('.puce:not(.puce-tous)');
+      cibles.forEach(function (b) { if (b.dataset.v) vs.push(b.dataset.v); });
       var tous = vs.length > 0 && vs.every(function (v) { return l.indexOf(v) >= 0; });
-      vs.forEach(function (v) { var i = l.indexOf(v); if (tous && i >= 0) l.splice(i, 1); if (!tous && i < 0) l.push(v); });
+      vs.forEach(function (v) {
+        var i = l.indexOf(v);
+        if (tous && i >= 0) {
+          l.splice(i, 1);
+        } else if (!tous && i < 0) {
+          for (var k = l.length - 1; k >= 0; k--) {
+            if (communeParente(l[k]) === v && l[k] !== v) l.splice(k, 1);
+          }
+          l.push(v);
+        }
+      });
       rendre();
     },
     sectionBascule: function (el) {
