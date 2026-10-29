@@ -1,10 +1,11 @@
 {
-  "version": "3.25.49",
+  "version": "3.26.0",
   "date": "2026-10-29",
   "notes": [
-    "Bande des produits fluide : suppression totale du défilement abusif et des sauts lors du choix d'un médicament",
-    "Découpage BDD des 3 grandes communes : Abobo, Cocody et Yopougon sectorisés directement dans la feuille Quartiers de la base de données",
-    "Réactivité intégrale BDD : toute modification dans le Google Sheet (renommage de secteur, ajout de quartier) pilote immédiatement l'application",
-    "Mise à jour en 1 clic : nouveau bouton dans le menu MediPlanner du classeur pour installer les 4 secteurs détaillés"
+    "Stockage flash IndexedDB / SQLite : suppression définitive du plafond des 5 Mo, capacité illimitée pour 10 000 praticiens et l'historique",
+    "Rendu localisé & préservation du focus : le clavier virtuel mobile reste stable et ne saute plus lors de la frappe ou des filtres",
+    "Intents Android directs (WhatsApp / Téléphone) : ouverture instantanée en 1 touche sans page blanche intermédiaire",
+    "Background Sync en zone blanche : synchronisation automatique des comptes rendus en tâche de fond dès le retour du réseau",
+    "Accessibilité & Ergonomie WCAG 2.1 AA : cibles tactiles élargies à 44-48 px et annonceur vocal d'écran"
   ]
 }

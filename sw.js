@@ -12,13 +12,11 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.25.49';
+var VERSION = '3.26.0';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
-  'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-700-normal.woff2',
-  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'
+  'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-700-normal.woff2'
 ];
 var FICHIERS = [
   './', './index.html', './manifest.webmanifest', './app.css',
@@ -83,4 +81,17 @@ self.addEventListener('fetch', function (e) {
   e.respondWith(caches.open(CACHE).then(function (c) {
     return c.match(e.request, { ignoreSearch: true }).then(function (r) { return r || fetch(e.request); });
   }));
+});
+
+// Background Sync : réveil en arrière-plan dès le retour du réseau (zones blanches en Côte d'Ivoire)
+self.addEventListener('sync', function (e) {
+  if (e.tag === 'mediplanner-sync-queue') {
+    e.waitUntil(
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clients) {
+        if (clients && clients.length) {
+          clients.forEach(function (c) { c.postMessage({ type: 'BACKGROUND_SYNC' }); });
+        }
+      })
+    );
+  }
 });
