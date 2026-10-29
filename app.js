@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.4';
+  var APP_VERSION = '3.26.5';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.5', [
+      'Suppression des doublons dans Suivi & Équipe : retrait de la rangée de boutons délégués en haut qui dupliquait la liste du bas',
+      'Gain d\'espace mobile : suppression des sous-titres verbeux et phrases longues pour un affichage direct et épuré',
+      'Navigation directe & intuitive : sélection d\'un délégué depuis sa carte de synthèse avec retour en 1 touche',
+      'Communes & Secteurs : sélection globale « Toute la commune » ou choix individuel de 1, 2, 3 secteurs sans friction'
+    ]],
     ['3.26.4', [
       'Cartes CR visites compactes & sobres : suppression des textes à rallonge sur les boutons et allègement vertical',
       'Boutons d\'action épurés : « Enregistrer » et « Remplacer » sans phrases encombrantes',
@@ -827,6 +833,22 @@
     }
     return s;
   }
+  function secteursDeGrandeCommune(par) {
+    var qs = (typeof quartiers === 'function') ? quartiers() : [];
+    var set = {};
+    qs.forEach(function (q) {
+      if (communeParente(q.commune) === par && q.commune !== par) {
+        set[q.commune] = true;
+      }
+    });
+    var res = Object.keys(set);
+    if (!res.length) {
+      if (par === 'Cocody') return ['Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre'];
+      if (par === 'Yopougon') return ['Yopougon – Niangon', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Centre & Mairie', 'Yopougon – Sud & Gesco'];
+      if (par === 'Abobo') return ['Abobo – Nord & PK', 'Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Sud & Plaque'];
+    }
+    return res;
+  }
   function communesListe() {
     var vus = {}, l = [];
     quartiers().forEach(function (q) {
@@ -837,8 +859,30 @@
   }
   function libelleCommunes(l) {
     if (!l || !l.length) return 'Toutes les communes';
-    var nets = l.map(function (x) { return String(x || '').replace(/\s*\(Toute la commune\)$/, ''); });
-    return nets.length <= 3 ? nets.join(', ') : nets.slice(0, 2).join(', ') + ' et ' + (nets.length - 2) + ' autres';
+    var parCompte = {}, secsParPar = {};
+    ['Abobo', 'Cocody', 'Yopougon'].forEach(function (p) {
+      secsParPar[p] = secteursDeGrandeCommune(p);
+      parCompte[p] = 0;
+    });
+    l.forEach(function (x) {
+      var p = communeParente(x);
+      if (secsParPar[p] && secsParPar[p].indexOf(x) >= 0) {
+        parCompte[p]++;
+      }
+    });
+    var aff = [];
+    ['Abobo', 'Cocody', 'Yopougon'].forEach(function (p) {
+      if (secsParPar[p].length && parCompte[p] === secsParPar[p].length) {
+        aff.push(p);
+      }
+    });
+    l.forEach(function (x) {
+      var p = communeParente(x);
+      if (secsParPar[p] && parCompte[p] === secsParPar[p].length) return;
+      var court = String(x || '').replace(/\s*\(Toute la commune\)$/, '');
+      if (aff.indexOf(court) < 0) aff.push(court);
+    });
+    return aff.length <= 3 ? aff.join(', ') : aff.slice(0, 2).join(', ') + ' et ' + (aff.length - 2) + ' autres';
   }
 
   function libelleListe(l, tous) {
@@ -931,16 +975,21 @@
       var dataLib = esc(normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')));
 
       if (op.parent) {
+        var secsDuPar = (typeof secteursDeGrandeCommune === 'function') ? secteursDeGrandeCommune(op.commune) : [];
+        var toutCoche = secsDuPar.length > 0 && secsDuPar.every(function (s) { return sel && sel[s]; });
+        var nbCoches = secsDuPar.filter(function (s) { return sel && sel[s]; }).length;
+        var sousLib = toutCoche ? 'Tous les secteurs cochés' : (nbCoches > 0 ? nbCoches + '/' + secsDuPar.length + ' secteur' + (nbCoches > 1 ? 's' : '') : 'Toute la commune');
         return '<div class="commune-parent-ligne"' + (!matchQ ? ' hidden' : '') + '>' +
           '<button type="button" class="puce puce-parente" data-a="choix" data-chemin="' + o.chemin + '" data-m="' + (o.multiple ? 1 : 0) + '" data-v="' + esc(op.v) +
-          '" data-lib="' + dataLib + '" aria-pressed="' + actif + '">' +
-          '<span>' + icone('localisation') + '<b>' + esc(op.commune) + '</b></span>' +
-          '<small>Toute la commune</small></button></div>';
+          '" data-parent="1" data-lib="' + dataLib + '" aria-pressed="' + toutCoche + '">' +
+          '<span class="parente-gauche">' + icone('localisation') + '<b>' + esc(op.commune) + '</b></span>' +
+          '<span class="parente-badge">' + esc(sousLib) + '</span></button></div>';
       }
       if (op.estSecteur) {
+        var iconeCoche = actif ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg>' : '';
         return '<button type="button" class="puce puce-secteur" data-a="choix" data-chemin="' + o.chemin + '" data-m="' + (o.multiple ? 1 : 0) + '" data-v="' + esc(op.v) +
           '" data-lib="' + dataLib + '" aria-pressed="' + actif + '"' + (!matchQ ? ' hidden' : '') + '>' +
-          '<span class="sec-nom">' + esc(op.nomCourt || op.lib) + '</span>' +
+          '<span class="sec-nom">' + iconeCoche + esc(op.nomCourt || op.lib) + '</span>' +
           (op.sousTitre ? '<small class="sec-reperes">' + esc(op.sousTitre) + '</small>' : '') +
           '</button>';
       }
@@ -988,6 +1037,44 @@
         var aMatch = !q || sec.options.some(function (op) { return normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')).indexOf(q) >= 0; });
         var ferme = q ? !aMatch : (ouv !== sec.titre);
         var ariaExp = q ? aMatch : !ferme;
+
+        var corpsSec = '';
+        var aDesSecteurs = sec.options.some(function (op) { return op.estSecteur || op.parent; });
+        var estGroupeCommunes = aDesSecteurs || o.id === 'communes' || o.id === 'com';
+        if (estGroupeCommunes) {
+          var bufferSimples = [];
+          var bufferSecteurs = [];
+          function flushSimples() {
+            if (bufferSimples.length) {
+              corpsSec += '<div class="grille-communes-simples">' + bufferSimples.map(puce).join('') + '</div>';
+              bufferSimples = [];
+            }
+          }
+          function flushSecteurs() {
+            if (bufferSecteurs.length) {
+              corpsSec += '<div class="grille-secteurs">' + bufferSecteurs.map(puce).join('') + '</div>';
+              bufferSecteurs = [];
+            }
+          }
+          sec.options.forEach(function (op) {
+            if (op.parent) {
+              flushSimples();
+              flushSecteurs();
+              corpsSec += puce(op);
+            } else if (op.estSecteur) {
+              flushSimples();
+              bufferSecteurs.push(op);
+            } else {
+              flushSecteurs();
+              bufferSimples.push(op);
+            }
+          });
+          flushSimples();
+          flushSecteurs();
+        } else {
+          corpsSec = sec.options.map(puce).join('');
+        }
+
         h += '<div class="section-choix' + (ariaExp ? ' ouverte' : '') + (nbSel ? ' a-selection' : '') + '"' + (q && !aMatch ? ' hidden' : '') + '>' +
           '<div class="section-choix-tete">' +
           '<button type="button" class="aire-titre aire-bascule" data-a="sectionBascule" data-acc="' + esc(accCle) + '" data-v="' + esc(sec.titre) + '" aria-expanded="' + ariaExp + '">' +
@@ -996,7 +1083,7 @@
           '<small>' + nbTot + '</small>' + icone('chevron') + '</button>' +
           (o.multiple ? '<button type="button" class="lien-action section-tous" data-a="sectionToute" data-chemin="' + o.chemin + '" title="Tout sélectionner ou effacer dans ' + esc(sec.titre) + '">Tous</button>' : '') +
           '</div>' +
-          '<div class="puces" data-ferme="' + (ferme ? 1 : 0) + '"' + (ferme && !q ? ' hidden' : '') + '>' + sec.options.map(puce).join('') + '</div></div>';
+          '<div class="puces" data-ferme="' + (ferme ? 1 : 0) + '"' + (ferme && !q ? ' hidden' : '') + '>' + corpsSec + '</div></div>';
       });
     } else {
       var puceTous = o.multiple && totalOpts > 1 && !q
@@ -1533,7 +1620,7 @@
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
-      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'equipe' || S.ui.tab === 'bilan' || S.ui.tab === 'suivi' || S.ui.tab === 'audit' ? 'suivi' : S.ui.tab));
+      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'suivi' ? (S.ui.suiviVue || 'bilan') : (S.ui.tab === 'audit' ? 'bilan' : S.ui.tab)));
       if (b.dataset.tab === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
@@ -2873,7 +2960,7 @@
           return '<div class="segment" role="group" aria-label="Durée" style="margin-top:8px">' +
               '<button type="button" data-a="param" data-k="mode" data-v="jour" aria-pressed="' + (p.mode === 'jour') + '">Une journée</button>' +
               '<button type="button" data-a="param" data-k="mode" data-v="semaine" aria-pressed="' + (p.mode === 'semaine') + '">Une semaine</button></div>' +
-            '<div class="puces" style="margin-bottom:8px">' +
+            '<div class="grille-options-2" style="margin-bottom:8px">' +
               (p.mode === 'jour'
                 ? '<button type="button" class="puce petite" data-a="paramPeriodeRapide" data-m="jour" data-d="' + t0 + '" aria-pressed="' + (p.dateRef === t0) + '">' + (t0 === aujourdhui() ? 'Aujourd\'hui' : 'Prochain jour ouvré') + '</button>' +
                   '<button type="button" class="puce petite" data-a="paramPeriodeRapide" data-m="jour" data-d="' + j1 + '" aria-pressed="' + (p.dateRef === j1) + '">Demain (' + dateCourte(j1) + ')</button>'
@@ -2887,15 +2974,15 @@
       { id: 'ou', titre: 'Communes ciblées', resume: function () { return p.mode === 'semaine' && p.parJour ? 'Communes différentes selon le jour' : libelleCommunes(p.communes); },
         rendu: function () {
           var h = '<div class="champ" style="margin:8px 0 0"><span>Communes</span>' +
-            '<button type="button" class="selecteur" data-a="choisirCommunes" data-v="tout">' + esc(libelleCommunes(p.communes)) + '<b>▾</b></button></div>';
+            '<button type="button" class="selecteur" data-a="choisirCommunes" data-v="tout"><span>' + esc(libelleCommunes(p.communes)) + '</span><b>▾</b></button></div>';
           if (p.mode === 'semaine') {
             h += '<label class="interrupteur"><span>Communes différentes selon le jour</span>' +
               '<input type="checkbox" data-f="param" data-k="parJour"' + (p.parJour ? ' checked' : '') + '></label>';
             if (p.parJour) {
               h += '<div class="secteurs">' + JOURS.map(function (j, i) {
                 var c = p.communesJour[i];
-                return '<div class="secteur"><span>' + j + '</span><button type="button" class="selecteur" data-a="choisirCommunes" data-v="' + i + '">' +
-                  esc(c && c.length ? libelleCommunes(c) : 'Comme ci-dessus') + '<b>▾</b></button></div>';
+                return '<div class="secteur"><span>' + j + '</span><button type="button" class="selecteur" data-a="choisirCommunes" data-v="' + i + '"><span>' +
+                  esc(c && c.length ? libelleCommunes(c) : 'Comme ci-dessus') + '</span><b>▾</b></button></div>';
               }).join('') + '</div>';
             }
           }
@@ -2903,7 +2990,7 @@
         } },
       { id: 'qui', titre: 'Praticiens à visiter', auto: true, resume: function () { return { tous: 'Médecins et pharmacies', medecins: 'Médecins', pharmacies: 'Pharmacies' }[p.typeCibles || 'tous']; },
         rendu: function () {
-          return '<div class="puces">' + [['medecins', 'Médecins'], ['pharmacies', 'Pharmacies'], ['tous', 'Tous']].map(function (x) {
+          return '<div class="grille-options-3" style="margin-top:8px">' + [['medecins', 'Médecins'], ['pharmacies', 'Pharmacies'], ['tous', 'Tous']].map(function (x) {
             return '<button type="button" class="puce" data-a="param" data-k="typeCibles" data-v="' + x[0] + '" data-auto="qui" aria-pressed="' + ((p.typeCibles || 'tous') === x[0]) + '">' + x[1] + '</button>';
           }).join('') + '</div>';
         } },
@@ -2915,7 +3002,7 @@
       { id: 'valeur', titre: 'Potentiel', facultatif: true, resume: function () { return p.potentiels.length ? p.potentiels.map(function (x) { return ETOILES[x]; }).join(' · ') : 'Tous'; },
         rendu: function () {
           var tousP = !p.potentiels.length || p.potentiels.length === 3;
-          return '<div class="puces">' +
+          return '<div class="grille-options-4" style="margin-top:8px">' +
             '<button type="button" class="puce puce-tous" data-a="paramPotentiel" data-v="tous" aria-pressed="' + tousP + '">Tous</button>' +
             ['A', 'B', 'C'].map(function (x) {
               return '<button type="button" class="puce" data-a="paramPotentiel" data-v="' + x + '" aria-pressed="' + (p.potentiels.indexOf(x) >= 0) + '">' + ETOILES[x] + '<small>' + LIB_POTENTIEL[x] + '</small></button>';
@@ -4255,7 +4342,7 @@
   VUES.equipe = function (integre) {
     var nomMoi = moi() || 'Moi', p = S.ui.eqPortee || 'semaine', ref = S.ui.eqDate || aujourdhui();
     var dates = p === 'semaine' ? joursOuvres(lundiDe(ref)) : [ref];
-    var h = (integre ? '' : '<h2 class="titre-vue">Équipe</h2><p class="sous-titre">Tournées planifiées et visites réalisées par vous et vos collègues.</p>') + barreQuiQuand('equipe') +
+    var h = (integre ? '' : '<h2 class="titre-vue">Équipe</h2>') + barreQuiQuand('equipe') +
       (ref !== aujourdhui() ? '<p class="discret" style="margin:-4px 0 10px"><button type="button" class="bouton-texte" data-a="eqAujourdhui">Revenir à aujourd\'hui</button></p>' : '');
 
     var tout = donneesEquipe(dates);
@@ -4280,14 +4367,9 @@
     if (fq.qui !== 'tous' && !sel.length) return h + '<div class="vide"><strong>Rien sur cette période</strong>Aucune visite pour ' + esc(libelleQui()) + '. Choisissez d\'autres délégués ou une autre date.</div>';
     if (noms.length === 1) sel = [];
     var tous = !sel.length, libSel = tous ? 'Toute l\'équipe' : sel.join(', ');
-    h += '<div class="bande-equipe-puces" style="display:flex;align-items:center;gap:6px;overflow-x:auto;padding:2px 0 8px;margin:4px 0 8px">' +
-      '<button type="button" class="puce petite' + (tous ? ' puce-active' : '') + '" data-a="collegueTous" aria-pressed="' + tous + '">👥 Toute l\'équipe</button>' +
-      noms.map(function (n) {
-        var actif = sel.indexOf(n) >= 0;
-        return '<button type="button" class="puce petite' + (actif ? ' puce-active' : '') + '" data-a="collegue" data-v="' + esc(n) + '" aria-pressed="' + actif + '">' +
-          esc(n === nomMoi ? n + ' (moi)' : n) + '</button>';
-      }).join('') +
-      '</div>';
+    if (!tous) {
+      h += '<div style="margin:4px 0 8px"><button type="button" class="bouton-texte" data-a="collegueTous">← Revenir à toute l\'équipe</button></div>';
+    }
     h += '<ul class="liste resume-equipe">' + noms.map(function (n) { return ligne(n, tout.filter(function (x) { return x.delegue === n; })); }).join('') + '</ul>';
 
     var siens = tous ? tout : tout.filter(function (x) { return sel.indexOf(x.delegue) >= 0; });
@@ -4791,9 +4873,8 @@
   VUES.suivi = function () {
     var sousVue = S.ui.suiviVue || 'bilan';
     var tete = '<div class="tete-vue"><h2 class="titre-vue">Suivi & Contrôle</h2></div>' +
-      '<p class="sous-titre">Indicateurs de performance, tournées d\'équipe et audit qualité des données.</p>' +
-      '<div class="segment-suivi">' +
-      segment('Sous-onglet Suivi', 'suiviVue', [['bilan', 'Bilan & Stats'], ['equipe', 'Tournées Équipe'], ['audit', 'Audit Données & GPS']], sousVue) +
+      '<div class="segment-suivi" style="margin:4px 0 10px">' +
+      segment('Sous-onglet Suivi', 'suiviVue', [['bilan', 'Bilan'], ['equipe', 'Équipe'], ['audit', 'Audit']], sousVue) +
       '</div>';
     return tete + (sousVue === 'equipe' ? VUES.equipe(true) : (sousVue === 'audit' ? VUES.audit(true) : VUES.bilan(true)));
   };
@@ -4868,8 +4949,7 @@
 
     var scoreSante = Math.round((conformes / total) * 100);
 
-    var h = (integre ? '' : '<div class="tete-vue"><h2 class="titre-vue">Audit Qualité BDD & GPS</h2></div>') +
-      '<p class="sous-titre">Diagnostic automatique de la base praticiens et pharmacies selon les règles géographiques de Côte d\'Ivoire.</p>';
+    var h = (integre ? '' : '<div class="tete-vue"><h2 class="titre-vue">Audit Qualité BDD & GPS</h2></div>');
 
     var coulScore = scoreSante >= 85 ? 'var(--vert,#1e7e34)' : (scoreSante >= 65 ? 'var(--ambre,#d97706)' : 'var(--rouge,#dc2626)');
     h += '<div class="bloc" style="margin-bottom:12px;padding:14px;background:var(--papier,#fff);border:1px solid var(--trait,#e2e8f0);border-radius:12px">' +
@@ -4958,9 +5038,8 @@
 
   VUES.bilan = function (integre) {
     var vueH = S.ui.statsVue === 'historique';
-    var tete = (integre ? '' : '<h2 class="titre-vue">Bilan</h2>' +
-      '<p class="sous-titre">' + (vueH ? 'Historique complet des comptes rendus de visite sur la période.' : 'Suivi de vos indicateurs, objectifs et couverture par commune et spécialité.') + '</p>') +
-      segment('Affichage', 'statsVue', [['tableau', 'Tableau de bord'], ['historique', 'Historique']], vueH ? 'historique' : 'tableau') + barreQuiQuand('bilan');
+    var tete = (integre ? '' : '<h2 class="titre-vue">Bilan</h2>') +
+      segment('Affichage', 'statsVue', [['tableau', 'Indicateurs'], ['historique', 'Historique']], vueH ? 'historique' : 'tableau') + barreQuiQuand('bilan');
     if (vueH) return tete + VUES.historique(true);
     var st = S.ui.stats, r = calculerStats(), b = r.bornes;
     var h = tete;
@@ -5359,8 +5438,8 @@
   FEUILLES.communes = function (f) {
     var h = groupeChoix(f, { id: 'communes', titre: 'Communes & Secteurs', chemin: 'sel', multiple: true, sections: sectionsCommunes(), recherche: true, accordeon: 'communes',
       aide: f.cle === 'tout' ? 'Sélectionnez des communes entières ou des sous-secteurs précis (Abobo, Cocody, Yopougon). Aucune sélection = toutes les communes.' : 'Aucune sélection = les communes choisies pour la semaine.' });
-    return { corps: h, pied: '<button class="bouton" type="button" data-a="communesToutes">Toutes</button><button class="bouton" type="button" data-a="communesAucune">Effacer</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="communesOk">' + (f.sel.length ? 'Valider (' + f.sel.length + ')' : 'Valider toutes') + '</button>' };
+    return { corps: h, pied: '<button class="bouton btn-secondaire" type="button" data-a="communesToutes">Toutes</button><button class="bouton btn-secondaire" type="button" data-a="communesAucune">Effacer</button>' +
+      '<button class="bouton bouton-plein btn-valider" type="button" data-a="communesOk">' + (f.sel.length ? 'Valider (' + f.sel.length + ')' : 'Valider toutes') + '</button>' };
   };
 
   FEUILLES.recherche = function (f) {
@@ -5694,14 +5773,14 @@
           '<div class="puces" id="autresSpecs" data-ferme="1"' + (!ouv ? ' hidden' : '') + '>' + autresOpts.map(puceM).join('') + '</div></div>';
       }
       h += '</div>';
-      return { corps: h, pied: '<button class="bouton" type="button" data-a="multiTous">Tous</button><button class="bouton" type="button" data-a="multiAucun">Effacer</button>' +
-        '<button class="bouton bouton-plein" type="button" data-a="multiOk">' + (sel.length ? 'Valider · ' + total + ' médecin' + (total > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
+      return { corps: h, pied: '<button class="bouton btn-secondaire" type="button" data-a="multiTous">Tous</button><button class="bouton btn-secondaire" type="button" data-a="multiAucun">Effacer</button>' +
+        '<button class="bouton bouton-plein btn-valider" type="button" data-a="multiOk">' + (sel.length ? 'Valider · ' + total + ' médecin' + (total > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
     }
     var h = groupeChoix(f, { id: 'multi', titre: f.titreGroupe || 'Choix', chemin: 'sel', multiple: true, recherche: f.options.length > 8, aide: f.aide,
       options: f.options.map(function (o) { return { v: o.nom, lib: o.nom, n: o.n }; }) });
     var total = f.sel.reduce(function (s2, v) { var o = f.options.filter(function (x) { return x.nom === v; })[0]; return s2 + (o && o.n ? o.n : 0); }, 0);
-    return { corps: h, pied: '<button class="bouton" type="button" data-a="multiTous">Tous</button><button class="bouton" type="button" data-a="multiAucun">Effacer</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="multiOk">' + (f.sel.length ? 'Valider · ' + total + ' médecin' + (total > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
+    return { corps: h, pied: '<button class="bouton btn-secondaire" type="button" data-a="multiTous">Tous</button><button class="bouton btn-secondaire" type="button" data-a="multiAucun">Effacer</button>' +
+      '<button class="bouton bouton-plein btn-valider" type="button" data-a="multiOk">' + (f.sel.length ? 'Valider · ' + total + ' médecin' + (total > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
   };
 
   // Filtres avancés de la liste des praticiens (cumulables)
@@ -5745,8 +5824,8 @@
       o.options = f.options.map(function (op) { return { v: op[0], lib: op[1] }; });
     }
     var h = groupeChoix(f, o);
-    return f.multi ? { corps: h, pied: '<button class="bouton" type="button" data-a="crListeTous">Tous</button><button class="bouton" type="button" data-a="crListeAucun">Effacer</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="crListeOk">Valider' + (f.sel.length ? ' · ' + f.sel.length : '') + '</button>' } : h;
+    return f.multi ? { corps: h, pied: '<button class="bouton btn-secondaire" type="button" data-a="crListeTous">Tous</button><button class="bouton btn-secondaire" type="button" data-a="crListeAucun">Effacer</button>' +
+      '<button class="bouton bouton-plein btn-valider" type="button" data-a="crListeOk">Valider' + (f.sel.length ? ' · ' + f.sel.length : '') + '</button>' } : h;
   };
   FEUILLES.filtres = function (f) {
     var b = f.brouillon, n = filtrerPraticiens(b, rechercheCour()).length, seule = f.question;
@@ -5775,8 +5854,8 @@
       return '<div class="question-filtre">' + (seule ? '' : '<h3><span class="num">' + num + '</span>' + QUESTIONS_FILTRES[k].titre + '</h3>') + blocs[k] + '</div>';
     }).join('');
     var libOk = S.ui.tab === 'autour' ? 'Appliquer' : 'Afficher ' + n + ' praticien' + (n > 1 ? 's' : '');
-    return { corps: h, pied: '<button class="bouton" type="button" data-a="filtresReinit">' + (seule ? 'Effacer' : 'Tout effacer') + '</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="filtresOk">' + libOk + '</button>' };
+    return { corps: h, pied: '<button class="bouton btn-secondaire" type="button" data-a="filtresReinit">' + (seule ? 'Effacer' : 'Tout effacer') + '</button>' +
+      '<button class="bouton bouton-plein btn-valider" type="button" data-a="filtresOk">' + libOk + '</button>' };
   };
 
   // ------------------------------------------------------------------ Fiche praticien : parcours 2 étapes (Profil & GPS / Jours & horaires)
@@ -7342,7 +7421,13 @@
     },
     communesToutes: function () {
       var f = S.ui.feuille;
-      f.sel = communesListe().map(function (c) { return c.commune; });
+      var tout = [];
+      sectionsCommunes().forEach(function (sec) {
+        sec.options.forEach(function (op) {
+          if (op.estSecteur || !op.parent) tout.push(op.v);
+        });
+      });
+      f.sel = tout;
       rendre();
     },
     communesAucune: function () { S.ui.feuille.sel = []; rendre(); },
@@ -7819,25 +7904,33 @@
     choix: function (el) {
       var c = cheminObjet(el.dataset.chemin), v = el.dataset.v;
       if (el.dataset.m === '1') {
-        var l = c.o[c.k], i = l.indexOf(v);
-        if (i >= 0) {
-          l.splice(i, 1);
-        } else {
+        var l = c.o[c.k];
+        if (el.dataset.parent === '1' || (typeof estGrandeCommune === 'function' && estGrandeCommune(v) && v === communeParente(v))) {
+          // Clic sur "Toute la commune" (ex: Cocody) -> coche ou décoche TOUS les sous-secteurs de cette commune
           var par = (typeof communeParente === 'function') ? communeParente(v) : v;
-          var estGrande = (typeof estGrandeCommune === 'function') ? estGrandeCommune(v) : (['Abobo', 'Cocody', 'Yopougon'].indexOf(par) >= 0);
-          if (estGrande) {
-            if (v === par) {
-              // Clic sur "Toute la commune" (ex: Cocody) -> retirer les sous-secteurs individuels déjà cochés
-              for (var k = l.length - 1; k >= 0; k--) {
-                if (l[k] !== par && communeParente(l[k]) === par) l.splice(k, 1);
-              }
-            } else {
-              // Clic sur un sous-secteur (ex: Cocody – Angré) -> retirer la sélection globale "Toute la commune"
-              var idxPar = l.indexOf(par);
-              if (idxPar >= 0) l.splice(idxPar, 1);
-            }
+          var secs = (typeof secteursDeGrandeCommune === 'function') ? secteursDeGrandeCommune(par) : [];
+          var toutCoche = secs.length > 0 && secs.every(function (s) { return l.indexOf(s) >= 0; });
+          if (toutCoche) {
+            // Décocher tous les sous-secteurs de cette commune
+            secs.forEach(function (s) {
+              var idx = l.indexOf(s);
+              if (idx >= 0) l.splice(idx, 1);
+            });
+            var idxP = l.indexOf(par);
+            if (idxP >= 0) l.splice(idxP, 1);
+          } else {
+            // Cocher TOUS les sous-secteurs de cette commune
+            secs.forEach(function (s) {
+              if (l.indexOf(s) < 0) l.push(s);
+            });
+            var idxP = l.indexOf(par);
+            if (idxP >= 0) l.splice(idxP, 1);
           }
-          l.push(v);
+        } else {
+          // Clic sur un sous-secteur individuel (ex: Cocody – Angré) ou une commune non sectorisée
+          var i = l.indexOf(v);
+          if (i >= 0) l.splice(i, 1);
+          else l.push(v);
         }
       }
       else c.o[c.k] = v;
@@ -7905,24 +7998,18 @@
     },
     groupeAucun: function (el) { var c = cheminObjet(el.dataset.chemin); c.o[c.k] = []; rendre(); },
     sectionToute: function (el) {
-      var c = cheminObjet(el.dataset.chemin), l = c.o[c.k], vs = [];
+      var c = cheminObjet(el.dataset.chemin), l = c.o[c.k];
       if (!l) l = c.o[c.k] = [];
       var secEl = el.closest('.section-choix');
-      var pucesP = secEl.querySelectorAll('.puce-parente, .puce:not(.puce-secteur):not(.puce-tous)');
-      var cibles = pucesP.length ? pucesP : secEl.querySelectorAll('.puce:not(.puce-tous)');
+      var cibles = secEl.querySelectorAll('.puce-secteur, .puce:not(.puce-secteur):not(.puce-parente):not(.puce-tous)');
+      var vs = [];
       cibles.forEach(function (b) { if (b.dataset.v) vs.push(b.dataset.v); });
       var tous = vs.length > 0 && vs.every(function (v) { return l.indexOf(v) >= 0; });
-      vs.forEach(function (v) {
-        var i = l.indexOf(v);
-        if (tous && i >= 0) {
-          l.splice(i, 1);
-        } else if (!tous && i < 0) {
-          for (var k = l.length - 1; k >= 0; k--) {
-            if (communeParente(l[k]) === v && l[k] !== v) l.splice(k, 1);
-          }
-          l.push(v);
-        }
-      });
+      if (tous) {
+        vs.forEach(function (v) { var i = l.indexOf(v); if (i >= 0) l.splice(i, 1); });
+      } else {
+        vs.forEach(function (v) { if (l.indexOf(v) < 0) l.push(v); });
+      }
       rendre();
     },
     sectionBascule: function (el) {
@@ -8388,6 +8475,7 @@
       var q = normaliser(el.value), g = el.closest('.groupe-filtre') || el.closest('.feuille-corps');
       if (g) {
         g.querySelectorAll('.puce').forEach(function (b) { b.hidden = !!q && b.dataset.lib && b.dataset.lib.indexOf(q) < 0; });
+        g.querySelectorAll('.commune-parent-ligne').forEach(function (l) { var p = l.querySelector('.puce'); if (p) l.hidden = p.hidden; });
         g.querySelectorAll('.puces[data-ferme]').forEach(function (p) { p.hidden = !q && p.dataset.ferme === '1'; });
         var zAutres = g.querySelector('#autresSpecs'); if (zAutres && fe) zAutres.hidden = !q && !fe.autresOuvert;
         g.querySelectorAll('.section-choix').forEach(function (sec) {

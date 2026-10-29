@@ -1,11 +1,10 @@
 {
-  "version": "3.26.4",
-  "date": "2026-10-29",
+  "version": "3.26.5",
+  "date": "2026-10-30",
   "notes": [
-    "Cartes CR visites compactes & sobres : suppression des textes à rallonge sur les boutons et allègement vertical",
-    "Boutons d'action épurés : « Enregistrer » et « Remplacer » sans phrases encombrantes",
-    "Parcours de visite fluide : retour aux étapes progressives compactes sans blocs massifs",
-    "Boutons produits compacts & élégants : hauteur physique réduite à 34 px avec hitbox tactile invisible de 44 px au pouce",
-    "Planifier - Refonte des secteurs : segmentation stricte réservée aux 3 grandes communes (Abobo, Cocody, Yopougon)"
+    "Suppression des doublons dans Suivi & Équipe : retrait de la rangée de boutons délégués en haut qui dupliquait la liste du bas",
+    "Gain d'espace mobile : suppression des sous-titres verbeux et phrases longues inutiles",
+    "Navigation directe & intuitive : sélection de collègue directement depuis sa carte, retour d'une touche",
+    "Communes & Secteurs : sélection globale en 1 touche ou choix individuel de 1, 2, 3 secteurs sans conflit"
   ]
 }
