@@ -1,9 +1,9 @@
 {
-  "version": "3.25.46",
+  "version": "3.25.47",
   "date": "2026-10-29",
   "notes": [
-    "Secteurs détaillés par commune : découpage de Cocody, Yopougon et Abobo en 4 sous-secteurs pour planifier uniquement sur votre zone",
-    "Sélection flexible : choix de toute la commune ou d'un secteur précis (Angré, Riviera, Niangon, PK18, etc.)",
-    "Filtrage automatique : affectation instantanée des praticiens selon leur quartier et établissement sans ressaisie"
+    "Visite non réalisée / Absent fluide : options de motif directes sous le pouce, écran toujours parfaitement centré sans saut ni défilement bizarre",
+    "Action immédiate sur absence : proposition instantanée de Remplacer sur place (+50 pts) ou d'enregistrer l'absence en 1 touche",
+    "Secteurs Abobo affinés : intégration explicite de Derrière rails, Sagbé, Samaké, Abobo-Té et Dépôt SOTRA"
   ]
 }

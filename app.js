@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.46';
+  var APP_VERSION = '3.25.47';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.47', [
+      'Visite non réalisée / Absent fluide : options de motif directes sous le pouce, écran toujours parfaitement centré sans saut ni défilement bizarre',
+      'Action immédiate sur absence : proposition instantanée de Remplacer sur place (+50 pts) ou d''enregistrer l''absence en 1 touche',
+      'Secteurs Abobo affinés : intégration explicite de Derrière rails, Sagbé, Samaké, Abobo-Té et Dépôt SOTRA'
+    ]],
     ['3.25.46', [
       'Secteurs détaillés par commune : découpage de Cocody, Yopougon et Abobo en 4 sous-secteurs pour planifier uniquement sur votre zone',
       'Sélection flexible : choix de toute la commune ou d\'un secteur précis (Angré, Riviera, Niangon, PK18, etc.)',
@@ -2889,7 +2894,7 @@
     if (o.length === 2) return '<div class="segment" role="group" style="margin:8px 0 0">' + o.map(function (x) {
       return '<button type="button" data-a="crChoix" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + esc(x[0]) + '" aria-pressed="' + (val === x[0]) + '">' + esc(x[1]) + '</button>';
     }).join('') + '</div>';
-    if (o.length > 5) return selecteurCr(a, cle, o, val ? [val] : [], false, 'Choisir…');
+    if (o.length > 8 && cle !== 'motif') return selecteurCr(a, cle, o, val ? [val] : [], false, 'Choisir…');
     return '<div class="puces">' + o.map(function (x) { return puceCr(a, cle, x[0], x[1], val === x[0]); }).join('') + '</div>';
   }
   function multiCr(a, cle, options, vals) {
@@ -3100,12 +3105,20 @@
     e('faite', 'La visite a-t-elle été faite ?', 'auto', function () { return ouiNonCr(a, 'faite', c.faite); }, function () { return oui(c.faite); });
     if (!c.faite) return l;
     if (c.faite === 'non') {
-      e('motif', 'Motif', 'auto', function () { return choixCr(a, 'motif', motifsPour(a), c.motif); }, function () { return c.motif; });
-      e('precision', 'Précision', 'facultatif', function () { return texteCr(a, 'precision', c.precision, ph ? 'Ex. pharmacien en congé jusqu\'à lundi' : 'Ex. en bloc opératoire, revenir après 15 h', true); },
-        function () { return c.precision || 'aucune'; });
-      e('remplacant', 'Trouver un remplaçant à proximité ?', 'auto', function () { return choixCr(a, 'remplacant', [['oui', 'Oui'], ['non', 'Non']], c.remplacant); }, function () { return oui(c.remplacant); });
-      if (c.remplacant === 'oui') { l.push({ id: '__remplacer', fin: 'remplacer' }); return l; }
-      etapesSuite(a, c, SUITES.nonFaite, e);
+      e('motif', 'Motif de non-visite', 'auto', function () { return choixCr(a, 'motif', motifsPour(a), c.motif); }, function () { return c.motif; });
+      if (!c.motif) return l;
+      e('actionNonFaite', 'Suite de la visite', 'auto', function () {
+        var hAction = '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">';
+        if (!a.hors) {
+          hAction += '<button class="bouton bouton-plein bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer immédiatement (sur place ou proche)</button>';
+        }
+        hAction += '<button class="bouton bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer l\'absence sans remplacer</button>';
+        hAction += '</div>';
+        hAction += '<div style="margin-top:12px"><details class="details-discret"><summary class="discret" style="cursor:pointer;font-size:0.85rem">+ Précision / commentaire (facultatif)</summary>' +
+          '<div style="margin-top:6px">' + texteCr(a, 'precision', c.precision, ph ? 'Ex. pharmacien en congé jusqu\'à lundi' : 'Ex. en bloc opératoire, revenir après 15 h', true) + '</div>' +
+          '</details></div>';
+        return hAction;
+      }, function () { return c.motif; });
       return l;
     }
     if (!ph) {
@@ -3313,15 +3326,23 @@
   }
   function validerEtape(a, id) { var c = crDe(a); c.ok = c.ok || {}; c.ok[id] = true; LS.set('plan', S.plan); }
 
-  // 3.25.15 : compte rendu : après chaque réponse, la question suivante (ou le choix touché) reste au milieu de l'écran
+  // 3.25.15 / 3.25.47 : compte rendu : après chaque réponse, la question suivante (ou le choix touché) reste au milieu de l'écran visible
   function centrerQuestion(uid) {
-    var c = document.querySelector('.arret.ouvert .cr-question') || document.querySelector('.arret.ouvert .actions-cr') || document.querySelector('.arret.ouvert');
-    if (c) c.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setTimeout(function () {
+      var c = document.querySelector('.arret.ouvert .cr-question') ||
+              document.querySelector('.arret.ouvert .cr-express-bloc') ||
+              document.querySelector('.arret.ouvert .actions-cr') ||
+              document.querySelector('.arret.ouvert');
+      if (c) centrerElement(c);
+    }, 40);
   }
   function centrerChoix(el) {
-    var sel = '[data-a="' + el.dataset.a + '"][data-uid="' + el.dataset.uid + '"][data-k="' + (el.dataset.k || '') + '"][data-v="' + (el.dataset.v || '') + '"]';
-    var b = null; try { b = document.querySelector(sel); } catch (e) {}
-    (b || document.querySelector('.arret.ouvert .cr-question') || {}).scrollIntoView && (b || document.querySelector('.arret.ouvert .cr-question')).scrollIntoView({ block: 'center' });
+    setTimeout(function () {
+      var sel = '[data-a="' + el.dataset.a + '"][data-uid="' + el.dataset.uid + '"][data-k="' + (el.dataset.k || '') + '"][data-v="' + (el.dataset.v || '') + '"]';
+      var b = null; try { b = document.querySelector(sel); } catch (e) {}
+      var c = b || document.querySelector('.arret.ouvert .cr-question') || document.querySelector('.arret.ouvert');
+      if (c) centrerElement(c);
+    }, 40);
   }
   function boutonEnregistrer(a) {
     var m = manquesCr(a);
@@ -4822,9 +4843,10 @@
     el.hidden = false; document.body.classList.add('feuille-ouverte');
     var contenu = FEUILLES[f.type](f), pied = '';
     if (typeof contenu === 'object') { pied = contenu.pied; contenu = contenu.corps; }
-    var defil = el.querySelector('.feuille-corps'), haut = defil && el.dataset.type === f.type + (f.etape || '') ? defil.scrollTop : 0;
+    var sousType = f.type + (f.etape || '') + (f.choix ? '|choix' : '');
+    var defil = el.querySelector('.feuille-corps'), haut = defil && el.dataset.type === sousType ? defil.scrollTop : 0;
     var nouvelle = !defil || el.dataset.ouverte !== f.type;
-    el.dataset.type = f.type + (f.etape || ''); el.dataset.ouverte = f.type;
+    el.dataset.type = sousType; el.dataset.ouverte = f.type;
     el.innerHTML = '<div class="voile" data-a="fermerFeuille"></div><div class="feuille' + (f.pleine ? ' pleine' : '') + (nouvelle ? ' anim' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(f.titre || '') + '">' +
       '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="' + (f.retourAction || 'fermerFeuille') + '" aria-label="Retour">' + icone('chevron') + '</button><b>' + esc(f.titre || '') + '</b></div>' +
       '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
@@ -6532,6 +6554,7 @@
       syncCr(a);
       LS.set('plan', S.plan);
       rendre();
+      centrerQuestion(a.uid);
     },
     crEtapeRapide: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -7391,6 +7414,9 @@
       if (f && f.type === 'crListe' && !f.multi) {   // choix unique : appliqué tout de suite, question suivante
         var a = arret(f.uid); S.ui.feuille = null;
         if (a) { majCr(a, f.cle, v); validerEtape(a, f.cle); }
+        rendre();
+        if (a) centrerQuestion(a.uid);
+        return;
       }
       rendre();
     },

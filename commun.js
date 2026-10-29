@@ -1224,10 +1224,10 @@ var ZONES_GRANDES_COMMUNES = {
     { nom: 'Yopougon – Sud & Gesco', lib: 'Yopougon – Sud & Gesco (Port-Bouët 2, Kouté, Zone Industrielle, Sable)', mots: ['port-bouet 2', 'port bouet 2', 'koute', 'gesco', 'industrielle', 'sable', 'millionnaire', 'nouveau quartier', 'acadie'] }
   ],
   'Abobo': [
-    { nom: 'Abobo – Nord & PK', lib: 'Abobo – Nord & PK (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville)', mots: ['pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi'] },
-    { nom: 'Abobo – Centre & Mairie', lib: 'Abobo – Centre & Mairie (Samaké, Gare, Mairie, Habitat, Banco)', mots: ['samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha'] },
-    { nom: 'Abobo – Baoulé & Avocatier', lib: 'Abobo – Baoulé & Avocatier (Abobo Baoulé, Avocatier, Clouetcha)', mots: ['baoule', 'avocatier', 'clouetcha', 'sotra', 'te'] },
-    { nom: 'Abobo – Sud & Plaque', lib: 'Abobo – Sud & Plaque (Plaque 1 & 2, Anador, Sagbé, Houphouët-Boigny)', mots: ['plaque', 'anador', 'sagbe', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
+    { nom: 'Abobo – Nord & PK', lib: 'Abobo – Nord & PK (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville, Biabou)', mots: ['pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi', 'agneby'] },
+    { nom: 'Abobo – Centre, Gare & Rails', lib: 'Abobo – Centre, Gare & Rails (Samaké, Gare, Derrière rails, Mairie, Habitat)', mots: ['samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha', 'rail', 'rails', 'derriere rail', 'derriere rails'] },
+    { nom: 'Abobo – Baoulé & Avocatier', lib: 'Abobo – Baoulé & Avocatier (Abobo Baoulé, Avocatier, Clouetcha, Dépôt SOTRA, Abobo-Té)', mots: ['baoule', 'avocatier', 'clouetcha', 'sotra', 'te', 'abobo te', 'abobo-te'] },
+    { nom: 'Abobo – Sud, Sagbé & Plaque', lib: 'Abobo – Sud, Sagbé & Plaque (Sagbé, Plaque 1 & 2, Anador, Houphouët-Boigny, Dokui)', mots: ['sagbe', 'plaque', 'anador', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
   ]
 };
 
