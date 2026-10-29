@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.0';
+  var APP_VERSION = '3.26.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.1', [
+      'Hot reload Service Worker : activation instantanée sans attente et rafraîchissement automatique des écrans mobiles',
+      'Purge cache d\'urgence : le bouton « Recharger l\'application » désenregistre le worker obsolète et force la dernière version du serveur',
+      'Garde-fou anti-téléportation GPS : alerte bloquante si l\'écart entre le smartphone et l\'établissement dépasse 3 km'
+    ]],
     ['3.26.0', [
       'Stockage flash IndexedDB / SQLite : suppression du plafond de 5 Mo du localStorage, conservation intégrale de 10 000 praticiens et de l\'historique',
       'Rendu localisé & préservation du clavier : le clavier mobile ne saute plus lors de la frappe ou de l\'application des filtres',
@@ -1452,7 +1457,7 @@
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
-      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'equipe' || S.ui.tab === 'bilan' || S.ui.tab === 'suivi' ? 'suivi' : S.ui.tab));
+      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'equipe' || S.ui.tab === 'bilan' || S.ui.tab === 'suivi' || S.ui.tab === 'audit' ? 'suivi' : S.ui.tab));
       if (b.dataset.tab === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
@@ -6720,6 +6725,10 @@
       rendre();
       if (S.ui.suiviVue === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && (S.ui.tab === 'suivi' || S.ui.tab === 'equipe')) rendreSiPossible(); });
     },
+    auditFiltrer: function (el) {
+      S.ui.auditFiltre = el.dataset.v;
+      rendre();
+    },
     reinitFiltresProduits: function () {
       S.ui.rechProduit = '';
       S.ui.aireProduit = '';
@@ -7827,15 +7836,38 @@
       toast('Recherche de votre position précise…');
       mesurePrecise(function (p) {
         var l = d.lieux[0];
-        l.lat = +p.lat.toFixed(6); l.lon = +p.lon.toFixed(6);
-        var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
-        if (r && r.quartier) {
-          l.quartier = r.quartier.quartier;
-          l.commune = r.quartier.commune;
+        var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) };
+        var qDecl = l.quartier ? quartiers().filter(function (q) { return q.quartier === l.quartier; })[0] : null;
+        var refGeo = qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : (l.lat && l.lon ? { lat: parseFloat(String(l.lat).replace(',', '.')), lon: parseFloat(String(l.lon).replace(',', '.')) } : null);
+        var distKm = refGeo && isFinite(refGeo.lat) ? distanceVol(pCapt, refGeo) : 0;
+        var nomLieu = l.quartier || l.commune || d.nom;
+
+        function sauverDirect() {
+          l.lat = pCapt.lat; l.lon = pCapt.lon;
+          var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
+          if (r && r.quartier) {
+            l.quartier = r.quartier.quartier;
+            l.commune = r.quartier.commune;
+          }
+          enregistrerFiche(d); rendre();
+          toast('Secteur détecté : ' + (l.quartier || 'GPS') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
+          if (!S.config.demo) synchroniser(true);
         }
-        enregistrerFiche(d); rendre();
-        toast('Secteur détecté : ' + (l.quartier || 'GPS') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
-        if (!S.config.demo) synchroniser(true);
+
+        if (refGeo && distKm > 3) {
+          var distArr = Math.round(distKm);
+          confirmerPuis('🛑 Écart de position important',
+            '<div style="color:var(--rouge,#c0392b);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomLieu) + ' !</div>' +
+            '<p style="margin:0 0 8px">Ce bouton sert uniquement lorsque vous êtes <b>physiquement devant l\'officine ou l\'établissement</b>.</p>' +
+            '<p style="margin:0">Voulez-vous vraiment écraser la position ?</p>',
+            'Écraser la position',
+            sauverDirect,
+            function () { toast('Position inchangée.'); }
+          );
+          return;
+        }
+
+        sauverDirect();
       }, function () { toast('Position indisponible. Autorisez la localisation.'); });
     },
     ficheVal: function (el) {
@@ -7903,21 +7935,65 @@
       rendre(); toast('Établissement repris : ' + e.lieu + (e.quartier ? ' (' + e.quartier + ')' : '') + '.');
     },
     ficheGps: function (el) {
-      var l = S.ui.feuille.d.lieux[+el.dataset.i];
+      var idx = +el.dataset.i;
+      var f = S.ui.feuille;
+      if (!f || !f.d || !f.d.lieux || !f.d.lieux[idx]) return;
+      var l = f.d.lieux[idx];
       if (!navigator.geolocation) { toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
       toast('Recherche de votre position précise…');
       mesurePrecise(function (p) {
         var avant = l.lat && l.lon ? { lat: parseFloat(String(l.lat).replace(',', '.')), lon: parseFloat(String(l.lon).replace(',', '.')) } : null;
-        l.lat = +p.lat.toFixed(6); l.lon = +p.lon.toFixed(6); l.prec = p.prec;
-        var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
-        if (r && r.quartier) {
-          l.quartier = r.quartier.quartier;
-          l.commune = r.quartier.commune;
-          if (S.ui.feuille && S.ui.feuille.err) delete S.ui.feuille.err['quartier' + el.dataset.i];
+        var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6), prec: p.prec };
+
+        // Référence géographique : quartier sélectionné ou position existante
+        var qDecl = l.quartier ? quartiers().filter(function (q) { return q.quartier === l.quartier; })[0] : null;
+        var refGeo = qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : avant;
+        var nomLieuRef = l.quartier || l.commune || (f.d.nom ? f.d.nom : 'l\'établissement');
+        var distanceKmEcart = refGeo && isFinite(refGeo.lat) ? distanceVol(pCapt, refGeo) : 0;
+
+        function appliquerGps() {
+          l.lat = pCapt.lat; l.lon = pCapt.lon; l.prec = pCapt.prec;
+          var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
+          if (r && r.quartier) {
+            l.quartier = r.quartier.quartier;
+            l.commune = r.quartier.commune;
+            if (S.ui.feuille && S.ui.feuille.err) delete S.ui.feuille.err['quartier' + idx];
+          }
+          rendre();
+          toast('GPS capté : ' + (l.quartier ? l.quartier + ' (± ' + p.prec + ' m)' : '± ' + p.prec + ' m') + '.');
         }
-        var ecart = avant && isFinite(avant.lat) ? distanceVol(avant, { lat: l.lat, lon: l.lon }) : 0;
-        rendre();
-        toast('GPS capté : ' + (l.quartier ? l.quartier + ' (± ' + p.prec + ' m)' : '± ' + p.prec + ' m') + '.');
+
+        if (refGeo && distanceKmEcart > 3) {
+          var distArr = Math.round(distanceKmEcart);
+          var fSauve = JSON.parse(JSON.stringify(f));
+          confirmerPuis('🛑 Écart de position important',
+            '<div style="color:var(--rouge,#c0392b);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomLieuRef) + ' !</div>' +
+            '<p style="margin:0 0 8px">Ce bouton sert uniquement lorsque vous êtes <b>physiquement devant l\'officine ou l\'établissement</b>.</p>' +
+            '<p style="margin:0">Voulez-vous vraiment écraser la position ?</p>',
+            'Écraser la position',
+            function () {
+              S.ui.feuille = fSauve;
+              var lSauve = S.ui.feuille.d.lieux[idx];
+              lSauve.lat = pCapt.lat; lSauve.lon = pCapt.lon; lSauve.prec = pCapt.prec;
+              var r = Moteur.quartierLePlusProche(lSauve.lat, lSauve.lon, quartiers());
+              if (r && r.quartier) {
+                lSauve.quartier = r.quartier.quartier;
+                lSauve.commune = r.quartier.commune;
+                if (S.ui.feuille.err) delete S.ui.feuille.err['quartier' + idx];
+              }
+              rendre();
+              toast('Position GPS mise à jour (' + distArr + ' km).');
+            },
+            function () {
+              S.ui.feuille = fSauve;
+              rendre();
+              toast('Position inchangée.');
+            }
+          );
+          return;
+        }
+
+        appliquerGps();
       }, function () { toast('Position indisponible. Autorisez la localisation.'); });
     },
     ficheGpsEffacer: function (el) { var l = S.ui.feuille.d.lieux[+el.dataset.i]; l.lat = ''; l.lon = ''; rendre(); },

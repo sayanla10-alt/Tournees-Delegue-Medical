@@ -12,7 +12,7 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.26.0';
+var VERSION = '3.26.1';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -24,38 +24,35 @@ var FICHIERS = [
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 
-function cachesAnciens() {
-  return caches.keys().then(function (cles) { return cles.filter(function (k) { return /^tournees-v/.test(k); }); });
-}
-
 self.addEventListener('install', function (e) {
+  self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function (c) {
     // cache: 'reload' : on prend les fichiers sur le réseau, pas dans le cache HTTP du navigateur
     return c.addAll(FICHIERS.map(function (u) { return new Request(u, { cache: 'reload' }); })).then(function () {
       // polices : facultatives, jamais bloquantes (réseau lent ou coupé)
       var polices = Promise.all(POLICES.map(function (u) { return c.add(new Request(u, { mode: 'cors' })).catch(function () {}); }));
-      return Promise.race([polices, new Promise(function (r) { setTimeout(r, 8000); })]);
+      return Promise.race([polices, new Promise(function (r) { setTimeout(r, 6000); })]);
     });
-  }).then(cachesAnciens).then(function (anciens) {
-    if (anciens.length) return self.skipWaiting();   // ancienne application sans bandeau : bascule directe
   }));
 });
 
 self.addEventListener('activate', function (e) {
-  e.waitUntil(cachesAnciens().then(function (anciens) {
-    return caches.keys().then(function (cles) {
-      return Promise.all(cles.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
-    }).then(function () { return self.clients.claim(); }).then(function () {
-      if (!anciens.length) return;
-      // Les pages ouvertes de l'ancienne application sont rechargées dans la nouvelle version.
-      // Hors de waitUntil : le rechargement passe par ce service worker, qui doit d'abord être actif.
-      setTimeout(function () {
-        self.clients.matchAll({ type: 'window' }).then(function (fen) {
-          fen.forEach(function (f) { if (f.navigate) f.navigate(f.url).catch(function () {}); });
+  e.waitUntil(
+    caches.keys().then(function (cles) {
+      return Promise.all(
+        cles.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); })
+      );
+    }).then(function () {
+      return self.clients.claim();
+    }).then(function () {
+      // Rafraîchissement automatique de tous les écrans ouverts dès l'activation
+      return self.clients.matchAll({ type: 'window' }).then(function (fen) {
+        fen.forEach(function (f) {
+          if (f.navigate) f.navigate(f.url).catch(function () {});
         });
-      }, 300);
-    });
-  }));
+      });
+    })
+  );
 });
 
 self.addEventListener('message', function (e) {

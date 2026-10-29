@@ -1,7 +1,10 @@
 {
-  "version": "3.26.0",
+  "version": "3.26.1",
   "date": "2026-10-29",
   "notes": [
+    "Hot reload Service Worker : activation instantanée sans attente et rafraîchissement automatique des écrans mobiles",
+    "Purge cache d'urgence : le bouton « Recharger l'application » désenregistre le worker obsolète et force la dernière version du serveur",
+    "Garde-fou anti-téléportation GPS : alerte bloquante si l'écart entre le smartphone et l'établissement dépasse 3 km",
     "Stockage flash IndexedDB / SQLite : suppression définitive du plafond des 5 Mo, capacité illimitée pour 10 000 praticiens et l'historique",
     "Rendu localisé & préservation du focus : le clavier virtuel mobile reste stable et ne saute plus lors de la frappe ou des filtres",
     "Intents Android directs (WhatsApp / Téléphone) : ouverture instantanée en 1 touche sans page blanche intermédiaire",
