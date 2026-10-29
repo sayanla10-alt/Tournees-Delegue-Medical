@@ -106,6 +106,8 @@ var QUARTIERS_DEFAUT = [
   ['Adjamé', 'Adjamé Liberté', 'Zone Centre', 5.357, -4.022],
   ['Adjamé', 'Williamsville', 'Zone Centre', 5.374, -4.013],
   ['Adjamé', '220 Logements', 'Zone Centre', 5.363, -4.030],
+  ['Adjamé', 'Paillet', 'Zone Centre', 5.378, -4.015],
+  ['Adjamé', 'Mirador', 'Zone Centre', 5.360, -4.025],
   ['Plateau', 'Plateau Centre', 'Zone Centre', 5.322, -4.018],
   ['Plateau', 'Indénié', 'Zone Centre', 5.340, -4.014],
   ['Attécoubé', 'Santé', 'Zone Centre', 5.338, -4.042],
@@ -114,6 +116,11 @@ var QUARTIERS_DEFAUT = [
   ['Cocody', 'Deux Plateaux', 'Zone Est', 5.366, -3.998],
   ['Cocody', 'Vallon', 'Zone Est', 5.370, -3.990],
   ['Cocody', 'Angré', 'Zone Est', 5.398, -3.985],
+  ['Cocody', 'Attoban', 'Zone Est', 5.370, -3.965],
+  ['Cocody', "M'badon", 'Zone Est', 5.340, -3.935],
+  ['Cocody', 'Anono', 'Zone Est', 5.335, -3.955],
+  ['Cocody', 'Akouédo', 'Zone Est', 5.365, -3.920],
+  ['Cocody', 'Danga', 'Zone Est', 5.341, -4.009],
   ['Cocody', 'Riviera 2', 'Zone Est', 5.355, -3.965],
   ['Cocody', 'Riviera 3', 'Zone Est', 5.362, -3.952],
   ['Cocody', 'Riviera Golf', 'Zone Est', 5.336, -3.962],
@@ -121,7 +128,8 @@ var QUARTIERS_DEFAUT = [
   ['Cocody', 'Faya', 'Zone Est', 5.386, -3.925],
   ['Bingerville', 'Bingerville Centre', 'Zone Est', 5.355, -3.886],
   ['Bingerville', 'Akandjé', 'Zone Est', 5.372, -3.905],
-  ['Treichville', 'Treichville Arras', 'Zone Sud', 5.302, -4.011],
+  ['Treichville', 'Arras', 'Zone Sud', 5.302, -4.011],
+  ['Treichville', 'Avenue 8', 'Zone Sud', 5.305, -4.008],
   ['Treichville', 'Biafra', 'Zone Sud', 5.296, -4.001],
   ['Marcory', 'Zone 4', 'Zone Sud', 5.289, -3.985],
   ['Marcory', 'Biétry', 'Zone Sud', 5.278, -3.973],
@@ -138,6 +146,10 @@ var QUARTIERS_DEFAUT = [
   ['Yopougon', 'Toits Rouges', 'Zone Ouest', 5.351, -4.086],
   ['Yopougon', 'Niangon', 'Zone Ouest', 5.329, -4.102],
   ['Yopougon', 'Maroc', 'Zone Ouest', 5.344, -4.092],
+  ['Yopougon', 'Wassakara', 'Zone Ouest', 5.345, -4.075],
+  ['Yopougon', 'Azito', 'Zone Ouest', 5.320, -4.070],
+  ['Yopougon', 'Port-Bouët 2', 'Zone Ouest', 5.338, -4.062],
+  ['Yopougon', 'Siporex', 'Zone Ouest', 5.342, -4.060],
   ['Songon', 'Songon Agban', 'Zone Ouest', 5.312, -4.255],
   ['Songon', "Songon M'Bratté", 'Zone Ouest', 5.330, -4.230]
 ];
@@ -228,6 +240,19 @@ function lireDispo(v) {
   return { matin: matin, soir: soir };
 }
 function ecrireDispo(d) { return d.matin && d.soir ? 'Matin et soir' : (d.matin ? 'Matin' : (d.soir ? 'Soir' : '')); }
+
+// Normalisation tolérante d'une plage horaire (ex: "8h-12h", "08:00 - 12:00", "15:00 à 19:00" -> "08:00-12:00")
+function horaireNormalise(t, defaut) {
+  if (!t || !String(t).trim()) return defaut || '08:00-12:00';
+  var s = String(t).trim().replace(/\s*[–—à]\s*/, '-');
+  var m = s.match(/^(\d{1,2})\s*[:hH]?\s*(\d{2})?\s*-\s*(\d{1,2})\s*[:hH]?\s*(\d{2})?$/);
+  if (m) {
+    var h1 = pad2(+m[1]), min1 = pad2(+(m[2] || 0));
+    var h2 = pad2(+m[3]), min2 = pad2(+(m[4] || 0));
+    return h1 + ':' + min1 + '-' + h2 + ':' + min2;
+  }
+  return defaut || '08:00-12:00';
+}
 
 // ---------------------------------------------------------------- Score et distances
 // Potentiel de prescription : A (fort) = 3, B (moyen) = 2, C (faible) = 1. Accepte A/B/C ou 3/2/1.
@@ -633,7 +658,7 @@ if (typeof module !== 'undefined' && module.exports) {
     isoVersJours: isoVersJours, joursVersIso: joursVersIso, ajouterJours: ajouterJours,
     jourSemaineIndex: jourSemaineIndex, lundiDe: lundiDe, nomJour: nomJour, joursOuvres: joursOuvres,
     joursEcoules: joursEcoules, heureVersMinutes: heureVersMinutes, minutesVersHeure: minutesVersHeure,
-    lireHoraire: lireHoraire, lireDispo: lireDispo, ecrireDispo: ecrireDispo, lireNote: lireNote,
+    lireHoraire: lireHoraire, horaireNormalise: horaireNormalise, lireDispo: lireDispo, ecrireDispo: ecrireDispo, lireNote: lireNote,
     lettrePotentiel: lettrePotentiel, SPECIALITES_DEFAUT: SPECIALITES_DEFAUT,
     completerDonneesFictives: completerDonneesFictives, hachage: hachage,
     minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,

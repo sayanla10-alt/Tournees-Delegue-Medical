@@ -9,10 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.35';
+  var APP_VERSION = '3.25.36';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.36', [
+      'Répertoire : barre d\'actions sur une même ligne [ Recherche ] [ + Ajouter ] [ Modifier ] pour une ergonomie optimale',
+      'Modification Praticien / Pharmacie : modification fluide et sans blocage des horaires d\'officine et du planning hebdomadaire avec normalisation tolérante',
+      'CR visite (Étape 4) : déclinaisons par produit disposées 2 par 2 sur la même ligne selon la taille des noms pour un affichage parfaitement harmonieux',
+      'Onglet Journée : affichage combiné de la distance, du temps de marche (piéton) et du temps en voiture recalculés dynamiquement',
+      'Résolution des secteurs : rattachement automatique et propre des sous-quartiers réels (Angré, Wassakara, M\'badon, Attoban, Azito, Arras, etc.)'
+    ]],
     ['3.25.35', [
       'Planifier : liste des médecins épurée avec Titre, Nom, Spécialité, Hôpital où on le voit ce jour (abrégé si long) et Secteur de l\'hôpital, sans coordonnées GPS (réservées aux pharmacies)',
       'Filtres de l\'application : harmonisation totale de toutes les communes et spécialités autour du filtre maître de l\'onglet Répertoire / Recherche',
@@ -511,7 +518,37 @@
 
   function pret() { return !!(S.data && S.data.praticiens && S.data.praticiens.length); }
   function statuts() { return (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : STATUTS_DEFAUT; }
-  function quartiers() { return (S.data && S.data.quartiers && S.data.quartiers.length) ? S.data.quartiers : quartiersDefautObjets(); }
+  function quartiers() {
+    var def = quartiersDefautObjets();
+    if (!S.data || !S.data.quartiers || !S.data.quartiers.length) return def;
+    var existants = {}, res = [];
+    S.data.quartiers.forEach(function (q) {
+      var cle = (q.quartier || '').trim().toLowerCase();
+      if (cle) { existants[cle] = true; res.push(q); }
+    });
+    def.forEach(function (q) {
+      var cle = (q.quartier || '').trim().toLowerCase();
+      if (!existants[cle]) res.push(q);
+    });
+    return res;
+  }
+  function nomSecteur(q, com, coord) {
+    var s = (q && q !== 'NL' && q !== 'Non localisé') ? String(q).trim() : '';
+    if (com && s.toLowerCase().indexOf(com.toLowerCase()) === 0) {
+      var rNom = s.slice(com.length).replace(/^[\s\-_/]+/, '').trim();
+      if (rNom) s = rNom;
+    }
+    if ((!s || s.toLowerCase() === (com || '').toLowerCase()) && coord && isFinite(coord.lat) && isFinite(coord.lon)) {
+      var r = Moteur.quartierLePlusProche(coord.lat, coord.lon, quartiers());
+      if (r && r.quartier && r.quartier.quartier) s = r.quartier.quartier;
+    }
+    return s || com || '';
+  }
+  function formaterDureeTrajet(m) {
+    if (m < 60) return m + ' min';
+    var h = Math.floor(m / 60), r = m % 60;
+    return r > 0 ? (h + ' h ' + pad2(r)) : (h + ' h');
+  }
 
   // Contexte du moteur, reconstruit seulement quand les données changent
   var ctxCache = { data: null, ctx: null };
@@ -2376,16 +2413,24 @@
     return s.trim();
   }
 
-  // 3.25.35 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour et Secteur de l'hôpital (sans GPS/quartier précis)
+  // 3.25.36 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour (abrégé), Secteur réel et distance
   function infosMedecinPlan(a) {
     var pObj = (typeof praticien === 'function' && praticien(a.code)) || {};
     var lieuBrut = a.lieu || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lieu) || '';
     var hopital = abregerHopital(lieuBrut);
-    var secteur = a.commune || a.secteur || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].commune) || '';
+    var qBrut = a.quartier || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].quartier) || '';
+    var comBrut = a.commune || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].commune) || '';
+    var coord = a.coord || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lat ? { lat: +pObj.lieux[0].lat, lon: +pObj.lieux[0].lon } : null);
+    var secteur = nomSecteur(qBrut, comBrut, coord);
     var morceaux = [];
     if (a.specialite) morceaux.push(a.specialite);
     if (hopital) morceaux.push(hopital);
     if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) morceaux.push(secteur);
+    var pos = S.ui.posGps, c = (pos && Date.now() - pos.t < 15 * 60000) ? (coordPrecise(a) || coordArret(a) || coord) : null;
+    if (c && pos) {
+      var d = distanceVol(pos, c);
+      morceaux.push(distanceCourte(d));
+    }
     return morceaux.join(' · ');
   }
 
@@ -2758,7 +2803,7 @@
     h += '</div>';
     return h;
   }
-  // 3.25.35 : Présentation des produits en lignes par gamme/molécule avec pastilles à droite (conforme à la capture)
+  // 3.25.36 : Présentation 2x2 harmonieuse des produits par gamme selon la taille
   function libellePastilleCr(nomGamme, prod, totalFiches) {
     var nom = String(nomGamme || '').replace(/\s*\(.*\)$/, '').trim();
     var p = String(prod || '').trim();
@@ -2770,6 +2815,40 @@
     }
     if (totalFiches === 1) return p;
     return p;
+  }
+  function taillePastille(court) {
+    var len = (court || '').length;
+    if (len <= 4) return 'court';
+    if (len <= 7) return 'moyen';
+    return 'long';
+  }
+  function harmoniserDeclinaisons(fiches, nomGamme) {
+    if (!fiches || fiches.length <= 2) return fiches || [];
+    var nom = String(nomGamme || '').replace(/\s*\(.*\)$/, '').trim();
+    var items = fiches.map(function (f) {
+      var c = libellePastilleCr(nom, f.produit, fiches.length);
+      var estBase = (f.produit === nom);
+      return { f: f, court: c, len: c.length, estBase: estBase };
+    });
+    // Pour 4 déclinaisons (ex: Zyltan : Zyltan, H, AM, Losartan AM)
+    if (items.length === 4) {
+      var baseIdx = -1;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].estBase) { baseIdx = i; break; }
+      }
+      if (baseIdx >= 0) {
+        var baseItem = items.splice(baseIdx, 1)[0];
+        items.sort(function (a, b) { return a.len - b.len; });
+        return [baseItem.f, items[0].f, items[1].f, items[2].f];
+      }
+      items.sort(function (a, b) { return a.len - b.len; });
+      return [items[0].f, items[1].f, items[2].f, items[3].f];
+    }
+    items.sort(function (a, b) {
+      if (a.estBase !== b.estBase) return a.estBase ? -1 : 1;
+      return a.len - b.len;
+    });
+    return items.map(function (x) { return x.f; });
   }
 
   function rendreChoixProduitsCr(a, cle, vals) {
@@ -2820,26 +2899,25 @@
         '</div>';
 
       if (ouvert) {
-        // 3.25.35 : Disposition exacte conforme à la capture (lignes horizontales par famille avec pastilles à droite)
+        // 3.25.36 : Disposition 2x2 par famille avec pastilles harmonisées
         h += '<div class="liste-gammes-cr">';
         fams.forEach(function (g) {
           var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '').trim();
           var mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
-
-          var fichesTriees = g.fiches.slice().sort(function (x, y) {
-            return (y.produit === nom) - (x.produit === nom);
-          });
+          var fichesTriees = harmoniserDeclinaisons(g.fiches, nom);
+          var seul = fichesTriees.length === 1;
 
           h += '<div class="ligne-gamme">' +
             '<div class="lg-tete">' +
               '<b>' + esc(nom) + '</b>' +
               (mol ? '<small>' + esc(mol) + '</small>' : '') +
             '</div>' +
-            '<div class="lg-produits">' +
+            '<div class="lg-produits' + (seul ? ' seul' : '') + '">' +
             fichesTriees.map(function (f) {
               var court = libellePastilleCr(nom, f.produit, g.fiches.length);
               var estSel = sel.indexOf(f.produit) >= 0;
-              return '<button type="button" class="pastille-produit" data-a="crMulti" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(f.produit) + '" aria-pressed="' + estSel + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
+              var tClass = taillePastille(court);
+              return '<button type="button" class="pastille-produit ' + tClass + '" data-a="crMulti" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(f.produit) + '" aria-pressed="' + estSel + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
             }).join('') +
             '</div></div>';
         });
@@ -3119,13 +3197,19 @@
     return '<span class="ligne-etat">○ À venir' + (tag ? ' · ' + esc(tag) : '') + (a.date === t ? distanceMoi(a) : '') + '</span>';
   }
   // 3.23.2 : distance entre moi (GPS) et une visite du jour pas encore faite, pour choisir qui voir en priorité
+  // 3.25.36 : distance entre moi (GPS) et une visite du jour pas encore faite avec durées à pied et en voiture
   function distanceMoi(a) {
-    // 3.25.9 : vol d'oiseau depuis le téléphone (le coefficient routier était appliqué deux fois) ; « ≈ » si le lieu n'a pas de GPS
-    var pos = S.ui.posGps, cp = pos && Date.now() - pos.t < 5 * 60000 ? coordPrecise(a) : null, c = cp || (pos && Date.now() - pos.t < 5 * 60000 ? coordArret(a) : null);
-    if (!c) return '';
+    var pos = S.ui.posGps, cp = pos && Date.now() - pos.t < 15 * 60000 ? coordPrecise(a) : null, c = cp || (pos && Date.now() - pos.t < 15 * 60000 ? coordArret(a) : null);
+    if (!c || !pos) return '';
     var route = distanceVol(pos, c);
     var d = (cp ? '' : '≈ ') + distanceCourte(route);
-    return '<span class="dist-moi' + (route < 0.5 ? ' tout-pres' : '') + '" role="img" aria-label="À ' + d + ' de vous">' + icone('cible') + d + '</span>';
+    var minPied = Math.max(1, Math.round(route * 15));
+    var minVoit = Math.max(1, minutesTrajet(route * REGLAGES_MOTEUR.detourRoutier, '', a.commune || '', minutesMaintenant()));
+    return '<span class="dist-moi' + (route < 0.5 ? ' tout-pres' : '') + '" role="img" aria-label="À ' + d + ' de vous, ' + formaterDureeTrajet(minPied) + ' à pied, ' + formaterDureeTrajet(minVoit) + ' en voiture">' +
+      '<span class="dist-val" title="Distance">' + icone('cible') + d + '</span>' +
+      '<span class="trajet-mode" title="À pied">' + icone('pieton') + formaterDureeTrajet(minPied) + '</span>' +
+      '<span class="trajet-mode" title="En voiture">' + icone('voiture') + formaterDureeTrajet(minVoit) + '</span>' +
+      '</span>';
   }
   // Carte d'une visite (Aujourd'hui) : contact d'abord, puis compte rendu en deux temps
   function rendreArret(a) {
@@ -3920,9 +4004,10 @@
       '<p class="sous-titre">Médecins et pharmacies : Répertoire à modifier ou filtrer par critère pour une recherche.</p>';
     h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
-    h += '<div class="rangee-criteres-ajouter">' +
-      '<button class="bouton bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + '<span>Rechercher par critères</span></button>' +
+    h += '<div class="rangee-actions-rep">' +
+      '<button class="bouton bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + '<span>Recherche</span></button>' +
       '<button class="bouton bouton-plein bouton-ajouter-rep" type="button" data-a="nouvelleFiche">' + icone('plus') + '<span>Ajouter</span></button>' +
+      '<button class="bouton bouton-modifier-rep" type="button" data-a="modifierActif">' + icone('crayon') + '<span>Modifier</span></button>' +
       '</div>';
     h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
     if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri tri-centre"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Réinitialiser les filtres et recommencer</button></div>';
@@ -3964,9 +4049,24 @@
 
   // Planning hebdomadaire d'un praticien (lieux x jours)
   function grillePresences(code) {
-    var c = ctx(), lieux = c.presencesParCode[code] || [];
-    if (!lieux.length) return '<p class="discret">Aucune présence renseignée.</p>';
-    var h = '<div class="grille-pres"><table><thead><tr><th>Lieu</th>' + JOURS.map(function (j) { return '<th>' + j.slice(0, 3) + '</th>'; }).join('') + '</tr></thead><tbody>';
+    var c = ctx(), p = praticien(code) || {}, estPh = p.type === 'Pharmacie', lieux = c.presencesParCode[code] || [];
+    if (!lieux.length) {
+      return '<div class="bloc-presences" style="margin:6px 0">' +
+        '<p class="discret" style="margin:0 0 6px">Aucune présence ou horaire renseigné.</p>' +
+        '<button class="bouton petit" type="button" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
+        icone('crayon') + (estPh ? ' Renseigner les horaires' : ' Renseigner le planning') + '</button></div>';
+    }
+    var h = '<div class="grille-pres">';
+    if (estPh) {
+      var l0 = lieux[0] || {};
+      var hM = lireHoraire(l0.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(l0.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
+      h += '<div class="horaires-pharma-vue" style="margin:4px 0 8px;padding:8px 10px;background:var(--fond,#f4f7f8);border-radius:8px;font-size:13px">' +
+        '<b>' + icone('horloge') + ' Horaires de réception :</b> ' +
+        '<span>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) + '</span> · ' +
+        '<span>Soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</span>' +
+        '</div>';
+    }
+    h += '<table><thead><tr><th>' + (estPh ? 'Officine' : 'Lieu') + '</th>' + JOURS.map(function (j) { return '<th>' + j.slice(0, 3) + '</th>'; }).join('') + '</tr></thead><tbody>';
     lieux.forEach(function (pr) {
       var hM = lireHoraire(pr.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
       h += '<tr><td><b>' + esc(pr.lieu) + '</b><small>' + esc(pr.quartier) + ', ' + esc(pr.commune) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
@@ -3980,7 +4080,13 @@
             (d.soir ? '<button type="button" data-a="planifierCle" data-v="' + esc(cleS) + '" title="Planifier ' + JOURS[i] + ' soir">S</button>' : '') + '</td>';
         }).join('') + '</tr>';
     });
-    return h + '</tbody></table><p class="discret">Touchez M (matin) ou S (soir) pour planifier une visite : prochaine présence ou les semaines suivantes.</p></div>';
+    h += '</tbody></table>' +
+      '<div class="pres-actions" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px">' +
+        '<p class="discret" style="margin:0">Touchez M ou S pour planifier une visite.</p>' +
+        '<button type="button" class="bouton-texte" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
+        icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +
+      '</div></div>';
+    return h;
   }
 
   // ------------------------------------------------------------------ Vue : statistiques
@@ -5076,15 +5182,27 @@
       return { code: '', type: 'Médecin', nom: '', telephone: '', specialite: '', autreSpec: '', note: 2, conventionne: 'Non', actif: 'Oui', lieux: [l0] };
     }
     var p = (S.data.praticiens || []).filter(function (x) { return x.code === code; })[0] || {};
-    var estPh = p.type === 'Pharmacie';
+    var estPh = p.type === 'Pharmacie' || /^PHA-/i.test(code);
     var lieux = (S.data.presences || []).filter(function (x) { return x.code === code; }).map(function (x) {
-      return { id: x.id, lieu: x.lieu || (estPh ? p.nom || '' : ''), quartier: x.quartier || '', jours: JOURS_CLES.map(function (j) { return lireDispo(x[j]); }),
-               horaireMatin: x.horaireMatin || REGLAGES_MOTEUR.horaireMatinDefaut, horaireSoir: x.horaireSoir || REGLAGES_MOTEUR.horaireSoirDefaut,
-               lat: x.lat || '', lon: x.lon || '', commune: x.commune || '', zone: x.zone || '' };
+      return { id: x.id, lieu: x.lieu || (estPh ? p.nom || '' : ''), quartier: x.quartier || p.quartier || '', jours: JOURS_CLES.map(function (j) { return lireDispo(x[j]); }),
+               horaireMatin: horaireNormalise(x.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut),
+               horaireSoir: horaireNormalise(x.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut),
+               lat: x.lat || p.lat || '', lon: x.lon || p.lon || '', commune: x.commune || p.commune || '', zone: x.zone || p.zone || '' };
     });
+    if (!lieux.length) {
+      var lDef = lieuVide(estPh);
+      lDef.lieu = p.nom || '';
+      lDef.quartier = p.quartier || '';
+      lDef.commune = p.commune || '';
+      lDef.lat = p.lat || '';
+      lDef.lon = p.lon || '';
+      lDef.horaireMatin = horaireNormalise(p.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut);
+      lDef.horaireSoir = horaireNormalise(p.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
+      lieux = [lDef];
+    }
     return { code: code, type: estPh ? 'Pharmacie' : 'Médecin', nom: p.nom || '', telephone: String(p.telephone || ''),
              specialite: estPh ? 'Pharmacien' : (p.specialite || ''), autreSpec: '', note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
-             actif: 'Oui', absentDu: p.absentDu || '', absentAu: p.absentAu || '', lieux: lieux.length ? lieux : [lieuVide(estPh)] };
+             actif: p.actif === 'Non' ? 'Non' : 'Oui', absentDu: p.absentDu || '', absentAu: p.absentAu || '', lieux: lieux };
   }
   function horaireValide(t) {
     var m = String(t || '').match(/^\s*(\d{1,2})\s*[:hH]?\s*(\d{2})?\s*-\s*(\d{1,2})\s*[:hH]?\s*(\d{2})?\s*$/);
@@ -5107,30 +5225,31 @@
   // Erreurs d'une étape : { champ: message }
   function erreursEtape(d, etape) {
     synchroniserDefautsFiche(d);
-    var e = {}, connus = {};
-    quartiers().forEach(function (q) { connus[q.quartier] = true; });
+    var e = {};
     if (etape === 0) {
-      if (String(d.nom).trim().length < 3) e.nom = 'Indiquez le nom (3 caractères min.).';
-      if (String(d.telephone).trim() && !normaliserNumero(d.telephone)) e.telephone = 'Numéro à 10 chiffres (ex. 07 07 07 07 07).';
+      if (String(d.nom).trim().length < 2) e.nom = 'Indiquez le nom (2 caractères min.).';
+      if (String(d.telephone).trim() && !normaliserNumero(d.telephone)) e.telephone = 'Numéro invalide (ex. 07 07 07 07 07).';
       if (d.type === 'Médecin') {
         if (!d.specialite) e.specialite = 'Choisissez une spécialité.';
-        else if (d.specialite === '__autre' && String(d.autreSpec).trim().length < 3) e.autreSpec = 'Précisez la spécialité.';
-        if (String(d.lieux[0].lieu).trim().length < 2) e.lieu0 = 'Indiquez l\'établissement ou cabinet.';
+        else if (d.specialite === '__autre' && String(d.autreSpec).trim().length < 2) e.autreSpec = 'Précisez la spécialité.';
+        if (d.lieux[0] && String(d.lieux[0].lieu).trim().length < 2) e.lieu0 = 'Indiquez l\'établissement ou cabinet.';
       }
-      if (!connus[d.lieux[0].quartier]) e.quartier0 = 'Choisissez le quartier (ou captez le GPS).';
+      var q0 = d.lieux[0] && d.lieux[0].quartier;
+      if (!q0 || /^NL$/i.test(q0) || String(q0).trim() === '') e.quartier0 = 'Choisissez le quartier (ou captez le GPS).';
     }
     if (etape === 1) {
-      if (!d.lieux.length) e.lieux = 'Ajoutez au moins un lieu.';
+      if (!d.lieux || !d.lieux.length) e.lieux = 'Ajoutez au moins un lieu.';
       if (d.absentAu && !d.absentDu) e.absentDu = 'Indiquez le début de l\'absence.';
       if (d.absentDu && d.absentAu && d.absentAu < d.absentDu) e.absentAu = 'La fin doit suivre le début.';
-      d.lieux.forEach(function (l, i) {
+      (d.lieux || []).forEach(function (l, i) {
         if (d.type === 'Pharmacie' && i === 0) l.lieu = String(d.nom).trim();
-        if (String(l.lieu).trim().length < 2) e['lieu' + i] = 'Nom de l\'établissement requis.';
-        if (!connus[l.quartier]) e['quartier' + i] = 'Choisissez le quartier.';
-        var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
+        if (String(l.lieu || '').trim().length < 2) e['lieu' + i] = 'Nom de l\'établissement requis.';
+        if (!l.quartier || /^NL$/i.test(l.quartier) || String(l.quartier).trim() === '') e['quartier' + i] = 'Choisissez le quartier.';
+        var m = l.jours && l.jours.some(function (j) { return j.matin; });
+        var so = l.jours && l.jours.some(function (j) { return j.soir; });
         if (!m && !so) e['jours' + i] = 'Cochez au moins une demi-journée.';
-        if (m && !horaireValide(l.horaireMatin)) e['hm' + i] = 'Format : 08:00-12:00.';
-        if (so && !horaireValide(l.horaireSoir)) e['hs' + i] = 'Format : 15:00-19:00.';
+        if (m) l.horaireMatin = horaireNormalise(l.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut);
+        if (so) l.horaireSoir = horaireNormalise(l.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
       });
     }
     return e;
@@ -5151,7 +5270,7 @@
       }).join('') + '</div>' +
       '<div class="segment" role="group" aria-label="Étapes" style="margin-bottom:10px">' +
         '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (e === 0) + '">' + (estPh ? '1. Pharmacie & Lieu' : '1. Médecin & Hôpital') + '</button>' +
-        '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">' + (estPh ? '2. Réception délégués' : '2. Jours & Hôpitaux (' + d.lieux.length + ')') + '</button>' +
+        '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">' + (estPh ? '2. Horaires de réception' : '2. Planning hebdomadaire (' + d.lieux.length + ')') + '</button>' +
       '</div>';
 
     if (e === 0) {
@@ -5759,28 +5878,33 @@
       '<button class="bouton bouton-plein" type="button" data-a="pharmaOui" data-v="' + esc(ph.c.cle) + '">Y aller</button></div></div>';
     el.hidden = false;
   }
-  // 3.25.28 : mesure GPS réactive et précise (arrêt dès précision <= 35 m, contrôle rapide en tête)
+  // 3.25.36 : mesure GPS haute précision (arrêt immédiat <= 35 m, filtrage des faux relais > 500 m, sans cache obsolète)
   function mesurePrecise(ok, ko) {
     if (!navigator.geolocation) { if (ko) ko(); return; }
     var best = null, fini = false, id = null, t = null;
     function terminer() {
       if (fini) return; fini = true;
       if (id !== null) navigator.geolocation.clearWatch(id); clearTimeout(t);
-      if (best) ok({ lat: best.coords.latitude, lon: best.coords.longitude, prec: Math.round(best.coords.accuracy || 0) }); else if (ko) ko();
+      if (best) ok({ lat: best.coords.latitude, lon: best.coords.longitude, prec: Math.round(best.coords.accuracy || 0) });
+      else if (ko) ko();
     }
     try {
       navigator.geolocation.getCurrentPosition(function (p) {
         if (fini) return;
-        if (!best || precisionDe(p) < precisionDe(best)) best = p;
+        var prec = precisionDe(p);
+        if (prec <= 500 && (!best || prec < precisionDe(best))) best = p;
         if (precisionDe(best) <= 35) terminer();
-      }, function () {}, { enableHighAccuracy: true, timeout: 3500, maximumAge: 30000 });
+      }, function () {}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
     } catch (e) {}
     id = navigator.geolocation.watchPosition(function (p) {
       if (fini) return;
-      if (!best || precisionDe(p) < precisionDe(best)) best = p;
+      var prec = precisionDe(p);
+      if (!best || prec < precisionDe(best)) {
+        if (prec <= 800 || !best) best = p;
+      }
       if (precisionDe(best) <= 35) terminer();
-    }, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
-    t = setTimeout(terminer, 8000);
+    }, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    t = setTimeout(terminer, 12000);
   }
   function precisionDe(p) { var a = p && p.coords && p.coords.accuracy; return a === null || a === undefined || isNaN(a) ? 9999 : a; }
   function distanceCourte(k) {
@@ -6800,7 +6924,38 @@
       }
     },
     nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau praticien', pleine: true, etape: 0, d: brouillonFiche(''), err: {} }; rendre(); },
-    modifierFiche: function (el) { var d = brouillonFiche(el.dataset.v); S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche', pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) }; rendre(); },
+    modifierFiche: function (el) {
+      var code = el.dataset.v || S.ui.contactOuvert;
+      if (!code) return;
+      var d = brouillonFiche(code);
+      S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche', pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
+      rendre();
+    },
+    modifierActif: function () {
+      var code = S.ui.contactOuvert;
+      if (!code) {
+        toast('Touchez d\'abord un médecin ou une pharmacie dans la liste.');
+        return;
+      }
+      var d = brouillonFiche(code);
+      S.ui.feuille = { type: 'fiche', titre: 'Modifier ' + (d.nom || 'la fiche'), pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
+      rendre();
+    },
+    modifierPlanning: function (el) {
+      var code = el.dataset.v || S.ui.contactOuvert;
+      if (!code) return;
+      var d = brouillonFiche(code);
+      S.ui.feuille = {
+        type: 'fiche',
+        titre: d.type === 'Pharmacie' ? 'Horaires de réception' : 'Planning hebdomadaire',
+        pleine: true,
+        etape: 1,
+        d: d,
+        err: {},
+        initial: JSON.stringify(d)
+      };
+      rendre();
+    },
     ouvrirDoublon: function (el) {
       var d = brouillonFiche(el.dataset.v);
       S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche existante', pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
@@ -6816,9 +6971,12 @@
         var l = d.lieux[0];
         l.lat = +p.lat.toFixed(6); l.lon = +p.lon.toFixed(6);
         var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
-        if (r && (!l.quartier || l.quartier === 'NL')) l.quartier = r.quartier.quartier;
+        if (r && r.quartier) {
+          l.quartier = r.quartier.quartier;
+          l.commune = r.quartier.commune;
+        }
         enregistrerFiche(d); rendre();
-        toast('GPS mis à jour pour ' + d.nom + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
+        toast('Secteur détecté : ' + (l.quartier || 'GPS') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
         if (!S.config.demo) synchroniser(true);
       }, function () { toast('Position indisponible. Autorisez la localisation.'); });
     },
@@ -6880,19 +7038,14 @@
     ficheGpsEffacer: function (el) { var l = S.ui.feuille.d.lieux[+el.dataset.i]; l.lat = ''; l.lon = ''; rendre(); },
     ficheAller: function (el) {
       var f = S.ui.feuille, cible = +el.dataset.v;
-      if (cible > f.etape) {
-        f.err = erreursEtape(f.d, f.etape);
-        if (Object.keys(f.err).length) { rendre(); focusErreur(); toast('Complétez les champs obligatoires.'); return; }
-      } else f.err = {};
+      f.err = {};
       f.etape = Math.max(0, Math.min(1, cible));
       rendre();
+      var c = document.querySelector('.feuille-corps'); if (c) c.scrollTop = 0;
     },
     ficheEtape: function (el) {
       var f = S.ui.feuille, sens = +el.dataset.v;
-      if (sens > 0) {
-        f.err = erreursEtape(f.d, f.etape);
-        if (Object.keys(f.err).length) { rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
-      } else f.err = {};
+      f.err = {};
       f.etape = Math.max(0, Math.min(1, f.etape + sens));
       rendre();
       var c = document.querySelector('.feuille-corps'); if (c) c.scrollTop = 0;

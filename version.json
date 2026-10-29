@@ -1,10 +1,11 @@
 {
-  "version": "3.25.35",
+  "version": "3.25.36",
   "date": "2026-10-29",
   "notes": [
-    "Planifier : liste des médecins avec Titre, Nom, Spécialité, Hôpital où on le voit ce jour (abrégé si long) et Secteur de l'hôpital (sans GPS/quartier précis)",
-    "Filtres de l'application : harmonisation totale de toutes les sections avec le filtre maître de l'onglet Recherche / Répertoire",
-    "CR visite (Étape 4) : disposition exacte des produits en lignes horizontales par famille avec pastilles à droite (conforme à la capture)",
-    "Feuille Presences : confirmation du pointage automatique sur les colonnes uniques sans doublon"
+    "Répertoire : barre d'actions sur la même ligne [ Recherche ] [ + Ajouter ] [ Modifier ]",
+    "Fiche Praticien / Pharmacie : modification fluide et sans blocage des horaires d'officine et du planning hebdomadaire",
+    "CR visite (Étape 4) : déclinaisons produits présentées 2 par 2 de façon harmonieuse selon leur longueur",
+    "Onglet Journée : affichage combiné de la distance, durée à pied et durée en voiture",
+    "Secteurs : rattachement automatique aux sous-quartiers réels (Deux Plateaux, Niangon, Attoban, Arras, Wassakara, etc.)"
   ]
 }
