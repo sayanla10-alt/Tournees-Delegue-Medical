@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.38';
+  var APP_VERSION = '3.25.39';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.39', [
+      'Onglet Produits : rétablissement strict et fidèle de la disposition d\'origine (nom à gauche, molécules et pastilles compactes à droite)',
+      'CR visite (Étape 4) : styles parfaitement isolés pour préserver l\'intégrité totale du catalogue produits'
+    ]],
     ['3.25.38', [
       'CR visite (Étape 4) : nom du médicament en haut et dérivés en bas pleine largeur (suppression totale des chevauchements et espace décuplé pour les pastilles)',
       'CR visite (Étape 4) : cartes et pastilles produits ultra-larges et parfaitement lisibles sans coupure de texte'

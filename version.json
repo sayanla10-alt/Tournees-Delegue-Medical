@@ -1,9 +1,9 @@
 {
-  "version": "3.25.38",
+  "version": "3.25.39",
   "date": "2026-10-29",
   "notes": [
-    "CR visite (Étape 4) : nom du médicament en haut et dérivés en bas pleine largeur (suppression des chevauchements)",
-    "CR visite (Étape 4) : cartes et pastilles produits ultra-larges et parfaitement lisibles sans coupure de texte",
+    "Onglet Produits : rétablissement strict et fidèle de la disposition d'origine (nom à gauche, molécules et pastilles compactes à droite)",
+    "CR visite (Étape 4) : styles parfaitement isolés pour préserver l'intégrité totale du catalogue produits",
     "CR visite (Étape 4) : Gamme B repliée par défaut sur une seule ligne compacte pour un gain d'espace maximal",
     "Onglet Journée : spécialité médicale affichée en premier avant l'hôpital dans les cartes praticiens",
     "Nettoyage typographique : élimination systématique des espaces multiples résiduels dans l'interface"
