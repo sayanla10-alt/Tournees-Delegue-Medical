@@ -1,12 +1,9 @@
 {
-  "version": "3.25.42",
+  "version": "3.25.43",
   "date": "2026-10-29",
   "notes": [
-    "Navigation mobile : passage à 5 onglets larges et lisibles (fusion Équipe & Bilan en onglet Suivi)",
-    "Sécurité saisie : confirmation anti-perte de modifications sur la fiche praticien",
-    "Gestuelle tactile : glisser vers le bas (swipe-down) sur la poignée pour fermer une fenêtre",
-    "Touche retour Android : fermeture des modales au lieu de sortir de l'application",
-    "Fluidité recherche : bouton réinitialiser direct sur les listes vides et échappatoire CR produits",
-    "Synchronisation robuste : envoi des comptes rendus maintenu même en cas d'échec sur une fiche"
+    "Zones tactiles invisibles (>= 44 px) : toucher facile et précis en marchant sans déformer le design visuel",
+    "Compte rendu express dans les réglages : activation optionnelle d'un formulaire CR en 1 seul écran synthétique sous le pouce",
+    "Bascule fluide Express / Complet : possibilité de passer du mode rapide au formulaire détaillé d'un simple toucher"
   ]
 }

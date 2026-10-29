@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.42';
+  var APP_VERSION = '3.25.43';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.43', [
+      'Zones tactiles invisibles : extension des zones de frappe au toucher (>= 44 px) sans altérer le design sobre et élégant',
+      'Mode Express dans les réglages : activation optionnelle d\'un formulaire CR en 1 seul écran synthétique pour les visites de routine'
+    ]],
     ['3.25.42', [
       'Ergonomie pouce & navigation : passage à 5 onglets clés (fusion Équipe & Bilan en onglet « Suivi ») pour des cibles plus larges et confortables',
       'Anti-perte de saisie : confirmation de sécurité avant de quitter une fiche praticien en cours de modification',
@@ -3123,8 +3127,96 @@
     'Étape suivante': 'Suite', 'Rappel ou RDV confirmé ?': 'Rappel / RDV', 'Prochaine étape le': 'Date', 'Stocks vérifiés ?': 'Stocks', 'Stock par produit': 'Stocks',
     'Commande passée ?': 'Commande', 'Commande (quantités)': 'Quantités', 'Besoin de réapprovisionnement': 'Besoin' };
   function titreCourt(t) { return TITRES_COURTS[t] || t; }
+  // 3.25.43 : Formulaire Express en un seul écran pour les visites rapides
+  function rendreCompteRenduExpress(a) {
+    var c = crDe(a);
+    if (!c.statut) { c.statut = 'Visite faite'; syncCr(a); }
+    var estFait = Moteur.estVisite(c.statut, statuts());
+    var ph = estPharmacie(a);
+
+    var h = '<div class="cr-express-bloc">' +
+      '<div class="tete-bloc tete-cr" style="display:flex;justify-content:space-between;align-items:center">' +
+      '<div><h3 style="margin:0;display:inline-block">Compte Rendu Express</h3> <span class="pastille-version" style="font-size:11px;background:var(--bleu-pale);color:var(--primaire);padding:2px 6px;border-radius:4px;font-weight:700">1 écran</span></div>' +
+      '<button type="button" class="bouton-texte" data-a="basculerModeComplet" data-uid="' + a.uid + '" style="font-size:12px;padding:2px 0">Formulaire complet →</button>' +
+      '</div>';
+
+    // 1. Statut
+    h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
+      '<span>Statut de la visite</span>' +
+      '<div class="puces" style="margin-top:4px">' +
+      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Visite faite" aria-pressed="' + (c.statut === 'Visite faite') + '">✓ Visite faite</button>' +
+      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Absent" aria-pressed="' + (c.statut === 'Absent') + '">Absent</button>' +
+      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Indisponible" aria-pressed="' + (c.statut === 'Indisponible') + '">Indisponible</button>' +
+      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="RDV reporté" aria-pressed="' + (c.statut === 'RDV reporté') + '">Reporté</button>' +
+      '</div></div>';
+
+    if (!estFait) {
+      h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
+        '<span>Préciser le motif</span>' +
+        '<select data-f="crSelect" data-uid="' + a.uid + '" data-k="statut">' +
+        statuts().filter(function (s) { return !s.visite; }).map(function (s) {
+          return '<option' + (s.nom === c.statut ? ' selected' : '') + '>' + esc(s.nom) + '</option>';
+        }).join('') + '</select></div>';
+      h += '<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
+        '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer la visite non réalisée</button>' +
+        (a.hors ? '' : '<button class="bouton bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' + icone('cible') + 'Enregistrer et remplacer dans la tournée</button>') +
+        '</div>';
+      return h + '</div>';
+    }
+
+    // 2. Types de visite / Activités
+    h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
+      rendreChoixTypesCr(a, c.types) +
+      '</div>';
+
+    // 3. Produits présentés
+    h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
+      '<div class="gamme-cr-titre" style="margin-bottom:6px"><span><b>Produits présentés</b></span></div>' +
+      rendreChoixProduitsCr(a, 'produits', c.produits) +
+      '</div>';
+
+    // 4. Prochaine étape
+    var optProchaine = [
+      ['', 'Aucune'],
+      ['+1', 'Demain'],
+      ['+7', '+7 j'],
+      ['+14', '+14 j'],
+      ['+30', '+30 j']
+    ];
+    var valP = c.prochaine;
+
+    h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
+      '<span>Prochain contact / RDV</span>' +
+      '<div class="puces" style="margin-top:4px">' +
+      optProchaine.map(function (op) {
+        var d = op[0] ? ajouterJours(aujourdhui(), parseInt(op[0], 10)) : '';
+        var actif = (op[0] === '' && !valP) || (op[0] && valP === d);
+        return '<button type="button" class="puce" data-a="crEtapeRapide" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + actif + '">' + op[1] + '</button>';
+      }).join('') +
+      '</div></div>';
+
+    // 5. Bilan / Note rapide facultative
+    h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
+      '<span>Observation rapide <small class="discret">(facultatif)</small></span>' +
+      '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="bilan" value="' + esc(c.bilan || '') + '" placeholder="Objections, engagements, besoins…">' +
+      '</div>';
+
+    // 6. Bouton de validation sous le pouce
+    h += '<div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">' +
+      '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer le compte rendu</button>' +
+      '<div style="text-align:center"><button type="button" class="bouton-texte" data-a="basculerModeComplet" data-uid="' + a.uid + '">Passer au formulaire complet (échantillons, stocks…)</button></div>' +
+      '</div>';
+
+    return h + '</div>';
+  }
+
   function rendreCompteRendu(a) {
-    var c = crDe(a), ok = c.ok || (c.ok = {}), h = '<div class="cr-pas etapes-filtres"><div class="tete-bloc tete-cr"><h3>Compte Rendu</h3></div>';
+    if (S.config.crExpress && !a.modeComplet) {
+      return rendreCompteRenduExpress(a);
+    }
+    var c = crDe(a), ok = c.ok || (c.ok = {}), h = '<div class="cr-pas etapes-filtres"><div class="tete-bloc tete-cr" style="display:flex;justify-content:space-between;align-items:center"><h3>Compte Rendu</h3>' +
+      (S.config.crExpress ? '<button type="button" class="bouton-texte" data-a="basculerModeExpress" data-uid="' + a.uid + '" style="font-size:12px">⚡ Mode express</button>' : '') +
+      '</div>';
     var etapes = etapesCr(a);
     for (var i = 0; i < etapes.length; i++) {
       var s = etapes[i];
@@ -4626,6 +4718,8 @@
     h += '<details class="bloc avance"' + (!c.url || S.ui.erreur ? ' open' : '') + '><summary><b>Avancé</b><span class="discret">Connexion à la base et données du téléphone</span></summary>' +
       '<h3>Saisie</h3><label class="interrupteur"><span>Saisie avancée<small class="discret bloc-texte">Comptes rendus des jours passés et à venir. Désactivée : seul le jour même se saisit ; la planification des jours à venir reste possible.</small></span>' +
         '<input type="checkbox" data-f="saisieAvancee"' + (c.modifPasse && c.saisieFutur ? ' checked' : '') + '></label>' +
+      '<label class="interrupteur" style="margin-top:10px"><span>Compte rendu express<small class="discret bloc-texte">Saisie rapide des visites de routine sur un seul écran (statut, types, produits et prochain RDV). Le formulaire complet reste accessible d\'un clic.</small></span>' +
+        '<input type="checkbox" data-f="crExpress"' + (c.crExpress ? ' checked' : '') + '></label>' +
       '<h3>Connexion au Google Sheet</h3>' +
       '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
       '<label class="champ"><span>Jeton d\'accès</span><input type="text" id="cfgToken" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(c.token) + '"></label>' +
@@ -6315,6 +6409,32 @@
       majCr(a);
       rendre();
     },
+    crStatutExpress: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var c = crDe(a);
+      c.statut = el.dataset.v;
+      syncCr(a);
+      LS.set('plan', S.plan);
+      rendre();
+    },
+    crEtapeRapide: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      var c = crDe(a);
+      c.prochaine = el.dataset.v || '';
+      syncCr(a);
+      LS.set('plan', S.plan);
+      rendre();
+    },
+    basculerModeComplet: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      a.modeComplet = true;
+      rendre();
+    },
+    basculerModeExpress: function (el) {
+      var a = arret(el.dataset.uid); if (!a) return;
+      a.modeComplet = false;
+      rendre();
+    },
     param: function (el) {
       S.params[el.dataset.k] = el.dataset.v; LS.set('params', S.params);
       if (el.dataset.auto) { S.ui.etapesP.ok[el.dataset.auto] = true; sauverEtapesP(); }
@@ -7610,6 +7730,7 @@
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
     if (f === 'importSecours' && el.files && el.files[0]) { importerSecours(el.files[0]); el.value = ''; }
     if (f === 'saisieAvancee') { S.config.modifPasse = S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie avancée activée : jours passés et à venir modifiables.' : 'Saisie avancée désactivée : seul le jour même se saisit.'); rendre(); }
+    if (f === 'crExpress') { S.config.crExpress = el.checked; LS.set('config', S.config); toast(el.checked ? 'Compte rendu express activé : saisie rapide en 1 écran.' : 'Compte rendu express désactivé : saisie complète par étapes.'); rendre(); }
     if (f === 'saisieFutur') { S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie des jours à venir activée.' : 'Jours à venir en aperçu seul.'); }
     if (f === 'modifPasse') { S.config.modifPasse = el.checked; LS.set('config', S.config); toast(el.checked ? 'Modification des jours passés activée.' : 'Jours passés en lecture seule.'); }
     if (f === 'choixNom') { var bloc = $(el.id + 'Bloc'); if (bloc) bloc.hidden = el.value !== '__autre'; }
