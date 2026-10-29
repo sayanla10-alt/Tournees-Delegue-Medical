@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.25.33';
+  var APP_VERSION = '3.25.34';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.25.34', [
+      'Répertoire : le clic sur un praticien scrolle fluidement pour centrer la fiche au milieu de l\'écran',
+      'CR visite (Étape 4) : accordéon Gamme A / Gamme B (une seule ouverte à la fois) et familles présentées par 2 par ligne avec pastilles de sélection compactes',
+      'Nouveau médecin : vérification et normalisation automatique du nom des hôpitaux vers l\'orthographe officielle (zéro faute et zéro doublon en BDD)'
+    ]],
     ['3.25.33', [
       'CR visite médecin (Étape 4) : produits présentés en lignes épurées par gamme/molécule avec pastilles de sélection et filtre rapide (Gamme A / Gamme B / Tous)',
       'Planifier : boutons « Ajouter » et « Recalculer » côte à côte sur la même ligne, et bouton « Accepter » centré en dessous',
@@ -2682,57 +2687,79 @@
     var fiches = (typeof fichesProduits === 'function' ? fichesProduits() : FICHES_PRODUITS_DEFAUT) || [];
     var gammes = typeof gammesProduits === 'function' ? gammesProduits(fiches) : [];
     var sel = vals || [];
-    var filtre = S.ui.filtreGammeCr || 'tous';
 
-    // Compter les sélections par gamme
-    var nbSelA = 0, nbSelB = 0;
-    gammes.forEach(function (g) {
-      var estA = estGammeA('', g.nom);
-      g.fiches.forEach(function (f) {
-        if (sel.indexOf(f.produit) >= 0) {
-          if (estA) nbSelA++; else nbSelB++;
-        }
-      });
-    });
+    // Séparation stricte Gamme A vs Gamme B
+    var famsA = gammes.filter(function (g) { return estGammeA('', g.nom); });
+    var famsB = gammes.filter(function (g) { return !estGammeA('', g.nom); });
+
+    var prodsA = [], prodsB = [];
+    famsA.forEach(function (g) { g.fiches.forEach(function (f) { prodsA.push(f.produit); }); });
+    famsB.forEach(function (g) { g.fiches.forEach(function (f) { prodsB.push(f.produit); }); });
+
+    var nbSelA = prodsA.filter(function (p) { return sel.indexOf(p) >= 0; }).length;
+    var nbSelB = prodsB.filter(function (p) { return sel.indexOf(p) >= 0; }).length;
+
+    // 3.25.34 : Une seule gamme ouverte à la fois pour rationaliser l'espace
+    if (!S.ui.gammeCrOuverte) {
+      S.ui.gammeCrOuverte = (nbSelB > 0 && nbSelA === 0) ? 'B' : 'A';
+    }
+    var gOuv = S.ui.gammeCrOuverte;
 
     var h = '<div class="choix-produits-cr">';
-    h += '<div class="gamme-cr-actions">' +
+    h += '<div class="gamme-cr-actions" style="margin-bottom:8px">' +
       '<span class="discret">' + (sel.length ? '<b>' + sel.length + ' sélectionné' + (sel.length > 1 ? 's' : '') + '</b> : ' + esc(sel.join(', ')) : 'Touchez un produit pour le sélectionner') + '</span>' +
       (sel.length ? '<span><button type="button" class="lien-action" data-a="crProduitsAucun" data-uid="' + a.uid + '" data-k="' + cle + '">Tout effacer</button></span>' : '') +
       '</div>';
 
-    // Filtre rapide Gamme A / Gamme B / Tous
-    h += '<div class="segment petit" role="group" style="margin:4px 0 8px">' +
-      '<button type="button" data-a="crGammeFiltre" data-v="tous" aria-pressed="' + (filtre === 'tous') + '">Tous (' + gammes.length + ')</button>' +
-      '<button type="button" data-a="crGammeFiltre" data-v="A" aria-pressed="' + (filtre === 'A') + '">Gamme A' + (nbSelA ? ' (' + nbSelA + ')' : '') + '</button>' +
-      '<button type="button" data-a="crGammeFiltre" data-v="B" aria-pressed="' + (filtre === 'B') + '">Gamme B' + (nbSelB ? ' (' + nbSelB + ')' : '') + '</button>' +
-      '</div>';
+    var defGammes = [
+      ['A', 'Gamme A', 'Zyltan, Lesstrol, Eurythmic, Tensicard', famsA, prodsA, nbSelA],
+      ['B', 'Gamme B', 'Telmikaa, Rozukaa, Antiplatt & autres', famsB, prodsB, nbSelB]
+    ];
 
-    h += '<div class="liste-gammes">';
-    gammes.forEach(function (g) {
-      var estA = estGammeA('', g.nom);
-      if (filtre === 'A' && !estA) return;
-      if (filtre === 'B' && estA) return;
+    defGammes.forEach(function (info) {
+      var codeG = info[0], titreG = info[1], sousG = info[2], fams = info[3], prods = info[4], nbSel = info[5];
+      var ouvert = gOuv === codeG;
+      var tousG = prods.length > 0 && prods.every(function (p) { return sel.indexOf(p) >= 0; });
 
-      var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '').trim();
-      var mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
+      h += '<div class="gamme-cr-bloc' + (ouvert ? ' ouverte' : ' repliee') + '" style="margin-bottom:8px">' +
+        '<div class="gamme-cr-entete">' +
+          '<button type="button" class="gamme-cr-bascule" data-a="crGammeBascule" data-g="' + codeG + '" aria-expanded="' + ouvert + '">' +
+            '<span><b>' + titreG + '</b> <small>' + sousG + '</small></span>' +
+            '<span class="gamme-cr-meta">' + (nbSel ? '<i class="compteur">' + nbSel + '</i>' : '<small>' + fams.length + ' fam.</small>') + icone('chevron') + '</span>' +
+          '</button>' +
+          (prods.length > 1 ? '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="' + codeG + '">' + (tousG ? 'Décocher ' + codeG : 'Tous') + '</button>' : '') +
+        '</div>';
 
-      // Trier les fiches : le produit principal en premier (ex: Zyltan avant Zyltan H)
-      var fichesTriees = g.fiches.slice().sort(function (x, y) {
-        return (y.produit === nom) - (x.produit === nom);
-      });
+      if (ouvert) {
+        // Médicaments proposés par deux par ligne pour rationaliser l'espace
+        h += '<div class="grille-gamme-2">';
+        fams.forEach(function (g) {
+          var nom = String(g.nom || '').replace(/\s*\(.*\)$/, '').trim();
+          var mol = (String(g.nom || '').match(/\(([^)]+)\)/) || [])[1] || '';
 
-      h += '<div class="ligne-gamme">' +
-        '<div class="lg-tete"><b>' + esc(nom) + '</b>' + (mol ? '<small>' + esc(mol) + '</small>' : '') + '</div>' +
-        '<div class="lg-produits">' +
-        fichesTriees.map(function (f) {
-          var court = libellePastilleCr(nom, f.produit);
-          var estSel = sel.indexOf(f.produit) >= 0;
-          return '<button type="button" class="pastille-produit" data-a="crMulti" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(f.produit) + '" aria-pressed="' + estSel + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
-        }).join('') +
-        '</div></div>';
+          var fichesTriees = g.fiches.slice().sort(function (x, y) {
+            return (y.produit === nom) - (x.produit === nom);
+          });
+
+          h += '<div class="carte-famille-cr">' +
+            '<div class="carte-famille-tete">' +
+              '<b>' + esc(nom) + '</b>' +
+              (mol ? '<small>' + esc(mol) + '</small>' : '') +
+            '</div>' +
+            '<div class="carte-famille-produits">' +
+            fichesTriees.map(function (f) {
+              var court = libellePastilleCr(nom, f.produit);
+              var estSel = sel.indexOf(f.produit) >= 0;
+              return '<button type="button" class="pastille-produit" data-a="crMulti" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(f.produit) + '" aria-pressed="' + estSel + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
+            }).join('') +
+            '</div></div>';
+        });
+        h += '</div>';
+      }
+      h += '</div>';
     });
-    h += '</div></div>';
+
+    h += '</div>';
     return h;
   }
   function ouiNonCr(a, cle, val) { return choixCr(a, cle, [['oui', 'Oui'], ['non', 'Non']], val); }
@@ -4773,6 +4800,60 @@
     { lieu: 'Institut de Cardiologie d\'Abidjan (ICA)', quartier: 'Zone 3 (CHU)', commune: 'Treichville', lat: 5.293007, lon: -4.005949 }
   ];
 
+  // 3.25.34 : Dictionnaire canonique pour corriger automatiquement les fautes, abréviations et éviter les doublons en BDD
+  var CANONICAL_HOPITAUX = [
+    { re: /^(chu\b.*cocody|centre.*hospitalier.*universitaire.*cocody|cocody\s*chip)/i, nom: 'CHU de Cocody', quartier: 'Cocody Centre', commune: 'Cocody', lat: 5.344603, lon: -3.994502 },
+    { re: /^(chu\b.*treichville|centre.*hospitalier.*universitaire.*treichville)/i, nom: 'CHU de Treichville', quartier: 'Zone 3 (CHU)', commune: 'Treichville', lat: 5.293486, lon: -4.003767 },
+    { re: /^(chu\b.*angr[eé]|centre.*hospitalier.*universitaire.*angr[eé])/i, nom: 'CHU d\'Angré', quartier: 'Angré', commune: 'Cocody', lat: 5.405000, lon: -3.978000 },
+    { re: /^(pisam\b|p\.i\.s\.a\.m|polyclinique.*sainte.*anne.*marie|poly.*ste.*anne.*marie)/i, nom: 'PISAM (Polyclinique Sainte Anne-Marie)', quartier: 'Vieux Cocody', commune: 'Cocody', lat: 5.336512, lon: -4.013281 },
+    { re: /^(farah\b|clinique.*farah)/i, nom: 'Clinique Farah', quartier: 'Marcory Residentiel', commune: 'Marcory', lat: 5.304000, lon: -3.987000 },
+    { re: /^(hma\b|h\.m\.a|h[oô]pital.*militaire.*abidjan|h[oô]pital.*militaire)/i, nom: 'Hôpital Militaire d\'Abidjan (HMA)', quartier: 'Paillet', commune: 'Adjamé', lat: 5.381168, lon: -4.007937 },
+    { re: /^(ica\b|i\.c\.a|institut.*de.*cardiologie)/i, nom: 'Institut de Cardiologie d\'Abidjan (ICA)', quartier: 'Zone 3 (CHU)', commune: 'Treichville', lat: 5.293007, lon: -4.005949 },
+    { re: /^(hg\b.*yopougon|h[oô]pital.*g[eé]n[eé]ral.*yopougon|h[oô]pital.*g[eé]n[eé]ral.*atti[eé]|hg.*atti[eé])/i, nom: 'Hôpital Général de Yopougon-Attié', quartier: 'Attié', commune: 'Yopougon', lat: 5.342066, lon: -4.080122 },
+    { re: /^(hg\b.*marcory|h[oô]pital.*g[eé]n[eé]ral.*marcory)/i, nom: 'Hôpital Général de Marcory', quartier: 'Marcory Centre', commune: 'Marcory', lat: 5.301297, lon: -3.983410 },
+    { re: /^(chr\b.*abobo|h[oô]pital.*abobo|h[oô]pital.*g[eé]n[eé]ral.*abobo)/i, nom: 'CHR d\'Abobo', quartier: 'Abobo Nord', commune: 'Abobo', lat: 5.433023, lon: -4.038858 },
+    { re: /^(hg\b.*koumassi|h[oô]pital.*g[eé]n[eé]ral.*koumassi)/i, nom: 'Hôpital Général de Koumassi', quartier: 'Koumassi Centre', commune: 'Koumassi', lat: 5.305600, lon: -3.953400 },
+    { re: /^(hg\b.*port.*bou[eë]t|h[oô]pital.*g[eé]n[eé]ral.*port.*bou[eë]t)/i, nom: 'Hôpital Général de Port-Bouët', quartier: 'Port-Bouët Centre', commune: 'Port-Bouët', lat: 5.261200, lon: -3.948000 },
+    { re: /^(hg\b.*adjam[eé]|h[oô]pital.*g[eé]n[eé]ral.*adjam[eé])/i, nom: 'Hôpital Général d\'Adjamé', quartier: 'Adjamé 220 Logements', commune: 'Adjamé', lat: 5.356200, lon: -4.026800 },
+    { re: /^(hg\b.*bingerville|h[oô]pital.*g[eé]n[eé]ral.*bingerville)/i, nom: 'Hôpital Général de Bingerville', quartier: 'Bingerville', commune: 'Bingerville', lat: 5.358000, lon: -3.889000 },
+    { re: /^(poly.*deux.*plateaux|poly.*2.*plateaux|polyclinique.*deux.*plateaux|polyclinique.*2.*plateaux)/i, nom: 'Polyclinique des Deux Plateaux', quartier: 'Deux Plateaux', commune: 'Cocody', lat: 5.362868, lon: -3.997261 },
+    { re: /^(poly.*plateau\b|polyclinique.*plateau)/i, nom: 'Polyclinique du Plateau', quartier: 'Plateau', commune: 'Plateau', lat: 5.327500, lon: -4.021000 },
+    { re: /^(clinique.*saint.*viateur|clinique.*st.*viateur)/i, nom: 'Clinique Saint Viateur', quartier: 'Palmeraie', commune: 'Cocody', lat: 5.372500, lon: -3.958000 },
+    { re: /^(clinique.*les.*rosiers|clinique.*rosiers)/i, nom: 'Clinique Les Rosiers', quartier: 'Zone 4', commune: 'Marcory', lat: 5.292000, lon: -3.985000 },
+    { re: /^(clinique.*danga|clinique.*m[eé]dicale.*danga)/i, nom: 'Clinique Médicale Danga', quartier: 'Danga', commune: 'Cocody', lat: 5.341200, lon: -4.008900 }
+  ];
+
+  function canonicaliserEtablissement(nomSaisi, quartierSaisi, communeSaisie) {
+    var raw = String(nomSaisi || '').trim();
+    if (!raw) return null;
+    var norm = normaliser(raw);
+
+    // 1. Dictionnaire canonique des grands centres de santé
+    for (var i = 0; i < CANONICAL_HOPITAUX.length; i++) {
+      var h = CANONICAL_HOPITAUX[i];
+      if (h.re.test(raw) || h.re.test(norm)) {
+        return { lieu: h.nom, quartier: h.quartier, commune: h.commune, lat: h.lat, lon: h.lon };
+      }
+    }
+
+    // 2. Établissements connus de la BDD (mutualisation pour éviter fautes & doublons)
+    var connus = etablissementsConnus();
+    for (var j = 0; j < connus.length; j++) {
+      var e = connus[j];
+      var ne = normaliser(e.lieu);
+      if (norm === ne || (norm.length >= 5 && (norm.indexOf(ne) >= 0 || ne.indexOf(norm) >= 0))) {
+        return {
+          lieu: e.lieu,
+          quartier: e.quartier || quartierSaisi || '',
+          commune: e.commune || communeSaisie || '',
+          lat: e.lat || '',
+          lon: e.lon || ''
+        };
+      }
+    }
+    return null;
+  }
+
   function etablissementsConnus() {
     var vus = {}, l = [];
     var pharCodes = {};
@@ -5101,6 +5182,18 @@
   }
   function enregistrerFiche(d) {
     synchroniserDefautsFiche(d);
+    // 3.25.34 : Vérification et normalisation officielle des hôpitaux pour éviter fautes et doublons en BDD
+    if (d.type !== 'Pharmacie' && Array.isArray(d.lieux)) {
+      d.lieux.forEach(function (l) {
+        var can = canonicaliserEtablissement(l.lieu, l.quartier, l.commune);
+        if (can) {
+          l.lieu = can.lieu;
+          if (!l.quartier || /^NL$/i.test(l.quartier)) l.quartier = can.quartier;
+          if (!l.commune || /^NL$/i.test(l.commune)) l.commune = can.commune;
+          if ((!l.lat || /^NL$/i.test(l.lat)) && can.lat) { l.lat = can.lat; l.lon = can.lon; }
+        }
+      });
+    }
     // 3.25.23 : évite de recréer un 2e code TMP si la même fiche locale est déjà en file d'attente
     var code = d.code;
     if (!code && S.data && S.data.praticiens) {
@@ -6027,11 +6120,20 @@
     finRef: function () { S.ui.autour.ref = null; LS.set('autour', S.ui.autour); rendre(); },
     // Divers
     contact: function (el) {
-      // la fiche s'ouvre là où elle est dans la liste, sans remonter en tête ni déplacer l'écran
-      var y = el.getBoundingClientRect().top;
-      S.ui.contactEnTete = null; S.ui.contactOuvert = S.ui.contactOuvert === el.dataset.v ? null : el.dataset.v; rendre();
-      var b = document.querySelector('[data-a="contact"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(el.dataset.v) : el.dataset.v) + '"]');
-      if (b) window.scrollBy(0, b.getBoundingClientRect().top - y);
+      // 3.25.34 : au clic dans le Répertoire, centrage et défilement fluide sur le praticien
+      var code = el.dataset.v;
+      S.ui.contactEnTete = null;
+      var ouvrant = S.ui.contactOuvert !== code;
+      S.ui.contactOuvert = ouvrant ? code : null;
+      rendre();
+      if (ouvrant) {
+        var sel = '[data-a="contact"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(code) : code) + '"]';
+        var b = document.querySelector(sel);
+        var cible = b ? (b.closest('li.element') || b) : null;
+        if (cible && cible.scrollIntoView) {
+          cible.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }
     },
     filtre: function (el) { S.ui.filtre = el.dataset.v; S.ui.limite = 40; rendre(); },
     plus: function () { S.ui.limite += 40; rendre(); },
@@ -6877,6 +6979,19 @@
     var v = el.type === 'checkbox' ? (el.checked ? 'Oui' : 'Non') : el.value;
     if (i !== undefined) d.lieux[+i][k] = v; else d[k] = v;
     if (!change) return;
+    if (k === 'lieu' && d.type !== 'Pharmacie' && i !== undefined) {
+      // 3.25.34 : auto-correction vers l'écriture officielle pour éviter fautes et doublons
+      var can = canonicaliserEtablissement(v, d.lieux[+i].quartier, d.lieux[+i].commune);
+      if (can) {
+        d.lieux[+i].lieu = can.lieu;
+        if (can.quartier && (!d.lieux[+i].quartier || /^NL$/i.test(d.lieux[+i].quartier))) d.lieux[+i].quartier = can.quartier;
+        if (can.commune && (!d.lieux[+i].commune || /^NL$/i.test(d.lieux[+i].commune))) d.lieux[+i].commune = can.commune;
+        if (can.lat) { d.lieux[+i].lat = can.lat; d.lieux[+i].lon = can.lon; }
+        delete f.err['lieu' + i];
+        rendre();
+        return;
+      }
+    }
     if (k === 'specialite' || k === 'quartier') {
       // liste déroulante : nouvel affichage (champ « Autre », commune), en gardant les erreurs déjà signalées
       var tous = erreursEtape(d, f.etape), cleS = k === 'quartier' ? 'quartier' + i : 'specialite', garde = {};

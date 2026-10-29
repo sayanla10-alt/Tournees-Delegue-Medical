@@ -1471,26 +1471,26 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .type-cr-tete { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
 .type-cr-tete b { font-size: 13px; color: var(--primaire); }
 
-/* Accordéon Gamme A / Gamme B (une seule ouverte à la fois) et Familles de produits */
-.resume-produits-cr { font-size: 13px; padding: 6px 10px; border-radius: 10px; background: var(--primaire-pale); color: var(--encre); margin-bottom: 2px; line-height: 1.35; }
-.gamme-cr-acc { padding: 0; overflow: hidden; border: 1.5px solid var(--trait); border-radius: 12px; background: var(--fond); transition: border-color .2s ease; }
-.gamme-cr-acc.ouverte { border-color: var(--primaire); background: var(--papier, #fff); }
-.gamme-cr-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; background: var(--fond); }
-.gamme-cr-acc.ouverte > .gamme-cr-tete { border-bottom: 1px solid var(--trait); background: var(--primaire-pale); }
+/* Accordéon Gamme A / Gamme B (une seule ouverte à la fois) et Familles de produits par 2 par ligne */
+.gamme-cr-bloc { border: 1.5px solid var(--trait); border-radius: 12px; background: var(--fond); overflow: hidden; transition: border-color .2s ease; }
+.gamme-cr-bloc.ouverte { border-color: var(--primaire); background: var(--papier, #fff); }
+.gamme-cr-entete { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: var(--fond); }
+.gamme-cr-bloc.ouverte > .gamme-cr-entete { border-bottom: 1px solid var(--trait); background: var(--primaire-pale); }
 .gamme-cr-bascule { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: none; border: 0; padding: 2px 0; font: inherit; color: var(--encre); text-align: left; cursor: pointer; }
-.gamme-cr-bascule b { font-size: 14px; color: var(--primaire); }
+.gamme-cr-bascule b { font-size: 14.5px; color: var(--primaire); }
+.gamme-cr-bascule small { font-size: 12px; color: var(--gris); font-weight: normal; margin-left: 4px; }
 .gamme-cr-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--gris); font-weight: 600; flex-shrink: 0; }
 .gamme-cr-meta svg { width: 16px; height: 16px; transition: transform .2s ease; }
 .gamme-cr-bascule[aria-expanded="true"] .gamme-cr-meta svg { transform: rotate(180deg); }
-.gamme-cr-corps { padding: 8px 10px; }
-.familles-cr { display: flex; flex-direction: column; gap: 6px; }
-.famille-cr-bloc { border: 1px solid var(--trait); border-radius: 10px; background: var(--fond); overflow: hidden; }
-.famille-cr-bloc.ouverte { border-color: var(--primaire); background: var(--papier, #fff); }
-.famille-cr-tete { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 6px 10px; }
-.famille-cr-bascule { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; background: none; border: 0; padding: 2px 0; font: inherit; color: var(--encre); text-align: left; cursor: pointer; }
-.famille-cr-bascule span:first-child { font-weight: 700; font-size: 13.5px; }
-.famille-cr-meta { font-size: 12px; color: var(--primaire); font-weight: 600; }
-.famille-cr-bloc > .puces { padding: 4px 10px 10px; border-top: 1px dashed var(--trait); }
+
+.grille-gamme-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 8px; background: var(--fond, #f8fafb); }
+@media (max-width: 330px) { .grille-gamme-2 { grid-template-columns: 1fr; } }
+.carte-famille-cr { background: var(--papier, #fff); border: 1px solid var(--trait); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(10, 30, 45, .04); }
+.carte-famille-tete { margin-bottom: 8px; display: flex; flex-direction: column; }
+.carte-famille-tete b { font-size: 14px; line-height: 1.15; color: var(--encre); }
+.carte-famille-tete small { font-size: 11px; color: var(--gris); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.carte-famille-produits { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.carte-famille-produits .pastille-produit { min-height: 32px; padding: 0 10px; min-width: 38px; border-radius: 16px; font-size: 12.5px; font-weight: 700; }
 
 /* Barre de critères rapide dans l'onglet Planifier (strictement 2 lignes) */
 .barre-criteres-plan {

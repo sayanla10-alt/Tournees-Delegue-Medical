@@ -1,11 +1,9 @@
 {
-  "version": "3.25.33",
+  "version": "3.25.34",
   "date": "2026-10-29",
   "notes": [
-    "CR visite médecin (Étape 4) : produits en lignes épurées par gamme/molécule avec pastilles et filtre Gamme A/B/Tous",
-    "Planifier : boutons Ajouter et Recalculer côte à côte, bouton Accepter centré en bas",
-    "Répertoire : recherche prioritaire par nom de praticien (exclusion des faux positifs de communes)",
-    "Nouveau médecin : hôpitaux sans pharmacie triés par GPS, spécialité nettoyée et ordonnée en 3 blocs",
-    "Jours de réception : raccourcis réorganisés (Toute la semaine en haut, Tous les matins et soirs en bas)"
+    "Répertoire : défilement fluide et centrage de l'écran sur le praticien cliqué",
+    "CR visite (Étape 4) : accordéon Gamme A / Gamme B (une seule ouverte à la fois) et familles 2 par ligne avec pastilles",
+    "Nouveau médecin : normalisation automatique vers l'écriture officielle des hôpitaux (anti-fautes, anti-doublons)"
   ]
 }
