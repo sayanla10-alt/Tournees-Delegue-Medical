@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.13';
+  var APP_VERSION = '3.26.14';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.14', [
+      'Onglet Journée : Restauration de l\'icône calendrier d\'origine et nouveau calendrier mensuel compact, ergonomique au pouce et 100% stable sans saut de hauteur',
+      'Onglet Planifier : Rationalisation du bloc « Communes visitées » (suppression des répétitions X/Y et du bouton doublon)',
+      'Planifier (Étape 5 - Potentiel) : Affichage épuré avec uniquement les étoiles (★★★, ★★, ★) sans mentions textuelles (fort, moyen, faible)'
+    ]],
     ['3.26.13', [
       'Onglet Planifier : Le bouton et le critère rapide affichent strictement « Demain » (sans mention jj/mm)'
     ]],
@@ -3121,7 +3126,7 @@
           return '<div class="grille-options-4" style="margin-top:8px">' +
             '<button type="button" class="puce puce-tous" data-a="paramPotentiel" data-v="tous" aria-pressed="' + tousP + '">Tous</button>' +
             ['A', 'B', 'C'].map(function (x) {
-              return '<button type="button" class="puce" data-a="paramPotentiel" data-v="' + x + '" aria-pressed="' + (p.potentiels.indexOf(x) >= 0) + '">' + ETOILES[x] + '<small>' + LIB_POTENTIEL[x] + '</small></button>';
+              return '<button type="button" class="puce" data-a="paramPotentiel" data-v="' + x + '" aria-pressed="' + (p.potentiels.indexOf(x) >= 0) + '">' + ETOILES[x] + '</button>';
             }).join('') + '</div>';
         } },
       { id: 'rythme', titre: 'Rythme de visite', resume: function () {
@@ -3985,10 +3990,8 @@
       '<b>Communes visitées</b><small>' + couv.length + '/' + cv.length + '</small>' + icone('chevron') + '</button>' +
       '<div class="segment petit" role="group" aria-label="Période">' +
         '<button type="button" data-a="couvPortee" data-v="jour" aria-pressed="' + (portee === 'jour') + '">Jour</button>' +
-        '<button type="button" data-a="couvPortee" data-v="semaine" aria-pressed="' + (portee === 'semaine') + '">Semaine</button></div></div>' +
-      '<p class="discret" style="margin:0 0 8px">' + (portee === 'jour' ? majuscule(dateLongue(S.ui.jour)) : 'Semaine du ' + dateCourte(dates[0])) +
-      ' : ' + couv.length + ' commune' + (couv.length > 1 ? 's' : '') + ' visitée' + (couv.length > 1 ? 's' : '') + ' sur ' + cv.length + '.</p>';
-    if (!ouverte) return h + '<button type="button" class="bouton petit bouton-large" data-a="couvOuvrir">Voir la carte et les communes</button></section>';
+        '<button type="button" data-a="couvPortee" data-v="semaine" aria-pressed="' + (portee === 'semaine') + '">Semaine</button></div></div>';
+    if (!ouverte) return h + '</section>';
     h += '<div class="carte-l" id="carteCouv">' + carteCouverture(dates, mes, eq) + '</div>' +
       '<div class="legende"><span><i class="q-moi"></i>Mes visites' + (portee === 'jour' ? ' (dans l\'ordre)' : '') + '</span><span><i class="q-equipe"></i>Équipe</span><span><i class="q-vide"></i>Commune non visitée</span></div>';
     cartesAFaire.push({ id: 'carteCouv', route: portee === 'jour' ? mes : [], points: portee === 'jour' ? [] : mes, equipe: eq,
@@ -4961,18 +4964,20 @@
     var nomMois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'][m - 1];
     var rDemain = ajouterJours(t, 1), rSem = ajouterJours(t, 7), r2Sem = ajouterJours(t, 14);
     var raccourcis = '<div class="cal-raccourcis">' +
-      '<button type="button" class="puce" data-a="calChoisirJour" data-v="' + t + '">Aujourd\'hui</button>' +
-      '<button type="button" class="puce" data-a="calChoisirJour" data-v="' + rDemain + '">Demain</button>' +
-      '<button type="button" class="puce" data-a="calChoisirJour" data-v="' + rSem + '">+1 sem.</button>' +
-      '<button type="button" class="puce" data-a="calChoisirJour" data-v="' + r2Sem + '">+2 sem.</button>' +
+      '<button type="button" class="puce' + (f.date === t ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + t + '">Aujourd\'hui</button>' +
+      '<button type="button" class="puce' + (f.date === rDemain ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + rDemain + '">Demain</button>' +
+      '<button type="button" class="puce' + (f.date === rSem ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + rSem + '">+1 sem.</button>' +
+      '<button type="button" class="puce' + (f.date === r2Sem ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + r2Sem + '">+2 sem.</button>' +
       '</div>';
+    var chevronG = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="m15 18-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var chevronD = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var barreMois = '<div class="cal-barre-mois">' +
-      '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="-1" aria-label="Mois précédent">◀</button>' +
-      '<h4>' + nomMois + ' ' + y + '</h4>' +
-      '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="1" aria-label="Mois suivant">▶</button>' +
+      '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="-1" aria-label="Mois précédent">' + chevronG + '</button>' +
+      '<div class="cal-titre-mois"><b>' + nomMois + '</b> <span>' + y + '</span></div>' +
+      '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="1" aria-label="Mois suivant">' + chevronD + '</button>' +
       '</div>';
     var entetes = '<div class="cal-grille-semaine">' +
-      ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(function (j) { return '<span>' + j + '</span>'; }).join('') +
+      ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(function (j) { return '<span>' + j + '</span>'; }).join('') +
       '</div>';
     var premierJour = new Date(y, m - 1, 1);
     var dec = (premierJour.getDay() + 6) % 7;
@@ -4986,7 +4991,8 @@
     for (var j = 1; j <= nbJoursMois; j++) {
       cellules.push({ num: j, iso: y + '-' + pad2(m) + '-' + pad2(j), horsMois: false });
     }
-    var reste = (7 - (cellules.length % 7)) % 7;
+    // Strictement 42 cases (6 semaines complètes) : hauteur 100% stable sans aucun saut
+    var reste = 42 - cellules.length;
     for (var k = 1; k <= reste; k++) {
       var mSuiv = m === 12 ? 1 : m + 1, ySuiv = m === 12 ? y + 1 : y;
       cellules.push({ num: k, iso: ySuiv + '-' + pad2(mSuiv) + '-' + pad2(k), horsMois: true });
@@ -5000,13 +5006,10 @@
       if (nVisites > 0) classes.push('avec-visites');
       return '<button type="button" class="' + classes.join(' ') + '" data-a="calChoisirJour" data-v="' + c.iso + '">' +
         '<span>' + c.num + '</span>' +
-        (nVisites > 0 ? '<span class="cal-pastille-nb">' + nVisites + '</span>' : '') +
+        (nVisites > 0 ? '<span class="cal-point-visite"></span>' : '') +
         '</button>';
     }).join('') + '</div>';
-    return {
-      corps: raccourcis + barreMois + entetes + grille,
-      pied: '<button class="bouton bouton-plein bouton-large" type="button" data-a="calAllerAujourdhui">' + icone('calendrier') + '<span>Revenir à aujourd\'hui (' + dateCourte(t) + ')</span></button>'
-    };
+    return raccourcis + barreMois + entetes + grille;
   };
   FEUILLES.qui = function (f) {
     var noms = nomsDelegues(), tousChoisis = noms.length > 0 && noms.every(function (n) { return f.liste.indexOf(n) >= 0; });

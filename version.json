@@ -1,7 +1,10 @@
 {
-  "version": "3.26.13",
+  "version": "3.26.14",
   "date": "2026-10-30",
   "notes": [
+    "Onglet Journée : Restauration de l'icône calendrier d'origine et nouveau calendrier mensuel compact, ergonomique au pouce et 100% stable sans saut de hauteur",
+    "Onglet Planifier : Rationalisation du bloc « Communes visitées » (suppression des répétitions X/Y et du bouton doublon)",
+    "Planifier (Étape 5 - Potentiel) : Affichage épuré avec uniquement les étoiles (★★★, ★★, ★) sans mentions textuelles (fort, moyen, faible)",
     "Onglet Planifier : Le bouton et le critère rapide affichent strictement « Demain » (sans mention jj/mm)",
     "Onglet Planifier : Bouton « Réglages » renommé en « Critères » pour plus de clarté",
     "Suivi & Contrôle : Le mois s'affiche désormais avec le maximum de lettres sans troncature à côté de « Toute l'équipe », avec abréviation élégante automatique sur petit écran (ex: Déc. 2026)",
