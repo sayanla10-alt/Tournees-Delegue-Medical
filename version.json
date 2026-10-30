@@ -1,8 +1,9 @@
 {
-  "version": "3.26.7",
+  "version": "3.26.8",
   "date": "2026-10-30",
   "notes": [
-    "Affichage garanti des 4 sous-secteurs pour Cocody, Yopougon et Abobo dans Planifier > Communes ciblées",
-    "Bypass des anciennes données en cache pour assurer la visibilité immédiate du découpage"
+    "Répertoire : Bouton « Capter ma position GPS ici » grand format (48px) avec badge de statut",
+    "Tournée : Raccourci tactile « Ajouter au jour (Inopinée) » pour forcer instantanément une visite du jour",
+    "Audit Qualité : Détection intelligente des centroïdes filtrant les grands pôles hospitaliers des vrais conflits"
   ]
 }

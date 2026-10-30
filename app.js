@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.7';
+  var APP_VERSION = '3.26.8';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.8', [
+      'Répertoire : Bouton « Capter ma position GPS ici » grand format (48px) avec statut tactile direct',
+      'Tournée terrain : Raccourci « Ajouter au jour (Inopinée) » pour forcer instantanément une visite du jour',
+      'Audit Qualité BDD : Distinction intelligente des équipes hospitalières des vrais centroïdes suspects'
+    ]],
     ['3.26.7', [
       'Garantie d\'affichage des secteurs dans Planifier > Communes ciblées : injection systématique des 4 sous-secteurs pour Cocody, Yopougon et Abobo même si la base locale contenait d\'anciens enregistrements non segmentés',
       'Compatibilité immédiate sans nécessiter de réinitialisation préalable'
@@ -4730,12 +4735,23 @@
         if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
         h += grillePresences(p.code);
         var impose = S.imposes.some(function (im) { return im.code === p.code; });
-        h += '<div class="rangee" style="margin-top:10px">' +
-          (impose ? '<span class="etiquette p1">Prioritaire</span>' :
-            '<button class="bouton bouton-plein" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('plus') + 'Tournée</button>') +
-          '<button class="bouton" type="button" data-a="majGpsDirect" data-v="' + esc(p.code) + '">' + icone('cible') + 'GPS ici</button>' +
-          '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + 'Modifier</button>' +
-          '</div>';
+        var aGpsFixe = pres.lat && pres.lon && isFinite(+String(pres.lat).replace(',', '.')) && +String(pres.lat).replace(',', '.') !== 0;
+        var tAuj = aujourdhui();
+        var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === tAuj; });
+
+        h += '<div class="bloc-actions-contact" style="margin-top:10px">' +
+          '<button class="bouton bouton-plein bouton-gps-ici" type="button" data-a="majGpsDirect" data-v="' + esc(p.code) + '">' +
+            '<span class="gps-ici-gauche">' + icone('cible') + '<b>Capter ma position GPS ici</b></span>' +
+            '<span class="gps-ici-badge ' + (aGpsFixe ? 'fixe' : 'manquant') + '">' + (aGpsFixe ? '✓ GPS fixé' : 'GPS non fixé') + '</span>' +
+          '</button>' +
+          '<div class="rangee rangee-actions-contact">' +
+            (dejaAuj
+              ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
+              : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
+                  icone('eclair') + '<span>Ajouter au jour (Inopinée)</span></button>') +
+            '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
+            '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
+          '</div></div>';
       }
       h += '</li>';
     });
@@ -4979,9 +4995,17 @@
     Object.keys(coordGroupes).forEach(function (k) {
       var grp = coordGroupes[k];
       if (grp.length >= 3) {
+        var lieuxUniques = {};
         grp.forEach(function (item) {
-          centroides.push({ p: item.p, pres: item.pres, motif: 'Centroïde suspect : ' + grp.length + ' établissements au même point (' + item.lat.toFixed(4) + ', ' + item.lon.toFixed(4) + ')' });
+          var nLieu = normaliser((item.pres && item.pres.lieu) || item.p.nom || '');
+          lieuxUniques[nLieu] = (lieuxUniques[nLieu] || 0) + 1;
         });
+        var nbLieuxDistincts = Object.keys(lieuxUniques).length;
+        if (nbLieuxDistincts >= 2) {
+          grp.forEach(function (item) {
+            centroides.push({ p: item.p, pres: item.pres, motif: 'Centroïde suspect : ' + nbLieuxDistincts + ' établissements distincts au même point (' + item.lat.toFixed(4) + ', ' + item.lon.toFixed(4) + ')' });
+          });
+        }
       }
     });
 
@@ -5502,7 +5526,7 @@
       var j = jourSemaineIndex(d);
       (c.parCode[f.code] || []).forEach(function (cr) { if (cr.jourIdx === j) options.push({ d: d, c: cr }); });
     });
-    var defAuj = f.cle === '__aujourdhui' || (!f.cle && !options.length);
+    var defAuj = f.cle === '__aujourdhui' || !f.cle;
     h += '<p><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(p.specialite) + '</span></p>';
     h += '<p class="discret">Quand planifier cette visite ?</p>';
     h += '<div class="choix-creneaux">' +
@@ -7511,6 +7535,18 @@
     },
     retirerImpose: function (el) { S.imposes.splice(+el.dataset.i, 1); LS.set('imposes', S.imposes); rendre(); },
     imposerDirect: function (el) { S.ui.feuille = { type: 'recherche', titre: 'Ajouter à ma tournée', code: el.dataset.v, cle: '' }; rendre(); },
+    visiteInopineeDirect: function (el) {
+      var code = el.dataset.v, tAuj = aujourdhui();
+      var c = ctx(), p = c.prat[code];
+      if (!p) return;
+      var imAuj = { code: code, date: tAuj, force: true };
+      S.imposes = S.imposes.filter(function (x) { return x.code !== code; }).concat([imAuj]);
+      forcerArretJour(code, tAuj);
+      S.ui.jour = tAuj; S.ui.jourVue = null;
+      if (!S.ui.voirParams) S.ui.tab = 'jour';
+      sauver(); rendre(); publierPlan();
+      toast('Visite inopinée : ' + p.nom + ' ajouté(e) à aujourd\'hui (' + dateCourte(tAuj) + ').');
+    },
     planifierCle: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v); if (!c) return;
       var d = el.dataset.d || prochaineOccurrence(c.jourIdx, prochainJourOuvre(aujourdhui()), true);
@@ -8661,7 +8697,8 @@
       filtre: '<path d="M4 6h16M7 12h10M10 18h4"/>',
       chevron: '<path d="m6 9 6 6 6-6"/>',
       calendrier: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
-      crayon: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>'
+      crayon: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+      eclair: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'
     }[n] || '';
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>';
   }

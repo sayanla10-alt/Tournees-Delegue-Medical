@@ -2142,3 +2142,115 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .pastille-produit { position: relative; }
 .pastille-produit::after { content: ""; position: absolute; top: -4px; bottom: -4px; left: -3px; right: -3px; }
 .cr-express-bloc { padding: 2px 0; }
+
+/* 3.26.6 : Bouton GPS ici grand format & Actions terrain dans le Répertoire */
+.bouton-gps-ici {
+  width: 100% !important;
+  min-height: 48px !important;
+  height: 48px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 16px !important;
+  border-radius: 12px !important;
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  background: var(--primaire) !important;
+  color: var(--sur-primaire) !important;
+  box-sizing: border-box !important;
+  box-shadow: 0 3px 10px rgba(10, 108, 116, 0.22) !important;
+  transition: transform .12s ease, filter .15s ease !important;
+  margin-top: 10px !important;
+  margin-bottom: 8px !important;
+}
+.bouton-gps-ici:active {
+  transform: scale(.98) !important;
+}
+.bouton-gps-ici .gps-ici-gauche {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14.5px;
+}
+.bouton-gps-ici .gps-ici-gauche svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+.bouton-gps-ici .gps-ici-badge {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.bouton-gps-ici .gps-ici-badge.fixe {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--sur-primaire);
+}
+.bouton-gps-ici .gps-ici-badge.manquant {
+  background: #fff;
+  color: var(--rouge, #c0392b);
+}
+
+.rangee-actions-contact {
+  display: flex !important;
+  gap: 6px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+.rangee-actions-contact .bouton {
+  flex: 1 !important;
+  min-height: 42px !important;
+  padding: 0 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+  white-space: nowrap !important;
+}
+.rangee-actions-contact .bouton-inopinee {
+  flex: 1.4 !important;
+  background: #fef3c7 !important;
+  border: 1.5px solid #d97706 !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+}
+.rangee-actions-contact .bouton-inopinee svg {
+  width: 16px;
+  height: 16px;
+  color: #d97706 !important;
+}
+.badge-deja-prevu {
+  flex: 1.4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: var(--fond);
+  border: 1px solid var(--trait);
+  color: var(--vert, #1e7e34);
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 0 8px;
+}
+.badge-deja-prevu svg {
+  width: 15px;
+  height: 15px;
+}
+
+.choix-creneaux .choix-aujourdhui {
+  background: #fef3c7 !important;
+  border-color: #d97706 !important;
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  margin-bottom: 6px !important;
+}
+.choix-creneaux .choix-aujourdhui b {
+  color: #92400e !important;
+  font-size: 14px !important;
+}
+
