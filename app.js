@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.47';
+  var APP_VERSION = '3.26.48';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.48', [
+      'CR Visite / Ergonomie pouce : Mémorisation précise du point de contact (hauteur du pouce) lors de l\'ouverture d\'une visite',
+      'Défilement intelligent : Les options et boutons de validation s\'affichent directement à la hauteur du pouce sans effort',
+      'Garde-fou contextuel : L\'intitulé de la question et le praticien restent 100 % visibles sous l\'en-tête (jamais masqués)',
+      'Charte graphique : Harmonisation des teintes ambre et vert avec les jetons CSS dynamiques'
+    ]],
     ['3.26.47', [
       'Répertoire : Rationalisation complète des espacements sous la grille des présences (suppression des vides cumulés)',
       'Planning hebdomadaire : Lien rattaché immédiatement au tableau comme commande contextuelle sans flotter dans le vide',
@@ -773,7 +779,7 @@
       statsVue: 'tableau', annulReprise: LS.get('annulReprise', null), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
       autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 0.5, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
-      filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false
+      filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false, dernierClicY: null
     }
   };
   // 3.20.0 : agenda. Tous mes jours planifiés (7 jours passés et tout l'à venir) sont dans S.plan ;
@@ -4367,15 +4373,15 @@
   }
   function validerEtape(a, id) { var c = crDe(a); c.ok = c.ok || {}; c.ok[id] = true; LS.set('plan', S.plan); }
 
-  // 3.25.15 / 3.25.47 : compte rendu : après chaque réponse, la question suivante (ou le choix touché) reste au milieu de l'écran visible
-  function centrerQuestion(uid) {
+  // 3.26.48 : compte rendu : les options se calent sous la hauteur du pouce mémorisée, avec garantie que l'intitulé reste toujours visible
+  function centrerQuestion(uid, pouceY) {
     setTimeout(function () {
       var c = document.querySelector('.arret.ouvert .cr-question') ||
               document.querySelector('.arret.ouvert .cr-express-bloc') ||
               document.querySelector('.arret.ouvert .actions-cr') ||
               document.querySelector('.arret.ouvert .rangee-actions-cr-valide') ||
               document.querySelector('.arret.ouvert');
-      if (c) centrerElement(c);
+      if (c) centrerElement(c, true, pouceY);
     }, 40);
   }
   function centrerQuestionRapport() {
@@ -4384,7 +4390,7 @@
               document.querySelector('.rapport-jour [data-a="rapValider"]') ||
               document.querySelector('.rapport-jour .rangee-actions-cr-valide') ||
               document.querySelector('.rapport-jour');
-      if (q) centrerElement(q, false);
+      if (q) centrerElement(q, false, S.ui.dernierClicY);
     }, 50);
   }
   function centrerChoix(el) {
@@ -4392,7 +4398,7 @@
       var sel = '[data-a="' + el.dataset.a + '"][data-uid="' + el.dataset.uid + '"][data-k="' + (el.dataset.k || '') + '"][data-v="' + (el.dataset.v || '') + '"]';
       var b = null; try { b = document.querySelector(sel); } catch (e) {}
       var c = b || document.querySelector('.arret.ouvert .cr-question') || document.querySelector('.arret.ouvert');
-      if (c) centrerElement(c);
+      if (c) centrerElement(c, true, S.ui.dernierClicY);
     }, 40);
   }
   function boutonEnregistrer(a) {
@@ -5523,7 +5529,9 @@
     h += '<div class="rangee-actions-rep">' +
       '<button class="bouton bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + '<span>Recherche</span></button>' +
       '<button class="bouton bouton-plein bouton-ajouter-rep" type="button" data-a="nouvelleFiche">' + icone('plus') + '<span>Ajouter</span></button>' +
-      '<button class="bouton bouton-modifier-rep" type="button" data-a="modifierActif">' + icone('crayon') + '<span>Modifier</span></button>' +
+      (S.ui.contactOuvert
+        ? '<button class="bouton bouton-modifier-rep" type="button" data-a="modifierActif">' + icone('crayon') + '<span>Modifier</span></button>'
+        : '<button class="bouton bouton-modifier-rep desactive" type="button" data-a="modifierActif" style="opacity:.45" title="Touchez d\'abord un contact dans la liste">' + icone('crayon') + '<span>Modifier</span></button>') +
       '</div>';
     var aFiltres = criteresActifs(f).length > 0 || !!(S.ui.recherche && String(S.ui.recherche).trim());
     var phrase = phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri);
@@ -7921,24 +7929,67 @@
 
   function horodatageCourt() { var d = new Date(); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   // Programme validé puis modifié : il reste validé pour l'équipe, avec la date de modification
-  // carte ouverte : centrée dans l'espace visible (entre l'en-tête et la barre du bas) ; si elle est plus haute, son haut est aligné
-  function centrerCarte(uid) { centrerQuestion(uid); }
-  function centrerElement(c, forceQuestion) {
+  // 3.26.48 : Défilement sous le pouce avec garde-fou obligatoire pour que l'intitulé reste 100 % visible
+  function centrerCarte(uid, pouceY) { centrerQuestion(uid, pouceY); }
+  function centrerElement(c, forceQuestion, pouceY) {
     if (!c) return;
+    var card = (c.closest && c.closest('.arret.ouvert')) || (document.querySelector && document.querySelector('.arret.ouvert')) || null;
     var cibleEl = (forceQuestion !== false && c.querySelector) ? (c.querySelector('.cr-question') || c.querySelector('.actions-cr') || c.querySelector('.rangee-actions-cr-valide') || c) : c;
     if (!cibleEl) cibleEl = c;
     requestAnimationFrame(function () {
       setTimeout(function () {
-        var r = cibleEl.getBoundingClientRect(), ent = (document.querySelector('.entete') || { offsetHeight: 0 }).offsetHeight,
-            nav = (document.querySelector('.navigation') || { offsetHeight: 0 }).offsetHeight, dispo = window.innerHeight - ent - nav;
-        var idealY;
-        if (r.height <= dispo - 20) {
-          idealY = ent + Math.max(16, (dispo - r.height) * 0.45);
-        } else {
-          idealY = window.innerHeight - nav - r.height - 16;
+        var ent = (document.querySelector('.entete') || { offsetHeight: 0 }).offsetHeight;
+        var nav = (document.querySelector('.navigation') || { offsetHeight: 0 }).offsetHeight;
+        var dispo = window.innerHeight - ent - nav;
+        if (dispo <= 0) return;
+
+        // 1. Identification de l'intitulé / titre pour garantir sa visibilité permanente
+        var titreEl = (card && card.querySelector('.etape-titre')) ||
+                      (cibleEl.querySelector && cibleEl.querySelector('.etape-titre')) ||
+                      (card && card.querySelector('.arret-carte .arret-nom')) ||
+                      (card && card.querySelector('.tete-cr')) ||
+                      cibleEl;
+        var rTitre = titreEl.getBoundingClientRect();
+
+        // 2. Identification des options / boutons à amener sous le pouce
+        var optionsEl = (cibleEl.querySelector && (
+          cibleEl.querySelector('.cr-boutons') ||
+          cibleEl.querySelector('.puces') ||
+          cibleEl.querySelector('.actions-cr') ||
+          cibleEl.querySelector('.rangee-actions-cr-valide') ||
+          cibleEl.querySelector('.tuiles-choix') ||
+          cibleEl.querySelector('.rangee-actions') ||
+          cibleEl.querySelector('.bouton-plein')
+        )) || cibleEl;
+        var rOpt = optionsEl.getBoundingClientRect();
+
+        // 3. Hauteur du pouce cible (mémorisée lors du clic)
+        var yPouce = (typeof pouceY === 'number' && pouceY > 0) ? pouceY : S.ui.dernierClicY;
+        if (!yPouce || yPouce < ent + 20 || yPouce > window.innerHeight - nav - 20) {
+          yPouce = ent + Math.max(30, dispo * 0.55);
         }
-        window.scrollTo({ top: Math.max(0, window.scrollY + r.top - idealY), behavior: 'smooth' });
-      }, 30);
+
+        // 4. Calcul du déplacement souhaité pour aligner les options sous le pouce
+        var cibleOptY = yPouce - Math.min(25, rOpt.height * 0.45);
+        var delta = rOpt.top - cibleOptY;
+
+        // 5. GARDE-FOU ESSENTIEL : L'intitulé doit impérativement rester visible sous l'en-tête
+        var minTitreTop = ent + 8;
+        var maxDelta = rTitre.top - minTitreTop;
+        if (delta > maxDelta) {
+          delta = maxDelta;
+        }
+
+        // 6. GARDE-FOU BAS : Ne pas pousser les options sous la barre de navigation basse
+        var maxOptBottom = window.innerHeight - nav - 8;
+        var minDelta = rOpt.bottom - maxOptBottom;
+        if (delta < minDelta) {
+          delta = minDelta;
+        }
+
+        var cibleScrollY = Math.max(0, Math.round(window.scrollY + delta));
+        window.scrollTo({ top: cibleScrollY, behavior: 'smooth' });
+      }, 35);
     });
   }
   // empreinte d'un compte rendu : sert à dire « aucune modification » plutôt que « enregistré »
@@ -8405,14 +8456,15 @@
       majCr(a);
       rendre();
     },
-    crStatutExpress: function (el) {
+    crStatutExpress: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
       c.statut = el.dataset.v;
       syncCr(a);
       LS.set('plan', S.plan);
       rendre();
-      centrerQuestion(a.uid);
+      centrerQuestion(a.uid, S.ui.dernierClicY);
     },
     crEtapeRapide: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -8422,15 +8474,19 @@
       LS.set('plan', S.plan);
       rendre();
     },
-    basculerModeComplet: function (el) {
+    basculerModeComplet: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       a.modeComplet = true;
       rendre();
+      centrerQuestion(a.uid, S.ui.dernierClicY);
     },
-    basculerModeExpress: function (el) {
+    basculerModeExpress: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       a.modeComplet = false;
       rendre();
+      centrerQuestion(a.uid, S.ui.dernierClicY);
     },
     param: function (el) {
       S.params[el.dataset.k] = el.dataset.v; LS.set('params', S.params);
@@ -8518,10 +8574,11 @@
       allerAuJour(el.dataset.v);
     },
     jourSemaine: function (el) { allerAuJour(ajouterJours(lundiDe(jourAffiche()), 7 * +el.dataset.v)); },
-    ouvrirVisite: function (el) {
+    ouvrirVisite: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       if (a.date !== jourAffiche() && !a.hors) { S.ui.jour = a.date; S.ui.jourVue = null; }
-      S.ui.tab = 'jour'; S.ui.ouvert = a.uid; rendre(); centrerCarte(a.uid);
+      S.ui.tab = 'jour'; S.ui.ouvert = a.uid; rendre(); centrerCarte(a.uid, S.ui.dernierClicY);
     },
     ajouterJour: function () { S.ui.dateAjout = jourAffiche(); S.ui.typeAjout = null; S.ui.feuille = { type: 'ajouterJour', titre: 'Ajouter à la journée' }; rendre(); },
     ajouterJourChoix: function (el) {
@@ -8592,9 +8649,10 @@
         'Reprendre', function () { S.ui.jourVue = null; reprendreProgramme('jour', d, d); });
     },
     quitterCarte: function () { S.ui.ouvert = null; rendre(); },
-    ouvrir: function (el) {
+    ouvrir: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       S.ui.ouvert = S.ui.ouvert === el.dataset.uid ? null : el.dataset.uid; rendre();
-      if (S.ui.ouvert) centrerCarte(S.ui.ouvert);
+      if (S.ui.ouvert) centrerCarte(S.ui.ouvert, S.ui.dernierClicY);
     },
     garder: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -8716,9 +8774,12 @@
     },
     confirmerProgrammeDirect: function () { confirmerProgramme(); },
 
-    corriger: function (el) {
+    corriger: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return; a.etat = 'correction'; a.corrige = true; a.empreinte = empreinteCr(a);
-      var c = crDe(a); c.ok = c.ok || {}; etapesCr(a).forEach(function (x) { if (x.id && x.id.indexOf('__') !== 0) c.ok[x.id] = true; }); S.ui.ouvert = a.uid; LS.set('plan', S.plan); rendre(); },
+      var c = crDe(a); c.ok = c.ok || {}; etapesCr(a).forEach(function (x) { if (x.id && x.id.indexOf('__') !== 0) c.ok[x.id] = true; }); S.ui.ouvert = a.uid; LS.set('plan', S.plan); rendre();
+      centrerQuestion(a.uid, S.ui.dernierClicY);
+    },
     ouvrirExport: function () {
       var f = S.ui.feuille, l = f && f.type === 'valide' ? f.dates || [] : [S.ui.jour];
       if (l.length === 1) S.ui.jour = l[0];
@@ -9119,11 +9180,13 @@
     filtreSpecToutes: function () { var f = filtresCour(); f.specialites = []; majFiltres(f); rendre(); },
     filtreSpecCoeur: function () { var f = filtresCour(); f.specialites = coeurDeCible(); majFiltres(f); rendre(); },
     filtreSpecChoisir: function () { ACTIONS.filtreQuestion({ dataset: { v: 'spec' } }); },
-    crChoix: function (el) {
+    crChoix: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
-      majCr(a, el.dataset.k, el.dataset.v); validerEtape(a, el.dataset.k); rendre(); centrerQuestion(a.uid);
+      majCr(a, el.dataset.k, el.dataset.v); validerEtape(a, el.dataset.k); rendre(); centrerQuestion(a.uid, S.ui.dernierClicY);
     },
-    crOk: function (el) {
+    crOk: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
       if (el.dataset.v === 'types') {
@@ -9143,20 +9206,25 @@
         });
         memoriserDerniersProduitsStockCr(c.produitsStock || []);
       }
-      validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid);
+      validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid, S.ui.dernierClicY);
     },
-    crPasser: function (el) {
+    crPasser: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       var champs = { precision: ['precision'], bilan: ['bilan'], commentaire: ['commentaire'], besoin: ['besoinTexte'] }[el.dataset.v] || [];
       champs.forEach(function (k) { majCr(a, k, ''); });
       if (el.dataset.v === 'besoin') crDe(a).besoin = [];
-      syncCr(a); validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid);
+      syncCr(a); validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid, S.ui.dernierClicY);
     },
-    crEditer: function (el) { var a = arret(el.dataset.uid); if (!a) return; editerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid); },
-    crDate: function (el) {
+    crEditer: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
+      var a = arret(el.dataset.uid); if (!a) return; editerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid, S.ui.dernierClicY);
+    },
+    crDate: function (el, e) {
+      if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
-      majCr(a, 'date', el.dataset.v); validerEtape(a, 'date'); rendre(); centrerQuestion(a.uid);
+      majCr(a, 'date', el.dataset.v); validerEtape(a, 'date'); rendre(); centrerQuestion(a.uid, S.ui.dernierClicY);
     },
     conflitRemplacer: function (el) { remplacerArret(el.dataset.uid); },
     remplacerChoisir: function (el) {
@@ -9388,7 +9456,7 @@
         var a = arret(f.uid); S.ui.feuille = null;
         if (a) { majCr(a, f.cle, v); validerEtape(a, f.cle); }
         rendre();
-        if (a) centrerQuestion(a.uid);
+        if (a) centrerQuestion(a.uid, S.ui.dernierClicY);
         return;
       }
       rendre();
@@ -9859,7 +9927,23 @@
     }
   };
 
+  function memoriserPouceY(e) {
+    if (!e) return;
+    var y = null;
+    if (typeof e.clientY === 'number' && e.clientY > 0) {
+      y = e.clientY;
+    } else if (e.touches && e.touches[0] && typeof e.touches[0].clientY === 'number') {
+      y = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches[0] && typeof e.changedTouches[0].clientY === 'number') {
+      y = e.changedTouches[0].clientY;
+    }
+    if (y && y > 0) {
+      S.ui.dernierClicY = Math.round(y);
+    }
+  }
+
   document.addEventListener('click', function (e) {
+    memoriserPouceY(e);
     var el = e.target.closest('[data-a]');
     if (!el || !ACTIONS[el.dataset.a] || el.disabled) return;
     if (el.__bloqueClic && Date.now() < el.__bloqueClic) {
@@ -9870,6 +9954,8 @@
     e.preventDefault();
     ACTIONS[el.dataset.a](el, e);
   });
+  window.addEventListener('pointerdown', memoriserPouceY, { passive: true, capture: true });
+  window.addEventListener('touchstart', memoriserPouceY, { passive: true, capture: true });
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }

@@ -1,10 +1,9 @@
 {
-  "version": "3.26.47",
+  "version": "3.26.48",
   "date": "2026-10-30",
   "notes": [
-    "Répertoire : Rationalisation complète des espacements sous la grille des présences (suppression des vides cumulés)",
-    "Planning hebdomadaire : Lien rattaché immédiatement au tableau comme commande contextuelle sans flotter dans le vide",
-    "Actions terrain : Bouton GPS (44px) et rangée d'actions (44px) harmonisés avec espacement strict et régulier de 6 px",
-    "Clarté des actions : Bouton « Modifier fiche » explicite pour éviter toute confusion avec le planning hebdomadaire"
+    "Compte Rendu visite : Mémorisation de la hauteur exacte du pouce au clic pour aligner automatiquement les choix et boutons de validation sous le doigt",
+    "Confort et rapidité : Enchaînement fluide des étapes du compte rendu d'une seule main sans gymnastique digitale",
+    "Garde-fou visuel : Intitulé de la question et identité du praticien maintenus 100 % visibles sous l'en-tête (jamais masqués)"
   ]
 }

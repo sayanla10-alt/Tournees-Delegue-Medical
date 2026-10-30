@@ -1592,7 +1592,8 @@ details.avance h3 { margin-top: 18px; }
 .cr-enregistre .tete-bloc h3 { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; color: var(--vert, var(--primaire)); }
 .cr-enregistre .tete-bloc h3 svg { width: 18px; height: 18px; }
 .bas-carte { margin-top: 12px; }
-.danger-doux { color: var(--rouge); border-color: var(--rouge); }
+.danger-doux { color: var(--gris); border-color: var(--trait); background: var(--papier-2); }
+.danger-doux:hover, .danger-doux:active { color: var(--encre); border-color: var(--gris-2); }
 .fiche-gamme { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--primaire); }
 
 /* 3.11.1 : Produits compact */
@@ -2963,14 +2964,14 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 }
 .btn-micro-gps svg { width: 12px; height: 12px; flex-shrink: 0; }
 .btn-micro-gps.fixe {
-  background: rgba(46, 204, 113, 0.12);
-  border-color: rgba(46, 204, 113, 0.4);
-  color: #1e8449;
+  background: var(--vert-pale);
+  border-color: var(--vert-trait);
+  color: var(--vert);
 }
 .btn-micro-gps.manquant {
-  background: rgba(230, 126, 34, 0.12);
-  border-color: rgba(230, 126, 34, 0.4);
-  color: #b95d09;
+  background: var(--ambre-pale);
+  border-color: var(--ambre-trait);
+  color: var(--ambre);
 }
 .btn-micro-gps:active {
   transform: scale(0.96);
@@ -3003,15 +3004,15 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 }
 .rangee-actions-contact .bouton-inopinee {
   flex: 1.25 1 0 !important;
-  background: #fef3c7 !important;
-  border: 1.5px solid #d97706 !important;
-  color: #92400e !important;
+  background: var(--ambre-pale) !important;
+  border: 1.5px solid var(--ambre-trait) !important;
+  color: var(--ambre) !important;
   font-weight: 700 !important;
 }
 .rangee-actions-contact .bouton-inopinee svg {
   width: 15px !important;
   height: 15px !important;
-  color: #d97706 !important;
+  color: var(--ambre) !important;
 }
 .badge-deja-prevu {
   flex: 1.25 1 0 !important;
@@ -3023,7 +3024,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   gap: 4px !important;
   background: var(--fond) !important;
   border: 1px solid var(--trait) !important;
-  color: var(--vert, #1e7e34) !important;
+  color: var(--vert) !important;
   font-size: 12px !important;
   font-weight: 700 !important;
   border-radius: 10px !important;
@@ -3036,14 +3037,14 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 }
 
 .choix-creneaux .choix-aujourdhui {
-  background: #fef3c7 !important;
-  border-color: #d97706 !important;
+  background: var(--ambre-pale) !important;
+  border-color: var(--ambre-trait) !important;
   padding: 10px 12px !important;
   border-radius: 12px !important;
   margin-bottom: 6px !important;
 }
 .choix-creneaux .choix-aujourdhui b {
-  color: #92400e !important;
+  color: var(--ambre) !important;
   font-size: 14px !important;
 }
 
