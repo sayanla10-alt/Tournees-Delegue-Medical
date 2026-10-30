@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.26';
+  var APP_VERSION = '3.26.27';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.27', [
+      'Répertoire : phrase d\'introduction « Tous vos contacts »'
+    ]],
     ['3.26.26', [
       'Phrases d\'introduction des onglets raccourcies et reformulées'
     ]],
@@ -28,7 +31,7 @@
       'Ergonomie de repérage : Phrases d\'introduction calibrées sur chaque onglet (claires, descriptives et tenant sur 2 lignes maximum)',
       'Journée : « Déroulez votre tournée dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus. »',
       'Planifier : « Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning. »',
-      'Répertoire : « Tous vos médecins et pharmacies : recherchez, filtrez, mettez à jour leurs fiches et leurs lieux de visite. »',
+      'Répertoire : « Tous vos contacts : recherchez, filtrez, mettez à jour leurs fiches et leurs lieux de visite. »',
       'Produits : « Votre aide-mémoire de visite : produits, arguments clés et échantillons. »',
       'Suivi & Contrôle : « Pilotez votre activité : réalisations, tournées de l\'équipe et qualité des données. »'
     ]],
@@ -4936,7 +4939,7 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (liste.length ? 'les ' + liste.length + ' résultat' + (liste.length > 1 ? 's' : '') : 'les résultats') + '</button></div>';
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire</h2></div>' +
-      '<p class="sous-titre">Tous vos médecins et pharmacies : recherchez, filtrez, mettez à jour leurs fiches et leurs lieux de visite.</p>';
+      '<p class="sous-titre">Tous vos contacts : recherchez, filtrez, mettez à jour leurs fiches et leurs lieux de visite.</p>';
     h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
     h += '<div class="rangee-actions-rep">' +
