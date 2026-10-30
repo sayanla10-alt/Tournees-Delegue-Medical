@@ -429,10 +429,12 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .couverture .groupe-bascule small { margin-left: 4px; }
 .couverture[aria-expanded] {}
 .couv-tete .groupe-bascule[aria-expanded="true"] svg { transform: rotate(180deg); }
-.couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.couv-tete .groupe-bascule { flex: 1 1 auto; min-width: 0; }
-.couv-tete .groupe-bascule b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.couv-tete .segment.petit { flex: 0 0 auto; }
+.couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.couv-tete .groupe-bascule { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.couv-tete .groupe-bascule b { font: 700 15px var(--titre); white-space: nowrap !important; overflow: visible !important; text-overflow: unset !important; }
+.couv-tete .groupe-bascule small { margin-left: 4px; flex: none; font-size: 13px; color: var(--gris); white-space: nowrap !important; overflow: visible !important; text-overflow: unset !important; }
+.couv-tete .groupe-bascule svg { flex: none; }
+.couv-tete .segment.petit { flex: 0 0 auto; margin-left: auto; }
 .couv-tete .segment.petit button, .segment.petit button {
   min-height: 32px;
   padding: 0 10px;
@@ -2729,4 +2731,32 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 
 /* 3.26.25 : mention GPS compacte (icone + GPS) */
 .ok-gps svg, .lieu-resume-simple .discret svg { width: 12px; height: 12px; vertical-align: -2px; }
+
+/* 3.26.28 : 'Communes visitées' toujours visible en entier sans troncature */
+.couv-tete .groupe-bascule b {
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+.couv-ligne > div b {
+  white-space: normal !important;
+  overflow: visible !important;
+}
+.bilan-jour .details-plan {
+  white-space: normal !important;
+  overflow: visible !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+}
+
+/* 3.26.28 : Appui très long sur date planifiée */
+.frise-plan .bj-jour {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+.bj-jour.appui-long-actif {
+  transform: scale(.93);
+  filter: brightness(.92);
+  transition: transform .9s ease, filter .9s ease;
+}
 

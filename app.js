@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.27';
+  var APP_VERSION = '3.26.28';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.28', [
+      'Onglet Planifier : « Communes visitées » affiché en entier sans troncature sur tous les écrans',
+      'Onglet Planifier : Appui très long sur une date planifiée pour la supprimer avec message de confirmation'
+    ]],
     ['3.26.27', [
       'Répertoire : phrase d\'introduction « Tous vos contacts »'
     ]],
@@ -1897,6 +1901,50 @@
     o.style.left = (e.clientX - r.left - s / 2) + 'px'; o.style.top = (e.clientY - r.top - s / 2) + 'px';
     b.appendChild(o); setTimeout(function () { o.remove(); }, 600);
   }, { passive: true });
+  // 3.26.28 : appui très long (~950ms) sur une date planifiée dans l'onglet Planifier pour la supprimer
+  (function () {
+    var timer = null, startX = 0, startY = 0, cibleDate = null, cibleEl = null;
+    function annulerAppuiLong() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
+      cibleDate = null;
+    }
+    document.addEventListener('pointerdown', function (e) {
+      if (e.button > 0) return;
+      if (S.ui.tab !== 'semaine') return;
+      var b = e.target.closest && e.target.closest('.frise-plan .bj-jour[data-v], .tete-jour-plan .bilan-jour');
+      if (!b) return;
+      var date = b.dataset.v || S.ui.jour;
+      if (!date) return;
+      var nb = S.plan.filter(function (a) { return a.date === date; }).length;
+      if (!nb) return;
+      annulerAppuiLong();
+      startX = e.clientX;
+      startY = e.clientY;
+      cibleDate = date;
+      cibleEl = b;
+      cibleEl.classList.add('appui-long-actif');
+      timer = setTimeout(function () {
+        timer = null;
+        window.__bloqueClicJour = Date.now() + 800;
+        if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
+        try { if (navigator.vibrate) navigator.vibrate([40, 50, 40]); } catch (err) {}
+        demanderSuppressionJour(date, nb);
+      }, 950);
+    }, { passive: true });
+    document.addEventListener('pointermove', function (e) {
+      if (!timer) return;
+      var dx = Math.abs(e.clientX - startX), dy = Math.abs(e.clientY - startY);
+      if (dx > 8 || dy > 8) annulerAppuiLong();
+    }, { passive: true });
+    document.addEventListener('pointerup', annulerAppuiLong, { passive: true });
+    document.addEventListener('pointercancel', annulerAppuiLong, { passive: true });
+    document.addEventListener('contextmenu', function (e) {
+      if (cibleEl || (window.__bloqueClicJour && Date.now() < window.__bloqueClicJour)) {
+        e.preventDefault();
+      }
+    });
+  })();
   // 3.25.24 : glissement fluide (courbe cubic-bezier) et cliqué-glissé avec inertie sur les bandeaux horizontaux
   function glisserHorizontal(el, depart, cible, duree) {
     if (!el) return;
@@ -3005,6 +3053,40 @@
     if (S.ui.tab === 'semaine' && S.plan.some(function (x) { return x.date === a.date; })) mettreBrouillon([a.date]);
     S.ui.ouvert = null; sauver(); rendre(); publierPlan();
     toast(a.nom + ' retiré de la tournée.');
+  }
+  // 3.26.28 : suppression d'une journée planifiée après confirmation (appui très long sur la date)
+  function supprimerJourPlanifie(date) {
+    var nb = S.plan.filter(function (x) { return x.date === date; }).length;
+    if (!nb) return;
+    S.plan = S.plan.filter(function (x) { return x.date !== date; });
+    delete S.jours[date];
+    var rt = LS.get('joursRetires', {});
+    rt[date] = true;
+    LS.set('joursRetires', rt);
+    S.imposes = S.imposes.filter(function (im) { return im.date !== date; });
+    var restantes = datesPlanAvenir();
+    if (S.ui.jour === date) {
+      S.ui.jour = restantes[0] || prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+      S.ui.jourVue = null;
+    }
+    S.ui.ouvert = null;
+    marquerModifie();
+    sauver();
+    rendre();
+    publierPlan(true);
+    toast('Journée du ' + dateFr(date) + ' supprimée.');
+  }
+  function demanderSuppressionJour(date, nb) {
+    nb = nb || S.plan.filter(function (a) { return a.date === date; }).length;
+    if (!nb) return;
+    var dLong = majuscule(dateLongue(date));
+    var nStr = nb + ' visite' + (nb > 1 ? 's' : '');
+    confirmerPuis(
+      'Supprimer la journée',
+      'Voulez-vous supprimer toutes les visites prévues le <b>' + dLong + '</b> (' + nStr + ') ?<br><span class="discret">Cette journée sera retirée de votre planning.</span>',
+      'Supprimer la journée',
+      function () { supprimerJourPlanifie(date); }
+    );
   }
   // Confirmation avant tout changement de la tournée
   // confirme les jours donnés (par défaut le jour affiché), puis propose l'envoi par WhatsApp (Oui / Non / Retour)
@@ -7688,6 +7770,7 @@
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) {
+      if (window.__bloqueClicJour && Date.now() < window.__bloqueClicJour) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
       S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; rendre();
     },
@@ -8988,12 +9071,17 @@
   };
 
   document.addEventListener('click', function (e) {
+    if (window.__bloqueClicJour && Date.now() < window.__bloqueClicJour) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     var el = e.target.closest('[data-a]');
     if (!el || !ACTIONS[el.dataset.a] || el.disabled) return;
     if (el.tagName === 'A') return;
     e.preventDefault();
     ACTIONS[el.dataset.a](el, e);
-  });
+  }, true);
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }

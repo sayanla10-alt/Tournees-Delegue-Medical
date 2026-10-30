@@ -1,7 +1,10 @@
 {
-  "version": "3.26.27",
+  "version": "3.26.28",
   "date": "2026-10-30",
   "notes": [
+    "Onglet Planifier : « Communes visitées » affiché en entier sans troncature sur tous les écrans",
+    "Onglet Planifier : Appui très long sur une date planifiée pour la supprimer avec message de confirmation",
+    "Répertoire : phrase d'introduction « Tous vos contacts »",
     "Indicateur GPS simplifié : icône GPS + « GPS » (sans coche ni « fixé »)",
     "En-tête : Rétablissement du bouton de synchronisation avec son libellé textuel complet (« À jour », « Synchro… », « Hors ligne ») et retrait du Copilote IA",
     "Répertoire : Résumé des critères condensé sur 1 à 2 lignes avec abréviations médicales usuelles (cardio, diabéto, gynéco, pédia, dermato, etc.)",
