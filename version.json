@@ -1,17 +1,13 @@
 {
-  "version": "3.26.37",
+  "version": "3.26.38",
   "date": "2026-10-30",
   "notes": [
-    "Planifier : Calendrier affiché sous le format « Mer. 16 Déc. » avec jour et mois abrégé",
-    "Répertoire : Établissements affichés sur une seule ligne (abréviations cliniques et colonnes jours compactes)",
-    "Répertoire : Mention « Touchez M ou S pour planifier » alignée sur la même ligne que l'icône GPS",
-    "Répertoire : Icône de géolocalisation GPS (épingle 📍) harmonisée sur les badges et boutons",
-    "Répertoire : Bandeau critères harmonisé avec bouton « Réinitialiser les filtres » grisé par défaut quand inactif",
-    "Répertoire (Planning / Adresse) : Nom d'hôpital vide par défaut (placeholder d'invitation) et liste ordonnée des hôpitaux proches",
-    "CR Visite : Affichage immédiat des motifs d'absence après avoir cliqué sur « Non » sans écran intermédiaire",
-    "CR Visite : Proposition directe en 1 étape « Remplacer » ou « Non », et pas de remplaçant si « Non »",
-    "CR Visite : Étape 2 raccourcie en « Présentation » et Étape 8 « Envoyer infos » / bouton « Terminer »",
-    "CR Visite : Étape 4 produit sélectionné vert sans coche de validation superflue",
-    "CR Visite : Barre de recherche interactive en tête de liste des remplaçants proposés"
+    "CR Pharmacie : Interlocuteurs renommés (« Vendeurs » et « Chargé Commande »)",
+    "CR Pharmacie : Activités raccourcies (« Retour » au lieu de « Retour ou échange »)",
+    "CR Pharmacie : Sélection des produits en stock préalable par gammes compactes (miroir parcours médecin)",
+    "CR Pharmacie : Détail des stocks affiché uniquement pour les produits sélectionnés (fin de la longue liste)",
+    "CR Pharmacie : État « Non référencé » supprimé des choix de stock",
+    "CR Pharmacie : Commande passée ne demande plus de quantités superflues",
+    "CR Pharmacie : Étape 8 suite raccourcie en « Suivi » (au lieu de « Suivi de commande »)"
   ]
 }
