@@ -1,9 +1,10 @@
 {
-  "version": "3.26.43",
+  "version": "3.26.44",
   "date": "2026-10-30",
   "notes": [
-    "Établissements : Abréviations conventionnelles ciblées et professionnelles (CHU, CHR, HG, CSU, CMS, CM, GM, Poly., FSU COM, PISAM, SAMU, HMA, ICA)",
-    "Établissements : Préservation intégrale des noms de quartiers et cliniques (ex. « Deux Plateaux », « Saint-Sauveur »)",
-    "Répertoire : Titre d'établissement en pleine largeur sans coupure ni points de suspension"
+    "Critères de recherche : Bouton « Visité -30 j » en accès direct et dans le suivi pour filtrer tous les praticiens visités ces 30 derniers jours",
+    "Secteurs & Quartiers : Préservation explicite de « Cocody Centre » (ne s'affiche plus sous la dénomination ambiguë « Centre »)",
+    "Établissements : « CSU Communautaire » abrégé en « CSU COM » (titres et fiches)",
+    "Adresses & Voirie : « Boulevard » harmonisé en « Blvd. » (adresses, fiches et tournées)"
   ]
 }

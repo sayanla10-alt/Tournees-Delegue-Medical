@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.43';
+  var APP_VERSION = '3.26.44';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.44', [
+      'Recherche : Bouton « Visité -30 j » en accès direct et dans le suivi pour filtrer tous les praticiens visités ces 30 derniers jours',
+      'Secteurs & Quartiers : Préservation explicite de « Cocody Centre » (ne s\'affiche plus sous la dénomination isolée « Centre »)',
+      'Établissements : « CSU Communautaire » abrégé en « CSU COM » (titres et fiches)',
+      'Adresses & Voirie : « Boulevard » harmonisé en « Blvd. » (adresses, fiches et tournées)'
+    ]],
     ['3.26.43', [
       'Établissements : Abréviations conventionnelles ciblées et professionnelles (CHU, CHR, HG, CSU, CMS, CM, GM, Poly., FSU COM, PISAM, SAMU, HMA, ICA)',
       'Établissements : Préservation intégrale des noms de quartiers et cliniques (ex. « Deux Plateaux », « Saint-Sauveur »)',
@@ -944,9 +950,16 @@
       var rNom = s.slice(com.length).replace(/^[\s\-_/]+/, '').trim();
       if (rNom) s = rNom;
     }
+    // Exception Cocody Centre : ne jamais réduire à simple "Centre"
+    if ((/cocody/i.test(com) || /cocody/i.test(q) || /cocody/i.test(s)) && s.toLowerCase() === 'centre') {
+      s = 'Cocody Centre';
+    }
     if ((!s || s.toLowerCase() === (com || '').toLowerCase()) && coord && isFinite(coord.lat) && isFinite(coord.lon)) {
       var r = Moteur.quartierLePlusProche(coord.lat, coord.lon, quartiers());
       if (r && r.quartier && r.quartier.quartier) s = r.quartier.quartier;
+    }
+    if ((/cocody/i.test(com) || /cocody/i.test(s)) && s.toLowerCase() === 'centre') {
+      s = 'Cocody Centre';
     }
     return s || com || '';
   }
@@ -1134,6 +1147,10 @@
       // Si c'est un sous-secteur individuel d'une grande commune, on retire le préfixe redondant
       var nomAffiche = str.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '')
                           .replace(/\s*\(Toute la commune\)$/i, '');
+      // Exception Cocody Centre : "souvent Cocody Centre est seulement écrit Centre, ça prête à confusion, garder exceptionnellement Cocody Centre"
+      if (par === 'Cocody' && nomAffiche.toLowerCase() === 'centre') {
+        nomAffiche = 'Cocody Centre';
+      }
       if (resultats.indexOf(nomAffiche) < 0) {
         resultats.push(nomAffiche);
       }
@@ -1441,6 +1458,10 @@
             return a.localeCompare(b, 'fr');
           }).forEach(function (sec) {
             var nomCourt = sec.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '');
+            // Exception Cocody Centre : garder exceptionnellement Cocody Centre
+            if (par === 'Cocody' && nomCourt.toLowerCase() === 'centre') {
+              nomCourt = 'Cocody Centre';
+            }
             var rep = reperesOfficiels[sec] || (quartiersParSecteur[sec] || []).slice(0, 3).join(' · ');
             opts.push({
               v: sec,
@@ -1507,6 +1528,7 @@
       // Grand Abidjan : rattachement par commune et secteur
       var groupeTitre = com;
       if (normParent === 'cocody') {
+        if (nomQ.toLowerCase() === 'centre' || nomQ.toLowerCase() === 'cocody centre') nomQ = 'Cocody Centre';
         groupeTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Cocody', nomQ, '') : 'Cocody – Centre';
         if (!groupeTitre || groupeTitre === 'Cocody') groupeTitre = 'Cocody – Centre';
       } else if (normParent === 'yopougon') {
@@ -3450,7 +3472,9 @@
     s = s.replace(/^Centre\s+Hospitalier\s+R[ée]gional\s+(?:de\s+|d['’])?/i, 'CHR ');
     s = s.replace(/^H[ôo]pital\s+G[ée]n[ée]ral\s+(?:de\s+|d['’])?/i, 'HG ');
     s = s.replace(/^(?:Formation\s+Sanitaire\s+Urbaine\s+(?:[àa]\s+base\s+)?Communautaire|FSU[- ]COM)\s+(?:de\s+|d['’])?/i, 'FSU COM ');
-    s = s.replace(/^(?:Centre\s+de\s+Sant[ée]\s+Urbain(?:\s+[àa]\s+base)?\s+Communautaire|CSU[- ]COM)\s+(?:de\s+|d['’])?/i, 'CSU COM ');
+    s = s.replace(/^(?:CSU\s+Communautaire|Centre\s+de\s+Sant[ée]\s+Urbain(?:\s+[àa]\s+base)?\s+Communautaire|CSU[- ]COM)\s*(?:de\s+|d['’])?/i, 'CSU COM ');
+    s = s.replace(/\bCSU\s+Communautaire\b/gi, 'CSU COM');
+    s = s.replace(/\bCSU-COM\b/gi, 'CSU COM');
     s = s.replace(/^Centre\s+de\s+Sant[ée]\s+Urbain\s+(?:de\s+|d['’])?/i, 'CSU ');
 
     // 3. Établissements privés, cliniques et centres
@@ -3460,7 +3484,10 @@
     s = s.replace(/^Polyclinique\s+(?:des\s+|du\s+|de\s+la\s+|de\s+|d['’])?/i, 'Poly. ');
     s = s.replace(/^Clinique\s+M[ée]dicale\s+(?:de\s+|d['’])?/i, 'Clinique ');
 
-    // 4. Préservation et normalisation des quartiers (ex. "2 pltx" -> "Deux Plateaux")
+    // 4. Voirie et voiries usuelles (Boulevard -> Blvd.)
+    s = s.replace(/\bBoulevard\b/gi, 'Blvd.');
+
+    // 5. Préservation et normalisation des quartiers (ex. "2 pltx" -> "Deux Plateaux")
     s = s.replace(/\b2\s*pltx\b/gi, 'Deux Plateaux');
     s = s.replace(/\b2\s*plateaux\b/gi, 'Deux Plateaux');
 
@@ -5179,10 +5206,25 @@
       var lieux = c.presencesParCode[p.code] || [];
       if (f.communes.length && !lieux.some(function (x) { return typeof communeCorrespondante === 'function' ? communeCorrespondante(x, co) : co[x.commune]; })) return false;
       if (f.visite !== 'tous') {
-        var j = p.derniere ? joursEcoules(p.derniere, t) : Infinity;
+        var derDate = p.derniere;
+        if (!derDate && S.data && S.data.historique) {
+          S.data.historique.forEach(function (hv) {
+            if (hv.code === p.code && hv.date && (!derDate || hv.date > derDate)) {
+              derDate = String(hv.date).slice(0, 10);
+            }
+          });
+        }
+        if (typeof S !== 'undefined' && S.queue && S.queue.length) {
+          S.queue.forEach(function (qv) {
+            if (qv.code === p.code && qv.date && (!derDate || qv.date > derDate)) {
+              derDate = String(qv.date).slice(0, 10);
+            }
+          });
+        }
+        var j = derDate ? joursEcoules(derDate, t) : Infinity;
         if (f.visite === '30' && j <= 30) return false;
-        if (f.visite === 'recent' && j > 30) return false;
-        if (f.visite === 'jamais' && p.derniere) return false;
+        if (f.visite === 'recent' && (!derDate || j > 30)) return false;
+        if (f.visite === 'jamais' && derDate) return false;
         if (f.visite === 'retard' && j < REGLAGES_MOTEUR.cadence[p.note]) return false;
         if (f.visite === 'revoir' && !aRevoir(p)) return false;
       }
@@ -5207,7 +5249,7 @@
       return false;
     });
   }
-  var LIB_VISITE = { '30': 'Non visité depuis +30 j', recent: 'Visité -30j', jamais: 'Jamais visité',
+  var LIB_VISITE = { '30': 'Non visité depuis +30 j', recent: 'Visité -30 j', jamais: 'Jamais visité',
                      retard: 'En retard', revoir: 'À revoir' };
   // Liste des critères actifs : [clé, valeur, libellé]
   function criteresActifs(f) {
@@ -5221,8 +5263,8 @@
     if (f.equipe !== 'tous') l.push(['equipe', f.equipe, f.equipe === 'oui' ? 'Ciblés par l\'équipe' : 'Non ciblés par l\'équipe']);
     return l;
   }
-  var FILTRES_RAPIDES = [['potentiels', 'A', '★★★'], ['visite', '30', 'Non visité +30 j'], ['visite', 'revoir', 'À revoir'],
-                         ['visite', 'jamais', 'Jamais visité'], ['conv', 'oui', 'Engagés']];
+  var FILTRES_RAPIDES = [['potentiels', 'A', '★★★'], ['visite', 'recent', 'Visité -30 j'], ['visite', '30', 'Non visité +30 j'],
+                         ['visite', 'revoir', 'À revoir'], ['visite', 'jamais', 'Jamais visité'], ['conv', 'oui', 'Engagés']];
   function estRapide(k, v) { return FILTRES_RAPIDES.some(function (x) { return x[0] === k && x[1] === v; }); }
   function filtreRapideActif(f, k, v) { return Array.isArray(f[k]) ? f[k].indexOf(v) >= 0 : f[k] === v; }
   function trierPraticiens(liste, tri) {
@@ -5274,7 +5316,7 @@
   }
 
   function etapesFiltres(f) {
-    var vis = [['tous', 'Toutes'], ['jamais', 'Jamais vu'], ['30', 'Non vu +30j'], ['retard', 'En retard'], ['revoir', 'À revoir'], ['recent', 'Vu -30j']];
+    var vis = [['tous', 'Toutes'], ['recent', 'Visité -30 j'], ['30', 'Non visité +30 j'], ['jamais', 'Jamais visité'], ['retard', 'En retard'], ['revoir', 'À revoir']];
     var l = [
       { id: 'qui', auto: true, resume: function () { return f.type === 'Pharmacie' ? 'Pharmacies' : (f.type === 'Médecin' ? 'Médecins' : 'Médecins et pharmacies'); },
         rendu: function () {
@@ -5553,8 +5595,10 @@
       var hM = lireHoraire(pr.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
       var hasGps = pr.lat && pr.lon && isFinite(+String(pr.lat).replace(',', '.')) && +String(pr.lat).replace(',', '.') !== 0;
       var nomLieu = abregerHopital(pr.lieu || (estPh ? p.nom : 'Établissement'));
+      var quartierNet = String(pr.quartier || '').replace(/\bBoulevard\b/gi, 'Blvd.');
+      var adresseTxt = [quartierNet, pr.commune].filter(Boolean).join(', ');
       h += '<tr class="tr-lieu-titre"><td colspan="6" class="cell-lieu-titre"><b class="lieu-nom-plein" title="' + esc(nomLieu) + '">' + esc(nomLieu) + '</b></td></tr>' +
-        '<tr class="tr-lieu-corps"><td class="cell-lieu-infos"><small>' + esc([pr.quartier, pr.commune].filter(Boolean).join(', ')) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
+        '<tr class="tr-lieu-corps"><td class="cell-lieu-infos"><small>' + esc(adresseTxt) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
         ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
         '<div class="ligne-micro-gps-plan" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap"><button type="button" class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" data-a="majGpsLieuDirect" data-v="' + esc(code) + '" data-i="' + idx + '" title="' + (hasGps ? 'GPS déjà fixé pour cet établissement. Touchez pour réactualiser sur place' : 'Touchez pour capter et fixer le GPS de cet établissement') + '">' +
           icone('carte') + '<span>GPS</span></button>' +
@@ -6830,8 +6874,8 @@
       valeur: groupeChoix(f, { id: 'pot', titre: 'Potentiel de prescription', chemin: 'brouillon.potentiels', multiple: true, tousVide: true,
           options: opt([['A', '★★★'], ['B', '★★'], ['C', '★']]) }) +
         groupeChoix(f, { id: 'conv', titre: 'Engagé', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }),
-      suivi: groupeChoix(f, { id: 'visite', titre: 'Dernière visite (un seul choix)', chemin: 'brouillon.visite', options: opt([['tous', 'Toutes'], ['jamais', 'Jamais visité'],
-          ['30', 'Non visité +30 j'], ['retard', 'En retard'], ['revoir', 'À revoir'], ['recent', 'Visité -30j']]) }) +
+      suivi: groupeChoix(f, { id: 'visite', titre: 'Dernière visite (un seul choix)', chemin: 'brouillon.visite', options: opt([['tous', 'Toutes'], ['recent', 'Visité -30 j'],
+          ['30', 'Non visité +30 j'], ['jamais', 'Jamais visité'], ['retard', 'En retard'], ['revoir', 'À revoir']]) }) +
         (S.config.demo ? '' : groupeChoix(f, { id: 'equipe', titre: 'Prévu par un collègue cette semaine', chemin: 'brouillon.equipe', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) })),
       ordre: S.ui.tab === 'praticiens' ? groupeChoix(f, { id: 'tri', titre: 'Trier la liste par', chemin: 'tri', options: opt(TRIS) }) : ''
     };
@@ -10104,11 +10148,17 @@
   // ni les textes partagés (WhatsApp, exports) ; les lecteurs d'écran gardent le mot entier (aria-label).
   (function () {
     var RE = /\bPharmacie\b|\bPHARMACIE\b/g, EXCLUS = { TEXTAREA: 1, SCRIPT: 1, STYLE: 1, OPTION: 1, INPUT: 1, SELECT: 1 };
+    var RE_BLVD = /\bBoulevard\b/gi;
+    var RE_CSU = /\bCSU\s+Communautaire\b/gi;
     function abreger(n) {
       if (n.nodeType === 3) {
         var p = n.parentNode; if (!p || EXCLUS[p.nodeName] || (p.closest && p.closest('[contenteditable],textarea,select,.texte-entier'))) return;
-        if (RE.test(n.nodeValue)) { RE.lastIndex = 0; n.nodeValue = n.nodeValue.replace(RE, function (m) { return m === 'PHARMACIE' ? 'PHCIE' : 'Phcie'; }); }
-        RE.lastIndex = 0; return;
+        var txt = n.nodeValue;
+        if (RE.test(txt)) { RE.lastIndex = 0; txt = txt.replace(RE, function (m) { return m === 'PHARMACIE' ? 'PHCIE' : 'Phcie'; }); }
+        if (RE_BLVD.test(txt)) { RE_BLVD.lastIndex = 0; txt = txt.replace(RE_BLVD, 'Blvd.'); }
+        if (RE_CSU.test(txt)) { RE_CSU.lastIndex = 0; txt = txt.replace(RE_CSU, 'CSU COM'); }
+        if (txt !== n.nodeValue) n.nodeValue = txt;
+        return;
       }
       if (n.nodeType !== 1 || EXCLUS[n.nodeName]) return;
       var w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT), l = [], t;
