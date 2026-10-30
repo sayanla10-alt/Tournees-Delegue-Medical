@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.46';
+  var APP_VERSION = '3.26.47';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.47', [
+      'Répertoire : Rationalisation complète des espacements sous la grille des présences (suppression des vides cumulés)',
+      'Planning hebdomadaire : Lien rattaché immédiatement au tableau comme commande contextuelle sans flotter dans le vide',
+      'Actions terrain : Bouton GPS (44px) et rangée d\'actions (44px) harmonisés avec espacement strict et régulier de 6 px',
+      'Clarté des actions : Bouton « Modifier fiche » explicite pour éviter toute confusion avec le planning hebdomadaire'
+    ]],
     ['3.26.46', [
       'Planifier / Remplacement : Refonte visuelle complète de l\'écran de confirmation en cartes comparatives hiérarchisées (Visite initiale ➔ Nouveau rendez-vous)',
       'Remplacement : Établissement, adresse, quartier, créneau et heure de passage clairement valorisés sans pavé de texte compact entre parenthèses',
@@ -5565,7 +5571,7 @@
         var tAuj = aujourdhui();
         var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === tAuj; });
 
-        h += '<div class="bloc-actions-contact" style="margin-top:10px">' +
+        h += '<div class="bloc-actions-contact">' +
           '<button class="bouton bouton-plein bouton-gps-ici" type="button" data-a="majGpsDirect" data-v="' + esc(p.code) + '" title="' + (nbLieux > 1 ? 'Capter la position GPS de l\'établissement où vous êtes sur place' : 'Capter votre position GPS précise') + '">' +
             '<span class="gps-ici-gauche">' + icone('carte') + '<b>Capter position GPS</b></span>' +
             '<span class="gps-ici-badge ' + badgeGpsClasse + '" title="' + nbGpsFixes + ' sur ' + nbLieux + ' lieu(x) géolocalisé(s)">' + badgeGpsHtml + '</span>' +
@@ -5576,7 +5582,7 @@
               : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
                   icone('eclair') + '<span>Ajouter au jour</span></button>') +
             '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
-            '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
+            '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier fiche</span></button>' +
           '</div></div>';
       }
       h += '</li>';
@@ -5630,8 +5636,8 @@
         }).join('') + '</tr>';
     });
     h += '</tbody></table></div>' +
-      '<div class="pres-actions" style="margin-top:8px;text-align:center;width:100%">' +
-        '<button type="button" class="bouton-texte" data-a="modifierPlanning" data-v="' + esc(code) + '" style="margin:0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px">' +
+      '<div class="pres-actions">' +
+        '<button type="button" class="bouton-texte" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
         icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +
       '</div>';
     return h;
