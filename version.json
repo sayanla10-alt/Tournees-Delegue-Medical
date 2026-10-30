@@ -1,7 +1,11 @@
 {
-  "version": "3.26.21",
+  "version": "3.26.22",
   "date": "2026-10-30",
   "notes": [
+    "Ergonomie des onglets : Courte phrase d'introduction pour chaque onglet afin de se situer immédiatement sans gaspiller d'espace",
+    "Onglet Planifier : Phrase courte (« Ajustez vos critères et confirmez votre tournée. »)",
+    "Onglet Suivi & Contrôle : Phrase d'introduction ajoutée (« Indicateurs de tournée, activité de l'équipe et audit qualité. »)",
+    "Onglet Répertoire : Phrase d'introduction concise et bandeau de critères optimisé avec bouton « Réinitialiser » rouge centré",
     "Onglet Planifier : Noms des médecins garantis intégraux sans coupure ni suspension",
     "Onglet Planifier : Suppression de la phrase d'introduction pour libérer l'espace écran",
     "En-tête : Bouton synchro ultra-compact (point vert/rouge + rafraîchissement seul) libérant toute la place pour le nom du délégué",

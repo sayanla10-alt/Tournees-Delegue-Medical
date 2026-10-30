@@ -14,7 +14,10 @@
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
     ['3.26.22', [
-      'Répertoire : Phrase de résumé des filtres étalée sur toute la largeur (2 à 3 lignes au lieu de 5) avec bouton « Réinitialiser » centré en dessous style danger rouge'
+      'Ergonomie des onglets : Courte phrase d\'introduction pour chaque onglet afin de se situer immédiatement sans gaspiller d\'espace',
+      'Onglet Planifier : Phrase courte (« Ajustez vos critères et confirmez votre tournée. »)',
+      'Onglet Suivi & Contrôle : Phrase d\'introduction ajoutée (« Indicateurs de tournée, activité de l\'équipe et audit qualité. »)',
+      'Onglet Répertoire : Phrase d\'introduction concise et bandeau de critères optimisé avec bouton « Réinitialiser » rouge centré'
     ]],
     ['3.26.21', [
       'Onglet Planifier : Noms des médecins garantis intégraux sans coupure ni suspension',
@@ -2745,6 +2748,7 @@
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
+      '<p class="sous-titre">Ajustez vos critères et confirmez votre tournée.</p>' +
       barreCriteresPlanifier();
     var datesF = datesPlanAvenir();
     if (!datesF.length) {
@@ -4857,7 +4861,7 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (liste.length ? 'les ' + liste.length + ' résultat' + (liste.length > 1 ? 's' : '') : 'les résultats') + '</button></div>';
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire</h2></div>' +
-      '<p class="sous-titre">Médecins et pharmacies : Répertoire à modifier ou filtrer par critère pour une recherche.</p>';
+      '<p class="sous-titre">Consultez, modifiez et filtrez vos médecins et pharmacies.</p>';
     h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
     h += '<div class="rangee-actions-rep">' +
@@ -4868,10 +4872,14 @@
     var aFiltres = criteresActifs(f).length > 0 || !!(S.ui.recherche && String(S.ui.recherche).trim());
     var phrase = phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri);
     if (aFiltres) {
-      h += '<button type="button" class="bandeau-criteres-rep" data-a="effacerFiltres" title="Touchez pour réinitialiser les filtres et recommencer">' +
-        '<span class="phrase-criteres">' + esc(phrase) + '</span>' +
-        '<span class="bouton-reinit-rep">' + icone('relancer') + '<span>Réinitialiser</span></span>' +
-        '</button>';
+      h += '<div class="bandeau-criteres-rep">' +
+        '<p class="phrase-criteres">' + esc(phrase) + '</p>' +
+        '<div class="centre-reinit-rep">' +
+          '<button type="button" class="bouton-reinit-danger" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
+            icone('relancer') + '<span>Réinitialiser</span>' +
+          '</button>' +
+        '</div>' +
+        '</div>';
     } else {
       h += '<p class="phrase-criteres">' + esc(phrase) + '</p>';
     }
@@ -5303,6 +5311,7 @@
   VUES.suivi = function () {
     var sousVue = S.ui.suiviVue || 'bilan';
     var tete = '<div class="tete-vue"><h2 class="titre-vue">Suivi & Contrôle</h2></div>' +
+      '<p class="sous-titre">Indicateurs de tournée, activité de l\'équipe et audit qualité.</p>' +
       '<div class="segment-suivi" style="margin:4px 0 10px">' +
       segment('Sous-onglet Suivi', 'suiviVue', [['bilan', 'Bilan'], ['equipe', 'Équipe'], ['audit', 'Audit']], sousVue) +
       '</div>';
