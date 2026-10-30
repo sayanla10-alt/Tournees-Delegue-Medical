@@ -1,7 +1,12 @@
 {
-  "version": "3.26.32",
+  "version": "3.26.33",
   "date": "2026-10-30",
   "notes": [
+    "Répertoire : Condensation automatique des communes entières (ex. « Cocody » au lieu des 4 sous-secteurs)",
+    "Répertoire : Suppression du nom de commune redondant sur les secteurs ciblés (ex. « Deux Plateaux, Riviera »)",
+    "Répertoire : Masquage des spécialités si tous les types de médecins sont sélectionnés pour un bandeau compact",
+    "CR Étape 5 (Réaction) : « Non intéressé » et « Non évalué » alignés côte à côte sur la même ligne (gain de hauteur)",
+    "Suivi & Contrôle : Vérification et complétion des coordonnées GPS des pharmacies en base Google Sheets",
     "Suppression de date planifiée : Bouton de confirmation harmonisé avec la charte graphique sarcelle (aucun rouge)",
     "Respect strict de la charte visuelle médicale sur l'ensemble des modales et animations",
     "Onglet Planifier : Suppression d'une date planifiée par appui long (~650 ms) sur n'importe quelle date de la frise ou sur le titre de la journée",

@@ -9,10 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.32';
+  var APP_VERSION = '3.26.33';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.33', [
+      'Répertoire : Condensation automatique des communes entières (ex. « Cocody » au lieu des 4 sous-secteurs)',
+      'Répertoire : Suppression du nom de commune redondant sur les secteurs ciblés (ex. « Deux Plateaux, Riviera »)',
+      'Répertoire : Masquage des spécialités si tous les types de médecins sont sélectionnés pour un bandeau compact',
+      'CR Étape 5 (Réaction) : « Non intéressé » et « Non évalué » alignés côte à côte sur la même ligne (gain de hauteur)',
+      'Suivi & Contrôle : Vérification et complétion des coordonnées GPS des pharmacies en base Google Sheets'
+    ]],
     ['3.26.32', [
       'Suppression de date planifiée : Bouton de confirmation harmonisé avec la charte graphique sarcelle (aucun rouge)',
       'Respect strict de la charte visuelle médicale sur l\'ensemble des modales et animations'
@@ -1002,32 +1009,69 @@
     });
     return l.sort(function (a, b) { return ZONES.indexOf(a.zone) - ZONES.indexOf(b.zone) || a.commune.localeCompare(b.commune, 'fr'); });
   }
+  // Condensation intelligente des communes et secteurs :
+  // 1. Si tous les secteurs d'une grande commune sont sélectionnés -> affiche uniquement le nom de la commune (ex: Cocody)
+  // 2. Si seuls certains secteurs sont sélectionnés -> affiche uniquement le nom du secteur sans répéter la commune (ex: Deux Plateaux, Riviera)
+  function condenserCommunesEtSecteurs(liste) {
+    if (!liste || !liste.length) return '';
+    var grandes = ['Abobo', 'Cocody', 'Yopougon'];
+    var secsParGrande = {};
+    grandes.forEach(function (g) {
+      secsParGrande[g] = (typeof secteursDeGrandeCommune === 'function') ? secteursDeGrandeCommune(g) : [];
+    });
+
+    var compteParGrande = {};
+    grandes.forEach(function (g) { compteParGrande[g] = 0; });
+
+    liste.forEach(function (x) {
+      if (!x) return;
+      var str = String(x).trim();
+      var par = (typeof communeParente === 'function') ? communeParente(str) : '';
+      if (grandes.indexOf(par) >= 0) {
+        if (secsParGrande[par] && secsParGrande[par].indexOf(str) >= 0) {
+          compteParGrande[par]++;
+        } else if (str === par || str === par + ' (Toute la commune)') {
+          compteParGrande[par] = (secsParGrande[par] || []).length;
+        }
+      }
+    });
+
+    var resultats = [];
+    var grandesTraitees = {};
+
+    // 1. Pour les grandes communes dont TOUS les secteurs sont sélectionnés -> juste le nom de la commune (ex: Cocody)
+    grandes.forEach(function (g) {
+      var nbTot = (secsParGrande[g] || []).length;
+      if (nbTot > 0 && compteParGrande[g] >= nbTot) {
+        resultats.push(g);
+        grandesTraitees[g] = true;
+      }
+    });
+
+    // 2. Pour les autres éléments :
+    liste.forEach(function (x) {
+      if (!x) return;
+      var str = String(x).trim();
+      var par = (typeof communeParente === 'function') ? communeParente(str) : '';
+      if (grandesTraitees[par]) return;
+
+      // Si c'est un sous-secteur individuel d'une grande commune, on retire le préfixe redondant
+      var nomAffiche = str.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '')
+                          .replace(/\s*\(Toute la commune\)$/i, '');
+      if (resultats.indexOf(nomAffiche) < 0) {
+        resultats.push(nomAffiche);
+      }
+    });
+
+    return resultats.join(', ');
+  }
+
   function libelleCommunes(l) {
     if (!l || !l.length) return 'Toutes les communes';
-    var parCompte = {}, secsParPar = {};
-    ['Abobo', 'Cocody', 'Yopougon'].forEach(function (p) {
-      secsParPar[p] = secteursDeGrandeCommune(p);
-      parCompte[p] = 0;
-    });
-    l.forEach(function (x) {
-      var p = communeParente(x);
-      if (secsParPar[p] && secsParPar[p].indexOf(x) >= 0) {
-        parCompte[p]++;
-      }
-    });
-    var aff = [];
-    ['Abobo', 'Cocody', 'Yopougon'].forEach(function (p) {
-      if (secsParPar[p].length && parCompte[p] === secsParPar[p].length) {
-        aff.push(p);
-      }
-    });
-    l.forEach(function (x) {
-      var p = communeParente(x);
-      if (secsParPar[p] && parCompte[p] === secsParPar[p].length) return;
-      var court = String(x || '').replace(/\s*\(Toute la commune\)$/, '');
-      if (aff.indexOf(court) < 0) aff.push(court);
-    });
-    return aff.length <= 3 ? aff.join(', ') : aff.slice(0, 2).join(', ') + ' et ' + (aff.length - 2) + ' autres';
+    var r = condenserCommunesEtSecteurs(l);
+    var parts = r ? r.split(', ') : [];
+    if (!parts.length) return 'Toutes les communes';
+    return parts.length <= 3 ? parts.join(', ') : parts.slice(0, 2).join(', ') + ' et ' + (parts.length - 2) + ' autres';
   }
 
   function libelleListe(l, tous) {
@@ -1074,6 +1118,15 @@
     var n = {}, prat = ctx().prat;
     Object.keys(prat).forEach(function (k) { var p = prat[k]; if (p.type !== 'Pharmacie' && p.specialite) n[p.specialite] = (n[p.specialite] || 0) + 1; });
     return Object.keys(n).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).map(function (k) { return { nom: k, n: n[k] }; });
+  }
+  // Détermine si toutes les spécialités cibles (ou toutes les spécialités médicales) sont sélectionnées
+  function sontToutesSpecialites(specs) {
+    if (!specs || !specs.length) return true;
+    if (typeof memeEnsembleSpecs === 'function' && typeof coeurDeCible === 'function' && memeEnsembleSpecs(specs, coeurDeCible())) return true;
+    var tot = specialitesListe();
+    if (tot.length > 0 && specs.length >= tot.length) return true;
+    if (specs.length >= 4) return true;
+    return false;
   }
   // Durée estimée d'une journée : du premier RDV à la fin de la dernière visite
   function estimationJour(l) {
@@ -3470,7 +3523,7 @@
   // Médecin : faite ? → types → produits présentés → réactions → échantillons → bilan → suite (rappel ou RDV confirmé + date)
   // Pharmacie : faite ? → interlocuteur → types → stocks → commande → compléments → suite
   // Non faite : motif → précision → remplaçant → suite. Seul un RDV confirmé place la visite dans la tournée.
-  var REACTIONS = ['Intéressé', 'Indécis', 'Non intéressé', 'Demande d\'informations', 'Non évalué'];
+  var REACTIONS = ['Intéressé', 'Indécis', 'Non intéressé', 'Non évalué', 'Demande d\'informations'];
   var ETATS_STOCK = ['En stock', 'Stock faible', 'Rupture', 'Non référencé', 'Non vérifié'];
   var ANOMALIES = ['Proche péremption', 'Périmé'];
   var INTERLOCUTEURS = ['Pharmacien', 'Équipe', 'Responsable des achats', 'Autre'];
@@ -4881,7 +4934,7 @@
     var l = [];
     if (f.type !== 'tous') l.push(['type', f.type, f.type === 'Pharmacie' ? 'Pharmacies' : 'Médecins']);
     f.potentiels.forEach(function (x) { l.push(['potentiels', x, ETOILES[x]]); });
-    if (f.type !== 'Pharmacie') f.specialites.forEach(function (x) { l.push(['specialites', x, x]); });
+    if (f.type !== 'Pharmacie' && !sontToutesSpecialites(f.specialites)) f.specialites.forEach(function (x) { l.push(['specialites', x, x]); });
     f.communes.forEach(function (x) { l.push(['communes', x, x]); });
     if (f.visite !== 'tous') l.push(['visite', f.visite, LIB_VISITE[f.visite]]);
     if (f.conv !== 'tous') l.push(['conv', f.conv, f.conv === 'oui' ? 'Engagés' : 'Non engagés']);
@@ -4950,14 +5003,19 @@
               return '<button type="button" class="puce petite" data-a="filtreRapide" data-fin="1" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + filtreRapideActif(f, x[0], x[1]) + '">' + esc(x[2]) + '</button>';
             }).join('') + '</div>';
         } },
-      { id: 'spec', si: f.type !== 'Pharmacie', resume: function () { return f.specialites.length ? (memeEnsembleSpecs(f.specialites, coeurDeCible()) ? 'Cœur de cible (' + f.specialites.join(', ') + ')' : f.specialites.join(', ')) : 'Toutes'; },
+      { id: 'spec', si: f.type !== 'Pharmacie', resume: function () {
+          if (!f.specialites.length) return 'Toutes';
+          if (memeEnsembleSpecs(f.specialites, coeurDeCible())) return 'Cœur de cible';
+          if (sontToutesSpecialites(f.specialites)) return 'Toutes';
+          return f.specialites.length <= 2 ? f.specialites.join(', ') : f.specialites.slice(0, 2).join(', ') + ' +' + (f.specialites.length - 2);
+        },
         rendu: function () {
           return '<p class="discret" style="margin:0 0 6px">' + (f.type === 'tous' ? 'Spécialités du cœur de cible pré-sélectionnées (les pharmacies restent affichées) :' : 'Spécialités du cœur de cible pré-sélectionnées (modifier met à jour votre cœur de cible) :') + '</p>' +
             pucesSpecialitesCible(f.specialites, 'filtreSpecToggle', 'filtreSpecToutes', 'filtreSpecCoeur', 'filtreSpecChoisir');
         } },
-      { id: 'com', resume: function () { return f.communes.length ? f.communes.join(', ') : 'Toutes'; },
+      { id: 'com', resume: function () { return f.communes.length ? condenserCommunesEtSecteurs(f.communes) : 'Toutes'; },
         rendu: function () {
-          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes.length ? esc(f.communes.join(', ')) : 'Toutes les communes') + '</p>' +
+          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes.length ? esc(condenserCommunesEtSecteurs(f.communes)) : 'Toutes les communes') + '</p>' +
             '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="com">' + icone('loupe') + 'Choisir les communes</button>';
         } },
       { id: 'valeur', resume: function () {
@@ -5057,12 +5115,12 @@
     return x;
   }
 
-  // Résumé des critères retenus, concis et abrégé (ex. « 11 médecins cardios ou diabétos · ★★★ · Cocody · > 30j sans visite »)
+  // Résumé des critères retenus, concis et abrégé (ex. « 11 médecins · ★★★ · Cocody · > 30j sans visite »)
   function phraseCriteres(f, q, n, tri) {
     var fem = f.type === 'Pharmacie', pl = n > 1, s = pl ? 's' : '', e = fem ? 'e' : '';
     var nom = f.type === 'Pharmacie' ? 'pharmacie' : (f.type === 'Médecin' ? 'médecin' : 'praticien');
     var t = (n ? n : 'Aucun' + (fem ? 'e' : '')) + ' ' + nom + (pl ? 's' : '');
-    if (f.type !== 'Pharmacie' && f.specialites.length) {
+    if (f.type !== 'Pharmacie' && f.specialites.length && !sontToutesSpecialites(f.specialites)) {
       t += ' ' + f.specialites.map(function (x) {
         var ab = abbrevSpec(x);
         return pl && !/[sx]$/.test(ab) ? ab + 's' : ab;
@@ -5081,7 +5139,10 @@
     };
     if (f.visite !== 'tous') c.push(vis[f.visite] || f.visite);
     if (f.equipe !== 'tous') c.push((f.equipe === 'oui' ? 'prévus' : 'non prévus') + ' collègue');
-    if (f.communes.length) c.push(f.communes.join(', '));
+    if (f.communes.length) {
+      var comAffiche = condenserCommunesEtSecteurs(f.communes);
+      if (comAffiche) c.push(comAffiche);
+    }
     if (q && String(q).trim()) c.push('« ' + String(q).trim() + ' »');
     var lt = { priorite: 'tri potentiel', score: 'tri priorité', retard: 'tri retard', nom: 'tri nom' };
     if (n > 1 && lt[tri]) c.push(lt[tri]);
