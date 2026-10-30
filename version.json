@@ -1,7 +1,14 @@
 {
-  "version": "3.26.18",
+  "version": "3.26.20",
   "date": "2026-10-30",
   "notes": [
+    "Onglet Planifier : Noms des médecins sécurisés sur 1 seule ligne avec largeur optimisée",
+    "Onglet Planifier : Synthèse de journée compacte sur 2 lignes maximum avec abréviations soignées (mat., soir, méd., phar.)",
+    "Calendrier : Zéro défilement tactile ni bavure d'ombre, affichage 100% net",
+    "Copilote IA ✨ : Bouton d'aide interactif discret dans l'en-tête pour expliquer l'application et chaque bouton",
+    "Sécurité GPS multi-sites : Capter la position GPS sur un praticien multi-établissements ouvre un sélecteur tactile du lieu précis où vous êtes sur place (aucun risque d'écraser un établissement avec un autre)",
+    "Tableau des présences : Bouton micro-GPS direct sous chaque établissement pour actualiser son GPS individuel en un toucher",
+    "Répertoire : Bandeau élégant associant la phrase explicative des critères et un joli bouton tactile « Réinitialiser » côte à côte",
     "Médecins engagés exclusivement : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309), tous les autres praticiens strictement en noir comme avant, petites étiquettes inchangées",
     "Onglet Journée : Calendrier mensuel repensé plus moderne et aéré (grandes cellules 44px au pouce, badge d'année, chips d'accès rapide, indicateur d'activité)",
     "Médecins engagés : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309) dans toute l'application",

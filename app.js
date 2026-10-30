@@ -9,10 +9,21 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.18';
+  var APP_VERSION = '3.26.20';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.20', [
+      'Onglet Planifier : Noms des médecins sécurisés sur 1 seule ligne avec largeur optimisée',
+      'Onglet Planifier : Synthèse de journée compacte sur 2 lignes maximum avec abréviations soignées (mat., soir, méd., phar.)',
+      'Calendrier : Zéro défilement tactile ni bavure d\'ombre, affichage 100% net',
+      'Copilote IA ✨ : Bouton d\'aide interactif discret dans l\'en-tête pour expliquer l\'application et chaque bouton'
+    ]],
+    ['3.26.19', [
+      'Sécurité GPS multi-sites : Capter la position GPS sur un médecin multi-établissements ouvre un sélecteur tactile du lieu précis où vous êtes sur place (aucun risque d\'écraser Cocody en étant à Yopougon !)',
+      'Tableau des présences : Bouton micro-GPS direct sous chaque établissement pour actualiser son GPS individuel en un toucher sans passer par Modifier',
+      'Répertoire : Bandeau élégant associant la phrase explicative des critères et un joli bouton tactile « Réinitialiser » côte à côte'
+    ]],
     ['3.26.18', [
       'Médecins engagés exclusivement : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309), tous les autres praticiens strictement en noir comme avant, petites étiquettes inchangées'
     ]],
@@ -2753,14 +2764,14 @@
     var comJour = Array.from(new Set(duJour.map(function (a) { return a.commune; }).filter(Boolean)));
     var etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmé' + (S.jours[d] && S.jours[d].modifieLe ? ', modifié' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
     var details = [
-      nMatin + ' matin' + (nSoir ? ', ' + nSoir + ' soir' : ''),
-      (nPhar ? nPhar + ' phcie' + (nPhar > 1 ? 's' : '') : '') + (nPhar && nMed ? ', ' : '') + (nMed ? nMed + ' médecin' + (nMed > 1 ? 's' : '') : ''),
-      n3 ? n3 + ' ★★★' : '',
+      nMatin + ' mat.' + (nSoir ? ', ' + nSoir + ' soir' : ''),
+      (nMed ? nMed + ' méd.' : '') + (nPhar && nMed ? ', ' : '') + (nPhar ? nPhar + ' phar.' : ''),
+      n3 ? n3 + ' ★' : '',
       km(totalKm),
-      comJour.length ? esc(libelleCommunes(comJour)) : ''
+      comJour.length ? esc(comJour.slice(0, 2).join(', ')) : ''
     ].filter(Boolean).join(' · ');
-    h += '<div class="tete-jour-plan"><div class="bilan-jour"><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
-      ' <small class="discret">(' + details + ')</small></div>' + etat + '</div>';
+    h += '<div class="tete-jour-plan"><div class="bilan-jour"><div><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') + '</div>' +
+      '<div class="discret details-plan">' + details + '</div></div>' + etat + '</div>';
     h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
     var actionsPlan = '';
     if (enAttente) {
@@ -3047,7 +3058,8 @@
 
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
       '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
-      '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
+      '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' +
+        '<span class="lp-tete">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) + '</span>' +
         (sousTitre ? '<span class="discret bloc-texte">' + esc(sousTitre) + '</span>' : '') + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
       (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
         '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
@@ -4843,9 +4855,17 @@
       '<button class="bouton bouton-plein bouton-ajouter-rep" type="button" data-a="nouvelleFiche">' + icone('plus') + '<span>Ajouter</span></button>' +
       '<button class="bouton bouton-modifier-rep" type="button" data-a="modifierActif">' + icone('crayon') + '<span>Modifier</span></button>' +
       '</div>';
-    h += '<p class="phrase-criteres">' + esc(phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri)) + '</p>';
-    if (criteresActifs(f).length || S.ui.recherche) h += '<div class="tri tri-centre"><button type="button" class="bouton-texte effacer-filtres" data-a="effacerFiltres">' + icone('fermer') + 'Réinitialiser les filtres et recommencer</button></div>';
-    if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('fermer') + 'Réinitialiser tous les filtres et recommencer</button></div></div>';
+    var aFiltres = criteresActifs(f).length > 0 || !!(S.ui.recherche && String(S.ui.recherche).trim());
+    var phrase = phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri);
+    if (aFiltres) {
+      h += '<button type="button" class="bandeau-criteres-rep" data-a="effacerFiltres" title="Touchez pour réinitialiser les filtres et recommencer">' +
+        '<span class="phrase-criteres">' + esc(phrase) + '</span>' +
+        '<span class="bouton-reinit-rep">' + icone('relancer') + '<span>Réinitialiser</span></span>' +
+        '</button>';
+    } else {
+      h += '<p class="phrase-criteres">' + esc(phrase) + '</p>';
+    }
+    if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
     h += '<ul class="liste">';
     liste.slice(0, S.ui.limite).forEach(function (p) {
       var ouvert = S.ui.contactOuvert === p.code, lieux = c.presencesParCode[p.code] || [];
@@ -4867,14 +4887,35 @@
         if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
         h += grillePresences(p.code);
         var impose = S.imposes.some(function (im) { return im.code === p.code; });
-        var aGpsFixe = pres.lat && pres.lon && isFinite(+String(pres.lat).replace(',', '.')) && +String(pres.lat).replace(',', '.') !== 0;
+        var nbLieux = lieux.length;
+        var nbGpsFixes = lieux.filter(function (l) {
+          var lt = l.lat != null ? +String(l.lat).replace(',', '.') : NaN;
+          return isFinite(lt) && lt !== 0;
+        }).length;
+        var badgeGpsTexte = '';
+        var badgeGpsClasse = '';
+        if (nbLieux <= 1) {
+          badgeGpsTexte = nbGpsFixes === 1 ? '✓ GPS fixé' : 'GPS non fixé';
+          badgeGpsClasse = nbGpsFixes === 1 ? 'fixe' : 'manquant';
+        } else {
+          if (nbGpsFixes === nbLieux) {
+            badgeGpsTexte = '✓ ' + nbLieux + '/' + nbLieux + ' GPS fixés';
+            badgeGpsClasse = 'fixe';
+          } else if (nbGpsFixes > 0) {
+            badgeGpsTexte = nbGpsFixes + '/' + nbLieux + ' GPS fixés';
+            badgeGpsClasse = 'partiel';
+          } else {
+            badgeGpsTexte = '0/' + nbLieux + ' GPS fixé';
+            badgeGpsClasse = 'manquant';
+          }
+        }
         var tAuj = aujourdhui();
         var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === tAuj; });
 
         h += '<div class="bloc-actions-contact" style="margin-top:10px">' +
-          '<button class="bouton bouton-plein bouton-gps-ici" type="button" data-a="majGpsDirect" data-v="' + esc(p.code) + '">' +
+          '<button class="bouton bouton-plein bouton-gps-ici" type="button" data-a="majGpsDirect" data-v="' + esc(p.code) + '" title="' + (nbLieux > 1 ? 'Capter la position GPS de l\'établissement où vous êtes sur place' : 'Capter votre position GPS précise') + '">' +
             '<span class="gps-ici-gauche">' + icone('cible') + '<b>Capter position GPS</b></span>' +
-            '<span class="gps-ici-badge ' + (aGpsFixe ? 'fixe' : 'manquant') + '">' + (aGpsFixe ? '✓ GPS fixé' : 'GPS non fixé') + '</span>' +
+            '<span class="gps-ici-badge ' + badgeGpsClasse + '">' + esc(badgeGpsTexte) + '</span>' +
           '</button>' +
           '<div class="rangee rangee-actions-contact">' +
             (dejaAuj
@@ -4912,10 +4953,14 @@
         '</div>';
     }
     h += '<table><thead><tr><th>' + (estPh ? 'Officine' : 'Lieu') + '</th>' + JOURS.map(function (j) { return '<th>' + j.slice(0, 3) + '</th>'; }).join('') + '</tr></thead><tbody>';
-    lieux.forEach(function (pr) {
+    lieux.forEach(function (pr, idx) {
       var hM = lireHoraire(pr.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
+      var hasGps = pr.lat && pr.lon && isFinite(+String(pr.lat).replace(',', '.')) && +String(pr.lat).replace(',', '.') !== 0;
       h += '<tr><td><b>' + esc(pr.lieu) + '</b><small>' + esc(pr.quartier) + ', ' + esc(pr.commune) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
-        ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small></td>' +
+        ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
+        '<div style="margin-top:4px"><button type="button" class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" data-a="majGpsLieuDirect" data-v="' + esc(code) + '" data-i="' + idx + '" title="' + (hasGps ? 'GPS déjà fixé pour cet établissement. Touchez pour réactualiser sur place' : 'Touchez pour capter et fixer le GPS de cet établissement') + '">' +
+          icone('cible') + '<span>' + (hasGps ? '✓ GPS fixé' : 'Capter GPS') + '</span></button></div>' +
+        '</td>' +
         JOURS_CLES.map(function (j, i) {
           var d = lireDispo(pr[j]);
           var t = d.matin && d.soir ? 'M S' : (d.matin ? 'M' : (d.soir ? 'S' : ''));
@@ -5059,13 +5104,58 @@
         (nVisites > 0 ? '<span class="cal-point-visite"></span>' : '') +
         '</button>';
     }).join('') + '</div>';
-    var nVisitesSel = nbVisitesJour(f.date);
-    var resume = '<div class="cal-resume-jour">' +
-      '<div class="cal-resume-date">' + icone('calendrier') + '<span>' + esc(dateLongue(f.date)) + ' ' + f.date.slice(0, 4) + '</span></div>' +
-      '<span class="cal-resume-badge' + (nVisitesSel === 0 ? ' zero' : '') + '">' +
-        (nVisitesSel > 0 ? (nVisitesSel + ' visite' + (nVisitesSel > 1 ? 's' : '')) : '0 visite') +
-      '</span></div>';
-    return '<div class="cal-boite">' + raccourcis + '<div class="cal-cadre">' + barreMois + entetes + grille + '</div>' + resume + '</div>';
+    return '<div class="cal-boite">' + raccourcis + barreMois + entetes + grille + '</div>';
+  };
+  FEUILLES.aideIa = function (f) {
+    var FAQ = [
+      {
+        q: 'C\'est quoi le point vert sous une date dans le calendrier ?',
+        r: 'Le point vert indique que des visites sont déjà prévues ce jour-là dans votre tournée. Aucun point signifie que la journée est encore libre.'
+      },
+      {
+        q: 'Pourquoi certains médecins sont écrits en couleur ambre / or ?',
+        r: 'Les praticiens en couleur Ambre Chaud (#B45309) sont les <b>médecins engagés</b> (conventionnés). Les autres praticiens restent en noir comme avant.'
+      },
+      {
+        q: 'Pourquoi les créneaux M et S sont verts ou bleus ?',
+        r: 'Le vert indique les créneaux de réception du <b>Matin</b> (M). Le bleu indique les créneaux de réception du <b>Soir</b> (S).'
+      },
+      {
+        q: 'Que veut dire « ✓ GPS fixé » ?',
+        r: 'Cela signifie que les coordonnées GPS réelles et précises du lieu d\'exercice sont enregistrées. L\'application peut ainsi calculer vos trajets et ouvrir Waze ou Maps.'
+      },
+      {
+        q: 'À quoi sert le bouton « Garder » (épingle) dans Planifier ?',
+        r: 'Il verrouille cette visite dans votre tournée du jour. Si vous appuyez sur « Recalculer », le moteur conservera obligatoirement ce rendez-vous sans le modifier.'
+      },
+      {
+        q: 'Comment remplacer un médecin absent aujourd\'hui ?',
+        r: 'Dans l\'onglet Journée, si un praticien est marqué « Absent », un bouton « Remplacer » apparaît sur sa carte pour choisir un confrère disponible dans le même secteur.'
+      },
+      {
+        q: 'Est-ce que l\'application fonctionne sans réseau Internet ?',
+        r: 'Oui, à 100% ! Toutes vos données, fiches produits et tournées sont enregistrées sur votre téléphone. Dès le retour du réseau, vos comptes rendus sont synchronisés vers Google Sheets.'
+      }
+    ];
+
+    if (f.questionChoisie) {
+      var item = FAQ.filter(function (x) { return x.q === f.questionChoisie; })[0] || { q: f.questionChoisie, r: 'Fonctionnalité en cours d\'analyse.' };
+      return '<div class="ia-dialogue">' +
+        '<button type="button" class="bouton bouton-texte" data-a="iaFermerQuestion" style="margin-bottom:8px">← Toutes les questions</button>' +
+        '<div class="ia-message ia-user"><b>Votre question :</b> ' + esc(item.q) + '</div>' +
+        '<div class="ia-message ia-bot"><div class="ia-bot-tete">✨ <b>Copilote MediPlanner</b></div><p>' + item.r + '</p></div>' +
+        '</div>';
+    }
+
+    return '<div class="ia-conteneur">' +
+      '<p class="discret" style="margin:0 0 10px">Touchez une question pour afficher l\'explication :</p>' +
+      '<div class="ia-questions">' +
+      FAQ.map(function (item) {
+        return '<button type="button" class="ia-q-btn" data-a="iaReponse" data-q="' + esc(item.q) + '">' +
+          '<span class="ia-q-icone">💬</span><span>' + esc(item.q) + '</span>' +
+          '</button>';
+      }).join('') +
+      '</div></div>';
   };
   FEUILLES.qui = function (f) {
     var noms = nomsDelegues(), tousChoisis = noms.length > 0 && noms.every(function (n) { return f.liste.indexOf(n) >= 0; });
@@ -6028,6 +6118,49 @@
         '<button class="bouton" type="button" data-a="fermerFeuille">Non</button>' +
         '<button class="bouton bouton-plein wa" type="button" data-a="ouvrirExport">' + icone('whatsapp') + 'Envoyer</button>'
     };
+  };
+
+  // 3.26.19 : Sélecteur sécurisé de l'établissement pour la capture GPS d'un praticien multi-sites
+  FEUILLES.choixLieuGps = function (f) {
+    var code = f.code, d = f.d || brouillonFiche(code);
+    var p = praticien(code) || {};
+    var lieux = Array.isArray(d.lieux) ? d.lieux : [];
+    var h = '<div class="boite-contenu pad">' +
+      '<div class="alerte info" style="margin-bottom:14px;border-left:4px solid var(--primaire,#0A6C74);background:rgba(10,108,116,0.08);padding:12px;border-radius:8px;font-size:13.5px;line-height:1.45">' +
+        '<div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">' + icone('cible') + ' Praticien multi-sites</div>' +
+        'Le Dr <b>' + esc(p.nom || d.nom) + '</b> consulte dans plusieurs établissements. ' +
+        'Touchez l\'établissement où <b>vous êtes physiquement présent</b> pour enregistrer son GPS sans écraser les autres :' +
+      '</div>' +
+      '<div class="liste-choix-lieux-gps" style="display:flex;flex-direction:column;gap:10px">';
+
+    lieux.forEach(function (l, idx) {
+      var aGps = l.lat && l.lon && isFinite(+String(l.lat).replace(',', '.')) && +String(l.lat).replace(',', '.') !== 0;
+      var coordStr = aGps ? (+String(l.lat).replace(',', '.')).toFixed(5) + ', ' + (+String(l.lon).replace(',', '.')).toFixed(5) : '';
+      h += '<div class="carte-choix-gps" style="border:1.5px solid ' + (aGps ? 'var(--trait,#d0d7de)' : 'rgba(230,126,34,0.5)') + ';border-radius:10px;padding:12px;background:var(--fond-carte,#fff);box-shadow:0 1px 3px rgba(0,0,0,0.05)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">' +
+          '<div style="flex:1">' +
+            '<div style="font-weight:700;font-size:15px;color:var(--encre,#1c2833)">' + esc(l.lieu || ('Établissement ' + (idx + 1))) + '</div>' +
+            '<div style="font-size:13px;color:var(--gris,#566573);margin-top:2px">' +
+              esc(l.quartier || 'Quartier non renseigné') + (l.commune ? ' · ' + esc(l.commune) : '') +
+            '</div>' +
+          '</div>' +
+          '<span class="gps-ici-badge ' + (aGps ? 'fixe' : 'manquant') + '" style="font-size:11.5px;padding:3px 8px;border-radius:8px;white-space:nowrap">' +
+            (aGps ? '✓ Fixé' : 'Non fixé') +
+          '</span>' +
+        '</div>' +
+        (aGps ? '<div style="font-size:11.5px;color:var(--gris,#7f8c8d);margin-bottom:10px">Coordonnées actuelles : ' + esc(coordStr) + '</div>' : '<div style="height:6px"></div>') +
+        '<button type="button" class="bouton bouton-plein bouton-large" data-a="capterGpsLieu" data-v="' + esc(code) + '" data-i="' + idx + '" style="width:100%;display:flex;justify-content:center;align-items:center;gap:6px">' +
+          icone('cible') + '<span>Capter le GPS de ce lieu</span>' +
+        '</button>' +
+      '</div>';
+    });
+
+    h += '</div>' +
+      '<div style="margin-top:14px;text-align:center">' +
+        '<button type="button" class="bouton" data-a="fermerFeuille">Annuler</button>' +
+      '</div>' +
+    '</div>';
+    return h;
   };
 
   // Choix multiple générique (spécialités ciblées par la tournée)
@@ -7320,6 +7453,52 @@
     prompt('Copiez ce texte :', texte);
   }
 
+  // 3.26.19 : Actualisation GPS sécurisée pour un lieu spécifique d'un praticien (mono ou multi-sites)
+  function majGpsPourLieu(code, idxLieu) {
+    var d = brouillonFiche(code);
+    if (!d || !d.code) return;
+    idxLieu = typeof idxLieu === 'number' ? idxLieu : parseInt(idxLieu, 10) || 0;
+    var l = (d.lieux && d.lieux[idxLieu]) || (d.lieux && d.lieux[0]);
+    if (!l) return;
+    if (!navigator.geolocation) { toast('Localisation indisponible.'); return; }
+    toast('Recherche de votre position précise…');
+    mesurePrecise(function (p) {
+      var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) };
+      var qDecl = l.quartier ? quartiers().filter(function (q) { return q.quartier === l.quartier; })[0] : null;
+      var refGeo = qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : (l.lat && l.lon ? { lat: parseFloat(String(l.lat).replace(',', '.')), lon: parseFloat(String(l.lon).replace(',', '.')) } : null);
+      var distKm = refGeo && isFinite(refGeo.lat) ? distanceVol(pCapt, refGeo) : 0;
+      var nomLieu = l.lieu ? (l.lieu + (l.quartier ? ' (' + l.quartier + ')' : '')) : (l.quartier || l.commune || d.nom);
+
+      function sauverDirect() {
+        l.lat = pCapt.lat; l.lon = pCapt.lon;
+        var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
+        if (r && r.quartier) {
+          l.quartier = r.quartier.quartier;
+          l.commune = r.quartier.commune;
+        }
+        enregistrerFiche(d); rendre();
+        var labelLieu = l.lieu || l.quartier || 'Lieu';
+        toast('GPS fixé pour ' + labelLieu + ' : ' + (l.quartier || 'coordonnées enregistrées') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
+        if (!S.config.demo) synchroniser(true);
+      }
+
+      if (refGeo && distKm > 3) {
+        var distArr = Math.round(distKm);
+        confirmerPuis('🛑 Écart de position important',
+          '<div style="color:var(--rouge,#c0392b);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomLieu) + ' !</div>' +
+          '<p style="margin:0 0 8px">Ce bouton sert uniquement lorsque vous êtes <b>physiquement devant cet établissement</b>.</p>' +
+          '<p style="margin:0">Voulez-vous vraiment fixer cette position pour <b>' + esc(nomLieu) + '</b> ?</p>',
+          'Écraser la position',
+          sauverDirect,
+          function () { toast('Position inchangée.'); }
+        );
+        return;
+      }
+
+      sauverDirect();
+    }, function () { toast('Position indisponible. Autorisez la localisation.'); });
+  }
+
   var ACTIONS = {
     nav: function (el) {
       var dest = el.dataset.tab;
@@ -7498,6 +7677,18 @@
     },
     rapEditer: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); centrerQuestionRapport(); },
     sortirRapport: function () { S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0); },
+    ouvrirIa: function () {
+      S.ui.feuille = { type: 'aideIa', titre: 'Aide & Copilote ✨' };
+      rendre();
+    },
+    iaReponse: function (el) {
+      var q = el.dataset.q, f = S.ui.feuille;
+      if (f && f.type === 'aideIa') { f.questionChoisie = q; rendreFeuille(); }
+    },
+    iaFermerQuestion: function () {
+      var f = S.ui.feuille;
+      if (f && f.type === 'aideIa') { f.questionChoisie = null; rendreFeuille(); }
+    },
     calOuvrir: function () {
       var d = jourAffiche();
       S.ui.feuille = { type: 'calendrierJour', titre: 'Choisir une date', date: d, mois: d.slice(0, 7) };
@@ -8536,43 +8727,27 @@
     majGpsDirect: function (el) {
       var code = el.dataset.v, d = brouillonFiche(code);
       if (!d || !d.code) return;
-      if (!navigator.geolocation) { toast('Localisation indisponible.'); return; }
-      toast('Recherche de votre position précise…');
-      mesurePrecise(function (p) {
-        var l = d.lieux[0];
-        var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) };
-        var qDecl = l.quartier ? quartiers().filter(function (q) { return q.quartier === l.quartier; })[0] : null;
-        var refGeo = qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : (l.lat && l.lon ? { lat: parseFloat(String(l.lat).replace(',', '.')), lon: parseFloat(String(l.lon).replace(',', '.')) } : null);
-        var distKm = refGeo && isFinite(refGeo.lat) ? distanceVol(pCapt, refGeo) : 0;
-        var nomLieu = l.quartier || l.commune || d.nom;
-
-        function sauverDirect() {
-          l.lat = pCapt.lat; l.lon = pCapt.lon;
-          var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
-          if (r && r.quartier) {
-            l.quartier = r.quartier.quartier;
-            l.commune = r.quartier.commune;
-          }
-          enregistrerFiche(d); rendre();
-          toast('Secteur détecté : ' + (l.quartier || 'GPS') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
-          if (!S.config.demo) synchroniser(true);
-        }
-
-        if (refGeo && distKm > 3) {
-          var distArr = Math.round(distKm);
-          confirmerPuis('🛑 Écart de position important',
-            '<div style="color:var(--rouge,#c0392b);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomLieu) + ' !</div>' +
-            '<p style="margin:0 0 8px">Ce bouton sert uniquement lorsque vous êtes <b>physiquement devant l\'officine ou l\'établissement</b>.</p>' +
-            '<p style="margin:0">Voulez-vous vraiment écraser la position ?</p>',
-            'Écraser la position',
-            sauverDirect,
-            function () { toast('Position inchangée.'); }
-          );
-          return;
-        }
-
-        sauverDirect();
-      }, function () { toast('Position indisponible. Autorisez la localisation.'); });
+      var lieux = Array.isArray(d.lieux) ? d.lieux : [];
+      if (lieux.length > 1) {
+        S.ui.feuille = {
+          type: 'choixLieuGps',
+          titre: 'Capter position GPS',
+          code: code,
+          d: d
+        };
+        rendre();
+        return;
+      }
+      majGpsPourLieu(code, 0);
+    },
+    majGpsLieuDirect: function (el) {
+      var code = el.dataset.v, idx = parseInt(el.dataset.i, 10);
+      majGpsPourLieu(code, isNaN(idx) ? 0 : idx);
+    },
+    capterGpsLieu: function (el) {
+      var code = el.dataset.v, idx = parseInt(el.dataset.i, 10);
+      S.ui.feuille = null;
+      majGpsPourLieu(code, isNaN(idx) ? 0 : idx);
     },
     ficheVal: function (el) {
       var d = S.ui.feuille.d, k = el.dataset.k;

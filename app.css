@@ -1138,6 +1138,70 @@ details.avance h3 { margin-top: 18px; }
 .statuts.deux .statut::after { content: ""; position: absolute; inset: -4px; }
 
 .phrase-criteres { margin: 2px 0 6px; font-size: 14px; color: var(--encre); font-weight: 500; }
+.bandeau-criteres-rep {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--fond-carte, #f8fbfb);
+  border: 1px solid var(--trait, #e2e8f0);
+  border-left: 3.5px solid var(--primaire, #0A6C74);
+  border-radius: var(--r, 10px);
+  padding: 8px 12px;
+  margin: 6px 0 10px;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+button.bandeau-criteres-rep:active {
+  transform: scale(0.99);
+  background: rgba(10, 108, 116, 0.08);
+}
+.bandeau-criteres-rep .phrase-criteres {
+  margin: 0;
+  flex: 1 1 auto;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--encre);
+  font-weight: 500;
+}
+.bouton-reinit-rep {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 18px;
+  border: 1.5px solid var(--primaire, #0A6C74);
+  background: var(--papier, #fff);
+  color: var(--primaire, #0A6C74);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: all 0.15s ease;
+}
+.bouton-reinit-rep:hover,
+.bouton-reinit-rep:active {
+  background: var(--primaire-pale, #e6f4f5);
+  transform: scale(0.97);
+}
+.bouton-reinit-rep svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+@media (max-width: 360px) {
+  .bandeau-criteres-rep { padding: 7px 10px; gap: 6px; }
+  .bandeau-criteres-rep .phrase-criteres { font-size: 12.5px; }
+  .bouton-reinit-rep { height: 32px; padding: 0 9px; font-size: 12px; }
+}
 
 .ancien { margin-bottom: 10px; }
 .ancien-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
@@ -1957,17 +2021,25 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   font-weight: 700 !important;
 }
 
-/* Calendrier moderne ultra-ergonomique */
+/* Calendrier moderne ultra-ergonomique sans scroll ni bavure */
+#feuille[data-ouverte="calendrierJour"] .feuille-corps {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: manipulation !important;
+  padding: 8px 14px 12px !important;
+}
 .cal-boite {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .cal-raccourcis {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  padding: 2px 0 4px;
+  padding: 0 0 2px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -1976,12 +2048,12 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 }
 .cal-raccourcis .puce {
   flex: 0 0 auto;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 6px 14px;
-  min-height: 34px;
+  padding: 5px 12px;
+  min-height: 30px;
   border-radius: 9999px;
-  background: var(--fond);
+  background: var(--papier);
   border: 1px solid var(--trait);
   color: var(--encre);
   white-space: nowrap;
@@ -1990,64 +2062,54 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   background: var(--primaire);
   color: #fff;
   border-color: var(--primaire);
-  box-shadow: 0 2px 6px rgba(18, 140, 126, 0.28);
-}
-.cal-cadre {
-  background: var(--papier);
-  border: 1px solid var(--trait);
-  border-radius: 16px;
-  padding: 12px 10px 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
 }
 .cal-barre-mois {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-  padding: 0 4px;
+  margin: 2px 0 4px;
+  padding: 0 2px;
 }
 .cal-titre-mois {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
 }
 .cal-titre-mois b {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--encre);
   text-transform: capitalize;
-  letter-spacing: -0.2px;
 }
 .cal-titre-mois .cal-an-badge {
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--primaire);
   background: var(--primaire-pale);
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 2px 7px;
+  border-radius: 8px;
 }
 .cal-navs {
   display: flex;
   gap: 6px;
 }
 .cal-nav-btn {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 1px solid var(--trait);
-  background: var(--fond);
+  background: var(--papier);
   display: grid;
   place-items: center;
   color: var(--encre);
   cursor: pointer;
   padding: 0;
-  transition: transform .1s, background-color .15s, border-color .15s;
+  transition: transform .1s, background-color .15s;
 }
 .cal-nav-btn:active {
   transform: scale(0.92);
   background: var(--primaire-pale);
   color: var(--primaire);
-  border-color: var(--primaire);
 }
 .cal-nav-btn svg {
   display: block;
@@ -2055,48 +2117,47 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .cal-grille-semaine {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 2px;
   text-align: center;
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--trait-doux, rgba(0, 0, 0, 0.06));
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--trait);
 }
 .cal-grille-semaine span {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--gris);
 }
 .cal-grille-jours {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  min-height: 270px; /* 6 rangées stables, aérées */
+  gap: 3px;
+  height: 236px; /* 6 rangées fixes de 36px : zéro saut, zéro défilement */
+  justify-items: center;
+  align-items: center;
 }
 .cal-jour-btn {
   position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  max-width: 44px;
-  max-height: 44px;
-  margin: 0 auto;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   border: 1.5px solid transparent;
   background: transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--encre);
   cursor: pointer;
   padding: 0;
-  transition: transform .1s, background-color .15s, color .15s;
+  box-shadow: none !important;
+  transition: transform .1s, background-color .15s;
 }
 .cal-jour-btn:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 .cal-jour-btn.hors-mois {
   color: var(--gris-2);
@@ -2109,64 +2170,83 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   font-weight: 800;
 }
 .cal-jour-btn.choisi {
-  background: linear-gradient(135deg, var(--primaire) 0%, #0d9488 100%) !important;
+  background: var(--primaire) !important;
   color: #fff !important;
   font-weight: 800;
   border-color: transparent !important;
-  box-shadow: 0 4px 12px rgba(18, 140, 126, 0.38);
 }
 .cal-point-visite {
   position: absolute;
-  bottom: 4px;
-  width: 5px;
-  height: 5px;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: #10b981;
 }
 .cal-jour-btn.choisi .cal-point-visite {
   background: #fff;
-  box-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
 }
 .cal-jour-btn.aujourdhui:not(.choisi) .cal-point-visite {
   background: var(--primaire);
 }
-.cal-resume-jour {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 14px;
-  background: var(--fond);
-  border: 1px solid var(--trait);
-  border-radius: 12px;
-  font-size: 13px;
-}
-.cal-resume-date {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--encre);
-  font-weight: 600;
-  text-transform: capitalize;
-}
-.cal-resume-date svg {
-  color: var(--primaire);
-  flex-shrink: 0;
-}
-.cal-resume-badge {
-  font-size: 11.5px;
+
+/* Onglet Planifier : Titre et résumé de tournée compact sur 2 lignes max */
+.tete-jour-plan { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.bilan-jour { flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+.bilan-jour b { font-size: 15px; }
+.bilan-jour .details-plan { font-size: 12px; color: var(--gris); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+/* Onglet Planifier : Nom du médecin sur 1 seule ligne avec flex */
+.lp-tete { display: flex; align-items: center; gap: 4px; min-width: 0; width: 100%; }
+.ligne-plan .lp-corps b {
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 9999px;
-  background: var(--primaire-pale);
-  color: var(--primaire);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
 }
-.cal-resume-badge.zero {
-  background: var(--papier);
-  color: var(--gris);
+.ligne-plan .lp-corps .note { flex: none; margin-left: 2px; }
+.ligne-plan .type-pastille { flex: none; margin-right: 2px; }
+
+/* Bouton Copilote IA et Dialogue */
+.btn-ia {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  color: var(--primaire);
+  font-size: 17px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 6px;
+}
+.btn-ia:active { transform: scale(0.9); }
+.ia-conteneur { display: flex; flex-direction: column; gap: 10px; }
+.ia-questions { display: flex; flex-direction: column; gap: 8px; }
+.ia-q-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
   border: 1px solid var(--trait);
+  background: var(--papier);
+  color: var(--encre);
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease, transform .1s;
 }
+.ia-q-btn:active { background: var(--primaire-pale); transform: scale(0.98); }
+.ia-q-icone { font-size: 16px; flex-shrink: 0; }
+.ia-dialogue { display: flex; flex-direction: column; gap: 10px; }
+.ia-message { padding: 12px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
+.ia-user { background: var(--fond); border: 1px solid var(--trait); color: var(--encre); }
+.ia-bot { background: var(--primaire-pale); border: 1px solid var(--primaire); color: var(--encre); }
+.ia-bot-tete { font-weight: 700; color: var(--primaire); margin-bottom: 6px; }
+.ia-bot p { margin: 0; }
 
 /* Praticiens par défaut : police noire / encre d'origine */
 .element .element-titre,
@@ -2580,9 +2660,45 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   background: rgba(255, 255, 255, 0.22);
   color: var(--sur-primaire);
 }
+.bouton-gps-ici .gps-ici-badge.partiel {
+  background: #fff;
+  color: var(--orange, #d35400);
+}
 .bouton-gps-ici .gps-ici-badge.manquant {
   background: #fff;
   color: var(--rouge, #c0392b);
+}
+
+/* 3.26.19 : Micro-bouton GPS par établissement dans le tableau de présence */
+.btn-micro-gps {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--trait, #d0d7de);
+  background: var(--fond, #f4f7f8);
+  color: var(--gris, #566573);
+  cursor: pointer;
+  margin-top: 4px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.btn-micro-gps svg { width: 12px; height: 12px; flex-shrink: 0; }
+.btn-micro-gps.fixe {
+  background: rgba(46, 204, 113, 0.12);
+  border-color: rgba(46, 204, 113, 0.4);
+  color: #1e8449;
+}
+.btn-micro-gps.manquant {
+  background: rgba(230, 126, 34, 0.12);
+  border-color: rgba(230, 126, 34, 0.4);
+  color: #b95d09;
+}
+.btn-micro-gps:active {
+  transform: scale(0.96);
 }
 
 .rangee-actions-contact {
