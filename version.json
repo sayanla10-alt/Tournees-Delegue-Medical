@@ -1,7 +1,11 @@
 {
-  "version": "3.26.39",
+  "version": "3.26.40",
   "date": "2026-10-30",
   "notes": [
-    "Répertoire : Mention « Touchez M ou S pour planifier » strictement verrouillée sur une seule ligne avec l'icône GPS"
+    "CR Pharmacie : État « Disponible » (remplaçant « En stock »), options stocks en grille 2×2 compacte et texte d'aide retiré",
+    "Critères de recherche : Options de suivi (Étape 5) rationalisées en 2 lignes équilibrées",
+    "Navigation des étapes : Hauteurs strictement harmonisées entre Suivant, Précédent et Passer partout",
+    "Recherche & Planifier : Bouton « Liste complète… » des spécialités élargi et centré",
+    "Répertoire : Bouton « Renseigner le planning » parfaitement centré"
   ]
 }

@@ -9,10 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.39';
+  var APP_VERSION = '3.26.40';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.40', [
+      'CR Pharmacie : État « Disponible » (remplaçant « En stock »), options stocks en grille 2×2 compacte et texte d\'aide retiré',
+      'Critères de recherche : Options de suivi (Étape 5) rationalisées en 2 lignes équilibrées',
+      'Navigation des étapes : Hauteurs strictement harmonisées entre Suivant, Précédent et Passer partout',
+      'Recherche & Planifier : Bouton « Liste complète… » des spécialités élargi et centré',
+      'Répertoire : Bouton « Renseigner le planning » parfaitement centré'
+    ]],
     ['3.26.39', [
       'Répertoire : Mention « Touchez M ou S pour planifier » strictement verrouillée sur une seule ligne avec l\'icône GPS'
     ]],
@@ -3430,7 +3437,10 @@
     return '<div class="puces" style="margin:6px 0 8px">' +
       '<button type="button" class="puce puce-tous" data-a="' + actToutes + '" aria-pressed="' + (!s.length) + '">Toutes</button>' +
       '<button type="button" class="puce" data-a="' + actCoeur + '" aria-pressed="' + estCoeur + '">Cœur de cible (' + coeur.length + ')</button>' +
-      '<button type="button" class="puce" data-a="' + actPlus + '">' + icone('loupe') + 'Liste complète…</button></div>' +
+      '</div>' +
+      '<div class="bloc-liste-complete">' +
+        '<button type="button" class="bouton bouton-liste-complete" data-a="' + actPlus + '">' + icone('loupe') + 'Liste complète…</button>' +
+      '</div>' +
       '<span class="sous-etape" style="margin:6px 0 4px">Spécialités du cœur de cible (pré-sélectionnées, touchez pour modifier)</span>' +
       '<div class="puces">' + liste.map(function (nom) {
         return '<button type="button" class="puce" data-a="' + actToggle + '" data-v="' + esc(nom) + '" aria-pressed="' + (s.indexOf(nom) >= 0) + '">' + esc(nom) + '</button>';
@@ -3606,7 +3616,7 @@
   // Pharmacie : faite ? → interlocuteur → types → stocks → commande → compléments → suite
   // Non faite : motif → précision → remplaçant → suite. Seul un RDV confirmé place la visite dans la tournée.
   var REACTIONS = ['Intéressé', 'Indécis', 'Non intéressé', 'Non évalué', 'Demande d\'informations'];
-  var ETATS_STOCK = ['En stock', 'Stock faible', 'Rupture', 'Non vérifié'];
+  var ETATS_STOCK = ['Disponible', 'Stock faible', 'Rupture', 'Non vérifié'];
   var ANOMALIES = ['Proche péremption', 'Périmé'];
   var INTERLOCUTEURS = ['Pharmacien', 'Vendeurs', 'Chargé Commande', 'Autre'];
   var SUITES = {
@@ -3668,7 +3678,7 @@
           r.stocks = prodsK.filter(function (p) { return c.stocks[p] && c.stocks[p].etat; }).map(function (p) {
             var s = c.stocks[p]; return p + ' : ' + s.etat.toLowerCase() + (s.qte ? ' (' + s.qte + ')' : '') + (s.anomalie ? ', ' + s.anomalie.toLowerCase() + (s.lot ? ' lot ' + s.lot : '') : '');
           }).concat(c.autresStock ? ['Autres : ' + c.autresStock] : []).join(' ; ');
-          r.produits = prodsK.filter(function (p) { return c.stocks[p] && (c.stocks[p].etat === 'En stock' || c.stocks[p].etat === 'Stock faible'); }).join(', ');
+          r.produits = prodsK.filter(function (p) { return c.stocks[p] && (c.stocks[p].etat === 'Disponible' || c.stocks[p].etat === 'En stock' || c.stocks[p].etat === 'Stock faible'); }).join(', ');
           if (!r.produits && c.produitsStock && c.produitsStock.length) r.produits = c.produitsStock.join(', ');
         }
         if (c.commande === 'oui' || im.commande) r.commande = listeQ(c.cmdQ) || 'Oui';
@@ -3926,8 +3936,8 @@
   }
   function qteCr(a, cle, val) { return '<input type="number" min="0" inputmode="numeric" class="qte" data-f="cr" data-uid="' + a.uid + '" data-k="' + cle + '" value="' + esc(val || '') + '" placeholder="0" aria-label="Quantité">'; }
   // choix unique en puces (remplace les listes déroulantes du compte rendu) : touchez de nouveau pour annuler
-  function pucesValCr(a, cle, options, val, libs) {
-    return '<div class="puces">' + options.map(function (o) {
+  function pucesValCr(a, cle, options, val, libs, classe) {
+    return '<div class="puces' + (classe ? ' ' + classe : '') + '">' + options.map(function (o) {
       return '<button type="button" class="puce" data-a="crVal" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(o) + '" aria-pressed="' + ((val || '') === o) + '">' + esc((libs && libs[o]) || o) + '</button>';
     }).join('') + '</div>';
   }
@@ -4004,12 +4014,11 @@
         if (!prods.length) return '<p class="discret">Aucun produit sélectionné à l\'étape précédente.</p>';
         return '<div class="champs-cr">' + prods.map(function (p) {
           var s = c.stocks[p] || {};
-          return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="champ"><span>État</span>' + pucesValCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat) + '</div>' +
+          return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="champ"><span>État</span>' + pucesValCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, null, 'puces-etats-stock') + '</div>' +
             '<label class="champ"><span>Quantité</span>' + qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</label>' +
-            (s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="champ"><span>Anomalie</span>' + pucesValCr(a, 'stocks.' + p + '.anomalie', [''].concat(ANOMALIES), s.anomalie || '', { '': 'Aucune' }) + '</div>' +
+            (s.etat === 'Disponible' || s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="champ"><span>Anomalie</span>' + pucesValCr(a, 'stocks.' + p + '.anomalie', [''].concat(ANOMALIES), s.anomalie || '', { '': 'Aucune' }) + '</div>' +
               (s.anomalie ? '<label class="champ"><span>N° de lot</span><input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot"></label>' : '') : '') + '</div>';
-        }).join('') + '</div>' + texteCr(a, 'autresStock', c.autresStock, 'Autres produits et état, ex. Doliprane rupture') +
-          '<span class="aide-champ">Rupture et non vérifié sont distincts. Une commande ne modifie pas le stock avant réception.</span>';
+        }).join('') + '</div>' + texteCr(a, 'autresStock', c.autresStock, 'Autres produits et état, ex. Doliprane rupture');
       }, function () { var r = champsCr(a).stocks; return r || 'aucun produit renseigné'; });
     }
     if (!im.commande) e('commande', 'Commande passée ?', 'auto', function () { return choixCr(a, 'commande', [['oui', 'Oui'], ['non', 'Non']], c.commande); }, function () { return oui(c.commande); });
@@ -5134,7 +5143,7 @@
   }
 
   function etapesFiltres(f) {
-    var vis = [['tous', 'Toutes'], ['jamais', 'Jamais visité'], ['30', 'Non visité +30 j'], ['retard', 'En retard'], ['revoir', 'À revoir'], ['recent', 'Visité -30j']];
+    var vis = [['tous', 'Toutes'], ['jamais', 'Jamais vu'], ['30', 'Non vu +30j'], ['retard', 'En retard'], ['revoir', 'À revoir'], ['recent', 'Vu -30j']];
     var l = [
       { id: 'qui', auto: true, resume: function () { return f.type === 'Pharmacie' ? 'Pharmacies' : (f.type === 'Médecin' ? 'Médecins' : 'Médecins et pharmacies'); },
         rendu: function () {
@@ -5171,8 +5180,8 @@
           if (f.equipe !== 'tous' && !S.config.demo) r.push(f.equipe === 'oui' ? 'Prévus par un collègue' : 'Non prévus par un collègue');
           return r.length ? r.join(' · ') : 'Tous'; },
         rendu: function () {
-          return '<span class="sous-etape">Dernière visite (un seul choix)</span><div class="puces">' + vis.map(function (x) { return puceEtape('visite', x[0], x[1], f.visite === x[0]); }).join('') + '</div>' +
-            (S.config.demo ? '' : '<span class="sous-etape">Prévu par un collègue cette semaine</span><div class="puces">' + [['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']].map(function (x) { return puceEtape('equipe', x[0], x[1], f.equipe === x[0]); }).join('') + '</div>');
+          return '<span class="sous-etape">Dernière visite (un seul choix)</span><div class="puces puces-suivi-visite">' + vis.map(function (x) { return puceEtape('visite', x[0], x[1], f.visite === x[0]); }).join('') + '</div>' +
+            (S.config.demo ? '' : '<span class="sous-etape">Prévu par un collègue cette semaine</span><div class="puces puces-equipe-semaine">' + [['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']].map(function (x) { return puceEtape('equipe', x[0], x[1], f.equipe === x[0]); }).join('') + '</div>');
         } },
       { id: 'ordre', auto: true, si: S.ui.tab === 'praticiens', resume: function () { return TRIS.filter(function (x) { return x[0] === S.ui.tri; }).map(function (x) { return x[1]; })[0] || 'Potentiel'; },
         rendu: function () { return '<div class="puces">' + TRIS.map(function (x) { return puceEtape('tri', x[0], x[1], S.ui.tri === x[0], false, 'ordre'); }).join('') + '</div>'; } }
@@ -5393,9 +5402,9 @@
   function grillePresences(code) {
     var c = ctx(), p = praticien(code) || {}, estPh = p.type === 'Pharmacie', lieux = c.presencesParCode[code] || [];
     if (!lieux.length) {
-      return '<div class="bloc-presences" style="margin:6px 0">' +
-        '<p class="discret" style="margin:0 0 6px">Aucune présence ou horaire renseigné.</p>' +
-        '<button class="bouton petit" type="button" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
+      return '<div class="bloc-presences" style="margin:8px 0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">' +
+        '<p class="discret" style="margin:0 0 6px;text-align:center">Aucune présence ou horaire renseigné.</p>' +
+        '<button class="bouton petit" type="button" data-a="modifierPlanning" data-v="' + esc(code) + '" style="margin:0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px">' +
         icone('crayon') + (estPh ? ' Renseigner les horaires' : ' Renseigner le planning') + '</button></div>';
     }
     var h = '<div class="grille-pres">';
@@ -8711,7 +8720,7 @@
       if (el.dataset.v === 'produitsStock') {
         c.stocks = c.stocks || {};
         (c.produitsStock || []).forEach(function (p) {
-          if (!c.stocks[p] || !c.stocks[p].etat) c.stocks[p] = Object.assign(c.stocks[p] || {}, { etat: 'En stock' });
+          if (!c.stocks[p] || !c.stocks[p].etat) c.stocks[p] = Object.assign(c.stocks[p] || {}, { etat: 'Disponible' });
         });
         memoriserDerniersProduitsStockCr(c.produitsStock || []);
       }
