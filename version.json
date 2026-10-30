@@ -1,7 +1,10 @@
 {
-  "version": "3.26.23",
+  "version": "3.26.24",
   "date": "2026-10-30",
   "notes": [
+    "En-tête : Rétablissement du bouton de synchronisation avec son libellé textuel complet (« À jour », « Synchro… », « Hors ligne ») et retrait du Copilote IA",
+    "Répertoire : Résumé des critères condensé sur 1 à 2 lignes avec abréviations médicales usuelles (cardio, diabéto, gynéco, pédia, dermato, etc.)",
+    "Répertoire : Bandeau et bouton « Réinitialiser les filtres » harmonisés avec la charte graphique médicale sarcelle / turquoise (suppression du rouge contrastant)",
     "Ergonomie de repérage : Phrases d'introduction calibrées sur chaque onglet (claires, descriptives et tenant sur 2 lignes maximum)",
     "Journée : « Déroulez votre tournée du jour dans l'ordre : itinéraire GPS, contacts praticiens et comptes rendus. »",
     "Planifier : « Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning. »",

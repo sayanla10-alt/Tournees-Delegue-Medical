@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.23';
+  var APP_VERSION = '3.26.24';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.24', [
+      'En-tête : Rétablissement du bouton de synchronisation avec son libellé textuel complet (« À jour », « Synchro… », « Hors ligne ») et retrait du Copilote IA',
+      'Répertoire : Résumé des critères condensé sur 1 à 2 lignes avec abréviations médicales usuelles (cardio, diabéto, gynéco, pédia, dermato, etc.)',
+      'Répertoire : Bandeau et bouton « Réinitialiser les filtres » harmonisés avec la charte graphique médicale sarcelle / turquoise (suppression du rouge contrastant)'
+    ]],
     ['3.26.23', [
       'Ergonomie de repérage : Phrases d\'introduction calibrées sur chaque onglet (claires, descriptives et tenant sur 2 lignes maximum)',
       'Journée : « Déroulez votre tournée du jour dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus. »',
@@ -1743,10 +1748,8 @@
     else if (S.ui.sync === 'erreur') { etat = 'erreur'; texte = 'Erreur synchro'; }
     else if (enAttente()) { etat = 'attente'; texte = enAttente() + ' en attente'; }
     else { etat = 'ok'; texte = S.data && S.data.syncedAt ? 'À jour ' + new Date(S.data.syncedAt).toTimeString().slice(0, 5) : 'À jour'; }
-    p.dataset.etat = etat;
-    p.innerHTML = (etat === 'demo' ? '' : icone('relancer'));
+    p.dataset.etat = etat; p.innerHTML = '<span>' + esc(texte) + '</span>' + (etat === 'demo' ? '' : icone('relancer'));
     p.setAttribute('aria-label', 'Synchronisation : ' + texte + (S.ui.erreur ? '. ' + S.ui.erreur : ''));
-    p.setAttribute('title', 'Synchronisation : ' + texte + (S.ui.erreur ? ' (' + S.ui.erreur + ')' : ''));
   }
   function afficherBarre() {
     var att = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }), n = att.length;
@@ -4831,27 +4834,85 @@
     return h + '</div>';
   }
 
-  // Résumé des critères retenus, en une phrase (ex. « 12 médecins cardiologues à potentiel ★★★, non visités depuis plus de 30 jours, à Cocody, triés par potentiel. »)
+  var ABREV_SPEC = {
+    'cardiologie': 'cardio',
+    'cardiologue': 'cardio',
+    'diabétologie': 'diabéto',
+    'diabétologue': 'diabéto',
+    'diabetologie': 'diabéto',
+    'diabetologue': 'diabéto',
+    'gynécologie': 'gynéco',
+    'gynécologue': 'gynéco',
+    'gynecologie': 'gynéco',
+    'gynecologue': 'gynéco',
+    'gynécologie obstétrique': 'gynéco-obs',
+    'pédiatrie': 'pédia',
+    'pédiatre': 'pédia',
+    'pediatrie': 'pédia',
+    'pediatre': 'pédia',
+    'gastro-entérologie': 'gastro',
+    'gastro-entérologue': 'gastro',
+    'dermatologie': 'dermato',
+    'dermatologue': 'dermato',
+    'rhumatologie': 'rhumato',
+    'rhumatologue': 'rhumato',
+    'pneumologie': 'pneumo',
+    'pneumologue': 'pneumo',
+    'neurologie': 'neuro',
+    'neurologue': 'neuro',
+    'ophtalmologie': 'ophtalmo',
+    'ophtalmologue': 'ophtalmo',
+    'psychiatrie': 'psy',
+    'psychiatre': 'psy',
+    'urologie': 'uro',
+    'urologue': 'uro',
+    'néphrologie': 'néphro',
+    'néphrologue': 'néphro',
+    'endocrinologie': 'endocrino',
+    'endocrinologue': 'endocrino',
+    'orl': 'ORL',
+    'oto-rhino-laryngologie': 'ORL',
+    'médecine générale': 'généraliste',
+    'médecin généraliste': 'généraliste',
+    'généraliste': 'généraliste'
+  };
+
+  function abbrevSpec(x) {
+    if (!x) return '';
+    var k = String(x).toLowerCase().trim();
+    if (ABREV_SPEC[k]) return ABREV_SPEC[k];
+    return x;
+  }
+
+  // Résumé des critères retenus, concis et abrégé (ex. « 11 médecins cardios ou diabétos · ★★★ · Cocody · > 30j sans visite »)
   function phraseCriteres(f, q, n, tri) {
     var fem = f.type === 'Pharmacie', pl = n > 1, s = pl ? 's' : '', e = fem ? 'e' : '';
     var nom = f.type === 'Pharmacie' ? 'pharmacie' : (f.type === 'Médecin' ? 'médecin' : 'praticien');
     var t = (n ? n : 'Aucun' + (fem ? 'e' : '')) + ' ' + nom + (pl ? 's' : '');
     if (f.type !== 'Pharmacie' && f.specialites.length) {
-      t += ' ' + f.specialites.map(function (x) { var m = x.toLowerCase(); return pl && !/[sx]$/.test(m) ? m + 's' : m; }).join(' ou ');
-      if (f.type === 'tous') t += ' (et les pharmacies)';
+      t += ' ' + f.specialites.map(function (x) {
+        var ab = abbrevSpec(x);
+        return pl && !/[sx]$/.test(ab) ? ab + 's' : ab;
+      }).join(' ou ');
+      if (f.type === 'tous') t += ' (+ officines)';
     }
     var c = [];
-    if (f.potentiels.length) c.push('à potentiel ' + f.potentiels.map(function (x) { return ETOILES[x]; }).join(' ou '));
-    if (f.conv !== 'tous') c.push((f.conv === 'oui' ? 'engagé' : 'non engagé') + e + s);
-    var vis = { '30': 'non visité' + e + s + ' depuis plus de 30 jours', recent: 'visité' + e + s + ' il y a moins de 30 jours', jamais: 'jamais visité' + e + s,
-                retard: 'en retard sur la cadence de visite', revoir: 'à revoir' };
-    if (f.visite !== 'tous') c.push(vis[f.visite]);
-    if (f.equipe !== 'tous') c.push((f.equipe === 'oui' ? 'déjà prévu' : 'non prévu') + e + s + ' par un collègue cette semaine');
-    if (f.communes.length) c.push('à ' + f.communes.join(' ou '));
-    if (q && String(q).trim()) c.push('correspondant à « ' + String(q).trim() + ' »');
-    var lt = { priorite: 'par potentiel', score: 'par priorité de visite', retard: 'du plus longtemps sans visite au plus récent', nom: 'par nom' };
-    if (n > 1 && lt[tri]) c.push('trié' + e + 's ' + lt[tri]);
-    return t + (c.length ? ' ' + c.join(', ') : '') + '.';
+    if (f.potentiels.length) c.push(f.potentiels.map(function (x) { return ETOILES[x]; }).join('/'));
+    if (f.conv !== 'tous') c.push(f.conv === 'oui' ? 'engagés' : 'non engagés');
+    var vis = {
+      '30': '> 30j sans visite',
+      recent: '< 30j',
+      jamais: 'jamais visités',
+      retard: 'en retard',
+      revoir: 'à revoir'
+    };
+    if (f.visite !== 'tous') c.push(vis[f.visite] || f.visite);
+    if (f.equipe !== 'tous') c.push((f.equipe === 'oui' ? 'prévus' : 'non prévus') + ' collègue');
+    if (f.communes.length) c.push(f.communes.join(', '));
+    if (q && String(q).trim()) c.push('« ' + String(q).trim() + ' »');
+    var lt = { priorite: 'tri potentiel', score: 'tri priorité', retard: 'tri retard', nom: 'tri nom' };
+    if (n > 1 && lt[tri]) c.push(lt[tri]);
+    return t + (c.length ? ' · ' + c.join(' · ') : '');
   }
 
   VUES.praticiens = function () {
@@ -4883,8 +4944,8 @@
       h += '<div class="bandeau-criteres-rep">' +
         '<p class="phrase-criteres">' + esc(phrase) + '</p>' +
         '<div class="centre-reinit-rep">' +
-          '<button type="button" class="bouton-reinit-danger" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
-            icone('relancer') + '<span>Réinitialiser</span>' +
+          '<button type="button" class="bouton-reinit-rep" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
+            icone('relancer') + '<span>Réinitialiser les filtres</span>' +
           '</button>' +
         '</div>' +
         '</div>';
@@ -5131,107 +5192,6 @@
         '</button>';
     }).join('') + '</div>';
     return '<div class="cal-boite">' + raccourcis + barreMois + entetes + grille + '</div>';
-  };
-  function analyserQuestionIa(q) {
-    if (!q) return 'Posez-moi votre question sur MediPlanner, je vous explique tout.';
-    var s = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    if (/vert.*point|point.*vert|calendrier.*vert|vert.*bas/.test(s)) {
-      return 'Le <b>point vert sous une date</b> dans le calendrier indique que des visites sont déjà prévues ce jour-là dans votre tournée. Une date sans point signifie que la journée est encore libre.';
-    }
-    if (/ambre|or|couleur|medecin.*jaune|medecin.*couleur|engage/.test(s)) {
-      return 'Les praticiens affichés en <b>Ambre Chaud / Or Prescripteur (#B45309)</b> sont exclusivement les <b>médecins engagés</b> (partenaires clés conventionnés). Tous les autres praticiens et pharmacies s\'affichent en noir standard.';
-    }
-    if (/\b(m|matin|s|soir|creneau|bleu)\b/.test(s) && /creneau|reception|couleur|horaire|plage/.test(s)) {
-      return 'Les créneaux de réception sont identifiés par deux couleurs : <b>Vert / Émeraude</b> pour le Matin (M) et <b>Bleu Océan</b> pour le Soir (S).';
-    }
-    if (/gps|waze|maps|position|coordonnee|localis/.test(s)) {
-      return 'Le bouton <b>« ✓ GPS fixé »</b> atteste que la position géographique exacte de l\'établissement est verrouillée. Si vous êtes sur place devant l\'établissement, vous pouvez toucher le micro-bouton GPS ou « Capter la position GPS » pour réactualiser les coordonnées précises.';
-    }
-    if (/garder|epingl|verrouill/.test(s)) {
-      return 'Le bouton <b>« Garder » (épingle)</b> dans l\'onglet Planifier permet de figer un rendez-vous ou une visite prioritaire. Lorsque vous appuyez sur « Recalculer », le moteur d\'optimisation préserve obligatoirement cette visite.';
-    }
-    if (/absent|remplac|non vu|annul/.test(s)) {
-      return 'Si un médecin est absent lors de votre tournée, marquez-le comme « Absent » dans la carte de visite. Un bouton <b>« Remplacer »</b> apparaît immédiatement pour vous proposer un confrère disponible dans le même secteur ou la même commune.';
-    }
-    if (/synchro|hors.?ligne|reseau|internet|rouge|attente/.test(s)) {
-      return 'MediPlanner fonctionne à <b>100% hors-ligne</b>. La pastille en haut indique l\'état : point vert (données synchronisées avec Google Sheets), point orange (rapports en attente d\'envoi), point rouge (hors-ligne ou non connecté). Dès que vous retrouvez du réseau, touchez la pastille pour synchroniser.';
-    }
-    if (/tronqu|coupe|nom.*medecin|affiche.*medecin/.test(s)) {
-      return 'Les noms des médecins ne sont <b>jamais tronqués</b> : l\'application garantit l\'affichage intégral du nom et de la spécialité pour une clarté absolue sur le terrain.';
-    }
-    if (/rapport|compte.*rendu|valider|enregistr/.test(s)) {
-      return 'Vous pouvez renseigner un compte rendu directement depuis la carte d\'une visite (statut, commentaire, échantillons remis). En bas de l\'écran, la barre d\'enregistrement vous permet de valider vos comptes rendus et de les téléverser sur votre Google Sheet.';
-    }
-    if (/potentiel|etoile|classement/.test(s)) {
-      return 'Le potentiel prescripteur est représenté par des étoiles : <b>★★★</b> (potentiel fort / priorité haute), <b>★★</b> (moyen), <b>★</b> (faible). Le moteur priorise naturellement les praticiens 3 étoiles selon votre cycle de visite.';
-    }
-    if (/produit|medicament|echantillon|actif/.test(s)) {
-      return 'Dans l\'onglet Produits, vous retrouvez vos fiches argumentaires. Les médicaments décochés (colonne Actif dans votre Google Sheet) sont automatiquement masqués de l\'application.';
-    }
-    if (/whatsapp|partag|exporter/.test(s)) {
-      return 'Dans Planifier, une fois la journée confirmée, un bouton <b>« WhatsApp »</b> vous permet de partager directement le récapitulatif de votre journée par message ou de le copier.';
-    }
-    return 'Pour répondre précisément à votre question <i>« ' + esc(q) + ' »</i> : MediPlanner intègre un guide interactif complet de votre tournée. Vous pouvez interroger le copilote sur le calendrier, les créneaux, les médecins engagés, le GPS, la synchro ou les filtres.';
-  }
-
-  FEUILLES.aideIa = function (f) {
-    var FAQ = [
-      {
-        q: 'C\'est quoi le point vert sous une date dans le calendrier ?',
-        r: 'Le point vert indique que des visites sont déjà prévues ce jour-là dans votre tournée. Aucun point signifie que la journée est encore libre.'
-      },
-      {
-        q: 'Pourquoi certains médecins sont écrits en couleur ambre / or ?',
-        r: 'Les praticiens en couleur Ambre Chaud (#B45309) sont les <b>médecins engagés</b> (conventionnés). Les autres praticiens restent en noir comme avant.'
-      },
-      {
-        q: 'Pourquoi les créneaux M et S sont verts ou bleus ?',
-        r: 'Le vert indique les créneaux de réception du <b>Matin</b> (M). Le bleu indique les créneaux de réception du <b>Soir</b> (S).'
-      },
-      {
-        q: 'Que veut dire « ✓ GPS fixé » ?',
-        r: 'Cela signifie que les coordonnées GPS réelles et précises du lieu d\'exercice sont enregistrées. L\'application peut ainsi calculer vos trajets et ouvrir Waze ou Maps.'
-      },
-      {
-        q: 'À quoi sert le bouton « Garder » (épingle) dans Planifier ?',
-        r: 'Il verrouille cette visite dans votre tournée du jour. Si vous appuyez sur « Recalculer », le moteur conservera obligatoirement ce rendez-vous sans le modifier.'
-      },
-      {
-        q: 'Comment remplacer un médecin absent aujourd\'hui ?',
-        r: 'Dans l\'onglet Journée, si un praticien est marqué « Absent », un bouton « Remplacer » apparaît sur sa carte pour choisir un confrère disponible dans le même secteur.'
-      },
-      {
-        q: 'Est-ce que l\'application fonctionne sans réseau Internet ?',
-        r: 'Oui, à 100% ! Toutes vos données, fiches produits et tournées sont enregistrées sur votre téléphone. Dès le retour du réseau, vos comptes rendus sont synchronisés vers Google Sheets.'
-      }
-    ];
-
-    var formSaisie = '<form class="ia-pose-form" data-a="iaEnvoyerQuestion" onsubmit="event.preventDefault();">' +
-      '<input type="search" id="iaQuestionLibre" class="ia-input" placeholder="Posez une question libre..." autocomplete="off" value="' + (f.saisieLibre ? esc(f.saisieLibre) : '') + '">' +
-      '<button type="submit" class="bouton bouton-plein">Demander</button>' +
-      '</form>';
-
-    if (f.questionChoisie) {
-      var item = FAQ.filter(function (x) { return x.q === f.questionChoisie; })[0];
-      var rep = item ? item.r : (f.reponseCalculee || analyserQuestionIa(f.questionChoisie));
-      return '<div class="ia-dialogue">' +
-        '<button type="button" class="bouton bouton-texte" data-a="iaFermerQuestion" style="margin-bottom:8px">← Poser une autre question</button>' +
-        '<div class="ia-message ia-user"><b>Votre question :</b> ' + esc(f.questionChoisie) + '</div>' +
-        '<div class="ia-message ia-bot"><div class="ia-bot-tete">✨ <b>Copilote MediPlanner</b></div><p>' + rep + '</p></div>' +
-        formSaisie +
-        '</div>';
-    }
-
-    return '<div class="ia-conteneur">' +
-      formSaisie +
-      '<p class="discret" style="margin:4px 0 10px">Ou touchez une question fréquente :</p>' +
-      '<div class="ia-questions">' +
-      FAQ.map(function (item) {
-        return '<button type="button" class="ia-q-btn" data-a="iaReponse" data-q="' + esc(item.q) + '">' +
-          '<span class="ia-q-icone">💬</span><span>' + esc(item.q) + '</span>' +
-          '</button>';
-      }).join('') +
-      '</div></div>';
   };
   FEUILLES.qui = function (f) {
     var noms = nomsDelegues(), tousChoisis = noms.length > 0 && noms.every(function (n) { return f.liste.indexOf(n) >= 0; });
@@ -7754,29 +7714,6 @@
     },
     rapEditer: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); centrerQuestionRapport(); },
     sortirRapport: function () { S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0); },
-    ouvrirIa: function () {
-      S.ui.feuille = { type: 'aideIa', titre: 'Aide & Copilote ✨' };
-      rendre();
-    },
-    iaReponse: function (el) {
-      var q = el.dataset.q, f = S.ui.feuille;
-      if (f && f.type === 'aideIa') { f.questionChoisie = q; rendreFeuille(); }
-    },
-    iaFermerQuestion: function () {
-      var f = S.ui.feuille;
-      if (f && f.type === 'aideIa') { f.questionChoisie = null; f.reponseCalculee = null; rendreFeuille(); }
-    },
-    iaEnvoyerQuestion: function (el) {
-      var inp = $('iaQuestionLibre');
-      var q = inp ? inp.value.trim() : '';
-      if (!q) return;
-      var f = S.ui.feuille;
-      if (f && f.type === 'aideIa') {
-        f.questionChoisie = q;
-        f.reponseCalculee = analyserQuestionIa(q);
-        rendreFeuille();
-      }
-    },
     calOuvrir: function () {
       var d = jourAffiche();
       S.ui.feuille = { type: 'calendrierJour', titre: 'Choisir une date', date: d, mois: d.slice(0, 7) };
