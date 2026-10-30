@@ -1,9 +1,9 @@
 {
-  "version": "3.26.42",
+  "version": "3.26.43",
   "date": "2026-10-30",
   "notes": [
-    "Répertoire : Noms complets des hôpitaux affichés sans abréviation et sur toute la largeur disponible",
-    "Répertoire : Fin des noms tronqués avec suspension (...), espace à droite pleinement exploité au-dessus des jours",
-    "Planning : Suppression définitive de la ligne grise/barre disgracieuse sous « Modifier le planning hebdomadaire »"
+    "Établissements : Abréviations conventionnelles ciblées et professionnelles (CHU, CHR, HG, CSU, CMS, CM, GM, Poly., FSU COM, PISAM, SAMU, HMA, ICA)",
+    "Établissements : Préservation intégrale des noms de quartiers et cliniques (ex. « Deux Plateaux », « Saint-Sauveur »)",
+    "Répertoire : Titre d'établissement en pleine largeur sans coupure ni points de suspension"
   ]
 }

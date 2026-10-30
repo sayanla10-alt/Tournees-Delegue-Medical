@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.42';
+  var APP_VERSION = '3.26.43';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.43', [
+      'Établissements : Abréviations conventionnelles ciblées et professionnelles (CHU, CHR, HG, CSU, CMS, CM, GM, Poly., FSU COM, PISAM, SAMU, HMA, ICA)',
+      'Établissements : Préservation intégrale des noms de quartiers et cliniques (ex. « Deux Plateaux », « Saint-Sauveur »)',
+      'Répertoire : Titre d\'établissement en pleine largeur sans coupure ni points de suspension'
+    ]],
     ['3.26.42', [
       'Répertoire : Noms complets des hôpitaux affichés sans abréviation et sur toute la largeur disponible',
       'Répertoire : Fin des noms tronqués avec suspension (...), espace à droite pleinement exploité au-dessus des jours',
@@ -3423,10 +3428,43 @@
       '<button class="bouton ' + (ouiClasse || 'bouton-plein') + '" type="button" ' + ouiAttrs + '>' + ouiLib + '</button>';
   }
 
-  // 3.26.42 : Établissements toujours affichés en entier sans abréviation abusive
+  // 3.26.43 : Abréviations conventionnelles et usuelles du secteur médical en Côte d'Ivoire
+  // (CHU, CHR, HG, CSU, CSU COM, CMS, CM, GM, Poly., FSU COM, PISAM, SAMU, HMA, ICA).
+  // Les noms propres de lieux ou quartiers (ex. Deux Plateaux) et l'identité des cliniques restent strictement intacts.
   function abregerHopital(nom) {
     if (!nom) return '';
-    return String(nom).trim();
+    var s = String(nom).trim();
+
+    // 1. Sigles majeurs conventionnels
+    s = s.replace(/^Polyclinique\s+Internationale\s+Sainte\s+Anne[- ]Marie\b/i, 'PISAM');
+    s = s.replace(/^Polyclinique\s+Sainte\s+Anne[- ]Marie\b/i, 'PISAM');
+    s = s.replace(/^PISAM\s*\(.*?\)/i, 'PISAM');
+    s = s.replace(/^H[ôo]pital\s+Militaire\s+d['’]Abidjan\s*\(HMA\)/i, 'HMA');
+    s = s.replace(/^H[ôo]pital\s+Militaire\s+d['’]Abidjan\b/i, 'HMA');
+    s = s.replace(/^Institut\s+de\s+Cardiologie\s+d['’]Abidjan\s*\(ICA\)/i, 'ICA');
+    s = s.replace(/^Institut\s+de\s+Cardiologie\s+d['’]Abidjan\b/i, 'ICA');
+    s = s.replace(/^Service\s+d['’]Aide\s+M[ée]dicale\s+Urgente\b/i, 'SAMU');
+
+    // 2. Établissements publics & communautaires
+    s = s.replace(/^Centre\s+Hospitalier\s+Universitaire\s+(?:de\s+|d['’])?/i, 'CHU ');
+    s = s.replace(/^Centre\s+Hospitalier\s+R[ée]gional\s+(?:de\s+|d['’])?/i, 'CHR ');
+    s = s.replace(/^H[ôo]pital\s+G[ée]n[ée]ral\s+(?:de\s+|d['’])?/i, 'HG ');
+    s = s.replace(/^(?:Formation\s+Sanitaire\s+Urbaine\s+(?:[àa]\s+base\s+)?Communautaire|FSU[- ]COM)\s+(?:de\s+|d['’])?/i, 'FSU COM ');
+    s = s.replace(/^(?:Centre\s+de\s+Sant[ée]\s+Urbain(?:\s+[àa]\s+base)?\s+Communautaire|CSU[- ]COM)\s+(?:de\s+|d['’])?/i, 'CSU COM ');
+    s = s.replace(/^Centre\s+de\s+Sant[ée]\s+Urbain\s+(?:de\s+|d['’])?/i, 'CSU ');
+
+    // 3. Établissements privés, cliniques et centres
+    s = s.replace(/^Centre\s+M[ée]dico[- ]Social\s+(?:de\s+|d['’])?/i, 'CMS ');
+    s = s.replace(/^Centre\s+M[ée]dical\s+(?:de\s+|d['’])?/i, 'CM ');
+    s = s.replace(/^Groupe\s+M[ée]dical\s+(?:de\s+|d['’]|du\s+)?/i, 'GM ');
+    s = s.replace(/^Polyclinique\s+(?:des\s+|du\s+|de\s+la\s+|de\s+|d['’])?/i, 'Poly. ');
+    s = s.replace(/^Clinique\s+M[ée]dicale\s+(?:de\s+|d['’])?/i, 'Clinique ');
+
+    // 4. Préservation et normalisation des quartiers (ex. "2 pltx" -> "Deux Plateaux")
+    s = s.replace(/\b2\s*pltx\b/gi, 'Deux Plateaux');
+    s = s.replace(/\b2\s*plateaux\b/gi, 'Deux Plateaux');
+
+    return s.replace(/\s{2,}/g, ' ').trim();
   }
 
   // 3.25.36 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour (abrégé), Secteur réel et distance
@@ -5514,7 +5552,7 @@
     lieux.forEach(function (pr, idx) {
       var hM = lireHoraire(pr.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
       var hasGps = pr.lat && pr.lon && isFinite(+String(pr.lat).replace(',', '.')) && +String(pr.lat).replace(',', '.') !== 0;
-      var nomLieu = pr.lieu || (estPh ? p.nom : 'Établissement');
+      var nomLieu = abregerHopital(pr.lieu || (estPh ? p.nom : 'Établissement'));
       h += '<tr class="tr-lieu-titre"><td colspan="6" class="cell-lieu-titre"><b class="lieu-nom-plein" title="' + esc(nomLieu) + '">' + esc(nomLieu) + '</b></td></tr>' +
         '<tr class="tr-lieu-corps"><td class="cell-lieu-infos"><small>' + esc([pr.quartier, pr.commune].filter(Boolean).join(', ')) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
         ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
