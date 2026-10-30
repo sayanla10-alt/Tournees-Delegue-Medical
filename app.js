@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.38';
+  var APP_VERSION = '3.26.39';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.39', [
+      'Répertoire : Mention « Touchez M ou S pour planifier » strictement verrouillée sur une seule ligne avec l\'icône GPS'
+    ]],
     ['3.26.38', [
       'CR Pharmacie : Interlocuteurs renommés (« Vendeurs » et « Chargé Commande »)',
       'CR Pharmacie : Activités raccourcies (« Retour » au lieu de « Retour ou échange »)',
@@ -5412,9 +5415,9 @@
       var nomLieu = abregerHopital(pr.lieu);
       h += '<tr><td><b title="' + esc(pr.lieu) + '">' + esc(nomLieu) + '</b><small>' + esc(pr.quartier) + ', ' + esc(pr.commune) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
         ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
-        '<div style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button type="button" class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" data-a="majGpsLieuDirect" data-v="' + esc(code) + '" data-i="' + idx + '" title="' + (hasGps ? 'GPS déjà fixé pour cet établissement. Touchez pour réactualiser sur place' : 'Touchez pour capter et fixer le GPS de cet établissement') + '">' +
+        '<div class="ligne-micro-gps-plan" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap"><button type="button" class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" data-a="majGpsLieuDirect" data-v="' + esc(code) + '" data-i="' + idx + '" title="' + (hasGps ? 'GPS déjà fixé pour cet établissement. Touchez pour réactualiser sur place' : 'Touchez pour capter et fixer le GPS de cet établissement') + '">' +
           icone('carte') + '<span>GPS</span></button>' +
-          (idx === 0 ? '<span class="discret" style="font-size:11.5px;line-height:1.2">Touchez M ou S pour planifier</span>' : '') +
+          (idx === 0 ? '<span class="discret texte-aide-plan" style="font-size:11px;line-height:1.2;white-space:nowrap;flex-shrink:0">Touchez M ou S pour planifier</span>' : '') +
         '</div>' +
         '</td>' +
         JOURS_CLES.map(function (j, i) {

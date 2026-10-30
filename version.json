@@ -1,13 +1,7 @@
 {
-  "version": "3.26.38",
+  "version": "3.26.39",
   "date": "2026-10-30",
   "notes": [
-    "CR Pharmacie : Interlocuteurs renommés (« Vendeurs » et « Chargé Commande »)",
-    "CR Pharmacie : Activités raccourcies (« Retour » au lieu de « Retour ou échange »)",
-    "CR Pharmacie : Sélection des produits en stock préalable par gammes compactes (miroir parcours médecin)",
-    "CR Pharmacie : Détail des stocks affiché uniquement pour les produits sélectionnés (fin de la longue liste)",
-    "CR Pharmacie : État « Non référencé » supprimé des choix de stock",
-    "CR Pharmacie : Commande passée ne demande plus de quantités superflues",
-    "CR Pharmacie : Étape 8 suite raccourcie en « Suivi » (au lieu de « Suivi de commande »)"
+    "Répertoire : Mention « Touchez M ou S pour planifier » strictement verrouillée sur une seule ligne avec l'icône GPS"
   ]
 }

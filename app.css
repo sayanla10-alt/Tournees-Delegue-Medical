@@ -962,10 +962,19 @@ body.feuille-ouverte { overflow: hidden; }
 .grille-pres th:first-child { text-align: left; }
 .grille-pres td { border-bottom: 1px solid var(--trait); padding: 6px 2px; vertical-align: middle; text-align: center; }
 .grille-pres th:not(:first-child),
-.grille-pres td:not(:first-child) { width: 32px !important; max-width: 34px !important; min-width: 28px !important; padding: 4px 1px !important; }
+.grille-pres td:not(:first-child) { width: 30px !important; max-width: 32px !important; min-width: 26px !important; padding: 4px 1px !important; }
 .grille-pres td:first-child { text-align: left; width: auto !important; min-width: 0; }
 .grille-pres td:first-child b { display: block; font-size: 13px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .grille-pres td small { display: block; color: var(--gris); font-size: 11.5px; }
+.ligne-micro-gps-plan { margin-top: 4px; display: flex !important; align-items: center !important; gap: 6px !important; flex-wrap: nowrap !important; white-space: nowrap !important; }
+.ligne-micro-gps-plan .btn-micro-gps { margin-top: 0 !important; margin-bottom: 0 !important; flex-shrink: 0 !important; }
+.texte-aide-plan { font-size: 11px !important; line-height: 1.2 !important; white-space: nowrap !important; flex-shrink: 0 !important; color: var(--gris, #64748b); }
+@media (max-width: 360px) {
+  .grille-pres th:not(:first-child),
+  .grille-pres td:not(:first-child) { width: 28px !important; max-width: 28px !important; min-width: 26px !important; padding: 2px 0 !important; }
+  .texte-aide-plan { font-size: 10px !important; }
+  .btn-micro-gps { padding: 2px 5px !important; font-size: 10px !important; }
+}
 .grille-pres .dispo button {
   display: block; margin: 2px auto; width: 30px; height: 26px; border-radius: 6px; border: 0;
   font: 700 12px var(--titre); cursor: pointer;
