@@ -9,10 +9,29 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.10';
+  var APP_VERSION = '3.26.13';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.13', [
+      'Onglet Planifier : Le bouton et le critère rapide affichent strictement « Demain » (sans mention jj/mm)'
+    ]],
+    ['3.26.12', [
+      'Onglet Planifier : Bouton « Réglages » renommé en « Critères » pour plus de clarté',
+      'Suivi & Contrôle : Le mois s\'affiche désormais avec le maximum de lettres sans troncature à côté de « Toute l\'équipe », avec abréviation élégante automatique sur petit écran (ex: Déc. 2026)'
+    ]],
+    ['3.26.11', [
+      'Ergonomie pouce & centrage tactile du Compte Rendu : ajustement et défilement automatique sous le pouce dès l\'ouverture et entre les étapes',
+      'Option « Sortir » immédiatement accessible sous le pouce dès le compte rendu validé',
+      'Compte Rendu : Km parcourus calculés automatiquement sur toutes les visites du jour (y compris absent / non vu), suppression du champ manuel',
+      'CR médecin : Étape 4 épurée (suppression des mentions superflues), grille des réactions et suites 2 par ligne, badge médicament mis en valeur au 1er regard',
+      'Besoins du jour : Rationalisation en grille à 2 colonnes ergonomique',
+      'Communes visitées : Affichage compact et groupé sur la même ligne dans la synthèse',
+      'Onglet Journée : Calendrier moderne optimisé au pouce avec grille mensuelle, pastilles visites et raccourcis',
+      'Onglet Journée : Simplification de « Non, je le garde » en « Non » en cas de visite déjà prévue par un collègue',
+      'Onglet Planifier : Décompte explicite du nombre de pharmacies et de médecins avec le matin/soir',
+      'Suivi Équipe : Sélecteur délégué et semaine verrouillés sur la même ligne'
+    ]],
     ['3.26.10', [
       'Onglet Journée : Harmonisation géométrique de la frise temporelle, des heures et des cartes de visite sans aucun chevauchement, tout en conservant une largeur maximale de carte'
     ]],
@@ -2160,7 +2179,7 @@
           return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (jourSemaineIndex(x) === 0 ? ' lundi' : '') + '" data-a="jourAller" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
             JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em><i>' + (n ? n : '') + '</i></button>';
         }).join('') + '</div>' +
-        '<label class="bj-cal" aria-label="Choisir une date">' + icone('calendrier') + '<input type="date" data-f="jourDate" value="' + esc(d) + '"></label></div>';
+        '<button type="button" class="bj-cal" data-a="calOuvrir" aria-label="Choisir une date">' + icone('calendrier') + '</button></div>';
   }
   // programme d'un jour hors tournée en cours : archive du téléphone, sinon tournée publiée (feuille Plannings)
   function programmeDuJour(d) {
@@ -2460,7 +2479,6 @@
   function syntheseJour(duJour) {
     var s = { prevues: duJour.length, faites: [], nonFaites: [], sansCr: [], pot: { 3: 0, 2: 0, 1: 0 }, produits: {}, echantillons: [], commandes: [], ruptures: [], suites: [], km: 0, communes: [] };
     duJour.forEach(function (a) {
-      s.km += a.dist || 0;
       if (a.commune && s.communes.indexOf(a.commune) < 0) s.communes.push(a.commune);
       if (!a.statut) { s.sansCr.push(a); return; }
       if (estKo(a.statut)) { s.nonFaites.push(a); return; }
@@ -2473,6 +2491,24 @@
       Object.keys(st).forEach(function (x) { if (st[x] && st[x].etat === 'Rupture') s.ruptures.push(x + ' (' + a.nom + ')'); });
       if (a.prochaine && a.prochaine > a.date) s.suites.push(a.nom + ' : ' + (a.rdvConfirme ? 'RDV' : 'rappel') + ' le ' + dateFr(a.prochaine));
     });
+    // 3.26.10 : la distance se calcule sur toutes les visites où le délégué s'est déplacé (faites ou absent/ko)
+    var visitees = duJour.filter(function (a) { return !!a.statut; });
+    if (visitees.length) {
+      var ordVis = visitees.slice().sort(function (x, y) { return String(heureVisite(x)).localeCompare(String(heureVisite(y))); });
+      var tot = 0, prec = departCoord();
+      for (var iv = 0; iv < ordVis.length; iv++) {
+        var cG = coordPrecise(ordVis[iv]);
+        if (cG && prec && typeof distanceVol === 'function') {
+          tot += distanceVol(prec, cG);
+          prec = cG;
+        } else {
+          tot += (ordVis[iv].dist || 0);
+        }
+      }
+      s.km = tot > 0 ? (Math.round(tot * 10) / 10) : ordVis.reduce(function (totK, a) { return totK + (a.dist || 0); }, 0);
+    } else {
+      s.km = duJour.reduce(function (totK, a) { return totK + (a.dist || 0); }, 0);
+    }
     s.est = estimationJour(duJour);
     return s;
   }
@@ -2486,7 +2522,7 @@
     if (s.commandes.length) l.push(['Commandes', s.commandes.join(' ; ')]);
     if (s.ruptures.length) l.push(['Ruptures', s.ruptures.join(', ')]);
     if (s.suites.length) l.push(['RDV et rappels', s.suites.join(' ; ')]);
-    l.push(['Trajet', km(s.km) + (s.est ? ', ' + minutesVersHeure(s.est.debut) + ' à ' + minutesVersHeure(s.est.fin) : '') + (s.communes.length ? ', ' + s.communes.join(', ') : '')]);
+    l.push(['Trajet', km(s.km) + (s.est ? ' (' + minutesVersHeure(s.est.debut) + '–' + minutesVersHeure(s.est.fin) + ')' : '') + (s.communes.length ? ' · ' + s.communes.join(', ') : '')]);
     return l;
   }
   function etapesRapport(R, s) {
@@ -2499,12 +2535,10 @@
       { id: 'besoins', titre: 'Besoins', resume: function () { var b = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []); return b.length ? b.join(', ') : 'Aucun'; },
         rendu: function () {
           var tousB = (R.besoins || []).length === BESOINS_JOUR.length;
-          return '<div class="puces"><button type="button" class="puce puce-tous" data-a="rapBesoin" data-v="__tous" aria-pressed="' + tousB + '">Tous</button>' +
+          return '<div class="grille-besoins-cr"><button type="button" class="puce puce-tous" data-a="rapBesoin" data-v="__tous" aria-pressed="' + tousB + '">Tous les besoins</button>' +
             BESOINS_JOUR.map(function (x) { return '<button type="button" class="puce" data-a="rapBesoin" data-v="' + esc(x) + '" aria-pressed="' + ((R.besoins || []).indexOf(x) >= 0) + '">' + esc(x) + '</button>'; }).join('') + '</div>' +
-            '<textarea data-f="rapport" data-k="besoinsTexte" placeholder="Précisez si besoin" style="margin-top:8px">' + esc(R.besoinsTexte || '') + '</textarea>';
-        } },
-      { id: 'km', titre: 'Kilomètres parcourus', resume: function () { return R.km ? R.km + ' km' : 'Estimation : ' + km(s.km); },
-        rendu: function () { return '<label class="champ" style="margin:8px 0 0"><span>Kilomètres réels (vide : estimation de ' + km(s.km) + ')</span><input type="number" min="0" inputmode="numeric" data-f="rapport" data-k="km" value="' + esc(R.km || '') + '"></label>'; } }
+            '<textarea data-f="rapport" data-k="besoinsTexte" placeholder="Précisez si besoin" style="margin-top:8px;min-height:55px">' + esc(R.besoinsTexte || '') + '</textarea>';
+        } }
     ];
   }
   function rendreRapportJour(d, duJour, lecture, page) {
@@ -2539,7 +2573,9 @@
         '. Complétez-les, ou validez la journée telle quelle.</p></div>';
       h += '<button class="bouton bouton-plein bouton-large" type="button" data-a="rapValider" data-v="' + d + '">' + icone('valider') + 'Valider le compte rendu</button>';
     } else if (!edition) {
-      h += '<div class="rangee-actions" style="margin-top:10px">' + (page ? '' : '<button class="bouton petit wa" type="button" data-a="rapWhatsapp" data-v="' + d + '">' + icone('whatsapp') + 'Envoyer</button>') +
+      h += '<div class="rangee-actions rangee-actions-cr-valide" style="margin-top:10px">' +
+        '<button class="bouton bouton-plein" type="button" data-a="sortirRapport">' + icone('fermer') + '<span>Sortir</span></button>' +
+        (page ? '' : '<button class="bouton petit wa" type="button" data-a="rapWhatsapp" data-v="' + d + '">' + icone('whatsapp') + 'Envoyer</button>') +
         '<button class="bouton petit" type="button" data-a="rapCopier" data-v="' + d + '">Copier</button>' +
         '<button class="bouton petit" type="button" data-a="rapModifier" data-v="' + d + '">' + icone('crayon') + 'Modifier</button></div>';
     }
@@ -2621,7 +2657,15 @@
   // juste après un recalcul, « Envoyer par WhatsApp » une fois le jour confirmé.
   function barreCriteresPlanifier() {
     var p = S.params, dates = datesAffichees();
-    var per = p.mode === 'jour' ? dateCourte(p.dateRef) : 'Sem. ' + dateCourte(dates[0] || p.dateRef);
+    var demainIso = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+    var per;
+    if (p.mode === 'jour') {
+      if (p.dateRef === demainIso || p.dateRef === ajouterJours(aujourdhui(), 1)) per = 'Demain';
+      else if (p.dateRef === aujourdhui()) per = 'Aujourd\'hui';
+      else per = dateCourte(p.dateRef);
+    } else {
+      per = 'Sem. ' + dateCourte(dates[0] || p.dateRef);
+    }
     var com = p.mode === 'semaine' && p.parJour ? 'Par jour' : libelleCommunes(p.communes);
     var spec = p.typeCibles === 'pharmacies' ? 'Pharmacies' : (p.specialites && p.specialites.length ? (p.specialites.length === coeurDeCible().length && coeurDeCible().every(function (s) { return p.specialites.indexOf(s) >= 0; }) ? 'Cœur (' + p.specialites.length + ')' : p.specialites.length + ' spéc.') : 'Toutes spéc.');
     var rdvN = rdvProchaines(dates).length + S.imposes.length;
@@ -2644,7 +2688,7 @@
         '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; touchez un critère pour l\'ajuster ou proposez directement votre tournée.</p>' + rendreParams() + '</div>';
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
-      '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('calendrier') + 'Réglages</button></div>' +
+      '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
       '<p class="sous-titre">Préparez votre tournée : une journée ou une semaine, ajustez vos critères en un geste et confirmez votre programme.</p>' +
       barreCriteresPlanifier();
     var datesF = datesPlanAvenir();
@@ -2670,11 +2714,20 @@
     var n3 = duJour.filter(function (a) { return +a.note === 3; }).length;
     var nMatin = duJour.filter(function (a) { return a.creneau === 'Matin'; }).length;
     var nSoir = duJour.length - nMatin;
+    var nPhar = duJour.filter(function (a) { return estPharmacie(a); }).length;
+    var nMed = duJour.length - nPhar;
     var totalKm = duJour.reduce(function (s, a) { return s + (a.dist || 0); }, 0);
     var comJour = Array.from(new Set(duJour.map(function (a) { return a.commune; }).filter(Boolean)));
     var etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmé' + (S.jours[d] && S.jours[d].modifieLe ? ', modifié' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
+    var details = [
+      nMatin + ' matin' + (nSoir ? ', ' + nSoir + ' soir' : ''),
+      (nPhar ? nPhar + ' phcie' + (nPhar > 1 ? 's' : '') : '') + (nPhar && nMed ? ', ' : '') + (nMed ? nMed + ' médecin' + (nMed > 1 ? 's' : '') : ''),
+      n3 ? n3 + ' ★★★' : '',
+      km(totalKm),
+      comJour.length ? esc(libelleCommunes(comJour)) : ''
+    ].filter(Boolean).join(' · ');
     h += '<div class="tete-jour-plan"><div class="bilan-jour"><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
-      ' <small class="discret">(' + nMatin + ' matin' + (nSoir ? ', ' + nSoir + ' soir' : '') + (n3 ? ' · ' + n3 + ' ★★★' : '') + ' · ' + km(totalKm) + (comJour.length ? ' · ' + esc(libelleCommunes(comJour)) : '') + ')</small></div>' + etat + '</div>';
+      ' <small class="discret">(' + details + ')</small></div>' + etat + '</div>';
     h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
     var actionsPlan = '';
     if (enAttente) {
@@ -2807,7 +2860,7 @@
   function questionConflit(a, cf) {
     return '<div class="conflit"><p>Aussi prévu par <b>' + esc(cf.delegue) + '</b> le ' + dateFr(cf.date) + '. Le remplacer par un autre praticien ?</p>' +
       '<div class="rangee"><button class="bouton petit bouton-plein" type="button" data-a="conflitRemplacer" data-uid="' + a.uid + '">Remplacer</button>' +
-      '<button class="bouton petit" type="button" data-a="conflitGarder" data-uid="' + a.uid + '">Non, je le garde</button></div></div>';
+      '<button class="bouton petit" type="button" data-a="conflitGarder" data-uid="' + a.uid + '">Non</button></div></div>';
   }
   // Candidats pour remplacer une visite : présents ce jour-là, hors tournée, non prévus par un collègue, selon les critères de la tournée ;
   // ceux du même établissement d'abord (+ bonus), ceux qui s'insèrent sans retard, puis par priorité et proximité du lieu remplacé
@@ -3007,8 +3060,16 @@
   }
   function etapesParams() {
     var p = S.params, dates = datesAffichees();
+    var demainIso = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
     var l = [
-      { id: 'quand', titre: 'Période', resume: function () { return p.mode === 'jour' ? 'Journée du ' + dateCourte(p.dateRef) : (dates.length && dates[0] !== lundiDe(dates[0]) ? 'Du ' + dateCourte(dates[0]) + ' au ' + dateCourte(dates[dates.length - 1]) : 'Semaine du ' + dateCourte(dates[0])); },
+      { id: 'quand', titre: 'Période', resume: function () {
+          if (p.mode === 'jour') {
+            if (p.dateRef === demainIso || p.dateRef === ajouterJours(aujourdhui(), 1)) return 'Demain';
+            if (p.dateRef === aujourdhui()) return 'Aujourd\'hui';
+            return 'Journée du ' + dateCourte(p.dateRef);
+          }
+          return dates.length && dates[0] !== lundiDe(dates[0]) ? 'Du ' + dateCourte(dates[0]) + ' au ' + dateCourte(dates[dates.length - 1]) : 'Semaine du ' + dateCourte(dates[0]);
+        },
         rendu: function () {
           var t0 = prochainJourOuvre(aujourdhui()), j1 = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
           var sem0 = lundiDe(t0), sem1 = ajouterJours(lundiDe(aujourdhui()), 7);
@@ -3018,7 +3079,7 @@
             '<div class="grille-options-2" style="margin-bottom:8px">' +
               (p.mode === 'jour'
                 ? '<button type="button" class="puce petite" data-a="paramPeriodeRapide" data-m="jour" data-d="' + t0 + '" aria-pressed="' + (p.dateRef === t0) + '">' + (t0 === aujourdhui() ? 'Aujourd\'hui' : 'Prochain jour ouvré') + '</button>' +
-                  '<button type="button" class="puce petite" data-a="paramPeriodeRapide" data-m="jour" data-d="' + j1 + '" aria-pressed="' + (p.dateRef === j1) + '">Demain (' + dateCourte(j1) + ')</button>'
+                  '<button type="button" class="puce petite" data-a="paramPeriodeRapide" data-m="jour" data-d="' + j1 + '" aria-pressed="' + (p.dateRef === j1) + '">Demain</button>'
                 : '<button type="button" class="puce petite" data-a="paramPeriodeRapide" data-m="semaine" data-d="' + sem0 + '" aria-pressed="' + (lundiDe(p.dateRef) === sem0) + '">Cette semaine</button>' +
                   '<button type="button" class="puce petite" data-a="paramPeriodeRapide" data-m="semaine" data-d="' + sem1 + '" aria-pressed="' + (lundiDe(p.dateRef) === sem1) + '">Semaine prochaine</button>') +
             '</div>' +
@@ -3283,13 +3344,13 @@
     return '<div class="champ" style="margin:8px 0 0"><button type="button" class="selecteur" data-a="crListe" data-uid="' + a.uid + '" data-k="' + cle + '" data-m="' + (multi ? 1 : 0) + '">' +
       esc(libs.length ? libs.join(', ') : vide) + '<b>▾</b></button></div>';
   }
-  function choixCr(a, cle, options, val) {
+  function choixCr(a, cle, options, val, classePuces) {
     var o = optionsNorm(options);
     if (o.length === 2) return '<div class="segment" role="group" style="margin:8px 0 0">' + o.map(function (x) {
       return '<button type="button" data-a="crChoix" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + esc(x[0]) + '" aria-pressed="' + (val === x[0]) + '">' + esc(x[1]) + '</button>';
     }).join('') + '</div>';
     if (o.length > 5) return selecteurCr(a, cle, o, val ? [val] : [], false, 'Choisir…');
-    return '<div class="puces">' + o.map(function (x) { return puceCr(a, cle, x[0], x[1], val === x[0]); }).join('') + '</div>';
+    return '<div class="puces' + (classePuces ? ' ' + classePuces : '') + '">' + o.map(function (x) { return puceCr(a, cle, x[0], x[1], val === x[0]); }).join('') + '</div>';
   }
   function multiCr(a, cle, options, vals) {
     if (options.length > 4) return selecteurCr(a, cle, options, vals || [], true, 'Choisir');
@@ -3511,13 +3572,11 @@
       if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes); }, function () { return oui(c.presentes); });
       if (c.presentes === 'oui' || im.presentes) {
         e('produits', 'Produits présentés', 'continuer', function () {
-          return rendreChoixProduitsCr(a, 'produits', c.produits) + '<input type="text" list="listeProduits" data-f="cr" data-uid="' + a.uid + '" data-k="autres" value="' + esc(c.autres || '') +
-            '" placeholder="Autres produits, séparés par une virgule" aria-label="Autres produits" style="margin-top:8px">' + datalistProduits() +
-            '<div style="margin-top:10px;text-align:center"><button type="button" class="bouton-texte" data-a="crAucunProduit" data-uid="' + a.uid + '">Aucun produit présenté / Passer cette étape</button></div>';
+          return rendreChoixProduitsCr(a, 'produits', c.produits);
         }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
         e('reactions', 'Réaction du médecin', 'continuer', function () {
           return '<div class="champs-cr">' + produitsPresentes(c).map(function (p) {
-            return '<div class="champ"><span>' + esc(p) + '</span>' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div>';
+            return '<div class="champ champ-reaction-produit"><div class="etiquette-med-cr"><b>' + esc(p) + '</b></div><div class="grille-reactions-cr">' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div></div>';
           }).join('') + '</div>';
         }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
       }
@@ -3562,7 +3621,7 @@
     var valSuite = c.suite || 'aucune';
     var lib = function (v) { return ((options.filter(function (o) { return o[0] === v; })[0]) || [])[1] || 'Aucune'; };
     e('suite', 'Étape suivante', 'auto', function () {
-      return choixCr(a, 'suite', options, valSuite) +
+      return choixCr(a, 'suite', options, valSuite, 'puces-suite-cr') +
         (valSuite === 'aucune' ? '<div class="rangee cr-boutons" style="margin-top:10px"><button class="bouton bouton-plein" type="button" data-a="crOk" data-uid="' + a.uid + '" data-v="suite">Continuer (Aucune)</button></div>' : '');
     }, function () { return lib(valSuite); });
     if (!c.suite || c.suite === 'aucune') return;
@@ -3716,9 +3775,19 @@
       var c = document.querySelector('.arret.ouvert .cr-question') ||
               document.querySelector('.arret.ouvert .cr-express-bloc') ||
               document.querySelector('.arret.ouvert .actions-cr') ||
+              document.querySelector('.arret.ouvert .rangee-actions-cr-valide') ||
               document.querySelector('.arret.ouvert');
       if (c) centrerElement(c);
     }, 40);
+  }
+  function centrerQuestionRapport() {
+    setTimeout(function () {
+      var q = document.querySelector('.rapport-jour .cr-question') ||
+              document.querySelector('.rapport-jour [data-a="rapValider"]') ||
+              document.querySelector('.rapport-jour .rangee-actions-cr-valide') ||
+              document.querySelector('.rapport-jour');
+      if (q) centrerElement(q, false);
+    }, 50);
   }
   function centrerChoix(el) {
     setTimeout(function () {
@@ -3735,7 +3804,7 @@
       '<button class="bouton bouton-plein" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer</button>') + '</div>';
   }
   // une valeur par ligne : « Routine, Présentation produit » ou « A ; B » s'affichent l'un sous l'autre
-  function parLigne(v) { return String(v || '').split(/\s*;\s*|,\s+(?=[A-ZÉÈÀÂÎÔ0-9★])/).filter(Boolean).map(esc).join('<br>'); }
+  function parLigne(v) { return String(v || '').split(/\s*;\s*|\n+/).filter(Boolean).map(esc).join('<br>'); }
   function resumeCompteRendu(a, tuiles) {
     var r = champsCr(a), l = [];
     if (r.interlocuteur) l.push('Interlocuteur : ' + r.interlocuteur);
@@ -3894,8 +3963,10 @@
       } else {
         h += '<div class="cr-enregistre">' +
           '<div class="tuiles-resume">' + resumeCompteRendu(a, true) + '</div>' +
-          '<div class="rangee-actions" style="margin:10px 0 0">' + (passeVerrouille(a.date) ? '' : '<button class="bouton petit" type="button" data-a="corriger" data-uid="' + a.uid + '">' + icone('crayon') + 'Modifier</button>') +
-          '<button class="bouton petit avec-retour" type="button" data-a="quitterCarte">' + icone('chevron') + 'Quitter</button></div></div>';
+          '<div class="rangee-actions-cr-valide">' +
+          '<button class="bouton bouton-plein" type="button" data-a="quitterCarte">' + icone('fermer') + '<span>Sortir</span></button>' +
+          (passeVerrouille(a.date) ? '' : '<button class="bouton" type="button" data-a="corriger" data-uid="' + a.uid + '">' + icone('crayon') + 'Modifier</button>') +
+          '</div></div>';
       }
       h += '</div>';
     }
@@ -4829,11 +4900,43 @@
     if (f.qui === 'liste') return f.liste.some(function (x) { return nom ? String(nom).trim().toLowerCase() === x.toLowerCase() : estMoi(x); });
     return !nom || estMoi(nom);
   }
-  function libelleQui() {
+  function formatQui() {
     var f = S.ui.fq;
-    if (f.qui === 'tous') return 'Toute l\'équipe';
-    if (f.qui === 'liste') return f.liste.length > 2 ? f.liste.length + ' délégués' : f.liste.map(function (x) { return estMoi(x) ? 'Moi' : x.split(' ')[0]; }).join(', ');
-    return 'Moi';
+    if (f.qui === 'tous') return { plein: 'Toute l\'équipe', court: 'Équipe' };
+    if (f.qui === 'liste') {
+      var t = f.liste.length > 2 ? f.liste.length + ' délégués' : f.liste.map(function (x) { return estMoi(x) ? 'Moi' : x.split(' ')[0]; }).join(', ');
+      return { plein: t, court: t };
+    }
+    return { plein: 'Moi', court: 'Moi' };
+  }
+  function libelleQui() {
+    return formatQui().plein;
+  }
+  function formatQuand(onglet) {
+    var MOIS_COURTS = ['Janv.', 'Févr.', 'Mars', 'Avril', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.'];
+    if (onglet === 'equipe') {
+      if (S.ui.eqPortee === 'jour') {
+        var d = S.ui.eqDate || aujourdhui();
+        return { plein: majuscule(dateCourte(d)), court: majuscule(dateCourte(d)) };
+      }
+      var l = lundiDe(S.ui.eqDate || aujourdhui());
+      return { plein: 'Semaine du ' + dateCourte(l), court: 'Sem. ' + dateCourte(l) };
+    }
+    var b = bornesStats(), st = S.ui.stats;
+    if (b[0] === b[1]) {
+      var d = majuscule(dateCourte(b[0]));
+      return { plein: d, court: d };
+    }
+    if (st.periode === 'semaine') {
+      return { plein: 'Semaine du ' + dateCourte(b[0]), court: 'Sem. ' + dateCourte(b[0]) };
+    }
+    if (st.periode === 'mois') {
+      var mIdx = +b[0].slice(5, 7) - 1, annee = b[0].slice(0, 4);
+      var mLong = majuscule(MOIS[mIdx]) + ' ' + annee;
+      var mCourt = MOIS_COURTS[mIdx] + ' ' + annee;
+      return { plein: mLong, court: mCourt };
+    }
+    return { plein: 'Du ' + dateCourte(b[0]) + ' au ' + dateCourte(b[1]), court: dateCourte(b[0]) + ' - ' + dateCourte(b[1]) };
   }
   function libelleBornes(b) {
     var st = S.ui.stats;
@@ -4843,14 +4946,68 @@
     return 'Du ' + dateCourte(b[0]) + ' au ' + dateCourte(b[1]);
   }
   function barreQuiQuand(onglet) {
-    var quand = onglet === 'equipe' ? (S.ui.eqPortee === 'jour' ? majuscule(dateCourte(S.ui.eqDate || aujourdhui())) : 'Semaine du ' + dateCourte(lundiDe(S.ui.eqDate || aujourdhui()))) : libelleBornes(bornesStats());
+    var quiObj = formatQui();
+    var qObj = formatQuand(onglet);
     var nav = onglet === 'equipe' || S.ui.stats.periode !== 'perso';
     return '<div class="barre-qq">' +
-      (S.config.demo ? '' : '<button type="button" class="puce-filtre" data-a="quiOuvrir">' + icone('equipe') + '<span>' + esc(libelleQui()) + '</span><b>▾</b></button>') +
+      (S.config.demo ? '' : '<button type="button" class="puce-filtre" data-a="quiOuvrir">' + icone('equipe') + '<span><span class="txt-plein">' + esc(quiObj.plein) + '</span><span class="txt-court">' + esc(quiObj.court) + '</span></span><b>▾</b></button>') +
       '<div class="qq-quand">' + (nav ? '<button type="button" class="bouton-icone sombre" data-a="quandDecaler" data-o="' + onglet + '" data-v="-1" aria-label="Période précédente">' + icone('chevron') + '</button>' : '') +
-      '<button type="button" class="puce-filtre" data-a="quandOuvrir" data-o="' + onglet + '">' + icone('calendrier') + '<span>' + esc(quand) + '</span><b>▾</b></button>' +
+      '<button type="button" class="puce-filtre" data-a="quandOuvrir" data-o="' + onglet + '">' + icone('calendrier') + '<span><span class="txt-plein">' + esc(qObj.plein) + '</span><span class="txt-court">' + esc(qObj.court) + '</span></span><b>▾</b></button>' +
       (nav ? '<button type="button" class="bouton-icone sombre suivant" data-a="quandDecaler" data-o="' + onglet + '" data-v="1" aria-label="Période suivante">' + icone('chevron') + '</button>' : '') + '</div></div>';
   }
+  FEUILLES.calendrierJour = function (f) {
+    var curMois = f.mois || f.date.slice(0, 7), t = aujourdhui();
+    var parts = curMois.split('-'), y = +parts[0], m = +parts[1];
+    var nomMois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'][m - 1];
+    var rDemain = ajouterJours(t, 1), rSem = ajouterJours(t, 7), r2Sem = ajouterJours(t, 14);
+    var raccourcis = '<div class="cal-raccourcis">' +
+      '<button type="button" class="puce" data-a="calChoisirJour" data-v="' + t + '">Aujourd\'hui</button>' +
+      '<button type="button" class="puce" data-a="calChoisirJour" data-v="' + rDemain + '">Demain</button>' +
+      '<button type="button" class="puce" data-a="calChoisirJour" data-v="' + rSem + '">+1 sem.</button>' +
+      '<button type="button" class="puce" data-a="calChoisirJour" data-v="' + r2Sem + '">+2 sem.</button>' +
+      '</div>';
+    var barreMois = '<div class="cal-barre-mois">' +
+      '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="-1" aria-label="Mois précédent">◀</button>' +
+      '<h4>' + nomMois + ' ' + y + '</h4>' +
+      '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="1" aria-label="Mois suivant">▶</button>' +
+      '</div>';
+    var entetes = '<div class="cal-grille-semaine">' +
+      ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(function (j) { return '<span>' + j + '</span>'; }).join('') +
+      '</div>';
+    var premierJour = new Date(y, m - 1, 1);
+    var dec = (premierJour.getDay() + 6) % 7;
+    var nbJoursMois = new Date(y, m, 0).getDate();
+    var nbJoursPrec = new Date(y, m - 1, 0).getDate();
+    var cellules = [];
+    for (var i = dec - 1; i >= 0; i--) {
+      var jPrec = nbJoursPrec - i, mPrec = m === 1 ? 12 : m - 1, yPrec = m === 1 ? y - 1 : y;
+      cellules.push({ num: jPrec, iso: yPrec + '-' + pad2(mPrec) + '-' + pad2(jPrec), horsMois: true });
+    }
+    for (var j = 1; j <= nbJoursMois; j++) {
+      cellules.push({ num: j, iso: y + '-' + pad2(m) + '-' + pad2(j), horsMois: false });
+    }
+    var reste = (7 - (cellules.length % 7)) % 7;
+    for (var k = 1; k <= reste; k++) {
+      var mSuiv = m === 12 ? 1 : m + 1, ySuiv = m === 12 ? y + 1 : y;
+      cellules.push({ num: k, iso: ySuiv + '-' + pad2(mSuiv) + '-' + pad2(k), horsMois: true });
+    }
+    var grille = '<div class="cal-grille-jours">' + cellules.map(function (c) {
+      var nVisites = nbVisitesJour(c.iso), estAuj = c.iso === t, estChoisi = c.iso === f.date;
+      var classes = ['cal-jour-btn'];
+      if (c.horsMois) classes.push('hors-mois');
+      if (estAuj) classes.push('aujourdhui');
+      if (estChoisi) classes.push('choisi');
+      if (nVisites > 0) classes.push('avec-visites');
+      return '<button type="button" class="' + classes.join(' ') + '" data-a="calChoisirJour" data-v="' + c.iso + '">' +
+        '<span>' + c.num + '</span>' +
+        (nVisites > 0 ? '<span class="cal-pastille-nb">' + nVisites + '</span>' : '') +
+        '</button>';
+    }).join('') + '</div>';
+    return {
+      corps: raccourcis + barreMois + entetes + grille,
+      pied: '<button class="bouton bouton-plein bouton-large" type="button" data-a="calAllerAujourdhui">' + icone('calendrier') + '<span>Revenir à aujourd\'hui (' + dateCourte(t) + ')</span></button>'
+    };
+  };
   FEUILLES.qui = function (f) {
     var noms = nomsDelegues(), tousChoisis = noms.length > 0 && noms.every(function (n) { return f.liste.indexOf(n) >= 0; });
     return '<div class="segment" role="group" aria-label="Qui" style="margin-top:0">' + [['moi', 'Moi'], ['tous', 'Toute l\'équipe'], ['liste', 'Choisir']].map(function (x) {
@@ -6717,13 +6874,24 @@
   function horodatageCourt() { var d = new Date(); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   // Programme validé puis modifié : il reste validé pour l'équipe, avec la date de modification
   // carte ouverte : centrée dans l'espace visible (entre l'en-tête et la barre du bas) ; si elle est plus haute, son haut est aligné
-  function centrerCarte(uid) { centrerElement(document.querySelector('.arret.ouvert') || document.querySelector('[data-uid="' + uid + '"]')); }
-  function centrerElement(c) {
+  function centrerCarte(uid) { centrerQuestion(uid); }
+  function centrerElement(c, forceQuestion) {
     if (!c) return;
-    var r = c.getBoundingClientRect(), ent = (document.querySelector('.entete') || { offsetHeight: 0 }).offsetHeight,
-        nav = (document.querySelector('.navigation') || { offsetHeight: 0 }).offsetHeight, dispo = window.innerHeight - ent - nav;
-    var cible = r.height <= dispo - 16 ? ent + (dispo - r.height) / 2 : ent + 8;
-    window.scrollTo({ top: Math.max(0, window.scrollY + r.top - cible), behavior: 'smooth' });
+    var cibleEl = (forceQuestion !== false && c.querySelector) ? (c.querySelector('.cr-question') || c.querySelector('.actions-cr') || c.querySelector('.rangee-actions-cr-valide') || c) : c;
+    if (!cibleEl) cibleEl = c;
+    requestAnimationFrame(function () {
+      setTimeout(function () {
+        var r = cibleEl.getBoundingClientRect(), ent = (document.querySelector('.entete') || { offsetHeight: 0 }).offsetHeight,
+            nav = (document.querySelector('.navigation') || { offsetHeight: 0 }).offsetHeight, dispo = window.innerHeight - ent - nav;
+        var idealY;
+        if (r.height <= dispo - 20) {
+          idealY = ent + Math.max(16, (dispo - r.height) * 0.45);
+        } else {
+          idealY = window.innerHeight - nav - r.height - 16;
+        }
+        window.scrollTo({ top: Math.max(0, window.scrollY + r.top - idealY), behavior: 'smooth' });
+      }, 30);
+    });
   }
   // empreinte d'un compte rendu : sert à dire « aucune modification » plutôt que « enregistré »
   function empreinteCr(a) {
@@ -7260,16 +7428,40 @@
       S.ui.feuille = null; var v = el.dataset.v;
       if (v === 'autour') ACTIONS.ouvrirAutour(); else ACTIONS.ajouterProches({ dataset: { v: v } });
     },
-    allerRapport: function () { S.ui.tab = 'rapport'; rendre(); window.scrollTo(0, 0); },
-    ouvrirRapport: function () { S.ui.tab = 'rapport'; rendre(); window.scrollTo(0, 0); },
-    rapOk: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = true; sauverRapports(); rendre(); },
-    rapPrec: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); },
+    allerRapport: function () { S.ui.tab = 'rapport'; rendre(); centrerQuestionRapport(); },
+    ouvrirRapport: function () { S.ui.tab = 'rapport'; rendre(); centrerQuestionRapport(); },
+    rapOk: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = true; sauverRapports(); rendre(); centrerQuestionRapport(); },
+    rapPrec: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); centrerQuestionRapport(); },
     rapPasser: function (el) {
       var R = rapportOuCree(jourAffiche()), k = el.dataset.v;
       if (k === 'besoins') { R.besoins = []; R.besoinsTexte = ''; } else R[k] = '';
-      R.ok[k] = true; sauverRapports(); rendre();
+      R.ok[k] = true; sauverRapports(); rendre(); centrerQuestionRapport();
     },
-    rapEditer: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); },
+    rapEditer: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); centrerQuestionRapport(); },
+    sortirRapport: function () { S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0); },
+    calOuvrir: function () {
+      var d = jourAffiche();
+      S.ui.feuille = { type: 'calendrierJour', titre: 'Choisir une date', date: d, mois: d.slice(0, 7) };
+      rendre();
+    },
+    calChangerMois: function (el) {
+      var f = S.ui.feuille;
+      if (!f || f.type !== 'calendrierJour') return;
+      var parts = f.mois.split('-'), y = +parts[0], m = +parts[1] + (+el.dataset.v);
+      if (m < 1) { m = 12; y--; }
+      if (m > 12) { m = 1; y++; }
+      f.mois = y + '-' + pad2(m);
+      rendreFeuille();
+    },
+    calChoisirJour: function (el) {
+      var d = el.dataset.v;
+      S.ui.feuille = null;
+      allerAuJour(d);
+    },
+    calAllerAujourdhui: function () {
+      S.ui.feuille = null;
+      allerAuJour(aujourdhui());
+    },
     rapBesoin: function (el) {
       var R = rapportOuCree(jourAffiche()), l = R.besoins || (R.besoins = []), v = el.dataset.v;
       if (v === '__tous') {
@@ -7856,7 +8048,7 @@
     crDate: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
-      majCr(a, 'date', el.dataset.v); validerEtape(a, 'date'); rendre();
+      majCr(a, 'date', el.dataset.v); validerEtape(a, 'date'); rendre(); centrerQuestion(a.uid);
     },
     conflitRemplacer: function (el) { remplacerArret(el.dataset.uid); },
     remplacerChoisir: function (el) {

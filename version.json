@@ -1,7 +1,19 @@
 {
-  "version": "3.26.10",
+  "version": "3.26.13",
   "date": "2026-10-30",
   "notes": [
-    "Onglet Journée : Harmonisation géométrique de la frise temporelle, des heures et des cartes de visite sans aucun chevauchement, tout en conservant une largeur maximale de carte"
+    "Onglet Planifier : Le bouton et le critère rapide affichent strictement « Demain » (sans mention jj/mm)",
+    "Onglet Planifier : Bouton « Réglages » renommé en « Critères » pour plus de clarté",
+    "Suivi & Contrôle : Le mois s'affiche désormais avec le maximum de lettres sans troncature à côté de « Toute l'équipe », avec abréviation élégante automatique sur petit écran (ex: Déc. 2026)",
+    "Ergonomie pouce & centrage tactile du Compte Rendu : ajustement et défilement automatique sous le pouce dès l'ouverture et entre les étapes",
+    "Option « Sortir » immédiatement accessible sous le pouce dès le compte rendu validé",
+    "Compte Rendu : Km parcourus calculés automatiquement sur toutes les visites du jour (y compris absent / non vu), suppression du champ manuel",
+    "CR médecin : Étape 4 épurée (suppression des mentions superflues), grille des réactions et suites 2 par ligne, badge médicament mis en valeur au 1er regard",
+    "Besoins du jour : Rationalisation en grille à 2 colonnes ergonomique",
+    "Communes visitées : Affichage compact et groupé sur la même ligne dans la synthèse",
+    "Onglet Journée : Calendrier moderne optimisé au pouce avec grille mensuelle, pastilles visites et raccourcis",
+    "Onglet Journée : Simplification de « Non, je le garde » en « Non » en cas de visite déjà prévue par un collègue",
+    "Onglet Planifier : Décompte explicite du nombre de pharmacies et de médecins avec le matin/soir",
+    "Suivi Équipe : Sélecteur délégué et semaine verrouillés sur la même ligne"
   ]
 }

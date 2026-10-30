@@ -428,7 +428,18 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .couverture .groupe-bascule small { margin-left: 4px; }
 .couverture[aria-expanded] {}
 .couv-tete .groupe-bascule[aria-expanded="true"] svg { transform: rotate(180deg); }
-.couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.couv-tete .groupe-bascule { flex: 1 1 auto; min-width: 0; }
+.couv-tete .groupe-bascule b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.couv-tete .segment.petit { flex: 0 0 auto; }
+.couv-tete .segment.petit button, .segment.petit button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+}
 .carte-l { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 8px; }
 .carte-l.active { height: 300px; border: 1px solid var(--trait); }
 .carte-l.active .carte { display: none; }
@@ -1496,11 +1507,22 @@ details.avance h3 { margin-top: 18px; }
 }
 
 /* 3.21.0 : filtre Qui / Quand (Bilan, Équipe) */
-.barre-qq { display: flex; flex-wrap: nowrap !important; align-items: center; gap: 6px; margin: 10px 0 12px; width: 100%; }
-.barre-qq > .puce-filtre { flex: 1 1 45%; min-width: 0; padding: 0 8px; font-size: 13.5px; }
-.barre-qq .qq-quand { display: flex; align-items: center; gap: 3px; flex: 1 1 55%; min-width: 0; }
-.barre-qq .qq-quand .puce-filtre { padding: 0 6px; font-size: 13.5px; min-width: 0; flex: 1; justify-content: center; }
-.barre-qq .qq-quand .bouton-icone { flex: none; width: 30px; height: 30px; min-width: 30px; padding: 0; }
+.barre-qq { display: flex; flex-wrap: nowrap !important; align-items: center; gap: 5px; margin: 10px 0 12px; width: 100%; }
+.barre-qq > .puce-filtre { flex: 0 1 auto; max-width: 42%; min-width: 0; padding: 0 8px; font-size: 13px; gap: 4px; }
+.barre-qq .qq-quand { display: flex; align-items: center; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.barre-qq .qq-quand .puce-filtre { padding: 0 6px; font-size: 13px; min-width: 0; flex: 1 1 auto; justify-content: center; gap: 4px; }
+.barre-qq .qq-quand .bouton-icone { flex: none; width: 26px; height: 32px; min-width: 26px; padding: 0; border-radius: 13px; }
+.barre-qq .puce-filtre svg { width: 15px; height: 15px; color: var(--primaire); flex: none; }
+.barre-qq .puce-filtre b { color: var(--gris); font-size: 10px; flex: none; }
+.barre-qq .txt-court { display: none; }
+.barre-qq .txt-plein { display: inline; }
+@media (max-width: 380px) {
+  .barre-qq > .puce-filtre { padding: 0 5px; font-size: 12px; max-width: 38%; }
+  .barre-qq .qq-quand .puce-filtre { padding: 0 4px; font-size: 12px; }
+  .barre-qq .txt-plein { display: none; }
+  .barre-qq .txt-court { display: inline; }
+  .barre-qq .qq-quand .bouton-icone { width: 24px; min-width: 24px; }
+}
 .qq-quand .bouton-icone svg { transform: rotate(90deg); }
 .qq-quand .bouton-icone.suivant svg { transform: rotate(-90deg); }
 .puce-filtre { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border-radius: 19px; border: 1.5px solid var(--trait);
@@ -1812,6 +1834,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .puce { max-width: 100%; min-width: 0; white-space: normal; text-align: center; line-height: 1.25; overflow-wrap: anywhere; word-break: break-word; box-sizing: border-box; }
 .segment { max-width: 100%; min-width: 0; overflow: hidden; }
 .segment button { min-width: 0; white-space: normal; line-height: 1.2; padding: 8px 6px; overflow-wrap: anywhere; }
+.segment.petit button { white-space: nowrap !important; word-break: normal !important; overflow-wrap: normal !important; min-width: 52px; padding: 0 10px; }
 .cr-boutons, .feuille-pied { display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; box-sizing: border-box; }
 .cr-boutons .bouton, .feuille-pied .bouton { min-width: 0; max-width: 100%; flex: 1 1 auto; white-space: normal; line-height: 1.2; text-align: center; justify-content: center; }
 
