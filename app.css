@@ -2753,17 +2753,36 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   overflow-wrap: break-word !important;
 }
 
-/* 3.26.29 : Appui très long sur date planifiée & suppression dédiée */
-.frise-plan .bj-jour {
+/* 3.26.31 : Appui très long (~650ms) sur date planifiée (frise ou titre) pour suppression */
+.frise-plan .bj-jour,
+.tete-jour-plan,
+.bilan-jour {
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
+}
+.frise-plan .bj-jour {
   touch-action: manipulation;
 }
 .bj-jour.appui-long-actif {
-  transform: scale(.91) !important;
-  border-color: var(--primaire) !important;
-  box-shadow: 0 0 0 3px rgba(10, 108, 116, .25) !important;
-  transition: transform .7s ease, border-color .7s ease, box-shadow .7s ease !important;
+  transform: scale(.92) !important;
+  border-color: #c0392b !important;
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, .3) !important;
+  transition: transform .65s cubic-bezier(.2, .8, .2, 1), border-color .65s ease, box-shadow .65s ease !important;
+}
+.tete-jour-plan.appui-long-actif,
+.bilan-jour.appui-long-actif {
+  opacity: 0.75 !important;
+  transform: scale(.98) !important;
+  background: rgba(192, 57, 43, .06) !important;
+  border-radius: 8px !important;
+  transition: transform .65s cubic-bezier(.2, .8, .2, 1), opacity .65s ease, background-color .65s ease !important;
+}
+
+.bouton-danger-plein {
+  background: #c0392b !important;
+  border-color: #c0392b !important;
+  color: #fff !important;
 }
 
 .tete-jour-droite {
@@ -2771,29 +2790,5 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   align-items: center;
   gap: 6px;
   flex: none;
-}
-.btn-suppr-jour {
-  all: unset;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--trait);
-  background: var(--papier);
-  color: var(--gris);
-  cursor: pointer;
-  transition: color .2s, background-color .2s, border-color .2s;
-}
-.btn-suppr-jour svg {
-  width: 17px;
-  height: 17px;
-}
-.btn-suppr-jour:active, .btn-suppr-jour:hover {
-  color: #c0392b !important;
-  border-color: rgba(192, 57, 43, .35) !important;
-  background: rgba(192, 57, 43, .08) !important;
 }
 

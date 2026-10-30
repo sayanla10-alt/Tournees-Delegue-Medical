@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.30';
+  var APP_VERSION = '3.26.31';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.31', [
+      'Onglet Planifier : Suppression d\'une date planifiée par appui long (~650 ms) sur n\'importe quelle date de la frise ou sur le titre de la journée',
+      'Retour haptique : Vibration au déclenchement de l\'appui long sur smartphone compatible',
+      'Confirmation sécurisée : Boîte de dialogue de confirmation avec bouton de suppression dédié et protection anti-fermeture accidentelle (retrait définitif du bouton corbeille)',
+      'Communes visitées : Compteur, chevron et sélection « Jour / Sem. » alignés sur une seule ligne compacte'
+    ]],
     ['3.26.30', [
       'Onglet Planifier : « Communes visitées », compteur et « Jour / Sem. » alignés sur une seule ligne compacte',
       'Onglet Planifier : Déblocage garanti de tous les clics après suppression ou appui long'
@@ -1909,76 +1915,115 @@
     o.style.left = (e.clientX - r.left - s / 2) + 'px'; o.style.top = (e.clientY - r.top - s / 2) + 'px';
     b.appendChild(o); setTimeout(function () { o.remove(); }, 600);
   }, { passive: true });
-  // 3.26.30 : appui très long (~700ms) sur une date planifiée dans l'onglet Planifier pour la supprimer
+  // 3.26.31 : appui très long (~650ms) sur une date planifiée dans l'onglet Planifier (frise ou titre) pour la supprimer
   (function () {
     var timer = null, startX = 0, startY = 0, cibleDate = null, cibleEl = null, longPressFired = false;
+    var dernierAppuiLongFired = 0;
+    var dernierTouchTime = 0;
+    var DUREE_APPUI_LONG = 650;
+
     function annulerAppuiLong() {
       if (timer) { clearTimeout(timer); timer = null; }
       if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
       cibleDate = null;
       longPressFired = false;
     }
+
     function demarrerAppuiLong(e) {
       annulerAppuiLong();
       if (S.ui.tab !== 'semaine') return;
-      var b = e.target && e.target.closest && e.target.closest('.frise-plan .bj-jour[data-v], .tete-jour-plan .bilan-jour');
-      if (!b) return;
-      var date = b.dataset.v || S.ui.jour;
+
+      // Détection sur n'importe quelle date planifiée de la frise OU sur le titre / en-tête de la journée
+      var bjBtn = e.target && e.target.closest && e.target.closest('.frise-plan .bj-jour[data-v]');
+      var tetePlan = e.target && e.target.closest && e.target.closest('.tete-jour-plan');
+      if (!bjBtn && !tetePlan) return;
+
+      var date = bjBtn ? bjBtn.dataset.v : S.ui.jour;
       if (!date) return;
       var nb = S.plan.filter(function (a) { return a.date === date; }).length;
-      if (!nb) return;
+      if (!nb && !S.jours[date] && datesPlan().indexOf(date) < 0) return;
 
       var pt = e.touches ? e.touches[0] : e;
       startX = pt.clientX;
       startY = pt.clientY;
       cibleDate = date;
-      cibleEl = b;
+      cibleEl = bjBtn || (tetePlan.querySelector('.bilan-jour') || tetePlan);
       cibleEl.classList.add('appui-long-actif');
+
       timer = setTimeout(function () {
         timer = null;
         longPressFired = true;
+        dernierAppuiLongFired = Date.now();
         if (cibleEl) {
-          cibleEl.__bloqueClic = Date.now() + 800;
           cibleEl.classList.remove('appui-long-actif');
+          cibleEl = null;
         }
-        try { if (navigator.vibrate) navigator.vibrate([60, 50, 60]); } catch (err) {}
+        // Retour haptique : vibration au déclenchement sur smartphone compatible
+        try {
+          if (navigator.vibrate) navigator.vibrate([40, 40, 40]);
+        } catch (err) {}
         demanderSuppressionJour(date, nb);
-      }, 700);
+      }, DUREE_APPUI_LONG);
     }
+
     function bougerAppuiLong(e) {
       if (!timer) return;
       var pt = e.touches ? e.touches[0] : e;
       var dx = Math.abs(pt.clientX - startX), dy = Math.abs(pt.clientY - startY);
-      if (dx > 20 || dy > 20) annulerAppuiLong();
+      if (dx > 24 || dy > 24) annulerAppuiLong();
     }
+
     function terminerAppuiLong(e) {
-      if (longPressFired && e && e.cancelable) e.preventDefault();
+      if (longPressFired) {
+        dernierAppuiLongFired = Date.now();
+        if (e && e.cancelable) e.preventDefault();
+      }
       annulerAppuiLong();
     }
 
     // Touch events (mobiles & tablettes)
     document.addEventListener('touchstart', function (e) {
+      dernierTouchTime = Date.now();
       if (e.touches && e.touches.length > 1) { annulerAppuiLong(); return; }
       demarrerAppuiLong(e);
     }, { passive: true });
     document.addEventListener('touchmove', bougerAppuiLong, { passive: true });
     document.addEventListener('touchend', terminerAppuiLong, { passive: false });
-    document.addEventListener('touchcancel', annulerAppuiLong, { passive: true });
+    document.addEventListener('touchcancel', function () {
+      if (!longPressFired) annulerAppuiLong();
+    }, { passive: true });
 
     // Pointer/Mouse events (ordinateurs & souris)
     document.addEventListener('mousedown', function (e) {
+      if (Date.now() - dernierTouchTime < 1000) return;
       if (e.button !== 0) return;
       demarrerAppuiLong(e);
     });
     document.addEventListener('mousemove', bougerAppuiLong);
     document.addEventListener('mouseup', terminerAppuiLong);
 
-    document.addEventListener('contextmenu', function (e) {
-      if (cibleEl || longPressFired) {
+    // Empêcher l'ouverture du menu contextuel Android / iOS lors de l'appui long
+    // Crucial : ne pas appeler annulerAppuiLong() ici car contextmenu se déclenche vers ~500ms sur mobile !
+    window.addEventListener('contextmenu', function (e) {
+      if (cibleEl || longPressFired || (Date.now() - dernierAppuiLongFired < 1200)) {
         e.preventDefault();
-        annulerAppuiLong();
       }
-    });
+    }, true);
+
+    // Bloquer impérativement tout clic parasite synthétisé lors du relâchement du doigt après un appui long
+    // (évite notamment la fermeture immédiate de la feuille de confirmation par clic sur le voile,
+    //  ou le basculement accidentel vers une autre date sur la frise sous-jacente)
+    window.addEventListener('click', function (e) {
+      if (Date.now() - dernierAppuiLongFired < 800) {
+        // Laisser impérativement passer les clics sur les boutons de la boîte de dialogue modale
+        if (e.target && e.target.closest && e.target.closest('.feuille-pied, .feuille-corps, .feuille-tete')) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      }
+    }, true);
   })();
   // 3.25.24 : glissement fluide (courbe cubic-bezier) et cliqué-glissé avec inertie sur les bandeaux horizontaux
   function glisserHorizontal(el, depart, cible, duree) {
@@ -2888,9 +2933,8 @@
       km(totalKm),
       comJour.length ? esc(comJour.join(', ')) : ''
     ].filter(Boolean).join(' · ');
-    var btnSupprJour = duJour.length ? '<button type="button" class="btn-suppr-jour" data-a="supprimerJour" data-v="' + d + '" title="Supprimer la journée" aria-label="Supprimer la journée">' + icone('poubelle') + '</button>' : '';
     h += '<div class="tete-jour-plan"><div class="bilan-jour"><div><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') + '</div>' +
-      '<div class="discret details-plan">' + details + '</div></div><div class="tete-jour-droite">' + etat + btnSupprJour + '</div></div>';
+      '<div class="discret details-plan">' + details + '</div></div><div class="tete-jour-droite">' + etat + '</div></div>';
     h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
     var actionsPlan = '';
     if (enAttente) {
@@ -3090,10 +3134,9 @@
     S.ui.ouvert = null; sauver(); rendre(); publierPlan();
     toast(a.nom + ' retiré de la tournée.');
   }
-  // 3.26.28 : suppression d'une journée planifiée après confirmation (appui très long sur la date)
+  // 3.26.31 : suppression d'une journée planifiée après confirmation (appui très long sur la date)
   function supprimerJourPlanifie(date) {
     var nb = S.plan.filter(function (x) { return x.date === date; }).length;
-    if (!nb) return;
     S.plan = S.plan.filter(function (x) { return x.date !== date; });
     delete S.jours[date];
     var rt = LS.get('joursRetires', {});
@@ -3113,15 +3156,16 @@
     toast('Journée du ' + dateFr(date) + ' supprimée.');
   }
   function demanderSuppressionJour(date, nb) {
-    nb = nb || S.plan.filter(function (a) { return a.date === date; }).length;
-    if (!nb) return;
+    nb = (nb !== undefined && nb !== null) ? nb : S.plan.filter(function (a) { return a.date === date; }).length;
     var dLong = majuscule(dateLongue(date));
-    var nStr = nb + ' visite' + (nb > 1 ? 's' : '');
+    var nStr = nb > 0 ? (nb + ' visite' + (nb > 1 ? 's' : '')) : 'aucune visite';
     confirmerPuis(
       'Supprimer la journée',
-      'Voulez-vous supprimer toutes les visites prévues le <b>' + dLong + '</b> (' + nStr + ') ?<br><span class="discret">Cette journée sera retirée de votre planning.</span>',
+      'Voulez-vous supprimer ' + (nb > 0 ? 'toutes les visites prévues le ' : 'la journée du ') + '<b>' + dLong + '</b> (' + nStr + ') ?<br><span class="discret">Cette journée sera retirée de votre planning.</span>',
       'Supprimer la journée',
-      function () { supprimerJourPlanifie(date); }
+      function () { supprimerJourPlanifie(date); },
+      null,
+      'bouton-plein bouton-danger-plein'
     );
   }
   // Confirmation avant tout changement de la tournée
@@ -3140,14 +3184,14 @@
   }
   // 3.19.0 : toute question se pose en trois boutons : Oui (appliquer), Non (refuser ; action propre à la question,
   // sinon retour à l'écran), Sortir (fermer sans rien changer et quitter le parcours en cours)
-  function confirmerPuis(titre, message, libelleOui, action, siNon) {
-    S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action, non: siNon || null };
+  function confirmerPuis(titre, message, libelleOui, action, siNon, ouiClasse) {
+    S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action, non: siNon || null, ouiClasse: ouiClasse || null };
     rendre();
   }
-  function piedQuestion(ouiAttrs, ouiLib, nonAction) {
+  function piedQuestion(ouiAttrs, ouiLib, nonAction, ouiClasse) {
     return '<button class="bouton-texte sortir-question" type="button" data-a="sortirQuestion">Sortir</button>' +
       '<button class="bouton" type="button" data-a="' + (nonAction || 'fermerFeuille') + '">Non</button>' +
-      '<button class="bouton bouton-plein" type="button" ' + ouiAttrs + '>' + ouiLib + '</button>';
+      '<button class="bouton ' + (ouiClasse || 'bouton-plein') + '" type="button" ' + ouiAttrs + '>' + ouiLib + '</button>';
   }
 
   // 3.25.35 : Abréviation intelligente des établissements trop longs
@@ -6250,7 +6294,7 @@
   }
   FEUILLES.confirmer = function (f) {
     return { corps: '<p style="margin-top:0">' + f.message + '</p>',
-      pied: piedQuestion('data-a="confirmerOui"', esc(f.oui), 'confirmerNon') };
+      pied: piedQuestion('data-a="confirmerOui"', esc(f.oui), 'confirmerNon', f.ouiClasse) };
   };
 
   FEUILLES.choixAccepter = function (f) {
