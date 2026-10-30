@@ -1,7 +1,9 @@
 {
-  "version": "3.26.29",
+  "version": "3.26.30",
   "date": "2026-10-30",
   "notes": [
+    "Onglet Planifier : « Communes visitées », compteur et « Jour / Sem. » alignés sur une seule ligne compacte",
+    "Onglet Planifier : Déblocage garanti de tous les clics après suppression ou appui long",
     "Onglet Planifier : Suppression de journée fiabilisée par appui très long tactile & bouton corbeille dédié",
     "Onglet Planifier : « Communes visitées » affiché en entier sans troncature sur tous les écrans",
     "Onglet Planifier : Appui très long sur une date planifiée pour la supprimer avec message de confirmation",

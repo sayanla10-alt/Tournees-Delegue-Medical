@@ -429,16 +429,17 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .couverture .groupe-bascule small { margin-left: 4px; }
 .couverture[aria-expanded] {}
 .couv-tete .groupe-bascule[aria-expanded="true"] svg { transform: rotate(180deg); }
-.couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin-bottom: 6px; }
-.couv-tete .groupe-bascule { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-.couv-tete .groupe-bascule b { font: 700 15px var(--titre); white-space: nowrap !important; overflow: visible !important; text-overflow: unset !important; }
-.couv-tete .groupe-bascule small { margin-left: 4px; flex: none; font-size: 13px; color: var(--gris); white-space: nowrap !important; overflow: visible !important; text-overflow: unset !important; }
-.couv-tete .groupe-bascule svg { flex: none; }
-.couv-tete .segment.petit { flex: 0 0 auto; margin-left: auto; }
+.couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: nowrap !important; margin-bottom: 6px; width: 100%; }
+.couv-tete .groupe-bascule { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+.couv-tete .groupe-bascule b { font: 700 14px var(--titre); white-space: nowrap !important; overflow: visible !important; text-overflow: unset !important; flex: none; }
+.couv-tete .groupe-bascule small { margin-left: 2px; flex: none; font-size: 12.5px; font-weight: 600; color: var(--gris); white-space: nowrap !important; overflow: visible !important; text-overflow: unset !important; }
+.couv-tete .groupe-bascule svg { flex: none; width: 16px; height: 16px; }
+.couv-tete .segment.petit { flex: none; margin-left: auto; }
 .couv-tete .segment.petit button, .segment.petit button {
-  min-height: 32px;
-  padding: 0 10px;
-  font-size: 13px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
   white-space: nowrap !important;
   word-break: normal !important;
   overflow-wrap: normal !important;
@@ -2732,7 +2733,10 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 /* 3.26.25 : mention GPS compacte (icone + GPS) */
 .ok-gps svg, .lieu-resume-simple .discret svg { width: 12px; height: 12px; vertical-align: -2px; }
 
-/* 3.26.28 : 'Communes visitées' toujours visible en entier sans troncature */
+/* 3.26.30 : 'Communes visitées', compteur et 'Jour / Sem.' sur une seule ligne compacte */
+.couv-tete {
+  flex-wrap: nowrap !important;
+}
 .couv-tete .groupe-bascule b {
   white-space: nowrap !important;
   overflow: visible !important;

@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.29';
+  var APP_VERSION = '3.26.30';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.30', [
+      'Onglet Planifier : « Communes visitées », compteur et « Jour / Sem. » alignés sur une seule ligne compacte',
+      'Onglet Planifier : Déblocage garanti de tous les clics après suppression ou appui long'
+    ]],
     ['3.26.29', [
       'Onglet Planifier : Suppression de journée fiabilisée par appui très long tactile & bouton corbeille dédié',
       'Onglet Planifier : « Communes visitées » affiché en entier sans troncature sur tous les écrans'
@@ -1905,15 +1909,17 @@
     o.style.left = (e.clientX - r.left - s / 2) + 'px'; o.style.top = (e.clientY - r.top - s / 2) + 'px';
     b.appendChild(o); setTimeout(function () { o.remove(); }, 600);
   }, { passive: true });
-  // 3.26.29 : appui très long (~700ms) sur une date planifiée dans l'onglet Planifier pour la supprimer
+  // 3.26.30 : appui très long (~700ms) sur une date planifiée dans l'onglet Planifier pour la supprimer
   (function () {
     var timer = null, startX = 0, startY = 0, cibleDate = null, cibleEl = null, longPressFired = false;
     function annulerAppuiLong() {
       if (timer) { clearTimeout(timer); timer = null; }
       if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
       cibleDate = null;
+      longPressFired = false;
     }
     function demarrerAppuiLong(e) {
+      annulerAppuiLong();
       if (S.ui.tab !== 'semaine') return;
       var b = e.target && e.target.closest && e.target.closest('.frise-plan .bj-jour[data-v], .tete-jour-plan .bilan-jour');
       if (!b) return;
@@ -1921,8 +1927,7 @@
       if (!date) return;
       var nb = S.plan.filter(function (a) { return a.date === date; }).length;
       if (!nb) return;
-      annulerAppuiLong();
-      longPressFired = false;
+
       var pt = e.touches ? e.touches[0] : e;
       startX = pt.clientX;
       startY = pt.clientY;
@@ -1932,8 +1937,10 @@
       timer = setTimeout(function () {
         timer = null;
         longPressFired = true;
-        window.__bloqueClicJour = Date.now() + 1000;
-        if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
+        if (cibleEl) {
+          cibleEl.__bloqueClic = Date.now() + 800;
+          cibleEl.classList.remove('appui-long-actif');
+        }
         try { if (navigator.vibrate) navigator.vibrate([60, 50, 60]); } catch (err) {}
         demanderSuppressionJour(date, nb);
       }, 700);
@@ -1967,7 +1974,7 @@
     document.addEventListener('mouseup', terminerAppuiLong);
 
     document.addEventListener('contextmenu', function (e) {
-      if (cibleEl || longPressFired || (window.__bloqueClicJour && Date.now() < window.__bloqueClicJour)) {
+      if (cibleEl || longPressFired) {
         e.preventDefault();
         annulerAppuiLong();
       }
@@ -4182,7 +4189,7 @@
       '<b>Communes visitées</b><small>' + couv.length + '/' + cv.length + '</small>' + icone('chevron') + '</button>' +
       '<div class="segment petit" role="group" aria-label="Période">' +
         '<button type="button" data-a="couvPortee" data-v="jour" aria-pressed="' + (portee === 'jour') + '">Jour</button>' +
-        '<button type="button" data-a="couvPortee" data-v="semaine" aria-pressed="' + (portee === 'semaine') + '">Semaine</button></div></div>';
+        '<button type="button" data-a="couvPortee" data-v="semaine" aria-pressed="' + (portee === 'semaine') + '" title="Semaine">Sem.</button></div></div>';
     if (!ouverte) return h + '</section>';
     h += '<div class="carte-l" id="carteCouv">' + carteCouverture(dates, mes, eq) + '</div>' +
       '<div class="legende"><span><i class="q-moi"></i>Mes visites' + (portee === 'jour' ? ' (dans l\'ordre)' : '') + '</span><span><i class="q-equipe"></i>Équipe</span><span><i class="q-vide"></i>Commune non visitée</span></div>';
@@ -7799,7 +7806,7 @@
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) {
-      if (window.__bloqueClicJour && Date.now() < window.__bloqueClicJour) return;
+      if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
       S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; rendre();
     },
@@ -9104,17 +9111,16 @@
   };
 
   document.addEventListener('click', function (e) {
-    if (window.__bloqueClicJour && Date.now() < window.__bloqueClicJour) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
     var el = e.target.closest('[data-a]');
     if (!el || !ACTIONS[el.dataset.a] || el.disabled) return;
+    if (el.__bloqueClic && Date.now() < el.__bloqueClic) {
+      e.preventDefault();
+      return;
+    }
     if (el.tagName === 'A') return;
     e.preventDefault();
     ACTIONS[el.dataset.a](el, e);
-  }, true);
+  });
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
