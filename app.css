@@ -2168,7 +2168,14 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   border: 1px solid var(--trait);
 }
 
-/* Médecins engagés : couleur de police Ambre Chaud / Or Prescripteur (#B45309) */
+/* Praticiens par défaut : police noire / encre d'origine */
+.element .element-titre,
+.arret-carte .arret-nom,
+.ligne-plan .lp-corps b {
+  color: var(--encre);
+}
+
+/* Médecins engagés exclusivement : couleur de police Ambre Chaud / Or Prescripteur (#B45309) */
 .element.med-engage .element-titre,
 .element.med-engage .element-tete > div > b:nth-of-type(2),
 .arret-carte.med-engage .arret-nom,

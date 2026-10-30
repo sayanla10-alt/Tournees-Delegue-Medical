@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.17';
+  var APP_VERSION = '3.26.18';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.18', [
+      'Médecins engagés exclusivement : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309), tous les autres praticiens strictement en noir comme avant, petites étiquettes inchangées'
+    ]],
     ['3.26.17', [
       'Onglet Journée : Calendrier mensuel repensé plus moderne et aéré (grandes cellules 44px au pouce, badge d\'année, chips d\'accès rapide, indicateur d\'activité)',
       'Médecins engagés : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309) dans toute l\'application'

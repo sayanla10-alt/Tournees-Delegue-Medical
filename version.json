@@ -1,7 +1,8 @@
 {
-  "version": "3.26.17",
+  "version": "3.26.18",
   "date": "2026-10-30",
   "notes": [
+    "Médecins engagés exclusivement : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309), tous les autres praticiens strictement en noir comme avant, petites étiquettes inchangées",
     "Onglet Journée : Calendrier mensuel repensé plus moderne et aéré (grandes cellules 44px au pouce, badge d'année, chips d'accès rapide, indicateur d'activité)",
     "Médecins engagés : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309) dans toute l'application",
     "Fiches produits (BDD & App) : Ajout de la colonne A « Actif » avec cases à cocher dans Google Sheets ; tout médicament décoché est automatiquement masqué dans toute l'application",
