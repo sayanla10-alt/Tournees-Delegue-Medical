@@ -1,10 +1,8 @@
 {
-  "version": "3.26.44",
+  "version": "3.26.45",
   "date": "2026-10-30",
   "notes": [
-    "Critères de recherche : Bouton « Visité -30 j » en accès direct et dans le suivi pour filtrer tous les praticiens visités ces 30 derniers jours",
-    "Secteurs & Quartiers : Préservation explicite de « Cocody Centre » (ne s'affiche plus sous la dénomination ambiguë « Centre »)",
-    "Établissements : « CSU Communautaire » abrégé en « CSU COM » (titres et fiches)",
-    "Adresses & Voirie : « Boulevard » harmonisé en « Blvd. » (adresses, fiches et tournées)"
+    "Planifier : Remplacement strict par type (médecins remplacés uniquement par médecins, pharmacies uniquement par pharmacies)",
+    "Répertoire : Mention « Touchez M ou S pour planifier » affichée systématiquement à côté du bouton GPS pour chaque établissement"
   ]
 }

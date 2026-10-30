@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.44';
+  var APP_VERSION = '3.26.45';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.45', [
+      'Planifier : Remplacement strict par type (médecins remplacés uniquement par médecins, pharmacies uniquement par pharmacies)',
+      'Répertoire : Mention « Touchez M ou S pour planifier » affichée systématiquement à côté du bouton GPS sur chaque établissement'
+    ]],
     ['3.26.44', [
       'Recherche : Bouton « Visité -30 j » en accès direct et dans le suivi pour filtrer tous les praticiens visités ces 30 derniers jours',
       'Secteurs & Quartiers : Préservation explicite de « Cocody Centre » (ne s\'affiche plus sous la dénomination isolée « Centre »)',
@@ -3334,9 +3338,13 @@
     var dansPlan = ensemble(S.plan.filter(function (x) { return x.date === d; }).map(function (x) { return x.code; }));
     var origine = coordArret(a), vus = {}, l = [];
     var lieuA = a.lieu || '';
+    var cibleEstPh = estPharmacie(a);
     (c.parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
-      if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || (filtre && !filtre(p)) || absentLe(p, d)) return;
+      var pEstPh = estPharmacie(p);
+      if (pEstPh !== cibleEstPh) return;   // Remplacement strict : médecins par médecins, pharmacies par pharmacies
+      if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || absentLe(p, d)) return;
+      if (!cibleEstPh && filtre && !filtre(p)) return;
       if (d === aujourdhui() && cr.fin <= minutesMaintenant()) return;   // aujourd'hui : seulement ceux encore présents
       if (joursEcoules(p.derniere, d) < (+S.params.delai || 0)) return;
       var dist = origine && cr.coord ? distanceKm(origine, cr.coord) : 99;
@@ -5602,7 +5610,7 @@
         ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
         '<div class="ligne-micro-gps-plan" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap"><button type="button" class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" data-a="majGpsLieuDirect" data-v="' + esc(code) + '" data-i="' + idx + '" title="' + (hasGps ? 'GPS déjà fixé pour cet établissement. Touchez pour réactualiser sur place' : 'Touchez pour capter et fixer le GPS de cet établissement') + '">' +
           icone('carte') + '<span>GPS</span></button>' +
-          (idx === 0 ? '<span class="discret texte-aide-plan" style="font-size:11px;line-height:1.2;white-space:nowrap;flex-shrink:0">Touchez M ou S pour planifier</span>' : '') +
+          (!estPh ? '<span class="discret texte-aide-plan" style="font-size:11px;line-height:1.2;white-space:nowrap;flex-shrink:0">Touchez M ou S pour planifier</span>' : '') +
         '</div>' +
         '</td>' +
         JOURS_CLES.map(function (j, i) {
@@ -6533,36 +6541,38 @@
         return mots.every(function (m) { return txt.indexOf(m) >= 0; });
       });
     }
+    var a = arret(f.uid), phA = a && estPharmacie(a);
     if (!l.length) {
-      return '<p class="discret" style="margin:12px 0">' + (mots.length ? 'Aucun praticien ne correspond à « ' + esc(q) + ' ».' : 'Aucun autre praticien disponible.') + '</p>';
+      return '<p class="discret" style="margin:12px 0">' + (mots.length ? 'Aucun ' + (phA ? 'établissement' : 'praticien') + ' ne correspond à « ' + esc(q) + ' ».' : 'Aucun' + (phA ? 'e autre pharmacie' : ' autre médecin') + ' disponible.') + '</p>';
     }
-    var a = arret(f.uid);
     return '<ul class="liste">' + l.map(function (x) {
-      var p = x.cr.prat;
+      var p = x.cr.prat, ph = estPharmacie(p);
       return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '">' +
-        '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-        '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
+        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + (ph ? '' : ' ' + etoiles(p.note)) + '</span>' +
+        '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [ph ? '' : p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
         '<span class="discret bloc-texte">' + x.cr.creneau + ' ' + minutesVersHeure(x.cr.debut) + '-' + minutesVersHeure(x.cr.fin) + ' · passage vers ' + esc(x.heure) +
           (x.dist < 99 ? ' · ' + km(x.dist) + ' du lieu remplacé' : '') + '</span>' +
-        '<span class="etiquettes">' + (x.memeLieu ? '<span class="etiquette ok">Même établissement</span>' : '') + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, (a ? a.date : ''))) + '</span>' +
+        '<span class="etiquettes">' + (x.memeLieu ? '<span class="etiquette ok">Même établissement</span>' : '') + (ph ? '' : badgeConv(p.conventionne)) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, (a ? a.date : ''))) + '</span>' +
           (x.ok ? '' : '<span class="etiquette alerte">Horaire difficile à tenir</span>') + '</span></button></li>';
     }).join('') + '</ul>';
   }
   FEUILLES.remplacer = function (f) {
     var a = arret(f.uid);
     if (!a) return '<p class="discret">Visite introuvable.</p>';
+    var ph = estPharmacie(a);
+    var libType = ph ? 'une pharmacie' : 'un médecin';
     if (f.choix) {
       var x = f.choix;
-      if (f.garder) return { corps: '<p style="margin-top:0">Ajouter <b>' + esc(x.nom) + '</b> ' + etoiles(x.note) + ' (' + esc(x.heure) + ', ' + esc(x.lieu) + ', ' + esc(x.quartier) + ') à votre journée,<br>en remplacement de <b>' + esc(a.nom) + '</b> (' + esc(statutLibelle(a).toLowerCase()) + ') ?</p><p class="discret">Le compte rendu de ' + esc(a.nom) + ' est conservé. L\'ordre de passage sera recalculé.</p>',
+      if (f.garder) return { corps: '<p style="margin-top:0">Ajouter <b>' + esc(x.nom) + '</b>' + (ph ? '' : ' ' + etoiles(x.note)) + ' (' + esc(x.heure) + ', ' + esc(x.lieu) + ', ' + esc(x.quartier) + ') à votre journée,<br>en remplacement de <b>' + esc(a.nom) + '</b> (' + esc(statutLibelle(a).toLowerCase()) + ') ?</p><p class="discret">Le compte rendu de ' + esc(a.nom) + ' est conservé. L\'ordre de passage sera recalculé.</p>',
         pied: piedQuestion('data-a="remplacerOui"', 'Ajouter', 'remplacerNon') };
-      return { corps: '<p style="margin-top:0">Remplacer <b>' + esc(a.nom) + '</b> (' + esc(a.heure) + ', ' + esc(a.lieu) + ')<br>par <b>' + esc(x.nom) + '</b> ' + etoiles(x.note) +
+      return { corps: '<p style="margin-top:0">Remplacer <b>' + esc(a.nom) + '</b> (' + esc(a.heure) + ', ' + esc(a.lieu) + ')<br>par <b>' + esc(x.nom) + '</b>' + (ph ? '' : ' ' + etoiles(x.note)) +
           ' (' + esc(x.heure) + ', ' + esc(x.lieu) + ', ' + esc(x.quartier) + ') ?</p><p class="discret">' + majuscule(dateLongue(a.date)) + '. L\'ordre de passage sera recalculé.</p>',
         pied: piedQuestion('data-a="remplacerOui"', 'Remplacer', 'remplacerNon') };
     }
     var l = candidatsRemplacement(a);
-    if (!l.length) return '<p class="sous-titre" style="margin-top:0">Choisissez un praticien disponible pour rattraper et remplacer cette visite.</p><p class="discret">Aucun autre praticien disponible ce jour-là selon vos critères (communes, spécialités, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>';
+    if (!l.length) return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer cette visite.</p><p class="discret">Aucun' + (ph ? 'e autre pharmacie' : ' autre médecin') + ' disponible ce jour-là selon vos critères (communes, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>';
     var q = f.q || '';
-    return '<p class="sous-titre" style="margin-top:0">Choisissez un praticien disponible pour rattraper et remplacer <b>' + esc(a.nom) + '</b> dans votre tournée du ' + dateFr(a.date) + ' :</p>' +
+    return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer <b>' + esc(a.nom) + '</b> dans votre tournée du ' + dateFr(a.date) + ' :</p>' +
       champRechercheLibre('rechRemplacer', q) +
       '<div id="resRemplacer" style="margin-top:8px">' + listeCandidatsRemplacementHtml(f, l, q) + '</div>';
   };
