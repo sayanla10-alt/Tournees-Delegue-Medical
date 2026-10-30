@@ -9,14 +9,18 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.31';
+  var APP_VERSION = '3.26.32';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.32', [
+      'Suppression de date planifiée : Bouton de confirmation harmonisé avec la charte graphique sarcelle (aucun rouge)',
+      'Respect strict de la charte visuelle médicale sur l\'ensemble des modales et animations'
+    ]],
     ['3.26.31', [
       'Onglet Planifier : Suppression d\'une date planifiée par appui long (~650 ms) sur n\'importe quelle date de la frise ou sur le titre de la journée',
       'Retour haptique : Vibration au déclenchement de l\'appui long sur smartphone compatible',
-      'Confirmation sécurisée : Boîte de dialogue de confirmation avec bouton de suppression dédié et protection anti-fermeture accidentelle (retrait définitif du bouton corbeille)',
+      'Confirmation sécurisée : Boîte de dialogue de confirmation avec protection anti-fermeture accidentelle (retrait définitif du bouton corbeille)',
       'Communes visitées : Compteur, chevron et sélection « Jour / Sem. » alignés sur une seule ligne compacte'
     ]],
     ['3.26.30', [
@@ -3163,9 +3167,7 @@
       'Supprimer la journée',
       'Voulez-vous supprimer ' + (nb > 0 ? 'toutes les visites prévues le ' : 'la journée du ') + '<b>' + dLong + '</b> (' + nStr + ') ?<br><span class="discret">Cette journée sera retirée de votre planning.</span>',
       'Supprimer la journée',
-      function () { supprimerJourPlanifie(date); },
-      null,
-      'bouton-plein bouton-danger-plein'
+      function () { supprimerJourPlanifie(date); }
     );
   }
   // Confirmation avant tout changement de la tournée

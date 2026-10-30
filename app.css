@@ -2753,7 +2753,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   overflow-wrap: break-word !important;
 }
 
-/* 3.26.31 : Appui très long (~650ms) sur date planifiée (frise ou titre) pour suppression */
+/* 3.26.32 : Appui long (~650ms) sur date planifiée (charte sarcelle / turquoise respectée sans rouge) */
 .frise-plan .bj-jour,
 .tete-jour-plan,
 .bilan-jour {
@@ -2766,23 +2766,17 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 }
 .bj-jour.appui-long-actif {
   transform: scale(.92) !important;
-  border-color: #c0392b !important;
-  box-shadow: 0 0 0 3px rgba(192, 57, 43, .3) !important;
+  border-color: var(--primaire) !important;
+  box-shadow: 0 0 0 3px rgba(10, 108, 116, .25) !important;
   transition: transform .65s cubic-bezier(.2, .8, .2, 1), border-color .65s ease, box-shadow .65s ease !important;
 }
 .tete-jour-plan.appui-long-actif,
 .bilan-jour.appui-long-actif {
   opacity: 0.75 !important;
   transform: scale(.98) !important;
-  background: rgba(192, 57, 43, .06) !important;
+  background: rgba(10, 108, 116, .08) !important;
   border-radius: 8px !important;
   transition: transform .65s cubic-bezier(.2, .8, .2, 1), opacity .65s ease, background-color .65s ease !important;
-}
-
-.bouton-danger-plein {
-  background: #c0392b !important;
-  border-color: #c0392b !important;
-  color: #fff !important;
 }
 
 .tete-jour-droite {

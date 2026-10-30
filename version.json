@@ -1,10 +1,12 @@
 {
-  "version": "3.26.31",
+  "version": "3.26.32",
   "date": "2026-10-30",
   "notes": [
+    "Suppression de date planifiée : Bouton de confirmation harmonisé avec la charte graphique sarcelle (aucun rouge)",
+    "Respect strict de la charte visuelle médicale sur l'ensemble des modales et animations",
     "Onglet Planifier : Suppression d'une date planifiée par appui long (~650 ms) sur n'importe quelle date de la frise ou sur le titre de la journée",
     "Retour haptique : Vibration au déclenchement de l'appui long sur smartphone compatible",
-    "Confirmation sécurisée : Boîte de dialogue de confirmation avec bouton de suppression dédié et protection anti-fermeture accidentelle (retrait définitif du bouton corbeille)",
+    "Confirmation sécurisée : Boîte de dialogue de confirmation avec protection anti-fermeture accidentelle (retrait définitif du bouton corbeille)",
     "Communes visitées : Compteur, chevron et sélection « Jour / Sem. » alignés sur une seule ligne compacte",
     "Onglet Planifier : Déblocage garanti de tous les clics après suppression ou appui long",
     "Onglet Planifier : Suppression de journée fiabilisée par appui très long tactile & bouton corbeille dédié",
