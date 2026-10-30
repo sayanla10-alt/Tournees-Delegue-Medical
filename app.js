@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.35';
+  var APP_VERSION = '3.26.36';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.36', [
+      'Répertoire : Badge GPS compact avec icône cible et ratio (ex. 🎯 2/2), suppression de la coche et des mentions superflues'
+    ]],
     ['3.26.35', [
       'Planifier : Espacement gauche resserré (gain de 12px), noms des praticiens repoussés vers la gauche',
       'Planifier : Distance en km affichée pour les pharmacies (comme pour les médecins)',
@@ -5289,35 +5292,20 @@
         if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
         h += grillePresences(p.code);
         var impose = S.imposes.some(function (im) { return im.code === p.code; });
-        var nbLieux = lieux.length;
+        var nbLieux = lieux.length || 1;
         var nbGpsFixes = lieux.filter(function (l) {
           var lt = l.lat != null ? +String(l.lat).replace(',', '.') : NaN;
           return isFinite(lt) && lt !== 0;
         }).length;
-        var badgeGpsTexte = '';
-        var badgeGpsClasse = '';
-        if (nbLieux <= 1) {
-          badgeGpsTexte = nbGpsFixes === 1 ? '✓ GPS fixé' : 'GPS non fixé';
-          badgeGpsClasse = nbGpsFixes === 1 ? 'fixe' : 'manquant';
-        } else {
-          if (nbGpsFixes === nbLieux) {
-            badgeGpsTexte = '✓ ' + nbLieux + '/' + nbLieux + ' GPS fixés';
-            badgeGpsClasse = 'fixe';
-          } else if (nbGpsFixes > 0) {
-            badgeGpsTexte = nbGpsFixes + '/' + nbLieux + ' GPS fixés';
-            badgeGpsClasse = 'partiel';
-          } else {
-            badgeGpsTexte = '0/' + nbLieux + ' GPS fixé';
-            badgeGpsClasse = 'manquant';
-          }
-        }
+        var badgeGpsClasse = nbGpsFixes === nbLieux ? 'fixe' : (nbGpsFixes > 0 ? 'partiel' : 'manquant');
+        var badgeGpsHtml = icone('cible') + '<span>' + nbGpsFixes + '/' + nbLieux + '</span>';
         var tAuj = aujourdhui();
         var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === tAuj; });
 
         h += '<div class="bloc-actions-contact" style="margin-top:10px">' +
           '<button class="bouton bouton-plein bouton-gps-ici" type="button" data-a="majGpsDirect" data-v="' + esc(p.code) + '" title="' + (nbLieux > 1 ? 'Capter la position GPS de l\'établissement où vous êtes sur place' : 'Capter votre position GPS précise') + '">' +
             '<span class="gps-ici-gauche">' + icone('cible') + '<b>Capter position GPS</b></span>' +
-            '<span class="gps-ici-badge ' + badgeGpsClasse + '">' + esc(badgeGpsTexte) + '</span>' +
+            '<span class="gps-ici-badge ' + badgeGpsClasse + '" title="' + nbGpsFixes + ' sur ' + nbLieux + ' lieu(x) géolocalisé(s)">' + badgeGpsHtml + '</span>' +
           '</button>' +
           '<div class="rangee rangee-actions-contact">' +
             (dejaAuj

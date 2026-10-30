@@ -2660,12 +2660,20 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   flex-shrink: 0;
 }
 .bouton-gps-ici .gps-ici-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 3px 8px;
   border-radius: 6px;
   letter-spacing: 0;
   text-transform: none;
+}
+.bouton-gps-ici .gps-ici-badge svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 .bouton-gps-ici .gps-ici-badge.fixe {
   background: rgba(255, 255, 255, 0.22);
@@ -2676,8 +2684,8 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   color: var(--orange, #d35400);
 }
 .bouton-gps-ici .gps-ici-badge.manquant {
-  background: #fff;
-  color: var(--rouge, #c0392b);
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* 3.26.19 : Micro-bouton GPS par établissement dans le tableau de présence */

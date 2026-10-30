@@ -1,7 +1,8 @@
 {
-  "version": "3.26.35",
+  "version": "3.26.36",
   "date": "2026-10-30",
   "notes": [
+    "Répertoire : Badge GPS compact avec icône cible et ratio (ex. 🎯 2/2), suppression de la coche et des mentions superflues",
     "Planifier : Espacement gauche resserré (gain de 12px), noms des praticiens repoussés vers la gauche",
     "Planifier : Distance en km affichée pour les pharmacies (comme pour les médecins)",
     "Planifier : Zone Intérieur repliée et masquée par défaut dans les communes visitées",
