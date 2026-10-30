@@ -1,9 +1,9 @@
 {
-  "version": "3.26.48",
+  "version": "3.26.49",
   "date": "2026-10-30",
   "notes": [
-    "Compte Rendu visite : Mémorisation de la hauteur exacte du pouce au clic pour aligner automatiquement les choix et boutons de validation sous le doigt",
-    "Confort et rapidité : Enchaînement fluide des étapes du compte rendu d'une seule main sans gymnastique digitale",
-    "Garde-fou visuel : Intitulé de la question et identité du praticien maintenus 100 % visibles sous l'en-tête (jamais masqués)"
+    "CR Pharmacie : Seuls les produits strictement sélectionnés à l'étape 4 apparaissent à l'étape 5 (suppression du pré-remplissage parasite)",
+    "Remplacement Praticien : Libellés des actions raccourcis et clarifiés (« Changer » et « Remplacer ») avec hauteur harmonisée à 44 px",
+    "Mode Sombre : Adaptation intégrale du bandeau de critères du Répertoire et du bouton « Réinitialiser les filtres » aux tons sombres"
   ]
 }

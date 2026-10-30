@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.48';
+  var APP_VERSION = '3.26.49';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.49', [
+      'CR Pharmacie : Seuls les produits strictement sélectionnés à l\'étape 4 apparaissent à l\'étape 5 (suppression du pré-remplissage parasite)',
+      'Remplacement Praticien : Libellés des actions raccourcis et clarifiés (« Changer » et « Remplacer ») avec hauteur harmonisée à 44 px',
+      'Mode Sombre : Adaptation intégrale du bandeau de critères du Répertoire et du bouton « Réinitialiser les filtres » aux tons sombres'
+    ]],
     ['3.26.48', [
       'CR Visite / Ergonomie pouce : Mémorisation précise du point de contact (hauteur du pouce) lors de l\'ouverture d\'une visite',
       'Défilement intelligent : Les options et boutons de validation s\'affichent directement à la hauteur du pouce sans effort',
@@ -3827,14 +3832,14 @@
       c.produits = lp.filter(function (x) { return ref.indexOf(x) >= 0; }); c.autres = lp.filter(function (x) { return ref.indexOf(x) < 0; }).join(', ');
       if (c.produits.length || c.autres) c.presentes = 'oui';
       else if (!a.statut && !ph) c.produits = derniersProduitsCr().slice();
-      if (ph && !a.statut) c.produitsStock = derniersProduitsStockCr().slice();
+      if (ph && !a.statut) c.produitsStock = [];
       if (a.statut && a.prochaine) { c.suite = c.faite === 'non' ? 'reprogrammer' : 'visite'; c.suiteType = 'rdv'; c.date = a.prochaine; }
       else c.suite = 'aucune';
       a.cr = c;
     } else {
       if (!a.cr.suite && a.etat !== 'valide') a.cr.suite = 'aucune';
       if ((!a.cr.types || !a.cr.types.length) && !a.statut && !(a.cr.ok && a.cr.ok.types)) a.cr.types = derniersTypesCr(ph).slice();
-      if (ph && !a.cr.produitsStock) a.cr.produitsStock = derniersProduitsStockCr().slice();
+      if (ph && !a.cr.produitsStock) a.cr.produitsStock = [];
     }
     return a.cr;
   }
@@ -4195,15 +4200,20 @@
         return prods.length ? '' : 'sélectionnez au moins un produit à vérifier';
       });
       e('stocks', 'Stock par produit', 'continuer', function () {
-        var prods = (c.produitsStock && c.produitsStock.length) ? c.produitsStock : [];
-        if (!prods.length) return '<p class="discret">Aucun produit sélectionné à l\'étape précédente.</p>';
+        var prods = (c.produitsStock && Array.isArray(c.produitsStock)) ? c.produitsStock.slice() : [];
+        if (c.stocks) {
+          Object.keys(c.stocks).forEach(function (k) {
+            if (prods.indexOf(k) < 0) delete c.stocks[k];
+          });
+        }
+        if (!prods.length) return '<p class="discret">Aucun produit sélectionné à l\'étape 4.</p>';
         return '<div class="champs-cr">' + prods.map(function (p) {
-          var s = c.stocks[p] || {};
+          var s = c.stocks[p] || (c.stocks[p] = { etat: 'Disponible' });
           return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="champ"><span>État</span>' + pucesValCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, null, 'puces-etats-stock') + '</div>' +
             '<label class="champ"><span>Quantité</span>' + qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</label>' +
             (s.etat === 'Disponible' || s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="champ"><span>Anomalie</span>' + pucesValCr(a, 'stocks.' + p + '.anomalie', [''].concat(ANOMALIES), s.anomalie || '', { '': 'Aucune' }) + '</div>' +
               (s.anomalie ? '<label class="champ"><span>N° de lot</span><input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot"></label>' : '') : '') + '</div>';
-        }).join('') + '</div>' + texteCr(a, 'autresStock', c.autresStock, 'Autres produits et état, ex. Doliprane rupture');
+        }).join('') + '</div>';
       }, function () { var r = champsCr(a).stocks; return r || 'aucun produit renseigné'; });
     }
     if (!im.commande) e('commande', 'Commande passée ?', 'auto', function () { return choixCr(a, 'commande', [['oui', 'Oui'], ['non', 'Non']], c.commande); }, function () { return oui(c.commande); });
@@ -6693,11 +6703,11 @@
 
     var pied = '<button type="button" class="bouton rc-btn-autre" data-a="remplacerNon">' +
       '<svg class="rc-chevron-gauche" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 19-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-      '<span>Choisir un autre</span>' +
+      '<span>Changer</span>' +
       '</button>' +
       '<button type="button" class="bouton bouton-plein rc-btn-valider" data-a="remplacerOui">' +
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17 19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
-      '<span>Valider le remplacement</span>' +
+      '<span>Remplacer</span>' +
       '</button>';
 
     return { corps: h, pied: pied };
@@ -9201,10 +9211,14 @@
       }
       if (el.dataset.v === 'produitsStock') {
         c.stocks = c.stocks || {};
-        (c.produitsStock || []).forEach(function (p) {
+        var selProds = Array.isArray(c.produitsStock) ? c.produitsStock : [];
+        Object.keys(c.stocks).forEach(function (p) {
+          if (selProds.indexOf(p) < 0) delete c.stocks[p];
+        });
+        selProds.forEach(function (p) {
           if (!c.stocks[p] || !c.stocks[p].etat) c.stocks[p] = Object.assign(c.stocks[p] || {}, { etat: 'Disponible' });
         });
-        memoriserDerniersProduitsStockCr(c.produitsStock || []);
+        memoriserDerniersProduitsStockCr(selProds);
       }
       validerEtape(a, el.dataset.v); rendre(); centrerQuestion(a.uid, S.ui.dernierClicY);
     },

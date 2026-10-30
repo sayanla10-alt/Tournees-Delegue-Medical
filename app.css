@@ -1279,9 +1279,9 @@ details.avance h3 { margin-top: 18px; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #f0f7f8;
-  border: 1px solid rgba(10, 108, 116, 0.22);
-  border-left: 4px solid var(--primaire, #0A6C74);
+  background: var(--papier-2);
+  border: 1px solid var(--trait);
+  border-left: 4px solid var(--primaire);
   border-radius: var(--r, 12px);
   padding: 10px 14px;
   margin: 6px 0 12px;
@@ -1293,7 +1293,7 @@ details.avance h3 { margin-top: 18px; }
   width: 100%;
   font-size: 13.5px;
   line-height: 1.45;
-  color: var(--encre, #1f2937);
+  color: var(--encre);
   font-weight: 600;
   text-align: center;
 }
@@ -3314,14 +3314,16 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   justify-content: center !important;
   gap: 6px !important;
   flex: 1 1 38% !important;
-  min-height: 48px !important;
+  height: 44px !important;
+  min-height: 44px !important;
   font-weight: 650 !important;
-  font-size: 13.5px !important;
+  font-size: 14px !important;
   border-radius: 12px !important;
+  box-sizing: border-box !important;
 }
 .rc-chevron-gauche {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 .rc-btn-valider {
@@ -3329,11 +3331,13 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   align-items: center !important;
   justify-content: center !important;
   gap: 6px !important;
-  flex: 1.4 1 58% !important;
-  min-height: 48px !important;
+  flex: 1.2 1 58% !important;
+  height: 44px !important;
+  min-height: 44px !important;
   font-weight: 700 !important;
   font-size: 14.5px !important;
   border-radius: 12px !important;
+  box-sizing: border-box !important;
 }
 .rc-btn-valider svg {
   width: 18px;
