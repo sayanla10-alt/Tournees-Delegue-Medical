@@ -2726,3 +2726,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   font-size: 14px !important;
 }
 
+
+/* 3.26.25 : mention GPS compacte (icone + GPS) */
+.ok-gps svg, .lieu-resume-simple .discret svg { width: 12px; height: 12px; vertical-align: -2px; }
+

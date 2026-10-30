@@ -1,7 +1,8 @@
 {
-  "version": "3.26.24",
+  "version": "3.26.25",
   "date": "2026-10-30",
   "notes": [
+    "Indicateur GPS simplifié : icône GPS + « GPS » (sans coche ni « fixé »)",
     "En-tête : Rétablissement du bouton de synchronisation avec son libellé textuel complet (« À jour », « Synchro… », « Hors ligne ») et retrait du Copilote IA",
     "Répertoire : Résumé des critères condensé sur 1 à 2 lignes avec abréviations médicales usuelles (cardio, diabéto, gynéco, pédia, dermato, etc.)",
     "Répertoire : Bandeau et bouton « Réinitialiser les filtres » harmonisés avec la charte graphique médicale sarcelle / turquoise (suppression du rouge contrastant)",

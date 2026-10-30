@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.24';
+  var APP_VERSION = '3.26.25';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.25', [
+      'Indicateur GPS simplifié : icône GPS + « GPS » (sans coche ni « fixé »)'
+    ]],
     ['3.26.24', [
       'En-tête : Rétablissement du bouton de synchronisation avec son libellé textuel complet (« À jour », « Synchro… », « Hors ligne ») et retrait du Copilote IA',
       'Répertoire : Résumé des critères condensé sur 1 à 2 lignes avec abréviations médicales usuelles (cardio, diabéto, gynéco, pédia, dermato, etc.)',
@@ -5046,7 +5049,7 @@
       h += '<tr><td><b>' + esc(pr.lieu) + '</b><small>' + esc(pr.quartier) + ', ' + esc(pr.commune) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
         ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
         '<div style="margin-top:4px"><button type="button" class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" data-a="majGpsLieuDirect" data-v="' + esc(code) + '" data-i="' + idx + '" title="' + (hasGps ? 'GPS déjà fixé pour cet établissement. Touchez pour réactualiser sur place' : 'Touchez pour capter et fixer le GPS de cet établissement') + '">' +
-          icone('cible') + '<span>' + (hasGps ? '✓ GPS fixé' : 'Capter GPS') + '</span></button></div>' +
+          icone('cible') + '<span>GPS</span></button></div>' +
         '</td>' +
         JOURS_CLES.map(function (j, i) {
           var d = lireDispo(pr[j]);
@@ -6661,7 +6664,7 @@
         '<div id="doublonsFiche">' + rendreDoublonsFiche(d) + '</div>' +
         '<div class="lieu-bloc" style="margin-bottom:10px;padding:10px">' +
           '<div class="lieu-tete" style="margin-bottom:6px"><b>Localisation fixe de l\'officine</b>' +
-            (l0.lat && l0.lon ? '<span class="badge-discret ok-gps" style="background:var(--vert-pale,#e6f7ec);color:var(--vert,#1e7e34)">✓ GPS fixé</span>' : '') + '</div>' +
+            (l0.lat && l0.lon ? '<span class="badge-discret ok-gps" style="background:var(--vert-pale,#e6f7ec);color:var(--vert,#1e7e34)">' + icone('cible') + ' GPS</span>' : '') + '</div>' +
           '<div class="gps-ligne" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px">' +
             '<button type="button" class="bouton bouton-plein petit" data-a="ficheGps" data-i="0">' + icone('cible') + (l0.lat && l0.lon ? 'Actualiser GPS ici' : 'Captez ma position GPS') + '</button>' +
             (l0.lat && l0.lon ? '<span class="discret">GPS : <b>' + (+String(l0.lat).replace(',', '.')).toFixed(4) + ', ' + (+String(l0.lon).replace(',', '.')).toFixed(4) + '</b> <button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="0">✕</button></span>' : '<span class="discret">Position fixe de la pharmacie</span>') +
@@ -6769,7 +6772,7 @@
           // 3.25.44 : Lieu 1 déjà renseigné à l'étape 1 — résumé compact sans doublon pour afficher directement la grille des jours
           h += '<div class="lieu-resume-simple" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--fond-carte,#f8f9fa);border:1px solid var(--bordure,#e2e8f0);border-radius:8px;padding:8px 12px;margin:0 0 10px">' +
             '<div><b style="font-size:0.95rem">' + esc(l.lieu || 'Établissement principal') + '</b>' +
-            '<div class="discret" style="font-size:0.8rem">' + esc([l.quartier, l.commune || (q ? q.commune : '')].filter(Boolean).join(', ')) + (l.lat && l.lon ? ' · ✓ GPS fixé' : '') + '</div></div>' +
+            '<div class="discret" style="font-size:0.8rem">' + esc([l.quartier, l.commune || (q ? q.commune : '')].filter(Boolean).join(', ')) + (l.lat && l.lon ? ' · ' + icone('cible') + ' GPS' : '') + '</div></div>' +
             '<button type="button" class="bouton-texte" data-a="ficheEditerLieu0" style="font-size:0.8rem">Modifier l\'adresse</button>' +
             '</div>';
         } else {
