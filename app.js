@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.45';
+  var APP_VERSION = '3.26.46';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.46', [
+      'Planifier / Remplacement : Refonte visuelle complète de l\'écran de confirmation en cartes comparatives hiérarchisées (Visite initiale ➔ Nouveau rendez-vous)',
+      'Remplacement : Établissement, adresse, quartier, créneau et heure de passage clairement valorisés sans pavé de texte compact entre parenthèses',
+      'Ergonomie : Boutons d\'action directs « Choisir un autre » et « Valider le remplacement » (suppression des boutons ambigus Sortir et Non)',
+      'Navigation : La touche retour (<) en tête d\'écran revient naturellement à la liste des remplaçants proposés sans fermer la feuille'
+    ]],
     ['3.26.45', [
       'Planifier : Remplacement strict par type (médecins remplacés uniquement par médecins, pharmacies uniquement par pharmacies)',
       'Planifier : Actions directes « Garder » ou « Retirer » si aucun candidat remplaçant n\'est disponible',
@@ -6548,7 +6554,7 @@
     }
     return '<ul class="liste">' + l.map(function (x) {
       var p = x.cr.prat, ph = estPharmacie(p);
-      return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '">' +
+      return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '" data-dist="' + (x.dist !== undefined ? x.dist : '') + '" data-memelieu="' + (x.memeLieu ? '1' : '0') + '">' +
         '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + (ph ? '' : ' ' + etoiles(p.note)) + '</span>' +
         '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [ph ? '' : p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
         '<span class="discret bloc-texte">' + x.cr.creneau + ' ' + minutesVersHeure(x.cr.debut) + '-' + minutesVersHeure(x.cr.fin) + ' · passage vers ' + esc(x.heure) +
@@ -6557,19 +6563,142 @@
           (x.ok ? '' : '<span class="etiquette alerte">Horaire difficile à tenir</span>') + '</span></button></li>';
     }).join('') + '</ul>';
   }
+
+  // 3.26.46 : Refonte visuelle de l'écran de confirmation de remplacement en cartes comparatives hiérarchisées
+  function renduConfirmationRemplacement(f, a, x) {
+    var phA = estPharmacie(a);
+    var cr = Moteur.creneauParCle(ctx(), x.cle);
+    var p = cr ? cr.prat : null;
+    var phN = p ? estPharmacie(p) : phA;
+
+    // 1. Visite initiale à remplacer
+    var lieuInit = abregerHopital(a.lieu || lieuAffiche(a) || '');
+    var secInit = nomSecteur(a.quartier, a.commune, a.coord);
+    var specInit = (!phA && a.specialite) ? String(a.specialite).trim() : '';
+    var statutInit = statutLibelle(a) || (a.etat === 'brouillon' ? 'Brouillon' : 'Planifiée');
+    var heureInit = a.heure || '--:--';
+
+    var pObjInit = (typeof praticien === 'function' && praticien(a.code)) || {};
+    var lieuMatchInit = (pObjInit.lieux || []).filter(function (l) { return l.lieu === a.lieu; })[0] || (pObjInit.lieux && pObjInit.lieux[0]) || {};
+    var repereInit = String(lieuMatchInit.adresse || lieuMatchInit.repere || pObjInit.adresse || pObjInit.repere || '').replace(/\bBoulevard\b/gi, 'Blvd.').trim();
+
+    // 2. Nouveau praticien proposé
+    var nomN = p ? p.nom : x.nom;
+    var noteN = p ? p.note : x.note;
+    var specN = (p && !phN && p.specialite) ? String(p.specialite).trim() : '';
+    var convN = (p && !phN) ? p.conventionne : '';
+    var lieuN = abregerHopital((cr && cr.lieu) || x.lieu || '');
+    var secN = cr ? nomSecteur(cr.quartier, cr.commune, cr.coord) : (x.quartier || '');
+    var lieuMatchN = (p && p.lieux || []).filter(function (l) { return l.lieu === (cr && cr.lieu); })[0] || (p && p.lieux && p.lieux[0]) || {};
+    var repereN = String(lieuMatchN.adresse || lieuMatchN.repere || (p && (p.adresse || p.repere)) || '').replace(/\bBoulevard\b/gi, 'Blvd.').trim();
+    var distN = (x.dist !== null && x.dist !== undefined && x.dist < 99) ? x.dist : null;
+    var memeLieu = !!x.memeLieu || (cr && memeEtablissement(a.lieu || '', cr.lieu || ''));
+    var heureN = x.heure || '--:--';
+    var creneauN = cr ? cr.creneau : '';
+    var horaireN = (cr && cr.debut && cr.fin) ? (minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin)) : '';
+
+    var h = '<div class="rc-comparatif">';
+
+    // CARTE 1 : VISITE INITIALE
+    h += '<div class="rc-carte rc-carte-initiale">';
+    h += '  <div class="rc-entete-carte">';
+    h += '    <span class="rc-tag rc-tag-initiale">Visite initiale</span>';
+    h += '    <span class="rc-badge-statut">' + esc(statutInit) + '</span>';
+    h += '  </div>';
+    h += '  <div class="rc-prat-ligne">';
+    h += '    ' + pastilleType(a) + ' <strong class="rc-prat-nom">' + esc(a.nom) + '</strong>' + (!phA ? ' ' + etoiles(a.note) : '');
+    h += '  </div>';
+    if (specInit) {
+      h += '  <div class="rc-spec-ligne"><span class="rc-spec-texte">' + esc(specInit) + '</span></div>';
+    }
+    h += '  <div class="rc-lieu-cadre">';
+    h += '    <div class="rc-lieu-item rc-etablissement">🏥 <strong>' + esc(lieuInit || 'Établissement non précisé') + '</strong></div>';
+    var secAffInit = [repereInit, (secInit && (!repereInit || repereInit.toLowerCase().indexOf(secInit.toLowerCase()) < 0) ? secInit : '')].filter(Boolean).join(' · ');
+    if (secAffInit) {
+      h += '    <div class="rc-lieu-item rc-secteur">📍 ' + esc(secAffInit) + '</div>';
+    }
+    h += '  </div>';
+    h += '  <div class="rc-bas-carte">';
+    h += '    <div class="rc-heure-initiale">⏰ Prévu vers <strong>' + esc(heureInit) + '</strong></div>';
+    if (f.garder) {
+      h += '    <div class="rc-note-cr rc-cr-conserve"><span class="rc-coche">✓</span> Compte rendu conservé dans l\'historique</div>';
+    } else {
+      h += '    <div class="rc-note-cr rc-cr-retire"><span class="rc-croix">✕</span> Retiré de la tournée du ' + dateCourte(a.date) + '</div>';
+    }
+    h += '  </div>';
+    h += '</div>';
+
+    // TRANSITION
+    h += '<div class="rc-transition">';
+    h += '  <div class="rc-transition-trait"></div>';
+    h += '  <div class="rc-transition-pilule">';
+    h += '    <span class="rc-transition-fleche">↓</span> <span class="rc-transition-texte">Remplacée par</span>';
+    h += '  </div>';
+    h += '  <div class="rc-transition-trait"></div>';
+    h += '</div>';
+
+    // CARTE 2 : NOUVEAU RENDEZ-VOUS
+    h += '<div class="rc-carte rc-carte-nouveau">';
+    h += '  <div class="rc-entete-carte">';
+    h += '    <span class="rc-tag rc-tag-nouveau">Nouveau rendez-vous</span>';
+    h += '    <span class="rc-badge-heure-nouveau">⏰ <strong>Passage vers ' + esc(heureN) + '</strong></span>';
+    h += '  </div>';
+    h += '  <div class="rc-prat-ligne">';
+    h += '    ' + pastilleType(p || a) + ' <strong class="rc-prat-nom rc-nom-cible">' + esc(nomN) + '</strong>' + (!phN ? ' ' + etoiles(noteN) : '');
+    h += '  </div>';
+    if (specN || convN) {
+      h += '  <div class="rc-spec-ligne">';
+      if (specN) h += '<span class="rc-spec-texte">' + esc(specN) + '</span>';
+      if (!phN && convN) h += ' ' + badgeConv(convN);
+      h += '  </div>';
+    }
+    h += '  <div class="rc-lieu-cadre rc-cadre-cible">';
+    h += '    <div class="rc-lieu-item rc-etablissement">🏥 <strong>' + esc(lieuN || 'Établissement non précisé') + '</strong></div>';
+    var secAffN = [repereN, (secN && (!repereN || repereN.toLowerCase().indexOf(secN.toLowerCase()) < 0) ? secN : '')].filter(Boolean).join(' · ');
+    if (secAffN) {
+      h += '    <div class="rc-lieu-item rc-secteur">📍 ' + esc(secAffN) + '</div>';
+    }
+    if (creneauN || horaireN) {
+      h += '    <div class="rc-lieu-item rc-creneau-texte">🕐 Présent ' + esc(creneauN) + (horaireN ? ' (' + esc(horaireN) + ')' : '') + '</div>';
+    }
+    if (memeLieu) {
+      h += '    <div class="rc-proximite-box"><span class="etiquette ok">✓ Même établissement</span></div>';
+    } else if (distN !== null) {
+      h += '    <div class="rc-proximite-box"><span class="etiquette">🧭 ' + km(distN) + ' du lieu remplacé</span></div>';
+    }
+    h += '  </div>';
+    h += '</div>';
+
+    // ENCART REASSURANCE
+    h += '<div class="rc-encart-info">';
+    h += '  <span class="rc-info-icone">ℹ️</span>';
+    h += '  <span class="rc-info-texte">L\'ordre de votre journée sera automatiquement réorganisé et optimisé pour intégrer ce rendez-vous sans détours.</span>';
+    h += '</div>';
+
+    h += '</div>';
+
+    var pied = '<button type="button" class="bouton rc-btn-autre" data-a="remplacerNon">' +
+      '<svg class="rc-chevron-gauche" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 19-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '<span>Choisir un autre</span>' +
+      '</button>' +
+      '<button type="button" class="bouton bouton-plein rc-btn-valider" data-a="remplacerOui">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17 19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+      '<span>Valider le remplacement</span>' +
+      '</button>';
+
+    return { corps: h, pied: pied };
+  }
+
   FEUILLES.remplacer = function (f) {
     var a = arret(f.uid);
     if (!a) return '<p class="discret">Visite introuvable.</p>';
     var ph = estPharmacie(a);
     var libType = ph ? 'une pharmacie' : 'un médecin';
     if (f.choix) {
-      var x = f.choix;
-      if (f.garder) return { corps: '<p style="margin-top:0">Ajouter <b>' + esc(x.nom) + '</b>' + (ph ? '' : ' ' + etoiles(x.note)) + ' (' + esc(x.heure) + ', ' + esc(x.lieu) + ', ' + esc(x.quartier) + ') à votre journée,<br>en remplacement de <b>' + esc(a.nom) + '</b> (' + esc(statutLibelle(a).toLowerCase()) + ') ?</p><p class="discret">Le compte rendu de ' + esc(a.nom) + ' est conservé. L\'ordre de passage sera recalculé.</p>',
-        pied: piedQuestion('data-a="remplacerOui"', 'Ajouter', 'remplacerNon') };
-      return { corps: '<p style="margin-top:0">Remplacer <b>' + esc(a.nom) + '</b> (' + esc(a.heure) + ', ' + esc(a.lieu) + ')<br>par <b>' + esc(x.nom) + '</b>' + (ph ? '' : ' ' + etoiles(x.note)) +
-          ' (' + esc(x.heure) + ', ' + esc(x.lieu) + ', ' + esc(x.quartier) + ') ?</p><p class="discret">' + majuscule(dateLongue(a.date)) + '. L\'ordre de passage sera recalculé.</p>',
-        pied: piedQuestion('data-a="remplacerOui"', 'Remplacer', 'remplacerNon') };
+      f.retourAction = 'remplacerNon';
+      return renduConfirmationRemplacement(f, a, f.choix);
     }
+    f.retourAction = null;
     var l = candidatsRemplacement(a);
     if (!l.length) return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer cette visite.</p>' +
       '<p class="discret">Aucun' + (ph ? 'e autre pharmacie' : ' autre médecin') + ' disponible ce jour-là selon vos critères (communes, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>' +
@@ -9026,10 +9155,31 @@
     conflitRemplacer: function (el) { remplacerArret(el.dataset.uid); },
     remplacerChoisir: function (el) {
       var cr = Moteur.creneauParCle(ctx(), el.dataset.v); if (!cr) return;
-      S.ui.feuille.choix = { cle: el.dataset.v, nom: cr.prat.nom, note: cr.prat.note, heure: el.dataset.h, lieu: cr.lieu, quartier: cr.quartier }; rendre();
+      S.ui.feuille.choix = {
+        cle: el.dataset.v,
+        nom: cr.prat.nom,
+        note: cr.prat.note,
+        heure: el.dataset.h,
+        lieu: cr.lieu,
+        quartier: cr.quartier,
+        commune: cr.commune,
+        dist: (el.dataset.dist && el.dataset.dist !== '') ? parseFloat(el.dataset.dist) : null,
+        memeLieu: el.dataset.memelieu === '1'
+      };
+      S.ui.feuille.retourAction = 'remplacerNon';
+      rendre();
     },
-    remplacerNon: function () { S.ui.feuille.choix = null; rendre(); },
-    remplacerOui: function () { var f = S.ui.feuille; appliquerRemplacement(f.uid, f.choix.cle, f.garder); },
+    remplacerNon: function () {
+      if (S.ui.feuille) {
+        S.ui.feuille.choix = null;
+        S.ui.feuille.retourAction = null;
+      }
+      rendre();
+    },
+    remplacerOui: function () {
+      var f = S.ui.feuille;
+      if (f && f.choix) appliquerRemplacement(f.uid, f.choix.cle, f.garder);
+    },
     completerJour: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true, lieuRef: a.lieu }; rendre();
