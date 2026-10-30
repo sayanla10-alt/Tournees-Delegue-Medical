@@ -1121,3 +1121,150 @@ function PLACE(texte) {
   var g = geocoderLieu(p[0], p.length > 2 ? p[1] : '', p[p.length > 2 ? 2 : 1] || '');
   return g ? g.titre + ' — ' + g.quartier + ' (' + g.lat + ', ' + g.lon + ')' : 'Introuvable';
 }
+
+// ---------------------------------------------------------------- Audit complet automatisé de la base
+function auditerGeolocBase() {
+  var ss = SpreadsheetApp.getActive();
+  var shPres = ss.getSheetByName(GEO_FEUILLE_PRESENCES) || ss.getSheetByName('Présences');
+  var shPha = ss.getSheetByName(GEO_FEUILLE_PHARMACIES);
+  var shQ = ss.getSheetByName(GEO_FEUILLE_QUARTIERS);
+
+  var centresQuartiers = {};
+  if (shQ && shQ.getLastRow() >= 2) {
+    var vQ = shQ.getRange(2, 1, shQ.getLastRow() - 1, 5).getValues();
+    vQ.forEach(function (r) {
+      var nQ = normGeo_(r[1]);
+      if (nQ) centresQuartiers[nQ] = { lat: parseFloat(String(r[3]).replace(',', '.')), lon: parseFloat(String(r[4]).replace(',', '.')) };
+    });
+  }
+
+  var lignesAudit = [];
+  var stats = { total: 0, precis: 0, centroides: 0, manquants: 0 };
+  var clusters = {};
+
+  function analyserLigne(type, code, nom, lieu, commune, quartier, latStr, lonStr) {
+    stats.total++;
+    var lat = parseFloat(String(latStr || '').replace(',', '.'));
+    var lon = parseFloat(String(lonStr || '').replace(',', '.'));
+    var valide = isFinite(lat) && isFinite(lon) && lat >= 4.30 && lat <= 10.80 && lon >= -8.60 && lon <= -2.40;
+
+    var cleNorm = normGeo_(lieu || nom);
+    var etabRef = TABLE_REFERENCE_ETABLISSEMENTS_CI[cleNorm] || COORDONNEES_FORCEES_PHARMACIES[cleNorm];
+
+    var statut = '', diag = '', action = '';
+
+    if (!valide) {
+      statut = '🔴 MANQUANT';
+      diag = 'Coordonnées absentes ou hors Côte d\'Ivoire';
+      action = 'À géolocaliser d\'urgence (Places API ou relever au GPS terrain)';
+      stats.manquants++;
+    } else {
+      var qCle = normGeo_(quartier);
+      var cQ = centresQuartiers[qCle];
+      var estCentroideQuartier = cQ && Math.abs(lat - cQ.lat) < 0.0005 && Math.abs(lon - cQ.lon) < 0.0005;
+
+      var kCoord = lat.toFixed(4) + '|' + lon.toFixed(4);
+      clusters[kCoord] = clusters[kCoord] || [];
+      clusters[kCoord].push({ nom: nom, lieu: lieu });
+
+      if (etabRef) {
+        statut = '🟢 EXACT (RÉFÉRENCE)';
+        diag = 'Établissement officiel certifié : ' + etabRef.titre;
+        action = 'Position vérifiée et conforme';
+        stats.precis++;
+      } else if (estCentroideQuartier) {
+        statut = '🟡 CENTROÏDE QUARTIER';
+        diag = 'Position calée sur le centre géométrique de ' + quartier;
+        action = 'Remplacer par la position exacte du bâtiment (Places API ou bouton GPS ici)';
+        stats.centroides++;
+      } else {
+        statut = '🟢 GPS SPÉCIFIQUE';
+        diag = 'Coordonnées individualisées distinctes du centre de quartier';
+        action = 'Conforme';
+        stats.precis++;
+      }
+    }
+
+    lignesAudit.push([
+      statut,
+      type,
+      code || '',
+      nom || '',
+      lieu || '',
+      commune || '',
+      quartier || '',
+      valide ? lat : '',
+      valide ? lon : '',
+      diag,
+      etabRef ? etabRef.titre : '',
+      action
+    ]);
+  }
+
+  // 1. Analyser Presences
+  if (shPres && shPres.getLastRow() >= 2) {
+    var entP = shPres.getRange(1, 1, 1, shPres.getLastColumn()).getValues()[0].map(normGeo_);
+    function colP(nom) { return entP.indexOf(normGeo_(nom)); }
+    var cCode = colP('CodeContact'), cNom = colP('Nom'), cLieu = colP('Lieu/Etablissement');
+    if (cLieu < 0) cLieu = colP('Lieu');
+    var cCom = colP('Commune'), cQuart = colP('Quartier');
+    var cLat = colP('Latitude'); if (cLat < 0) cLat = colP('Lattitude');
+    var cLon = colP('Longitude');
+
+    var dP = shPres.getRange(2, 1, shPres.getLastRow() - 1, shPres.getLastColumn()).getValues();
+    dP.forEach(function (r) {
+      analyserLigne('Médecin / Établissement', r[cCode], r[cNom], r[cLieu], r[cCom], r[cQuart], r[cLat], r[cLon]);
+    });
+  }
+
+  // 2. Analyser Pharmacies
+  if (shPha && shPha.getLastRow() >= 2) {
+    var entPh = shPha.getRange(1, 1, 1, shPha.getLastColumn()).getValues()[0].map(normGeo_);
+    function colPh(nom) { return entPh.indexOf(normGeo_(nom)); }
+    var cCodePh = colPh('CodeContact'), cNomPh = colPh('Nom'), cComPh = colPh('Commune'), cQuartPh = colPh('Quartier');
+    var cLatPh = colPh('Latitude'), cLonPh = colPh('Longitude');
+
+    var dPh = shPha.getRange(2, 1, shPha.getLastRow() - 1, shPha.getLastColumn()).getValues();
+    dPh.forEach(function (r) {
+      analyserLigne('Pharmacie', r[cCodePh], r[cNomPh], r[cNomPh], r[cComPh], r[cQuartPh], r[cLatPh], r[cLonPh]);
+    });
+  }
+
+  // Créer ou remplacer la feuille Rapport_Audit_GPS
+  var nomFeuilleAudit = 'Rapport_Audit_GPS';
+  var shAudit = ss.getSheetByName(nomFeuilleAudit);
+  if (shAudit) ss.deleteSheet(shAudit);
+  shAudit = ss.insertSheet(nomFeuilleAudit);
+
+  var scoreSante = stats.total > 0 ? Math.round((stats.precis / stats.total) * 100) : 0;
+  shAudit.getRange('A1:L1').merge().setValue('AUDIT QUALITÉ DE GÉOLOCALISATION GPS — MEDIPLANNER')
+    .setFontWeight('bold').setFontSize(14).setBackground('#0B4F6C').setFontColor('#ffffff').setHorizontalAlignment('center');
+
+  shAudit.getRange('A2:L2').merge().setValue(
+    'Total analysé : ' + stats.total + ' fiches  |  ' +
+    '🟢 Précis & Certifiés : ' + stats.precis + '  |  ' +
+    '🟡 Centroïdes de quartier à affiner : ' + stats.centroides + '  |  ' +
+    '🔴 Coordonnées manquantes : ' + stats.manquants + '  |  ' +
+    'Taux de santé GPS : ' + scoreSante + ' %'
+  ).setFontWeight('bold').setFontSize(11).setBackground('#e2e8f0').setHorizontalAlignment('center');
+
+  var enTetes = ['Statut GPS', 'Type', 'Code', 'Nom Praticien', 'Établissement / Lieu', 'Commune', 'Quartier', 'Latitude', 'Longitude', 'Diagnostic', 'Référence officielle', 'Action recommandée'];
+  shAudit.getRange(4, 1, 1, enTetes.length).setValues([enTetes])
+    .setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
+
+  if (lignesAudit.length > 0) {
+    shAudit.getRange(5, 1, lignesAudit.length, enTetes.length).setValues(lignesAudit);
+    shAudit.setFrozenRows(4);
+    shAudit.autoResizeColumns(1, enTetes.length);
+  }
+
+  var msgUi = 'Audit Qualité GPS terminé !\n\n' +
+    'Total fiches : ' + stats.total + '\n' +
+    '🟢 Précis / Certifiés : ' + stats.precis + '\n' +
+    '🟡 Centroïdes quartier : ' + stats.centroides + '\n' +
+    '🔴 Manquants / Hors CI : ' + stats.manquants + '\n' +
+    'Score global : ' + scoreSante + ' %\n\n' +
+    'L\'onglet « ' + nomFeuilleAudit + ' » a été créé dans votre Google Sheet avec le diagnostic ligne par ligne.';
+  try { SpreadsheetApp.getUi().alert('Rapport d\'Audit GPS', msgUi, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
+  return msgUi;
+}
