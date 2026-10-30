@@ -279,8 +279,8 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .ligne > li:last-child .arret-rail::before { bottom: auto; height: 18px; }
 .ligne > li:only-child .arret-rail::before { display: none; }
 .arret-noeud {
-  position: absolute; left: 50%; top: 12px; width: 18px; height: 18px; margin-left: -9px;
-  border-radius: 50%; background: var(--papier); border: 4px solid var(--primaire); z-index: 1;
+  position: absolute; left: 50%; top: 12px; width: 14px; height: 14px; margin-left: -7px;
+  border-radius: 50%; background: var(--papier); border: 3.5px solid var(--primaire); z-index: 1;
 }
 .arret[data-p="1"] .arret-noeud { border-color: var(--d-objectif); }
 .arret.fait .arret-noeud { background: var(--vert); border-color: var(--vert); }
@@ -289,12 +289,10 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .troncon .arret-rail::before { top: 0; bottom: 0; height: auto; }
 .troncon span { align-self: center; padding-left: 12px; font: 600 13px/1 var(--titre); color: var(--primaire); }
 .arret-carte {
-  position: relative; margin: 4px 0 10px 4px; padding: 10px 10px; border-radius: var(--r);
-  background: var(--papier); border: 1px solid var(--trait); text-align: left; width: calc(100% - 4px); box-shadow: var(--ombre);
+  position: relative; margin: 4px 0 10px 8px; padding: 10px 12px; border-radius: var(--r);
+  background: var(--papier); border: 1px solid var(--trait); text-align: left; width: calc(100% - 8px); box-sizing: border-box; box-shadow: var(--ombre);
 }
 .arret.ouvert .arret-carte {
-  margin-left: 1px !important;
-  width: calc(100% - 1px) !important;
   border-color: var(--primaire);
   box-shadow: 0 0 0 1px var(--primaire);
 }
@@ -1403,13 +1401,13 @@ details.avance h3 { margin-top: 18px; }
 .a-saisir .bouton-texte { min-height: 0; padding: 3px 0; font-size: 14.5px; }
 .txt-alerte { color: #B45309; }
 
-/* 3.13.4 & 3.26.9 : marge de gauche réduite, carte élargie au maximum à gauche pour le CR */
-.arret, .troncon { grid-template-columns: 42px 14px 1fr; }
-.arret-heure { padding: 12px 3px 0 0; }
-.arret-heure b { font-size: 14.5px; }
+/* 3.13.4 & 3.26.10 : équilibre frise / heures / carte sans chevauchement */
+.arret, .troncon { grid-template-columns: 44px 18px 1fr; }
+.arret-heure { padding: 12px 6px 0 0; }
+.arret-heure b { font-size: 14px; letter-spacing: -0.3px; }
 .arret-heure small { font-size: 10px; }
-.creneau-titre { margin-left: 56px; }
-.troncon span { padding-left: 6px; font-size: 12px; }
+.creneau-titre { margin-left: 62px; }
+.troncon span { padding-left: 8px; font-size: 12px; }
 .acces-rapport { width: 100%; display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 11px 12px; border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); color: var(--encre); text-align: left; }
 .acces-rapport > span { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
 .acces-rapport > span svg { width: 18px; height: 18px; color: var(--primaire); grid-row: span 2; }
@@ -1498,9 +1496,11 @@ details.avance h3 { margin-top: 18px; }
 }
 
 /* 3.21.0 : filtre Qui / Quand (Bilan, Équipe) */
-.barre-qq { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 12px; }
-.qq-quand { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; }
-.qq-quand .bouton-icone { flex: none; width: 34px; height: 34px; }
+.barre-qq { display: flex; flex-wrap: nowrap !important; align-items: center; gap: 6px; margin: 10px 0 12px; width: 100%; }
+.barre-qq > .puce-filtre { flex: 1 1 45%; min-width: 0; padding: 0 8px; font-size: 13.5px; }
+.barre-qq .qq-quand { display: flex; align-items: center; gap: 3px; flex: 1 1 55%; min-width: 0; }
+.barre-qq .qq-quand .puce-filtre { padding: 0 6px; font-size: 13.5px; min-width: 0; flex: 1; justify-content: center; }
+.barre-qq .qq-quand .bouton-icone { flex: none; width: 30px; height: 30px; min-width: 30px; padding: 0; }
 .qq-quand .bouton-icone svg { transform: rotate(90deg); }
 .qq-quand .bouton-icone.suivant svg { transform: rotate(-90deg); }
 .puce-filtre { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 12px; border-radius: 19px; border: 1.5px solid var(--trait);
@@ -1508,7 +1508,6 @@ details.avance h3 { margin-top: 18px; }
 .puce-filtre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .puce-filtre svg { width: 17px; height: 17px; color: var(--primaire); flex: none; }
 .puce-filtre b { color: var(--gris); font-size: 11px; }
-.qq-quand .puce-filtre { flex: 1; justify-content: center; }
 
 /* 3.22.1 : remplaçant au pied levé (bas de Journée) */
 .bloc-remplacant { margin: 16px 0 6px; padding: 12px; border: 1px dashed var(--trait); border-radius: var(--r); background: var(--papier); }
@@ -1815,6 +1814,234 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .segment button { min-width: 0; white-space: normal; line-height: 1.2; padding: 8px 6px; overflow-wrap: anywhere; }
 .cr-boutons, .feuille-pied { display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; box-sizing: border-box; }
 .cr-boutons .bouton, .feuille-pied .bouton { min-width: 0; max-width: 100%; flex: 1 1 auto; white-space: normal; line-height: 1.2; text-align: center; justify-content: center; }
+
+/* Ergonomie pouce CR : boutons sticky sous le pouce */
+.cr-question .cr-boutons, .arret-detail .actions-cr {
+  position: sticky;
+  bottom: calc(var(--haut-nav, 60px) + env(safe-area-inset-bottom, 0px));
+  background: var(--papier);
+  padding: 8px 0 4px;
+  z-index: 10;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+.rangee-actions-cr-valide {
+  position: sticky;
+  bottom: calc(var(--haut-nav, 60px) + env(safe-area-inset-bottom, 0px));
+  background: var(--papier);
+  padding: 8px 0;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  box-shadow: 0 -3px 8px rgba(0,0,0,0.04);
+}
+.rangee-actions-cr-valide .bouton {
+  flex: 1 1 0;
+  height: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+/* Badge médicament mis en valeur au premier regard */
+.etiquette-med-cr {
+  border-left: 4px solid var(--primaire);
+  background: var(--primaire-pale);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--encre);
+  margin-bottom: 8px;
+  display: inline-block;
+}
+.champ-reaction-produit {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--trait);
+}
+.champ-reaction-produit:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* Grille réactions 2 par ligne */
+.grille-reactions-cr .puces {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 6px !important;
+}
+.grille-reactions-cr .puces .puce {
+  width: 100% !important;
+  min-height: 38px;
+  justify-content: center !important;
+  text-align: center !important;
+  font-size: 13px !important;
+  padding: 6px 4px !important;
+}
+.grille-reactions-cr .puces .puce:nth-child(4),
+.grille-reactions-cr .puces .puce[data-v*="informations"] {
+  grid-column: span 2 !important;
+}
+
+/* Grille suite CR 2 par ligne */
+.puces-suite-cr {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 6px !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+}
+.puces-suite-cr .puce {
+  width: 100% !important;
+  min-height: 40px;
+  justify-content: center !important;
+  text-align: center !important;
+  font-size: 13.5px !important;
+  padding: 6px 4px !important;
+}
+
+/* Grille besoins rapport journalier 2 par ligne */
+.grille-besoins-cr {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 6px !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+}
+.grille-besoins-cr .puce {
+  width: 100% !important;
+  min-height: 38px;
+  justify-content: center !important;
+  text-align: center !important;
+  font-size: 13px !important;
+  padding: 6px 4px !important;
+  white-space: normal !important;
+  line-height: 1.2 !important;
+}
+.grille-besoins-cr .puce-tous {
+  grid-column: span 2 !important;
+  font-weight: 700 !important;
+}
+
+/* Calendrier moderne optimisé au pouce */
+.cal-raccourcis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.cal-raccourcis .puce {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 2px;
+  min-height: 36px;
+  justify-content: center;
+  text-align: center;
+}
+.cal-barre-mois {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+.cal-barre-mois h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--encre);
+  text-transform: capitalize;
+}
+.cal-nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid var(--trait);
+  background: var(--papier);
+  display: grid;
+  place-items: center;
+  color: var(--primaire);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cal-grille-semaine {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gris);
+}
+.cal-grille-jours {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+.cal-jour-btn {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  min-height: 42px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--encre);
+  cursor: pointer;
+  transition: transform .1s, background-color .15s;
+}
+.cal-jour-btn:active {
+  transform: scale(0.92);
+}
+.cal-jour-btn.hors-mois {
+  color: var(--gris-2);
+  opacity: 0.35;
+}
+.cal-jour-btn.aujourdhui {
+  border-color: var(--primaire);
+  font-weight: 800;
+}
+.cal-jour-btn.choisi {
+  background: var(--primaire) !important;
+  color: #fff !important;
+  font-weight: 800;
+  box-shadow: 0 3px 8px rgba(18, 140, 126, 0.35);
+}
+.cal-jour-btn.avec-visites::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--vert);
+}
+.cal-jour-btn.choisi.avec-visites::after {
+  background: #fff;
+}
+.cal-jour-btn .cal-pastille-nb {
+  font-size: 9.5px;
+  line-height: 1;
+  margin-top: 1px;
+  font-weight: 700;
+  color: var(--gris);
+}
+.cal-jour-btn.choisi .cal-pastille-nb {
+  color: rgba(255, 255, 255, 0.9);
+}
 
 /* Types de visite organisés (Communs + Spécifiques Médecin / Pharmacie) */
 .types-cr { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }

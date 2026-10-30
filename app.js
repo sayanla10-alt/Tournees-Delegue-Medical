@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.9';
+  var APP_VERSION = '3.26.10';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.10', [
+      'Onglet Journée : Harmonisation géométrique de la frise temporelle, des heures et des cartes de visite sans aucun chevauchement, tout en conservant une largeur maximale de carte'
+    ]],
     ['3.26.9', [
       'Remplacement sur place & multi-sites : Si le praticien X est absent au CHU, le confrère Y qui y exerce aussi est proposé et ajouté d\'office sur le CHU (priorité au même établissement)',
       'Répertoire épuré : Boutons « Capter position GPS » et « Ajouter au jour » au design compact et clair',

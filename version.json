@@ -1,10 +1,7 @@
 {
-  "version": "3.26.9",
+  "version": "3.26.10",
   "date": "2026-10-30",
   "notes": [
-    "Remplacement sur place & multi-sites : Prise en compte prioritaire du même établissement (CHU, même clinique)",
-    "Répertoire : Bouton « Capter position GPS » et « Ajouter au jour »",
-    "Grille de présences : Centrage de « Modifier le planning hebdomadaire »",
-    "Compte Rendu visite : Suppression de la molécule sous le produit, espacements resserrés et carte élargie sur la gauche"
+    "Onglet Journée : Harmonisation géométrique de la frise temporelle, des heures et des cartes de visite sans aucun chevauchement, tout en conservant une largeur maximale de carte"
   ]
 }
