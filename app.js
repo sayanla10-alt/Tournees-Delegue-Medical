@@ -9,10 +9,18 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.22';
+  var APP_VERSION = '3.26.23';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.23', [
+      'Ergonomie de repérage : Phrases d\'introduction calibrées sur chaque onglet (claires, descriptives et tenant sur 2 lignes maximum)',
+      'Journée : « Déroulez votre tournée du jour dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus. »',
+      'Planifier : « Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning. »',
+      'Répertoire : « Consultez et gérez vos médecins et officines : filtrez par commune, mettez à jour les présences et fixez le GPS. »',
+      'Produits : « Votre aide-mémoire de visite : consultez vos médicaments cibles, les arguments clés et les échantillons. »',
+      'Suivi & Contrôle : « Pilotez votre activité terrain : indicateurs de réalisation, suivi des tournées d\'équipe et audit des données. »'
+    ]],
     ['3.26.22', [
       'Ergonomie des onglets : Courte phrase d\'introduction pour chaque onglet afin de se situer immédiatement sans gaspiller d\'espace',
       'Onglet Planifier : Phrase courte (« Ajustez vos critères et confirmez votre tournée. »)',
@@ -2231,7 +2239,7 @@
     var jours = []; for (var k = -42; k <= 42; k++) { var x0 = ajouterJours(d, k); if (jourSemaineIndex(x0) < 5) jours.push(x0); }
     return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + etiquetteRelative(d) + '</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
-      '<p class="sous-titre">Vos visites dans l\'ordre : itinéraire, contact et compte rendu.</p>' +
+      '<p class="sous-titre">Déroulez votre tournée du jour dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus.</p>' +
       '<div class="bande-jours">' +
         '<div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
           var n = nbVisitesJour(x);
@@ -2748,7 +2756,7 @@
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
-      '<p class="sous-titre">Ajustez vos critères et confirmez votre tournée.</p>' +
+      '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
       barreCriteresPlanifier();
     var datesF = datesPlanAvenir();
     if (!datesF.length) {
@@ -4265,7 +4273,7 @@
     var aires = []; toutes.forEach(function (f) { if (f.aire && aires.indexOf(f.aire) < 0) aires.push(f.aire); });
     aires.sort(function (a, b) { return ORDRE_AIRES.indexOf(a) - ORDRE_AIRES.indexOf(b); });
     var l = toutes.filter(function (f) { return (!aire || f.aire === aire) && (!q || normaliser([f.produit, f.dci, f.gamme, f.classe, f.indications, f.aire].join(' ')).indexOf(q) >= 0); });
-    var h = '<h2 class="titre-vue">Produits</h2><p class="sous-titre">Aide-mémoire de visite : touchez un produit pour ouvrir sa fiche.</p>' +
+    var h = '<h2 class="titre-vue">Produits</h2><p class="sous-titre">Votre aide-mémoire de visite : consultez vos médicaments cibles, les arguments clés et les échantillons.</p>' +
       '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechProduit" placeholder="Produit, molécule, indication…" value="' + esc(S.ui.rechProduit || '') + '" aria-label="Rechercher un produit"></div></div>' +
       '<div class="defile" role="group" aria-label="Aire thérapeutique"><button type="button" class="puce" data-a="aireProduit" data-v="" aria-pressed="' + !aire + '">Tous</button>' +
       aires.map(function (x) { return '<button type="button" class="puce" data-a="aireProduit" data-v="' + esc(x) + '" aria-pressed="' + (aire === x) + '">' + esc(AIRES_COURTES[x] || x) + '</button>'; }).join('') + '</div>';
@@ -4861,7 +4869,7 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (liste.length ? 'les ' + liste.length + ' résultat' + (liste.length > 1 ? 's' : '') : 'les résultats') + '</button></div>';
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire</h2></div>' +
-      '<p class="sous-titre">Consultez, modifiez et filtrez vos médecins et pharmacies.</p>';
+      '<p class="sous-titre">Consultez et gérez vos médecins et officines : filtrez par commune, mettez à jour les présences et fixez le GPS.</p>';
     h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
     h += '<div class="rangee-actions-rep">' +
@@ -5311,7 +5319,7 @@
   VUES.suivi = function () {
     var sousVue = S.ui.suiviVue || 'bilan';
     var tete = '<div class="tete-vue"><h2 class="titre-vue">Suivi & Contrôle</h2></div>' +
-      '<p class="sous-titre">Indicateurs de tournée, activité de l\'équipe et audit qualité.</p>' +
+      '<p class="sous-titre">Pilotez votre activité terrain : indicateurs de réalisation, suivi des tournées d\'équipe et audit des données.</p>' +
       '<div class="segment-suivi" style="margin:4px 0 10px">' +
       segment('Sous-onglet Suivi', 'suiviVue', [['bilan', 'Bilan'], ['equipe', 'Équipe'], ['audit', 'Audit']], sousVue) +
       '</div>';

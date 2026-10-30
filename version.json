@@ -1,11 +1,13 @@
 {
-  "version": "3.26.22",
+  "version": "3.26.23",
   "date": "2026-10-30",
   "notes": [
-    "Ergonomie des onglets : Courte phrase d'introduction pour chaque onglet afin de se situer immédiatement sans gaspiller d'espace",
-    "Onglet Planifier : Phrase courte (« Ajustez vos critères et confirmez votre tournée. »)",
-    "Onglet Suivi & Contrôle : Phrase d'introduction ajoutée (« Indicateurs de tournée, activité de l'équipe et audit qualité. »)",
-    "Onglet Répertoire : Phrase d'introduction concise et bandeau de critères optimisé avec bouton « Réinitialiser » rouge centré",
+    "Ergonomie de repérage : Phrases d'introduction calibrées sur chaque onglet (claires, descriptives et tenant sur 2 lignes maximum)",
+    "Journée : « Déroulez votre tournée du jour dans l'ordre : itinéraire GPS, contacts praticiens et comptes rendus. »",
+    "Planifier : « Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning. »",
+    "Répertoire : « Consultez et gérez vos médecins et officines : filtrez par commune, mettez à jour les présences et fixez le GPS. »",
+    "Produits : « Votre aide-mémoire de visite : consultez vos médicaments cibles, les arguments clés et les échantillons. »",
+    "Suivi & Contrôle : « Pilotez votre activité terrain : indicateurs de réalisation, suivi des tournées d'équipe et audit des données. »",
     "Onglet Planifier : Noms des médecins garantis intégraux sans coupure ni suspension",
     "Onglet Planifier : Suppression de la phrase d'introduction pour libérer l'espace écran",
     "En-tête : Bouton synchro ultra-compact (point vert/rouge + rafraîchissement seul) libérant toute la place pour le nom du délégué",
