@@ -3,6 +3,7 @@
   "date": "2026-10-30",
   "notes": [
     "Planifier : Remplacement strict par type (médecins remplacés uniquement par médecins, pharmacies uniquement par pharmacies)",
+    "Planifier : Actions directes « Garder » ou « Retirer » si aucun candidat remplaçant n'est disponible",
     "Répertoire : Mention « Touchez M ou S pour planifier » affichée systématiquement à côté du bouton GPS pour chaque établissement"
   ]
 }

@@ -15,6 +15,7 @@
   var JOURNAL = [
     ['3.26.45', [
       'Planifier : Remplacement strict par type (médecins remplacés uniquement par médecins, pharmacies uniquement par pharmacies)',
+      'Planifier : Actions directes « Garder » ou « Retirer » si aucun candidat remplaçant n\'est disponible',
       'Répertoire : Mention « Touchez M ou S pour planifier » affichée systématiquement à côté du bouton GPS sur chaque établissement'
     ]],
     ['3.26.44', [
@@ -6570,7 +6571,12 @@
         pied: piedQuestion('data-a="remplacerOui"', 'Remplacer', 'remplacerNon') };
     }
     var l = candidatsRemplacement(a);
-    if (!l.length) return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer cette visite.</p><p class="discret">Aucun' + (ph ? 'e autre pharmacie' : ' autre médecin') + ' disponible ce jour-là selon vos critères (communes, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>';
+    if (!l.length) return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer cette visite.</p>' +
+      '<p class="discret">Aucun' + (ph ? 'e autre pharmacie' : ' autre médecin') + ' disponible ce jour-là selon vos critères (communes, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>' +
+      '<div class="rangee-actions" style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button type="button" class="bouton bouton-plein" data-a="feuilleFermer" style="flex:1;min-width:140px">' + icone('epingle') + 'Garder ' + esc(a.nom) + '</button>' +
+        '<button type="button" class="bouton danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '" style="flex:1;min-width:140px">' + icone('fermer') + 'Retirer de la tournée</button>' +
+      '</div>';
     var q = f.q || '';
     return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer <b>' + esc(a.nom) + '</b> dans votre tournée du ' + dateFr(a.date) + ' :</p>' +
       champRechercheLibre('rechRemplacer', q) +
@@ -8352,7 +8358,7 @@
       rendre();
     },
     garderPlan: function (el) { ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
-    retirerPlan: function (el) { ACTIONS.retirer(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; },
+    retirerPlan: function (el) { ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
     voirDansJournee: function (el) { S.ui.feuille = null; S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); },
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); relocaliserSiBesoin(); },
     generer: function () { lancerTirage('nouveau'); },
