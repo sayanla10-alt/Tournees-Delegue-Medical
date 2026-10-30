@@ -1,8 +1,12 @@
 {
-  "version": "3.26.20",
+  "version": "3.26.21",
   "date": "2026-10-30",
   "notes": [
-    "Onglet Planifier : Noms des médecins jamais tronqués (configuration d'origine rétablie)",
+    "Onglet Planifier : Noms des médecins garantis intégraux sans coupure ni suspension",
+    "Onglet Planifier : Suppression de la phrase d'introduction pour libérer l'espace écran",
+    "En-tête : Bouton synchro ultra-compact (point vert/rouge + rafraîchissement seul) libérant toute la place pour le nom du délégué",
+    "Bouton IA & Réglages : Format compact circulaire harmonisé 34px",
+    "Copilote IA ✨ : Possibilité de poser des questions libres avec réponses intelligentes instantanées",
     "Onglet Planifier : Synthèse structurée exactement sur 2 lignes (Ligne 1: Date & visites, Ligne 2: Détails)",
     "Calendrier : Zéro défilement tactile ni bavure d'ombre, affichage 100% net",
     "Copilote IA ✨ : Bouton d'aide interactif discret dans l'en-tête pour expliquer l'application et chaque bouton",

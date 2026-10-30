@@ -114,24 +114,34 @@ a { color: var(--primaire); }
   background: linear-gradient(110deg, var(--entete-1), var(--entete-2)); color: #fff;
 }
 .entete-titre { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.marque { font: 700 21px/1.1 var(--titre); letter-spacing: .2px; }
-.entete-date { font-size: 12.5px; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.marque { font: 700 20px/1.1 var(--titre); letter-spacing: .2px; }
+.entete-date { font-size: 13px; font-weight: 500; opacity: .95; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bouton-icone {
   width: 42px; height: 42px; display: grid; place-items: center;
   border: 0; border-radius: 50%; background: transparent; color: inherit;
 }
 .bouton-icone:active { background: rgba(255,255,255,.14); }
-.pastille-sync {
-  display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
-  border: 1px solid rgba(255,255,255,.3); border-radius: 16px;
-  background: rgba(255,255,255,.1); color: #fff; font-size: 13px; white-space: nowrap;
+.entete .bouton-icone {
+  width: 34px; height: 34px; flex: none;
 }
-.pastille-sync::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #8FE3BC; }
-.pastille-sync[data-etat="attente"]::before { background: #F6C35B; }
+.pastille-sync {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  width: 34px; height: 34px; padding: 0;
+  border: 1px solid rgba(255,255,255,.35); border-radius: 50%;
+  background: rgba(255,255,255,.12); color: #fff; flex: none;
+  cursor: pointer; transition: transform .1s, background-color .15s;
+}
+.pastille-sync:active { background: rgba(255,255,255,.22); transform: scale(.95); }
+.pastille-sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #2ecc71; flex: none; }
+.pastille-sync[data-etat="attente"]::before { background: #f39c12; }
 .pastille-sync[data-etat="erreur"]::before,
-.pastille-sync[data-etat="horsligne"]::before { background: #F59A90; }
-.pastille-sync[data-etat="demo"]::before { background: #C4D4D8; }
+.pastille-sync[data-etat="horsligne"]::before { background: #e74c3c; }
+.pastille-sync[data-etat="demo"]::before { background: #95a5a6; }
 .pastille-sync[data-etat="encours"]::before { animation: pulse 1s infinite alternate; }
+.pastille-sync svg { width: 14px; height: 14px; opacity: .95; flex: none; }
+.pastille-sync[data-etat="encours"] svg { animation: rotation 1.2s linear infinite; }
+.pastille-sync::after { content: ""; position: absolute; inset: -5px; }
 @keyframes pulse { to { opacity: .25; } }
 
 /* ------------------------------------------------------------- Mise en page */
@@ -2196,24 +2206,58 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .bilan-jour b { font-size: 15px; }
 .bilan-jour .details-plan { font-size: 12.5px; color: var(--gris); margin-top: 3px; display: block; }
 
-/* Onglet Planifier : Nom complet du médecin (jamais tronqué, configuration d'origine) */
+/* Onglet Planifier : Nom complet du médecin (strictement jamais tronqué, pas d'ellipse ni coupure) */
 .ligne-plan .lp-corps b {
   font-weight: 700;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: normal !important;
+  display: inline !important;
 }
 
 /* Bouton Copilote IA et Dialogue */
 .btn-ia {
-  position: relative;
+  width: 34px;
+  height: 34px;
   display: inline-grid;
   place-items: center;
-  color: var(--primaire);
-  font-size: 17px;
-  border: 0;
-  background: none;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  font-size: 16px;
   cursor: pointer;
-  padding: 6px;
+  flex: none;
+  padding: 0;
+  transition: transform .1s, background-color .15s;
 }
-.btn-ia:active { transform: scale(0.9); }
+.btn-ia:active { background: rgba(255,255,255,.22); transform: scale(0.95); }
+.ia-pose-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ia-pose-form input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border-radius: 12px;
+  border: 1.5px solid var(--trait);
+  padding: 0 12px;
+  font-size: 14px;
+  background: var(--papier);
+  color: var(--encre);
+}
+.ia-pose-form input:focus {
+  border-color: var(--primaire);
+  outline: none;
+}
+.ia-pose-form .bouton {
+  height: 40px;
+  padding: 0 14px;
+  flex-shrink: 0;
+}
 .ia-conteneur { display: flex; flex-direction: column; gap: 10px; }
 .ia-questions { display: flex; flex-direction: column; gap: 8px; }
 .ia-q-btn {

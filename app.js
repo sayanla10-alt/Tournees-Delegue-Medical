@@ -9,10 +9,20 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.20';
+  var APP_VERSION = '3.26.22';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.22', [
+      'Répertoire : Phrase de résumé des filtres étalée sur toute la largeur (2 à 3 lignes au lieu de 5) avec bouton « Réinitialiser » centré en dessous style danger rouge'
+    ]],
+    ['3.26.21', [
+      'Onglet Planifier : Noms des médecins garantis intégraux sans coupure ni suspension',
+      'Onglet Planifier : Suppression de la phrase d\'introduction pour libérer l\'espace écran',
+      'En-tête : Bouton synchro ultra-compact (point vert/rouge + rafraîchissement seul) libérant toute la place pour le nom du délégué',
+      'Bouton IA & Réglages : Format compact circulaire harmonisé 34px',
+      'Copilote IA ✨ : Possibilité de poser des questions libres avec réponses intelligentes instantanées'
+    ]],
     ['3.26.20', [
       'Onglet Planifier : Noms des médecins jamais tronqués (configuration d\'origine rétablie)',
       'Onglet Planifier : Synthèse structurée exactement sur 2 lignes (Ligne 1: Date & visites, Ligne 2: Détails)',
@@ -1722,8 +1732,10 @@
     else if (S.ui.sync === 'erreur') { etat = 'erreur'; texte = 'Erreur synchro'; }
     else if (enAttente()) { etat = 'attente'; texte = enAttente() + ' en attente'; }
     else { etat = 'ok'; texte = S.data && S.data.syncedAt ? 'À jour ' + new Date(S.data.syncedAt).toTimeString().slice(0, 5) : 'À jour'; }
-    p.dataset.etat = etat; p.innerHTML = '<span>' + esc(texte) + '</span>' + (etat === 'demo' ? '' : icone('relancer'));
+    p.dataset.etat = etat;
+    p.innerHTML = (etat === 'demo' ? '' : icone('relancer'));
     p.setAttribute('aria-label', 'Synchronisation : ' + texte + (S.ui.erreur ? '. ' + S.ui.erreur : ''));
+    p.setAttribute('title', 'Synchronisation : ' + texte + (S.ui.erreur ? ' (' + S.ui.erreur + ')' : ''));
   }
   function afficherBarre() {
     var att = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }), n = att.length;
@@ -2733,7 +2745,6 @@
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
-      '<p class="sous-titre">Préparez votre tournée : une journée ou une semaine, ajustez vos critères en un geste et confirmez votre programme.</p>' +
       barreCriteresPlanifier();
     var datesF = datesPlanAvenir();
     if (!datesF.length) {
@@ -5105,6 +5116,48 @@
     }).join('') + '</div>';
     return '<div class="cal-boite">' + raccourcis + barreMois + entetes + grille + '</div>';
   };
+  function analyserQuestionIa(q) {
+    if (!q) return 'Posez-moi votre question sur MediPlanner, je vous explique tout.';
+    var s = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/vert.*point|point.*vert|calendrier.*vert|vert.*bas/.test(s)) {
+      return 'Le <b>point vert sous une date</b> dans le calendrier indique que des visites sont déjà prévues ce jour-là dans votre tournée. Une date sans point signifie que la journée est encore libre.';
+    }
+    if (/ambre|or|couleur|medecin.*jaune|medecin.*couleur|engage/.test(s)) {
+      return 'Les praticiens affichés en <b>Ambre Chaud / Or Prescripteur (#B45309)</b> sont exclusivement les <b>médecins engagés</b> (partenaires clés conventionnés). Tous les autres praticiens et pharmacies s\'affichent en noir standard.';
+    }
+    if (/\b(m|matin|s|soir|creneau|bleu)\b/.test(s) && /creneau|reception|couleur|horaire|plage/.test(s)) {
+      return 'Les créneaux de réception sont identifiés par deux couleurs : <b>Vert / Émeraude</b> pour le Matin (M) et <b>Bleu Océan</b> pour le Soir (S).';
+    }
+    if (/gps|waze|maps|position|coordonnee|localis/.test(s)) {
+      return 'Le bouton <b>« ✓ GPS fixé »</b> atteste que la position géographique exacte de l\'établissement est verrouillée. Si vous êtes sur place devant l\'établissement, vous pouvez toucher le micro-bouton GPS ou « Capter la position GPS » pour réactualiser les coordonnées précises.';
+    }
+    if (/garder|epingl|verrouill/.test(s)) {
+      return 'Le bouton <b>« Garder » (épingle)</b> dans l\'onglet Planifier permet de figer un rendez-vous ou une visite prioritaire. Lorsque vous appuyez sur « Recalculer », le moteur d\'optimisation préserve obligatoirement cette visite.';
+    }
+    if (/absent|remplac|non vu|annul/.test(s)) {
+      return 'Si un médecin est absent lors de votre tournée, marquez-le comme « Absent » dans la carte de visite. Un bouton <b>« Remplacer »</b> apparaît immédiatement pour vous proposer un confrère disponible dans le même secteur ou la même commune.';
+    }
+    if (/synchro|hors.?ligne|reseau|internet|rouge|attente/.test(s)) {
+      return 'MediPlanner fonctionne à <b>100% hors-ligne</b>. La pastille en haut indique l\'état : point vert (données synchronisées avec Google Sheets), point orange (rapports en attente d\'envoi), point rouge (hors-ligne ou non connecté). Dès que vous retrouvez du réseau, touchez la pastille pour synchroniser.';
+    }
+    if (/tronqu|coupe|nom.*medecin|affiche.*medecin/.test(s)) {
+      return 'Les noms des médecins ne sont <b>jamais tronqués</b> : l\'application garantit l\'affichage intégral du nom et de la spécialité pour une clarté absolue sur le terrain.';
+    }
+    if (/rapport|compte.*rendu|valider|enregistr/.test(s)) {
+      return 'Vous pouvez renseigner un compte rendu directement depuis la carte d\'une visite (statut, commentaire, échantillons remis). En bas de l\'écran, la barre d\'enregistrement vous permet de valider vos comptes rendus et de les téléverser sur votre Google Sheet.';
+    }
+    if (/potentiel|etoile|classement/.test(s)) {
+      return 'Le potentiel prescripteur est représenté par des étoiles : <b>★★★</b> (potentiel fort / priorité haute), <b>★★</b> (moyen), <b>★</b> (faible). Le moteur priorise naturellement les praticiens 3 étoiles selon votre cycle de visite.';
+    }
+    if (/produit|medicament|echantillon|actif/.test(s)) {
+      return 'Dans l\'onglet Produits, vous retrouvez vos fiches argumentaires. Les médicaments décochés (colonne Actif dans votre Google Sheet) sont automatiquement masqués de l\'application.';
+    }
+    if (/whatsapp|partag|exporter/.test(s)) {
+      return 'Dans Planifier, une fois la journée confirmée, un bouton <b>« WhatsApp »</b> vous permet de partager directement le récapitulatif de votre journée par message ou de le copier.';
+    }
+    return 'Pour répondre précisément à votre question <i>« ' + esc(q) + ' »</i> : MediPlanner intègre un guide interactif complet de votre tournée. Vous pouvez interroger le copilote sur le calendrier, les créneaux, les médecins engagés, le GPS, la synchro ou les filtres.';
+  }
+
   FEUILLES.aideIa = function (f) {
     var FAQ = [
       {
@@ -5137,17 +5190,25 @@
       }
     ];
 
+    var formSaisie = '<form class="ia-pose-form" data-a="iaEnvoyerQuestion" onsubmit="event.preventDefault();">' +
+      '<input type="search" id="iaQuestionLibre" class="ia-input" placeholder="Posez une question libre..." autocomplete="off" value="' + (f.saisieLibre ? esc(f.saisieLibre) : '') + '">' +
+      '<button type="submit" class="bouton bouton-plein">Demander</button>' +
+      '</form>';
+
     if (f.questionChoisie) {
-      var item = FAQ.filter(function (x) { return x.q === f.questionChoisie; })[0] || { q: f.questionChoisie, r: 'Fonctionnalité en cours d\'analyse.' };
+      var item = FAQ.filter(function (x) { return x.q === f.questionChoisie; })[0];
+      var rep = item ? item.r : (f.reponseCalculee || analyserQuestionIa(f.questionChoisie));
       return '<div class="ia-dialogue">' +
-        '<button type="button" class="bouton bouton-texte" data-a="iaFermerQuestion" style="margin-bottom:8px">← Toutes les questions</button>' +
-        '<div class="ia-message ia-user"><b>Votre question :</b> ' + esc(item.q) + '</div>' +
-        '<div class="ia-message ia-bot"><div class="ia-bot-tete">✨ <b>Copilote MediPlanner</b></div><p>' + item.r + '</p></div>' +
+        '<button type="button" class="bouton bouton-texte" data-a="iaFermerQuestion" style="margin-bottom:8px">← Poser une autre question</button>' +
+        '<div class="ia-message ia-user"><b>Votre question :</b> ' + esc(f.questionChoisie) + '</div>' +
+        '<div class="ia-message ia-bot"><div class="ia-bot-tete">✨ <b>Copilote MediPlanner</b></div><p>' + rep + '</p></div>' +
+        formSaisie +
         '</div>';
     }
 
     return '<div class="ia-conteneur">' +
-      '<p class="discret" style="margin:0 0 10px">Touchez une question pour afficher l\'explication :</p>' +
+      formSaisie +
+      '<p class="discret" style="margin:4px 0 10px">Ou touchez une question fréquente :</p>' +
       '<div class="ia-questions">' +
       FAQ.map(function (item) {
         return '<button type="button" class="ia-q-btn" data-a="iaReponse" data-q="' + esc(item.q) + '">' +
@@ -7686,7 +7747,18 @@
     },
     iaFermerQuestion: function () {
       var f = S.ui.feuille;
-      if (f && f.type === 'aideIa') { f.questionChoisie = null; rendreFeuille(); }
+      if (f && f.type === 'aideIa') { f.questionChoisie = null; f.reponseCalculee = null; rendreFeuille(); }
+    },
+    iaEnvoyerQuestion: function (el) {
+      var inp = $('iaQuestionLibre');
+      var q = inp ? inp.value.trim() : '';
+      if (!q) return;
+      var f = S.ui.feuille;
+      if (f && f.type === 'aideIa') {
+        f.questionChoisie = q;
+        f.reponseCalculee = analyserQuestionIa(q);
+        rendreFeuille();
+      }
     },
     calOuvrir: function () {
       var d = jourAffiche();
