@@ -1,9 +1,10 @@
 {
-  "version": "3.26.8",
+  "version": "3.26.9",
   "date": "2026-10-30",
   "notes": [
-    "Répertoire : Bouton « Capter ma position GPS ici » grand format (48px) avec badge de statut",
-    "Tournée : Raccourci tactile « Ajouter au jour (Inopinée) » pour forcer instantanément une visite du jour",
-    "Audit Qualité : Détection intelligente des centroïdes filtrant les grands pôles hospitaliers des vrais conflits"
+    "Remplacement sur place & multi-sites : Prise en compte prioritaire du même établissement (CHU, même clinique)",
+    "Répertoire : Bouton « Capter position GPS » et « Ajouter au jour »",
+    "Grille de présences : Centrage de « Modifier le planning hebdomadaire »",
+    "Compte Rendu visite : Suppression de la molécule sous le produit, espacements resserrés et carte élargie sur la gauche"
   ]
 }

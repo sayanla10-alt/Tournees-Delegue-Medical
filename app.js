@@ -9,13 +9,19 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.8';
+  var APP_VERSION = '3.26.9';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.9', [
+      'Remplacement sur place & multi-sites : Si le praticien X est absent au CHU, le confrère Y qui y exerce aussi est proposé et ajouté d\'office sur le CHU (priorité au même établissement)',
+      'Répertoire épuré : Boutons « Capter position GPS » et « Ajouter au jour » au design compact et clair',
+      'Grille de présences : Lien « Modifier le planning hebdomadaire » parfaitement centré sous le tableau',
+      'Compte Rendu de visite optimisé : Suppression de la molécule sous le médicament (Losartan sous Zyltan, etc.), espacements resserrés et carte élargie sur la gauche'
+    ]],
     ['3.26.8', [
       'Répertoire : Bouton « Capter ma position GPS ici » grand format (48px) avec statut tactile direct',
-      'Tournée terrain : Raccourci « Ajouter au jour (Inopinée) » pour forcer instantanément une visite du jour',
+      'Tournée terrain : Raccourci « Ajouter au jour » pour forcer instantanément une visite du jour',
       'Audit Qualité BDD : Distinction intelligente des équipes hospitalières des vrais centroïdes suspects'
     ]],
     ['3.26.7', [
@@ -2806,17 +2812,20 @@
     var d = a.date, j = jourSemaineIndex(d), c = ctx(), filtre = filtreCibles(), ex = exclusCollegues([d]);
     var dansPlan = ensemble(S.plan.filter(function (x) { return x.date === d; }).map(function (x) { return x.code; }));
     var origine = coordArret(a), vus = {}, l = [];
-    var lieuA = normaliser(a.lieu || '');
+    var lieuA = a.lieu || '';
     (c.parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
       if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || (filtre && !filtre(p)) || absentLe(p, d)) return;
       if (d === aujourdhui() && cr.fin <= minutesMaintenant()) return;   // aujourd'hui : seulement ceux encore présents
       if (joursEcoules(p.derniere, d) < (+S.params.delai || 0)) return;
       var dist = origine && cr.coord ? distanceKm(origine, cr.coord) : 99;
-      var lieuCr = normaliser(cr.lieu || '');
-      var memeLieu = !!(lieuA && lieuCr && (lieuA === lieuCr || (lieuA.length >= 4 && lieuCr.indexOf(lieuA) >= 0) || (lieuCr.length >= 4 && lieuA.indexOf(lieuCr) >= 0)));
+      var memeLieu = memeEtablissement(lieuA, cr.lieu);
       var x = { cr: cr, dist: dist, score: Moteur.scoreDe(p, d) + (memeLieu ? 50 : 0), memeLieu: memeLieu };
-      if (!vus[cr.code] || x.dist < vus[cr.code].dist) vus[cr.code] = x;
+      var existant = vus[cr.code];
+      // 3.26.9 : priorité absolue au créneau du même établissement (CHU, même clinique) si le praticien y exerce aussi
+      if (!existant || (x.memeLieu && !existant.memeLieu) || (!existant.memeLieu && x.dist < existant.dist) || (x.memeLieu && existant.memeLieu && x.dist < existant.dist)) {
+        vus[cr.code] = x;
+      }
     });
     Object.keys(vus).forEach(function (k) { l.push(vus[k]); });
     l.sort(function (x, y) {
@@ -2838,7 +2847,7 @@
   }
   function remplacerArret(uid) {
     var a = arret(uid); if (!a) return;
-    S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: uid, choix: null };
+    S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: uid, choix: null, lieuRef: a.lieu };
     rendre();
   }
   function appliquerRemplacement(uid, cle, garder) {
@@ -3399,7 +3408,6 @@
       h += '<div class="ligne-gamme">' +
         '<div class="lg-tete">' +
           '<b>' + esc(nom) + '</b>' +
-          (mol ? '<small>' + esc(mol) + '</small>' : '') +
         '</div>' +
         '<div class="lg-produits' + (seul ? ' seul' : '') + '">' +
         fichesTriees.map(function (f) {
@@ -3433,7 +3441,6 @@
         h += '<div class="ligne-gamme">' +
           '<div class="lg-tete">' +
             '<b>' + esc(nom) + '</b>' +
-            (mol ? '<small>' + esc(mol) + '</small>' : '') +
           '</div>' +
           '<div class="lg-produits' + (seul ? ' seul' : '') + '">' +
           fichesTriees.map(function (f) {
@@ -4741,14 +4748,14 @@
 
         h += '<div class="bloc-actions-contact" style="margin-top:10px">' +
           '<button class="bouton bouton-plein bouton-gps-ici" type="button" data-a="majGpsDirect" data-v="' + esc(p.code) + '">' +
-            '<span class="gps-ici-gauche">' + icone('cible') + '<b>Capter ma position GPS ici</b></span>' +
+            '<span class="gps-ici-gauche">' + icone('cible') + '<b>Capter position GPS</b></span>' +
             '<span class="gps-ici-badge ' + (aGpsFixe ? 'fixe' : 'manquant') + '">' + (aGpsFixe ? '✓ GPS fixé' : 'GPS non fixé') + '</span>' +
           '</button>' +
           '<div class="rangee rangee-actions-contact">' +
             (dejaAuj
               ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
               : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
-                  icone('eclair') + '<span>Ajouter au jour (Inopinée)</span></button>') +
+                  icone('eclair') + '<span>Ajouter au jour</span></button>') +
             '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
             '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
           '</div></div>';
@@ -4794,10 +4801,10 @@
         }).join('') + '</tr>';
     });
     h += '</tbody></table>' +
-      '<div class="pres-actions" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px">' +
-        '<p class="discret" style="margin:0">Touchez M ou S pour planifier une visite.</p>' +
-        '<button type="button" class="bouton-texte" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
-        icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +
+      '<div class="pres-actions" style="margin-top:8px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%">' +
+        '<p class="discret" style="margin:0 0 4px;text-align:center">Touchez M ou S pour planifier une visite.</p>' +
+        '<div style="text-align:center;width:100%"><button type="button" class="bouton-texte" data-a="modifierPlanning" data-v="' + esc(code) + '" style="margin:0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center">' +
+        icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button></div>' +
       '</div></div>';
     return h;
   }
@@ -5530,7 +5537,7 @@
     h += '<p><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(p.specialite) + '</span></p>';
     h += '<p class="discret">Quand planifier cette visite ?</p>';
     h += '<div class="choix-creneaux">' +
-      '<label class="choix choix-aujourdhui"><input type="radio" name="impCle" value="__aujourdhui"' + (defAuj ? ' checked' : '') + '><span><b>Ajouter à aujourd\'hui (' + dateCourte(tAuj) + ') — visite inopinée</b><small>Forcer dans la journée d\'aujourd\'hui, en dépit du programme</small></span></label>' +
+      '<label class="choix choix-aujourdhui"><input type="radio" name="impCle" value="__aujourdhui"' + (defAuj ? ' checked' : '') + '><span><b>Ajouter à aujourd\'hui (' + dateCourte(tAuj) + ')</b><small>Forcer dans la journée d\'aujourd\'hui, en dépit du programme</small></span></label>' +
       (options.length ? '<label class="choix"><input type="radio" name="impCle" value=""' + (!f.cle && !defAuj ? ' checked' : '') + '><span><b>Au meilleur moment</b><small>L\'application choisit le jour le plus pratique</small></span></label>' : '') +
       options.map(function (o) {
         var v = o.d + '|' + o.c.cle;
@@ -6770,7 +6777,7 @@
     if (aKoSeul) {
       var cands = candidatsRemplacement(aValider[0]);
       if (cands && cands.length) {
-        S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + aValider[0].nom, pleine: true, uid: aValider[0].uid, choix: null, garder: true };
+        S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + aValider[0].nom, pleine: true, uid: aValider[0].uid, choix: null, garder: true, lieuRef: aValider[0].lieu };
       }
     }
     sauver(); rendre();
@@ -6813,7 +6820,7 @@
       return !qui || estMoi(qui);
     }).map(function (p) { return { code: p.code, apres: p.prochaine < dates[0] ? dates[0] : p.prochaine, etape: true, dateRdv: p.prochaine, prisLe: prisLe[p.code + '|' + p.prochaine] || '' }; });
   }
-  function forcerArretJour(code, d, rdv) {
+  function forcerArretJour(code, d, rdv, lieuPrefere) {
     var c = ctx(), p = c.prat[code];
     if (!p) return false;
     var ex = S.plan.filter(function (a) { return a.date === d && a.code === code; })[0];
@@ -6825,11 +6832,33 @@
     }
     var jIdx = jourSemaineIndex(d), now = minutesMaintenant(), estSoir = d === aujourdhui() && now >= 13 * 60;
     var tousCr = c.parCode[code] || [];
-    var cr = tousCr.filter(function (x) { return x.jourIdx === jIdx && x.creneau === (estSoir ? 'Soir' : 'Matin'); })[0] ||
-             tousCr.filter(function (x) { return x.jourIdx === jIdx; })[0] ||
-             tousCr[0];
+    // 3.26.9 : si le délégué remplace ou ajoute au CHU / même établissement, sélectionner d'office ce lieu
+    var refLieu = lieuPrefere || (S.ui.feuille && S.ui.feuille.lieuRef) || '';
+    if (!refLieu && d === aujourdhui()) {
+      var duJour = S.plan.filter(function (x) { return x.date === d; });
+      var absente = duJour.filter(function (x) { return x.statut && estKo(x.statut); }).slice(-1)[0];
+      if (absente && absente.lieu) refLieu = absente.lieu;
+      else if (duJour.length) {
+        var courante = duJour.filter(function (x) { return !x.statut; })[0] || duJour.slice(-1)[0];
+        if (courante && courante.lieu) refLieu = courante.lieu;
+      }
+    }
+    var cr = null;
+    if (refLieu) {
+      cr = tousCr.filter(function (x) { return x.jourIdx === jIdx && x.creneau === (estSoir ? 'Soir' : 'Matin') && memeEtablissement(refLieu, x.lieu); })[0] ||
+           tousCr.filter(function (x) { return x.jourIdx === jIdx && memeEtablissement(refLieu, x.lieu); })[0] ||
+           tousCr.filter(function (x) { return memeEtablissement(refLieu, x.lieu); })[0];
+    }
     if (!cr) {
-      var pr = (c.presencesParCode[code] || [])[0] || { id: 'IMP-' + code, lieu: p.type === 'Pharmacie' ? p.nom : 'Cabinet', quartier: '', commune: '', zone: '' };
+      cr = tousCr.filter(function (x) { return x.jourIdx === jIdx && x.creneau === (estSoir ? 'Soir' : 'Matin'); })[0] ||
+           tousCr.filter(function (x) { return x.jourIdx === jIdx; })[0] ||
+           tousCr[0];
+    }
+    if (!cr) {
+      var presences = c.presencesParCode[code] || [];
+      var pr = (refLieu ? presences.filter(function (x) { return memeEtablissement(refLieu, x.lieu); })[0] : null) ||
+               presences[0] ||
+               { id: 'IMP-' + code, lieu: p.type === 'Pharmacie' ? p.nom : 'Cabinet', quartier: '', commune: '', zone: '' };
       var qObj = quartiers().filter(function (q) { return q.quartier === pr.quartier; })[0];
       var coord = (pr.lat && pr.lon) ? { lat: +pr.lat, lon: +pr.lon } : (qObj ? { lat: +qObj.lat, lon: +qObj.lon, approx: true } : null);
       cr = {
@@ -7517,11 +7546,11 @@
         var tAuj = aujourdhui(), imAuj = { code: f.code, date: tAuj, force: true };
         if (rdv) imAuj.rdv = rdv;
         S.imposes = S.imposes.filter(function (x) { return x.code !== imAuj.code; }).concat([imAuj]);
-        forcerArretJour(f.code, tAuj, rdv);
+        forcerArretJour(f.code, tAuj, rdv, f.lieuRef);
         S.ui.jour = tAuj; S.ui.jourVue = null;
         if (!S.ui.voirParams) S.ui.tab = 'jour';
         S.ui.feuille = null; sauver(); rendre(); publierPlan();
-        toast('Ajouté à aujourd\'hui (' + dateCourte(tAuj) + ', visite inopinée).');
+        toast('Ajouté à la tournée d\'aujourd\'hui (' + dateCourte(tAuj) + ').');
         return;
       }
       var im = { code: f.code };
@@ -7545,7 +7574,7 @@
       S.ui.jour = tAuj; S.ui.jourVue = null;
       if (!S.ui.voirParams) S.ui.tab = 'jour';
       sauver(); rendre(); publierPlan();
-      toast('Visite inopinée : ' + p.nom + ' ajouté(e) à aujourd\'hui (' + dateCourte(tAuj) + ').');
+      toast(p.nom + ' ajouté(e) à la tournée d\'aujourd\'hui (' + dateCourte(tAuj) + ').');
     },
     planifierCle: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v); if (!c) return;
@@ -7835,7 +7864,7 @@
     remplacerOui: function () { var f = S.ui.feuille; appliquerRemplacement(f.uid, f.choix.cle, f.garder); },
     completerJour: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
-      S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true }; rendre();
+      S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true, lieuRef: a.lieu }; rendre();
     },
     confirmerOui: function () { var f = S.ui.feuille; S.ui.feuille = null; if (f && f.action) f.action(); else rendre(); },
     confirmerNon: function () { var f = S.ui.feuille; S.ui.feuille = null; if (f && f.non) f.non(); else rendre(); },
@@ -7945,7 +7974,7 @@
       var a = arret(el.dataset.uid); if (!a) return;
       syncCr(a); validerVisites(a.uid);
       if (a.hors) return;   // jour passé hors tournée : pas de remplacement après coup
-      S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true }; rendre();
+      S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true, lieuRef: a.lieu }; rendre();
     },
     produit: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;

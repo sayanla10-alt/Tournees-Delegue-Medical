@@ -289,10 +289,15 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .troncon .arret-rail::before { top: 0; bottom: 0; height: auto; }
 .troncon span { align-self: center; padding-left: 12px; font: 600 13px/1 var(--titre); color: var(--primaire); }
 .arret-carte {
-  position: relative; margin: 4px 0 10px 8px; padding: 10px 12px; border-radius: var(--r);
-  background: var(--papier); border: 1px solid var(--trait); text-align: left; width: calc(100% - 8px); box-shadow: var(--ombre);
+  position: relative; margin: 4px 0 10px 4px; padding: 10px 10px; border-radius: var(--r);
+  background: var(--papier); border: 1px solid var(--trait); text-align: left; width: calc(100% - 4px); box-shadow: var(--ombre);
 }
-.arret.ouvert .arret-carte { border-color: var(--primaire); box-shadow: 0 0 0 1px var(--primaire); }
+.arret.ouvert .arret-carte {
+  margin-left: 1px !important;
+  width: calc(100% - 1px) !important;
+  border-color: var(--primaire);
+  box-shadow: 0 0 0 1px var(--primaire);
+}
 .arret.verrouille .arret-carte { background: var(--papier-2); }
 .arret.garde .arret-carte { border-color: var(--primaire); }
 .arret-carte .carte-bouton { padding-right: 34px; }
@@ -944,6 +949,23 @@ body.feuille-ouverte { overflow: hidden; }
   background: var(--primaire); color: var(--sur-primaire); font: 700 12px var(--titre);
 }
 .grille-pres .dispo button + button { background: var(--bleu); color: var(--papier); }
+.pres-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 4px !important;
+  width: 100% !important;
+  margin-top: 8px !important;
+}
+.pres-actions .bouton-texte {
+  margin: 0 auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
 
 /* ------------------------------------------------------------- Barre de validation, navigation, toast */
 .barre-valider {
@@ -1381,13 +1403,13 @@ details.avance h3 { margin-top: 18px; }
 .a-saisir .bouton-texte { min-height: 0; padding: 3px 0; font-size: 14.5px; }
 .txt-alerte { color: #B45309; }
 
-/* 3.13.4 : marge de gauche réduite, accès au compte rendu */
-.arret, .troncon { grid-template-columns: 48px 18px 1fr; }
-.arret-heure { padding: 12px 5px 0 0; }
-.arret-heure b { font-size: 15px; }
+/* 3.13.4 & 3.26.9 : marge de gauche réduite, carte élargie au maximum à gauche pour le CR */
+.arret, .troncon { grid-template-columns: 42px 14px 1fr; }
+.arret-heure { padding: 12px 3px 0 0; }
+.arret-heure b { font-size: 14.5px; }
 .arret-heure small { font-size: 10px; }
-.creneau-titre { margin-left: 66px; }
-.troncon span { padding-left: 8px; font-size: 12px; }
+.creneau-titre { margin-left: 56px; }
+.troncon span { padding-left: 6px; font-size: 12px; }
 .acces-rapport { width: 100%; display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 11px 12px; border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); color: var(--encre); text-align: left; }
 .acces-rapport > span { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
 .acces-rapport > span svg { width: 18px; height: 18px; color: var(--primaire); grid-row: span 2; }
@@ -1819,8 +1841,8 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
-  gap: 8px !important;
-  padding: 10px 12px !important;
+  gap: 4px !important;
+  padding: 7px 10px !important;
   border-top: 1px solid var(--trait) !important;
 }
 .liste-gammes-cr .ligne-gamme:first-child { border-top: 0 !important; }
@@ -1828,19 +1850,19 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   display: flex !important;
   align-items: baseline !important;
   justify-content: flex-start !important;
-  gap: 8px !important;
+  gap: 6px !important;
   width: 100% !important;
   min-width: 0 !important;
   flex: none !important;
 }
-.liste-gammes-cr .lg-tete b { font-size: 14.5px !important; font-weight: 700 !important; line-height: 1.2 !important; color: var(--encre) !important; }
-.liste-gammes-cr .lg-tete small { font-size: 12px !important; color: var(--gris) !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+.liste-gammes-cr .lg-tete b { font-size: 14px !important; font-weight: 700 !important; line-height: 1.15 !important; color: var(--encre) !important; }
+.liste-gammes-cr .lg-tete small { display: none !important; }
 .liste-gammes-cr .lg-produits {
   width: 100% !important;
   min-width: 0 !important;
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 8px !important;
+  gap: 6px !important;
   align-items: stretch !important;
   justify-content: normal !important;
   flex: none !important;

@@ -818,9 +818,61 @@ var REGLAGES_MOTEUR = {
 
 // ---------------------------------------------------------------- Texte
 function sansAccents(s) {
-  return String(s === undefined || s === null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return String(s === undefined || s === null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 function normaliser(s) { return sansAccents(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+// 3.26.9 : Détection intelligente d'un même établissement (CHU, cliniques, hôpitaux avec variantes d'écriture)
+function memeEtablissement(a, b) {
+  if (!a || !b) return false;
+  var sa = sansAccents(String(a)).toLowerCase().trim();
+  var sb = sansAccents(String(b)).toLowerCase().trim();
+  if (sa === sb) return true;
+
+  function nettoyerEtab(s) {
+    return s
+      .replace(/\b(centre hospitalier universitaire|centre hospitalier et universitaire|centre hosp univ)\b/g, 'chu')
+      .replace(/\b(hopital militaire d abidjan|hopital militaire abidjan)\b/g, 'hma')
+      .replace(/\b(institut de cardiologie d abidjan|institut cardiologie abidjan|institut de cardiologie)\b/g, 'ica')
+      .replace(/\b(polyclinique internationale sainte anne marie|polyclinique sainte anne marie|clinique sainte anne marie)\b/g, 'pisam')
+      .replace(/\b(hopital general|hop general)\b/g, 'hg')
+      .replace(/\b(polyclinique|clinique|hopital|centre medical|cabinet medical|cabinet)\b/g, '')
+      .replace(/\b(de|du|des|d|l|le|la|les|et|au|aux)\b/g, ' ')
+      .replace(/[^a-z0-9]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  var c1 = nettoyerEtab(sa);
+  var c2 = nettoyerEtab(sb);
+  if (!c1 || !c2) return false;
+  if (c1 === c2) return true;
+  var sansEsp1 = c1.replace(/\s+/g, '');
+  var sansEsp2 = c2.replace(/\s+/g, '');
+  if (sansEsp1 === sansEsp2) return true;
+
+  // Inclusion de libellé (ex: "chu cocody" dans "service cardiologie chu cocody")
+  if (c1.length >= 4 && c2.length >= 4) {
+    if (c1.indexOf(c2) >= 0 || c2.indexOf(c1) >= 0) return true;
+    if (sansEsp1.indexOf(sansEsp2) >= 0 || sansEsp2.indexOf(sansEsp1) >= 0) return true;
+  }
+
+  // Mots significatifs
+  var w1 = c1.split(' ').filter(function (w) { return w.length >= 3; });
+  var w2 = c2.split(' ').filter(function (w) { return w.length >= 3; });
+  if (w1.length >= 1 && w2.length >= 1) {
+    if (w1.indexOf('chu') >= 0 && w2.indexOf('chu') >= 0) {
+      var sitesChu = ['cocody', 'treichville', 'angre', 'yopougon', 'bouake'];
+      for (var k = 0; k < sitesChu.length; k++) {
+        var site = sitesChu[k];
+        if (w1.indexOf(site) >= 0 && w2.indexOf(site) >= 0) return true;
+      }
+    }
+    var communs = w1.filter(function (w) { return w2.indexOf(w) >= 0; });
+    if (communs.length >= 2 && (communs.length === w1.length || communs.length === w2.length)) return true;
+  }
+  return false;
+}
 
 // ---------------------------------------------------------------- Dates (AAAA-MM-JJ, sans fuseau)
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
