@@ -9,10 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.40';
+  var APP_VERSION = '3.26.41';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.41', [
+      'Planifier : Synthèse journalière sur 2 lignes strictes avec communes intégrées dès la 1re ligne (ex. « Lundi 2 nov. · 7 visites · Cocody, Abobo »)',
+      'Fiche Praticien : Récupération automatique immédiate du quartier, de la commune et du GPS pour tout établissement déjà en base',
+      'Répertoire / Fiche : Suppression de la bordure sous « Modifier le planning hebdomadaire » et cadre épuré',
+      'Sélecteur de Quartiers : Grand Abidjan en tête, découpage par secteurs (Cocody, Yopougon, Abobo), quartiers alphabétiques et villes de l\'intérieur masquées en bas',
+      'Écran d\'accueil : Le toucher sur l\'écran suspend le décompte automatique pour laisser le temps de lire, puis permet de valider son option'
+    ]],
     ['3.26.40', [
       'CR Pharmacie : État « Disponible » (remplaçant « En stock »), options stocks en grille 2×2 compacte et texte d\'aide retiré',
       'Critères de recherche : Options de suivi (Étape 5) rationalisées en 2 lignes équilibrées',
@@ -1276,14 +1283,16 @@
       if (ouv === undefined || ouv === null) {
         if (o.multiple) {
           var secAvecSel = o.sections.filter(function (sec) {
-            return sec.options.some(function (op) { return sel && sel[op.v]; });
+            return !sec.fermeeParDefaut && sec.options.some(function (op) { return sel && sel[op.v]; });
           })[0];
-          ouv = secAvecSel ? secAvecSel.titre : (memo[accCle] !== undefined ? memo[accCle] : (o.sections[0] ? o.sections[0].titre : ''));
+          var premiereSecDispo = o.sections.filter(function (sec) { return !sec.fermeeParDefaut; })[0] || o.sections[0];
+          ouv = secAvecSel ? secAvecSel.titre : (memo[accCle] !== undefined ? memo[accCle] : (premiereSecDispo ? premiereSecDispo.titre : ''));
         } else {
           var secAvecVal = o.sections.filter(function (sec) {
-            return sec.options.some(function (op) { return op.v === val; });
+            return !sec.fermeeParDefaut && sec.options.some(function (op) { return op.v === val; });
           })[0];
-          ouv = secAvecVal ? secAvecVal.titre : (memo[accCle] !== undefined ? memo[accCle] : (o.sections[0] ? o.sections[0].titre : ''));
+          var premiereSecDispo = o.sections.filter(function (sec) { return !sec.fermeeParDefaut; })[0] || o.sections[0];
+          ouv = secAvecVal ? secAvecVal.titre : (memo[accCle] !== undefined ? memo[accCle] : (premiereSecDispo ? premiereSecDispo.titre : ''));
         }
         f.secOuvertes = f.secOuvertes || {};
         f.secOuvertes[accCle] = ouv;
@@ -1452,9 +1461,103 @@
       '<span>' + esc(lib || cfg.vide || 'Choisir…') + '</span><b>▾</b></button>';
   }
   function sectionsQuartiers() {
+    var qs = quartiers();
+    var grandAbidjanComs = [
+      'Abobo', 'Adjamé', 'Anyama', 'Attécoubé', 'Bingerville',
+      'Cocody', 'Koumassi', 'Marcory', 'Plateau', 'Port-Bouët',
+      'Songon', 'Treichville', 'Yopougon'
+    ];
+    var grandAbidjanNorm = grandAbidjanComs.map(normaliser);
+
     var par = {};
-    quartiers().forEach(function (q) { (par[q.commune] = par[q.commune] || []).push([q.quartier, q.quartier]); });
-    return Object.keys(par).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).map(function (c) { return { titre: c, options: par[c] }; });
+    var interieur = [];
+
+    qs.forEach(function (q) {
+      var nomQ = (q.quartier || '').trim();
+      if (!nomQ || /^NL$/i.test(nomQ)) return;
+      var com = (q.commune || '').trim().replace(/\s*-\s*/g, ' – ');
+      var zone = (q.zone || '').trim();
+      var estInt = zone === 'Zone Intérieur' || zone === 'Zone Interieur' ||
+                   (zone && zone.toLowerCase().indexOf('intérieur') >= 0) ||
+                   (zone && zone.toLowerCase().indexOf('interieur') >= 0) ||
+                   (com && com.toLowerCase().indexOf('intérieur') >= 0) ||
+                   (com && com.toLowerCase().indexOf('interieur') >= 0);
+
+      var parent = (typeof communeParente === 'function') ? communeParente(com) : com;
+      var normParent = normaliser(parent || '');
+      if (!estInt && grandAbidjanNorm.indexOf(normParent) < 0) {
+        estInt = true;
+      }
+
+      if (estInt) {
+        interieur.push({ v: nomQ, lib: nomQ + (com && com !== nomQ && !estInt ? ' (' + com + ')' : '') });
+        return;
+      }
+
+      // Grand Abidjan : rattachement par commune et secteur
+      var groupeTitre = com;
+      if (normParent === 'cocody') {
+        groupeTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Cocody', nomQ, '') : 'Cocody – Centre';
+        if (!groupeTitre || groupeTitre === 'Cocody') groupeTitre = 'Cocody – Centre';
+      } else if (normParent === 'yopougon') {
+        groupeTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Yopougon', nomQ, '') : 'Yopougon – Centre & Mairie';
+        if (!groupeTitre || groupeTitre === 'Yopougon') groupeTitre = 'Yopougon – Centre & Mairie';
+      } else if (normParent === 'abobo') {
+        groupeTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Abobo', nomQ, '') : 'Abobo – Centre & Mairie';
+        if (!groupeTitre || groupeTitre === 'Abobo') groupeTitre = 'Abobo – Centre & Mairie';
+      } else {
+        groupeTitre = parent || com;
+      }
+
+      groupeTitre = groupeTitre.replace(/\s*-\s*/g, ' – ');
+      par[groupeTitre] = par[groupeTitre] || [];
+      if (!par[groupeTitre].some(function (x) { return x[0] === nomQ; })) {
+        par[groupeTitre].push([nomQ, nomQ]);
+      }
+    });
+
+    var sections = [];
+    var groupesOrdre = [
+      'Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre',
+      'Yopougon – Centre & Mairie', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Niangon', 'Yopougon – Sud & Gesco',
+      'Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Nord & PK18', 'Abobo – Sud & Plaque',
+      'Adjamé', 'Anyama', 'Attécoubé', 'Bingerville', 'Koumassi', 'Marcory', 'Plateau', 'Port-Bouët', 'Songon', 'Treichville'
+    ];
+
+    groupesOrdre.forEach(function (titre) {
+      if (par[titre] && par[titre].length) {
+        par[titre].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+        sections.push({ titre: titre, options: par[titre] });
+        delete par[titre];
+      }
+    });
+
+    Object.keys(par).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (k) {
+      if (par[k] && par[k].length) {
+        par[k].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+        sections.push({ titre: k, options: par[k] });
+      }
+    });
+
+    // Villes de l'intérieur tout en bas et masquées par défaut
+    if (interieur.length) {
+      var vuInt = {};
+      var optsInt = [];
+      interieur.forEach(function (it) {
+        if (!vuInt[it.v]) {
+          vuInt[it.v] = true;
+          optsInt.push([it.v, it.lib]);
+        }
+      });
+      optsInt.sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+      sections.push({
+        titre: 'Villes de l\'intérieur',
+        options: optsInt,
+        fermeeParDefaut: true
+      });
+    }
+
+    return sections;
   }
   // Nom du délégué : choisi dans la liste de la feuille Listes (évite les fautes de frappe entre collègues)
   function champNom(id, valeur, libelle) {
@@ -3049,13 +3152,15 @@
     var etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmé' + (S.jours[d] && S.jours[d].modifieLe ? ', modifié' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
     var details = [
       nMatin + ' matin' + (nSoir ? ', ' + nSoir + ' soir' : ''),
-      (nPhar ? nPhar + ' phcie' + (nPhar > 1 ? 's' : '') : '') + (nPhar && nMed ? ', ' : '') + (nMed ? nMed + ' médecin' + (nMed > 1 ? 's' : '') : ''),
+      (nPhar ? nPhar + ' phcie' + (nPhar > 1 ? 's' : '') : '') + (nPhar && nMed ? ', ' : '') + (nMed ? nMed + ' méd.' : ''),
       n3 ? n3 + ' ★★★' : '',
-      km(totalKm),
-      comJour.length ? esc(comJour.join(', ')) : ''
+      km(totalKm)
     ].filter(Boolean).join(' · ');
-    h += '<div class="tete-jour-plan"><div class="bilan-jour"><div><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') + '</div>' +
-      '<div class="discret details-plan">' + details + '</div></div><div class="tete-jour-droite">' + etat + '</div></div>';
+    h += '<div class="tete-jour-plan"><div class="bilan-jour">' +
+      '<div class="bj-ligne1"><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
+      (comJour.length ? ' · <span class="bj-communes">' + esc(comJour.join(', ')) + '</span>' : '') + '</div>' +
+      '<div class="discret details-plan">' + details + '</div></div>' +
+      '<div class="tete-jour-droite">' + etat + '</div></div>';
     h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
     var actionsPlan = '';
     if (enAttente) {
@@ -6663,7 +6768,7 @@
     var cfg = S.ui.listes[f.id] || {}, n = 0;
     var map = function (l) { return l.map(function (o) { n++; return { v: o[0], lib: o[1] }; }); };
     var o = { id: 'l', titre: 'Un seul choix', chemin: 'sel', recherche: true, accordeon: String(f.id).replace(/\d+$/, '') };
-    if (cfg.sections) o.sections = cfg.sections.map(function (x) { return { titre: x.titre, options: map(x.options) }; }); else o.options = map(cfg.options || []);
+    if (cfg.sections) o.sections = cfg.sections.map(function (x) { return { titre: x.titre, options: map(x.options), fermeeParDefaut: !!x.fermeeParDefaut }; }); else o.options = map(cfg.options || []);
     if (n <= 8) o.recherche = false;
     return groupeChoix(f, o);
   };
@@ -6809,12 +6914,40 @@
       }
     }
 
-    // 2. Établissements connus de la BDD (mutualisation pour éviter fautes & doublons)
+    // 2. Table de référence officielle des établissements de Côte d'Ivoire (175 établissements)
+    if (typeof TABLE_REFERENCE_ETABLISSEMENTS_CI !== 'undefined') {
+      if (TABLE_REFERENCE_ETABLISSEMENTS_CI[norm]) {
+        var tr = TABLE_REFERENCE_ETABLISSEMENTS_CI[norm];
+        return {
+          lieu: tr.titre || raw,
+          quartier: tr.quartier || quartierSaisi || '',
+          commune: tr.commune || communeSaisie || '',
+          lat: tr.lat || '',
+          lon: tr.lon || ''
+        };
+      }
+      var tKeys = Object.keys(TABLE_REFERENCE_ETABLISSEMENTS_CI);
+      for (var k = 0; k < tKeys.length; k++) {
+        var tk = tKeys[k];
+        if (norm.length >= 4 && (tk === norm || (tk.indexOf(norm) >= 0 && tk.length >= 5) || (norm.indexOf(tk) >= 0 && norm.length >= 5))) {
+          var trk = TABLE_REFERENCE_ETABLISSEMENTS_CI[tk];
+          return {
+            lieu: trk.titre || raw,
+            quartier: trk.quartier || quartierSaisi || '',
+            commune: trk.commune || communeSaisie || '',
+            lat: trk.lat || '',
+            lon: trk.lon || ''
+          };
+        }
+      }
+    }
+
+    // 3. Établissements connus de la BDD (mutualisation pour éviter fautes & doublons)
     var connus = etablissementsConnus();
     for (var j = 0; j < connus.length; j++) {
       var e = connus[j];
       var ne = normaliser(e.lieu);
-      if (norm === ne || (norm.length >= 5 && (norm.indexOf(ne) >= 0 || ne.indexOf(norm) >= 0))) {
+      if (norm === ne || (norm.length >= 4 && (norm.indexOf(ne) >= 0 || ne.indexOf(norm) >= 0))) {
         return {
           lieu: e.lieu,
           quartier: e.quartier || quartierSaisi || '',
@@ -6822,6 +6955,53 @@
           lat: e.lat || '',
           lon: e.lon || ''
         };
+      }
+    }
+    return null;
+  }
+
+  function trouverEtablissementBDD(nomSaisi, quartierSaisi, communeSaisie) {
+    var raw = String(nomSaisi || '').trim();
+    if (!raw || raw.length < 2) return null;
+    var norm = normaliser(raw);
+
+    // 1. Dictionnaire canonique et table de référence
+    var can = canonicaliserEtablissement(raw, quartierSaisi, communeSaisie);
+    if (can && can.quartier && !/^NL$/i.test(can.quartier)) return can;
+
+    // 2. Établissements connus en BDD
+    var connus = etablissementsConnus();
+    for (var j = 0; j < connus.length; j++) {
+      var e = connus[j];
+      var ne = normaliser(e.lieu || '');
+      if (ne && (ne === norm || (norm.length >= 4 && (ne.indexOf(norm) >= 0 || norm.indexOf(ne) >= 0)))) {
+        if (e.quartier && !/^NL$/i.test(e.quartier)) {
+          return {
+            lieu: e.lieu,
+            quartier: e.quartier,
+            commune: e.commune || communeSaisie || '',
+            lat: e.lat || '',
+            lon: e.lon || ''
+          };
+        }
+      }
+    }
+
+    // 3. Lieux réels de présence
+    var pres = (S.data && S.data.presences) || [];
+    for (var p = 0; p < pres.length; p++) {
+      var pr = pres[p];
+      var np = normaliser(pr.lieu || '');
+      if (np && (np === norm || (norm.length >= 4 && (np.indexOf(norm) >= 0 || norm.indexOf(np) >= 0)))) {
+        if (pr.quartier && !/^NL$/i.test(pr.quartier)) {
+          return {
+            lieu: pr.lieu,
+            quartier: pr.quartier,
+            commune: pr.commune || communeSaisie || '',
+            lat: pr.lat || '',
+            lon: pr.lon || ''
+          };
+        }
       }
     }
     return null;
@@ -7000,6 +7180,23 @@
     } else {
       if (d.specialite === 'Pharmacien') d.specialite = '';
     }
+    // Auto-récupération immédiate du quartier pour tout établissement déjà dans la BDD
+    (d.lieux || []).forEach(function (l, idx) {
+      if (d.type !== 'Pharmacie' && l && l.lieu && String(l.lieu).trim().length >= 2) {
+        if (!l.quartier || /^NL$/i.test(l.quartier) || String(l.quartier).trim() === '') {
+          var can = trouverEtablissementBDD(l.lieu, l.quartier, l.commune);
+          if (can && can.quartier && !/^NL$/i.test(can.quartier)) {
+            l.quartier = can.quartier;
+            if (can.commune && !l.commune) l.commune = can.commune;
+            if (can.lat && can.lon && !l.lat) { l.lat = can.lat; l.lon = can.lon; }
+            if (S.ui && S.ui.feuille && S.ui.feuille.err) {
+              delete S.ui.feuille.err['quartier' + idx];
+              delete S.ui.feuille.err['lieu' + idx];
+            }
+          }
+        }
+      }
+    });
   }
   // Erreurs d'une étape : { champ: message }
   function erreursEtape(d, etape) {
@@ -7167,7 +7364,7 @@
           h += '<p class="sous-titre" style="margin:0 0 8px">Jours et plages où l\'officine reçoit les délégués médicaux (tous cochés par défaut).</p>';
         } else if (i === 0 && (l.lieu || l.quartier) && !f.editerLieu0 && !f.err.lieu0 && !f.err.quartier0) {
           // 3.25.44 : Lieu 1 déjà renseigné à l'étape 1 — résumé compact sans doublon pour afficher directement la grille des jours
-          h += '<div class="lieu-resume-simple" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--fond-carte,#f8f9fa);border:1px solid var(--bordure,#e2e8f0);border-radius:8px;padding:8px 12px;margin:0 0 10px">' +
+          h += '<div class="lieu-resume-simple" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--fond-carte,#f8f9fa);border:none;box-shadow:none;border-radius:8px;padding:8px 12px;margin:0 0 10px">' +
             '<div><b style="font-size:0.95rem">' + esc(l.lieu || 'Établissement principal') + '</b>' +
             '<div class="discret" style="font-size:0.8rem">' + esc([l.quartier, l.commune || (q ? q.commune : '')].filter(Boolean).join(', ')) + (l.lat && l.lon ? ' · ' + icone('cible') + ' GPS' : '') + '</div></div>' +
             '<button type="button" class="bouton-texte" data-a="ficheEditerLieu0" style="font-size:0.8rem">Modifier l\'adresse</button>' +
@@ -9258,10 +9455,26 @@
     ficheChoixLieu: function (el) {
       var f = S.ui.feuille, i = +el.dataset.i, e = ((S.ui.sugLieux || {})[i] || [])[+el.dataset.v]; if (!f || !e) return;
       var l = f.d.lieux[i]; l.lieu = e.lieu; delete f.err['lieu' + i];
-      if (e.quartier && quartiers().some(function (q) { return q.quartier === e.quartier; })) { l.quartier = e.quartier; delete f.err['quartier' + i]; }
-      if (e.commune) l.commune = e.commune;
-      if (e.lat) { l.lat = e.lat; l.lon = e.lon; }
-      rendre(); toast('Établissement repris : ' + e.lieu + (e.quartier ? ' (' + e.quartier + ')' : '') + '.');
+      var qVal = e.quartier, cVal = e.commune, latVal = e.lat, lonVal = e.lon;
+      if (!qVal || /^NL$/i.test(qVal)) {
+        var can = trouverEtablissementBDD(e.lieu, '', cVal);
+        if (can && can.quartier && !/^NL$/i.test(can.quartier)) {
+          qVal = can.quartier;
+          if (can.commune && !cVal) cVal = can.commune;
+          if (can.lat && !latVal) { latVal = can.lat; lonVal = can.lon; }
+        }
+      }
+      if (qVal && !/^NL$/i.test(qVal)) {
+        l.quartier = qVal;
+        delete f.err['quartier' + i];
+      }
+      if (cVal) l.commune = cVal;
+      if (!l.commune && l.quartier) {
+        var qObj = quartiers().filter(function (q) { return normaliser(q.quartier) === normaliser(l.quartier); })[0];
+        if (qObj && qObj.commune) l.commune = qObj.commune;
+      }
+      if (latVal && lonVal) { l.lat = latVal; l.lon = lonVal; }
+      rendre(); toast('Établissement repris : ' + e.lieu + (l.quartier ? ' (' + l.quartier + ')' : '') + '.');
     },
     ficheGps: function (el) {
       var idx = +el.dataset.i;
@@ -9424,16 +9637,26 @@
         var idxL = +el.dataset.i, valL = el.value.trim();
         var zs = document.getElementById('sugLieu' + idxL);
         if (zs) zs.innerHTML = suggestionsLieu(valL, idxL);
-        if (valL.length >= 3 && S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.lieux[idxL]) {
-          var nrm = normaliser(valL);
-          var mtch = etablissementsConnus().filter(function (et) { return normaliser(et.lieu) === nrm; })[0];
-          if (mtch && mtch.quartier) {
-            var lObj = S.ui.feuille.d.lieux[idxL];
-            lObj.quartier = mtch.quartier;
-            if (mtch.commune) lObj.commune = mtch.commune;
-            if (mtch.lat) { lObj.lat = mtch.lat; lObj.lon = mtch.lon; }
+        if (valL.length >= 2 && S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.lieux[idxL]) {
+          var lObj = S.ui.feuille.d.lieux[idxL];
+          var bddMatch = trouverEtablissementBDD(valL, lObj.quartier, lObj.commune);
+          if (bddMatch && bddMatch.quartier && !/^NL$/i.test(bddMatch.quartier)) {
+            lObj.quartier = bddMatch.quartier;
+            if (bddMatch.commune && !lObj.commune) lObj.commune = bddMatch.commune;
+            if (bddMatch.lat && !lObj.lat) { lObj.lat = bddMatch.lat; lObj.lon = bddMatch.lon; }
             delete S.ui.feuille.err['quartier' + idxL];
             delete S.ui.feuille.err['lieu' + idxL];
+            var qBtn = document.getElementById('ficheQuartier' + idxL + 'Btn');
+            if (qBtn) {
+              var sp = qBtn.querySelector('span');
+              if (sp) sp.textContent = bddMatch.quartier + (lObj.commune ? ' (' + lObj.commune + ')' : '');
+              qBtn.removeAttribute('aria-invalid');
+            }
+            if (S.ui.listes && S.ui.listes['ficheQuartier' + idxL]) {
+              S.ui.listes['ficheQuartier' + idxL].valeur = bddMatch.quartier;
+            }
+            var errQ = document.getElementById('err-quartier' + idxL);
+            if (errQ) errQ.textContent = '';
           }
         }
       }
@@ -9557,13 +9780,16 @@
     if (i !== undefined) d.lieux[+i][k] = v; else d[k] = v;
     if (!change) return;
     if (k === 'lieu' && d.type !== 'Pharmacie' && i !== undefined) {
-      // 3.25.34 : auto-correction vers l'écriture officielle pour éviter fautes et doublons
-      var can = canonicaliserEtablissement(v, d.lieux[+i].quartier, d.lieux[+i].commune);
+      // Auto-correction vers l'écriture officielle et récupération automatique du quartier / GPS depuis la BDD
+      var can = trouverEtablissementBDD(v, d.lieux[+i].quartier, d.lieux[+i].commune);
       if (can) {
         d.lieux[+i].lieu = can.lieu;
-        if (can.quartier && (!d.lieux[+i].quartier || /^NL$/i.test(d.lieux[+i].quartier))) d.lieux[+i].quartier = can.quartier;
-        if (can.commune && (!d.lieux[+i].commune || /^NL$/i.test(d.lieux[+i].commune))) d.lieux[+i].commune = can.commune;
-        if (can.lat) { d.lieux[+i].lat = can.lat; d.lieux[+i].lon = can.lon; }
+        if (can.quartier && !/^NL$/i.test(can.quartier)) {
+          d.lieux[+i].quartier = can.quartier;
+          delete f.err['quartier' + i];
+        }
+        if (can.commune && !/^NL$/i.test(can.commune)) d.lieux[+i].commune = can.commune;
+        if (can.lat && can.lon) { d.lieux[+i].lat = can.lat; d.lieux[+i].lon = can.lon; }
         delete f.err['lieu' + i];
         rendre();
         return;
@@ -9715,7 +9941,7 @@
     if (S.ui.nouveautes && S.ui.nouveautes.length) {
       h += '<div class="nouveautes"><b>Nouveautés de la mise à jour ' + APP_VERSION + '</b><ul>' + S.ui.nouveautes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
     }
-    h += '<p class="lancement-astuce">Touchez l\'écran pour ouvrir</p>';
+    h += '<p class="lancement-astuce" id="lancementAstuce">' + (S.ui.lancementAuto ? 'Touchez l\'écran pour suspendre le décompte et lire tranquillement' : 'Prenez le temps de lire puis lancez votre journée ci-dessous') + '</p>';
     h += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="jour">Lancer l\'application</button>' +
         '<button class="bouton" type="button" data-a="fermerLancement" data-tab="bilan" style="margin-top:10px">Voir mon bilan</button>'
       : '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="jour">Lancer l\'application</button>';
@@ -9724,11 +9950,10 @@
     if (pret() && S.ui.lancementAuto) demarrerDecompte();
   }
   // Lancement automatique : l'écran d'accueil se ferme seul et ouvre la tournée.
-  // Un toucher sur l'écran d'accueil arrête le décompte.
+  // Un toucher sur l'écran d'accueil arrête le décompte et laisse tout le temps de lire.
   var minuteurLancement = null;
   function demarrerDecompte() {
     if (minuteurLancement) return;
-    var total = S.ui.lancementFin - Date.now();
     minuteurLancement = setInterval(function () {
       if (!S.ui.lancement || !S.ui.lancementAuto) { clearInterval(minuteurLancement); minuteurLancement = null; return; }
       var reste = S.ui.lancementFin - Date.now();
@@ -9743,13 +9968,20 @@
   function arreterDecompte() {
     if (!S.ui.lancementAuto) return;
     S.ui.lancementAuto = false;
+    if (minuteurLancement) { clearInterval(minuteurLancement); minuteurLancement = null; }
+    var a = document.getElementById('lancementAstuce');
+    if (a) a.textContent = 'Décompte suspendu — prenez le temps de lire puis lancez l\'application ci-dessous.';
     var d = document.querySelector('#lancement .decompte'); if (d) d.remove();
   }
-  // un toucher sur l'accueil (hors boutons) ouvre l'application tout de suite
-  document.addEventListener('click', function (e) {
-    if (!S.ui.lancement || !e.target.closest || !e.target.closest('#lancement') || e.target.closest('[data-a]')) return;
-    S.ui.lancement = false; S.ui.lancementAuto = false; S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0);
-  });
+  // Un toucher sur l'accueil suspend le décompte pour laisser lire (au lieu de fermer instantanément)
+  function suspendreLancementSurToucher(e) {
+    if (!S.ui.lancement || !e.target.closest || !e.target.closest('#lancement')) return;
+    if (e.target.closest('[data-a]')) return; // les boutons exécutent leur action
+    arreterDecompte();
+  }
+  document.addEventListener('pointerdown', suspendreLancementSurToucher, { passive: true });
+  document.addEventListener('touchstart', suspendreLancementSurToucher, { passive: true });
+  document.addEventListener('click', suspendreLancementSurToucher);
 
   // ------------------------------------------------------------------ Mises à jour (service worker)
   // Une nouvelle version s'installe en arrière-plan puis attend : le bandeau propose « Mise à jour ».
@@ -9836,7 +10068,7 @@
     }
     LS.set('versionVue', APP_VERSION);
   })();
-  if (S.ui.lancement && !(S.ui.nouveautes && S.ui.nouveautes.length)) {   // après une mise à jour : pas de décompte, on lit tranquillement
+  if (S.ui.lancement) {
     S.ui.lancementAuto = true;
     S.ui.lancementFin = Date.now() + 1000 * (S.ui.nouveautes && S.ui.nouveautes.length ? DELAI_LANCEMENT_NOUVEAUTES : DELAI_LANCEMENT);
   }

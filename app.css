@@ -990,6 +990,10 @@ body.feuille-ouverte { overflow: hidden; }
   gap: 4px !important;
   width: 100% !important;
   margin-top: 8px !important;
+  border: none !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
 }
 .pres-actions .bouton-texte {
   margin: 0 auto !important;
@@ -997,6 +1001,14 @@ body.feuille-ouverte { overflow: hidden; }
   align-items: center !important;
   justify-content: center !important;
   text-align: center !important;
+  border: none !important;
+  border-bottom: none !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.grille-pres table tr:last-child td {
+  border-bottom: none !important;
 }
 
 /* ------------------------------------------------------------- Barre de validation, navigation, toast */
@@ -1891,7 +1903,6 @@ details.avance h3 { margin-top: 18px; }
   margin-bottom: 8px;
   background: var(--papier, #fff);
   border: 1px solid var(--trait, #cbd5e1);
-  border-left: 4px solid var(--primaire, #0B4F6C);
   border-radius: var(--r);
   cursor: pointer;
   transition: background .15s ease, border-color .15s ease;
@@ -2375,11 +2386,29 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   background: var(--primaire);
 }
 
-/* Onglet Planifier : Synthèse sur 2 lignes (Ligne 1: Date & visites, Ligne 2: Détails) */
-.tete-jour-plan { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.bilan-jour { flex: 1 1 auto; min-width: 0; line-height: 1.35; }
-.bilan-jour b { font-size: 15px; }
-.bilan-jour .details-plan { font-size: 12.5px; color: var(--gris); margin-top: 3px; display: block; }
+/* Onglet Planifier : Synthèse stricte sur 2 lignes (Ligne 1: Date, visites & communes, Ligne 2: Détails chiffrés) */
+.tete-jour-plan { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 6px; }
+.bilan-jour { flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+.bilan-jour .bj-ligne1 {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--encre);
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block;
+}
+.bilan-jour .bj-ligne1 b { font-size: 14.5px; font-weight: 700; }
+.bilan-jour .bj-ligne1 .bj-communes { font-weight: 600; color: var(--primaire); }
+.bilan-jour .details-plan {
+  font-size: 12px !important;
+  color: var(--gris) !important;
+  margin-top: 2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: block !important;
+}
 
 /* Onglet Planifier : Nom complet du médecin (strictement jamais tronqué, pas d'ellipse ni coupure) */
 .ligne-plan .lp-corps b {
@@ -2928,12 +2957,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   white-space: normal !important;
   overflow: visible !important;
 }
-.bilan-jour .details-plan {
-  white-space: normal !important;
-  overflow: visible !important;
-  word-break: normal !important;
-  overflow-wrap: break-word !important;
-}
+
 
 /* 3.26.32 : Appui long (~650ms) sur date planifiée (charte sarcelle / turquoise respectée sans rouge) */
 .frise-plan .bj-jour,

@@ -1,11 +1,11 @@
 {
-  "version": "3.26.40",
+  "version": "3.26.41",
   "date": "2026-10-30",
   "notes": [
-    "CR Pharmacie : État « Disponible » (remplaçant « En stock »), options stocks en grille 2×2 compacte et texte d'aide retiré",
-    "Critères de recherche : Options de suivi (Étape 5) rationalisées en 2 lignes équilibrées",
-    "Navigation des étapes : Hauteurs strictement harmonisées entre Suivant, Précédent et Passer partout",
-    "Recherche & Planifier : Bouton « Liste complète… » des spécialités élargi et centré",
-    "Répertoire : Bouton « Renseigner le planning » parfaitement centré"
+    "Planifier : Synthèse journalière sur 2 lignes strictes avec communes intégrées dès la 1re ligne (ex. « Lundi 2 nov. · 7 visites · Cocody, Abobo »)",
+    "Fiche Praticien : Récupération automatique immédiate du quartier, de la commune et du GPS pour tout établissement déjà en base",
+    "Répertoire / Fiche : Suppression de la bordure sous « Modifier le planning hebdomadaire » et cadre épuré",
+    "Sélecteur de Quartiers : Grand Abidjan en tête, découpage par secteurs (Cocody, Yopougon, Abobo), quartiers alphabétiques et villes de l'intérieur masquées en bas",
+    "Écran d'accueil : Le toucher sur l'écran suspend le décompte automatique pour laisser le temps de lire, puis permet de valider son option"
   ]
 }
