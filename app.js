@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.14';
+  var APP_VERSION = '3.26.15';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.15', [
+      'Répertoire : Code couleur strict et intuitif des créneaux de réception (Matin = Vert / Émeraude, Soir = Bleu)'
+    ]],
     ['3.26.14', [
       'Onglet Journée : Restauration de l\'icône calendrier d\'origine et nouveau calendrier mensuel compact, ergonomique au pouce et 100% stable sans saut de hauteur',
       'Onglet Planifier : Rationalisation du bloc « Communes visitées » (suppression des répétitions X/Y et du bouton doublon)',
@@ -4873,8 +4876,8 @@
           var t = d.matin && d.soir ? 'M S' : (d.matin ? 'M' : (d.soir ? 'S' : ''));
           if (!t) return '<td></td>';
           var cleM = pr.id + '|' + i + '|Matin', cleS = pr.id + '|' + i + '|Soir';
-          return '<td class="dispo">' + (d.matin ? '<button type="button" data-a="planifierCle" data-v="' + esc(cleM) + '" title="Planifier ' + JOURS[i] + ' matin">M</button>' : '') +
-            (d.soir ? '<button type="button" data-a="planifierCle" data-v="' + esc(cleS) + '" title="Planifier ' + JOURS[i] + ' soir">S</button>' : '') + '</td>';
+          return '<td class="dispo">' + (d.matin ? '<button type="button" class="btn-m" data-a="planifierCle" data-v="' + esc(cleM) + '" title="Planifier ' + JOURS[i] + ' matin">M</button>' : '') +
+            (d.soir ? '<button type="button" class="btn-s" data-a="planifierCle" data-v="' + esc(cleS) + '" title="Planifier ' + JOURS[i] + ' soir">S</button>' : '') + '</td>';
         }).join('') + '</tr>';
     });
     h += '</tbody></table>' +

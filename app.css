@@ -955,9 +955,10 @@ body.feuille-ouverte { overflow: hidden; }
 .grille-pres td small { display: block; color: var(--gris); font-size: 11.5px; }
 .grille-pres .dispo button {
   display: block; margin: 2px auto; width: 30px; height: 26px; border-radius: 6px; border: 0;
-  background: var(--primaire); color: var(--sur-primaire); font: 700 12px var(--titre);
+  font: 700 12px var(--titre); cursor: pointer;
 }
-.grille-pres .dispo button + button { background: var(--bleu); color: var(--papier); }
+.grille-pres .dispo button.btn-m, .grille-pres .dispo button:not(.btn-s) { background: var(--primaire); color: var(--sur-primaire); }
+.grille-pres .dispo button.btn-s, .grille-pres .dispo button + button { background: var(--bleu); color: var(--papier); }
 .pres-actions {
   display: flex !important;
   flex-direction: column !important;

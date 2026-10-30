@@ -1,7 +1,8 @@
 {
-  "version": "3.26.14",
+  "version": "3.26.15",
   "date": "2026-10-30",
   "notes": [
+    "Répertoire : Code couleur strict et intuitif des créneaux de réception (Matin = Vert / Émeraude, Soir = Bleu)",
     "Onglet Journée : Restauration de l'icône calendrier d'origine et nouveau calendrier mensuel compact, ergonomique au pouce et 100% stable sans saut de hauteur",
     "Onglet Planifier : Rationalisation du bloc « Communes visitées » (suppression des répétitions X/Y et du bouton doublon)",
     "Planifier (Étape 5 - Potentiel) : Affichage épuré avec uniquement les étoiles (★★★, ★★, ★) sans mentions textuelles (fort, moyen, faible)",
