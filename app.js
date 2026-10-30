@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.33';
+  var APP_VERSION = '3.26.34';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.34', [
+      'Planifier : Caducée / symbole déplacé à gauche au-dessus de l\'heure, boutons « Gardé » et « ✕ » abaissés',
+      'Planifier : Noms de médecins et pharmacies affichés en pleine largeur sur une seule ligne continue',
+      'Répertoire : Mention explicite « Toute la base de données » lorsque aucun filtre n\'est actif',
+      'Critères de recherche (Étape 4) : Affichage épuré des étoiles seules (★★★, ★★, ★) sans texte redondant'
+    ]],
     ['3.26.33', [
       'Répertoire : Condensation automatique des communes entières (ex. « Cocody » au lieu des 4 sous-secteurs)',
       'Répertoire : Suppression du nom de commune redondant sur les secteurs ciblés (ex. « Deux Plateaux, Riviera »)',
@@ -3309,13 +3315,25 @@
       : infosMedecinPlan(a);
 
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
-      '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
-      '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
-        (sousTitre ? '<span class="discret bloc-texte">' + esc(sousTitre) + '</span>' : '') + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
-      (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
-        '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
-          (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
-        '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
+      '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
+        '<span class="lp-pastille-col">' + pastilleType(a) + '</span>' +
+        '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
+      '</div>' +
+      '<div class="lp-droite">' +
+        '<button type="button" class="lp-corps lp-nom-btn" data-a="voirVisite" data-uid="' + a.uid + '">' +
+          '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
+        '</button>' +
+        '<div class="lp-bas">' +
+          '<button type="button" class="lp-details-btn" data-a="voirVisite" data-uid="' + a.uid + '">' +
+            (sousTitre ? '<span class="discret bloc-texte">' + esc(sousTitre) + '</span>' : '') +
+            (e ? '<span class="etiquettes">' + e + '</span>' : '') +
+          '</button>' +
+          (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
+            '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
+              (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
+            '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
+        '</div>' +
+      '</div>' +
       (conflitArret(a) ? questionConflit(a, conflitArret(a)) : '') +
       '</li>';
   }
@@ -5023,7 +5041,7 @@
           return r.length ? r.join(' · ') : 'Tous'; },
         rendu: function () {
           return '<span class="sous-etape">Potentiel</span><div class="puces"><button type="button" class="puce puce-tous" data-a="etapeFiltre" data-k="potentiels" data-v="tous" aria-pressed="' + (!f.potentiels.length || f.potentiels.length === 3) + '">Tous</button>' +
-            [['A', '★★★ fort'], ['B', '★★ moyen'], ['C', '★ faible']].map(function (x) { return puceEtape('potentiels', x[0], x[1], f.potentiels.indexOf(x[0]) >= 0, true); }).join('') + '</div>' +
+            [['A', '★★★'], ['B', '★★'], ['C', '★']].map(function (x) { return puceEtape('potentiels', x[0], x[1], f.potentiels.indexOf(x[0]) >= 0, true); }).join('') + '</div>' +
             '<span class="sous-etape">Engagé</span><div class="puces">' + [['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']].map(function (x) { return puceEtape('conv', x[0], x[1], f.conv === x[0]); }).join('') + '</div>';
         } },
       { id: 'suivi', resume: function () {
@@ -5146,7 +5164,8 @@
     if (q && String(q).trim()) c.push('« ' + String(q).trim() + ' »');
     var lt = { priorite: 'tri potentiel', score: 'tri priorité', retard: 'tri retard', nom: 'tri nom' };
     if (n > 1 && lt[tri]) c.push(lt[tri]);
-    return t + (c.length ? ' · ' + c.join(' · ') : '');
+    if (!c.length) c.push('Toute la base de données');
+    return t + ' · ' + c.join(' · ');
   }
 
   VUES.praticiens = function () {
@@ -6532,7 +6551,7 @@
       com: groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes', sections: sectionsCommunes(), accordeon: 'com',
         aide: 'Lieux d\'exercice du praticien. Pour un établissement ou un quartier, utilisez la recherche de la liste.' }),
       valeur: groupeChoix(f, { id: 'pot', titre: 'Potentiel de prescription', chemin: 'brouillon.potentiels', multiple: true, tousVide: true,
-          options: opt([['A', '★★★', 'fort'], ['B', '★★', 'moyen'], ['C', '★', 'faible']]) }) +
+          options: opt([['A', '★★★'], ['B', '★★'], ['C', '★']]) }) +
         groupeChoix(f, { id: 'conv', titre: 'Engagé', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }),
       suivi: groupeChoix(f, { id: 'visite', titre: 'Dernière visite (un seul choix)', chemin: 'brouillon.visite', options: opt([['tous', 'Toutes'], ['jamais', 'Jamais visité'],
           ['30', 'Non visité +30 j'], ['retard', 'En retard sur la cadence'], ['revoir', 'À revoir'], ['recent', 'Vu il y a moins de 30 j']]) }) +

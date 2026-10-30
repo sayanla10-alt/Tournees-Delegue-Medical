@@ -1,7 +1,11 @@
 {
-  "version": "3.26.33",
+  "version": "3.26.34",
   "date": "2026-10-30",
   "notes": [
+    "Planifier : Caducée / symbole déplacé à gauche au-dessus de l'heure, boutons « Gardé » et « ✕ » abaissés",
+    "Planifier : Noms de médecins et pharmacies affichés en pleine largeur sur une seule ligne continue",
+    "Répertoire : Mention explicite « Toute la base de données » lorsque aucun filtre n'est actif",
+    "Critères de recherche (Étape 4) : Affichage épuré des étoiles seules (★★★, ★★, ★) sans texte redondant",
     "Répertoire : Condensation automatique des communes entières (ex. « Cocody » au lieu des 4 sous-secteurs)",
     "Répertoire : Suppression du nom de commune redondant sur les secteurs ciblés (ex. « Deux Plateaux, Riviera »)",
     "Répertoire : Masquage des spécialités si tous les types de médecins sont sélectionnés pour un bandeau compact",
