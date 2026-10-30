@@ -9,10 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.15';
+  var APP_VERSION = '3.26.17';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.17', [
+      'Onglet Journée : Calendrier mensuel repensé plus moderne et aéré (grandes cellules 44px au pouce, badge d\'année, chips d\'accès rapide, indicateur d\'activité)',
+      'Médecins engagés : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309) dans toute l\'application'
+    ]],
+    ['3.26.16', [
+      'Fiches produits (BDD & App) : Ajout de la colonne A « Actif » avec cases à cocher dans Google Sheets ; tout médicament décoché est automatiquement masqué dans toute l\'application'
+    ]],
     ['3.26.15', [
       'Répertoire : Code couleur strict et intuitif des créneaux de réception (Matin = Vert / Émeraude, Soir = Bleu)'
     ]],
@@ -1317,15 +1324,30 @@
     if (/tensicard/.test(k)) return 3;
     return 9;
   }
+  function estProduitActif(f) {
+    if (!f) return false;
+    if (f.actif !== undefined && f.actif !== null && f.actif !== '') {
+      var a = String(f.actif).trim().toLowerCase();
+      if (a === 'false' || a === 'faux' || a === '0' || a === 'non') return false;
+    }
+    return true;
+  }
   function produitsParGamme() {
+    var inactifs = {};
+    var lFiches = (S.data && S.data.fiches) || [];
+    lFiches.forEach(function (f) {
+      if (!estProduitActif(f)) inactifs[normaliser(f.produit)] = true;
+    });
+
     var brut = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT;
+    brut = brut.filter(function (p) { return !inactifs[normaliser(p)]; });
     var autorises = {};
     brut.forEach(function (p) { autorises[normaliser(p)] = true; });
 
     var fichesToutes = (typeof fichesProduits === 'function' ? fichesProduits() : FICHES_PRODUITS_DEFAUT) || [];
     // 3.25.40 : Le catalogue actif du CR correspond strictement aux produits de Listes!K
-    var fiches = fichesToutes.filter(function (f) { return autorises[normaliser(f.produit)]; });
-    if (!fiches.length) fiches = fichesToutes;
+    var fiches = fichesToutes.filter(function (f) { return autorises[normaliser(f.produit)] && !inactifs[normaliser(f.produit)]; });
+    if (!fiches.length) fiches = fichesToutes.filter(function (f) { return !inactifs[normaliser(f.produit)]; });
     var gammes = typeof gammesProduits === 'function' ? gammesProduits(fiches) : [];
     var gA = [], gB = [], vus = {};
     var famA = gammes.filter(function (g) { return estGammeA('', g.nom); }).slice().sort(function (a, b) {
@@ -1345,7 +1367,7 @@
       });
     });
     brut.forEach(function (p) {
-      if (!p || vus[p] || (p === 'Lestrol 20' && vus['Lesstrol 20'])) return;
+      if (!p || vus[p] || inactifs[normaliser(p)] || (p === 'Lestrol 20' && vus['Lesstrol 20'])) return;
       vus[p] = true;
       if (estGammeA(p, '')) gA.push(p); else gB.push(p);
     });
@@ -3431,14 +3453,21 @@
   }
 
   function rendreChoixProduitsCr(a, cle, vals) {
+    var inactifs = {};
+    var lFiches = (S.data && S.data.fiches) || [];
+    lFiches.forEach(function (f) {
+      if (!estProduitActif(f)) inactifs[normaliser(f.produit)] = true;
+    });
+
     var brut = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT;
+    brut = brut.filter(function (p) { return !inactifs[normaliser(p)]; });
     var autorises = {};
     brut.forEach(function (p) { autorises[normaliser(p)] = true; });
 
     var fichesToutes = (typeof fichesProduits === 'function' ? fichesProduits() : FICHES_PRODUITS_DEFAUT) || [];
     // 3.25.40 : Seuls les produits listés dans Listes!K sont affichés dans le CR visite
-    var fiches = fichesToutes.filter(function (f) { return autorises[normaliser(f.produit)]; });
-    if (!fiches.length) fiches = fichesToutes;
+    var fiches = fichesToutes.filter(function (f) { return autorises[normaliser(f.produit)] && !inactifs[normaliser(f.produit)]; });
+    if (!fiches.length) fiches = fichesToutes.filter(function (f) { return !inactifs[normaliser(f.produit)]; });
     var gammes = typeof gammesProduits === 'function' ? gammesProduits(fiches) : [];
     var sel = vals || [];
 
@@ -4172,13 +4201,20 @@
   }
   function fichesProduits() {
     var l = (S.data && S.data.fiches) || [];
-    var fiches = (l.length ? l : FICHES_PRODUITS_DEFAUT).slice();
+    var fichesToutes = (l.length ? l : FICHES_PRODUITS_DEFAUT).slice();
+    var inactifs = {};
+    fichesToutes.forEach(function (f) {
+      if (!estProduitActif(f)) inactifs[normaliser(f.produit)] = true;
+    });
+    var fiches = fichesToutes.filter(function (f) {
+      return !inactifs[normaliser(f.produit)];
+    });
     var prodsListes = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : PRODUITS_DEFAUT;
     var vus = {};
     fiches.forEach(function (f) { vus[normaliser(f.produit)] = true; });
     prodsListes.forEach(function (p) {
       var kp = normaliser(p);
-      if (!vus[kp]) {
+      if (!vus[kp] && !inactifs[kp]) {
         var nouv = deduireFicheProduit(p, fiches);
         fiches.push(nouv);
         vus[kp] = true;
@@ -4410,7 +4446,13 @@
     var m = Math.max(10, Math.round(km * 100) * 10);
     return m <= 30 ? 'sur place (< 30 m)' : m + ' mètres';
   }
-  function classeType(o) { return estPharmacie(o) ? ' t-pharma' : ' t-med'; }
+  function classeType(o) {
+    var c = estPharmacie(o) ? ' t-pharma' : ' t-med';
+    if (!o) return c;
+    var conv = o.conventionne !== undefined ? o.conventionne : ((praticien(o.code) || {}).conventionne);
+    if (!estPharmacie(o) && estConventionne(conv)) c += ' med-engage';
+    return c;
+  }
   function rendreProposition(x, i, date, src, avecDist) {
     var c = x.c, p = c.prat;
     var deja = S.plan.some(function (a) { return a.date === date && a.code === p.code; });
@@ -4969,18 +5011,20 @@
     var raccourcis = '<div class="cal-raccourcis">' +
       '<button type="button" class="puce' + (f.date === t ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + t + '">Aujourd\'hui</button>' +
       '<button type="button" class="puce' + (f.date === rDemain ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + rDemain + '">Demain</button>' +
-      '<button type="button" class="puce' + (f.date === rSem ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + rSem + '">+1 sem.</button>' +
-      '<button type="button" class="puce' + (f.date === r2Sem ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + r2Sem + '">+2 sem.</button>' +
+      '<button type="button" class="puce' + (f.date === rSem ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + rSem + '">+7 jours</button>' +
+      '<button type="button" class="puce' + (f.date === r2Sem ? ' actif' : '') + '" data-a="calChoisirJour" data-v="' + r2Sem + '">+14 jours</button>' +
       '</div>';
     var chevronG = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="m15 18-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var chevronD = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="m9 18 6-6-6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     var barreMois = '<div class="cal-barre-mois">' +
-      '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="-1" aria-label="Mois précédent">' + chevronG + '</button>' +
-      '<div class="cal-titre-mois"><b>' + nomMois + '</b> <span>' + y + '</span></div>' +
-      '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="1" aria-label="Mois suivant">' + chevronD + '</button>' +
+      '<div class="cal-titre-mois"><b>' + nomMois + '</b><span class="cal-an-badge">' + y + '</span></div>' +
+      '<div class="cal-navs">' +
+        '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="-1" aria-label="Mois précédent">' + chevronG + '</button>' +
+        '<button type="button" class="cal-nav-btn" data-a="calChangerMois" data-v="1" aria-label="Mois suivant">' + chevronD + '</button>' +
+      '</div>' +
       '</div>';
     var entetes = '<div class="cal-grille-semaine">' +
-      ['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(function (j) { return '<span>' + j + '</span>'; }).join('') +
+      ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(function (j) { return '<span>' + j + '</span>'; }).join('') +
       '</div>';
     var premierJour = new Date(y, m - 1, 1);
     var dec = (premierJour.getDay() + 6) % 7;
@@ -5012,7 +5056,13 @@
         (nVisites > 0 ? '<span class="cal-point-visite"></span>' : '') +
         '</button>';
     }).join('') + '</div>';
-    return raccourcis + barreMois + entetes + grille;
+    var nVisitesSel = nbVisitesJour(f.date);
+    var resume = '<div class="cal-resume-jour">' +
+      '<div class="cal-resume-date">' + icone('calendrier') + '<span>' + esc(dateLongue(f.date)) + ' ' + f.date.slice(0, 4) + '</span></div>' +
+      '<span class="cal-resume-badge' + (nVisitesSel === 0 ? ' zero' : '') + '">' +
+        (nVisitesSel > 0 ? (nVisitesSel + ' visite' + (nVisitesSel > 1 ? 's' : '')) : '0 visite') +
+      '</span></div>';
+    return '<div class="cal-boite">' + raccourcis + '<div class="cal-cadre">' + barreMois + entetes + grille + '</div>' + resume + '</div>';
   };
   FEUILLES.qui = function (f) {
     var noms = nomsDelegues(), tousChoisis = noms.length > 0 && noms.every(function (n) { return f.liste.indexOf(n) >= 0; });

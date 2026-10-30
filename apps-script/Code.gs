@@ -387,7 +387,21 @@ function lireTout(sig, hdepuis) {
   var shEtab = ss.getSheetByName(FEUILLES.etablissements);
   ref.etablissements = shEtab ? lireObjets(shEtab, CHAMPS_ETABLISSEMENTS, tz).filter(function (e) { return String(e.nom || '').trim() !== ''; }) : [];
   ref.activites = listes.activites; ref.produits = listes.produits; ref.activitesPharmacie = listes.activitesPharmacie;
-  ref.fiches = lireObjets(ss.getSheetByName(FEUILLES.fiches), CHAMPS_FICHES, tz).filter(function (f) { return String(f.produit).trim() !== ''; });
+  var inactifs = {};
+  var toutesFiches = lireObjets(ss.getSheetByName(FEUILLES.fiches), CHAMPS_FICHES, tz);
+  toutesFiches.forEach(function (f) {
+    if (!String(f.produit || '').trim()) return;
+    if (f.actif !== undefined && f.actif !== null && f.actif !== '') {
+      var a = String(f.actif).trim().toLowerCase();
+      if (a === 'false' || a === 'faux' || a === '0' || a === 'non') inactifs[normaliser(f.produit)] = true;
+    }
+  });
+  ref.fiches = toutesFiches.filter(function (f) {
+    return String(f.produit || '').trim() !== '' && !inactifs[normaliser(f.produit)];
+  });
+  if (ref.produits && ref.produits.length) {
+    ref.produits = ref.produits.filter(function (p) { return !inactifs[normaliser(p)]; });
+  }
   empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   var limiteR = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -JOURS_PLANNINGS_DATA);
   var rapports = lireObjets(ss.getSheetByName(FEUILLES.rapports), CHAMPS_RAPPORTS, tz).filter(function (x) { return x.delegue !== '' && x.date >= limiteR; });

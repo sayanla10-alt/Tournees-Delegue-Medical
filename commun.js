@@ -1221,7 +1221,7 @@ function completerDonneesFictives(praticiens, presences, quartiers) {
 // ensuite c'est la feuille qui fait foi (modifiable par le responsable). Plusieurs éléments par case : un par ligne.
 // Contenu de référence résumé des RCP (ANSM / VIDAL) des molécules ; à confronter à la notice de la boîte locale.
 var CHAMPS_FICHES = [
-  ['gamme', 'Gamme'], ['aire', 'Aire thérapeutique'], ['produit', 'Produit'], ['dci', 'DCI et dosage'], ['classe', 'Classe'],
+  ['actif', 'Actif'], ['gamme', 'Gamme'], ['aire', 'Aire thérapeutique'], ['produit', 'Produit'], ['dci', 'DCI et dosage'], ['classe', 'Classe'],
   ['indications', 'Indications'], ['contreIndications', 'Contre-indications'], ['posologie', 'Posologie'],
   ['precautions', 'Précautions et interactions'], ['effets', 'Effets indésirables'], ['arguments', 'Arguments clés'],
   ['laboratoire', 'Laboratoire'], ['sources', 'Sources']

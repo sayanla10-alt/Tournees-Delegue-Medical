@@ -1957,66 +1957,97 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   font-weight: 700 !important;
 }
 
-/* Calendrier moderne optimisé au pouce */
+/* Calendrier moderne ultra-ergonomique */
+.cal-boite {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .cal-raccourcis {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
   gap: 6px;
-  margin-bottom: 8px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.cal-raccourcis::-webkit-scrollbar {
+  display: none;
 }
 .cal-raccourcis .puce {
-  font-size: 12px;
+  flex: 0 0 auto;
+  font-size: 12.5px;
   font-weight: 600;
-  padding: 5px 2px;
-  min-height: 32px;
-  justify-content: center;
-  text-align: center;
-  border-radius: 16px;
+  padding: 6px 14px;
+  min-height: 34px;
+  border-radius: 9999px;
+  background: var(--fond);
+  border: 1px solid var(--trait);
+  color: var(--encre);
+  white-space: nowrap;
 }
 .cal-raccourcis .puce.actif {
   background: var(--primaire);
-  color: var(--sur-primaire);
+  color: #fff;
   border-color: var(--primaire);
+  box-shadow: 0 2px 6px rgba(18, 140, 126, 0.28);
+}
+.cal-cadre {
+  background: var(--papier);
+  border: 1px solid var(--trait);
+  border-radius: 16px;
+  padding: 12px 10px 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
 }
 .cal-barre-mois {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
   padding: 0 4px;
-  height: 38px;
 }
 .cal-titre-mois {
-  font-size: 15.5px;
-  font-weight: 700;
-  color: var(--encre);
-  text-align: center;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 .cal-titre-mois b {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--encre);
   text-transform: capitalize;
+  letter-spacing: -0.2px;
 }
-.cal-titre-mois span {
-  color: var(--gris);
-  font-weight: 500;
-  font-size: 14px;
-  margin-left: 4px;
+.cal-titre-mois .cal-an-badge {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--primaire);
+  background: var(--primaire-pale);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.cal-navs {
+  display: flex;
+  gap: 6px;
 }
 .cal-nav-btn {
   width: 36px;
   height: 36px;
   border-radius: 50%;
   border: 1px solid var(--trait);
-  background: var(--papier);
+  background: var(--fond);
   display: grid;
   place-items: center;
-  color: var(--primaire);
+  color: var(--encre);
   cursor: pointer;
   padding: 0;
-  transition: transform .1s, background-color .15s;
+  transition: transform .1s, background-color .15s, border-color .15s;
 }
 .cal-nav-btn:active {
   transform: scale(0.92);
   background: var(--primaire-pale);
+  color: var(--primaire);
+  border-color: var(--primaire);
 }
 .cal-nav-btn svg {
   display: block;
@@ -2024,64 +2055,126 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .cal-grille-semaine {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
+  gap: 4px;
   text-align: center;
-  margin-bottom: 4px;
-  font-size: 11.5px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--trait-doux, rgba(0, 0, 0, 0.06));
+}
+.cal-grille-semaine span {
+  font-size: 11px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--gris);
 }
 .cal-grille-jours {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 3px;
-  height: 246px; /* 6 rangées fixes de 38px : ZERO saut entre mois */
+  gap: 4px;
+  min-height: 270px; /* 6 rangées stables, aérées */
 }
 .cal-jour-btn {
   position: relative;
   width: 100%;
-  height: 38px;
-  border-radius: 50%;
+  aspect-ratio: 1;
+  max-width: 44px;
+  max-height: 44px;
+  margin: 0 auto;
+  border-radius: 12px;
   border: 1.5px solid transparent;
   background: transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--encre);
   cursor: pointer;
   padding: 0;
-  transition: transform .1s, background-color .15s;
+  transition: transform .1s, background-color .15s, color .15s;
 }
 .cal-jour-btn:active {
   transform: scale(0.9);
 }
 .cal-jour-btn.hors-mois {
   color: var(--gris-2);
-  opacity: 0.25;
+  opacity: 0.28;
 }
 .cal-jour-btn.aujourdhui {
   border-color: var(--primaire);
+  background: var(--primaire-pale);
+  color: var(--primaire);
   font-weight: 800;
 }
 .cal-jour-btn.choisi {
-  background: var(--primaire) !important;
+  background: linear-gradient(135deg, var(--primaire) 0%, #0d9488 100%) !important;
   color: #fff !important;
   font-weight: 800;
-  box-shadow: 0 2px 6px rgba(18, 140, 126, 0.35);
+  border-color: transparent !important;
+  box-shadow: 0 4px 12px rgba(18, 140, 126, 0.38);
 }
 .cal-point-visite {
   position: absolute;
-  bottom: 3px;
-  width: 4px;
-  height: 4px;
+  bottom: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: var(--vert);
+  background: #10b981;
 }
 .cal-jour-btn.choisi .cal-point-visite {
   background: #fff;
+  box-shadow: 0 0 3px rgba(255, 255, 255, 0.8);
+}
+.cal-jour-btn.aujourdhui:not(.choisi) .cal-point-visite {
+  background: var(--primaire);
+}
+.cal-resume-jour {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--fond);
+  border: 1px solid var(--trait);
+  border-radius: 12px;
+  font-size: 13px;
+}
+.cal-resume-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--encre);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.cal-resume-date svg {
+  color: var(--primaire);
+  flex-shrink: 0;
+}
+.cal-resume-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: var(--primaire-pale);
+  color: var(--primaire);
+  white-space: nowrap;
+}
+.cal-resume-badge.zero {
+  background: var(--papier);
+  color: var(--gris);
+  border: 1px solid var(--trait);
+}
+
+/* Médecins engagés : couleur de police Ambre Chaud / Or Prescripteur (#B45309) */
+.element.med-engage .element-titre,
+.element.med-engage .element-tete > div > b:nth-of-type(2),
+.arret-carte.med-engage .arret-nom,
+.ligne-plan.med-engage .lp-corps b,
+.bandeau-proche.med-engage p b:nth-of-type(2) {
+  color: #B45309 !important;
 }
 
 /* Types de visite organisés (Communs + Spécifiques Médecin / Pharmacie) */

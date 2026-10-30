@@ -1,7 +1,10 @@
 {
-  "version": "3.26.15",
+  "version": "3.26.17",
   "date": "2026-10-30",
   "notes": [
+    "Onglet Journée : Calendrier mensuel repensé plus moderne et aéré (grandes cellules 44px au pouce, badge d'année, chips d'accès rapide, indicateur d'activité)",
+    "Médecins engagés : Nom affiché en couleur Ambre Chaud / Or Prescripteur (#B45309) dans toute l'application",
+    "Fiches produits (BDD & App) : Ajout de la colonne A « Actif » avec cases à cocher dans Google Sheets ; tout médicament décoché est automatiquement masqué dans toute l'application",
     "Répertoire : Code couleur strict et intuitif des créneaux de réception (Matin = Vert / Émeraude, Soir = Bleu)",
     "Onglet Journée : Restauration de l'icône calendrier d'origine et nouveau calendrier mensuel compact, ergonomique au pouce et 100% stable sans saut de hauteur",
     "Onglet Planifier : Rationalisation du bloc « Communes visitées » (suppression des répétitions X/Y et du bouton doublon)",
