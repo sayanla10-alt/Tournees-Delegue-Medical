@@ -1,11 +1,9 @@
 {
-  "version": "3.26.41",
+  "version": "3.26.42",
   "date": "2026-10-30",
   "notes": [
-    "Planifier : Synthèse journalière sur 2 lignes strictes avec communes intégrées dès la 1re ligne (ex. « Lundi 2 nov. · 7 visites · Cocody, Abobo »)",
-    "Fiche Praticien : Récupération automatique immédiate du quartier, de la commune et du GPS pour tout établissement déjà en base",
-    "Répertoire / Fiche : Suppression de la bordure sous « Modifier le planning hebdomadaire » et cadre épuré",
-    "Sélecteur de Quartiers : Grand Abidjan en tête, découpage par secteurs (Cocody, Yopougon, Abobo), quartiers alphabétiques et villes de l'intérieur masquées en bas",
-    "Écran d'accueil : Le toucher sur l'écran suspend le décompte automatique pour laisser le temps de lire, puis permet de valider son option"
+    "Répertoire : Noms complets des hôpitaux affichés sans abréviation et sur toute la largeur disponible",
+    "Répertoire : Fin des noms tronqués avec suspension (...), espace à droite pleinement exploité au-dessus des jours",
+    "Planning : Suppression définitive de la ligne grise/barre disgracieuse sous « Modifier le planning hebdomadaire »"
   ]
 }

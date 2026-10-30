@@ -956,16 +956,95 @@ body.feuille-ouverte { overflow: hidden; }
 .resume-equipe b { margin-right: 8px; }
 
 /* Grille de présences d'un praticien */
-.grille-pres { margin-top: 10px; overflow-x: auto; }
-.grille-pres table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-.grille-pres th { font: 600 12px var(--titre); color: var(--gris); text-align: center; padding: 4px 2px; border-bottom: 1px solid var(--trait); }
+.grille-pres {
+  margin-top: 10px;
+  overflow: visible !important;
+  overflow-x: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+.grille-pres::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.grille-pres table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+  border: none !important;
+  box-shadow: none !important;
+}
+.grille-pres th {
+  font: 600 12px var(--titre);
+  color: var(--gris);
+  text-align: center;
+  padding: 4px 2px 6px;
+  border-bottom: 1px solid var(--trait);
+}
 .grille-pres th:first-child { text-align: left; }
-.grille-pres td { border-bottom: 1px solid var(--trait); padding: 6px 2px; vertical-align: middle; text-align: center; }
 .grille-pres th:not(:first-child),
-.grille-pres td:not(:first-child) { width: 30px !important; max-width: 32px !important; min-width: 26px !important; padding: 4px 1px !important; }
-.grille-pres td:first-child { text-align: left; width: auto !important; min-width: 0; }
-.grille-pres td:first-child b { display: block; font-size: 13px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.grille-pres td small { display: block; color: var(--gris); font-size: 11.5px; }
+.grille-pres td:not(:first-child) {
+  width: 30px !important;
+  max-width: 32px !important;
+  min-width: 26px !important;
+  padding: 4px 1px !important;
+}
+.grille-pres td {
+  padding: 4px 2px;
+  vertical-align: middle;
+  text-align: center;
+  border-bottom: none;
+}
+.grille-pres tr.tr-lieu-titre td {
+  border-bottom: none !important;
+  padding: 8px 0 2px !important;
+  text-align: left !important;
+}
+.grille-pres tbody tr:first-child.tr-lieu-titre td {
+  padding-top: 4px !important;
+}
+.grille-pres td:first-child b,
+.grille-pres .lieu-nom-plein {
+  display: block !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  color: var(--encre, #0f172a) !important;
+  line-height: 1.3 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+}
+.grille-pres tr.tr-lieu-corps td {
+  border-bottom: 1px solid var(--trait) !important;
+  padding-bottom: 8px !important;
+}
+.grille-pres tbody tr.tr-lieu-corps:last-child td {
+  border-bottom: none !important;
+}
+.grille-pres td.cell-lieu-infos {
+  text-align: left !important;
+  width: auto !important;
+  min-width: 0;
+  vertical-align: top !important;
+  padding-top: 2px !important;
+}
+.grille-pres td.cell-lieu-infos small {
+  display: block;
+  color: var(--gris);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+.grille-pres td.dispo,
+.grille-pres td.dispo-vide {
+  vertical-align: middle !important;
+}
 .ligne-micro-gps-plan { margin-top: 4px; display: flex !important; align-items: center !important; gap: 6px !important; flex-wrap: nowrap !important; white-space: nowrap !important; }
 .ligne-micro-gps-plan .btn-micro-gps { margin-top: 0 !important; margin-bottom: 0 !important; flex-shrink: 0 !important; }
 .texte-aide-plan { font-size: 11px !important; line-height: 1.2 !important; white-space: nowrap !important; flex-shrink: 0 !important; color: var(--gris, #64748b); }
@@ -981,6 +1060,9 @@ body.feuille-ouverte { overflow: hidden; }
 }
 .grille-pres .dispo button.btn-m, .grille-pres .dispo button:not(.btn-s) { background: var(--primaire); color: var(--sur-primaire); }
 .grille-pres .dispo button.btn-s, .grille-pres .dispo button + button { background: var(--bleu); color: var(--papier); }
+.grille-pres table tr:last-child td {
+  border-bottom: none !important;
+}
 .pres-actions {
   display: flex !important;
   flex-direction: column !important;
@@ -994,6 +1076,7 @@ body.feuille-ouverte { overflow: hidden; }
   border-top: none !important;
   border-bottom: none !important;
   box-shadow: none !important;
+  outline: none !important;
 }
 .pres-actions .bouton-texte {
   margin: 0 auto !important;
@@ -1006,9 +1089,6 @@ body.feuille-ouverte { overflow: hidden; }
   text-decoration: none !important;
   box-shadow: none !important;
   outline: none !important;
-}
-.grille-pres table tr:last-child td {
-  border-bottom: none !important;
 }
 
 /* ------------------------------------------------------------- Barre de validation, navigation, toast */

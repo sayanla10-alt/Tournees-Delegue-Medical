@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.41';
+  var APP_VERSION = '3.26.42';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.42', [
+      'Répertoire : Noms complets des hôpitaux affichés sans abréviation et sur toute la largeur disponible',
+      'Répertoire : Fin des noms tronqués avec suspension (...), espace à droite pleinement exploité au-dessus des jours',
+      'Planning : Suppression définitive de la ligne grise/barre disgracieuse sous « Modifier le planning hebdomadaire »'
+    ]],
     ['3.26.41', [
       'Planifier : Synthèse journalière sur 2 lignes strictes avec communes intégrées dès la 1re ligne (ex. « Lundi 2 nov. · 7 visites · Cocody, Abobo »)',
       'Fiche Praticien : Récupération automatique immédiate du quartier, de la commune et du GPS pour tout établissement déjà en base',
@@ -3418,27 +3423,10 @@
       '<button class="bouton ' + (ouiClasse || 'bouton-plein') + '" type="button" ' + ouiAttrs + '>' + ouiLib + '</button>';
   }
 
-  // 3.25.35 : Abréviation intelligente des établissements trop longs
+  // 3.26.42 : Établissements toujours affichés en entier sans abréviation abusive
   function abregerHopital(nom) {
     if (!nom) return '';
-    var s = String(nom).trim();
-    s = s.replace(/^Centre Hospitalier Universitaire\s+de\s+/i, 'CHU ');
-    s = s.replace(/^Centre Hospitalier Universitaire\s+/i, 'CHU ');
-    s = s.replace(/^Hôpital Militaire d'Abidjan\s*\(HMA\)/i, 'HMA');
-    s = s.replace(/^Hôpital Militaire d'Abidjan/i, 'HMA');
-    s = s.replace(/^Hôpital Général\s+de\s+/i, 'HG ');
-    s = s.replace(/^Hôpital Général\s+/i, 'HG ');
-    s = s.replace(/^Institut de Cardiologie d'Abidjan\s*\(ICA\)/i, 'ICA');
-    s = s.replace(/^PISAM\s*\(.*?\)/i, 'PISAM');
-    s = s.replace(/^Polyclinique\s+Sainte\s+Anne-Marie\b/i, 'PISAM');
-    s = s.replace(/^Polyclinique\s+des\s+/i, 'Poly. ');
-    s = s.replace(/^Polyclinique\s+du\s+/i, 'Poly. ');
-    s = s.replace(/^Polyclinique\s+/i, 'Poly. ');
-    s = s.replace(/^Centre Hospitalier Régional\s+de\s+/i, 'CHR ');
-    s = s.replace(/^Centre Hospitalier Régional\s+/i, 'CHR ');
-    s = s.replace(/^Clinique\s+M[ée]dicale\s+/i, 'Clinique ');
-    s = s.replace(/\s+de\s+/i, ' ');
-    return s.replace(/\s{2,}/g, ' ').trim();
+    return String(nom).trim();
   }
 
   // 3.25.36 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour (abrégé), Secteur réel et distance
@@ -5526,8 +5514,9 @@
     lieux.forEach(function (pr, idx) {
       var hM = lireHoraire(pr.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
       var hasGps = pr.lat && pr.lon && isFinite(+String(pr.lat).replace(',', '.')) && +String(pr.lat).replace(',', '.') !== 0;
-      var nomLieu = abregerHopital(pr.lieu);
-      h += '<tr><td><b title="' + esc(pr.lieu) + '">' + esc(nomLieu) + '</b><small>' + esc(pr.quartier) + ', ' + esc(pr.commune) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
+      var nomLieu = pr.lieu || (estPh ? p.nom : 'Établissement');
+      h += '<tr class="tr-lieu-titre"><td colspan="6" class="cell-lieu-titre"><b class="lieu-nom-plein" title="' + esc(nomLieu) + '">' + esc(nomLieu) + '</b></td></tr>' +
+        '<tr class="tr-lieu-corps"><td class="cell-lieu-infos"><small>' + esc([pr.quartier, pr.commune].filter(Boolean).join(', ')) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
         ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
         '<div class="ligne-micro-gps-plan" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap"><button type="button" class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" data-a="majGpsLieuDirect" data-v="' + esc(code) + '" data-i="' + idx + '" title="' + (hasGps ? 'GPS déjà fixé pour cet établissement. Touchez pour réactualiser sur place' : 'Touchez pour capter et fixer le GPS de cet établissement') + '">' +
           icone('carte') + '<span>GPS</span></button>' +
@@ -5537,17 +5526,17 @@
         JOURS_CLES.map(function (j, i) {
           var d = lireDispo(pr[j]);
           var t = d.matin && d.soir ? 'M S' : (d.matin ? 'M' : (d.soir ? 'S' : ''));
-          if (!t) return '<td></td>';
+          if (!t) return '<td class="dispo-vide"></td>';
           var cleM = pr.id + '|' + i + '|Matin', cleS = pr.id + '|' + i + '|Soir';
           return '<td class="dispo">' + (d.matin ? '<button type="button" class="btn-m" data-a="planifierCle" data-v="' + esc(cleM) + '" title="Planifier ' + JOURS[i] + ' matin">M</button>' : '') +
             (d.soir ? '<button type="button" class="btn-s" data-a="planifierCle" data-v="' + esc(cleS) + '" title="Planifier ' + JOURS[i] + ' soir">S</button>' : '') + '</td>';
         }).join('') + '</tr>';
     });
-    h += '</tbody></table>' +
-      '<div class="pres-actions" style="margin-top:6px;text-align:center;width:100%">' +
+    h += '</tbody></table></div>' +
+      '<div class="pres-actions" style="margin-top:8px;text-align:center;width:100%">' +
         '<button type="button" class="bouton-texte" data-a="modifierPlanning" data-v="' + esc(code) + '" style="margin:0 auto;display:inline-flex;align-items:center;justify-content:center;gap:6px">' +
         icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +
-      '</div></div>';
+      '</div>';
     return h;
   }
 
