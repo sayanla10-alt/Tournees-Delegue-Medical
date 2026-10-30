@@ -2749,14 +2749,47 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   overflow-wrap: break-word !important;
 }
 
-/* 3.26.28 : Appui très long sur date planifiée */
+/* 3.26.29 : Appui très long sur date planifiée & suppression dédiée */
 .frise-plan .bj-jour {
   -webkit-touch-callout: none;
   user-select: none;
+  touch-action: manipulation;
 }
 .bj-jour.appui-long-actif {
-  transform: scale(.93);
-  filter: brightness(.92);
-  transition: transform .9s ease, filter .9s ease;
+  transform: scale(.91) !important;
+  border-color: var(--primaire) !important;
+  box-shadow: 0 0 0 3px rgba(10, 108, 116, .25) !important;
+  transition: transform .7s ease, border-color .7s ease, box-shadow .7s ease !important;
+}
+
+.tete-jour-droite {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.btn-suppr-jour {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--trait);
+  background: var(--papier);
+  color: var(--gris);
+  cursor: pointer;
+  transition: color .2s, background-color .2s, border-color .2s;
+}
+.btn-suppr-jour svg {
+  width: 17px;
+  height: 17px;
+}
+.btn-suppr-jour:active, .btn-suppr-jour:hover {
+  color: #c0392b !important;
+  border-color: rgba(192, 57, 43, .35) !important;
+  background: rgba(192, 57, 43, .08) !important;
 }
 
