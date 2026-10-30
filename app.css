@@ -464,6 +464,11 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .legende i.barre { border-radius: 2px; width: 14px; }
 .liste-couv { list-style: none; margin: 0; padding: 0; }
 .couv-zone { font: 700 13px var(--titre); color: var(--primaire); text-transform: uppercase; letter-spacing: .5px; padding: 10px 0 4px; }
+.couv-zone-interieur { padding: 0 !important; background: transparent !important; }
+.couv-zone-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; background: var(--papier); border: 1px solid var(--trait); border-radius: 8px; padding: 8px 12px; font: 700 13px/1.2 var(--titre); color: var(--gris); cursor: pointer; margin: 6px 0; box-sizing: border-box; }
+.couv-zone-btn[aria-expanded="true"] { border-color: var(--primaire); color: var(--primaire); }
+.couv-zone-btn svg { width: 16px; height: 16px; color: inherit; transition: transform .2s ease; }
+.couv-zone-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
 .couv-ligne { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--trait); }
 .couv-ligne > div { flex: 1; min-width: 0; }
 .couv-ligne .pastille { width: 12px; height: 12px; border-radius: 50%; flex: none; border: 2px solid var(--gris-2); background: var(--papier); }
@@ -1112,17 +1117,17 @@ body.avec-barre main { padding-bottom: 90px; }
 
 /* Ma semaine : lignes compactes de la tournée */
 .plan-jour { list-style: none; margin: 0 0 12px; padding: 0; background: var(--papier); border: 1px solid var(--trait); border-radius: var(--r); box-shadow: var(--ombre); overflow: hidden; }
-.ligne-plan { display: flex; align-items: flex-start; gap: 10px; padding: 10px 10px 10px 12px; border-top: 1px solid var(--trait); }
+.ligne-plan { display: flex; align-items: flex-start; gap: 6px; padding: 9px 8px 9px 8px; border-top: 1px solid var(--trait); }
 .ligne-plan:first-child { border-top: 0; }
 .ligne-plan.gardee { background: var(--primaire-pale); }
 .ligne-plan.faite { opacity: .75; }
 
 /* Colonne gauche : caducée / icône au-dessus de l'heure */
-.lp-gauche { flex: none; width: 44px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; padding-top: 2px; cursor: pointer; }
+.lp-gauche { flex: none; width: 36px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; padding-top: 2px; cursor: pointer; }
 .lp-pastille-col { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; }
 .lp-gauche .type-pastille { margin-right: 0 !important; margin-bottom: 1px; width: 20px; height: 20px; font-size: 13px; }
 .lp-gauche .type-pastille svg { width: 13px; height: 13px; }
-.lp-heure { flex: none; width: 44px; font: 700 13px/1.1 var(--titre); color: var(--gris); text-align: center; }
+.lp-heure { flex: none; width: 36px; font: 700 12.5px/1.1 var(--titre); color: var(--gris); text-align: center; }
 
 /* Colonne droite : nom en pleine largeur au-dessus, détails et boutons abaissés en dessous */
 .lp-droite { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -1318,6 +1323,23 @@ details.avance h3 { margin-top: 18px; }
 .sous-etape { display: block; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--gris); }
 .raccourcis-titre-etape { margin: 12px 0 0; font-size: 13px; }
 .criteres-resume span { color: var(--primaire); font-weight: 700; }
+/* 3.26.35 : Hauteur strictement harmonisée à 38px pour tous les boutons de critères de recherche */
+.etapes-filtres .puces .puce:not(.puce-parente),
+.etapes-filtres .puces .bouton,
+.etapes-filtres .puce:not(.puce-parente),
+.cr-question .puces .puce:not(.puce-parente) {
+  min-height: 38px !important;
+  max-height: 38px !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  line-height: 1 !important;
+  font-size: 13.5px !important;
+}
 
 /* 3.8.4 : Équipe, un bloc repliable par délégué */
 .groupe-delegue { width: 100%; display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; padding: 11px 12px; border: 1px solid var(--trait); border-radius: 12px; background: var(--papier); text-align: left; color: var(--encre); }

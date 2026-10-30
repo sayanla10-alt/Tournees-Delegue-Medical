@@ -9,10 +9,19 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.34';
+  var APP_VERSION = '3.26.35';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.35', [
+      'Planifier : Espacement gauche resserré (gain de 12px), noms des praticiens repoussés vers la gauche',
+      'Planifier : Distance en km affichée pour les pharmacies (comme pour les médecins)',
+      'Planifier : Zone Intérieur repliée et masquée par défaut dans les communes visitées',
+      'Critères de recherche : Hauteur strictement harmonisée à 38px pour tous les boutons',
+      'Critères (Étape 5) : Libellés raccourcis « Visité -30j » et « En retard » (gain de hauteur)',
+      'Répertoire : Mention explicite « toutes spécialités » lorsque tous les types de médecins sont sélectionnés',
+      'Répertoire : Condensation homogène pour Abobo, Cocody et Yopougon'
+    ]],
     ['3.26.34', [
       'Planifier : Caducée / symbole déplacé à gauche au-dessus de l\'heure, boutons « Gardé » et « ✕ » abaissés',
       'Planifier : Noms de médecins et pharmacies affichés en pleine largeur sur une seule ligne continue',
@@ -685,7 +694,7 @@
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,
       sync: 'idle', erreur: '', installEvt: null, enCours: false,
       collegue: null, eqSel: LS.get('eqSel', []), jourEquipe: null, histFiltre: LS.get('histFiltre', 'moi'), rechercheAutour: '',
-      couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: false,
+      couvPortee: LS.get('couvPortee', 'jour'), couvFiltre: LS.get('couvFiltre', 'couvertes'), couvOuverte: false, couvInterieurOuverte: false,
       statsVue: 'tableau', annulReprise: LS.get('annulReprise', null), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
       autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 0.5, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
@@ -3299,6 +3308,19 @@
     return morceaux.join(' · ');
   }
 
+  // 3.26.35 : Pharmacie dans Planifier -> Localisation sans doublon + distance GPS en km (identique aux médecins)
+  function infosPharmaciePlan(a) {
+    var pObj = (typeof praticien === 'function' && praticien(a.code)) || {};
+    var pCoord = (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lat) ? { lat: +pObj.lieux[0].lat, lon: +pObj.lieux[0].lon } : (pObj.lat && pObj.lon ? { lat: +pObj.lat, lon: +pObj.lon } : null);
+    var pos = S.ui.posGps, c = (pos && Date.now() - pos.t < 15 * 60000) ? (coordPrecise(a) || coordArret(a) || a.coord || pCoord) : null;
+    var base = infosSansDoublon(a, [a.lieu, a.quartier, a.commune]);
+    if (c && pos) {
+      var d = distanceVol(pos, c);
+      return (base ? base + ' · ' : '') + distanceCourte(d);
+    }
+    return base;
+  }
+
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
   function rendreLignePlan(a) {
     var verrou = a.etat === 'valide', e = '';
@@ -3311,7 +3333,7 @@
     // Titre/Nom, Spécialité, Hôpital où on le voit ce jour et Secteur de l'hôpital
     // Pas de localisation précise (quartier précis, distance GPS) : réservée aux pharmacies qui ne bougent pas
     var sousTitre = estPharmacie(a)
-      ? infosSansDoublon(a, [a.lieu, a.quartier, a.commune])
+      ? infosPharmaciePlan(a)
       : infosMedecinPlan(a);
 
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
@@ -4314,17 +4336,48 @@
       nonCouvertes: non.map(function (c) { return c.commune; }) });
     h += segment('Filtre', 'couvFiltre', [['toutes', 'Toutes'], ['couvertes', 'Visitées · ' + couv.length], ['non', 'Non visitées · ' + non.length]], S.ui.couvFiltre);
     var liste = S.ui.couvFiltre === 'couvertes' ? couv : (S.ui.couvFiltre === 'non' ? non : cv);
+    var autresCommunes = [], interieurCommunes = [];
+    liste.forEach(function (c) {
+      if (c.zone === 'Zone Intérieur' || (c.zone && c.zone.toLowerCase().indexOf('intérieur') >= 0)) {
+        interieurCommunes.push(c);
+      } else {
+        autresCommunes.push(c);
+      }
+    });
+
     var zone = '';
-    h += '<ul class="liste-couv">' + liste.map(function (c) {
-      var t = '';
-      if (c.zone !== zone) { zone = c.zone; t += '<li class="couv-zone">' + esc(zone) + '</li>'; }
+    h += '<ul class="liste-couv">';
+    autresCommunes.forEach(function (c) {
+      if (c.zone !== zone) { zone = c.zone; h += '<li class="couv-zone">' + esc(zone) + '</li>'; }
       var eqNoms = Object.keys(c.equipe);
-      return t + '<li class="couv-ligne ' + (c.moi ? 'oui' : (eqNoms.length ? 'equipe' : 'non')) + '"><span class="pastille"></span>' +
+      h += '<li class="couv-ligne ' + (c.moi ? 'oui' : (eqNoms.length ? 'equipe' : 'non')) + '"><span class="pastille"></span>' +
         '<div><b>' + esc(c.commune) + '</b><span class="discret bloc-texte">' +
         (c.moi ? c.moi + ' visite' + (c.moi > 1 ? 's' : '') + ' prévue' + (c.moi > 1 ? 's' : '') : 'Non visitée') +
         (eqNoms.length ? ' ; équipe : ' + eqNoms.map(function (n) { return esc(n) + ' (' + c.equipe[n] + ')'; }).join(', ') : '') +
         '</span></div><span class="couv-dispo">' + c.dispo + ' dispo.' + (c.prioritaires ? '<small>' + c.prioritaires + ' ★★★ en retard</small>' : '') + '</span></li>';
-    }).join('') + '</ul></section>';
+    });
+
+    if (interieurCommunes.length > 0) {
+      var ouvInt = !!S.ui.couvInterieurOuverte;
+      var nbVisInt = interieurCommunes.filter(function (x) { return x.moi > 0; }).length;
+      h += '<li class="couv-zone couv-zone-interieur">' +
+        '<button type="button" class="couv-zone-btn" data-a="couvInterieurToggle" aria-expanded="' + ouvInt + '">' +
+        '<span>Zone Intérieur <small>(' + interieurCommunes.length + ' commune' + (interieurCommunes.length > 1 ? 's' : '') +
+        (nbVisInt ? ' · ' + nbVisInt + ' visitée' + (nbVisInt > 1 ? 's' : '') : '') + ')</small></span>' +
+        icone('chevron') +
+        '</button></li>';
+      if (ouvInt) {
+        interieurCommunes.forEach(function (c) {
+          var eqNoms = Object.keys(c.equipe);
+          h += '<li class="couv-ligne ' + (c.moi ? 'oui' : (eqNoms.length ? 'equipe' : 'non')) + '"><span class="pastille"></span>' +
+            '<div><b>' + esc(c.commune) + '</b><span class="discret bloc-texte">' +
+            (c.moi ? c.moi + ' visite' + (c.moi > 1 ? 's' : '') + ' prévue' + (c.moi > 1 ? 's' : '') : 'Non visitée') +
+            (eqNoms.length ? ' ; équipe : ' + eqNoms.map(function (n) { return esc(n) + ' (' + c.equipe[n] + ')'; }).join(', ') : '') +
+            '</span></div><span class="couv-dispo">' + c.dispo + ' dispo.' + (c.prioritaires ? '<small>' + c.prioritaires + ' ★★★ en retard</small>' : '') + '</span></li>';
+        });
+      }
+    }
+    h += '</ul></section>';
     return h;
   }
 
@@ -4945,8 +4998,8 @@
       return false;
     });
   }
-  var LIB_VISITE = { '30': 'Non visité depuis +30 j', recent: 'Visité il y a moins de 30 j', jamais: 'Jamais visité',
-                     retard: 'En retard sur la cadence', revoir: 'À revoir' };
+  var LIB_VISITE = { '30': 'Non visité depuis +30 j', recent: 'Visité -30j', jamais: 'Jamais visité',
+                     retard: 'En retard', revoir: 'À revoir' };
   // Liste des critères actifs : [clé, valeur, libellé]
   function criteresActifs(f) {
     var l = [];
@@ -5012,7 +5065,7 @@
   }
 
   function etapesFiltres(f) {
-    var vis = [['tous', 'Toutes'], ['jamais', 'Jamais visité'], ['30', 'Non visité +30 j'], ['retard', 'En retard sur la cadence'], ['revoir', 'À revoir'], ['recent', 'Vu il y a moins de 30 j']];
+    var vis = [['tous', 'Toutes'], ['jamais', 'Jamais visité'], ['30', 'Non visité +30 j'], ['retard', 'En retard'], ['revoir', 'À revoir'], ['recent', 'Visité -30j']];
     var l = [
       { id: 'qui', auto: true, resume: function () { return f.type === 'Pharmacie' ? 'Pharmacies' : (f.type === 'Médecin' ? 'Médecins' : 'Médecins et pharmacies'); },
         rendu: function () {
@@ -5138,14 +5191,18 @@
     var fem = f.type === 'Pharmacie', pl = n > 1, s = pl ? 's' : '', e = fem ? 'e' : '';
     var nom = f.type === 'Pharmacie' ? 'pharmacie' : (f.type === 'Médecin' ? 'médecin' : 'praticien');
     var t = (n ? n : 'Aucun' + (fem ? 'e' : '')) + ' ' + nom + (pl ? 's' : '');
-    if (f.type !== 'Pharmacie' && f.specialites.length && !sontToutesSpecialites(f.specialites)) {
-      t += ' ' + f.specialites.map(function (x) {
-        var ab = abbrevSpec(x);
-        return pl && !/[sx]$/.test(ab) ? ab + 's' : ab;
-      }).join(' ou ');
-      if (f.type === 'tous') t += ' (+ officines)';
-    }
     var c = [];
+    if (f.type !== 'Pharmacie') {
+      if (sontToutesSpecialites(f.specialites)) {
+        c.push('toutes spécialités');
+      } else if (f.specialites.length) {
+        t += ' ' + f.specialites.map(function (x) {
+          var ab = abbrevSpec(x);
+          return pl && !/[sx]$/.test(ab) ? ab + 's' : ab;
+        }).join(' ou ');
+        if (f.type === 'tous') t += ' (+ officines)';
+      }
+    }
     if (f.potentiels.length) c.push(f.potentiels.map(function (x) { return ETOILES[x]; }).join('/'));
     if (f.conv !== 'tous') c.push(f.conv === 'oui' ? 'engagés' : 'non engagés');
     var vis = {
@@ -5164,6 +5221,11 @@
     if (q && String(q).trim()) c.push('« ' + String(q).trim() + ' »');
     var lt = { priorite: 'tri potentiel', score: 'tri priorité', retard: 'tri retard', nom: 'tri nom' };
     if (n > 1 && lt[tri]) c.push(lt[tri]);
+    var aucunFiltre = f.type === 'tous' && (!f.communes || !f.communes.length) && (!f.potentiels || !f.potentiels.length) &&
+                      f.visite === 'tous' && f.conv === 'tous' && f.equipe === 'tous' && (!q || !String(q).trim());
+    if (aucunFiltre) {
+      return t + ' · Toute la base de données';
+    }
     if (!c.length) c.push('Toute la base de données');
     return t + ' · ' + c.join(' · ');
   }
@@ -6205,7 +6267,7 @@
   FEUILLES.visitePlan = function (f) {
     var a = arret(f.uid);
     if (!a) return '<p class="discret">Visite introuvable.</p>';
-    var sousTitre = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier, a.commune]) : infosMedecinPlan(a);
+    var sousTitre = estPharmacie(a) ? infosPharmaciePlan(a) : infosMedecinPlan(a);
     return '<div class="fiche-entete" style="margin-bottom:12px">' +
       '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) + '</span>' +
       (sousTitre ? '<p class="discret" style="margin:4px 0 8px">' + esc(sousTitre) + '</p>' : '') +
@@ -6554,7 +6616,7 @@
           options: opt([['A', '★★★'], ['B', '★★'], ['C', '★']]) }) +
         groupeChoix(f, { id: 'conv', titre: 'Engagé', chemin: 'brouillon.conv', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) }),
       suivi: groupeChoix(f, { id: 'visite', titre: 'Dernière visite (un seul choix)', chemin: 'brouillon.visite', options: opt([['tous', 'Toutes'], ['jamais', 'Jamais visité'],
-          ['30', 'Non visité +30 j'], ['retard', 'En retard sur la cadence'], ['revoir', 'À revoir'], ['recent', 'Vu il y a moins de 30 j']]) }) +
+          ['30', 'Non visité +30 j'], ['retard', 'En retard'], ['revoir', 'À revoir'], ['recent', 'Visité -30j']]) }) +
         (S.config.demo ? '' : groupeChoix(f, { id: 'equipe', titre: 'Prévu par un collègue cette semaine', chemin: 'brouillon.equipe', options: opt([['tous', 'Tous'], ['oui', 'Oui'], ['non', 'Non']]) })),
       ordre: S.ui.tab === 'praticiens' ? groupeChoix(f, { id: 'tri', titre: 'Trier la liste par', chemin: 'tri', options: opt(TRIS) }) : ''
     };
@@ -8220,6 +8282,7 @@
     },
     couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; LS.set('couvPortee', S.ui.couvPortee); rendre(); },
     couvOuvrir: function () { S.ui.couvOuverte = !S.ui.couvOuverte; rendre(); },
+    couvInterieurToggle: function () { S.ui.couvInterieurOuverte = !S.ui.couvInterieurOuverte; rendre(); },
     couvFiltre: function (el) { S.ui.couvFiltre = el.dataset.v; LS.set('couvFiltre', S.ui.couvFiltre); rendre(); },
     // Communes
     choisirCommunes: function (el) {
