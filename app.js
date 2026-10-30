@@ -14,10 +14,10 @@
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
     ['3.26.20', [
-      'Onglet Planifier : Noms des médecins sécurisés sur 1 seule ligne avec largeur optimisée',
-      'Onglet Planifier : Synthèse de journée compacte sur 2 lignes maximum avec abréviations soignées (mat., soir, méd., phar.)',
+      'Onglet Planifier : Noms des médecins jamais tronqués (configuration d\'origine rétablie)',
+      'Onglet Planifier : Synthèse structurée exactement sur 2 lignes (Ligne 1: Date & visites, Ligne 2: Détails)',
       'Calendrier : Zéro défilement tactile ni bavure d\'ombre, affichage 100% net',
-      'Copilote IA ✨ : Bouton d\'aide interactif discret dans l\'en-tête pour expliquer l\'application et chaque bouton'
+      'Copilote IA ✨ : Bouton d\'aide interactif discret dans l\'en-tête'
     ]],
     ['3.26.19', [
       'Sécurité GPS multi-sites : Capter la position GPS sur un médecin multi-établissements ouvre un sélecteur tactile du lieu précis où vous êtes sur place (aucun risque d\'écraser Cocody en étant à Yopougon !)',
@@ -2764,11 +2764,11 @@
     var comJour = Array.from(new Set(duJour.map(function (a) { return a.commune; }).filter(Boolean)));
     var etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmé' + (S.jours[d] && S.jours[d].modifieLe ? ', modifié' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
     var details = [
-      nMatin + ' mat.' + (nSoir ? ', ' + nSoir + ' soir' : ''),
-      (nMed ? nMed + ' méd.' : '') + (nPhar && nMed ? ', ' : '') + (nPhar ? nPhar + ' phar.' : ''),
-      n3 ? n3 + ' ★' : '',
+      nMatin + ' matin' + (nSoir ? ', ' + nSoir + ' soir' : ''),
+      (nPhar ? nPhar + ' phcie' + (nPhar > 1 ? 's' : '') : '') + (nPhar && nMed ? ', ' : '') + (nMed ? nMed + ' médecin' + (nMed > 1 ? 's' : '') : ''),
+      n3 ? n3 + ' ★★★' : '',
       km(totalKm),
-      comJour.length ? esc(comJour.slice(0, 2).join(', ')) : ''
+      comJour.length ? esc(comJour.join(', ')) : ''
     ].filter(Boolean).join(' · ');
     h += '<div class="tete-jour-plan"><div class="bilan-jour"><div><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') + '</div>' +
       '<div class="discret details-plan">' + details + '</div></div>' + etat + '</div>';
@@ -3058,8 +3058,7 @@
 
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
       '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
-      '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' +
-        '<span class="lp-tete">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) + '</span>' +
+      '<button type="button" class="lp-corps" data-a="voirVisite" data-uid="' + a.uid + '">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
         (sousTitre ? '<span class="discret bloc-texte">' + esc(sousTitre) + '</span>' : '') + (e ? '<span class="etiquettes">' + e + '</span>' : '') + '</button>' +
       (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
         '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +

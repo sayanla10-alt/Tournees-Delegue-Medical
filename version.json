@@ -2,8 +2,8 @@
   "version": "3.26.20",
   "date": "2026-10-30",
   "notes": [
-    "Onglet Planifier : Noms des médecins sécurisés sur 1 seule ligne avec largeur optimisée",
-    "Onglet Planifier : Synthèse de journée compacte sur 2 lignes maximum avec abréviations soignées (mat., soir, méd., phar.)",
+    "Onglet Planifier : Noms des médecins jamais tronqués (configuration d'origine rétablie)",
+    "Onglet Planifier : Synthèse structurée exactement sur 2 lignes (Ligne 1: Date & visites, Ligne 2: Détails)",
     "Calendrier : Zéro défilement tactile ni bavure d'ombre, affichage 100% net",
     "Copilote IA ✨ : Bouton d'aide interactif discret dans l'en-tête pour expliquer l'application et chaque bouton",
     "Sécurité GPS multi-sites : Capter la position GPS sur un praticien multi-établissements ouvre un sélecteur tactile du lieu précis où vous êtes sur place (aucun risque d'écraser un établissement avec un autre)",

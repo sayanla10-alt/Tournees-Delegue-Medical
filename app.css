@@ -2190,24 +2190,16 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   background: var(--primaire);
 }
 
-/* Onglet Planifier : Titre et résumé de tournée compact sur 2 lignes max */
-.tete-jour-plan { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.bilan-jour { flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+/* Onglet Planifier : Synthèse sur 2 lignes (Ligne 1: Date & visites, Ligne 2: Détails) */
+.tete-jour-plan { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.bilan-jour { flex: 1 1 auto; min-width: 0; line-height: 1.35; }
 .bilan-jour b { font-size: 15px; }
-.bilan-jour .details-plan { font-size: 12px; color: var(--gris); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.bilan-jour .details-plan { font-size: 12.5px; color: var(--gris); margin-top: 3px; display: block; }
 
-/* Onglet Planifier : Nom du médecin sur 1 seule ligne avec flex */
-.lp-tete { display: flex; align-items: center; gap: 4px; min-width: 0; width: 100%; }
+/* Onglet Planifier : Nom complet du médecin (jamais tronqué, configuration d'origine) */
 .ligne-plan .lp-corps b {
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 0 1 auto;
-  min-width: 0;
 }
-.ligne-plan .lp-corps .note { flex: none; margin-left: 2px; }
-.ligne-plan .type-pastille { flex: none; margin-right: 2px; }
 
 /* Bouton Copilote IA et Dialogue */
 .btn-ia {
