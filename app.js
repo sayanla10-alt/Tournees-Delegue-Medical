@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.6';
+  var APP_VERSION = '3.26.7';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.7', [
+      'Garantie d\'affichage des secteurs dans Planifier > Communes ciblées : injection systématique des 4 sous-secteurs pour Cocody, Yopougon et Abobo même si la base locale contenait d\'anciens enregistrements non segmentés',
+      'Compatibilité immédiate sans nécessiter de réinitialisation préalable'
+    ]],
     ['3.26.6', [
       'Nomenclature stricte des 3 grandes communes : Cocody (Angré, Deux Plateaux, Riviera, Centre), Yopougon (Niangon, Maroc & Toits Rouges, Centre & Mairie, Sud & Gesco), Abobo (Nord & PK18, Centre & Mairie, Baoulé & Avocatier, Sud & Plaque)',
       'Ordre d\'affichage et repères harmonisés dans toute l\'application et la base'
@@ -1142,6 +1146,14 @@
       }
     });
 
+    // 3.26.7 : Garantir systématiquement la présence des 3 grandes communes et de leurs 4 secteurs
+    groupes['Zone Nord'] = groupes['Zone Nord'] || {};
+    groupes['Zone Nord']['Abobo'] = secteursDeGrandeCommune('Abobo');
+    groupes['Zone Est'] = groupes['Zone Est'] || {};
+    groupes['Zone Est']['Cocody'] = secteursDeGrandeCommune('Cocody');
+    groupes['Zone Ouest'] = groupes['Zone Ouest'] || {};
+    groupes['Zone Ouest']['Yopougon'] = secteursDeGrandeCommune('Yopougon');
+
     var zonesOrdonnees = ZONES.slice();
     Object.keys(groupes).forEach(function (z) { if (zonesOrdonnees.indexOf(z) < 0) zonesOrdonnees.push(z); });
 
@@ -1165,8 +1177,8 @@
       var opts = [];
       var parents = Object.keys(groupes[z]).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
       parents.forEach(function (par) {
-        var secteurs = groupes[z][par];
         var estGrande = estGrandeCommune(par);
+        var secteurs = estGrande ? secteursDeGrandeCommune(par) : (groupes[z][par] || []);
         if (!estGrande) {
           // Commune standard non segmentée (Plateau, Adjamé, Marcory, Port-Bouët, Bingerville...)
           opts.push({ v: par, lib: par, commune: par });

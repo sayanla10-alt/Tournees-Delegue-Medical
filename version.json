@@ -1,10 +1,8 @@
 {
-  "version": "3.26.6",
+  "version": "3.26.7",
   "date": "2026-10-30",
   "notes": [
-    "Nomenclature exacte des 3 grandes communes (4 secteurs chacune)",
-    "Cocody : Angré, Deux Plateaux, Riviera, Centre",
-    "Yopougon : Niangon, Maroc & Toits Rouges, Centre & Mairie, Sud & Gesco",
-    "Abobo : Nord & PK18, Centre & Mairie, Baoulé & Avocatier, Sud & Plaque"
+    "Affichage garanti des 4 sous-secteurs pour Cocody, Yopougon et Abobo dans Planifier > Communes ciblées",
+    "Bypass des anciennes données en cache pour assurer la visibilité immédiate du découpage"
   ]
 }
