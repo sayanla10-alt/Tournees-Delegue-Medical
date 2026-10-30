@@ -1,23 +1,17 @@
 {
-  "version": "3.26.36",
+  "version": "3.26.37",
   "date": "2026-10-30",
   "notes": [
-    "Répertoire : Badge GPS compact avec icône cible et ratio (ex. 🎯 2/2), suppression de la coche et des mentions superflues",
-    "Planifier : Espacement gauche resserré (gain de 12px), noms des praticiens repoussés vers la gauche",
-    "Planifier : Distance en km affichée pour les pharmacies (comme pour les médecins)",
-    "Planifier : Zone Intérieur repliée et masquée par défaut dans les communes visitées",
-    "Critères de recherche : Hauteur strictement harmonisée à 38px pour tous les boutons",
-    "Critères (Étape 5) : Libellés raccourcis « Visité -30j » et « En retard » (gain de hauteur)",
-    "Répertoire : Mention explicite « toutes spécialités » lorsque tous les types de médecins sont sélectionnés",
-    "Répertoire : Condensation homogène pour Abobo, Cocody et Yopougon",
-    "Planifier : Caducée / symbole déplacé à gauche au-dessus de l'heure, boutons « Gardé » et « ✕ » abaissés",
-    "Planifier : Noms de médecins et pharmacies affichés en pleine largeur sur une seule ligne continue",
-    "Répertoire : Mention explicite « Toute la base de données » lorsque aucun filtre n'est actif",
-    "Critères de recherche (Étape 4) : Affichage épuré des étoiles seules (★★★, ★★, ★) sans texte redondant",
-    "Répertoire : Condensation automatique des communes entières (ex. « Cocody » au lieu des 4 sous-secteurs)",
-    "Répertoire : Suppression du nom de commune redondant sur les secteurs ciblés (ex. « Deux Plateaux, Riviera »)",
-    "Répertoire : Masquage des spécialités si tous les types de médecins sont sélectionnés pour un bandeau compact",
-    "CR Étape 5 (Réaction) : « Non intéressé » et « Non évalué » alignés côte à côte sur la même ligne (gain de hauteur)",
-    "Suivi & Contrôle : Vérification et complétion des coordonnées GPS des pharmacies en base Google Sheets"
+    "Planifier : Calendrier affiché sous le format « Mer. 16 Déc. » avec jour et mois abrégé",
+    "Répertoire : Établissements affichés sur une seule ligne (abréviations cliniques et colonnes jours compactes)",
+    "Répertoire : Mention « Touchez M ou S pour planifier » alignée sur la même ligne que l'icône GPS",
+    "Répertoire : Icône de géolocalisation GPS (épingle 📍) harmonisée sur les badges et boutons",
+    "Répertoire : Bandeau critères harmonisé avec bouton « Réinitialiser les filtres » grisé par défaut quand inactif",
+    "Répertoire (Planning / Adresse) : Nom d'hôpital vide par défaut (placeholder d'invitation) et liste ordonnée des hôpitaux proches",
+    "CR Visite : Affichage immédiat des motifs d'absence après avoir cliqué sur « Non » sans écran intermédiaire",
+    "CR Visite : Proposition directe en 1 étape « Remplacer » ou « Non », et pas de remplaçant si « Non »",
+    "CR Visite : Étape 2 raccourcie en « Présentation » et Étape 8 « Envoyer infos » / bouton « Terminer »",
+    "CR Visite : Étape 4 produit sélectionné vert sans coche de validation superflue",
+    "CR Visite : Barre de recherche interactive en tête de liste des remplaçants proposés"
   ]
 }

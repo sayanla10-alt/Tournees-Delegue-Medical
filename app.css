@@ -207,6 +207,7 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .segment button { flex: 1 1 0; min-width: 0; min-height: 38px; padding: 4px 8px; border: 0; border-radius: 9px; background: transparent;
   color: var(--gris); font-weight: 600; font-size: 14px; line-height: 1.15; transition: background .15s, color .15s, box-shadow .15s; }
 .segment button[aria-pressed="true"] { background: var(--primaire); color: var(--sur-primaire); box-shadow: 0 1px 3px rgba(14, 34, 48, .2); }
+.segment button svg { width: 15px; height: 15px; margin-right: 4px; vertical-align: -2px; }
 .segment.petit { margin: 0; flex: 0 0 auto; }
 .segment.petit button { min-height: 32px; padding: 0 12px; font-size: 13.5px; }
 .segment.compact button { font-size: 13.5px; }
@@ -956,11 +957,14 @@ body.feuille-ouverte { overflow: hidden; }
 
 /* Grille de présences d'un praticien */
 .grille-pres { margin-top: 10px; overflow-x: auto; }
-.grille-pres table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.grille-pres table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
 .grille-pres th { font: 600 12px var(--titre); color: var(--gris); text-align: center; padding: 4px 2px; border-bottom: 1px solid var(--trait); }
 .grille-pres th:first-child { text-align: left; }
 .grille-pres td { border-bottom: 1px solid var(--trait); padding: 6px 2px; vertical-align: middle; text-align: center; }
-.grille-pres td:first-child { text-align: left; min-width: 120px; }
+.grille-pres th:not(:first-child),
+.grille-pres td:not(:first-child) { width: 32px !important; max-width: 34px !important; min-width: 28px !important; padding: 4px 1px !important; }
+.grille-pres td:first-child { text-align: left; width: auto !important; min-width: 0; }
+.grille-pres td:first-child b { display: block; font-size: 13px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .grille-pres td small { display: block; color: var(--gris); font-size: 11.5px; }
 .grille-pres .dispo button {
   display: block; margin: 2px auto; width: 30px; height: 26px; border-radius: 6px; border: 0;
@@ -1226,6 +1230,19 @@ details.avance h3 { margin-top: 18px; }
   background: #063f44;
   box-shadow: 0 1px 3px rgba(10, 108, 116, 0.2);
 }
+.bouton-reinit-rep:disabled,
+.bouton-reinit-rep.desactive {
+  background: var(--trait, #e2e8f0) !important;
+  color: var(--gris, #94a3b8) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+  opacity: 0.7;
+}
+.bouton-reinit-rep:disabled svg,
+.bouton-reinit-rep.desactive svg {
+  color: var(--gris, #94a3b8) !important;
+}
 @media (max-width: 360px) {
   .bandeau-criteres-rep { padding: 8px 10px; }
   .bandeau-criteres-rep .phrase-criteres { font-size: 12px; margin-bottom: 8px; }
@@ -1455,7 +1472,7 @@ details.avance h3 { margin-top: 18px; }
 .pastille-produit { min-height: 34px; padding: 0 12px; min-width: 50px; border-radius: 17px; border: 1.5px solid var(--primaire); background: var(--papier); color: var(--primaire); font-weight: 700; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .15s ease; }
 .pastille-produit:active { transform: scale(.96); }
 .pastille-produit[aria-pressed="true"] { background: var(--primaire) !important; color: var(--sur-primaire) !important; border-color: var(--primaire) !important; box-shadow: 0 2px 5px rgba(11, 107, 116, .35) !important; }
-.pastille-produit[aria-pressed="true"]::before { content: "✓ "; font-weight: 800; margin-right: 3px; }
+.pastille-produit[aria-pressed="true"]::before { display: none !important; }
 .fp-dci { margin: 0; }
 .fp-bascule { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0; border: 0; background: none; color: inherit; }
 .fp-bascule h4 { margin: 0; }
@@ -2365,9 +2382,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   box-shadow: 0 2px 6px rgba(11, 107, 116, .35) !important;
 }
 .liste-gammes-cr .pastille-produit[aria-pressed="true"]::before {
-  content: "✓ " !important;
-  font-weight: 800 !important;
-  margin-right: 5px !important;
+  display: none !important;
 }
 .grille-gamme-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 8px; background: var(--fond, #f8fafb); }
 @media (max-width: 330px) { .grille-gamme-2 { grid-template-columns: 1fr; } }
