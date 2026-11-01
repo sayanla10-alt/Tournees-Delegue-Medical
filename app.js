@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.75';
+  var APP_VERSION = '3.26.76';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.76', ['Journée, jour sans planification : « Reprendre un ancien programme » sous « Planifier le … »']],
     ['3.26.75', ['Répertoire : 8 px entre la grille, « Modifier le planning hebdomadaire » et les boutons du bas', 'Planifier, étape RDV et prioritaires : bouton « Retirer » sur chaque RDV et prioritaire, et appui long pour retirer, avec confirmation']],
     ['3.26.74', ['Répertoire : « Modifier le planning hebdomadaire » devient un bouton centré, à la hauteur de « Planifier » ; boutons du bas resserrés']],
     ['3.26.73', ['Téléphone relié mais base non reçue : écran « Chargement » avec Réessayer au lieu de l’écran d’accueil ; délai de 2 min au premier chargement', 'Un même lieu saisi sur plusieurs lignes n’apparaît qu’une fois (jours réunis), et l’enregistrement de la fiche nettoie la base', 'Notifications du téléphone (Réglages) : pharmacie ou médecin proche avec la distance, conflit avec un collègue']],
@@ -2858,7 +2859,8 @@
     if (d < aujourdhui()) return '';
     // week-end ou férié : on propose le prochain jour ouvré
     var n = 0; while ((jourSemaineIndex(d) > 4 || estFerie(d)) && n++ < 10) d = ajouterJours(d, 1);
-    return '<button class="bouton bouton-plein bouton-large" type="button" data-a="planifierDate" data-v="' + d + '" style="margin-top:12px">' + icone('calendrier') + 'Planifier le ' + esc(dateCourte(d)) + '</button>';
+    return '<button class="bouton bouton-plein bouton-large" type="button" data-a="planifierDate" data-v="' + d + '" style="margin-top:12px">' + icone('calendrier') + 'Planifier le ' + esc(dateCourte(d)) + '</button>' +
+      boutonAnciens('margin-top:8px');   // 3.26.76 : ou reprendre un ancien programme
   }
   // 3.24.7 : compteurs du jour : visites, faites, sans CR (ouvre le compte rendu), à planifier
   // (visites par jour voulues dans Planifier moins celles déjà prévues ; ouvre Planifier pour ce jour)
