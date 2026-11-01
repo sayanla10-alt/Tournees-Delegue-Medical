@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.83';
+  var APP_VERSION = '3.26.84';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.84', ['Modifier : « 1. Lieux & planning » à gauche (ouvert d’abord), « 2. Médecin » à droite']],
     ['3.26.83', ['Synchroniser : un téléphone relié à un ancien déploiement du serveur bascule tout seul sur le serveur à jour (même classeur, même jeton) puis recharge les données']],
     ['3.26.82', ['Les visites à venir reprennent à chaque synchronisation les données actuelles de la base (spécialité, hôpital, quartier, GPS, horaires), sans recalculer la tournée']],
     ['3.26.81', ['Données venant d’un ancien serveur : rechargement complet automatique ; Réglages › Avancé signale un lien de connexion ancien et affiche la fin de l’adresse du serveur']],
@@ -7715,9 +7716,10 @@
     var h = (existante ? '' : '<div class="segment" role="group" aria-label="Type" style="margin-bottom:8px">' + ['Médecin', 'Pharmacie'].map(function (t) {
         return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
       }).join('') + '</div>');
+    // 3.26.84 : « 1. Lieux & planning » à gauche, « 2. Médecin / Pharmacie » à droite
     if (!seulPlanning) h += '<div class="segment" role="group" aria-label="Étapes" style="margin-bottom:8px">' +
-        '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (e === 0) + '">1. ' + (estPh ? 'Pharmacie' : 'Médecin') + '</button>' +
-        '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">2. ' + (estPh ? 'Horaires' : 'Lieux & planning (' + d.lieux.length + ')') + '</button></div>';
+        '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">1. ' + (estPh ? 'Horaires' : 'Lieux & planning (' + d.lieux.length + ')') + '</button>' +
+        '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (e === 0) + '">2. ' + (estPh ? 'Pharmacie' : 'Médecin') + '</button></div>';
 
     if (e === 0) {
       var q0 = quartiers().filter(function (x) { return x.quartier === l0.quartier; })[0];
@@ -7848,7 +7850,7 @@
     }
 
     var pied = '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">Annuler</button>' +
-      (seulPlanning ? '' : (e === 0 ? '<button class="bouton" type="button" data-a="ficheEtape" data-v="1">Lieux →</button>' : '<button class="bouton" type="button" data-a="ficheEtape" data-v="-1">← Médecin</button>')) +
+      (seulPlanning ? '' : (e === 1 ? '<button class="bouton" type="button" data-a="ficheEtape" data-v="-1">' + (estPh ? 'Pharmacie' : 'Médecin') + ' →</button>' : '<button class="bouton" type="button" data-a="ficheEtape" data-v="1">← ' + (estPh ? 'Horaires' : 'Lieux') + '</button>')) +
       '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>';
     return { corps: h, pied: pied };
   };
@@ -9915,7 +9917,7 @@
       var code = el.dataset.v || S.ui.contactOuvert;
       if (!code) return;
       var d = brouillonFiche(code);
-      S.ui.feuille = { type: 'fiche', titre: (d.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
+      S.ui.feuille = { type: 'fiche', titre: (d.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 1, d: d, err: {}, initial: JSON.stringify(d) };
       rendre();
     },
     modifierActif: function () {
@@ -9945,7 +9947,7 @@
     },
     ouvrirDoublon: function (el) {
       var d = brouillonFiche(el.dataset.v);
-      S.ui.feuille = { type: 'fiche', titre: (d.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
+      S.ui.feuille = { type: 'fiche', titre: (d.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 1, d: d, err: {}, initial: JSON.stringify(d) };
       rendre();
       toast('Fiche existante ouverte : ' + d.nom);
     },
@@ -10166,7 +10168,7 @@
             'Ouvrir la fiche existante',
             function () {
               var dEx = brouillonFiche(ex.code);
-              S.ui.feuille = { type: 'fiche', titre: (dEx.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 0, d: dEx, err: {}, initial: JSON.stringify(dEx) };
+              S.ui.feuille = { type: 'fiche', titre: (dEx.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 1, d: dEx, err: {}, initial: JSON.stringify(dEx) };
               rendre();
             },
             function () {
