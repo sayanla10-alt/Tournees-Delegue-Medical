@@ -47,8 +47,20 @@ var CHAMPS_PRESENCES = [
   ['id', 'IdPresence'], ['code', 'CodeContact'], ['nom', 'Nom'], ['lieu', 'Lieu/Etablissement'],
   ['quartier', 'Quartier'], ['commune', 'Commune'], ['zone', 'Zone'],
   ['lundi', 'Lundi'], ['mardi', 'Mardi'], ['mercredi', 'Mercredi'], ['jeudi', 'Jeudi'], ['vendredi', 'Vendredi'],
-  ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude']
+  ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['reperes', 'Repères']
 ];
+
+// 3.26.54 : règle unique de position d'un lieu. Latitude / longitude lues avec virgule ou point ;
+// 0, vide ou hors de la Côte d'Ivoire = pas de position. Renvoie { lat, lon } ou null.
+function lireCoord(o) {
+  if (!o) return null;
+  var la = parseFloat(String(o.lat === undefined || o.lat === null ? '' : o.lat).replace(',', '.')),
+      lo = parseFloat(String(o.lon === undefined || o.lon === null ? '' : o.lon).replace(',', '.'));
+  if (!isFinite(la) || !isFinite(lo) || la === 0 || lo === 0) return null;
+  if (la < 4 || la > 11 || lo < -9 || lo > -2) return null;
+  return { lat: la, lon: lo };
+}
+function aCoord(o) { return !!lireCoord(o); }
 
 var CHAMPS_HIST = [
   ['date', 'DateVisite'], ['horodatage', 'Horodatage'], ['idPresence', 'IdPresence'], ['code', 'CodeContact'],

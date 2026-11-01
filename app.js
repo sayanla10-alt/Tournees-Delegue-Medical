@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.53';
+  var APP_VERSION = '3.26.54';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.54', ['Positions : une seule règle pour toute l’application (coordonnées avec virgule ou point, 0 ou hors Côte d’Ivoire = pas de GPS ; position du téléphone valable 10 min partout)', 'Boutons harmonisés : même forme arrondie, même hauteur et même taille de texte dans tous les onglets']],
     ['3.26.53', ['Base : le quartier est séparé des repères d’adresse (nouvelle colonne Repères), modifiables dans la fiche', 'Contrôle automatique des doublons de numéros de lieu et de codes']],
     ['3.26.52', ['Journée, appui très long sur une visite renseignée : remettre « à faire » ou supprimer complètement la visite']],
     ['3.26.51', ['Journée : appui très long (1,5 s) sur une visite renseignée = effacer son compte rendu, après confirmation',
@@ -2945,29 +2946,19 @@
   // 3.23.0 : position suivie toutes les 2 minutes pendant que Journée montre aujourd'hui ;
   // une visite prévue plus tard, à moins de 500 m et dont le praticien est présent à cette heure, est proposée « maintenant »
   var RAYON_PROCHE_KM = 0.5, MARGE_PRESENCE_MIN = 10;   // 3.24.20 : 500 m, au moins 10 min de présence restantes
-  function suivrePosition() {
-    return;   // 3.25.14 : remplacé par le recalcul global (localiser, toutes les PERIODE_GPS_MIN minutes)
-    if (S.ui.gpsMinuteur || !navigator.geolocation) return;
-    var lire = function () {
-      if (S.ui.tab !== 'jour' || jourAffiche() !== aujourdhui() || document.hidden) return;
-      navigator.geolocation.getCurrentPosition(function (p) {
-        var avant = S.ui.posGps;
-        S.ui.posGps = { lat: p.coords.latitude, lon: p.coords.longitude, t: Date.now() };
-        if (!avant || distanceKm(avant, S.ui.posGps) > 0.05) rendreSiPossible();
-      }, function () {}, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 });
-    };
-    S.ui.gpsMinuteur = setInterval(lire, 120000);
-    setTimeout(lire, 500);
-  }
+  function suivrePosition() {}   // 3.25.14 : remplacé par le recalcul global (localiser)
+  // 3.26.54 : règle unique d'âge de la position du téléphone (10 min) pour toute l'application
+  var AGE_GPS_MIN = 10;
+  function gpsFrais() { var g = S.ui.posGps; return g && Date.now() - g.t < AGE_GPS_MIN * 60000 ? g : null; }
   function coordPrecise(a) {
-    if (a.lat && a.lon) return { lat: +a.lat, lon: +a.lon };
+    var c0 = lireCoord(a); if (c0) return c0;
     var cr = a.idPresence && ctx().parCode[a.code] ? ctx().parCode[a.code].filter(function (x) { return String(x.idPresence) === String(a.idPresence); })[0] : null;
     return cr && cr.coord ? cr.coord : null;
   }
   // pharmacie ouverte à moins de 500 m, hors de ma journée, non prévue par un collègue cette semaine, pas vue récemment
   var RAYON_PHARMACIE_KM = 0.5;
   function pharmacieProche(duJour) {
-    var pos = S.ui.posGps, t = aujourdhui(); if (!pos || Date.now() - pos.t > 5 * 60000 || jourSemaineIndex(t) > 4) return null;
+    var pos = gpsFrais(), t = aujourdhui(); if (!pos || jourSemaineIndex(t) > 4) return null;
     var now = minutesMaintenant(), refus = LS.get('refusPharmacies', {}), dans = ensemble(duJour.map(function (a) { return a.code; })), ex = exclusCollegues([t]), best = null;
     if (refus.d !== t) refus = { codes: {} };
     (ctx().parJour[jourSemaineIndex(t)] || []).forEach(function (c) {
@@ -2981,7 +2972,7 @@
     return best;
   }
   function visiteProche(sans, suivante) {
-    var pos = S.ui.posGps; if (!pos || Date.now() - pos.t > 5 * 60000) return null;
+    var pos = gpsFrais(); if (!pos) return null;
     var now = minutesMaintenant(), refus = LS.get('refusProches', {}), best = null;
     sans.forEach(function (a) {
       if (a === suivante || (refus.d === aujourdhui() && refus.uids && refus.uids[a.uid])) return;
@@ -3583,7 +3574,7 @@
     if (a.specialite) morceaux.push(a.specialite);
     if (hopital) morceaux.push(hopital);
     if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) morceaux.push(secteur);
-    var pos = S.ui.posGps, c = (pos && Date.now() - pos.t < 15 * 60000) ? (coordPrecise(a) || coordArret(a) || coord) : null;
+    var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || coord) : null;
     if (c && pos) {
       var d = distanceVol(pos, c);
       morceaux.push(distanceCourte(d));
@@ -3595,7 +3586,7 @@
   function infosPharmaciePlan(a) {
     var pObj = (typeof praticien === 'function' && praticien(a.code)) || {};
     var pCoord = (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lat) ? { lat: +pObj.lieux[0].lat, lon: +pObj.lieux[0].lon } : (pObj.lat && pObj.lon ? { lat: +pObj.lat, lon: +pObj.lon } : null);
-    var pos = S.ui.posGps, c = (pos && Date.now() - pos.t < 15 * 60000) ? (coordPrecise(a) || coordArret(a) || a.coord || pCoord) : null;
+    var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || a.coord || pCoord) : null;
     var base = infosSansDoublon(a, [a.lieu, a.quartier, a.commune]);
     if (c && pos) {
       var d = distanceVol(pos, c);
@@ -4559,7 +4550,7 @@
   // 3.23.2 : distance entre moi (GPS) et une visite du jour pas encore faite, pour choisir qui voir en priorité
   // 3.25.36 : distance entre moi (GPS) et une visite du jour pas encore faite avec durées à pied et en voiture
   function distanceMoi(a) {
-    var pos = S.ui.posGps, cp = pos && Date.now() - pos.t < 15 * 60000 ? coordPrecise(a) : null, c = cp || (pos && Date.now() - pos.t < 15 * 60000 ? coordArret(a) : null);
+    var pos = gpsFrais(), cp = pos ? coordPrecise(a) : null, c = cp || (pos ? coordArret(a) : null);
     if (!c || !pos) return '';
     var route = distanceVol(pos, c);
     var d = (cp ? '' : '≈ ') + distanceCourte(route);
@@ -4796,7 +4787,7 @@
     else carte.setView([5.345, -4.01], 11);
   }
   function coordArret(a) {
-    if (a.lat && a.lon) return { lat: +a.lat, lon: +a.lon };
+    var c0 = lireCoord(a); if (c0) return c0;
     var cr = a.idPresence && ctx().parCode[a.code] ? ctx().parCode[a.code].filter(function (x) { return String(x.idPresence) === String(a.idPresence); })[0] : null;
     if (cr && cr.coord) return cr.coord;
     var q = quartiers().filter(function (x) { return x.quartier === a.quartier; })[0];
@@ -5626,10 +5617,7 @@
         h += grillePresences(p.code);
         var impose = S.imposes.some(function (im) { return im.code === p.code; });
         var nbLieux = lieux.length || 1;
-        var nbGpsFixes = lieux.filter(function (l) {
-          var lt = l.lat != null ? +String(l.lat).replace(',', '.') : NaN;
-          return isFinite(lt) && lt !== 0;
-        }).length;
+        var nbGpsFixes = lieux.filter(aCoord).length;
         var badgeGpsClasse = nbGpsFixes === nbLieux ? 'fixe' : (nbGpsFixes > 0 ? 'partiel' : 'manquant');
         var badgeGpsHtml = icone('carte') + '<span>' + nbGpsFixes + '/' + nbLieux + '</span>';
         var tAuj = aujourdhui();
@@ -5675,7 +5663,7 @@
     h += '<table><thead><tr><th>' + (estPh ? 'Officine' : 'Lieu') + '</th>' + JOURS.map(function (j) { return '<th>' + j.slice(0, 3) + '</th>'; }).join('') + '</tr></thead><tbody>';
     lieux.forEach(function (pr, idx) {
       var hM = lireHoraire(pr.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
-      var hasGps = pr.lat && pr.lon && isFinite(+String(pr.lat).replace(',', '.')) && +String(pr.lat).replace(',', '.') !== 0;
+      var hasGps = aCoord(pr);
       var nomLieu = abregerHopital(pr.lieu || (estPh ? p.nom : 'Établissement'));
       var quartierNet = String(pr.quartier || '').replace(/\bBoulevard\b/gi, 'Blvd.');
       var adresseTxt = [quartierNet, pr.commune].filter(Boolean).join(', ') + (pr.reperes ? ' · ' + pr.reperes : '');
@@ -6967,8 +6955,8 @@
       '<div class="liste-choix-lieux-gps" style="display:flex;flex-direction:column;gap:10px">';
 
     lieux.forEach(function (l, idx) {
-      var aGps = l.lat && l.lon && isFinite(+String(l.lat).replace(',', '.')) && +String(l.lat).replace(',', '.') !== 0;
-      var coordStr = aGps ? (+String(l.lat).replace(',', '.')).toFixed(5) + ', ' + (+String(l.lon).replace(',', '.')).toFixed(5) : '';
+      var cl = lireCoord(l), aGps = !!cl;
+      var coordStr = cl ? cl.lat.toFixed(5) + ', ' + cl.lon.toFixed(5) : '';
       h += '<div class="carte-choix-gps" style="border:1.5px solid ' + (aGps ? 'var(--trait,#d0d7de)' : 'rgba(230,126,34,0.5)') + ';border-radius:10px;padding:12px;background:var(--fond-carte,#fff);box-shadow:0 1px 3px rgba(0,0,0,0.05)">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">' +
           '<div style="flex:1">' +
@@ -7347,8 +7335,7 @@
       e.n++;
       if (!e.quartier && x.quartier && !/^NL$/i.test(x.quartier)) e.quartier = x.quartier;
       if (!e.commune && x.commune) e.commune = x.commune;
-      var la = parseFloat(String(x.lat).replace(',', '.')), lo = parseFloat(String(x.lon).replace(',', '.'));
-      if (!e.lat && isFinite(la) && isFinite(lo) && la) { e.lat = la; e.lon = lo; }
+      var cx = lireCoord(x); if (!e.lat && cx) { e.lat = cx.lat; e.lon = cx.lon; }
     });
     l.forEach(function (e) { e.txt = normaliser(e.lieu + ' ' + (e.quartier || '') + ' ' + (e.commune || '') + ' ' + (e.categorie || '')); });
     return l;
@@ -7570,7 +7557,7 @@
             (l0.lat && l0.lon ? '<span class="badge-discret ok-gps" style="background:var(--vert-pale,#e6f7ec);color:var(--vert,#1e7e34)">' + icone('cible') + ' GPS</span>' : '') + '</div>' +
           '<div class="gps-ligne" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px">' +
             '<button type="button" class="bouton bouton-plein petit" data-a="ficheGps" data-i="0">' + icone('cible') + (l0.lat && l0.lon ? 'Actualiser GPS ici' : 'Captez ma position GPS') + '</button>' +
-            (l0.lat && l0.lon ? '<span class="discret">GPS : <b>' + (+String(l0.lat).replace(',', '.')).toFixed(4) + ', ' + (+String(l0.lon).replace(',', '.')).toFixed(4) + '</b> <button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="0">✕</button></span>' : '<span class="discret">Position fixe de la pharmacie</span>') +
+            (aCoord(l0) ? '<span class="discret">GPS : <b>' + lireCoord(l0).lat.toFixed(4) + ', ' + lireCoord(l0).lon.toFixed(4) + '</b> <button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="0">✕</button></span>' : '<span class="discret">Position fixe de la pharmacie</span>') +
           '</div>' +
           champFiche('quartier0', 'Quartier *', selecteurListe('ficheQuartier0', { titre: 'Quartier', valeur: l0.quartier, vide: 'Choisir un quartier (ou via GPS)…', invalide: !!f.err.quartier0, sections: sectionsQuartiers(),
             appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[0].quartier = v; delete fe.err.quartier0; } } }), f, true, q0 ? 'Commune : ' + esc(q0.commune) : '') +
@@ -7689,7 +7676,7 @@
                 '<button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'GPS de ce lieu</button>' +
                 (l.lat && l.lon ? '<button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="' + i + '" title="Effacer GPS">✕</button>' : '') +
               '</div>' +
-              (l.lat && l.lon ? '<span>GPS : <b>' + (+String(l.lat).replace(',', '.')).toFixed(4) + ', ' + (+String(l.lon).replace(',', '.')).toFixed(4) + '</b></span>' : '<span class="discret">Pas de GPS</span>') +
+              (aCoord(l) ? '<span>GPS : <b>' + lireCoord(l).lat.toFixed(4) + ', ' + lireCoord(l).lon.toFixed(4) + '</b></span>' : '<span class="discret">Pas de GPS</span>') +
             '</div>';
         }
         var tousM = l.jours.every(function (j) { return j.matin; }), tousS = l.jours.every(function (j) { return j.soir; });
@@ -8407,10 +8394,10 @@
     }
     return km(k);
   }
-  function gpsPrecis() { var g = S.ui.posGps; return !!(g && Date.now() - g.t < 5 * 60000 && g.prec && g.prec <= 60); }
+  function gpsPrecis() { var g = gpsFrais(); return !!(g && g.prec && g.prec <= 60); }
   // 3.25.8 : position actuelle connue : GPS de moins de 15 min, sinon le point choisi dans « Autour de moi »
   function positionActuelle() {
-    var g = S.ui.posGps; if (g && Date.now() - g.t < 15 * 60000) return { lat: g.lat, lon: g.lon };
+    var g = gpsFrais(); if (g) return { lat: g.lat, lon: g.lon };
     var A = S.ui.autour; return A && A.lat !== null && A.lat !== undefined ? { lat: A.lat, lon: A.lon } : null;
   }
   // position issue du GPS (et non d'un quartier choisi) : à recalculer à chaque ouverture
@@ -8455,7 +8442,7 @@
     mesurePrecise(function (p) {
       var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) };
       var qDecl = l.quartier ? quartiers().filter(function (q) { return q.quartier === l.quartier; })[0] : null;
-      var refGeo = qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : (l.lat && l.lon ? { lat: parseFloat(String(l.lat).replace(',', '.')), lon: parseFloat(String(l.lon).replace(',', '.')) } : null);
+      var refGeo = qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : lireCoord(l);
       var distKm = refGeo && isFinite(refGeo.lat) ? distanceVol(pCapt, refGeo) : 0;
       var nomLieu = l.lieu ? (l.lieu + (l.quartier ? ' (' + l.quartier + ')' : '')) : (l.quartier || l.commune || d.nom);
 
@@ -9904,7 +9891,7 @@
       if (!navigator.geolocation) { toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
       toast('Recherche de votre position précise…');
       mesurePrecise(function (p) {
-        var avant = l.lat && l.lon ? { lat: parseFloat(String(l.lat).replace(',', '.')), lon: parseFloat(String(l.lon).replace(',', '.')) } : null;
+        var avant = lireCoord(l);
         var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6), prec: p.prec };
 
         // Référence géographique : quartier sélectionné ou position existante

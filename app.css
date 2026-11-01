@@ -3363,3 +3363,16 @@ span.btn-micro-gps:active { transform: none; }
 .bj-jour.grise *, .bj-jour.non-ouvre * { color: #90a4ae !important; }
 .bj-jour.non-ouvre[aria-pressed="true"] { background: #b0bec5 !important; border-color: #90a4ae !important; color: #fff !important; }
 .bj-jour.non-ouvre[aria-pressed="true"] * { color: #fff !important; }
+
+/* 3.26.54 (lot 2) : boutons harmonisés. Une seule forme pour toute l'application :
+   pilule (coins = moitié de la hauteur), 44 px de haut (34 px pour .petit, 50 px pour l'action principale du bas),
+   texte 14 px semi-gras. Les anciennes variantes à coins de 10 px du Répertoire et des fiches contact sont alignées. */
+.bouton { border-radius: 999px; font-size: 15px; font-weight: 600; }
+.bouton.petit { border-radius: 999px; }
+.rangee-actions-rep .bouton, .rangee-criteres-ajouter .bouton, .rangee-actions-contact .bouton,
+.barre-recherche .bouton, .lancement.moderne .bouton, .badge-deja-prevu {
+  min-height: 44px !important; height: 44px !important; border-radius: 999px !important;
+  font-size: 14px !important; font-weight: 600 !important;
+}
+.rangee-actions-contact .bouton-inopinee { font-weight: 600 !important; }
+.barre-valider .bouton { border-radius: 999px; }

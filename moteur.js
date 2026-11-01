@@ -50,8 +50,7 @@ var Moteur = (function () {
       if (!p) return;
       (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(pr);
       var q = idxQ[bas(pr.quartier)];
-      var lat = parseFloat(String(pr.lat).replace(',', '.')), lon = parseFloat(String(pr.lon).replace(',', '.'));
-      var coord = isFinite(lat) && isFinite(lon) && lat !== 0 ? { lat: lat, lon: lon } : (q ? { lat: q.lat, lon: q.lon, approx: true } : null);
+      var coord = lireCoord(pr) || (q ? { lat: q.lat, lon: q.lon, approx: true } : null);
       var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
       var st = stats[String(pr.id)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
       JOURS_CLES.forEach(function (cle, j) {
