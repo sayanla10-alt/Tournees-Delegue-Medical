@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.58';
+  var APP_VERSION = '3.26.59';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.59', ['Planning hebdomadaire : « Oui » remis dans la grille', 'Fiche : plus de liste de quartiers en tapant l’hôpital ; quartier, GPS et repères repris automatiquement quand l’hôpital est connu']],
     ['3.26.58', ['Spécialités abrégées (MG, Cardio, Diabéto, Endocrino, Gynéco) dans Planifier, compte rendu, critères et fiche ; spécialité en gras dans Planifier', 'Fiche et planning hebdomadaire : lieux repliables comme dans Produits (sans « Déplier »), raccourcis Semaine / Matins / Soirs sur une ligne, grille plus compacte', 'Répertoire : pastille GPS avec les étiquettes (Engagé, Vu il y a…)']],
     ['3.26.57', ['Fiche médecin : pastille GPS et « Touchez M ou S » déplacées sous la dernière ligne M / S']],
     ['3.26.56', ['Distances : coefficient vol d’oiseau porté de 1,5 à 1,6', 'Fiche médecin : pastille GPS et « Touchez M ou S pour planifier » déplacées ensemble sous la dernière ligne M / S (place gagnée sous le nom du lieu)', 'Fiche : « Tél : » et dernier commentaire resserrés']],
@@ -7418,8 +7419,8 @@
     var puQ = qs.length ? '<div class="discret" style="font-size:12px;margin:6px 0 4px">Quartiers correspondants :</div><div class="puces">' + qs.map(function (x) {
       return '<button type="button" class="puce petite" data-a="ficheChoixQuartier" data-i="' + i + '" data-v="' + esc(x.quartier) + '">' + esc(x.quartier) + ' <small>' + esc(x.commune) + '</small></button>';
     }).join('') + '</div>' : '';
-    if (!l.length) return puQ;
-    return puQ + '<ul class="sug-liste">' + l.map(function (e, k) {
+    if (!l.length) return '';
+    return '<ul class="sug-liste">' + l.map(function (e, k) {
       var distTxt = e.dist < 50 ? (e.dist < 1 ? Math.round(e.dist * 1000) + ' m' : km(e.dist)) : '';
       return '<li><button type="button" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '"><b>' + esc(e.lieu) + '</b><small>' +
         esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + (distTxt ? ' · ' + distTxt : '') + ' · ' + (e.n ? e.n + ' praticien' + (e.n > 1 ? 's' : '') : 'Hôpital') + '</small></button></li>';
@@ -7697,8 +7698,8 @@
           '<div class="grille-dispo" role="group" aria-label="Présences du lieu ' + (i + 1) + '"><span></span><span class="entete-col">Matin</span><span class="entete-col">Soir</span>' +
           JOURS.map(function (j, k) {
             return '<span class="jour-nom">' + j + '</span>' +
-              '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="matin" aria-pressed="' + l.jours[k].matin + '" aria-label="' + j + ' matin">' + (l.jours[k].matin ? '✓' : '') + '</button>' +
-              '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="soir" aria-pressed="' + l.jours[k].soir + '" aria-label="' + j + ' soir">' + (l.jours[k].soir ? '✓' : '') + '</button>';
+              '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="matin" aria-pressed="' + l.jours[k].matin + '" aria-label="' + j + ' matin">' + (l.jours[k].matin ? 'Oui' : '–') + '</button>' +
+              '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="soir" aria-pressed="' + l.jours[k].soir + '" aria-label="' + j + ' soir">' + (l.jours[k].soir ? 'Oui' : '–') + '</button>';
           }).join('') + '</div>' +
           '<span class="erreur" data-err="jours' + i + '">' + esc(f.err['jours' + i] || '') + '</span>' +
           '<div class="grille-2">' +
@@ -9870,6 +9871,8 @@
     ficheChoixLieu: function (el) {
       var f = S.ui.feuille, i = +el.dataset.i, e = ((S.ui.sugLieux || {})[i] || [])[+el.dataset.v]; if (!f || !e) return;
       var l = f.d.lieux[i]; l.lieu = e.lieu; delete f.err['lieu' + i];
+      // 3.26.59 : établissement connu : repères repris de la base
+      if (!l.reperes) { var pR = (S.data.presences || []).filter(function (x) { return x.reperes && normaliser(x.lieu) === normaliser(e.lieu); })[0]; if (pR) l.reperes = pR.reperes; }
       var qVal = e.quartier, cVal = e.commune, latVal = e.lat, lonVal = e.lon;
       if (!qVal || /^NL$/i.test(qVal)) {
         var can = trouverEtablissementBDD(e.lieu, '', cVal);
