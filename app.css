@@ -3427,3 +3427,8 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .rangee-2-fiche .bouton { flex: 1; }
 .grille-dispo .bascule-col { border: 0 !important; background: none; min-height: 0 !important; height: auto !important; padding: 2px 8px !important; font: 700 12px var(--titre) !important; color: var(--primaire) !important; box-shadow: none !important; }
 .grille-dispo .bascule-col[aria-pressed="true"] { background: var(--primaire-pale) !important; }
+/* 3.26.65 : Ajouter, Recalculer, Accepter sur une ligne */
+.rangee-tirage { display: flex !important; gap: 6px !important; flex-wrap: nowrap !important; }
+.rangee-tirage .bouton { flex: 1 1 0 !important; min-width: 0 !important; padding: 0 6px !important; gap: 4px !important; font-size: 13.5px !important; }
+.rangee-tirage .bouton svg { width: 16px !important; height: 16px !important; flex: none; }
+.rangee-tirage .bouton-accepter-plan { margin: 0 !important; max-width: none !important; }

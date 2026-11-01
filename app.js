@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.64';
+  var APP_VERSION = '3.26.65';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.65', ['Planifier : « Ajouter », « Recalculer » et « Accepter » (ou « WhatsApp ») sur une seule ligne', 'Journée : samedis, dimanches et jours fériés présents dans la frise, grisés']],
     ['3.26.64', ['En-tête MediPlanner (date, mode, roue crantée) fixé en haut au défilement', 'Journée : une visite supprimée par appui long ne revient plus', 'Modifier, écran 2 : GPS en icône à côté du nom de l’hôpital ; quartier et repères côte à côte ; toucher « Matin » ou « Soir » coche toute la colonne ; jours abrégés ; résumé des jours sur chaque lieu replié ; « Autre lieu » et « Absence » sur une ligne']],
     ['3.26.63', ['Filtre par commune plus strict : seule la commune du lieu compte (plus de lieu d’une autre commune retenu à cause d’un mot de son nom)', 'Praticien à plusieurs lieux : la commune filtrée apparaît en premier (en gras) et son lieu en tête de la grille']],
     ['3.26.62', ['Planifier : bouton « Modifier » (fiche du praticien) dans les options d’une visite de la liste', 'Journée : appui très long (1,5 s) sur n’importe quelle carte : suppression de la visite après confirmation (si un compte rendu existe : remettre « à faire » ou supprimer)']],
@@ -2720,14 +2721,14 @@
     else etat = d < t ? '<span class="etiquette">' + (passeVerrouille(d) ? 'Lecture seule' : 'Jour passé') + '</span>' : (d > t ? '<span class="etiquette p1">' + (futurVerrouille(d) ? 'Aperçu' : 'Jour à venir') + '</span>' : '');
     // 3.19.0 : bande défilante des jours ouvrés (glisser à gauche ou à droite), jour choisi au centre, en couleur
     // 3.26.50 : aujourd'hui (et le jour choisi) toujours présents dans la frise, même un week-end (grisé)
-    var jours = []; for (var k = -42; k <= 42; k++) { var x0 = ajouterJours(d, k); if (jourSemaineIndex(x0) < 5 || x0 === t || x0 === d) jours.push(x0); }
+    var jours = []; for (var k = -42; k <= 42; k++) jours.push(ajouterJours(d, k));   // 3.26.65 : tous les jours, samedi, dimanche et fériés grisés
     return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + etiquetteRelative(d) + '</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
       '<p class="sous-titre">Déroulez votre tournée dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus.</p>' +
       '<div class="bande-jours">' +
         '<div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
           var n = nbVisitesJour(x);
-          return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (jourSemaineIndex(x) === 0 ? ' lundi' : '') + (jourSemaineIndex(x) > 4 ? ' non-ouvre grise' : '') + '" data-a="jourAller" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
+          return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (jourSemaineIndex(x) === 0 ? ' lundi' : '') + (jourSemaineIndex(x) > 4 || estFerie(x) ? ' non-ouvre grise' : '') + '" data-a="jourAller" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
             JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em><i>' + (n ? n : '') + '</i></button>';
         }).join('') + '</div>' +
         '<button type="button" class="bj-cal" data-a="calOuvrir" aria-label="Choisir une date">' + icone('calendrier') + '</button></div>';
@@ -3278,13 +3279,13 @@
     } else if (!jourConfirme(d)) {
       // État B : Jour en brouillon -> Ajouter & Recalculer côte à côte, Accepter centré en bas
       actionsPlan = '<div class="rangee-tirage"><button class="bouton" type="button" data-a="ajouterTournee">' + icone('plus') + '<span>Ajouter</span></button>' +
-        '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + '<span>Recalculer</span></button></div>' +
-        '<div style="text-align:center"><button class="bouton bouton-plein bouton-accepter-plan" type="button" data-a="accepterJour">' + icone('valider') + '<span>Accepter</span></button></div>';
+        '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + '<span>Recalculer</span></button>' +
+        '<button class="bouton bouton-plein bouton-accepter-plan" type="button" data-a="accepterJour">' + icone('valider') + '<span>Accepter</span></button></div>';
     } else {
       // État C : Jour déjà confirmé -> Ajouter & Recalculer côte à côte, WhatsApp centré en bas
       actionsPlan = '<div class="rangee-tirage"><button class="bouton" type="button" data-a="ajouterTournee">' + icone('plus') + '<span>Ajouter</span></button>' +
-        '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + '<span>Recalculer</span></button></div>' +
-        '<div style="text-align:center"><button class="bouton bouton-plein bouton-accepter-plan wa" type="button" data-a="partagerJourWhatsapp">' + icone('whatsapp') + '<span>WhatsApp</span></button></div>';
+        '<button class="bouton" type="button" data-a="tirage" data-v="jour">' + icone('relancer') + '<span>Recalculer</span></button>' +
+        '<button class="bouton bouton-plein bouton-accepter-plan wa" type="button" data-a="partagerJourWhatsapp">' + icone('whatsapp') + '<span>WhatsApp</span></button></div>';
     }
     h += '<div class="barre-plan-actions-flottante">' + actionsPlan + '</div>';
     h += rendreCouverture(dates);
