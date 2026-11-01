@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.57';
+  var APP_VERSION = '3.26.58';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.58', ['Spécialités abrégées (MG, Cardio, Diabéto, Endocrino, Gynéco) dans Planifier, compte rendu, critères et fiche ; spécialité en gras dans Planifier', 'Fiche et planning hebdomadaire : lieux repliables comme dans Produits (sans « Déplier »), raccourcis Semaine / Matins / Soirs sur une ligne, grille plus compacte', 'Répertoire : pastille GPS avec les étiquettes (Engagé, Vu il y a…)']],
     ['3.26.57', ['Fiche médecin : pastille GPS et « Touchez M ou S » déplacées sous la dernière ligne M / S']],
     ['3.26.56', ['Distances : coefficient vol d’oiseau porté de 1,5 à 1,6', 'Fiche médecin : pastille GPS et « Touchez M ou S pour planifier » déplacées ensemble sous la dernière ligne M / S (place gagnée sous le nom du lieu)', 'Fiche : « Tél : » et dernier commentaire resserrés']],
     ['3.26.55', ['Feuille de style nettoyée : 128 forçages « !important » inutiles retirés, affichage strictement identique (vérifié sur 72 écrans, clair et sombre)']],
@@ -1249,6 +1250,16 @@
     if (p.typeCibles !== 'pharmacies' && p.specialites.length) l.push(libelleListe(p.specialites, ''));
     if (p.potentiels.length) l.push(p.potentiels.slice().sort().map(function (x) { return ETOILES[x]; }).join(' / '));
     return l.join(', ');
+  }
+  // 3.26.58 : spécialités abrégées à l'affichage (la valeur enregistrée reste complète)
+  function abrSpec(s) {
+    var t = String(s || '').trim(), k = normaliser(t);
+    if (/generalist|medecine generale|^mg$/.test(k)) return 'MG';
+    if (/diabeto/.test(k)) return 'Diabéto';
+    if (/endocrino/.test(k)) return 'Endocrino';
+    if (/gyneco/.test(k)) return 'Gynéco';
+    if (/cardio/.test(k)) return 'Cardio';
+    return t;
   }
   function specialitesListe() {
     var n = {}, prat = ctx().prat;
@@ -4592,9 +4603,9 @@
       '<div><div class="arret-carte' + classeType(a) + '">' +
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
           '<span class="arret-nom">' + pastilleType(a) + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
-          (ouvert ? (lieuEtSpec(a) ? '<span class="arret-lieu">' + esc(lieuEtSpec(a)) + '</span>' : '') +
+          (ouvert ? (lieuEtSpec(a) ? '<span class="arret-lieu">' + specGras(a, lieuEtSpec(a)) + '</span>' : '') +
             '<span class="arret-lieu">' + esc(a.quartier) + ', ' + esc(a.commune) + '</span>' +
-            '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + esc(lieuQuartier(a)) + '</span>' : '') + ligneEtat(a)) +
+            '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + specGras(a, lieuQuartier(a)) + '</span>' : '') + ligneEtat(a)) +
         '</button>' +
         (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && !futurVerrouille(a.date) ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
     if (ouvert) {
@@ -5070,7 +5081,7 @@
   function lieuQuartier(a) {
     if (!estPharmacie(a)) {
       var parts = [];
-      if (a.specialite) parts.push(String(a.specialite).trim());
+      if (a.specialite) parts.push(abrSpec(a.specialite));
       var hop = abregerHopital(a.lieu || lieuAffiche(a));
       if (hop) parts.push(hop);
       var q = (typeof nomSecteur === 'function' ? nomSecteur(a.quartier, a.commune, a.coord) : a.quartier) || a.quartier;
@@ -5080,10 +5091,14 @@
     var n = normaliser(a.nom), q = a.quartier && n.indexOf(normaliser(a.quartier)) >= 0 ? '' : a.quartier;
     return [lieuAffiche(a), q].filter(Boolean).join(', ').replace(/\s{2,}/g, ' ').trim();
   }
+  function specGras(a, txt) {
+    var s = !estPharmacie(a) && a.specialite ? abrSpec(a.specialite) : '';
+    return s && txt.indexOf(s) === 0 ? '<b>' + esc(s) + '</b>' + esc(txt.slice(s.length)) : esc(txt);
+  }
   function lieuEtSpec(a) {
     if (!estPharmacie(a)) {
       var parts = [];
-      if (a.specialite) parts.push(String(a.specialite).trim());
+      if (a.specialite) parts.push(abrSpec(a.specialite));
       var hop = abregerHopital(a.lieu || lieuAffiche(a));
       if (hop) parts.push(hop);
       return parts.join(' · ').replace(/\s{2,}/g, ' ').trim();
@@ -5406,7 +5421,7 @@
           if (!f.specialites.length) return 'Toutes';
           if (memeEnsembleSpecs(f.specialites, coeurDeCible())) return 'Cœur de cible';
           if (sontToutesSpecialites(f.specialites)) return 'Toutes';
-          return f.specialites.length <= 2 ? f.specialites.join(', ') : f.specialites.slice(0, 2).join(', ') + ' +' + (f.specialites.length - 2);
+          return f.specialites.length <= 2 ? f.specialites.map(abrSpec).join(', ') : f.specialites.slice(0, 2).map(abrSpec).join(', ') + ' +' + (f.specialites.length - 2);
         },
         rendu: function () {
           return '<p class="discret" style="margin:0 0 6px">' + (f.type === 'tous' ? 'Spécialités du cœur de cible pré-sélectionnées (les pharmacies restent affichées) :' : 'Spécialités du cœur de cible pré-sélectionnées (modifier met à jour votre cœur de cible) :') + '</p>' +
@@ -5603,9 +5618,11 @@
       var ouvert = S.ui.contactOuvert === p.code, lieux = c.presencesParCode[p.code] || [];
       h += '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
         '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-        '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : esc(p.specialite) + ', ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
+        '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : esc(abrSpec(p.specialite)) + ', ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
           esc(Array.from(new Set(lieux.map(function (x) { return x.commune; }))).join(', ')) + '</span>' +
         '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
+          (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
+            return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS' + (lieux.length > 1 ? ' ' + nG + '/' + lieux.length : '') + '</span>'; })() +
         (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(p.statut) + '</span>' : '') +
         (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
         etiquetteCollegues(p.code, t) + '</span></button>';
@@ -5684,7 +5701,6 @@
             (d.soir ? '<button type="button" class="btn-s" data-a="planifierCle" data-v="' + esc(cleS) + '" title="Planifier ' + JOURS[i] + ' soir">S</button>' : '') + '</td>';
         }).join('') + '</tr>' +
         '<tr class="tr-lieu-aide"><td colspan="6"><div class="ligne-micro-gps-plan">' +
-          '<span class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" role="img" aria-label="' + (hasGps ? 'Position GPS enregistrée' : 'Pas de position GPS') + '" title="' + (hasGps ? 'Position GPS enregistrée dans la base' : 'Pas de position GPS dans la base') + '">' + icone('carte') + '<span>GPS</span></span>' +
           (!estPh ? '<small class="discret texte-aide-plan">Touchez M ou S pour planifier</small>' : '') +
         '</div></td></tr>';
     });
@@ -6064,7 +6080,7 @@
           '<div style="flex:1;min-width:0">' +
             '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
               '<b>' + esc(p.nom) + '</b>' +
-              '<span class="etiquette ' + (estPh ? '' : 'ok') + '" style="font-size:0.75rem">' + (estPh ? 'Pharmacie' : esc(p.specialite || 'Médecin')) + '</span>' +
+              '<span class="etiquette ' + (estPh ? '' : 'ok') + '" style="font-size:0.75rem">' + (estPh ? 'Pharmacie' : esc(abrSpec(p.specialite) || 'Médecin')) + '</span>' +
             '</div>' +
             '<div class="discret" style="font-size:0.8rem;margin-top:2px">' + esc(nomLieu) + (quartierNom ? ' · ' + esc(quartierNom) : '') + (communeNom ? ' (' + esc(communeNom) + ')' : '') + '</div>' +
             '<div style="color:var(--rouge,#dc2626);font-size:0.75rem;margin-top:4px;font-weight:600">⚠ ' + esc(item.motif) + '</div>' +
@@ -6499,7 +6515,7 @@
       if (!res.length) return h + '<p class="discret">Aucun praticien trouvé.</p>';
       return h + '<ul class="liste">' + res.map(function (p) {
         return '<li><button type="button" class="element carte-bouton" data-a="choisirImpose" data-v="' + esc(p.code) + '">' +
-          '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span><span class="discret bloc-texte">' + esc(p.specialite) + ', ' +
+          '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span><span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + ', ' +
           esc(Array.from(new Set((c.presencesParCode[p.code] || []).map(function (x) { return x.commune; }))).join(', ')) + '</span></button></li>';
       }).join('') + '</ul>';
     }
@@ -6510,7 +6526,7 @@
       (c.parCode[f.code] || []).forEach(function (cr) { if (cr.jourIdx === j) options.push({ d: d, c: cr }); });
     });
     var defAuj = f.cle === '__aujourdhui' || !f.cle;
-    h += '<p><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(p.specialite) + '</span></p>';
+    h += '<p><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + '</span></p>';
     h += '<p class="discret">Quand planifier cette visite ?</p>';
     h += '<div class="choix-creneaux">' +
       '<label class="choix choix-aujourdhui"><input type="radio" name="impCle" value="__aujourdhui"' + (defAuj ? ' checked' : '') + '><span><b>Ajouter à aujourd\'hui (' + dateCourte(tAuj) + ')</b><small>Forcer dans la journée d\'aujourd\'hui, en dépit du programme</small></span></label>' +
@@ -6633,7 +6649,7 @@
     // 1. Visite initiale à remplacer
     var lieuInit = abregerHopital(a.lieu || lieuAffiche(a) || '');
     var secInit = nomSecteur(a.quartier, a.commune, a.coord);
-    var specInit = (!phA && a.specialite) ? String(a.specialite).trim() : '';
+    var specInit = (!phA && a.specialite) ? abrSpec(a.specialite) : '';
     var statutInit = statutLibelle(a) || (a.etat === 'brouillon' ? 'Brouillon' : 'Planifiée');
     var heureInit = a.heure || '--:--';
 
@@ -6644,7 +6660,7 @@
     // 2. Nouveau praticien proposé
     var nomN = p ? p.nom : x.nom;
     var noteN = p ? p.note : x.note;
-    var specN = (p && !phN && p.specialite) ? String(p.specialite).trim() : '';
+    var specN = (p && !phN && p.specialite) ? abrSpec(p.specialite) : '';
     var convN = (p && !phN) ? p.conventionne : '';
     var lieuN = abregerHopital((cr && cr.lieu) || x.lieu || '');
     var secN = cr ? nomSecteur(cr.quartier, cr.commune, cr.coord) : (x.quartier || '');
@@ -7022,7 +7038,7 @@
         '<button class="bouton bouton-plein btn-valider" type="button" data-a="multiOk">' + (sel.length ? 'Valider · ' + total + ' médecin' + (total > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
     }
     var h = groupeChoix(f, { id: 'multi', titre: f.titreGroupe || 'Choix', chemin: 'sel', multiple: true, recherche: f.options.length > 8, aide: f.aide,
-      options: f.options.map(function (o) { return { v: o.nom, lib: o.nom, n: o.n }; }) });
+      options: f.options.map(function (o) { return { v: o.nom, lib: f.cle === 'specialites' ? abrSpec(o.nom) : o.nom, n: o.n }; }) });
     var total = f.sel.reduce(function (s2, v) { var o = f.options.filter(function (x) { return x.nom === v; })[0]; return s2 + (o && o.n ? o.n : 0); }, 0);
     return { corps: h, pied: '<button class="bouton btn-secondaire" type="button" data-a="multiTous">Tous</button><button class="bouton btn-secondaire" type="button" data-a="multiAucun">Effacer</button>' +
       '<button class="bouton bouton-plein btn-valider" type="button" data-a="multiOk">' + (f.sel.length ? 'Valider · ' + total + ' médecin' + (total > 1 ? 's' : '') : 'Valider · toutes') + '</button>' };
@@ -7078,9 +7094,9 @@
     var blocs = {
       qui: groupeChoix(f, { id: 'type', titre: 'Type de praticien', chemin: 'brouillon.type', options: opt([['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']]) }),
       spec: b.type === 'Pharmacie' ? '<p class="discret groupe-aide">Les spécialités ne concernent pas les pharmacies. Celles choisies restent mémorisées pour les médecins' +
-          (b.specialites.length ? ' (' + esc(b.specialites.join(', ')) + ')' : '') + '.</p>' :
+          (b.specialites.length ? ' (' + esc(b.specialites.map(abrSpec).join(', ')) + ')' : '') + '.</p>' :
         groupeChoix(f, { id: 'spec', titre: 'Spécialités', chemin: 'brouillon.specialites', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes',
-          options: specialitesListe().map(function (x) { return { v: x.nom, lib: x.nom, n: x.n }; }),
+          options: specialitesListe().map(function (x) { return { v: x.nom, lib: abrSpec(x.nom), n: x.n }; }),
           aide: b.type === 'tous' ? 'S\'appliquent aux médecins seulement ; les pharmacies restent affichées.' : '' }),
       com: groupeChoix(f, { id: 'com', titre: 'Communes', chemin: 'brouillon.communes', multiple: true, repliable: !seule, recherche: true, resume: 'Toutes', sections: sectionsCommunes(), accordeon: 'com',
         aide: 'Lieux d\'exercice du praticien. Pour un établissement ou un quartier, utilisez la recherche de la liste.' }),
@@ -7583,13 +7599,13 @@
           return ['Chirurgien', 'Urologue', 'ORL'].indexOf(s) >= 0;
         });
         var sectionsSpec = [
-          { titre: '🎯 Cœur de cible', options: coeur.map(function (s) { return [s, s]; }) },
-          { titre: '🩺 Spécialités médicales', options: specMed.map(function (s) { return [s, s]; }) },
+          { titre: '🎯 Cœur de cible', options: coeur.map(function (s) { return [s, abrSpec(s)]; }) },
+          { titre: '🩺 Spécialités médicales', options: specMed.map(function (s) { return [s, abrSpec(s)]; }) },
           { titre: '🏥 Chirurgie & Autres', options: specChir.map(function (s) { return [s, s]; }).concat([['__autre', 'Autre spécialité…']]) }
         ];
 
         h += '<div class="puces" style="margin:0 0 6px">' + coeur.map(function (s) {
-          return '<button type="button" class="puce petite" data-a="ficheSpecRapide" data-v="' + esc(s) + '" aria-pressed="' + (d.specialite === s) + '">' + esc(s) + '</button>';
+          return '<button type="button" class="puce petite" data-a="ficheSpecRapide" data-v="' + esc(s) + '" aria-pressed="' + (d.specialite === s) + '">' + esc(abrSpec(s)) + '</button>';
         }).join('') + '</div>';
         h += champFiche('specialite', 'Spécialité *', selecteurListe('ficheSpec', { titre: 'Spécialité', valeur: d.specialite, vide: 'Choisir une spécialité…', invalide: !!f.err.specialite,
           sections: sectionsSpec,
@@ -7636,29 +7652,19 @@
           // Lieu replié en accordéon (un seul ouvert à la fois)
           var nbJ = l.jours ? l.jours.filter(function (j) { return j.matin || j.soir; }).length : 0;
           var resumeJ = nbJ === 5 ? 'Toute la semaine' : (nbJ > 0 ? nbJ + ' j/semaine' : 'Aucun jour');
-          h += '<div class="lieu-bloc-plie" data-a="ficheOuvrirLieu" data-i="' + i + '">' +
-            '<div class="lieu-plie-info">' +
-              '<span class="badge-discret">Lieu ' + (i + 1) + '</span>' +
-              '<div class="lieu-plie-textes">' +
-                '<b class="lieu-plie-nom">' + esc(l.lieu || 'Établissement à renseigner') + '</b>' +
-                '<small class="discret">' + esc([l.quartier, l.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + ' · ' + resumeJ + (l.lat && l.lon ? ' · ✓ GPS' : '') + '</small>' +
-              '</div>' +
-            '</div>' +
-            '<div class="lieu-plie-actions">' +
-              '<button type="button" class="bouton petit" data-a="ficheOuvrirLieu" data-i="' + i + '">Déplier ▼</button>' +
-              (d.lieux.length > 1 ? '<button type="button" class="bouton-texte sortir-question" data-a="ficheRetirerLieu" data-i="' + i + '" title="Supprimer ce lieu">✕</button>' : '') +
-            '</div>' +
-          '</div>';
+          // 3.26.58 : même bascule que l'onglet Produits (titre, résumé, chevron), sans le mot « Déplier »
+          h += '<div class="lieu-acc">' +
+            '<button type="button" class="aire-titre aire-bascule" data-a="ficheOuvrirLieu" data-i="' + i + '" aria-expanded="false">' +
+              '<span>Lieu ' + (i + 1) + ' · ' + esc(l.lieu || 'à renseigner') + '</span>' +
+              '<small>' + esc(l.quartier || 'Quartier ?') + ' · ' + resumeJ + (aCoord(l) ? ' · GPS' : '') + '</small>' + icone('chevron') + '</button></div>';
           return;
         }
 
         // Lieu ouvert
         var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
-        h += '<div class="lieu-bloc"><div class="lieu-tete"><b>' + (estPh ? esc(d.nom || 'Horaires de réception de la pharmacie') : (d.lieux.length > 1 ? '▼ ' : '') + 'Hôpital / Lieu ' + (i + 1) + (l.lieu ? ' · ' + esc(l.lieu) : '')) + '</b>' +
-          '<div>' +
-            (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte" data-a="ficheReplierLieu" data-i="' + i + '" style="margin-right:6px">Replier ▲</button>' : '') +
-            (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte sortir-question" data-a="ficheRetirerLieu" data-i="' + i + '">Supprimer</button>' : '') +
-          '</div></div>';
+        h += '<div class="lieu-bloc">' + (estPh ? '<div class="lieu-tete"><b>' + esc(d.nom || 'Horaires de réception de la pharmacie') + '</b></div>' :
+          '<button type="button" class="aire-titre aire-bascule" data-a="' + (d.lieux.length > 1 ? 'ficheReplierLieu' : '') + '" data-i="' + i + '" aria-expanded="true"' + (d.lieux.length > 1 ? '' : ' disabled') + '>' +
+            '<span>Lieu ' + (i + 1) + (l.lieu ? ' · ' + esc(l.lieu) : '') + '</span>' + (d.lieux.length > 1 ? icone('chevron') : '') + '</button>');
         if (estPh) {
           h += '<p class="sous-titre" style="margin:0 0 8px">Jours et plages où l\'officine reçoit les délégués médicaux (tous cochés par défaut).</p>';
         } else if (i === 0 && (l.lieu || l.quartier) && !f.editerLieu0 && !f.err.lieu0 && !f.err.quartier0) {
@@ -7683,23 +7689,22 @@
             '</div>';
         }
         var tousM = l.jours.every(function (j) { return j.matin; }), tousS = l.jours.every(function (j) { return j.soir; });
-        h += '<div class="dispo-raccourcis" style="display:flex;flex-direction:column;align-items:center;gap:6px;margin:0 0 10px">' +
-          '<button type="button" class="puce petite puce-tous" style="width:100%;max-width:240px;justify-content:center" data-a="ficheJoursTous" data-i="' + i + '" data-c="tout" aria-pressed="' + (tousM && tousS) + '">Toute la semaine</button>' +
-          '<div style="display:flex;justify-content:center;gap:8px;width:100%">' +
-            '<button type="button" class="puce petite" style="flex:1;max-width:140px;justify-content:center" data-a="ficheJoursTous" data-i="' + i + '" data-c="matin" aria-pressed="' + tousM + '">Tous les matins</button>' +
-            '<button type="button" class="puce petite" style="flex:1;max-width:140px;justify-content:center" data-a="ficheJoursTous" data-i="' + i + '" data-c="soir" aria-pressed="' + tousS + '">Tous les soirs</button>' +
-          '</div></div>' +
+        h += '<div class="dispo-raccourcis puces" style="display:flex;justify-content:center;gap:6px;flex-wrap:nowrap;margin:0 0 8px">' +
+          '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="tout" aria-pressed="' + (tousM && tousS) + '">Semaine</button>' +
+          '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="matin" aria-pressed="' + tousM + '">Matins</button>' +
+          '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="soir" aria-pressed="' + tousS + '">Soirs</button>' +
+          '</div>' +
           '<div class="grille-dispo" role="group" aria-label="Présences du lieu ' + (i + 1) + '"><span></span><span class="entete-col">Matin</span><span class="entete-col">Soir</span>' +
           JOURS.map(function (j, k) {
             return '<span class="jour-nom">' + j + '</span>' +
-              '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="matin" aria-pressed="' + l.jours[k].matin + '" aria-label="' + j + ' matin">' + (l.jours[k].matin ? 'Oui' : '–') + '</button>' +
-              '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="soir" aria-pressed="' + l.jours[k].soir + '" aria-label="' + j + ' soir">' + (l.jours[k].soir ? 'Oui' : '–') + '</button>';
+              '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="matin" aria-pressed="' + l.jours[k].matin + '" aria-label="' + j + ' matin">' + (l.jours[k].matin ? '✓' : '') + '</button>' +
+              '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="soir" aria-pressed="' + l.jours[k].soir + '" aria-label="' + j + ' soir">' + (l.jours[k].soir ? '✓' : '') + '</button>';
           }).join('') + '</div>' +
           '<span class="erreur" data-err="jours' + i + '">' + esc(f.err['jours' + i] || '') + '</span>' +
           '<div class="grille-2">' +
           champFiche('hm' + i, 'Matin', '<input type="text" data-f="fiche" data-k="horaireMatin" data-i="' + i + '" value="' + esc(l.horaireMatin) + '"' + (m ? '' : ' disabled') + attrInvalide(f, 'hm' + i) + '>', f, m) +
           champFiche('hs' + i, 'Soir', '<input type="text" data-f="fiche" data-k="horaireSoir" data-i="' + i + '" value="' + esc(l.horaireSoir) + '"' + (so ? '' : ' disabled') + attrInvalide(f, 'hs' + i) + '>', f, so) +
-          '</div></div>';
+          '</div>' + (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte sortir-question" data-a="ficheRetirerLieu" data-i="' + i + '" style="display:block;margin:4px auto 0">Retirer ce lieu</button>' : '') + '</div>';
       });
       if (!estPh) {
         h += '<button class="bouton bouton-large" type="button" data-a="ficheAjouterLieu">' + icone('plus') + 'Ajouter un autre hôpital / clinique</button>';

@@ -3379,3 +3379,15 @@ span.btn-micro-gps:active { transform: none; }
 /* 3.26.57 : adresse du lieu sur une ligne serrée sous le nom */
 .tr-lieu-adresse td { padding: 0 0 4px !important; border: 0 !important; text-align: left !important; }
 .tr-lieu-adresse small { font-size: 12.5px; }
+/* 3.26.58 : pastille GPS parmi les étiquettes du Répertoire */
+.etiquette-gps { display: inline-flex; align-items: center; gap: 3px; }
+.etiquette-gps svg { width: 12px; height: 12px; }
+.etiquette-gps.gps-ok { background: #E3F4EA; color: #1F7A45; border-color: #BFE3CD; }
+.etiquette-gps.gps-partiel { background: #FFF4DE; color: #8A5A00; border-color: #F2D9A6; }
+.etiquette-gps.gps-non { background: #FDE8E8; color: #B42318; border-color: #F6C7C3; }
+.lieu-acc { margin-bottom: 8px; }
+.lieu-bloc > .aire-bascule { width: 100%; margin-bottom: 8px; }
+.lieu-bloc > .aire-bascule[disabled] { cursor: default; opacity: 1; }
+/* 3.26.58 : grille du planning hebdomadaire plus compacte */
+.grille-dispo button { min-height: 34px !important; height: 34px; font-size: 16px; }
+.grille-dispo { row-gap: 5px; }
