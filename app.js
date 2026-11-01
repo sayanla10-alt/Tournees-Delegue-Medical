@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.77';
+  var APP_VERSION = '3.26.78';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.78', ['Répertoire : « Ajouter au jour » demande confirmation avant d’ajouter']],
     ['3.26.77', ['Planifier, RDV et prioritaires : « Ajouter » en vert, même taille que « Retirer », en dernière ligne']],
     ['3.26.76', ['Journée, jour sans planification : « Reprendre un ancien programme » sous « Planifier le … »']],
     ['3.26.75', ['Répertoire : 8 px entre la grille, « Modifier le planning hebdomadaire » et les boutons du bas', 'Planifier, étape RDV et prioritaires : bouton « Retirer » sur chaque RDV et prioritaire, et appui long pour retirer, avec confirmation']],
@@ -9121,7 +9122,13 @@
       confirmerPuis('Retirer le RDV', 'Ne plus placer d\'office le RDV de <b>' + esc(pr ? pr.nom : code) + '</b> dans la tournée ?', 'Retirer', function () { var ig = LS.get('rdvIgnores', {}); ig[v] = true; LS.set('rdvIgnores', ig); rendre(); toast('RDV retiré de la tournée.'); });
     },
     imposerDirect: function (el) { S.ui.feuille = { type: 'recherche', titre: 'Ajouter à ma tournée', code: el.dataset.v, cle: '' }; rendre(); },
+    // 3.26.78 : « Ajouter au jour » demande d'abord confirmation
     visiteInopineeDirect: function (el) {
+      var code0 = el.dataset.v, p0 = ctx().prat[code0]; if (!p0) return;
+      if (!el.dataset.ok) {
+        confirmerPuis('Ajouter au jour', 'Ajouter <b>' + esc(p0.nom) + '</b> à votre tournée d\'aujourd\'hui (' + esc(dateCourte(aujourdhui())) + ') ?', 'Ajouter', function () { ACTIONS.visiteInopineeDirect({ dataset: { v: code0, ok: '1' } }); });
+        return;
+      }
       var code = el.dataset.v, tAuj = aujourdhui();
       var c = ctx(), p = c.prat[code];
       if (!p) return;
