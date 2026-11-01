@@ -2053,7 +2053,7 @@ details.avance h3 { margin-top: 18px; }
 }
 
 /* 3.25.25 : adaptation stricte aux écrans mobiles, alignement des champs voisins, accordéons Gamme/Famille et barre de critères Planifier */
-html, body { max-width: 100vw; overflow-x: hidden; }
+html, body { max-width: 100vw; overflow-x: clip;   /* 3.26.64 : clip (et non hidden) pour que l'en-tête reste fixé en haut au défilement */ }
 main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .question-ouverte { max-width: 100%; min-width: 0; box-sizing: border-box; }
 .grille-2, .grille-rythme, .periode-perso, .champs-cr.grille-2 {
   display: grid;
@@ -3410,3 +3410,20 @@ span.btn-micro-gps:active { transform: none; }
 .feuille .puces { margin-bottom: 4px !important; }
 /* 3.26.62 : appui long sur une carte de visite sans sélection de texte ni menu du navigateur */
 li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* 3.26.64 : écran 2 de la fiche, plus compact */
+.champ-avec-gps { display: flex; gap: 6px; align-items: stretch; }
+.champ-avec-gps input { flex: 1; min-width: 0; }
+.btn-gps-champ { flex: none; width: 46px; border-radius: 12px; border: 1.5px solid; display: grid; place-items: center; cursor: pointer; }
+.btn-gps-champ svg { width: 20px; height: 20px; }
+.btn-gps-champ.gps-ok { background: #E3F4EA; color: #1F7A45; border-color: #BFE3CD; }
+.btn-gps-champ.gps-non { background: #FDE8E8; color: #B42318; border-color: #F6C7C3; }
+.grille-2.serre { gap: 8px; }
+.bascule-col { border: 0; background: none; font: 700 12px var(--titre); color: var(--primaire); padding: 2px 6px; border-radius: 8px; cursor: pointer; }
+.bascule-col[aria-pressed="true"] { background: var(--primaire-pale); }
+.grille-dispo button { min-height: 30px !important; height: 30px; font-size: 14px; }
+.grille-dispo { row-gap: 4px; }
+.resume-lieu { display: block; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--gris); margin-top: 2px; }
+.rangee-2-fiche { display: flex; gap: 8px; margin-top: 4px; }
+.rangee-2-fiche .bouton { flex: 1; }
+.grille-dispo .bascule-col { border: 0 !important; background: none; min-height: 0 !important; height: auto !important; padding: 2px 8px !important; font: 700 12px var(--titre) !important; color: var(--primaire) !important; box-shadow: none !important; }
+.grille-dispo .bascule-col[aria-pressed="true"] { background: var(--primaire-pale) !important; }

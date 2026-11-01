@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.63';
+  var APP_VERSION = '3.26.64';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.64', ['En-tête MediPlanner (date, mode, roue crantée) fixé en haut au défilement', 'Journée : une visite supprimée par appui long ne revient plus', 'Modifier, écran 2 : GPS en icône à côté du nom de l’hôpital ; quartier et repères côte à côte ; toucher « Matin » ou « Soir » coche toute la colonne ; jours abrégés ; résumé des jours sur chaque lieu replié ; « Autre lieu » et « Absence » sur une ligne']],
     ['3.26.63', ['Filtre par commune plus strict : seule la commune du lieu compte (plus de lieu d’une autre commune retenu à cause d’un mot de son nom)', 'Praticien à plusieurs lieux : la commune filtrée apparaît en premier (en gras) et son lieu en tête de la grille']],
     ['3.26.62', ['Planifier : bouton « Modifier » (fiche du praticien) dans les options d’une visite de la liste', 'Journée : appui très long (1,5 s) sur n’importe quelle carte : suppression de la visite après confirmation (si un compte rendu existe : remettre « à faire » ou supprimer)']],
     ['3.26.61', ['Fiche médecin : retour à 2 étapes (1. Médecin, 2. Lieux & planning), champs resserrés pour le téléphone']],
@@ -2779,7 +2780,8 @@
   }
   // toutes les visites d'un jour hors tournée : prévues (archive ou tournée publiée) et réalisées (Historique)
   function arretsHorsJour(d) {
-    var prevus = programmeDuJour(d), faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)); });
+    var sup = (LS.get('visitesSupprimees', {}) || {})[d] || {};
+    var prevus = programmeDuJour(d).filter(function (x) { return !sup[x.code]; }), faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && !sup[v.code]; });
     var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
     var l = prevus.map(function (x) { return parCode[x.code] ? arretDeVisite(parCode[x.code], x, d) : arretHors(x, d); });
     faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) { var a = arretDeVisite(v, null, d); a.horsTournee = true; l.push(a); } });
@@ -3498,8 +3500,10 @@
   function supprimerVisiteJour(a) {
     S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
     S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; }); S.horsPlan = (S.horsPlan || []).filter(function (x) { return x.uid !== a.uid; });
-    LS.set('horsPlan', S.horsPlan); S.ui.aPublier = true; LS.set('aPublier', true); sauver(); rendre(); toast('Visite supprimée de la journée.');
-    if (connecte()) synchroniser(true);
+    // 3.26.64 : mémorisée comme supprimée : elle ne revient plus par le programme publié ni par l'historique
+    var sup = LS.get('visitesSupprimees', {}); (sup[a.date] = sup[a.date] || {})[a.code] = true; LS.set('visitesSupprimees', sup);
+    if (!S.plan.some(function (x) { return x.date === a.date; })) { var rt = LS.get('joursRetires', {}); rt[a.date] = true; LS.set('joursRetires', rt); }
+    S.ui.ouvert = null; LS.set('horsPlan', S.horsPlan); S.ui.aPublier = true; LS.set('aPublier', true); sauver(); rendre(); publierPlan(); toast('Visite supprimée de la journée.');
   }
   function effacerCr(a) {
     delete a.cr; a.statut = ''; delete a.valideA; a.activite = ''; a.produits = ''; a.commentaire = ''; a.prochaine = ''; a.rdvConfirme = false;
@@ -7660,12 +7664,14 @@
         if (!estPh && !estOuvert) {
           // Lieu replié en accordéon (un seul ouvert à la fois)
           var nbJ = l.jours ? l.jours.filter(function (j) { return j.matin || j.soir; }).length : 0;
-          var resumeJ = nbJ === 5 ? 'Toute la semaine' : (nbJ > 0 ? nbJ + ' j/semaine' : 'Aucun jour');
+          var resumeJ = (function () {
+            var M = [], So = []; (l.jours || []).forEach(function (j, k) { if (j.matin) M.push(JOURS[k].slice(0, 3)); if (j.soir) So.push(JOURS[k].slice(0, 3)); });
+            var t = []; if (M.length) t.push((M.length === 5 ? 'Tous les jours' : M.join(' ')) + ' matin'); if (So.length) t.push((So.length === 5 ? 'Tous les jours' : So.join(' ')) + ' soir');
+            return t.join(' · ') || 'Aucun jour'; })();
           // 3.26.58 : même bascule que l'onglet Produits (titre, résumé, chevron), sans le mot « Déplier »
           h += '<div class="lieu-acc">' +
             '<button type="button" class="aire-titre aire-bascule" data-a="ficheOuvrirLieu" data-i="' + i + '" aria-expanded="false">' +
-              '<span>Lieu ' + (i + 1) + ' · ' + esc(l.lieu || 'à renseigner') + '</span>' +
-              '<small>' + esc(l.quartier || 'Quartier ?') + ' · ' + resumeJ + (aCoord(l) ? ' · GPS' : '') + '</small>' + icone('chevron') + '</button></div>';
+              '<span>' + esc(abregerHopital(l.lieu) || 'Lieu ' + (i + 1) + ' à renseigner') + '<small class="resume-lieu">' + esc(resumeJ) + '</small></span>' + icone('chevron') + '</button></div>';
           return;
         }
 
@@ -7679,28 +7685,22 @@
         } else if (seulPlanning && l.lieu && l.quartier && !f.err['lieu' + i] && !f.err['quartier' + i]) {
           h += '<p class="discret" style="margin:0 0 8px"><b>' + esc(l.lieu) + '</b> · ' + esc([l.quartier, l.commune].filter(Boolean).join(', ')) + '</p>';
         } else {
-          h += champFiche('lieu' + i, (i === 0 ? 'Nom de l\'hôpital ou clinique *' : 'Établissement ou cabinet *'), '<input type="text" data-f="fiche" data-k="lieu" data-i="' + i + '" value="' + esc(!estPh && normaliser(l.lieu) === normaliser(d.nom) ? '' : (l.lieu || '')) + '" placeholder="Tapez les premières lettres de l\'hôpital souhaité…"' + attrInvalide(f, 'lieu' + i) + ' autocomplete="off">', f, true) +
+          h += champFiche('lieu' + i, (i === 0 ? 'Nom de l\'hôpital ou clinique *' : 'Établissement ou cabinet *'), '<div class="champ-avec-gps"><input type="text" data-f="fiche" data-k="lieu" data-i="' + i + '" value="' + esc(!estPh && normaliser(l.lieu) === normaliser(d.nom) ? '' : (l.lieu || '')) + '" placeholder="Tapez les premières lettres de l\'hôpital…"' + attrInvalide(f, 'lieu' + i) + ' autocomplete="off">' +
+              '<button type="button" class="btn-gps-champ ' + (aCoord(l) ? 'gps-ok' : 'gps-non') + '" data-a="ficheGps" data-i="' + i + '" title="' + (aCoord(l) ? 'GPS enregistré : toucher pour reprendre la position ici' : 'Pas de GPS : toucher pour prendre la position ici') + '" aria-label="GPS du lieu">' + icone('cible') + '</button></div>', f, true) +
             '<div class="sug-lieux" id="sugLieu' + i + '">' + suggestionsLieu(l.lieu, i) + '</div>' +
-            champFiche('quartier' + i, 'Quartier *', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: l.quartier, vide: 'Choisir un quartier…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
-              appliquer: (function (k) { return function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[k].quartier = v; delete fe.err['quartier' + k]; } }; })(i) }), f, true, q ? 'Commune : ' + esc(q.commune) : '') +
-            champFiche('rep' + i, 'Repères', '<input type="text" data-f="fiche" data-k="reperes" data-i="' + i + '" placeholder="Rue, carrefour, en face de…" value="' + esc(l.reperes || '') + '">', f, false) +
-            '<div class="gps-ligne" style="margin-bottom:8px;display:flex;align-items:center;gap:8px">' +
-              '<button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + (aCoord(l) ? 'Reprendre le GPS ici' : 'GPS de ce lieu') + '</button>' +
-              '<span class="etiquette etiquette-gps ' + (aCoord(l) ? 'gps-ok' : 'gps-non') + '">' + icone('carte') + 'GPS</span>' +
-              (aCoord(l) ? '<button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="' + i + '" title="Effacer le GPS">✕</button>' : '') +
+            '<div class="grille-2 serre">' +
+            champFiche('quartier' + i, 'Quartier *', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: l.quartier, vide: 'Choisir…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
+              appliquer: (function (k) { return function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[k].quartier = v; delete fe.err['quartier' + k]; } }; })(i) }), f, true) +
+            champFiche('rep' + i, 'Repères', '<input type="text" data-f="fiche" data-k="reperes" data-i="' + i + '" placeholder="Rue, carrefour…" value="' + esc(l.reperes || '') + '">', f, false) +
             '</div>';
         }
         var tousM = l.jours.every(function (j) { return j.matin; }), tousS = l.jours.every(function (j) { return j.soir; });
-        h += '<div class="dispo-raccourcis puces" style="display:flex;justify-content:center;gap:6px;flex-wrap:nowrap;margin:0 0 8px">' +
-          '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="tout" aria-pressed="' + (tousM && tousS) + '">Semaine</button>' +
-          '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="matin" aria-pressed="' + tousM + '">Matins</button>' +
-          '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="soir" aria-pressed="' + tousS + '">Soirs</button>' +
-          '</div>' +
+        h += '' +
           '<div class="grille-dispo" role="group" aria-label="Présences du lieu ' + (i + 1) + '"><span></span>' +
-            '<label class="entete-col entete-horaire">Matin<input type="text" data-f="fiche" data-k="horaireMatin" data-i="' + i + '" value="' + esc(l.horaireMatin) + '"' + (m ? '' : ' disabled') + attrInvalide(f, 'hm' + i) + ' aria-label="Horaire du matin"></label>' +
-            '<label class="entete-col entete-horaire">Soir<input type="text" data-f="fiche" data-k="horaireSoir" data-i="' + i + '" value="' + esc(l.horaireSoir) + '"' + (so ? '' : ' disabled') + attrInvalide(f, 'hs' + i) + ' aria-label="Horaire du soir"></label>' +
+            '<div class="entete-col entete-horaire"><button type="button" class="bascule-col" data-a="ficheJoursTous" data-i="' + i + '" data-c="matin" aria-pressed="' + tousM + '">Matin</button><input type="text" data-f="fiche" data-k="horaireMatin" data-i="' + i + '" value="' + esc(l.horaireMatin) + '"' + (m ? '' : ' disabled') + attrInvalide(f, 'hm' + i) + ' aria-label="Horaire du matin"></div>' +
+            '<div class="entete-col entete-horaire"><button type="button" class="bascule-col" data-a="ficheJoursTous" data-i="' + i + '" data-c="soir" aria-pressed="' + tousS + '">Soir</button><input type="text" data-f="fiche" data-k="horaireSoir" data-i="' + i + '" value="' + esc(l.horaireSoir) + '"' + (so ? '' : ' disabled') + attrInvalide(f, 'hs' + i) + ' aria-label="Horaire du soir"></div>' +
           JOURS.map(function (j, k) {
-            return '<span class="jour-nom">' + j + '</span>' +
+            return '<span class="jour-nom">' + j.slice(0, 3) + '</span>' +
               '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="matin" aria-pressed="' + l.jours[k].matin + '" aria-label="' + j + ' matin">' + (l.jours[k].matin ? 'Oui' : '–') + '</button>' +
               '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="soir" aria-pressed="' + l.jours[k].soir + '" aria-label="' + j + ' soir">' + (l.jours[k].soir ? 'Oui' : '–') + '</button>';
           }).join('') + '</div>' +
@@ -7708,10 +7708,11 @@
           '<span class="erreur" id="err-hm' + i + '">' + esc(f.err['hm' + i] || '') + '</span><span class="erreur" id="err-hs' + i + '">' + esc(f.err['hs' + i] || '') + '</span>' + (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte sortir-question" data-a="ficheRetirerLieu" data-i="' + i + '" style="display:block;margin:4px auto 0">Retirer ce lieu</button>' : '') + '</div>';
       });
       if (!estPh) {
-        h += '<button class="bouton bouton-large" type="button" data-a="ficheAjouterLieu">' + icone('plus') + 'Ajouter un autre hôpital / clinique</button>';
-        h += '<div class="lieu-bloc" style="margin-top:10px"><div class="lieu-tete"><b>Absence (congés, formation…)</b></div>' +
-          '<div class="grille-2">' +
-          champFiche('absentDu', 'Du', '<input type="date" data-f="fiche" data-k="absentDu" value="' + esc(d.absentDu || '') + '"' + attrInvalide(f, 'absentDu') + '>', f, false) +
+        var absOuv = f.voirAbsence || d.absentDu || d.absentAu;
+        h += '<div class="rangee rangee-2-fiche"><button class="bouton petit" type="button" data-a="ficheAjouterLieu">' + icone('plus') + 'Autre lieu</button>' +
+          '<button class="bouton petit" type="button" data-a="ficheAbsence" aria-pressed="' + !!absOuv + '">' + icone('calendrier') + 'Absence' + (d.absentDu ? ' ✓' : '') + '</button></div>';
+        if (absOuv) h += '<div class="lieu-bloc" style="margin-top:8px"><div class="grille-2 serre">' +
+          champFiche('absentDu', 'Absent du', '<input type="date" data-f="fiche" data-k="absentDu" value="' + esc(d.absentDu || '') + '"' + attrInvalide(f, 'absentDu') + '>', f, false) +
           champFiche('absentAu', 'Au', '<input type="date" data-f="fiche" data-k="absentAu" value="' + esc(d.absentAu || '') + '"' + attrInvalide(f, 'absentAu') + '>', f, false) +
           '</div></div>';
       }
@@ -9808,6 +9809,7 @@
       if (S.ui.feuille.err['jours' + el.dataset.i]) S.ui.feuille.err = erreursEtape(S.ui.feuille.d, 1);
       rendre();
     },
+    ficheAbsence: function () { var f = S.ui.feuille; if (!f) return; f.voirAbsence = !f.voirAbsence; rendre(); },
     ficheJoursTous: function (el) {
       var l = S.ui.feuille.d.lieux[+el.dataset.i], c = el.dataset.c;
       if (c === 'tout') {
