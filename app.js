@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.72';
+  var APP_VERSION = '3.26.73';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.73', ['Téléphone relié mais base non reçue : écran « Chargement » avec Réessayer au lieu de l’écran d’accueil ; délai de 2 min au premier chargement', 'Un même lieu saisi sur plusieurs lignes n’apparaît qu’une fois (jours réunis), et l’enregistrement de la fiche nettoie la base', 'Notifications du téléphone (Réglages) : pharmacie ou médecin proche avec la distance, conflit avec un collègue']],
     ['3.26.72', ['Compte rendu : seuls les produits actifs de la base apparaissent (Losartan AM retiré) ; Gamme Aura 2, compteur et « Tous » sur une ligne ; produits d’une même famille sur une seule ligne']],
     ['3.26.71', ['Liste des quartiers : Cocody, Yopougon et Abobo regroupés sous leur commune ; les secteurs apparaissent en sous-titres une fois la commune dépliée']],
     ['3.26.70', ['Compte rendu WhatsApp aéré : titre « CR du Ven. 30/10/2026 », sans heures ni pastilles de position, une visite par bloc']],
@@ -1911,7 +1912,7 @@
   function erreur(msg, reessai) { var e = new Error(msg); e.reessai = !!reessai; return e; }
   function appelUnique(url, options) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var minuteur = ctrl ? setTimeout(function () { ctrl.abort(); }, 45000) : null;
+    var minuteur = ctrl ? setTimeout(function () { ctrl.abort(); }, pret() ? 45000 : 120000) : null;   // 3.26.73 : 2 min au premier chargement (réseau lent)
     var o = Object.assign({}, options); if (ctrl) o.signal = ctrl.signal;
     return fetch(url, o).then(function (r) {
       if (!r.ok) throw erreur('Le serveur a répondu ' + r.status + '.', r.status >= 500 || r.status === 429);
@@ -1979,7 +1980,7 @@
     if (!connecte()) return Promise.resolve();
     if (S.ui.enCours) return Promise.resolve();
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
-    S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete();
+    S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete(); if (!pret()) rendreSiPossible();
     var tentePub = false;
     // 1. fiches praticiens (codes définitifs), 2. comptes rendus, 3. tournée, 4. données à jour
     var envoi = envoyerFiches().catch(function (errF) {
@@ -2029,7 +2030,7 @@
       LS.set('data', S.data);
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
-      S.ui.conflits = [];
+      S.ui.conflits = []; setTimeout(notifierConflits, 1500);
       if (!silencieux) toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
     }).catch(function (e) {
       S.ui.sync = 'erreur'; S.ui.erreur = e.message;
@@ -2154,7 +2155,7 @@
     // jour affiché mémorisé : un rafraîchissement ne ramène plus au lundi (valable jusqu'à minuit)
     if (S.ui.jour || S.ui.jourVue) LS.set('jourVu', { j: S.ui.jour, v: S.ui.jourVue || null, le: aujourdhui() });
     LS.set('proches', S.ui.pharmaciesProches || false);
-    if (!pret() && tab !== 'reglages') tab = 'accueil';
+    if (!pret() && tab !== 'reglages') tab = connecte() ? 'chargement' : 'accueil';   // 3.26.73 : téléphone relié mais base pas encore reçue
     else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
     cacherInfobulle();
     cartesAFaire = [];
@@ -2492,6 +2493,20 @@
   var VUES = {};
 
   // ------------------------------------------------------------------ Vue : accueil et identité
+  // 3.26.73 : téléphone relié à la base, données pas encore reçues : on explique et on relance, au lieu de l'écran d'accueil
+  VUES.chargement = function () {
+    var enc = S.ui.sync === 'encours', err = S.ui.sync === 'erreur', hl = S.ui.sync === 'horsligne' || !navigator.onLine;
+    return '<section class="accueil">' +
+      '<img src="icon-192.png" alt="" width="64" height="64" style="border-radius:16px;margin:6px 0 18px">' +
+      '<h1>' + (enc ? 'Chargement de votre base…' : 'Votre base n\'est pas encore chargée') + '</h1>' +
+      '<p>' + (enc ? 'Première connexion : les praticiens et leurs plannings arrivent. Cela peut prendre jusqu\'à une minute avec un réseau lent. Gardez l\'application ouverte.' :
+        hl ? 'Pas de réseau. Activez les données mobiles ou le Wi-Fi, puis touchez « Réessayer ».' :
+        err ? 'Le chargement a échoué : ' + esc(String(S.ui.erreur || 'erreur inconnue').replace(/\.\s*$/, '')) + '. Touchez « Réessayer ». Si cela recommence, vérifiez le réseau ou demandez un nouveau lien de connexion.' :
+        'Touchez « Réessayer » pour charger les données.') + '</p>' +
+      (enc ? '' : '<button class="bouton bouton-plein bouton-large" type="button" data-a="sync">Réessayer</button>') +
+      '<button class="bouton bouton-large" type="button" data-a="nav" data-tab="reglages" style="margin-top:10px">Réglages de connexion</button>' +
+      '</section>';
+  };
   VUES.accueil = function () {
     return '<section class="accueil">' +
       '<img src="icon-192.png" alt="" width="64" height="64" style="border-radius:16px;margin:6px 0 18px">' +
@@ -5647,7 +5662,7 @@
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
     h += '<ul class="liste">';
     liste.slice(0, S.ui.limite).forEach(function (p) {
-      var ouvert = S.ui.contactOuvert === p.code, lieux = c.presencesParCode[p.code] || [];
+      var ouvert = S.ui.contactOuvert === p.code, lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
       h += '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
         '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
         '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : esc(abrSpec(p.specialite)) + ', ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
@@ -5698,8 +5713,30 @@
   };
 
   // Planning hebdomadaire d'un praticien (lieux x jours)
+  // 3.26.73 : un même lieu saisi sur plusieurs lignes n'apparaît qu'une fois (jours réunis)
+  function fusionnerLieux(l) {
+    var out = [], par = {};
+    (l || []).forEach(function (pr) {
+      var k = normaliser(pr.lieu || '') + '|' + normaliser(pr.commune || '');
+      if (!normaliser(pr.lieu || '') || !par[k]) {
+        var c = Object.assign({}, pr); c._ids = {};
+        JOURS_CLES.forEach(function (j, i) { var d = lireDispo(pr[j]); c._ids[i + '|Matin'] = d.matin ? pr.id : null; c._ids[i + '|Soir'] = d.soir ? pr.id : null; });
+        out.push(c); if (normaliser(pr.lieu || '')) par[k] = c; return;
+      }
+      var m = par[k];
+      JOURS_CLES.forEach(function (j, i) {
+        var a1 = lireDispo(m[j]), b1 = lireDispo(pr[j]);
+        if (b1.matin && !a1.matin) m._ids[i + '|Matin'] = pr.id;
+        if (b1.soir && !a1.soir) m._ids[i + '|Soir'] = pr.id;
+        m[j] = ecrireDispo({ matin: a1.matin || b1.matin, soir: a1.soir || b1.soir });
+      });
+      if (!aCoord(m) && aCoord(pr)) { m.lat = pr.lat; m.lon = pr.lon; }
+      if (!m.reperes && pr.reperes) m.reperes = pr.reperes;
+    });
+    return out;
+  }
   function grillePresences(code) {
-    var c = ctx(), p = praticien(code) || {}, estPh = p.type === 'Pharmacie', lieux = c.presencesParCode[code] || [];
+    var c = ctx(), p = praticien(code) || {}, estPh = p.type === 'Pharmacie', lieux = fusionnerLieux(c.presencesParCode[code] || []);
     // 3.26.63 : avec un filtre de communes, le lieu de la commune choisie apparaît en premier
     var coG = ensemble(S.ui.filtres && S.ui.filtres.communes || []);
     if (Object.keys(coG).length) lieux = lieux.slice().sort(function (x, y) { return (communeCorrespondante(y, coG) ? 1 : 0) - (communeCorrespondante(x, coG) ? 1 : 0); });
@@ -5735,7 +5772,7 @@
           var d = lireDispo(pr[j]);
           var t = d.matin && d.soir ? 'M S' : (d.matin ? 'M' : (d.soir ? 'S' : ''));
           if (!t) return '<td class="dispo-vide"></td>';
-          var cleM = pr.id + '|' + i + '|Matin', cleS = pr.id + '|' + i + '|Soir';
+          var cleM = ((pr._ids && pr._ids[i + '|Matin']) || pr.id) + '|' + i + '|Matin', cleS = ((pr._ids && pr._ids[i + '|Soir']) || pr.id) + '|' + i + '|Soir';
           return '<td class="dispo">' + (d.matin ? '<button type="button" class="btn-m" data-a="planifierCle" data-v="' + esc(cleM) + '" title="Planifier ' + JOURS[i] + ' matin">M</button>' : '') +
             (d.soir ? '<button type="button" class="btn-s" data-a="planifierCle" data-v="' + esc(cleS) + '" title="Planifier ' + JOURS[i] + ' soir">S</button>' : '') + '</td>';
         }).join('') + '</tr>' +
@@ -6369,6 +6406,15 @@
       '<label class="interrupteur"><span>Toujours ouvrir WhatsApp Web</span><input type="checkbox" id="cfgWaWeb"' + (c.waWeb ? ' checked' : '') + '></label>' +
       '<div class="champ"><span>Mon quartier</span>' + selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: c.depart || '', vide: 'Choisir un quartier…', sections: sectionsQuartiers() }) + '</div>' +
       '<button class="bouton bouton-plein bouton-large" type="button" data-a="enregistrerMoi">Enregistrer</button></section>';
+    // 3.26.73 : notifications du téléphone
+    var nOk = typeof Notification !== 'undefined', nPerm = nOk ? Notification.permission : 'denied', nAct = LS.get('notifs', false) && nPerm === 'granted';
+    h += '<section class="bloc"><h3 style="margin-top:0">Notifications</h3>' +
+      '<p class="discret" style="margin:0 0 8px">Pharmacie ou médecin du jour à moins de 500 m, médecin aussi prévu par un collègue. Affichées quand l\'application est ouverte ou vient d\'être mise en arrière-plan.</p>' +
+      (!nOk ? '<p class="discret">Ce navigateur ne gère pas les notifications. Installez l\'application depuis Chrome.</p>' :
+        nPerm === 'denied' ? '<p class="discret">Notifications bloquées : autorisez-les dans les réglages du navigateur (cadenas › Autorisations › Notifications).</p>' :
+        '<button class="bouton bouton-large' + (nAct ? '' : ' bouton-plein') + '" type="button" data-a="notifBascule">' + (nAct ? 'Désactiver les notifications' : 'Activer les notifications') + '</button>' +
+        (nAct ? '<button class="bouton-texte" type="button" data-a="notifTest" style="display:block;margin:8px auto 0">Envoyer une notification d\'essai</button>' : '')) +
+      '</section>';
     var th = LS.get('theme', 'clair');
     h += '<section class="bloc"><h3>Apparence</h3><div class="segment" role="group" aria-label="Thème" style="margin:0">' +
       [['auto', 'Auto'], ['clair', 'Clair'], ['sombre', 'Sombre']].map(function (x) {
@@ -7488,7 +7534,7 @@
     }
     var p = (S.data.praticiens || []).filter(function (x) { return x.code === code; })[0] || {};
     var estPh = p.type === 'Pharmacie' || /^PHA-/i.test(code);
-    var lieux = (S.data.presences || []).filter(function (x) { return x.code === code; }).map(function (x) {
+    var lieux = fusionnerLieux((S.data.presences || []).filter(function (x) { return x.code === code; })).map(function (x) {
       var lieuVal = x.lieu || (estPh ? p.nom || '' : '');
       if (!estPh && lieuVal && normaliser(lieuVal) === normaliser(p.nom)) lieuVal = '';
       return { id: x.id, lieu: lieuVal, quartier: x.quartier || p.quartier || '', jours: JOURS_CLES.map(function (j) { return lireDispo(x[j]); }),
@@ -8293,7 +8339,7 @@
         LS.set('autour', A);
       }
       rendreSiPossible();
-      alerteProximite(declencheur === 'ouverture' || !discret);
+      alerteProximite(declencheur === 'ouverture' || !discret); notifierProximite();
       if (!discret && p.prec > 150) toast('Position imprécise (± ' + p.prec + ' m). Activez la « localisation précise » du téléphone, ou sortez à découvert.');
       else if (!discret && r && r.km > 8) toast('Vous semblez hors d\'Abidjan. Quartier le plus proche : ' + r.quartier.quartier + '.');
     }, function () {
@@ -8357,6 +8403,34 @@
 
   // 3.25.14 : pharmacie ouverte à proximité signalée à chaque rafraîchissement ou réouverture (et dès qu'une nouvelle apparaît),
   // utile dans un quartier mal connu ; « Non » la masque pour la journée
+  // 3.26.73 : notification du téléphone (une seule fois par sujet et par jour)
+  function notifier(cle, titre, corps, forcer) {
+    try {
+      if (!LS.get('notifs', false) || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      var deja = LS.get('notifsVues', {}); if (deja.d !== aujourdhui()) deja = { d: aujourdhui(), k: {} };
+      if (deja.k[cle] && !forcer) return; deja.k[cle] = true; LS.set('notifsVues', deja);
+      var opts = { body: corps, tag: cle, icon: 'icon-192.png', badge: 'icon-192.png', vibrate: [80, 40, 80], data: { url: location.href.split('#')[0] } };
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(function (r) { r.showNotification(titre, opts); }).catch(function () { new Notification(titre, opts); });
+      else new Notification(titre, opts);
+    } catch (e) {}
+  }
+  function notifierProximite() {
+    if (!pret()) return;
+    var plan = S.plan.filter(function (a) { return a.date === aujourdhui(); });
+    var sans = plan.filter(function (a) { return !a.statut; }), now = minutesMaintenant();
+    var suivante = sans.filter(function (a) { return heureVersMinutes(a.heure) === null || heureVersMinutes(a.heure) >= now; })[0];
+    var pv = visiteProche(sans, suivante);
+    if (pv) notifier('proche-' + pv.a.uid, (estPharmacie(pv.a) ? 'Pharmacie' : 'Médecin') + ' à ' + metres(pv.d), nomSansType(pv.a.nom) + (pv.a.lieu ? ', ' + abregerHopital(pv.a.lieu) : '') + '. Prévu à ' + (pv.a.heure || '') + ' : le voir maintenant ?');
+    var ph = pharmacieProche(plan);
+    if (ph) notifier('pharma-' + ph.c.code, 'Pharmacie à ' + metres(ph.d), nomSansType(ph.c.prat.nom) + ', ouverte jusqu\'à ' + minutesVersHeure(ph.c.fin) + ' (' + vuDepuis(ph.c.prat.derniere) + ').');
+  }
+  function notifierConflits() {
+    if (!pret()) return;
+    var t = aujourdhui(), dem = ajouterJours(t, 1);
+    S.plan.filter(function (a) { return a.date === t || a.date === dem; }).forEach(function (a) {
+      var cf = conflitArret(a); if (cf) notifier('conflit-' + a.uid, 'Conflit de programme', a.nom + ' est aussi prévu par ' + cf.delegue + ' le ' + dateFr(cf.date) + '.');
+    });
+  }
   function alerteProximite(forcer) {
     var el = $('alerteProche');
     var plan = S.plan.filter(function (a) { return a.date === aujourdhui(); }), ph = pret() ? pharmacieProche(plan) : null;
@@ -9173,6 +9247,14 @@
         (a.corrige ? 'Enregistrer la modification du compte rendu de <b>' : 'Enregistrer le compte rendu de <b>') + esc(a.nom) + '</b> (' + dateFr(a.date) + ') ?',
         'Enregistrer', function () { validerVisites(a.uid); });
     },
+    notifBascule: function () {
+      if (LS.get('notifs', false) && Notification.permission === 'granted') { LS.set('notifs', false); rendre(); toast('Notifications désactivées.'); return; }
+      Notification.requestPermission().then(function (p) {
+        LS.set('notifs', p === 'granted'); rendre();
+        toast(p === 'granted' ? 'Notifications activées.' : 'Notifications refusées par le téléphone.');
+      });
+    },
+    notifTest: function () { notifier('essai', 'MediPlanner', 'Les notifications fonctionnent sur ce téléphone.', true); },
     sync: function () {
       if (S.config.demo) { toast('Mode démonstration : aucune synchronisation.'); return; }
       if (!S.config.url) { S.ui.tab = 'reglages'; rendre(); return; }

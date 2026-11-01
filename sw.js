@@ -12,7 +12,7 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.26.72';
+var VERSION = '3.26.73';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -91,4 +91,13 @@ self.addEventListener('sync', function (e) {
       })
     );
   }
+});
+// 3.26.73 : toucher une notification ouvre (ou ramène au premier plan) l'application
+self.addEventListener('notificationclick', function (e) {
+  e.notification.close();
+  var url = (e.notification.data && e.notification.data.url) || self.registration.scope;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (l) {
+    for (var i = 0; i < l.length; i++) { if (l[i].url.indexOf(self.registration.scope) === 0 && 'focus' in l[i]) return l[i].focus(); }
+    return self.clients.openWindow ? self.clients.openWindow(url) : null;
+  }));
 });
