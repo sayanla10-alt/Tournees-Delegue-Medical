@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.81';
+  var APP_VERSION = '3.26.82';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.82', ['Les visites à venir reprennent à chaque synchronisation les données actuelles de la base (spécialité, hôpital, quartier, GPS, horaires), sans recalculer la tournée']],
     ['3.26.81', ['Données venant d’un ancien serveur : rechargement complet automatique ; Réglages › Avancé signale un lien de connexion ancien et affiche la fin de l’adresse du serveur']],
     ['3.26.80', ['Ouverture : la base gardée sur le téléphone est relue avant toute synchronisation (plus de retéléchargement complet ni d’écran « Chargement » à chaque ouverture) ; stockage protégé contre l’effacement automatique']],
     ['3.26.79', ['Compte rendu, étape 4 : Losartan AM retiré partout (y compris sans connexion) ; cartes produit de même taille, sur 2 lignes si besoin']],
@@ -1983,6 +1984,28 @@
     synchroniser(true);
   }
 
+  // 3.26.82 : les visites à venir (sans compte rendu) reprennent les données actuelles de la base à chaque synchronisation :
+  // nom, spécialité, potentiel, engagé, hôpital, quartier, commune, GPS et plage horaire. La tournée n'est pas recalculée.
+  function actualiserVisitesPlanifiees() {
+    if (!pret()) return;
+    ctxCache.data = null;
+    var c = ctx(), t = aujourdhui(), n = 0;
+    S.plan.forEach(function (a) {
+      if (a.date < t || a.statut || a.etat === 'valide') return;
+      var p = c.prat[a.code]; if (!p) return;
+      var avant = JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.commune, a.lat, a.lon, a.debut, a.fin]);
+      a.nom = p.nom; a.specialite = p.specialite; a.note = p.note; a.conventionne = p.conv ? 'Oui' : 'Non';
+      var cr = creneauDe(a.code, a.date, a.idPresence, a.creneau);
+      if (cr && (!a.idPresence || String(cr.idPresence) === String(a.idPresence))) {
+        a.lieu = cr.lieu; a.quartier = cr.quartier; a.commune = cr.commune; a.zone = cr.zone;
+        if (cr.coord && !cr.coord.approx) { a.lat = cr.coord.lat; a.lon = cr.coord.lon; }
+        a.debut = minutesVersHeure(cr.debut); a.fin = minutesVersHeure(cr.fin);
+      }
+      if (JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.commune, a.lat, a.lon, a.debut, a.fin]) !== avant) n++;
+    });
+    if (n) { LS.set('plan', S.plan); }
+    return n;
+  }
   var minuteurReprise;
   function synchroniser(silencieux) {
     if (!connecte()) return Promise.resolve();
@@ -2037,6 +2060,7 @@
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data);
+      try { actualiserVisitesPlanifiees(); } catch (eA) { console.warn(eA); }
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
       S.ui.conflits = []; setTimeout(notifierConflits, 1500);
