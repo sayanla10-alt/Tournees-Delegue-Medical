@@ -357,7 +357,8 @@ function lireTout(sig, hdepuis) {
   var presences = lireObjets(ss.getSheetByName(FEUILLES.presences), CHAMPS_PRESENCES, tz).filter(function (p) {
     return p.code !== '';
   });
-  presences.forEach(function (p, i) { if (p.id === '') p.id = 'L' + (i + 2); });
+  var idsLus = {};   // 3.26.50 : identifiant vide ou en double -> identifiant de ligne unique (évite les lieux qui s'échangent sur le téléphone)
+  presences.forEach(function (p, i) { if (p.id === '' || idsLus[String(p.id)]) p.id = 'L' + (i + 2); idsLus[String(p.id)] = true; });
 
   var quartiers = [];
   var shQ = ss.getSheetByName(FEUILLES.quartiers);
@@ -1093,9 +1094,16 @@ function enregistrerFiche(b) {
       if ((anciensCode && String(l[rCode]) === anciensCode) || (code && String(l[rCode]) === code)) mesLignes.push(i);
     });
     var ids = {}, coords = {};
+    // 3.26.50 : une correction écrase la ligne existante du lieu (même identifiant) ; une nouvelle ligne seulement pour un nouveau lieu.
+    // Identifiants dédoublonnés : un même IdPresence ne peut plus être donné à deux lieux.
+    var ligneParId = {}, idsPris = {};
+    mesLignes.forEach(function (i) { var idL = String(dataR[i][rId]); if (idL && ligneParId[idL] === undefined) ligneParId[idL] = i; });
+    var lignesId = [];
     var lignesR = lieux.map(function (x) {
-      var id = x.id && !/^TMP/.test(String(x.id)) ? x.id : ++maxId;
-      if (x.id) ids[x.id] = id;
+      var id = x.id && !/^TMP/.test(String(x.id)) && !idsPris[String(x.id)] ? x.id : ++maxId;
+      idsPris[String(id)] = true;
+      lignesId.push(String(id));
+      if (x.id && /^TMP/.test(String(x.id))) ids[x.id] = id;
       var q = refQ[normaliser(x.quartier)] || ['', '', ''];
       var o = { id: id, code: code, nom: nom, lieu: String(x.lieu || ''), quartier: String(x.quartier || ''),
                 commune: q[0] || String(x.commune || ''), zone: q[2] || String(x.zone || ''),
@@ -1108,14 +1116,18 @@ function enregistrerFiche(b) {
       CHAMPS_PRESENCES.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
       return v;
     });
-    var k = 0;
-    for (; k < Math.min(mesLignes.length, lignesR.length); k++) {
-      shR.getRange(mesLignes[k] + 2, 1, 1, entR.length).setValues([lignesR[k]]);
-    }
-    if (k < lignesR.length) {
-      shR.getRange(shR.getLastRow() + 1, 1, lignesR.length - k, entR.length).setValues(lignesR.slice(k));
-    }
-    for (var s = mesLignes.length - 1; s >= k; s--) shR.deleteRow(mesLignes[s] + 2);
+    // 1) lieux déjà en base : réécrits sur leur propre ligne ; 2) lieux nouveaux : sur les lignes libérées, sinon ajoutés ;
+    // 3) lignes restantes du praticien (lieux supprimés ou doublons) : effacées
+    var utilisees = {}, nouveaux = [];
+    lignesR.forEach(function (v, n) {
+      var i = ligneParId[lignesId[n]];
+      if (i !== undefined && !utilisees[i]) { utilisees[i] = true; shR.getRange(i + 2, 1, 1, entR.length).setValues([v]); }
+      else nouveaux.push(v);
+    });
+    var libres = mesLignes.filter(function (i) { return !utilisees[i]; });
+    while (nouveaux.length && libres.length) { var li = libres.shift(); utilisees[li] = true; shR.getRange(li + 2, 1, 1, entR.length).setValues([nouveaux.shift()]); }
+    if (nouveaux.length) shR.getRange(shR.getLastRow() + 1, 1, nouveaux.length, entR.length).setValues(nouveaux);
+    libres.sort(function (a, b) { return b - a; }).forEach(function (i) { shR.deleteRow(i + 2); });
     return { ok: true, code: code, ancien: String(p.code || ''), ids: ids, coords: coords };
   } finally {
     lock.releaseLock();

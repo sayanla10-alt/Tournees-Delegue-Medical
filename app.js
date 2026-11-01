@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.49';
+  var APP_VERSION = '3.26.50';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.50', ['Répertoire : pastille GPS = simple indicateur (vert : position en base, rouge : absente) ; bouton « Modifier »',
+      'Journée s\'ouvre sur aujourd\'hui, au centre de la frise, grisé si non ouvré ; Planifier a aussi le petit calendrier',
+      'Modifier : le choix Médecin / Pharmacie n\'apparaît plus en modification',
+      'CR : Gamme A devient Gamme Aura 2, Gamme B devient Gamme Aura 1',
+      'Lieux qui changeaient de nom à l\'écran : identifiants en double neutralisés ; correction d\'un planning = ligne écrasée, plus de ligne en trop',
+      'Installation : instructions adaptées (WhatsApp, Samsung, iPhone), accès conservé après installation']],
     ['3.26.49', [
       'CR Pharmacie : Seuls les produits strictement sélectionnés à l\'étape 4 apparaissent à l\'étape 5 (suppression du pré-remplissage parasite)',
       'Remplacement Praticien : Libellés des actions raccourcis et clarifiés (« Changer » et « Remplacer ») avec hauteur harmonisée à 44 px',
@@ -1865,7 +1871,7 @@
         'Connexion impossible. Vérifiez le réseau.', true);
     }).then(function (j) {
       if (minuteur) clearTimeout(minuteur);
-      if (!j || !j.ok) throw erreur((j && j.erreur) || 'Réponse inattendue du serveur.', !!(j && j.reessai));
+      if (!j || !j.ok) { var ex = erreur((j && j.erreur) || 'Réponse inattendue du serveur.', !!(j && j.reessai)); ex.refus = !!j && !j.reessai; throw ex; }
       return j;
     }, function (e) { if (minuteur) clearTimeout(minuteur); throw e; });
   }
@@ -2002,6 +2008,13 @@
       // Serveur pas encore mis à jour (pas d'action « fiche ») : les fiches restent en attente sur le téléphone,
       // sans bloquer l'envoi des comptes rendus ni la tournée
       if (/Action inconnue/i.test(e.message)) { S.ui.serveurAncien = true; return; }
+      // 3.26.50 : fiche refusée définitivement par le serveur (pas une coupure) : retirée de la file, sinon ses anciennes
+      // valeurs écrasaient à chaque synchro les corrections faites dans la base (noms qui sautent à l'écran)
+      if (e.refus && !/jeton/i.test(e.message)) {
+        S.fiches.shift(); LS.set('fiches', S.fiches);
+        toast('Fiche « ' + (f.praticien && f.praticien.nom || '') + ' » refusée par la base : ' + e.message, 6000);
+        return envoyerFiches();
+      }
       throw e;
     });
   }
@@ -2663,14 +2676,15 @@
       '<button type="button" class="etiquette alerte bouton-etiquette" data-a="nav" data-tab="semaine">Brouillon › Planifier</button>';
     else etat = d < t ? '<span class="etiquette">' + (passeVerrouille(d) ? 'Lecture seule' : 'Jour passé') + '</span>' : (d > t ? '<span class="etiquette p1">' + (futurVerrouille(d) ? 'Aperçu' : 'Jour à venir') + '</span>' : '');
     // 3.19.0 : bande défilante des jours ouvrés (glisser à gauche ou à droite), jour choisi au centre, en couleur
-    var jours = []; for (var k = -42; k <= 42; k++) { var x0 = ajouterJours(d, k); if (jourSemaineIndex(x0) < 5) jours.push(x0); }
+    // 3.26.50 : aujourd'hui (et le jour choisi) toujours présents dans la frise, même un week-end (grisé)
+    var jours = []; for (var k = -42; k <= 42; k++) { var x0 = ajouterJours(d, k); if (jourSemaineIndex(x0) < 5 || x0 === t || x0 === d) jours.push(x0); }
     return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + etiquetteRelative(d) + '</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
       '<p class="sous-titre">Déroulez votre tournée dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus.</p>' +
       '<div class="bande-jours">' +
         '<div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
           var n = nbVisitesJour(x);
-          return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (jourSemaineIndex(x) === 0 ? ' lundi' : '') + '" data-a="jourAller" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
+          return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (jourSemaineIndex(x) === 0 ? ' lundi' : '') + (jourSemaineIndex(x) > 4 ? ' non-ouvre grise' : '') + '" data-a="jourAller" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
             JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em><i>' + (n ? n : '') + '</i></button>';
         }).join('') + '</div>' +
         '<button type="button" class="bj-cal" data-a="calOuvrir" aria-label="Choisir une date">' + icone('calendrier') + '</button></div>';
@@ -3252,7 +3266,9 @@
       return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (x < t ? ' passe grise' : '') + (saut ? ' lundi' : '') + '"' + (x < t ? ' disabled aria-disabled="true" title="Jour passé"' : ' data-a="jour" data-v="' + x + '"') + ' aria-pressed="' + (x === d) + '"><small>' +
         JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em>' +
         '<i class="etat-jour ' + (ok ? 'ok' : 'brouillon') + '">' + (ok ? '✓ ' : '• ') + n + '</i></button>';
-    }).join('') + '</div></div>';
+    }).join('') + '</div>' +
+      // 3.26.50 : même petit calendrier que dans Journée, pour choisir ou planifier une date
+      '<button type="button" class="bj-cal" data-a="calOuvrir" data-ctx="plan" aria-label="Choisir une date à planifier">' + icone('calendrier') + '</button></div>';
   }
 
   // ------------------------------------------------------------------ Reprendre un ancien programme
@@ -4053,7 +4069,7 @@
     // 1) Gamme A : directement affichée, entête compacte sans repli
     h += '<div class="gamme-cr-bloc ouverte" style="margin-bottom:6px">' +
       '<div class="gamme-cr-entete gamme-compacte">' +
-        '<span><b>Gamme A</b>' + (nbSelA ? ' <i class="compteur">' + nbSelA + '</i>' : '') + '</span>' +
+        '<span><b>Gamme Aura 2</b>' + (nbSelA ? ' <i class="compteur">' + nbSelA + '</i>' : '') + '</span>' +
         (prodsA.length > 1 ? '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="A">' + (tousA ? 'Tout décocher' : 'Tous') + '</button>' : '') +
       '</div>' +
       '<div class="liste-gammes-cr">';
@@ -4082,7 +4098,7 @@
     h += '<div class="gamme-cr-bloc' + (bOuvert ? ' ouverte' : ' repliee') + '" style="margin-bottom:8px">' +
       '<div class="gamme-cr-entete gamme-compacte">' +
         '<button type="button" class="gamme-cr-bascule" data-a="crGammeBascule" data-g="B" aria-expanded="' + bOuvert + '">' +
-          '<span><b>Gamme B</b></span>' +
+          '<span><b>Gamme Aura 1</b></span>' +
           '<span class="gamme-cr-meta">' + (nbSelB ? '<i class="compteur">' + nbSelB + '</i>' : '<small>' + famsB.length + ' fam.</small>') + icone('chevron') + '</span>' +
         '</button>' +
         (bOuvert && prodsB.length > 1 ? '<button type="button" class="lien-action" data-a="crGammeTous" data-uid="' + a.uid + '" data-k="' + cle + '" data-g="B">' + (tousB ? 'Décocher B' : 'Tous') + '</button>' : '') +
@@ -5590,17 +5606,14 @@
         var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === tAuj; });
 
         h += '<div class="bloc-actions-contact">' +
-          '<button class="bouton bouton-plein bouton-gps-ici" type="button" data-a="majGpsDirect" data-v="' + esc(p.code) + '" title="' + (nbLieux > 1 ? 'Capter la position GPS de l\'établissement où vous êtes sur place' : 'Capter votre position GPS précise') + '">' +
-            '<span class="gps-ici-gauche">' + icone('carte') + '<b>Capter position GPS</b></span>' +
-            '<span class="gps-ici-badge ' + badgeGpsClasse + '" title="' + nbGpsFixes + ' sur ' + nbLieux + ' lieu(x) géolocalisé(s)">' + badgeGpsHtml + '</span>' +
-          '</button>' +
+
           '<div class="rangee rangee-actions-contact">' +
             (dejaAuj
               ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
               : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
                   icone('eclair') + '<span>Ajouter au jour</span></button>') +
             '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
-            '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier fiche</span></button>' +
+            '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
           '</div></div>';
       }
       h += '</li>';
@@ -5639,8 +5652,8 @@
       h += '<tr class="tr-lieu-titre"><td colspan="6" class="cell-lieu-titre"><b class="lieu-nom-plein" title="' + esc(nomLieu) + '">' + esc(nomLieu) + '</b></td></tr>' +
         '<tr class="tr-lieu-corps"><td class="cell-lieu-infos"><small>' + esc(adresseTxt) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
         ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
-        '<div class="ligne-micro-gps-plan" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap"><button type="button" class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" data-a="majGpsLieuDirect" data-v="' + esc(code) + '" data-i="' + idx + '" title="' + (hasGps ? 'GPS déjà fixé pour cet établissement. Touchez pour réactualiser sur place' : 'Touchez pour capter et fixer le GPS de cet établissement') + '">' +
-          icone('carte') + '<span>GPS</span></button>' +
+        '<div class="ligne-micro-gps-plan" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap"><span class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" role="img" aria-label="' + (hasGps ? 'Position GPS enregistrée' : 'Pas de position GPS') + '" title="' + (hasGps ? 'Position GPS enregistrée dans la base' : 'Pas de position GPS dans la base') + '">' +
+          icone('carte') + '<span>GPS</span></span>' +
           (!estPh ? '<span class="discret texte-aide-plan" style="font-size:11px;line-height:1.2;white-space:nowrap;flex-shrink:0">Touchez M ou S pour planifier</span>' : '') +
         '</div>' +
         '</td>' +
@@ -6856,10 +6869,19 @@
           '<span class="discret bloc-texte">' + details + '</span></button></li>';
       }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : précisez la recherche.</p>' : '');
   }
+  // 3.26.50 : instructions selon le navigateur ; un lien ouvert dans WhatsApp, Facebook ou Instagram s'ouvre dans un
+  // navigateur intégré qui ne peut pas installer l'application (et n'a pas la même mémoire) : il faut l'ouvrir dans Chrome / Safari
   FEUILLES.installer = function () {
-    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    return '<p style="margin-top:0">' + (ios ? 'Dans Safari : ' + icone('partager') + ' Partager, puis « Sur l\'écran d\'accueil ».' :
-      'Dans Chrome : menu ⋮, puis « Installer l\'application » (ou « Ajouter à l\'écran d\'accueil »).') + '</p>';
+    var ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua), integre = /FBAN|FBAV|Instagram|WhatsApp|; wv\)|Line\//i.test(ua);
+    var samsung = /SamsungBrowser/i.test(ua), firefox = /Firefox|FxiOS/i.test(ua), iosAutre = ios && /CriOS|FxiOS|EdgiOS/i.test(ua);
+    var t;
+    if (integre) t = 'Vous êtes dans le navigateur de WhatsApp (ou d\'une autre application), qui ne peut pas installer MediPlanner. Touchez ⋮ (ou ⋯) puis « Ouvrir dans Chrome »' + (ios ? ' / « Ouvrir dans Safari »' : '') + ', puis installez depuis ce navigateur.';
+    else if (iosAutre) t = 'Sur iPhone, l\'installation se fait depuis Safari : copiez le lien, ouvrez-le dans Safari, puis ' + icone('partager') + ' Partager › « Sur l\'écran d\'accueil ».';
+    else if (ios) t = 'Dans Safari : ' + icone('partager') + ' Partager, puis « Sur l\'écran d\'accueil ».';
+    else if (samsung) t = 'Dans Samsung Internet : menu ≡, puis « Ajouter page à » › « Écran d\'accueil ».';
+    else if (firefox) t = 'Dans Firefox : menu ⋮, puis « Installer ». Si l\'option manque, ouvrez le lien dans Chrome.';
+    else t = 'Dans Chrome : menu ⋮, puis « Installer l\'application » (ou « Ajouter à l\'écran d\'accueil »). Si rien n\'apparaît, attendez quelques secondes sur la page puis réessayez.';
+    return '<p style="margin-top:0">' + t + '</p><p class="discret">Votre accès est conservé : l\'application installée garde la connexion à la base.</p>';
   };
   function estInstallee() {
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
@@ -7018,8 +7040,8 @@
     if (estProd) {
       var g = produitsParGamme();
       o.sections = [
-        { titre: 'Gamme A (Zyltan, Lesstrol, Eurythmic, Tensicard)', options: g.gammeA.map(function (p) { return { v: p, lib: p }; }) },
-        { titre: 'Gamme B (autres produits)', options: g.gammeB.map(function (p) { return { v: p, lib: p }; }) }
+        { titre: 'Gamme Aura 2 (Zyltan, Lesstrol, Eurythmic, Tensicard)', options: g.gammeA.map(function (p) { return { v: p, lib: p }; }) },
+        { titre: 'Gamme Aura 1 (autres produits)', options: g.gammeB.map(function (p) { return { v: p, lib: p }; }) }
       ];
     } else {
       o.options = f.options.map(function (op) { return { v: op[0], lib: op[1] }; });
@@ -7481,9 +7503,11 @@
     var d = f.d, e = Math.min(f.etape || 0, 1); f.etape = e;
     synchroniserDefautsFiche(d);
     var estPh = d.type === 'Pharmacie', l0 = d.lieux[0];
-    var h = '<div class="segment" role="group" aria-label="Type" style="margin-bottom:8px">' + ['Médecin', 'Pharmacie'].map(function (t) {
+    // 3.26.50 : le choix Médecin / Pharmacie n'apparaît qu'à la création ; en modification, le type est fixé
+    var existante = d.code && !/^TMP-/.test(d.code);
+    var h = (existante ? '' : '<div class="segment" role="group" aria-label="Type" style="margin-bottom:8px">' + ['Médecin', 'Pharmacie'].map(function (t) {
         return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
-      }).join('') + '</div>' +
+      }).join('') + '</div>') +
       '<div class="segment" role="group" aria-label="Étapes" style="margin-bottom:10px">' +
         '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (e === 0) + '">' + (estPh ? '1. Pharmacie & Lieu' : '1. Médecin & Hôpital') + '</button>' +
         '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">' + (estPh ? '2. Horaires de réception' : '2. Planning hebdomadaire (' + d.lieux.length + ')') + '</button>' +
@@ -7695,8 +7719,10 @@
                specialite: d.type === 'Pharmacie' ? 'Pharmacien' : (d.specialite === '__autre' ? String(d.autreSpec).trim() : d.specialite),
                note: +d.note, conventionne: d.conventionne, actif: d.actif === 'Non' ? 'Non' : 'Oui',
                absentDu: d.absentDu || '', absentAu: d.absentAu || '' };
+    var idsVus = {};   // 3.26.50 : deux lieux ne partagent jamais le même identifiant
     var pres = d.lieux.map(function (l) {
       var q = quartiers().filter(function (x) { return x.quartier === l.quartier; })[0] || {};
+      if (l.id && idsVus[String(l.id)]) l.id = ''; if (l.id) idsVus[String(l.id)] = true;
       var o = { id: l.id || 'TMP' + Math.random().toString(36).slice(2, 8), code: code, nom: pr.nom, lieu: String(l.lieu).trim(), quartier: l.quartier,
                 commune: q.commune || l.commune || '', zone: q.zone || l.zone || '', horaireMatin: String(l.horaireMatin || '').trim(), horaireSoir: String(l.horaireSoir || '').trim(),
                 lat: l.lat || '', lon: l.lon || '' };
@@ -8437,6 +8463,8 @@
       if (S.ui.tab === 'semaine' && dest !== 'semaine') { S.ui.jourPlan = S.ui.jour; S.ui.jour = S.ui.jourJournee || aujourdhui(); }
       else if (S.ui.tab !== 'semaine' && dest === 'semaine') { S.ui.jourJournee = S.ui.jour; if (S.ui.jourPlan) S.ui.jour = S.ui.jourPlan; else S.ui.planInit = false; }
       S.ui.tab = dest; S.ui.pharmaciesProches = false;
+      // 3.26.50 : Journée s'ouvre toujours sur aujourd'hui (centré dans la frise, grisé si non ouvré)
+      if (dest === 'jour') { var tj = aujourdhui(); if (datesPlan().indexOf(tj) >= 0) { S.ui.jour = tj; S.ui.jourVue = null; } else S.ui.jourVue = tj; S.ui.ouvert = null; }
       if (S.ui.tab === 'historique') { S.ui.tab = 'suivi'; S.ui.suiviVue = 'bilan'; S.ui.statsVue = 'historique'; }
       S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);
@@ -8606,9 +8634,9 @@
     },
     rapEditer: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); centrerQuestionRapport(); },
     sortirRapport: function () { S.ui.tab = 'jour'; rendre(); window.scrollTo(0, 0); },
-    calOuvrir: function () {
-      var d = jourAffiche();
-      S.ui.feuille = { type: 'calendrierJour', titre: 'Choisir une date', date: d, mois: d.slice(0, 7) };
+    calOuvrir: function (el) {
+      var plan = el && el.dataset && el.dataset.ctx === 'plan', d = plan ? (S.ui.jour || aujourdhui()) : jourAffiche();
+      S.ui.feuille = { type: 'calendrierJour', titre: plan ? 'Date à planifier' : 'Choisir une date', date: d, mois: d.slice(0, 7), ctx: plan ? 'plan' : '' };
       rendre();
     },
     calChangerMois: function (el) {
@@ -8621,8 +8649,14 @@
       rendreFeuille();
     },
     calChoisirJour: function (el) {
-      var d = el.dataset.v;
+      var d = el.dataset.v, f = S.ui.feuille;
       S.ui.feuille = null;
+      if (f && f.ctx === 'plan') {
+        // Planifier : jour déjà planifié -> sélectionné ; sinon la planification s'ouvre sur cette date
+        if (d < aujourdhui()) { toast('On ne planifie pas un jour passé.'); rendre(); return; }
+        if (datesPlan().indexOf(d) >= 0) { S.ui.jour = d; rendre(); return; }
+        S.params.dateRef = d; S.params.mode = 'jour'; LS.set('params', S.params); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); return;
+      }
       allerAuJour(d);
     },
     calAllerAujourdhui: function () {
@@ -9662,7 +9696,7 @@
       var code = el.dataset.v || S.ui.contactOuvert;
       if (!code) return;
       var d = brouillonFiche(code);
-      S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche', pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
+      S.ui.feuille = { type: 'fiche', titre: (d.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
       rendre();
     },
     modifierActif: function () {
@@ -9692,7 +9726,7 @@
     },
     ouvrirDoublon: function (el) {
       var d = brouillonFiche(el.dataset.v);
-      S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche existante', pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
+      S.ui.feuille = { type: 'fiche', titre: (d.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 0, d: d, err: {}, initial: JSON.stringify(d) };
       rendre();
       toast('Fiche existante ouverte : ' + d.nom);
     },
@@ -9894,7 +9928,7 @@
             'Ouvrir la fiche existante',
             function () {
               var dEx = brouillonFiche(ex.code);
-              S.ui.feuille = { type: 'fiche', titre: 'Modifier la fiche existante', pleine: true, etape: 0, d: dEx, err: {}, initial: JSON.stringify(dEx) };
+              S.ui.feuille = { type: 'fiche', titre: (dEx.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 0, d: dEx, err: {}, initial: JSON.stringify(dEx) };
               rendre();
             },
             function () {
@@ -10218,6 +10252,7 @@
   });
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.ui.installEvt = e; if (S.ui.tab === 'reglages') rendre(); });
   // 3.25.28 : recalcul de la position et des distances à l'ouverture, réouverture, focus et réveil
+  if (S.ui.tab === 'jour') { var tj0 = aujourdhui(); if (datesPlan().indexOf(tj0) >= 0) { S.ui.jour = tj0; S.ui.jourVue = null; } else S.ui.jourVue = tj0; }
   setTimeout(function () { relocaliserSiBesoin('ouverture'); }, 0);
   window.addEventListener('pageshow', function () { relocaliserSiBesoin('ouverture'); });
   window.addEventListener('focus', function () { relocaliserSiBesoin('ouverture'); });
@@ -10383,7 +10418,10 @@
       }
       S.config.url = cfg.url; S.config.token = cfg.token; S.config.demo = false;
       sauver();
-      history.replaceState(null, '', location.pathname + location.search);
+      // 3.26.50 : tant que l'application n'est pas installée, le lien de configuration reste dans l'adresse :
+      // « Sur l'écran d'accueil » (iPhone) l'enregistre, et l'application installée (mémoire séparée) se connecte seule
+      var installee = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+      if (installee) history.replaceState(null, '', location.pathname + location.search);
       return true;
     } catch (e) { return false; }
   }

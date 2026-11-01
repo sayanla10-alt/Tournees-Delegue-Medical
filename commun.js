@@ -1081,7 +1081,7 @@ function genererBaseFictive(dateRefIso, options) {
 
   var praticiens = [], presences = [];
   function ajouterPresence(code, nom, lieu, qi, grille, hM, hS) {
-    var q = Q[qi];
+    var q = Q[((qi % Q.length) + Q.length) % Q.length] || Q[0];   // 3.26.50 : index hors liste (démo) ramené dans la liste
     var p = { id: presences.length + 1, code: code, nom: nom, lieu: lieu, quartier: q.quartier,
               commune: q.commune, zone: q.zone, horaireMatin: hM, horaireSoir: hS, lat: '', lon: '' };
     JOURS_CLES.forEach(function (j, i) { p[j] = ecrireDispo(grille[i]); });

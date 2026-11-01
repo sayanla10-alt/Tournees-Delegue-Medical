@@ -3346,3 +3346,10 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 }
 
 
+/* 3.26.50 : pastille GPS du Répertoire = simple indicateur (vert : position en base, rouge : absente), non cliquable */
+span.btn-micro-gps { cursor: default; }
+span.btn-micro-gps:active { transform: none; }
+.btn-micro-gps.manquant { background: #fdecea; border-color: #f2b8b5; color: #b3261e; }
+/* 3.26.50 : jour non ouvré dans la frise de Journée (aujourd'hui un week-end) */
+.bj-jour.non-ouvre { opacity: .45; filter: grayscale(1); }
+.bj-jour.non-ouvre[aria-pressed="true"] { opacity: .75; }

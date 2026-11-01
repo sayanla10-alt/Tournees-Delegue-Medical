@@ -41,7 +41,11 @@ var Moteur = (function () {
     var feries = {};
     (data.feries && data.feries.length ? data.feries : FERIES_DEFAUT).forEach(function (d) { feries[d] = true; });
     var parJour = [[], [], [], [], []], parCode = {}, presencesParCode = {};
-    (data.presences || []).forEach(function (pr) {
+    var idsVus = {};
+    (data.presences || []).forEach(function (pr, i) {
+      // 3.26.50 : identifiant en double (base corrigée à la main) : rendu unique, sinon deux lieux s'échangent à l'écran
+      if (pr.id === undefined || pr.id === '' || idsVus[String(pr.id)]) pr.id = 'L' + (i + 2) + '-' + pr.code;
+      idsVus[String(pr.id)] = true;
       var p = prat[pr.code];
       if (!p) return;
       (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(pr);
