@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.82';
+  var APP_VERSION = '3.26.83';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.83', ['Synchroniser : un téléphone relié à un ancien déploiement du serveur bascule tout seul sur le serveur à jour (même classeur, même jeton) puis recharge les données']],
     ['3.26.82', ['Les visites à venir reprennent à chaque synchronisation les données actuelles de la base (spécialité, hôpital, quartier, GPS, horaires), sans recalculer la tournée']],
     ['3.26.81', ['Données venant d’un ancien serveur : rechargement complet automatique ; Réglages › Avancé signale un lien de connexion ancien et affiche la fin de l’adresse du serveur']],
     ['3.26.80', ['Ouverture : la base gardée sur le téléphone est relue avant toute synchronisation (plus de retéléchargement complet ni d’écran « Chargement » à chaque ouverture) ; stockage protégé contre l’effacement automatique']],
@@ -1950,6 +1951,20 @@
     return appel(cfg.url + (cfg.url.indexOf('?') < 0 ? '?' : '&') + 'action=' + action +
                  '&token=' + encodeURIComponent(cfg.token) + '&_=' + Date.now(), { method: 'GET' });
   }
+  // 3.26.83 : un téléphone relié à un ancien déploiement du serveur bascule tout seul sur le déploiement à jour,
+  // si celui-ci répond avec le même classeur et le même jeton (aucune action du délégué)
+  var URL_SERVEUR_ACTUEL = 'https://script.google.com/macros/s/AKfycbz3KAK4O5-muaKVjh13OyBUrlt0824XAwSGHWZVu89Od8ZvHd7Y0b5lOp7mRRNTi7Lt/exec';
+  function basculerServeurActuel() {
+    if (!connecte() || S.config.url.split('?')[0] === URL_SERVEUR_ACTUEL) return Promise.resolve(false);
+    var neuf = { url: URL_SERVEUR_ACTUEL, token: S.config.token };
+    return Promise.all([apiGet('ping'), apiGet('ping', neuf)]).then(function (r) {
+      if (!r[0] || !r[1] || !r[1].ok || r[0].classeur !== r[1].classeur) return false;
+      S.config.url = URL_SERVEUR_ACTUEL; LS.set('config', S.config);
+      if (S.data) S.data.serveurRecent = false;
+      toast('Connexion mise à jour vers le serveur actuel. Rechargement des données…', 4000);
+      return true;
+    }).catch(function () { return false; });
+  }
   function apiPost(action, payload) {
     var body = { token: S.config.token, action: action };
     Object.keys(payload).forEach(function (k) { body[k] = payload[k]; });
@@ -2061,6 +2076,7 @@
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data);
       try { actualiserVisitesPlanifiees(); } catch (eA) { console.warn(eA); }
+      if (!d.inchange && d.doublons === undefined) basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
       S.ui.conflits = []; setTimeout(notifierConflits, 1500);
@@ -6496,7 +6512,7 @@
       '<div class="rangee"><button class="bouton" type="button" data-a="tester">Tester</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="enregistrerConnexion">Enregistrer</button></div>' +
       (S.ui.erreur ? '<p class="discret" style="color:var(--rouge);margin-bottom:0">' + esc(S.ui.erreur) + '</p>' : '') +
-      (S.data && S.data.praticiens && !S.data.serveurRecent && connecte() ? '<p class="discret" style="color:var(--rouge)">Ce téléphone est relié à une ancienne version du serveur : les produits décochés peuvent encore apparaître. Demandez un nouveau lien de connexion.</p>' : '') +
+      (S.data && S.data.praticiens && !S.data.serveurRecent && connecte() ? '<p class="discret" style="color:var(--rouge)">Ce téléphone est relié à une ancienne version du serveur : touchez « Synchroniser maintenant » pour basculer automatiquement sur le serveur à jour.</p>' : '') +
       (connecte() ? '<p class="discret" style="margin:4px 0 0">Serveur : …' + esc(String(S.config.url).replace(/\/exec.*$/, '').slice(-6)) + '</p>' : '') +
       '<h3>Données</h3><p class="discret" style="margin-top:0">' +
       (S.config.demo ? 'Mode démonstration : les données restent sur ce téléphone.' :
