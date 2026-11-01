@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.76';
+  var APP_VERSION = '3.26.77';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.77', ['Planifier, RDV et prioritaires : « Ajouter » en vert, même taille que « Retirer », en dernière ligne']],
     ['3.26.76', ['Journée, jour sans planification : « Reprendre un ancien programme » sous « Planifier le … »']],
     ['3.26.75', ['Répertoire : 8 px entre la grille, « Modifier le planning hebdomadaire » et les boutons du bas', 'Planifier, étape RDV et prioritaires : bouton « Retirer » sur chaque RDV et prioritaire, et appui long pour retirer, avec confirmation']],
     ['3.26.74', ['Répertoire : « Modifier le planning hebdomadaire » devient un bouton centré, à la hauteur de « Planifier » ; boutons du bas resserrés']],
@@ -3854,8 +3855,7 @@
                 return suiv ? ' reporté au ' + dateFr(suiv).slice(0, -5) + ' pour absence' : ', absent sur la période';
               })() + '</span></div><button type="button" class="bouton petit bouton-retirer-imp" data-a="retirerRdvDemande" data-v="' + esc(im.code + '|' + im.dateRdv) + '">' + icone('fermer') + 'Retirer</button></li>';
           }).join('') + '</ul>' : '<p class="discret" style="margin:4px 0 0">Aucun RDV pris sur cette période.</p>';
-          h += '<div class="imposes-tete" style="margin-top:12px"><span class="sous-etape" style="margin:0">Prioritaires ajoutés</span>' +
-            '<button type="button" class="bouton petit" data-a="ouvrirRecherche">' + icone('plus') + 'Ajouter</button></div>';
+          h += '<div class="imposes-tete" style="margin-top:12px"><span class="sous-etape" style="margin:0">Prioritaires ajoutés</span></div>';
           h += S.imposes.length ? '<ul class="liste-imposes">' + S.imposes.map(function (im, i) {
             var pr = praticien(im.code);
             var c = im.cle ? Moteur.creneauParCle(ctx(), im.cle) : null;
@@ -3866,6 +3866,8 @@
               '<span class="discret bloc-texte">' + quand + (im.rdv ? ', RDV ' + esc(im.rdv) : '') + '</span></div>' +
               '<button type="button" class="bouton petit bouton-retirer-imp" data-a="retirerImposeDemande" data-i="' + i + '">' + icone('fermer') + 'Retirer</button></li>';
           }).join('') + '</ul>' : '<p class="discret" style="margin:4px 0 0">Aucun.</p>';
+          // 3.26.77 : « Ajouter » en dernière ligne, sous les « Retirer », même taille, en vert
+          h += '<div class="ligne-ajouter-imp"><button type="button" class="bouton petit bouton-retirer-imp bouton-ajouter-imp" data-a="ouvrirRecherche">' + icone('plus') + 'Ajouter</button></div>';
           return h;
         } }
     ];

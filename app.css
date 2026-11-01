@@ -3465,3 +3465,7 @@ li.li-retirable { -webkit-user-select: none; user-select: none; -webkit-touch-ca
 .bloc-actions-contact { margin-top: 8px !important; padding-top: 0 !important; }
 .bloc-actions-contact .rangee-actions-contact { margin: 0 !important; padding: 0 !important; }
 .pres-actions .bouton-planning, .rangee-actions-contact .bouton, .rangee-actions-contact .badge-deja-prevu { margin-top: 0 !important; margin-bottom: 0 !important; }
+/* 3.26.77 : Ajouter (vert) sous les Retirer, même taille */
+.ligne-ajouter-imp { display: flex; justify-content: flex-end; margin-top: 8px; }
+.bouton-ajouter-imp { background: #1F7A45 !important; border-color: #1F7A45 !important; color: #fff !important; }
+.liste-imposes li .bouton-retirer-imp, .bouton-ajouter-imp { min-width: 96px; justify-content: center; }
