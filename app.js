@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.80';
+  var APP_VERSION = '3.26.81';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.81', ['Données venant d’un ancien serveur : rechargement complet automatique ; Réglages › Avancé signale un lien de connexion ancien et affiche la fin de l’adresse du serveur']],
     ['3.26.80', ['Ouverture : la base gardée sur le téléphone est relue avant toute synchronisation (plus de retéléchargement complet ni d’écran « Chargement » à chaque ouverture) ; stockage protégé contre l’effacement automatique']],
     ['3.26.79', ['Compte rendu, étape 4 : Losartan AM retiré partout (y compris sans connexion) ; cartes produit de même taille, sur 2 lignes si besoin']],
     ['3.26.78', ['Répertoire : « Ajouter au jour » demande confirmation avant d’ajouter']],
@@ -2010,7 +2011,8 @@
       });
     }).then(function () {
       // synchro allégée : empreinte des données de référence et date de la dernière visite connue
-      var ref = S.data && S.data.sig && S.data.praticiens ? '&sig=' + encodeURIComponent(S.data.sig) : '';
+      // 3.26.81 : données reçues d'un ancien serveur (sans contrôle des doublons ni filtre des produits inactifs) : rechargement complet
+      var ref = S.data && S.data.sig && S.data.praticiens && S.data.serveurRecent ? '&sig=' + encodeURIComponent(S.data.sig) : '';
       var hd = S.data && S.data.historique && S.data.historique.length ? S.data.historique.reduce(function (m, v) { return v.horodatage > m ? v.horodatage : m; }, '') : '';
       return apiGet('data' + ref + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
     }).then(function (d) {
@@ -2030,7 +2032,7 @@
       S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
                  statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [], fiches: base.fiches || [],
                  historique: hist, plannings: d.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: new Date().toISOString(),
-                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '' };
+                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: d.inchange ? !!ancien.serveurRecent : d.doublons !== undefined };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
@@ -6470,6 +6472,8 @@
       '<div class="rangee"><button class="bouton" type="button" data-a="tester">Tester</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="enregistrerConnexion">Enregistrer</button></div>' +
       (S.ui.erreur ? '<p class="discret" style="color:var(--rouge);margin-bottom:0">' + esc(S.ui.erreur) + '</p>' : '') +
+      (S.data && S.data.praticiens && !S.data.serveurRecent && connecte() ? '<p class="discret" style="color:var(--rouge)">Ce téléphone est relié à une ancienne version du serveur : les produits décochés peuvent encore apparaître. Demandez un nouveau lien de connexion.</p>' : '') +
+      (connecte() ? '<p class="discret" style="margin:4px 0 0">Serveur : …' + esc(String(S.config.url).replace(/\/exec.*$/, '').slice(-6)) + '</p>' : '') +
       '<h3>Données</h3><p class="discret" style="margin-top:0">' +
       (S.config.demo ? 'Mode démonstration : les données restent sur ce téléphone.' :
         (S.data && S.data.syncedAt ? 'Dernière synchronisation : ' + new Date(S.data.syncedAt).toLocaleString('fr-FR') + '.' : 'Pas encore synchronisé.')) +
