@@ -3436,3 +3436,10 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .rangee-tirage .bouton { min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; }
 /* 3.26.67 : ligne de détail du jour centrée */
 .tete-jour-plan .details-plan { text-align: center; }
+/* 3.26.69 : Réception sur une ligne, boutons du contact à 36 px comme « Réinitialiser les filtres » */
+.horaires-pharma-vue { line-height: 1.35; }
+.horaires-pharma-vue svg { display: inline-block; vertical-align: -2px; width: 14px; height: 14px; }
+.ligne-reception { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
+.rangee-actions-contact .bouton, .badge-deja-prevu { min-height: 36px !important; height: 36px !important; }
+.horaires-pharma-vue { display: block !important; text-align: left !important; }
+.horaires-pharma-vue > div { display: block; text-align: left; margin: 0; }

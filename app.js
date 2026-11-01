@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.68';
+  var APP_VERSION = '3.26.69';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.69', ['Planifier : « km estimés » ; Répertoire : Tél et Réception serrés, Réception sur une ligne ; GPS toujours en x/y (GPS 1/1) ; Ajouter au jour, Planifier, Modifier à la hauteur de « Réinitialiser les filtres »']],
     ['3.26.68', ['Abréviations : Dermato, Néphro, Ophtalmo, Rhumato, Gastro', 'Planifier : km du parcours du jour estimés d’une visite à la suivante', 'Répertoire, pharmacie : « Réception » avec le Tél dans le même encadré']],
     ['3.26.67', ['Planifier : date courte (Mar. 03 Nov.) ; ligne de détail centrée avec Cœur / Autres selon le cœur de cible']],
     ['3.26.66', ['Planifier : Ajouter, Recalculer, Accepter à la même hauteur que « Critères »']],
@@ -3274,7 +3275,7 @@
       (function () { var cc = coeurDeCible(), nC = duJour.filter(function (a) { return !estPharmacie(a) && cc.indexOf(a.specialite) >= 0; }).length;
         return [nMed ? 'Cœur ' + nC + ' · Autres ' + (nMed - nC) : '', nPhar ? nPhar + ' phcie' + (nPhar > 1 ? 's' : '') : ''].filter(Boolean).join(' · '); })(),
       n3 ? n3 + ' ★★★' : '',
-      km(totalKm)
+      totalKm ? km(totalKm) + ' estimés' : ''
     ].filter(Boolean).join(' · ');
     h += '<div class="tete-jour-plan"><div class="bilan-jour">' +
       '<div class="bj-ligne1"><b>' + majuscule(JOURS_COURTS[jourSemaineIndex(d)]) + ' ' + d.slice(8) + ' ' + MOIS_ABREGES[+d.slice(5, 7) - 1] + '.</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
@@ -5655,7 +5656,7 @@
               .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
         '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
           (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
-            return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS' + (lieux.length > 1 ? ' ' + nG + '/' + lieux.length : '') + '</span>'; })() +
+            return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
         (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(p.statut) + '</span>' : '') +
         (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
         etiquetteCollegues(p.code, t) + '</span></button>';
@@ -5711,9 +5712,9 @@
       var l0 = lieux[0] || {};
       var hM = lireHoraire(l0.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(l0.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
       h += '<div class="horaires-pharma-vue" style="margin:4px 0 8px;padding:8px 10px;background:var(--fond,#f4f7f8);border-radius:8px;font-size:13px">' +
-        (p.telephone ? '<div style="margin-bottom:4px"><b>Tél :</b> ' + esc(p.telephone) + '</div>' : '') + '<b>' + icone('horloge') + ' Réception :</b> ' +
+        (p.telephone ? '<div><b>Tél :</b> ' + esc(p.telephone) + '</div>' : '') + '<div class="ligne-reception"><b>Réception :</b> ' +
         '<span>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) + '</span> · ' +
-        '<span>Soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</span>' +
+        '<span>Soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</span></div>' +
         '</div>';
     }
     h += '<table><thead><tr><th>' + (estPh ? 'Officine' : 'Lieu') + '</th>' + JOURS.map(function (j) { return '<th>' + j.slice(0, 3) + '</th>'; }).join('') + '</tr></thead><tbody>';
