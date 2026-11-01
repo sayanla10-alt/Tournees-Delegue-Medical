@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.69';
+  var APP_VERSION = '3.26.70';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.70', ['Compte rendu WhatsApp aéré : titre « CR du Ven. 30/10/2026 », sans heures ni pastilles de position, une visite par bloc']],
     ['3.26.69', ['Planifier : « km estimés » ; Répertoire : Tél et Réception serrés, Réception sur une ligne ; GPS toujours en x/y (GPS 1/1) ; Ajouter au jour, Planifier, Modifier à la hauteur de « Réinitialiser les filtres »']],
     ['3.26.68', ['Abréviations : Dermato, Néphro, Ophtalmo, Rhumato, Gastro', 'Planifier : km du parcours du jour estimés d’une visite à la suivante', 'Répertoire, pharmacie : « Réception » avec le Tél dans le même encadré']],
     ['3.26.67', ['Planifier : date courte (Mar. 03 Nov.) ; ligne de détail centrée avec Cœur / Autres selon le cœur de cible']],
@@ -3138,45 +3139,31 @@
   function sectionWa(titre, items, vide) {
     var l = (items || []).filter(function (x) { return String(x || '').trim(); });
     if (!l.length && vide === undefined) return [];
-    return ['', '*' + titre + '*' + (l.length > 1 ? ' (' + l.length + ')' : '')].concat(l.length ? l.map(function (x) {
-      return (x.indexOf('📍') === 0 || x.indexOf('   •') === 0 || x.indexOf('• ') === 0) ? x : '• ' + x;
+    return ['', '', '*' + titre.toUpperCase() + '*' + (l.length > 1 ? ' (' + l.length + ')' : '')].concat(l.length ? l.map(function (x) {
+      return (x.indexOf('• ') === 0 ? x : '• ' + x);
     }) : ['_' + vide + '_']);
   }
   function heureVisite(a) { return (a.statut && a.valideA) || a.heure || ''; }
+  // 3.26.70 : message WhatsApp aéré et lisible : pas d'heures ni de pastilles de position
   function texteRapport(d) {
     var R = rapportDe(d) || {}, duJour = visitesDuJourRapport(d), s = syntheseJour(duJour);
-    var pot = [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return s.pot[x[0]] + ' ' + x[1]; }).join('  ·  ');
-    var prod = Object.keys(s.produits).sort(function (a, b) { return s.produits[b] - s.produits[a]; }).map(function (x) { return x + (s.produits[x] > 1 ? ' _(' + s.produits[x] + ')_' : ''); });
+    var dateCourteCr = majuscule(JOURS_COURTS[jourSemaineIndex(d)]) + ' ' + d.slice(8) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4);
+    var pot = [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return s.pot[x[0]] + ' ' + x[1]; }).join(', ');
+    var prod = Object.keys(s.produits).sort(function (a, b) { return s.produits[b] - s.produits[a]; }).map(function (x) { return x + (s.produits[x] > 1 ? ' (' + s.produits[x] + ')' : ''); });
     var faites = s.faites.slice().sort(function (a, b) { return String(heureVisite(a)).localeCompare(String(heureVisite(b))); });
-    var l = ['*COMPTE RENDU DU ' + dateLongue(d).toUpperCase() + '*', '_' + (moi() || 'Délégué') + '_', '',
-      '*Bilan de la journée*',
-      '• Visites : *' + s.faites.length + ' faite' + (s.faites.length > 1 ? 's' : '') + ' sur ' + s.prevues + '*' + (s.sansCr.length ? ' _(' + s.sansCr.length + ' sans compte rendu)_' : '')];
-    if (pot) l.push('• Potentiel vu : ' + pot);
-    l.push('• Trajet : ' + (R.km ? R.km + ' km (réels)' : km(s.km)) + (s.est ? ', de ' + minutesVersHeure(s.est.debut) + ' à ' + minutesVersHeure(s.est.fin) : ''));
-    if (s.communes.length) l.push('• Communes : ' + s.communes.join(', '));
-
-    // 3.25.44 : Regroupement par établissement pour plus de clarté
-    var groupes = [], parLieu = {};
-    faites.forEach(function (a) {
-      var k = String(a.lieu || a.quartier || '').trim() || 'Autre lieu';
-      if (!parLieu[k]) {
-        parLieu[k] = { lieu: k, commune: a.commune || '', items: [] };
-        groupes.push(parLieu[k]);
-      }
-      var h = heureVisite(a);
-      parLieu[k].items.push((h ? h + '  ' : '') + '*' + a.nom + '*' + (a.produits ? ' _(' + a.produits + ')_' : ''));
-    });
-    var lignesFaites = [];
-    groupes.forEach(function (g) {
-      if (groupes.length > 1 || g.items.length > 1) {
-        lignesFaites.push('📍 *' + g.lieu + '*' + (g.commune && g.lieu.indexOf(g.commune) < 0 ? ' _(' + g.commune + ')_' : ''));
-        g.items.forEach(function (it) { lignesFaites.push('   • ' + it); });
-      } else {
-        lignesFaites.push(g.items[0] + (g.lieu ? ' (' + g.lieu + ')' : ''));
-      }
+    var l = ['*CR du ' + dateCourteCr + '*', moi() || 'Délégué', '',
+      '*Bilan*',
+      'Visites faites : *' + s.faites.length + ' / ' + s.prevues + '*' + (s.sansCr.length ? ' (' + s.sansCr.length + ' sans CR)' : '')];
+    if (pot) l.push('Potentiel vu : ' + pot);
+    var kmJ = R.km ? R.km + ' km' : (s.km ? km(s.km) + ' estimés' : '');
+    if (kmJ) l.push('Trajet : ' + kmJ);
+    if (s.communes.length) l.push('Communes : ' + s.communes.join(', '));
+    var lignesFaites = faites.map(function (a) {
+      var det = [estPharmacie(a) ? '' : abrSpec(a.specialite), abregerHopital(a.lieu || '')].filter(Boolean).join(', ');
+      return '*' + a.nom + '*' + (det ? '\n   ' + det : '') + (a.produits ? '\n   Produits : ' + a.produits : '');
     });
     l = l.concat(sectionWa('Visites faites', lignesFaites));
-    l = l.concat(sectionWa('Visites non faites', s.nonFaites.map(function (a) { return a.nom + (a.lieu ? ' (' + a.lieu + ')' : '') + ' : ' + String(statutLibelle(a) || '').toLowerCase(); })));
+    l = l.concat(sectionWa('Visites non faites', s.nonFaites.map(function (a) { return a.nom + ' : ' + String(statutLibelle(a) || '').toLowerCase(); })));
     l = l.concat(sectionWa('Produits présentés', prod));
     l = l.concat(sectionWa('Échantillons remis', s.echantillons));
     l = l.concat(sectionWa('Commandes', s.commandes));
