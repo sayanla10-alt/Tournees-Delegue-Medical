@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.51';
+  var APP_VERSION = '3.26.52';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.52', ['Journée, appui très long sur une visite renseignée : remettre « à faire » ou supprimer complètement la visite']],
     ['3.26.51', ['Journée : appui très long (1,5 s) sur une visite renseignée = effacer son compte rendu, après confirmation',
       'Répertoire : pastilles M / S du planning séparées de « Touchez M ou S pour planifier » (plus de chevauchement)',
       'Jours grisés en vrai gris', 'Modifier : en tapant le nom de l\'hôpital, les quartiers correspondants s\'affichent à choisir']],
@@ -2245,7 +2246,7 @@
           timer = null; longPressFired = true; dernierAppuiLongFired = Date.now();
           if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
           try { if (navigator.vibrate) navigator.vibrate([40, 40, 40]); } catch (err) {}
-          confirmerPuis('Effacer le compte rendu', 'Effacer le compte rendu de <b>' + esc(av.nom) + '</b> ? La visite redevient « à faire ».', 'Effacer', function () { effacerCr(av); });
+          S.ui.feuille = { type: 'effacerVisite', titre: 'Effacer le compte rendu', uid: av.uid }; rendre();
         }, 1500);
         return;
       }
@@ -3486,6 +3487,13 @@
     S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
     sauver(); rendre(); toast('Compte rendu effacé.');
   }
+  // 3.26.52 : deux choix : remettre la visite « à faire », ou la supprimer complètement de la journée
+  FEUILLES.effacerVisite = function (f) {
+    var a = arret(f.uid) || {};
+    return { corps: '<p style="margin-top:0">Compte rendu de <b>' + esc(a.nom || '') + '</b> : que voulez-vous faire ?</p>',
+      pied: '<button class="bouton" type="button" data-a="effacerVisiteChoix" data-v="refaire">Remettre « à faire »</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="effacerVisiteChoix" data-v="supprimer">Supprimer la visite</button>' };
+  };
   function demanderSuppressionJour(date, nb) {
     nb = (nb !== undefined && nb !== null) ? nb : S.plan.filter(function (a) { return a.date === date; }).length;
     var dLong = majuscule(dateLongue(date));
@@ -9828,6 +9836,15 @@
     ficheEditerLieu0: function () {
       var f = S.ui.feuille;
       if (f) { f.editerLieu0 = !f.editerLieu0; rendre(); }
+    },
+    effacerVisiteChoix: function (el) {
+      var f = S.ui.feuille, a = f && arret(f.uid); S.ui.feuille = null; if (!a) { rendre(); return; }
+      if (el.dataset.v === 'supprimer') {
+        S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
+        S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; }); S.horsPlan = (S.horsPlan || []).filter(function (x) { return x.uid !== a.uid; });
+        LS.set('horsPlan', S.horsPlan); S.ui.aPublier = true; LS.set('aPublier', true); sauver(); rendre(); toast('Visite supprimée de la journée.');
+        if (connecte()) synchroniser(true);
+      } else effacerCr(a);
     },
     ficheChoixQuartier: function (el) {
       var f = S.ui.feuille, i = +el.dataset.i; if (!f || f.type !== 'fiche' || !f.d.lieux[i]) return;
