@@ -9,11 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.56';
+  var APP_VERSION = '3.26.57';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.26.56', ['Distances : coefficient vol d’oiseau porté de 1,5 à 1,6', 'Fiche médecin : « Touchez M ou S pour planifier » sous la grille, juste avant « Modifier le planning hebdomadaire »', 'Fiche : « Tél : » et dernier commentaire resserrés']],
+    ['3.26.57', ['Fiche médecin : pastille GPS et « Touchez M ou S » déplacées sous la dernière ligne M / S']],
+    ['3.26.56', ['Distances : coefficient vol d’oiseau porté de 1,5 à 1,6', 'Fiche médecin : pastille GPS et « Touchez M ou S pour planifier » déplacées ensemble sous la dernière ligne M / S (place gagnée sous le nom du lieu)', 'Fiche : « Tél : » et dernier commentaire resserrés']],
     ['3.26.55', ['Feuille de style nettoyée : 128 forçages « !important » inutiles retirés, affichage strictement identique (vérifié sur 72 écrans, clair et sombre)']],
     ['3.26.54', ['Positions : une seule règle pour toute l’application (coordonnées avec virgule ou point, 0 ou hors Côte d’Ivoire = pas de GPS ; position du téléphone valable 10 min partout)', 'Boutons harmonisés : même forme arrondie, même hauteur et même taille de texte dans tous les onglets']],
     ['3.26.53', ['Base : le quartier est séparé des repères d’adresse (nouvelle colonne Repères), modifiables dans la fiche', 'Contrôle automatique des doublons de numéros de lieu et de codes']],
@@ -5671,10 +5672,7 @@
       var adresseTxt = [quartierNet, pr.commune].filter(Boolean).join(', ') + (pr.reperes ? ' · ' + pr.reperes : '');
       // 3.26.51 : GPS et aide « Touchez M ou S » sur une ligne pleine largeur : ils ne chevauchent plus les pastilles M / S
       h += '<tr class="tr-lieu-titre"><td colspan="6" class="cell-lieu-titre"><b class="lieu-nom-plein" title="' + esc(nomLieu) + '">' + esc(nomLieu) + '</b></td></tr>' +
-        '<tr class="tr-lieu-aide"><td colspan="6"><div class="ligne-micro-gps-plan">' +
-          '<span class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" role="img" aria-label="' + (hasGps ? 'Position GPS enregistrée' : 'Pas de position GPS') + '" title="' + (hasGps ? 'Position GPS enregistrée dans la base' : 'Pas de position GPS dans la base') + '">' + icone('carte') + '<span>GPS</span></span>' +
-          '<small class="discret" style="flex-basis:100%;text-align:left">' + esc(adresseTxt) + '</small>' +
-        '</div></td></tr>' +
+        '<tr class="tr-lieu-adresse"><td colspan="6"><small class="discret">' + esc(adresseTxt) + '</small></td></tr>' +
         '<tr class="tr-lieu-corps"><td class="cell-lieu-infos"><small>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
         '<br>Soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small></td>' +
         JOURS_CLES.map(function (j, i) {
@@ -5684,10 +5682,13 @@
           var cleM = pr.id + '|' + i + '|Matin', cleS = pr.id + '|' + i + '|Soir';
           return '<td class="dispo">' + (d.matin ? '<button type="button" class="btn-m" data-a="planifierCle" data-v="' + esc(cleM) + '" title="Planifier ' + JOURS[i] + ' matin">M</button>' : '') +
             (d.soir ? '<button type="button" class="btn-s" data-a="planifierCle" data-v="' + esc(cleS) + '" title="Planifier ' + JOURS[i] + ' soir">S</button>' : '') + '</td>';
-        }).join('') + '</tr>';
+        }).join('') + '</tr>' +
+        '<tr class="tr-lieu-aide"><td colspan="6"><div class="ligne-micro-gps-plan">' +
+          '<span class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" role="img" aria-label="' + (hasGps ? 'Position GPS enregistrée' : 'Pas de position GPS') + '" title="' + (hasGps ? 'Position GPS enregistrée dans la base' : 'Pas de position GPS dans la base') + '">' + icone('carte') + '<span>GPS</span></span>' +
+          (!estPh ? '<small class="discret texte-aide-plan">Touchez M ou S pour planifier</small>' : '') +
+        '</div></td></tr>';
     });
     h += '</tbody></table></div>' +
-      (!estPh ? '<p class="discret texte-aide-plan" style="margin:6px 0 0;text-align:center;font-size:12.5px">Touchez M ou S pour planifier</p>' : '') +
       '<div class="pres-actions">' +
         '<button type="button" class="bouton-texte" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
         icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +

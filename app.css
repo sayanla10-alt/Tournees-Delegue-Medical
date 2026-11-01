@@ -3376,3 +3376,6 @@ span.btn-micro-gps:active { transform: none; }
 }
 .rangee-actions-contact .bouton-inopinee { font-weight: 600 !important; }
 .barre-valider .bouton { border-radius: 999px; }
+/* 3.26.57 : adresse du lieu sur une ligne serrée sous le nom */
+.tr-lieu-adresse td { padding: 0 0 4px !important; border: 0 !important; text-align: left !important; }
+.tr-lieu-adresse small { font-size: 12.5px; }
