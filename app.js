@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.70';
+  var APP_VERSION = '3.26.71';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.71', ['Liste des quartiers : Cocody, Yopougon et Abobo regroupés sous leur commune ; les secteurs apparaissent en sous-titres une fois la commune dépliée']],
     ['3.26.70', ['Compte rendu WhatsApp aéré : titre « CR du Ven. 30/10/2026 », sans heures ni pastilles de position, une visite par bloc']],
     ['3.26.69', ['Planifier : « km estimés » ; Répertoire : Tél et Réception serrés, Réception sur une ligne ; GPS toujours en x/y (GPS 1/1) ; Ajouter au jour, Planifier, Modifier à la hauteur de « Réinitialiser les filtres »']],
     ['3.26.68', ['Abréviations : Dermato, Néphro, Ophtalmo, Rhumato, Gastro', 'Planifier : km du parcours du jour estimés d’une visite à la suivante', 'Répertoire, pharmacie : « Réception » avec le Tél dans le même encadré']],
@@ -1397,7 +1398,7 @@
       }
       o.sections.forEach(function (sec) {
         var nbSel = o.multiple ? sec.options.filter(function (op) { return sel && sel[op.v]; }).length : (sec.options.some(function (op) { return op.v === val; }) ? 1 : 0);
-        var nbTot = sec.options.length;
+        var nbTot = sec.options.filter(function (op) { return !op.entete; }).length;
         var aMatch = !q || sec.options.some(function (op) { return normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')).indexOf(q) >= 0; });
         var ferme = q ? !aMatch : (ouv !== sec.titre);
         var ariaExp = q ? aMatch : !ferme;
@@ -1436,7 +1437,7 @@
           flushSimples();
           flushSecteurs();
         } else {
-          corpsSec = sec.options.map(puce).join('');
+          corpsSec = sec.options.map(function (op) { return op.entete ? '<div class="sous-entete-choix">' + esc(op.lib) + '</div>' : puce(op); }).join('');
         }
 
         h += '<div class="section-choix' + (ariaExp ? ' ouverte' : '') + (nbSel ? ' a-selection' : '') + '"' + (q && !aMatch ? ' hidden' : '') + '>' +
@@ -1627,7 +1628,20 @@
       'Adjamé', 'Anyama', 'Attécoubé', 'Bingerville', 'Koumassi', 'Marcory', 'Plateau', 'Port-Bouët', 'Songon', 'Treichville'
     ];
 
+    // 3.26.71 : Cocody, Yopougon et Abobo : une seule section par commune, ses secteurs en sous-titres une fois dépliée
+    ['Cocody', 'Yopougon', 'Abobo'].forEach(function (com) {
+      var opts = [];
+      groupesOrdre.filter(function (t) { return t.indexOf(com + ' – ') === 0; }).forEach(function (t) {
+        if (!par[t] || !par[t].length) return;
+        par[t].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+        opts.push(['', t.replace(com + ' – ', ''), 'entete']);
+        opts = opts.concat(par[t]); delete par[t];
+      });
+      if (opts.length) par[com] = opts;
+    });
+    groupesOrdre = ['Cocody', 'Yopougon', 'Abobo'].concat(groupesOrdre.filter(function (t) { return t.indexOf(' – ') < 0; }));
     groupesOrdre.forEach(function (titre) {
+      if (par[titre] && par[titre].length && /^(Cocody|Yopougon|Abobo)$/.test(titre)) { sections.push({ titre: titre, options: par[titre] }); delete par[titre]; return; }
       if (par[titre] && par[titre].length) {
         par[titre].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
         sections.push({ titre: titre, options: par[titre] });
@@ -7091,7 +7105,7 @@
   };
   FEUILLES.listeChoix = function (f) {
     var cfg = S.ui.listes[f.id] || {}, n = 0;
-    var map = function (l) { return l.map(function (o) { n++; return { v: o[0], lib: o[1] }; }); };
+    var map = function (l) { return l.map(function (o) { if (o[2] === 'entete') return { entete: true, v: '', lib: o[1] }; n++; return { v: o[0], lib: o[1] }; }); };
     var o = { id: 'l', titre: 'Un seul choix', chemin: 'sel', recherche: true, accordeon: String(f.id).replace(/\d+$/, '') };
     if (cfg.sections) o.sections = cfg.sections.map(function (x) { return { titre: x.titre, options: map(x.options), fermeeParDefaut: !!x.fermeeParDefaut }; }); else o.options = map(cfg.options || []);
     if (n <= 8) o.recherche = false;

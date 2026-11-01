@@ -3443,3 +3443,5 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .rangee-actions-contact .bouton, .badge-deja-prevu { min-height: 36px !important; height: 36px !important; }
 .horaires-pharma-vue { display: block !important; text-align: left !important; }
 .horaires-pharma-vue > div { display: block; text-align: left; margin: 0; }
+/* 3.26.71 : sous-titres de secteurs dans la liste des quartiers */
+.sous-entete-choix { flex-basis: 100%; width: 100%; margin: 8px 0 2px; font: 700 11.5px var(--titre); letter-spacing: .04em; text-transform: uppercase; color: var(--gris); }
