@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.79';
+  var APP_VERSION = '3.26.80';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.80', ['Ouverture : la base gardée sur le téléphone est relue avant toute synchronisation (plus de retéléchargement complet ni d’écran « Chargement » à chaque ouverture) ; stockage protégé contre l’effacement automatique']],
     ['3.26.79', ['Compte rendu, étape 4 : Losartan AM retiré partout (y compris sans connexion) ; cartes produit de même taille, sur 2 lignes si besoin']],
     ['3.26.78', ['Répertoire : « Ajouter au jour » demande confirmation avant d’ajouter']],
     ['3.26.77', ['Planifier, RDV et prioritaires : « Ajouter » en vert, même taille que « Retirer », en dernière ligne']],
@@ -2514,11 +2515,12 @@
   // ------------------------------------------------------------------ Vue : accueil et identité
   // 3.26.73 : téléphone relié à la base, données pas encore reçues : on explique et on relance, au lieu de l'écran d'accueil
   VUES.chargement = function () {
+    if (S.ui.restauration) return '<section class="accueil"><img src="icon-192.png" alt="" width="64" height="64" style="border-radius:16px;margin:6px 0 18px"><h1>Ouverture…</h1><p>Lecture de vos données sur le téléphone.</p></section>';
     var enc = S.ui.sync === 'encours', err = S.ui.sync === 'erreur', hl = S.ui.sync === 'horsligne' || !navigator.onLine;
     return '<section class="accueil">' +
       '<img src="icon-192.png" alt="" width="64" height="64" style="border-radius:16px;margin:6px 0 18px">' +
-      '<h1>' + (enc ? 'Chargement de votre base…' : 'Votre base n\'est pas encore chargée') + '</h1>' +
-      '<p>' + (enc ? 'Première connexion : les praticiens et leurs plannings arrivent. Cela peut prendre jusqu\'à une minute avec un réseau lent. Gardez l\'application ouverte.' :
+      '<h1>' + (enc ? 'Téléchargement de votre base…' : 'Votre base n\'est pas encore chargée') + '</h1>' +
+      '<p>' + (enc ? 'Les praticiens et leurs plannings arrivent (environ 1,4 Mo). Cela peut prendre jusqu\'à une minute avec un réseau lent. Gardez l\'application ouverte.' :
         hl ? 'Pas de réseau. Activez les données mobiles ou le Wi-Fi, puis touchez « Réessayer ».' :
         err ? 'Le chargement a échoué : ' + esc(String(S.ui.erreur || 'erreur inconnue').replace(/\.\s*$/, '')) + '. Touchez « Réessayer ». Si cela recommence, vérifiez le réseau ou demandez un nouveau lien de connexion.' :
         'Touchez « Réessayer » pour charger les données.') + '</p>' +
@@ -10429,7 +10431,11 @@
     });
   }
   // Chargement asynchrone des données flash IndexedDB
-  IDB.init().then(function () {
+  // 3.26.80 : la base (plus de 500 ko) n'est gardée que dans IndexedDB ; on attend sa lecture avant la 1re synchronisation,
+  // sinon chaque ouverture retéléchargeait toute la base (1,4 Mo) et affichait « Chargement de votre base »
+  S.ui.restauration = true;
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}   // évite l'effacement par le téléphone
+  var idbRestauree = IDB.init().then(function () {
     return Promise.all(['data', 'plan', 'archives', 'queue', 'fiches'].map(function (k) {
       return IDB.get(k).then(function (val) {
         if (val !== null && val !== undefined) {
@@ -10440,8 +10446,8 @@
       });
     }));
   }).then(function () {
-    rendreSiPossible();
-  });
+    S.ui.restauration = false; rendreSiPossible();
+  }, function () { S.ui.restauration = false; rendreSiPossible(); });
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.ui.installEvt = e; if (S.ui.tab === 'reglages') rendre(); });
   // 3.25.28 : recalcul de la position et des distances à l'ouverture, réouverture, focus et réveil
   if (S.ui.tab === 'jour') { var tj0 = aujourdhui(); if (datesPlan().indexOf(tj0) >= 0) { S.ui.jour = tj0; S.ui.jourVue = null; } else S.ui.jourVue = tj0; }
@@ -10683,9 +10689,13 @@
   })();
   rendre();
   if (configureParLien) toast('Application configurée. Synchronisation…');
-  if (connecte()) synchroniser(!configureParLien).then(function () {
-    if (configureParLien && pret()) { S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); }
-  });
+  var lancerSync = function () {
+    if (connecte()) synchroniser(!configureParLien).then(function () {
+      if (configureParLien && pret()) { S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); }
+    });
+  };
+  // 3.26.80 : 1re synchronisation après la lecture de la base du téléphone (au plus 4 s d'attente)
+  Promise.race([idbRestauree, new Promise(function (ok) { setTimeout(ok, 4000); })]).then(function () { S.ui.restauration = false; lancerSync(); });
 
   // 3.25.42 : Intégration du bouton retour physique / geste Android pour refermer les modales sans quitter la PWA
   function gererHistoriqueModal(ouvert) {
