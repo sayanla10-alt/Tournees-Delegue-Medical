@@ -1,14 +1,14 @@
 /* Accessibilité universelle WCAG 2.1 AA : Annonceur vocal d'écran */
 .visuellement-cache {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap !important;
-  border: 0 !important;
+  border: 0;
 }
 /* =============================================================================
    MediPlanner v2.0.0 : feuille de styles
@@ -430,10 +430,10 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .couverture .groupe-bascule small { margin-left: 4px; }
 .couverture[aria-expanded] {}
 .couv-tete .groupe-bascule[aria-expanded="true"] svg { transform: rotate(180deg); }
-.couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: nowrap !important; margin-bottom: 6px; width: 100%; }
+.couv-tete { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: nowrap; margin-bottom: 6px; width: 100%; }
 .couv-tete .groupe-bascule { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
-.couv-tete .groupe-bascule b { font: 700 14px var(--titre); white-space: nowrap !important; overflow: visible !important; text-overflow: unset !important; flex: none; }
-.couv-tete .groupe-bascule small { margin-left: 2px; flex: none; font-size: 12.5px; font-weight: 600; color: var(--gris); white-space: nowrap !important; overflow: visible !important; text-overflow: unset !important; }
+.couv-tete .groupe-bascule b { font: 700 14px var(--titre); white-space: nowrap !important; overflow: visible; text-overflow: unset; flex: none; }
+.couv-tete .groupe-bascule small { margin-left: 2px; flex: none; font-size: 12.5px; font-weight: 600; color: var(--gris); white-space: nowrap !important; overflow: visible; text-overflow: unset; }
 .couv-tete .groupe-bascule svg { flex: none; width: 16px; height: 16px; }
 .couv-tete .segment.petit { flex: none; margin-left: auto; }
 .couv-tete .segment.petit button, .segment.petit button {
@@ -442,8 +442,8 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap !important;
-  word-break: normal !important;
-  overflow-wrap: normal !important;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 .carte-l { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 8px; }
 .carte-l.active { height: 300px; border: 1px solid var(--trait); }
@@ -680,12 +680,12 @@ body.feuille-ouverte { overflow: hidden; }
   box-sizing: border-box;
 }
 .grille-options-2 .puce {
-  width: 100% !important;
-  min-height: 42px !important;
-  justify-content: center !important;
-  text-align: center !important;
-  margin: 0 !important;
-  box-sizing: border-box !important;
+  width: 100%;
+  min-height: 42px;
+  justify-content: center;
+  text-align: center;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .grille-options-3 {
@@ -1238,14 +1238,14 @@ body.avec-barre main { padding-bottom: 90px; }
 /* Colonne gauche : caducée / icône au-dessus de l'heure */
 .lp-gauche { flex: none; width: 36px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; padding-top: 2px; cursor: pointer; }
 .lp-pastille-col { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; }
-.lp-gauche .type-pastille { margin-right: 0 !important; margin-bottom: 1px; width: 20px; height: 20px; font-size: 13px; }
+.lp-gauche .type-pastille { margin-right: 0; margin-bottom: 1px; width: 20px; height: 20px; font-size: 13px; }
 .lp-gauche .type-pastille svg { width: 13px; height: 13px; }
 .lp-heure { flex: none; width: 36px; font: 700 12.5px/1.1 var(--titre); color: var(--gris); text-align: center; }
 
 /* Colonne droite : nom en pleine largeur au-dessus, détails et boutons abaissés en dessous */
 .lp-droite { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .lp-nom-btn { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 0; color: inherit; font-size: 14.5px; line-height: 1.25; cursor: pointer; }
-.lp-corps b, .lp-nom-btn b { font-weight: 700; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; word-break: normal !important; display: inline !important; }
+.lp-corps b, .lp-nom-btn b { font-weight: 700; white-space: normal !important; overflow: visible; text-overflow: clip; word-break: normal; display: inline; }
 
 .lp-bas { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 2px; }
 .lp-details-btn { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 0; color: inherit; font-size: 12.5px; cursor: pointer; }
@@ -1313,7 +1313,7 @@ details.avance h3 { margin-top: 18px; }
   border-radius: 18px;
   border: none;
   background: var(--primaire, #0A6C74);
-  color: #ffffff !important;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -1325,7 +1325,7 @@ details.avance h3 { margin-top: 18px; }
 .bouton-reinit-danger svg {
   width: 14px;
   height: 14px;
-  color: #ffffff !important;
+  color: #ffffff;
   flex: none;
 }
 .bouton-reinit-rep:hover,
@@ -1341,11 +1341,11 @@ details.avance h3 { margin-top: 18px; }
 }
 .bouton-reinit-rep:disabled,
 .bouton-reinit-rep.desactive {
-  background: var(--trait, #e2e8f0) !important;
+  background: var(--trait, #e2e8f0);
   color: var(--gris, #94a3b8) !important;
-  cursor: not-allowed !important;
-  box-shadow: none !important;
-  pointer-events: none !important;
+  cursor: not-allowed;
+  box-shadow: none;
+  pointer-events: none;
   opacity: 0.7;
 }
 .bouton-reinit-rep:disabled svg,
@@ -1455,16 +1455,16 @@ details.avance h3 { margin-top: 18px; }
 .etapes-filtres .puce:not(.puce-parente),
 .cr-question .puces .puce:not(.puce-parente) {
   min-height: 38px !important;
-  max-height: 38px !important;
-  height: 38px !important;
-  padding: 0 12px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  max-height: 38px;
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap !important;
-  box-sizing: border-box !important;
-  line-height: 1 !important;
-  font-size: 13.5px !important;
+  box-sizing: border-box;
+  line-height: 1;
+  font-size: 13.5px;
 }
 
 /* 3.8.4 : Équipe, un bloc repliable par délégué */
@@ -1520,32 +1520,32 @@ details.avance h3 { margin-top: 18px; }
 /* 3.9.3 : navigation des étapes (hauteurs harmonisées pour Suivant, Précédent, Passer, Continuer) */
 .nav-etapes,
 .cr-boutons {
-  display: flex !important;
+  display: flex;
   flex-wrap: nowrap !important;
-  align-items: center !important;
-  gap: 8px !important;
+  align-items: center;
+  gap: 8px;
 }
 .nav-etapes .bouton,
 .cr-boutons .bouton {
-  height: 42px !important;
-  min-height: 42px !important;
-  max-height: 42px !important;
-  padding: 0 12px !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
   white-space: nowrap !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-sizing: border-box !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   line-height: 1 !important;
   flex: 1 1 0 !important;
 }
 .nav-etapes .bouton svg,
 .cr-boutons .bouton svg {
-  width: 16px !important;
-  height: 16px !important;
-  flex: none !important;
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 .nav-etapes .nav-prec svg { transform: rotate(90deg); }
 .nav-etapes .nav-suiv svg { transform: rotate(-90deg); }
@@ -1648,7 +1648,7 @@ details.avance h3 { margin-top: 18px; }
 .bj-jour[aria-pressed="true"] small, .bj-jour[aria-pressed="true"] i { color: inherit; opacity: .9; }
 .bj-cal {
   position: relative; flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px;
-  background: transparent !important; border: 0 !important; outline: none !important; padding: 0 !important;
+  background: transparent; border: 0; outline: none; padding: 0;
   color: var(--gris); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color .15s, transform .1s;
 }
 .bj-cal:active { color: var(--primaire); transform: scale(0.92); }
@@ -1762,9 +1762,9 @@ details.avance h3 { margin-top: 18px; }
 .wa-mini { margin-left: auto; color: #128C7E; border: 1.5px solid currentColor; border-radius: 50%; width: 36px; height: 36px; display: grid; place-items: center; background: var(--papier); }
 .wa-mini svg { width: 20px; height: 20px; }
 .bandeau-prog.accepter { border-color: var(--primaire); background: var(--primaire-pale); }
-.rangee-tirage { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important; width: 100% !important; margin-bottom: 8px !important; }
-.rangee-tirage .bouton { display: flex !important; align-items: center !important; justify-content: center !important; height: 44px !important; min-height: 44px !important; }
-.bouton-accepter-plan { display: flex !important; align-items: center !important; justify-content: center !important; margin: 0 auto 10px !important; width: 100% !important; max-width: 280px !important; height: 44px !important; min-height: 44px !important; font-weight: 700 !important; }
+.rangee-tirage { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; margin-bottom: 8px; }
+.rangee-tirage .bouton { display: flex; align-items: center; justify-content: center; height: 44px; min-height: 44px; }
+.bouton-accepter-plan { display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; width: 100%; max-width: 280px; height: 44px; min-height: 44px; font-weight: 700 !important; }
 .barre-plan-actions-flottante {
   position: sticky;
   bottom: calc(var(--haut-nav, 60px) + env(safe-area-inset-bottom, 0px));
@@ -1778,7 +1778,7 @@ details.avance h3 { margin-top: 18px; }
 }
 
 /* 3.21.0 : filtre Qui / Quand (Bilan, Équipe) */
-.barre-qq { display: flex; flex-wrap: nowrap !important; align-items: center; gap: 5px; margin: 10px 0 12px; width: 100%; }
+.barre-qq { display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; margin: 10px 0 12px; width: 100%; }
 .barre-qq > .puce-filtre { flex: 0 1 auto; max-width: 42%; min-width: 0; padding: 0 8px; font-size: 13px; gap: 4px; }
 .barre-qq .qq-quand { display: flex; align-items: center; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .barre-qq .qq-quand .puce-filtre { padding: 0 6px; font-size: 13px; min-width: 0; flex: 1 1 auto; justify-content: center; gap: 4px; }
@@ -2104,7 +2104,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .puce { max-width: 100%; min-width: 0; white-space: normal; text-align: center; line-height: 1.25; overflow-wrap: anywhere; word-break: break-word; box-sizing: border-box; }
 .segment { max-width: 100%; min-width: 0; overflow: hidden; }
 .segment button { min-width: 0; white-space: normal; line-height: 1.2; padding: 8px 6px; overflow-wrap: anywhere; }
-.segment.petit button { white-space: nowrap !important; word-break: normal !important; overflow-wrap: normal !important; min-width: 52px; padding: 0 10px; }
+.segment.petit button { white-space: nowrap !important; word-break: normal; overflow-wrap: normal; min-width: 52px; padding: 0 10px; }
 .cr-boutons, .feuille-pied { display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; box-sizing: border-box; }
 .cr-boutons .bouton, .feuille-pied .bouton { min-width: 0; max-width: 100%; flex: 1 1 auto; white-space: normal; line-height: 1.2; text-align: center; justify-content: center; }
 
@@ -2308,10 +2308,10 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 
 /* Calendrier moderne ultra-ergonomique sans scroll ni bavure */
 #feuille[data-ouverte="calendrierJour"] .feuille-corps {
-  overflow: hidden !important;
-  overscroll-behavior: none !important;
-  touch-action: manipulation !important;
-  padding: 8px 14px 12px !important;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  padding: 8px 14px 12px;
 }
 .cal-boite {
   display: flex;
@@ -2438,7 +2438,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   color: var(--encre);
   cursor: pointer;
   padding: 0;
-  box-shadow: none !important;
+  box-shadow: none;
   transition: transform .1s, background-color .15s;
 }
 .cal-jour-btn:active {
@@ -2455,7 +2455,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   font-weight: 800;
 }
 .cal-jour-btn.choisi {
-  background: var(--primaire) !important;
+  background: var(--primaire);
   color: #fff !important;
   font-weight: 800;
   border-color: transparent !important;
@@ -2483,30 +2483,30 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   font-weight: 600;
   color: var(--encre);
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: block;
 }
 .bilan-jour .bj-ligne1 b { font-size: 14.5px; font-weight: 700; }
 .bilan-jour .bj-ligne1 .bj-communes { font-weight: 600; color: var(--primaire); }
 .bilan-jour .details-plan {
-  font-size: 12px !important;
-  color: var(--gris) !important;
-  margin-top: 2px !important;
+  font-size: 12px;
+  color: var(--gris);
+  margin-top: 2px;
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  display: block !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 
 /* Onglet Planifier : Nom complet du médecin (strictement jamais tronqué, pas d'ellipse ni coupure) */
 .ligne-plan .lp-corps b {
   font-weight: 700;
   white-space: normal !important;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  word-break: normal !important;
-  display: inline !important;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: normal;
+  display: inline;
 }
 
 
@@ -2524,7 +2524,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .ligne-plan.med-engage .lp-corps b,
 .ligne-plan.med-engage .lp-nom-btn b,
 .bandeau-proche.med-engage p b:nth-of-type(2) {
-  color: #B45309 !important;
+  color: #B45309;
 }
 
 /* Types de visite organisés (Communs + Spécifiques Médecin / Pharmacie) */
@@ -2630,54 +2630,54 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 
 /* Barre de critères rapide dans l'onglet Planifier (strictement 2 lignes) */
 .barre-criteres-plan {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 6px !important;
-  margin: 0 0 10px !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .rangee-criteres {
-  width: 100% !important;
-  box-sizing: border-box !important;
+  width: 100%;
+  box-sizing: border-box;
 }
 .rangee-criteres-1 {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr !important;
-  gap: 6px !important;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
 }
 .rangee-criteres-2 {
-  display: grid !important;
-  grid-template-columns: 1.15fr 0.85fr 1fr !important;
-  gap: 6px !important;
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr 1fr;
+  gap: 6px;
 }
 .rangee-criteres .puce {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-  min-height: 34px !important;
-  height: 34px !important;
-  padding: 0 6px !important;
-  font-size: 12px !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 6px;
+  font-size: 12px;
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  justify-content: center !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
 }
 .rangee-criteres .puce span {
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  min-width: 0 !important;
-  text-align: center !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  text-align: center;
 }
 .rangee-criteres .puce svg {
-  flex-shrink: 0 !important;
-  width: 13px !important;
-  height: 13px !important;
-  margin-right: 3px !important;
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  margin-right: 3px;
 }
 .puce-critere { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; font-size: 12.5px; border-radius: 999px; background: var(--papier, #fff); border: 1px solid var(--trait); color: var(--encre); }
 .puce-critere svg { width: 14px; height: 14px; color: var(--primaire); flex-shrink: 0; }
@@ -2773,30 +2773,30 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 
 /* 3.25.36 : Barre d'actions Répertoire [ Recherche ] [ + Ajouter ] [ Modifier ] sur la même ligne */
 .rangee-actions-rep {
-  display: grid !important;
-  grid-template-columns: 1.15fr 1fr 1fr !important;
-  gap: 6px !important;
-  width: 100% !important;
-  margin: 6px 0 10px !important;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+  margin: 6px 0 10px;
 }
 .rangee-actions-rep .bouton {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 5px !important;
-  min-height: 42px !important;
-  height: 42px !important;
-  padding: 0 8px !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 42px;
+  height: 42px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 700;
   border-radius: 10px !important;
-  box-sizing: border-box !important;
-  margin: 0 !important;
+  box-sizing: border-box;
+  margin: 0;
 }
 .rangee-actions-rep .bouton span {
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 3.25.36 : Badges multimodaux piéton & voiture dans Journée */
@@ -3054,12 +3054,12 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 
 /* 3.26.30 : 'Communes visitées', compteur et 'Jour / Sem.' sur une seule ligne compacte */
 .couv-tete {
-  flex-wrap: nowrap !important;
+  flex-wrap: nowrap;
 }
 .couv-tete .groupe-bascule b {
   white-space: nowrap !important;
-  overflow: visible !important;
-  text-overflow: unset !important;
+  overflow: visible;
+  text-overflow: unset;
 }
 .couv-ligne > div b {
   white-space: normal !important;
@@ -3359,9 +3359,9 @@ span.btn-micro-gps:active { transform: none; }
 .grille-pres .tr-lieu-aide .texte-aide-plan { font-size: 11px; white-space: nowrap; }
 .grille-pres .cell-lieu-infos { white-space: normal !important; overflow: hidden; }
 /* 3.26.51 : jours grisés en vrai gris (sans filtre, qui donnait du marron sur certains téléphones) */
-.bj-jour.grise, .bj-jour.non-ouvre, .frise-plan .bj-jour.grise { filter: none !important; opacity: 1 !important; background: #eceff1 !important; border-color: #cfd8dc !important; color: #90a4ae !important; box-shadow: none !important; }
-.bj-jour.grise *, .bj-jour.non-ouvre * { color: #90a4ae !important; }
-.bj-jour.non-ouvre[aria-pressed="true"] { background: #b0bec5 !important; border-color: #90a4ae !important; color: #fff !important; }
+.bj-jour.grise, .bj-jour.non-ouvre, .frise-plan .bj-jour.grise { filter: none; opacity: 1 !important; background: #eceff1; border-color: #cfd8dc !important; color: #90a4ae; box-shadow: none; }
+.bj-jour.grise *, .bj-jour.non-ouvre * { color: #90a4ae; }
+.bj-jour.non-ouvre[aria-pressed="true"] { background: #b0bec5; border-color: #90a4ae !important; color: #fff !important; }
 .bj-jour.non-ouvre[aria-pressed="true"] * { color: #fff !important; }
 
 /* 3.26.54 (lot 2) : boutons harmonisés. Une seule forme pour toute l'application :
@@ -3371,7 +3371,7 @@ span.btn-micro-gps:active { transform: none; }
 .bouton.petit { border-radius: 999px; }
 .rangee-actions-rep .bouton, .rangee-criteres-ajouter .bouton, .rangee-actions-contact .bouton,
 .barre-recherche .bouton, .lancement.moderne .bouton, .badge-deja-prevu {
-  min-height: 44px !important; height: 44px !important; border-radius: 999px !important;
+  min-height: 44px !important; height: 44px; border-radius: 999px !important;
   font-size: 14px !important; font-weight: 600 !important;
 }
 .rangee-actions-contact .bouton-inopinee { font-weight: 600 !important; }

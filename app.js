@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.54';
+  var APP_VERSION = '3.26.55';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.55', ['Feuille de style nettoyée : 125 forçages « !important » inutiles retirés, affichage strictement identique (vérifié sur 72 écrans, clair et sombre)']],
     ['3.26.54', ['Positions : une seule règle pour toute l’application (coordonnées avec virgule ou point, 0 ou hors Côte d’Ivoire = pas de GPS ; position du téléphone valable 10 min partout)', 'Boutons harmonisés : même forme arrondie, même hauteur et même taille de texte dans tous les onglets']],
     ['3.26.53', ['Base : le quartier est séparé des repères d’adresse (nouvelle colonne Repères), modifiables dans la fiche', 'Contrôle automatique des doublons de numéros de lieu et de codes']],
     ['3.26.52', ['Journée, appui très long sur une visite renseignée : remettre « à faire » ou supprimer complètement la visite']],
