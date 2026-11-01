@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.78';
+  var APP_VERSION = '3.26.79';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.79', ['Compte rendu, étape 4 : Losartan AM retiré partout (y compris sans connexion) ; cartes produit de même taille, sur 2 lignes si besoin']],
     ['3.26.78', ['Répertoire : « Ajouter au jour » demande confirmation avant d’ajouter']],
     ['3.26.77', ['Planifier, RDV et prioritaires : « Ajouter » en vert, même taille que « Retirer », en dernière ligne']],
     ['3.26.76', ['Journée, jour sans planification : « Reprendre un ancien programme » sous « Planifier le … »']],
@@ -4942,6 +4943,7 @@
     fiches.forEach(function (f) { vus[normaliser(f.produit)] = true; });
     prodsListes.forEach(function (p) {
       var kp = normaliser(p);
+      if (l.length && !vus[kp]) return;   // 3.26.79 : base connectée : un produit sans fiche active n'est pas proposé
       if (!vus[kp] && !inactifs[kp]) {
         var nouv = deduireFicheProduit(p, fiches);
         fiches.push(nouv);

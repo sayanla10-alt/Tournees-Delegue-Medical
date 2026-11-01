@@ -3448,7 +3448,8 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 /* 3.26.72 : entête de gamme sur une ligne ; produits d'une famille sur une seule ligne */
 .gamme-cr-entete.gamme-compacte { flex-wrap: nowrap; }
 .gamme-cr-entete.gamme-compacte > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.liste-gammes-cr .lg-produits:not(.seul) { grid-template-columns: none !important; grid-auto-flow: column !important; grid-auto-columns: minmax(0, 1fr) !important; }
+/* 3.26.79 : retour à 2 colonnes fixes : toutes les cartes produit ont la même taille, sur 2 lignes si besoin */
+.liste-gammes-cr .lg-produits:not(.seul) { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; grid-auto-flow: row !important; }
 .liste-gammes-cr .pastille-produit { padding: 0 6px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* 3.26.74 : bouton « Modifier le planning hebdomadaire » centré, 36 px comme Planifier ; boutons du contact resserrés */
 .pres-actions { display: flex !important; justify-content: center !important; border: 0 !important; padding: 8px 0 2px !important; }
