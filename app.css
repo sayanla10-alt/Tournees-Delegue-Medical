@@ -3353,3 +3353,13 @@ span.btn-micro-gps:active { transform: none; }
 /* 3.26.50 : jour non ouvré dans la frise de Journée (aujourd'hui un week-end) */
 .bj-jour.non-ouvre { opacity: .45; filter: grayscale(1); }
 .bj-jour.non-ouvre[aria-pressed="true"] { opacity: .75; }
+/* 3.26.51 : planning du Répertoire : ligne GPS + aide séparée des pastilles M / S */
+.grille-pres .tr-lieu-aide td { padding: 2px 4px 4px !important; }
+.grille-pres .tr-lieu-aide .ligne-micro-gps-plan { display: flex !important; flex-wrap: wrap !important; align-items: center; gap: 4px 8px; white-space: normal !important; margin: 0 !important; }
+.grille-pres .tr-lieu-aide .texte-aide-plan { font-size: 11px; white-space: nowrap; }
+.grille-pres .cell-lieu-infos { white-space: normal !important; overflow: hidden; }
+/* 3.26.51 : jours grisés en vrai gris (sans filtre, qui donnait du marron sur certains téléphones) */
+.bj-jour.grise, .bj-jour.non-ouvre, .frise-plan .bj-jour.grise { filter: none !important; opacity: 1 !important; background: #eceff1 !important; border-color: #cfd8dc !important; color: #90a4ae !important; box-shadow: none !important; }
+.bj-jour.grise *, .bj-jour.non-ouvre * { color: #90a4ae !important; }
+.bj-jour.non-ouvre[aria-pressed="true"] { background: #b0bec5 !important; border-color: #90a4ae !important; color: #fff !important; }
+.bj-jour.non-ouvre[aria-pressed="true"] * { color: #fff !important; }

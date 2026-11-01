@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.50';
+  var APP_VERSION = '3.26.51';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.51', ['Journée : appui très long (1,5 s) sur une visite renseignée = effacer son compte rendu, après confirmation',
+      'Répertoire : pastilles M / S du planning séparées de « Touchez M ou S pour planifier » (plus de chevauchement)',
+      'Jours grisés en vrai gris', 'Modifier : en tapant le nom de l\'hôpital, les quartiers correspondants s\'affichent à choisir']],
     ['3.26.50', ['Répertoire : pastille GPS = simple indicateur (vert : position en base, rouge : absente) ; bouton « Modifier »',
       'Journée s\'ouvre sur aujourd\'hui, au centre de la frise, grisé si non ouvré ; Planifier a aussi le petit calendrier',
       'Modifier : le choix Médecin / Pharmacie n\'apparaît plus en modification',
@@ -2231,6 +2234,21 @@
 
     function demarrerAppuiLong(e) {
       annulerAppuiLong();
+      // 3.26.51 : Journée : appui très long (1,5 s) sur une visite renseignée = effacer son compte rendu, après confirmation
+      if (S.ui.tab === 'jour') {
+        var li = e.target && e.target.closest && e.target.closest('li.arret[data-uid-arret]');
+        if (!li || (e.target.closest && e.target.closest('input, textarea, select'))) return;
+        var av = arret(li.dataset.uidArret); if (!av || !av.statut) return;
+        var ptj = e.touches ? e.touches[0] : e; startX = ptj.clientX; startY = ptj.clientY;
+        cibleEl = li.querySelector('.arret-carte') || li; cibleEl.classList.add('appui-long-actif');
+        timer = setTimeout(function () {
+          timer = null; longPressFired = true; dernierAppuiLongFired = Date.now();
+          if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
+          try { if (navigator.vibrate) navigator.vibrate([40, 40, 40]); } catch (err) {}
+          confirmerPuis('Effacer le compte rendu', 'Effacer le compte rendu de <b>' + esc(av.nom) + '</b> ? La visite redevient « à faire ».', 'Effacer', function () { effacerCr(av); });
+        }, 1500);
+        return;
+      }
       if (S.ui.tab !== 'semaine') return;
 
       // Détection sur n'importe quelle date planifiée de la frise OU sur le titre / en-tête de la journée
@@ -3461,6 +3479,13 @@
     publierPlan(true);
     toast('Journée du ' + dateFr(date) + ' supprimée.');
   }
+  // 3.26.51 : compte rendu effacé (appui très long) : la visite redevient à faire ; si déjà envoyé, la correction partira à la prochaine validation
+  function effacerCr(a) {
+    delete a.cr; a.statut = ''; delete a.valideA; a.activite = ''; a.produits = ''; a.commentaire = ''; a.prochaine = ''; a.rdvConfirme = false;
+    if (a.etat === 'valide') { a.etat = 'ajoute'; a.corrige = true; }
+    S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
+    sauver(); rendre(); toast('Compte rendu effacé.');
+  }
   function demanderSuppressionJour(date, nb) {
     nb = (nb !== undefined && nb !== null) ? nb : S.plan.filter(function (a) { return a.date === date; }).length;
     var dLong = majuscule(dateLongue(date));
@@ -4236,8 +4261,10 @@
     if (c.commande === 'non') e('besoin', 'Besoin de réapprovisionnement', 'facultatif', function () { return rendreChoixProduitsCr(a, 'besoin', c.besoin) + texteCr(a, 'besoinTexte', c.besoinTexte, 'Autres besoins'); },
       function () { var b = (c.besoin || []).concat(c.besoinTexte ? [c.besoinTexte] : []); return b.length ? b.join(', ') : 'aucun'; });
     var t = c.types || [];
-    if (t.indexOf('Échantillons') >= 0) e('echQ', 'Échantillons (quantités)', 'continuer', function () { return tableQ(a, 'echQ', cat, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
-    if (t.indexOf('Retour') >= 0 || t.indexOf('Retour ou échange') >= 0) e('retour', 'Retour', 'continuer', function () { return tableQ(a, 'retourQ', cat, c.retourQ) + texteCr(a, 'retourMotif', c.retourMotif, 'Motif du retour'); },
+    // 3.26.51 : seuls les produits cochés plus tôt (vérifiés en stock) sont proposés ensuite, sinon tout le catalogue
+    var catCoches = (c.produitsStock && c.produitsStock.length) ? c.produitsStock.slice() : cat;
+    if (t.indexOf('Échantillons') >= 0) e('echQ', 'Échantillons (quantités)', 'continuer', function () { return tableQ(a, 'echQ', catCoches, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
+    if (t.indexOf('Retour') >= 0 || t.indexOf('Retour ou échange') >= 0) e('retour', 'Retour', 'continuer', function () { return tableQ(a, 'retourQ', catCoches, c.retourQ) + texteCr(a, 'retourMotif', c.retourMotif, 'Motif du retour'); },
       function () { return (listeQ(c.retourQ) || 'aucune quantité') + (c.retourMotif ? ' (' + c.retourMotif + ')' : ''); });
     var act = t.filter(function (x) { return ['PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
     if (act.length) e('action', act.join(', ') + ' : action et produits', 'continuer', function () { return texteCr(a, 'action', c.action, 'Ex. présentoir installé, équipe formée sur Rozukaa') + rendreChoixProduitsCr(a, 'actionProduits', c.actionProduits); },
@@ -4562,7 +4589,7 @@
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';
     e += etiquetteCollegues(a.code, a.date);
 
-    var h = '<li class="' + cls + '" data-p="' + (+a.note === 3 ? 1 : 3) + '">' +
+    var h = '<li class="' + cls + '" data-p="' + (+a.note === 3 ? 1 : 3) + '" data-uid-arret="' + esc(a.uid) + '">' +
       '<div class="arret-heure"><b>' + esc((a.statut && a.valideA) || a.heure || (a.creneau ? a.creneau.slice(0, 5) : '--:--')) + '</b>' + (a.debut || a.fin ? '<small>' + esc(a.debut) + '-' + esc(a.fin) + '</small>' : '') + '</div>' +
       '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
       '<div><div class="arret-carte' + classeType(a) + '">' +
@@ -5649,14 +5676,15 @@
       var nomLieu = abregerHopital(pr.lieu || (estPh ? p.nom : 'Établissement'));
       var quartierNet = String(pr.quartier || '').replace(/\bBoulevard\b/gi, 'Blvd.');
       var adresseTxt = [quartierNet, pr.commune].filter(Boolean).join(', ');
+      // 3.26.51 : GPS et aide « Touchez M ou S » sur une ligne pleine largeur : ils ne chevauchent plus les pastilles M / S
       h += '<tr class="tr-lieu-titre"><td colspan="6" class="cell-lieu-titre"><b class="lieu-nom-plein" title="' + esc(nomLieu) + '">' + esc(nomLieu) + '</b></td></tr>' +
-        '<tr class="tr-lieu-corps"><td class="cell-lieu-infos"><small>' + esc(adresseTxt) + '<br>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
-        ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small>' +
-        '<div class="ligne-micro-gps-plan" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap"><span class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" role="img" aria-label="' + (hasGps ? 'Position GPS enregistrée' : 'Pas de position GPS') + '" title="' + (hasGps ? 'Position GPS enregistrée dans la base' : 'Pas de position GPS dans la base') + '">' +
-          icone('carte') + '<span>GPS</span></span>' +
-          (!estPh ? '<span class="discret texte-aide-plan" style="font-size:11px;line-height:1.2;white-space:nowrap;flex-shrink:0">Touchez M ou S pour planifier</span>' : '') +
-        '</div>' +
-        '</td>' +
+        '<tr class="tr-lieu-aide"><td colspan="6"><div class="ligne-micro-gps-plan">' +
+          '<span class="btn-micro-gps ' + (hasGps ? 'fixe' : 'manquant') + '" role="img" aria-label="' + (hasGps ? 'Position GPS enregistrée' : 'Pas de position GPS') + '" title="' + (hasGps ? 'Position GPS enregistrée dans la base' : 'Pas de position GPS dans la base') + '">' + icone('carte') + '<span>GPS</span></span>' +
+          (!estPh ? '<small class="discret texte-aide-plan">Touchez M ou S pour planifier</small>' : '') +
+          '<small class="discret" style="flex-basis:100%;text-align:left">' + esc(adresseTxt) + '</small>' +
+        '</div></td></tr>' +
+        '<tr class="tr-lieu-corps"><td class="cell-lieu-infos"><small>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) +
+        '<br>Soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</small></td>' +
         JOURS_CLES.map(function (j, i) {
           var d = lireDispo(pr[j]);
           var t = d.matin && d.soir ? 'M S' : (d.matin ? 'M' : (d.soir ? 'S' : ''));
@@ -7374,8 +7402,15 @@
     };
     l.sort(function (a, b) { return rang(a) - rang(b) || (a.dist - b.dist) || (b.n - a.n) || a.lieu.localeCompare(b.lieu, 'fr'); });
     l = l.slice(0, 5); S.ui.sugLieux[i] = l;
-    if (!l.length) return '';
-    return '<ul class="sug-liste">' + l.map(function (e, k) {
+    // 3.26.51 : quartiers dont le nom correspond aux lettres tapées, à choisir d'une touche (évite les fautes de frappe)
+    var qs = mots.filter(function (m) { return m.length >= 3; }).length ? quartiers().filter(function (x) {
+      var nq = normaliser(x.quartier + ' ' + x.commune); return mots.some(function (m) { return m.length >= 3 && nq.indexOf(m) >= 0; });
+    }).slice(0, 6) : [];
+    var puQ = qs.length ? '<div class="discret" style="font-size:12px;margin:6px 0 4px">Quartiers correspondants :</div><div class="puces">' + qs.map(function (x) {
+      return '<button type="button" class="puce petite" data-a="ficheChoixQuartier" data-i="' + i + '" data-v="' + esc(x.quartier) + '">' + esc(x.quartier) + ' <small>' + esc(x.commune) + '</small></button>';
+    }).join('') + '</div>' : '';
+    if (!l.length) return puQ;
+    return puQ + '<ul class="sug-liste">' + l.map(function (e, k) {
       var distTxt = e.dist < 50 ? (e.dist < 1 ? Math.round(e.dist * 1000) + ' m' : km(e.dist)) : '';
       return '<li><button type="button" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '"><b>' + esc(e.lieu) + '</b><small>' +
         esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + (distTxt ? ' · ' + distTxt : '') + ' · ' + (e.n ? e.n + ' praticien' + (e.n > 1 ? 's' : '') : 'Hôpital') + '</small></button></li>';
@@ -9793,6 +9828,12 @@
     ficheEditerLieu0: function () {
       var f = S.ui.feuille;
       if (f) { f.editerLieu0 = !f.editerLieu0; rendre(); }
+    },
+    ficheChoixQuartier: function (el) {
+      var f = S.ui.feuille, i = +el.dataset.i; if (!f || f.type !== 'fiche' || !f.d.lieux[i]) return;
+      var q = quartiers().filter(function (x) { return x.quartier === el.dataset.v; })[0];
+      f.d.lieux[i].quartier = el.dataset.v; if (q) f.d.lieux[i].commune = q.commune; delete f.err['quartier' + i];
+      rendre(); toast('Quartier : ' + el.dataset.v + (q ? ', ' + q.commune : '') + '.');
     },
     ficheAjouterLieu: function () {
       var f = S.ui.feuille;
