@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.61';
+  var APP_VERSION = '3.26.62';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.62', ['Planifier : bouton « Modifier » (fiche du praticien) dans les options d’une visite de la liste', 'Journée : appui très long (1,5 s) sur n’importe quelle carte : suppression de la visite après confirmation (si un compte rendu existe : remettre « à faire » ou supprimer)']],
     ['3.26.61', ['Fiche médecin : retour à 2 étapes (1. Médecin, 2. Lieux & planning), champs resserrés pour le téléphone']],
     ['3.26.60', ['Fiche médecin sur une seule page : identité puis lieux (l’hôpital n’est saisi qu’une fois)', 'GPS du lieu : un bouton et une pastille, sans coordonnées', 'Planning : horaires dans l’en-tête des colonnes Matin / Soir ; pas de barre « Lieu 1 » quand il n’y a qu’un lieu ; ouverture directe sur la grille', 'Phrase « Établissement connu… » retirée', 'Reconnaissance des établissements plus stricte : un sigle court (ex. ICA) n’est plus trouvé à l’intérieur d’un autre mot (ex. médical)']],
     ['3.26.59', ['Planning hebdomadaire : « Oui » remis dans la grille', 'Fiche : plus de liste de quartiers en tapant l’hôpital ; quartier, GPS et repères repris automatiquement quand l’hôpital est connu']],
@@ -2259,14 +2260,15 @@
       if (S.ui.tab === 'jour') {
         var li = e.target && e.target.closest && e.target.closest('li.arret[data-uid-arret]');
         if (!li || (e.target.closest && e.target.closest('input, textarea, select'))) return;
-        var av = arret(li.dataset.uidArret); if (!av || !av.statut) return;
+        var av = arret(li.dataset.uidArret); if (!av) return;
         var ptj = e.touches ? e.touches[0] : e; startX = ptj.clientX; startY = ptj.clientY;
         cibleEl = li.querySelector('.arret-carte') || li; cibleEl.classList.add('appui-long-actif');
         timer = setTimeout(function () {
           timer = null; longPressFired = true; dernierAppuiLongFired = Date.now();
           if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
           try { if (navigator.vibrate) navigator.vibrate([40, 40, 40]); } catch (err) {}
-          S.ui.feuille = { type: 'effacerVisite', titre: 'Effacer le compte rendu', uid: av.uid }; rendre();
+          if (av.statut) { S.ui.feuille = { type: 'effacerVisite', titre: 'Effacer le compte rendu', uid: av.uid }; rendre(); }
+          else confirmerPuis('Supprimer la visite', 'Retirer <b>' + esc(av.nom) + '</b> de la journée ?', 'Supprimer', function () { supprimerVisiteJour(av); });
         }, 1500);
         return;
       }
@@ -3491,6 +3493,13 @@
     toast('Journée du ' + dateFr(date) + ' supprimée.');
   }
   // 3.26.51 : compte rendu effacé (appui très long) : la visite redevient à faire ; si déjà envoyé, la correction partira à la prochaine validation
+  // 3.26.62 : suppression complète d'une visite de la journée (appui très long)
+  function supprimerVisiteJour(a) {
+    S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
+    S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; }); S.horsPlan = (S.horsPlan || []).filter(function (x) { return x.uid !== a.uid; });
+    LS.set('horsPlan', S.horsPlan); S.ui.aPublier = true; LS.set('aPublier', true); sauver(); rendre(); toast('Visite supprimée de la journée.');
+    if (connecte()) synchroniser(true);
+  }
   function effacerCr(a) {
     delete a.cr; a.statut = ''; delete a.valideA; a.activite = ''; a.produits = ''; a.commentaire = ''; a.prochaine = ''; a.rdvConfirme = false;
     if (a.etat === 'valide') { a.etat = 'ajoute'; a.corrige = true; }
@@ -3588,7 +3597,7 @@
     var coord = a.coord || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lat ? { lat: +pObj.lieux[0].lat, lon: +pObj.lieux[0].lon } : null);
     var secteur = nomSecteur(qBrut, comBrut, coord);
     var morceaux = [];
-    if (a.specialite) morceaux.push(a.specialite);
+    if (a.specialite) morceaux.push(abrSpec(a.specialite));
     if (hopital) morceaux.push(hopital);
     if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) morceaux.push(secteur);
     var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || coord) : null;
@@ -3638,7 +3647,7 @@
         '</button>' +
         '<div class="lp-bas">' +
           '<button type="button" class="lp-details-btn" data-a="voirVisite" data-uid="' + a.uid + '">' +
-            (sousTitre ? '<span class="discret bloc-texte">' + esc(sousTitre) + '</span>' : '') +
+            (sousTitre ? '<span class="discret bloc-texte">' + specGras(a, sousTitre) + '</span>' : '') +
             (e ? '<span class="etiquettes">' + e + '</span>' : '') +
           '</button>' +
           (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
@@ -6604,7 +6613,7 @@
     var sousTitre = estPharmacie(a) ? infosPharmaciePlan(a) : infosMedecinPlan(a);
     return '<div class="fiche-entete" style="margin-bottom:12px">' +
       '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) + '</span>' +
-      (sousTitre ? '<p class="discret" style="margin:4px 0 8px">' + esc(sousTitre) + '</p>' : '') +
+      (sousTitre ? '<p class="discret" style="margin:4px 0 8px">' + specGras(a, sousTitre) + '</p>' : '') +
       '<p style="margin:0"><b>' + majuscule(dateLongue(a.date)) + '</b> · Passage vers <b>' + esc(a.heure || '--:--') + '</b> (' + esc(a.creneau || '') + ')</p>' +
       '</div>' +
       '<div class="choix-ajout">' +
@@ -6612,6 +6621,7 @@
         '<button type="button" class="tuile" data-a="completerJour" data-uid="' + a.uid + '"><b>' + icone('relancer') + 'Remplacer</b><small>Choisir un autre praticien pour ce créneau</small></button>' +
         '<button type="button" class="tuile" data-a="garderPlan" data-uid="' + a.uid + '"><b>' + icone('epingle') + (a.garde ? 'Ne plus garder' : 'Épingler / Garder') + '</b><small>' + (a.garde ? 'Actuellement protégé du recalcul' : 'Protéger ce praticien lors des recalculs') + '</small></button>' +
         '<button type="button" class="tuile" data-a="retirerPlan" data-uid="' + a.uid + '"><b>' + icone('fermer') + 'Retirer</b><small>Enlever de la tournée du ' + dateCourte(a.date) + '</small></button>' +
+        '<button type="button" class="tuile" data-a="modifierFiche" data-v="' + esc(a.code) + '"><b>' + icone('crayon') + 'Modifier</b><small>Modifier la fiche de ' + (estPharmacie(a) ? 'la pharmacie' : 'ce médecin') + '</small></button>' +
         '<button type="button" class="tuile" data-a="voirDansJournee" data-uid="' + a.uid + '"><b>' + icone('chevron') + 'Voir dans Journée</b><small>Basculer vers la vue détaillée du jour</small></button>' +
       '</div>';
   };
@@ -9815,6 +9825,7 @@
       if (f) { f.editerLieu0 = !f.editerLieu0; rendre(); }
     },
     effacerVisiteChoix: function (el) {
+      if (el.dataset.v === 'supprimer') { var f0 = S.ui.feuille, a0 = f0 && arret(f0.uid); S.ui.feuille = null; if (a0) supprimerVisiteJour(a0); else rendre(); return; }
       var f = S.ui.feuille, a = f && arret(f.uid); S.ui.feuille = null; if (!a) { rendre(); return; }
       if (el.dataset.v === 'supprimer') {
         S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
