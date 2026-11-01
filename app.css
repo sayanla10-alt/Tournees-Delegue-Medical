@@ -3402,3 +3402,9 @@ span.btn-micro-gps:active { transform: none; }
 .ligne-contact > span { white-space: nowrap; font-size: 13.5px; }
 .ligne-contact .actions-rapides { gap: 4px; }
 .ligne-contact .action-rapide { width: 36px; height: 36px; min-height: 36px !important; }
+/* 3.26.61 : fiche plus serrée sur téléphone */
+.feuille .champ { margin-bottom: 8px; }
+.feuille .champ > span { margin-bottom: 2px; }
+.feuille .interrupteur { padding: 6px 0; min-height: 0; }
+.feuille .lieu-bloc { padding: 10px; margin-bottom: 8px; }
+.feuille .puces { margin-bottom: 4px !important; }

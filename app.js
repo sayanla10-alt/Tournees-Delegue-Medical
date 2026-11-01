@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.60';
+  var APP_VERSION = '3.26.61';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.61', ['Fiche médecin : retour à 2 étapes (1. Médecin, 2. Lieux & planning), champs resserrés pour le téléphone']],
     ['3.26.60', ['Fiche médecin sur une seule page : identité puis lieux (l’hôpital n’est saisi qu’une fois)', 'GPS du lieu : un bouton et une pastille, sans coordonnées', 'Planning : horaires dans l’en-tête des colonnes Matin / Soir ; pas de barre « Lieu 1 » quand il n’y a qu’un lieu ; ouverture directe sur la grille', 'Phrase « Établissement connu… » retirée', 'Reconnaissance des établissements plus stricte : un sigle court (ex. ICA) n’est plus trouvé à l’intérieur d’un autre mot (ex. médical)']],
     ['3.26.59', ['Planning hebdomadaire : « Oui » remis dans la grille', 'Fiche : plus de liste de quartiers en tapant l’hôpital ; quartier, GPS et repères repris automatiquement quand l’hôpital est connu']],
     ['3.26.58', ['Spécialités abrégées (MG, Cardio, Diabéto, Endocrino, Gynéco) dans Planifier, compte rendu, critères et fiche ; spécialité en gras dans Planifier', 'Fiche et planning hebdomadaire : lieux repliables comme dans Produits (sans « Déplier »), raccourcis Semaine / Matins / Soirs sur une ligne, grille plus compacte', 'Répertoire : pastille GPS avec les étiquettes (Engagé, Vu il y a…)']],
@@ -7542,7 +7543,7 @@
   }
   function champFiche(cle, libelle, contenu, f, requis, aide) {
     var err = f.err[cle] || '';
-    return '<div class="champ"><span class="' + (requis ? 'requis' : '') + '">' + libelle + '</span>' + contenu +
+    return '<div class="champ"><span class="' + (requis ? 'requis' : '') + '">' + (requis ? String(libelle).replace(/\s*\*\s*$/, '') : libelle) + '</span>' + contenu +
       (aide ? '<span class="aide-champ">' + aide + '</span>' : '') + '<span class="erreur" data-err="' + cle + '" id="err-' + cle + '">' + esc(err) + '</span></div>';
   }
   function attrInvalide(f, cle) { return (f.err[cle] ? ' aria-invalid="true"' : '') + ' aria-describedby="err-' + cle + '"'; }
@@ -7555,7 +7556,7 @@
         '<button class="bouton bouton-plein" type="button" data-a="effacerVisiteChoix" data-v="supprimer">Supprimer la visite</button>' };
   };
   FEUILLES.fiche = function (f) {
-    var d = f.d, e = 0, seulPlanning = !!f.planningSeul; f.etape = 0;   // 3.26.60 : une seule page (identité puis lieux)
+    var d = f.d, seulPlanning = !!f.planningSeul, e = seulPlanning ? 1 : Math.min(f.etape || 0, 1); f.etape = e;   // 3.26.61 : deux étapes (identité, puis lieux et planning)
     synchroniserDefautsFiche(d);
     var estPh = d.type === 'Pharmacie', l0 = d.lieux[0];
     // 3.26.50 : le choix Médecin / Pharmacie n'apparaît qu'à la création ; en modification, le type est fixé
@@ -7563,8 +7564,11 @@
     var h = (existante ? '' : '<div class="segment" role="group" aria-label="Type" style="margin-bottom:8px">' + ['Médecin', 'Pharmacie'].map(function (t) {
         return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
       }).join('') + '</div>');
+    if (!seulPlanning) h += '<div class="segment" role="group" aria-label="Étapes" style="margin-bottom:8px">' +
+        '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (e === 0) + '">1. ' + (estPh ? 'Pharmacie' : 'Médecin') + '</button>' +
+        '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">2. ' + (estPh ? 'Horaires' : 'Lieux & planning (' + d.lieux.length + ')') + '</button></div>';
 
-    if (!seulPlanning) {
+    if (e === 0) {
       var q0 = quartiers().filter(function (x) { return x.quartier === l0.quartier; })[0];
       if (estPh) {
         // PHARMACIE : Nom d'abord avec détection anti-doublon en direct, puis localisation fixe
@@ -7625,8 +7629,7 @@
       if (d.code) h += '<label class="interrupteur"><span>Actif dans le répertoire</span><input type="checkbox" data-f="fiche" data-k="actif"' + (d.actif !== 'Non' ? ' checked' : '') + '></label>';
     }
 
-    {
-      if (!seulPlanning && !estPh) h += '<h3 class="fiche-section">Lieux d\'exercice et planning</h3>';
+    if (e === 1) {
       if (f.err.lieux) h += '<p class="erreur-texte">' + esc(f.err.lieux) + '</p>';
       if (typeof f.lieuOuvert !== 'number' || f.lieuOuvert < 0 || f.lieuOuvert >= d.lieux.length) {
         f.lieuOuvert = 0;
@@ -7697,6 +7700,7 @@
     }
 
     var pied = '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">Annuler</button>' +
+      (seulPlanning ? '' : (e === 0 ? '<button class="bouton" type="button" data-a="ficheEtape" data-v="1">Lieux →</button>' : '<button class="bouton" type="button" data-a="ficheEtape" data-v="-1">← Médecin</button>')) +
       '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>';
     return { corps: h, pied: pied };
   };
@@ -9950,7 +9954,7 @@
       synchroniserDefautsFiche(f.d);
       for (var i = 0; i < 2; i++) {
         var e = erreursEtape(f.d, i);
-        if (Object.keys(e).length) { f.err = e; var kL = Object.keys(e).map(function (x) { var m2 = x.match(/^(?:lieu|quartier|jours|hm|hs)(\d+)$/); return m2 ? +m2[1] : -1; }).filter(function (x) { return x >= 0; })[0]; if (kL !== undefined) { f.lieuOuvert = kL; f.planningSeul = false; } rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
+        if (Object.keys(e).length) { f.err = e; var kL = Object.keys(e).map(function (x) { var m2 = x.match(/^(?:lieu|quartier|jours|hm|hs)(\d+)$/); return m2 ? +m2[1] : -1; }).filter(function (x) { return x >= 0; })[0]; f.etape = i; if (kL !== undefined) { f.lieuOuvert = kL; if (i === 1) f.etape = 1; } rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
       }
       if (!f.d.code && !f.doublonConfirme) {
         var doublons = chercherDoublonsFiche(f.d).filter(function (x) { return x.exact; });
