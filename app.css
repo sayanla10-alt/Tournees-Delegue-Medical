@@ -3434,3 +3434,5 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .rangee-tirage .bouton-accepter-plan { margin: 0 !important; max-width: none !important; }
 /* 3.26.66 : Ajouter / Recalculer / Accepter à la hauteur du bouton « Critères » (34 px) */
 .rangee-tirage .bouton { min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; }
+/* 3.26.67 : ligne de détail du jour centrée */
+.tete-jour-plan .details-plan { text-align: center; }

@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.66';
+  var APP_VERSION = '3.26.67';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.67', ['Planifier : date courte (Mar. 03 Nov.) ; ligne de détail centrée avec Cœur / Autres selon le cœur de cible']],
     ['3.26.66', ['Planifier : Ajouter, Recalculer, Accepter à la même hauteur que « Critères »']],
     ['3.26.65', ['Planifier : « Ajouter », « Recalculer » et « Accepter » (ou « WhatsApp ») sur une seule ligne', 'Journée : samedis, dimanches et jours fériés présents dans la frise, grisés']],
     ['3.26.64', ['En-tête MediPlanner (date, mode, roue crantée) fixé en haut au défilement', 'Journée : une visite supprimée par appui long ne revient plus', 'Modifier, écran 2 : GPS en icône à côté du nom de l’hôpital ; quartier et repères côte à côte ; toucher « Matin » ou « Soir » coche toute la colonne ; jours abrégés ; résumé des jours sur chaque lieu replié ; « Autre lieu » et « Absence » sur une ligne']],
@@ -3262,12 +3263,13 @@
     var etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmé' + (S.jours[d] && S.jours[d].modifieLe ? ', modifié' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
     var details = [
       nMatin + ' matin' + (nSoir ? ', ' + nSoir + ' soir' : ''),
-      (nPhar ? nPhar + ' phcie' + (nPhar > 1 ? 's' : '') : '') + (nPhar && nMed ? ', ' : '') + (nMed ? nMed + ' méd.' : ''),
+      (function () { var cc = coeurDeCible(), nC = duJour.filter(function (a) { return !estPharmacie(a) && cc.indexOf(a.specialite) >= 0; }).length;
+        return [nMed ? 'Cœur ' + nC + ' · Autres ' + (nMed - nC) : '', nPhar ? nPhar + ' phcie' + (nPhar > 1 ? 's' : '') : ''].filter(Boolean).join(' · '); })(),
       n3 ? n3 + ' ★★★' : '',
       km(totalKm)
     ].filter(Boolean).join(' · ');
     h += '<div class="tete-jour-plan"><div class="bilan-jour">' +
-      '<div class="bj-ligne1"><b>' + majuscule(dateLongue(d)) + '</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
+      '<div class="bj-ligne1"><b>' + majuscule(JOURS_COURTS[jourSemaineIndex(d)]) + ' ' + d.slice(8) + ' ' + MOIS_ABREGES[+d.slice(5, 7) - 1] + '.</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
       (comJour.length ? ' · <span class="bj-communes">' + esc(comJour.join(', ')) + '</span>' : '') + '</div>' +
       '<div class="discret details-plan">' + details + '</div></div>' +
       '<div class="tete-jour-droite">' + etat + '</div></div>';
