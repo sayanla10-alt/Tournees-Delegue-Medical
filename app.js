@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.74';
+  var APP_VERSION = '3.26.75';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.75', ['Répertoire : 8 px entre la grille, « Modifier le planning hebdomadaire » et les boutons du bas', 'Planifier, étape RDV et prioritaires : bouton « Retirer » sur chaque RDV et prioritaire, et appui long pour retirer, avec confirmation']],
     ['3.26.74', ['Répertoire : « Modifier le planning hebdomadaire » devient un bouton centré, à la hauteur de « Planifier » ; boutons du bas resserrés']],
     ['3.26.73', ['Téléphone relié mais base non reçue : écran « Chargement » avec Réessayer au lieu de l’écran d’accueil ; délai de 2 min au premier chargement', 'Un même lieu saisi sur plusieurs lignes n’apparaît qu’une fois (jours réunis), et l’enregistrement de la fiche nettoie la base', 'Notifications du téléphone (Réglages) : pharmacie ou médecin proche avec la distance, conflit avec un collègue']],
     ['3.26.72', ['Compte rendu : seuls les produits actifs de la base apparaissent (Losartan AM retiré) ; Gamme Aura 2, compteur et « Tous » sur une ligne ; produits d’une même famille sur une seule ligne']],
@@ -2302,6 +2303,19 @@
         }, 1500);
         return;
       }
+      // 3.26.75 : appui long sur un RDV ou un prioritaire de l'étape 7 : retrait après confirmation
+      var liR = e.target && e.target.closest && e.target.closest('li.li-retirable[data-retirer]');
+      if (liR && !(e.target.closest('button'))) {
+        var ptr = e.touches ? e.touches[0] : e; startX = ptr.clientX; startY = ptr.clientY;
+        cibleEl = liR; cibleEl.classList.add('appui-long-actif');
+        timer = setTimeout(function () {
+          timer = null; longPressFired = true; dernierAppuiLongFired = Date.now();
+          if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
+          try { if (navigator.vibrate) navigator.vibrate([40, 40, 40]); } catch (err) {}
+          if (liR.dataset.retirer === 'imp') ACTIONS.retirerImposeDemande({ dataset: { i: liR.dataset.v } }); else ACTIONS.retirerRdvDemande({ dataset: { v: liR.dataset.v } });
+        }, DUREE_APPUI_LONG);
+        return;
+      }
       if (S.ui.tab !== 'semaine') return;
 
       // Détection sur n'importe quelle date planifiée de la frise OU sur le titre / en-tête de la journée
@@ -3828,7 +3842,7 @@
           h += '<span class="sous-etape">RDV déjà pris</span>';
           h += rdv.length ? '<ul class="liste-imposes">' + rdv.map(function (im) {
             var pr = praticien(im.code), passe = im.dateRdv < dates[0];
-            return '<li><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
+            return '<li class="li-retirable" data-retirer="rdv" data-v="' + esc(im.code + '|' + im.dateRdv) + '"><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
               '<span class="discret bloc-texte">RDV du ' + dateFr(im.dateRdv).slice(0, -5) +
               (passe ? ', date passée : au plus tôt' : '') + (function () {
                 // RDV un jour sans présence connue : placé à la prochaine présence connue, et on le dit
@@ -3836,7 +3850,7 @@
                 if (passe || crs.some(function (cr) { return cr.jourIdx === jour; })) return '';
                 var suiv = dates.filter(function (d) { return d >= im.dateRdv && !estFerie(d) && crs.some(function (cr) { return cr.jourIdx === jourSemaineIndex(d); }); })[0];
                 return suiv ? ' reporté au ' + dateFr(suiv).slice(0, -5) + ' pour absence' : ', absent sur la période';
-              })() + '</span></div><span class="etiquette p1">RDV</span></li>';
+              })() + '</span></div><button type="button" class="bouton petit bouton-retirer-imp" data-a="retirerRdvDemande" data-v="' + esc(im.code + '|' + im.dateRdv) + '">' + icone('fermer') + 'Retirer</button></li>';
           }).join('') + '</ul>' : '<p class="discret" style="margin:4px 0 0">Aucun RDV pris sur cette période.</p>';
           h += '<div class="imposes-tete" style="margin-top:12px"><span class="sous-etape" style="margin:0">Prioritaires ajoutés</span>' +
             '<button type="button" class="bouton petit" data-a="ouvrirRecherche">' + icone('plus') + 'Ajouter</button></div>';
@@ -3846,9 +3860,9 @@
             var quand = im.force && im.date === aujourdhui()
               ? 'Aujourd\'hui (' + dateCourte(im.date) + ') · visite inopinée'
               : (im.date ? dateFr(im.date) + (c ? ', ' + c.creneau.toLowerCase() + ', ' + esc(c.lieu) : '') : 'Au meilleur moment de la période');
-            return '<li><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
+            return '<li class="li-retirable" data-retirer="imp" data-v="' + i + '"><div><b>' + esc(pr ? pr.nom : im.code) + '</b> ' + (pr ? etoiles(pr.note) : '') +
               '<span class="discret bloc-texte">' + quand + (im.rdv ? ', RDV ' + esc(im.rdv) : '') + '</span></div>' +
-              '<button type="button" class="bouton-icone sombre" data-a="retirerImpose" data-i="' + i + '" aria-label="Retirer">' + icone('fermer') + '</button></li>';
+              '<button type="button" class="bouton petit bouton-retirer-imp" data-a="retirerImposeDemande" data-i="' + i + '">' + icone('fermer') + 'Retirer</button></li>';
           }).join('') + '</ul>' : '<p class="discret" style="margin:4px 0 0">Aucun.</p>';
           return h;
         } }
@@ -8223,7 +8237,7 @@
     });
     var dejaImposes = ensemble(S.imposes.map(function (x) { return x.code; }));
     return Object.keys(c.prat).map(function (k) { return c.prat[k]; }).filter(function (p) {
-      if (!p.prochaine || p.prochaine < debut || p.prochaine > fin || dejaImposes[p.code]) return false;
+      if (!p.prochaine || p.prochaine < debut || p.prochaine > fin || dejaImposes[p.code] || LS.get('rdvIgnores', {})[p.code + '|' + p.prochaine]) return false;   // 3.26.75 : RDV retiré par le délégué
       var qui = auteur[p.code + '|' + p.prochaine];
       return !qui || estMoi(qui);
     }).map(function (p) { return { code: p.code, apres: p.prochaine < dates[0] ? dates[0] : p.prochaine, etape: true, dateRdv: p.prochaine, prisLe: prisLe[p.code + '|' + p.prochaine] || '' }; });
@@ -9093,6 +9107,15 @@
       toast(place ? 'Ajouté à la tournée du ' + dateCourte(S.ui.jour) + '.' : 'Ajouté. Il sera placé à la prochaine proposition de tournée.');
     },
     retirerImpose: function (el) { S.imposes.splice(+el.dataset.i, 1); LS.set('imposes', S.imposes); rendre(); },
+    // 3.26.75 : retrait d'un prioritaire ou d'un RDV de l'étape 7, après confirmation (bouton ou appui long)
+    retirerImposeDemande: function (el) {
+      var i = +el.dataset.i, im = S.imposes[i]; if (!im) return; var pr = praticien(im.code);
+      confirmerPuis('Retirer le prioritaire', 'Retirer <b>' + esc(pr ? pr.nom : im.code) + '</b> des prioritaires ?', 'Retirer', function () { S.imposes.splice(i, 1); LS.set('imposes', S.imposes); rendre(); toast('Prioritaire retiré.'); });
+    },
+    retirerRdvDemande: function (el) {
+      var v = el.dataset.v, code = v.split('|')[0], pr = praticien(code);
+      confirmerPuis('Retirer le RDV', 'Ne plus placer d\'office le RDV de <b>' + esc(pr ? pr.nom : code) + '</b> dans la tournée ?', 'Retirer', function () { var ig = LS.get('rdvIgnores', {}); ig[v] = true; LS.set('rdvIgnores', ig); rendre(); toast('RDV retiré de la tournée.'); });
+    },
     imposerDirect: function (el) { S.ui.feuille = { type: 'recherche', titre: 'Ajouter à ma tournée', code: el.dataset.v, cle: '' }; rendre(); },
     visiteInopineeDirect: function (el) {
       var code = el.dataset.v, tAuj = aujourdhui();

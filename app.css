@@ -3456,3 +3456,12 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .pres-actions .bouton-planning svg { width: 16px; height: 16px; }
 .rangee-actions-contact { gap: 6px !important; justify-content: center !important; }
 .pres-actions { margin: 4px 0 6px !important; padding-top: 4px !important; }
+/* 3.26.75 : retrait des RDV et prioritaires */
+li.li-retirable { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.bouton-retirer-imp { flex: none; min-height: 32px !important; height: 32px; padding: 0 10px !important; font-size: 13px; gap: 4px; }
+.bouton-retirer-imp svg { width: 14px; height: 14px; }
+/* 3.26.75 : espacements resserrés autour de « Modifier le planning hebdomadaire » (8 px, comme ailleurs) */
+.grille-pres + .pres-actions, .pres-actions { margin: 8px 0 0 !important; padding: 0 !important; min-height: 0 !important; }
+.bloc-actions-contact { margin-top: 8px !important; padding-top: 0 !important; }
+.bloc-actions-contact .rangee-actions-contact { margin: 0 !important; padding: 0 !important; }
+.pres-actions .bouton-planning, .rangee-actions-contact .bouton, .rangee-actions-contact .badge-deja-prevu { margin-top: 0 !important; margin-bottom: 0 !important; }
