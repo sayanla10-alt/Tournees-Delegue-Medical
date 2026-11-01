@@ -813,7 +813,7 @@ var REGLAGES_MOTEUR = {
   penaliteKm: 25,              // points de score retirés par km de détour ajouté à la tournée
   rayonAutourKm: 5,            // rayon par défaut de « Autour de moi »
   nbPropositions: 15,
-  detourRoutier: 1.5,          // coefficient fixe vol d'oiseau -> distance réelle estimée (x 1,5)
+  detourRoutier: 1.6,          // coefficient fixe vol d'oiseau -> distance réelle estimée (x 1,6)
   minutesParKm: 3,             // vitesse moyenne en ville (~20 km/h, trafic d'Abidjan)
   facteurPointe: 1.6,          // trajets plus lents aux heures de pointe
   heuresPointe: [[420, 570], [990, 1170]],   // 7:00-9:30 et 16:30-19:30
