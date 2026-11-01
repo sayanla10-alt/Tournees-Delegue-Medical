@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.59';
+  var APP_VERSION = '3.26.60';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.60', ['Fiche médecin sur une seule page : identité puis lieux (l’hôpital n’est saisi qu’une fois)', 'GPS du lieu : un bouton et une pastille, sans coordonnées', 'Planning : horaires dans l’en-tête des colonnes Matin / Soir ; pas de barre « Lieu 1 » quand il n’y a qu’un lieu ; ouverture directe sur la grille', 'Phrase « Établissement connu… » retirée', 'Reconnaissance des établissements plus stricte : un sigle court (ex. ICA) n’est plus trouvé à l’intérieur d’un autre mot (ex. médical)']],
     ['3.26.59', ['Planning hebdomadaire : « Oui » remis dans la grille', 'Fiche : plus de liste de quartiers en tapant l’hôpital ; quartier, GPS et repères repris automatiquement quand l’hôpital est connu']],
     ['3.26.58', ['Spécialités abrégées (MG, Cardio, Diabéto, Endocrino, Gynéco) dans Planifier, compte rendu, critères et fiche ; spécialité en gras dans Planifier', 'Fiche et planning hebdomadaire : lieux repliables comme dans Produits (sans « Déplier »), raccourcis Semaine / Matins / Soirs sur une ligne, grille plus compacte', 'Répertoire : pastille GPS avec les étiquettes (Engagé, Vu il y a…)']],
     ['3.26.57', ['Fiche médecin : pastille GPS et « Touchez M ou S » déplacées sous la dernière ligne M / S']],
@@ -7230,7 +7231,7 @@
       var tKeys = Object.keys(TABLE_REFERENCE_ETABLISSEMENTS_CI);
       for (var k = 0; k < tKeys.length; k++) {
         var tk = tKeys[k];
-        if (norm.length >= 4 && (tk === norm || (tk.indexOf(norm) >= 0 && tk.length >= 5) || (norm.indexOf(tk) >= 0 && norm.length >= 5))) {
+        if (norm.length >= 4 && (tk === norm || (contientMot(tk, norm) && tk.length >= 5) || (contientMot(norm, tk) && tk.length >= 5))) {
           var trk = TABLE_REFERENCE_ETABLISSEMENTS_CI[tk];
           return {
             lieu: trk.titre || raw,
@@ -7248,7 +7249,7 @@
     for (var j = 0; j < connus.length; j++) {
       var e = connus[j];
       var ne = normaliser(e.lieu);
-      if (norm === ne || (norm.length >= 4 && (norm.indexOf(ne) >= 0 || ne.indexOf(norm) >= 0))) {
+      if (ne && (norm === ne || (norm.length >= 4 && (contientMot(norm, ne) || contientMot(ne, norm))))) {
         return {
           lieu: e.lieu,
           quartier: e.quartier || quartierSaisi || '',
@@ -7261,6 +7262,8 @@
     return null;
   }
 
+  // 3.26.60 : « b » contenu dans « a » seulement si « b » fait au moins 6 lettres (évite « ica » trouvé dans « médical »)
+  function contientMot(a, b) { a = String(a || ''); b = String(b || ''); return b.length >= 6 && a.indexOf(b) >= 0; }
   function trouverEtablissementBDD(nomSaisi, quartierSaisi, communeSaisie) {
     var raw = String(nomSaisi || '').trim();
     if (!raw || raw.length < 2) return null;
@@ -7275,7 +7278,7 @@
     for (var j = 0; j < connus.length; j++) {
       var e = connus[j];
       var ne = normaliser(e.lieu || '');
-      if (ne && (ne === norm || (norm.length >= 4 && (ne.indexOf(norm) >= 0 || norm.indexOf(ne) >= 0)))) {
+      if (ne && (ne === norm || (norm.length >= 4 && ne.length >= 4 && (contientMot(ne, norm) || contientMot(norm, ne))))) {
         if (e.quartier && !/^NL$/i.test(e.quartier)) {
           return {
             lieu: e.lieu,
@@ -7293,7 +7296,7 @@
     for (var p = 0; p < pres.length; p++) {
       var pr = pres[p];
       var np = normaliser(pr.lieu || '');
-      if (np && (np === norm || (norm.length >= 4 && (np.indexOf(norm) >= 0 || norm.indexOf(np) >= 0)))) {
+      if (np && (np === norm || (norm.length >= 4 && np.length >= 4 && (contientMot(np, norm) || contientMot(norm, np))))) {
         if (pr.quartier && !/^NL$/i.test(pr.quartier)) {
           return {
             lieu: pr.lieu,
@@ -7404,7 +7407,7 @@
     // Dès la 1re lettre tapée : suggestions interactives
     if (!t.length) return '';
     var l = tous.filter(function (e) { return mots.every(function (m) { return e.txt.indexOf(m) >= 0; }); });
-    if (l.some(function (e) { return normaliser(e.lieu) === t; })) return '<p class="aide-champ ok-lieu">' + icone('valider') + 'Établissement connu (quartier et GPS repris automatiquement).</p>';
+    if (l.some(function (e) { return normaliser(e.lieu) === t; })) return '';
     var rang = function (e) {
       var n = normaliser(e.lieu);
       var r = (mots.every(function (m) { return n.indexOf(m) >= 0; }) ? 0 : 2) + (n.indexOf(mots[0]) === 0 ? 0 : 1);
@@ -7515,10 +7518,10 @@
       if (d.type === 'Médecin') {
         if (!d.specialite) e.specialite = 'Choisissez une spécialité.';
         else if (d.specialite === '__autre' && String(d.autreSpec).trim().length < 2) e.autreSpec = 'Précisez la spécialité.';
-        if (d.lieux[0] && String(d.lieux[0].lieu).trim().length < 2) e.lieu0 = 'Indiquez l\'établissement ou cabinet.';
+      } else {
+        var q0 = d.lieux[0] && d.lieux[0].quartier;
+        if (!q0 || /^NL$/i.test(q0) || String(q0).trim() === '') e.quartier0 = 'Choisissez le quartier (ou captez le GPS).';
       }
-      var q0 = d.lieux[0] && d.lieux[0].quartier;
-      if (!q0 || /^NL$/i.test(q0) || String(q0).trim() === '') e.quartier0 = 'Choisissez le quartier (ou captez le GPS).';
     }
     if (etape === 1) {
       if (!d.lieux || !d.lieux.length) e.lieux = 'Ajoutez au moins un lieu.';
@@ -7552,20 +7555,16 @@
         '<button class="bouton bouton-plein" type="button" data-a="effacerVisiteChoix" data-v="supprimer">Supprimer la visite</button>' };
   };
   FEUILLES.fiche = function (f) {
-    var d = f.d, e = Math.min(f.etape || 0, 1); f.etape = e;
+    var d = f.d, e = 0, seulPlanning = !!f.planningSeul; f.etape = 0;   // 3.26.60 : une seule page (identité puis lieux)
     synchroniserDefautsFiche(d);
     var estPh = d.type === 'Pharmacie', l0 = d.lieux[0];
     // 3.26.50 : le choix Médecin / Pharmacie n'apparaît qu'à la création ; en modification, le type est fixé
     var existante = d.code && !/^TMP-/.test(d.code);
     var h = (existante ? '' : '<div class="segment" role="group" aria-label="Type" style="margin-bottom:8px">' + ['Médecin', 'Pharmacie'].map(function (t) {
         return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
-      }).join('') + '</div>') +
-      '<div class="segment" role="group" aria-label="Étapes" style="margin-bottom:10px">' +
-        '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (e === 0) + '">' + (estPh ? '1. Pharmacie & Lieu' : '1. Médecin & Hôpital') + '</button>' +
-        '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (e === 1) + '">' + (estPh ? '2. Horaires de réception' : '2. Planning hebdomadaire (' + d.lieux.length + ')') + '</button>' +
-      '</div>';
+      }).join('') + '</div>');
 
-    if (e === 0) {
+    if (!seulPlanning) {
       var q0 = quartiers().filter(function (x) { return x.quartier === l0.quartier; })[0];
       if (estPh) {
         // PHARMACIE : Nom d'abord avec détection anti-doublon en direct, puis localisation fixe
@@ -7613,19 +7612,6 @@
           appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.specialite = v; delete fe.err.specialite; } } }), f, true);
         if (d.specialite === '__autre') h += champFiche('autreSpec', 'Autre spécialité *', '<input type="text" data-f="fiche" data-k="autreSpec" value="' + esc(d.autreSpec) + '"' + attrInvalide(f, 'autreSpec') + '>', f, true);
 
-        h += '<div class="lieu-bloc" style="margin-bottom:10px;padding:10px">' +
-          '<div class="lieu-tete" style="margin-bottom:4px"><b>Hôpital / Établissement principal</b>' +
-            (l0.quartier && l0.lat ? '<span class="badge-discret ok-gps" style="background:var(--vert-pale,#e6f7ec);color:var(--vert,#1e7e34);margin-left:6px">✓ Quartier & GPS auto-remplis</span>' : '') +
-            (d.lieux.length > 1 ? '<span class="badge-discret">+' + (d.lieux.length - 1) + ' autre(s)</span>' : '') + '</div>' +
-          champFiche('lieu0', 'Nom de l\'hôpital ou clinique *', '<input type="text" data-f="fiche" data-k="lieu" data-i="0" value="' + esc((!d.type || d.type === 'Médecin') && normaliser(l0.lieu) === normaliser(d.nom) ? '' : (l0.lieu || '')) + '" placeholder="Tapez les premières lettres de l\'hôpital souhaité…"' + attrInvalide(f, 'lieu0') + ' autocomplete="off">', f, true) +
-          '<div class="sug-lieux" id="sugLieu0">' + suggestionsLieu(l0.lieu, 0) + '</div>' +
-          champFiche('quartier0', 'Quartier de l\'établissement *', selecteurListe('ficheQuartier0', { titre: 'Quartier', valeur: l0.quartier, vide: 'Choisir le quartier de l\'établissement…', invalide: !!f.err.quartier0, sections: sectionsQuartiers(),
-            appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[0].quartier = v; delete fe.err.quartier0; } } }), f, true, q0 ? 'Commune : ' + esc(q0.commune) : '') +
-          '<div class="gps-ligne" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px">' +
-            '<button type="button" class="bouton petit" data-a="ficheGps" data-i="0">' + icone('cible') + (l0.lat && l0.lon ? 'Actualiser GPS du lieu' : 'GPS de l\'établissement') + '</button>' +
-            '<button type="button" class="bouton petit" data-a="ficheEtape" data-v="1">' + icone('plus') + 'Jours / Autre hôpital →</button>' +
-          '</div>' +
-        '</div>';
       }
 
       // Téléphone, Potentiel & Engagé
@@ -7639,7 +7625,8 @@
       if (d.code) h += '<label class="interrupteur"><span>Actif dans le répertoire</span><input type="checkbox" data-f="fiche" data-k="actif"' + (d.actif !== 'Non' ? ' checked' : '') + '></label>';
     }
 
-    if (e === 1) {
+    {
+      if (!seulPlanning && !estPh) h += '<h3 class="fiche-section">Lieux d\'exercice et planning</h3>';
       if (f.err.lieux) h += '<p class="erreur-texte">' + esc(f.err.lieux) + '</p>';
       if (typeof f.lieuOuvert !== 'number' || f.lieuOuvert < 0 || f.lieuOuvert >= d.lieux.length) {
         f.lieuOuvert = 0;
@@ -7664,29 +7651,22 @@
         // Lieu ouvert
         var m = l.jours.some(function (j) { return j.matin; }), so = l.jours.some(function (j) { return j.soir; });
         h += '<div class="lieu-bloc">' + (estPh ? '<div class="lieu-tete"><b>' + esc(d.nom || 'Horaires de réception de la pharmacie') + '</b></div>' :
-          '<button type="button" class="aire-titre aire-bascule" data-a="' + (d.lieux.length > 1 ? 'ficheReplierLieu' : '') + '" data-i="' + i + '" aria-expanded="true"' + (d.lieux.length > 1 ? '' : ' disabled') + '>' +
-            '<span>Lieu ' + (i + 1) + (l.lieu ? ' · ' + esc(l.lieu) : '') + '</span>' + (d.lieux.length > 1 ? icone('chevron') : '') + '</button>');
+          (d.lieux.length > 1 ? '<button type="button" class="aire-titre aire-bascule" data-a="ficheReplierLieu" data-i="' + i + '" aria-expanded="true">' +
+            '<span>Lieu ' + (i + 1) + (l.lieu ? ' · ' + esc(l.lieu) : '') + '</span>' + icone('chevron') + '</button>' : ''));
         if (estPh) {
           h += '<p class="sous-titre" style="margin:0 0 8px">Jours et plages où l\'officine reçoit les délégués médicaux (tous cochés par défaut).</p>';
-        } else if (i === 0 && (l.lieu || l.quartier) && !f.editerLieu0 && !f.err.lieu0 && !f.err.quartier0) {
-          // 3.25.44 : Lieu 1 déjà renseigné à l'étape 1 — résumé compact sans doublon pour afficher directement la grille des jours
-          h += '<div class="lieu-resume-simple" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--fond-carte,#f8f9fa);border:none;box-shadow:none;border-radius:8px;padding:8px 12px;margin:0 0 10px">' +
-            '<div><b style="font-size:0.95rem">' + esc(l.lieu || 'Établissement principal') + '</b>' +
-            '<div class="discret" style="font-size:0.8rem">' + esc([l.quartier, l.commune || (q ? q.commune : '')].filter(Boolean).join(', ')) + (l.lat && l.lon ? ' · ' + icone('cible') + ' GPS' : '') + '</div></div>' +
-            '<button type="button" class="bouton-texte" data-a="ficheEditerLieu0" style="font-size:0.8rem">Modifier l\'adresse</button>' +
-            '</div>';
+        } else if (seulPlanning && l.lieu && l.quartier && !f.err['lieu' + i] && !f.err['quartier' + i]) {
+          h += '<p class="discret" style="margin:0 0 8px"><b>' + esc(l.lieu) + '</b> · ' + esc([l.quartier, l.commune].filter(Boolean).join(', ')) + '</p>';
         } else {
           h += champFiche('lieu' + i, (i === 0 ? 'Nom de l\'hôpital ou clinique *' : 'Établissement ou cabinet *'), '<input type="text" data-f="fiche" data-k="lieu" data-i="' + i + '" value="' + esc(!estPh && normaliser(l.lieu) === normaliser(d.nom) ? '' : (l.lieu || '')) + '" placeholder="Tapez les premières lettres de l\'hôpital souhaité…"' + attrInvalide(f, 'lieu' + i) + ' autocomplete="off">', f, true) +
             '<div class="sug-lieux" id="sugLieu' + i + '">' + suggestionsLieu(l.lieu, i) + '</div>' +
             champFiche('quartier' + i, 'Quartier *', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: l.quartier, vide: 'Choisir un quartier…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
               appliquer: (function (k) { return function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[k].quartier = v; delete fe.err['quartier' + k]; } }; })(i) }), f, true, q ? 'Commune : ' + esc(q.commune) : '') +
             champFiche('rep' + i, 'Repères', '<input type="text" data-f="fiche" data-k="reperes" data-i="' + i + '" placeholder="Rue, carrefour, en face de…" value="' + esc(l.reperes || '') + '">', f, false) +
-            '<div class="gps-ligne gps-centre" style="margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
-              '<div style="display:flex;align-items:center;gap:6px">' +
-                '<button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + 'GPS de ce lieu</button>' +
-                (l.lat && l.lon ? '<button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="' + i + '" title="Effacer GPS">✕</button>' : '') +
-              '</div>' +
-              (aCoord(l) ? '<span>GPS : <b>' + lireCoord(l).lat.toFixed(4) + ', ' + lireCoord(l).lon.toFixed(4) + '</b></span>' : '<span class="discret">Pas de GPS</span>') +
+            '<div class="gps-ligne" style="margin-bottom:8px;display:flex;align-items:center;gap:8px">' +
+              '<button type="button" class="bouton petit" data-a="ficheGps" data-i="' + i + '">' + icone('cible') + (aCoord(l) ? 'Reprendre le GPS ici' : 'GPS de ce lieu') + '</button>' +
+              '<span class="etiquette etiquette-gps ' + (aCoord(l) ? 'gps-ok' : 'gps-non') + '">' + icone('carte') + 'GPS</span>' +
+              (aCoord(l) ? '<button type="button" class="bouton-texte" data-a="ficheGpsEffacer" data-i="' + i + '" title="Effacer le GPS">✕</button>' : '') +
             '</div>';
         }
         var tousM = l.jours.every(function (j) { return j.matin; }), tousS = l.jours.every(function (j) { return j.soir; });
@@ -7695,17 +7675,16 @@
           '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="matin" aria-pressed="' + tousM + '">Matins</button>' +
           '<button type="button" class="puce petite" data-a="ficheJoursTous" data-i="' + i + '" data-c="soir" aria-pressed="' + tousS + '">Soirs</button>' +
           '</div>' +
-          '<div class="grille-dispo" role="group" aria-label="Présences du lieu ' + (i + 1) + '"><span></span><span class="entete-col">Matin</span><span class="entete-col">Soir</span>' +
+          '<div class="grille-dispo" role="group" aria-label="Présences du lieu ' + (i + 1) + '"><span></span>' +
+            '<label class="entete-col entete-horaire">Matin<input type="text" data-f="fiche" data-k="horaireMatin" data-i="' + i + '" value="' + esc(l.horaireMatin) + '"' + (m ? '' : ' disabled') + attrInvalide(f, 'hm' + i) + ' aria-label="Horaire du matin"></label>' +
+            '<label class="entete-col entete-horaire">Soir<input type="text" data-f="fiche" data-k="horaireSoir" data-i="' + i + '" value="' + esc(l.horaireSoir) + '"' + (so ? '' : ' disabled') + attrInvalide(f, 'hs' + i) + ' aria-label="Horaire du soir"></label>' +
           JOURS.map(function (j, k) {
             return '<span class="jour-nom">' + j + '</span>' +
               '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="matin" aria-pressed="' + l.jours[k].matin + '" aria-label="' + j + ' matin">' + (l.jours[k].matin ? 'Oui' : '–') + '</button>' +
               '<button type="button" data-a="ficheJour" data-i="' + i + '" data-j="' + k + '" data-c="soir" aria-pressed="' + l.jours[k].soir + '" aria-label="' + j + ' soir">' + (l.jours[k].soir ? 'Oui' : '–') + '</button>';
           }).join('') + '</div>' +
           '<span class="erreur" data-err="jours' + i + '">' + esc(f.err['jours' + i] || '') + '</span>' +
-          '<div class="grille-2">' +
-          champFiche('hm' + i, 'Matin', '<input type="text" data-f="fiche" data-k="horaireMatin" data-i="' + i + '" value="' + esc(l.horaireMatin) + '"' + (m ? '' : ' disabled') + attrInvalide(f, 'hm' + i) + '>', f, m) +
-          champFiche('hs' + i, 'Soir', '<input type="text" data-f="fiche" data-k="horaireSoir" data-i="' + i + '" value="' + esc(l.horaireSoir) + '"' + (so ? '' : ' disabled') + attrInvalide(f, 'hs' + i) + '>', f, so) +
-          '</div>' + (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte sortir-question" data-a="ficheRetirerLieu" data-i="' + i + '" style="display:block;margin:4px auto 0">Retirer ce lieu</button>' : '') + '</div>';
+          '<span class="erreur" id="err-hm' + i + '">' + esc(f.err['hm' + i] || '') + '</span><span class="erreur" id="err-hs' + i + '">' + esc(f.err['hs' + i] || '') + '</span>' + (!estPh && d.lieux.length > 1 ? '<button type="button" class="bouton-texte sortir-question" data-a="ficheRetirerLieu" data-i="' + i + '" style="display:block;margin:4px auto 0">Retirer ce lieu</button>' : '') + '</div>';
       });
       if (!estPh) {
         h += '<button class="bouton bouton-large" type="button" data-a="ficheAjouterLieu">' + icone('plus') + 'Ajouter un autre hôpital / clinique</button>';
@@ -7717,13 +7696,8 @@
       }
     }
 
-    var pied = (e === 0
-      ? '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">Annuler</button>' +
-        '<button class="bouton" type="button" data-a="ficheEtape" data-v="1">' + (estPh ? 'Jours de réception →' : 'Jours & Horaires →') + '</button>' +
-        '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>'
-      : '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">Annuler</button>' +
-        '<button class="bouton" type="button" data-a="ficheEtape" data-v="-1">← 1. Identité & Lieu</button>' +
-        '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>');
+    var pied = '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">Annuler</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>';
     return { corps: h, pied: pied };
   };
 
@@ -9759,7 +9733,7 @@
         type: 'fiche',
         titre: d.type === 'Pharmacie' ? 'Horaires de réception' : 'Planning hebdomadaire',
         pleine: true,
-        etape: 1,
+        etape: 0, planningSeul: true,
         d: d,
         err: {},
         initial: JSON.stringify(d)
@@ -9976,7 +9950,7 @@
       synchroniserDefautsFiche(f.d);
       for (var i = 0; i < 2; i++) {
         var e = erreursEtape(f.d, i);
-        if (Object.keys(e).length) { f.etape = i; f.err = e; rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
+        if (Object.keys(e).length) { f.err = e; var kL = Object.keys(e).map(function (x) { var m2 = x.match(/^(?:lieu|quartier|jours|hm|hs)(\d+)$/); return m2 ? +m2[1] : -1; }).filter(function (x) { return x >= 0; })[0]; if (kL !== undefined) { f.lieuOuvert = kL; f.planningSeul = false; } rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
       }
       if (!f.d.code && !f.doublonConfirme) {
         var doublons = chercherDoublonsFiche(f.d).filter(function (x) { return x.exact; });
@@ -10233,14 +10207,14 @@
     }
     if (k === 'specialite' || k === 'quartier') {
       // liste déroulante : nouvel affichage (champ « Autre », commune), en gardant les erreurs déjà signalées
-      var tous = erreursEtape(d, f.etape), cleS = k === 'quartier' ? 'quartier' + i : 'specialite', garde = {};
+      var tous = Object.assign(erreursEtape(d, 0), erreursEtape(d, 1)), cleS = k === 'quartier' ? 'quartier' + i : 'specialite', garde = {};
       Object.keys(f.err).forEach(function (x) { if (tous[x]) garde[x] = tous[x]; });
       if (tous[cleS]) garde[cleS] = tous[cleS];
       f.err = garde; rendre(); return;
     }
     var cle = { lieu: 'lieu', horaireMatin: 'hm', horaireSoir: 'hs' }[k];
     cle = cle ? cle + i : k;
-    var err = erreursEtape(d, f.etape)[cle] || '';
+    var err = Object.assign(erreursEtape(d, 0), erreursEtape(d, 1))[cle] || '';
     if (err) f.err[cle] = err; else delete f.err[cle];
     var span = document.getElementById('err-' + cle);
     if (span) span.textContent = err;

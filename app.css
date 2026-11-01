@@ -3391,3 +3391,14 @@ span.btn-micro-gps:active { transform: none; }
 /* 3.26.58 : grille du planning hebdomadaire plus compacte */
 .grille-dispo button { min-height: 34px !important; height: 34px; font-size: 16px; }
 .grille-dispo { row-gap: 5px; }
+/* 3.26.60 : fiche sur une page, horaires en en-tête, ligne contact compacte */
+.fiche-section { margin: 16px 0 8px; font: 700 15px var(--titre); color: var(--encre); }
+.entete-horaire { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; }
+.entete-horaire input { min-height: 32px !important; width: 100%; padding: 4px 6px !important; text-align: center; font-size: 13px !important; border-radius: 8px !important; }
+.ligne-contact { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0 4px; }
+.ligne-contact .actions-rapides { display: flex; gap: 6px; margin: 0 !important; flex: none; }
+.ligne-contact .action-rapide { width: 40px; height: 40px; min-height: 40px !important; padding: 0 !important; border-radius: 50% !important; font-size: 0 !important; display: grid !important; place-items: center; gap: 0 !important; }
+.ligne-contact .action-rapide svg { width: 19px; height: 19px; margin: 0 !important; }
+.ligne-contact > span { white-space: nowrap; font-size: 13.5px; }
+.ligne-contact .actions-rapides { gap: 4px; }
+.ligne-contact .action-rapide { width: 36px; height: 36px; min-height: 36px !important; }
