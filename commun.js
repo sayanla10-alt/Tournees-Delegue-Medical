@@ -1431,6 +1431,11 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   if (dans[com] || dans[com + ' (Toute la commune)']) return true;
   var par = communeParente(com);
   if (par && (dans[par] || dans[par + ' (Toute la commune)'])) return true;
+  // 3.26.63 : commune connue = seule référence (un lieu du Plateau ne passe plus pour Cocody à cause d'un mot de son nom)
+  if (com) {
+    var z = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier(com, c.quartier, '') : '';
+    return !!(z && dans[z]);
+  }
   var sec = secteurDeQuartier(c.quartier, c.lieu, com, listeQuartiers);
   if (sec && dans[sec]) return true;
   if (sec) {

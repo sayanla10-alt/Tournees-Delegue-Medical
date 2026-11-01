@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.62';
+  var APP_VERSION = '3.26.63';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.63', ['Filtre par commune plus strict : seule la commune du lieu compte (plus de lieu d’une autre commune retenu à cause d’un mot de son nom)', 'Praticien à plusieurs lieux : la commune filtrée apparaît en premier (en gras) et son lieu en tête de la grille']],
     ['3.26.62', ['Planifier : bouton « Modifier » (fiche du praticien) dans les options d’une visite de la liste', 'Journée : appui très long (1,5 s) sur n’importe quelle carte : suppression de la visite après confirmation (si un compte rendu existe : remettre « à faire » ou supprimer)']],
     ['3.26.61', ['Fiche médecin : retour à 2 étapes (1. Médecin, 2. Lieux & planning), champs resserrés pour le téléphone']],
     ['3.26.60', ['Fiche médecin sur une seule page : identité puis lieux (l’hôpital n’est saisi qu’une fois)', 'GPS du lieu : un bouton et une pastille, sans coordonnées', 'Planning : horaires dans l’en-tête des colonnes Matin / Soir ; pas de barre « Lieu 1 » quand il n’y a qu’un lieu ; ouverture directe sur la grille', 'Phrase « Établissement connu… » retirée', 'Reconnaissance des établissements plus stricte : un sigle court (ex. ICA) n’est plus trouvé à l’intérieur d’un autre mot (ex. médical)']],
@@ -5631,7 +5632,11 @@
       h += '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
         '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
         '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : esc(abrSpec(p.specialite)) + ', ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
-          esc(Array.from(new Set(lieux.map(function (x) { return x.commune; }))).join(', ')) + '</span>' +
+          (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
+            var ok = function (x) { return aF && communeCorrespondante(x, coF); };
+            var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
+            return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
+              .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
         '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
           (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
             return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS' + (lieux.length > 1 ? ' ' + nG + '/' + lieux.length : '') + '</span>'; })() +
@@ -5676,6 +5681,9 @@
   // Planning hebdomadaire d'un praticien (lieux x jours)
   function grillePresences(code) {
     var c = ctx(), p = praticien(code) || {}, estPh = p.type === 'Pharmacie', lieux = c.presencesParCode[code] || [];
+    // 3.26.63 : avec un filtre de communes, le lieu de la commune choisie apparaît en premier
+    var coG = ensemble(S.ui.filtres && S.ui.filtres.communes || []);
+    if (Object.keys(coG).length) lieux = lieux.slice().sort(function (x, y) { return (communeCorrespondante(y, coG) ? 1 : 0) - (communeCorrespondante(x, coG) ? 1 : 0); });
     if (!lieux.length) {
       return '<div class="bloc-presences" style="margin:8px 0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">' +
         '<p class="discret" style="margin:0 0 6px;text-align:center">Aucune présence ou horaire renseigné.</p>' +
