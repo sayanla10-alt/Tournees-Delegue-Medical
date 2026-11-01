@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.71';
+  var APP_VERSION = '3.26.72';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.72', ['Compte rendu : seuls les produits actifs de la base apparaissent (Losartan AM retiré) ; Gamme Aura 2, compteur et « Tous » sur une ligne ; produits d’une même famille sur une seule ligne']],
     ['3.26.71', ['Liste des quartiers : Cocody, Yopougon et Abobo regroupés sous leur commune ; les secteurs apparaissent en sous-titres une fois la commune dépliée']],
     ['3.26.70', ['Compte rendu WhatsApp aéré : titre « CR du Ven. 30/10/2026 », sans heures ni pastilles de position, une visite par bloc']],
     ['3.26.69', ['Planifier : « km estimés » ; Répertoire : Tél et Réception serrés, Réception sur une ligne ; GPS toujours en x/y (GPS 1/1) ; Ajouter au jour, Planifier, Modifier à la hauteur de « Réinitialiser les filtres »']],

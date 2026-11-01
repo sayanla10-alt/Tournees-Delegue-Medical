@@ -96,13 +96,9 @@ var ACTIVITES_PHARMACIE_DEFAUT = ['Routine', 'Présentation', 'Échantillons', '
 var ACTIVITES_RENOMMEES = { 'Visite de routine (rappel)': 'Routine', 'Réunion / staff': 'Réunion', 'Remise d\'échantillons': 'Échantillons',
   'Autre activité': 'Autre', 'Vérification des stocks': 'Stocks', 'Prise de commande': 'Commande', 'Mise en avant / PLV': 'PLV',
   'Formation de l\'équipe officinale': 'Formation', 'Animation promotionnelle': 'Animation', 'Retour ou échange de produits': 'Retour', 'Retour ou échange': 'Retour', 'Présentation produit': 'Présentation' };
-var PRODUITS_DEFAUT = [
-  'Zyltan', 'Zyltan H', 'Zyltan AM', 'Losartan AM',
-  'Lesstrol 20', 'Lesstrol AM', 'Lesstrol EZ',
-  'Eurythmic', 'Tensicard',
-  'Telmikaa', 'Telmikaa AM', 'Telmikaa H', 'Telmikaa AMH', 'Telmikaa CT',
-  'Rozukaa 10', 'Rozukaa 20', 'Rozukaa F', 'Rozukaa A', 'Rozukaa Gold',
-  'Lesskaa', 'Myonit SR', 'Antiplatt', 'Antiplatt Plus', 'Orlitroy', 'Troynuron'
+var PRODUITS_DEFAUT = [   // 3.26.72 : alignée sur les produits actifs de la base (Fiches produits, Actif = vrai)
+  'Zyltan H', 'Zyltan AM', 'Lesstrol 20', 'Lesstrol AM', 'Eurythmic', 'Tensicard',
+  'Telmikaa', 'Rozukaa 10', 'Rozukaa 20', 'Antiplatt', 'Myonit SR'
 ];
 
 // Tournées publiées par les délégués (visibles par toute l'équipe)

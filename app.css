@@ -3445,3 +3445,8 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .horaires-pharma-vue > div { display: block; text-align: left; margin: 0; }
 /* 3.26.71 : sous-titres de secteurs dans la liste des quartiers */
 .sous-entete-choix { flex-basis: 100%; width: 100%; margin: 8px 0 2px; font: 700 11.5px var(--titre); letter-spacing: .04em; text-transform: uppercase; color: var(--gris); }
+/* 3.26.72 : entête de gamme sur une ligne ; produits d'une famille sur une seule ligne */
+.gamme-cr-entete.gamme-compacte { flex-wrap: nowrap; }
+.gamme-cr-entete.gamme-compacte > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.liste-gammes-cr .lg-produits:not(.seul) { grid-template-columns: none !important; grid-auto-flow: column !important; grid-auto-columns: minmax(0, 1fr) !important; }
+.liste-gammes-cr .pastille-produit { padding: 0 6px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
