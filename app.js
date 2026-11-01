@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.65';
+  var APP_VERSION = '3.26.66';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.66', ['Planifier : Ajouter, Recalculer, Accepter à la même hauteur que « Critères »']],
     ['3.26.65', ['Planifier : « Ajouter », « Recalculer » et « Accepter » (ou « WhatsApp ») sur une seule ligne', 'Journée : samedis, dimanches et jours fériés présents dans la frise, grisés']],
     ['3.26.64', ['En-tête MediPlanner (date, mode, roue crantée) fixé en haut au défilement', 'Journée : une visite supprimée par appui long ne revient plus', 'Modifier, écran 2 : GPS en icône à côté du nom de l’hôpital ; quartier et repères côte à côte ; toucher « Matin » ou « Soir » coche toute la colonne ; jours abrégés ; résumé des jours sur chaque lieu replié ; « Autre lieu » et « Absence » sur une ligne']],
     ['3.26.63', ['Filtre par commune plus strict : seule la commune du lieu compte (plus de lieu d’une autre commune retenu à cause d’un mot de son nom)', 'Praticien à plusieurs lieux : la commune filtrée apparaît en premier (en gras) et son lieu en tête de la grille']],

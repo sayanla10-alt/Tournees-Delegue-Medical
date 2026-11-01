@@ -3432,3 +3432,5 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .rangee-tirage .bouton { flex: 1 1 0 !important; min-width: 0 !important; padding: 0 6px !important; gap: 4px !important; font-size: 13.5px !important; }
 .rangee-tirage .bouton svg { width: 16px !important; height: 16px !important; flex: none; }
 .rangee-tirage .bouton-accepter-plan { margin: 0 !important; max-width: none !important; }
+/* 3.26.66 : Ajouter / Recalculer / Accepter à la hauteur du bouton « Critères » (34 px) */
+.rangee-tirage .bouton { min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; }
