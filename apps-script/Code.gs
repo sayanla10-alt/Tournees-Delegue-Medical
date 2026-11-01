@@ -383,7 +383,11 @@ function lireTout(sig, hdepuis) {
   });
   if (hdepuis) historique = historique.filter(function (v) { return String(v.horodatage) > hdepuis; });
   var listes = lireListes(ss, tz), statuts = lireStatuts(ss);
-  var ref = { praticiens: praticiens, presences: presences, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
+  // 3.26.53 : contrôle automatique des doublons (codes contacts et numéros de lieu)
+  var vusC = {}, doublons = [];
+  praticiens.forEach(function (p) { var c = String(p.code); if (vusC[c] && doublons.indexOf(c) < 0) doublons.push(c); vusC[c] = true; });
+  if (doublons.length) console.warn('Codes en double : ' + doublons.join(', '));
+  var ref = { praticiens: praticiens, presences: presences, doublons: doublons, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
   var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   var shEtab = ss.getSheetByName(FEUILLES.etablissements);
   ref.etablissements = shEtab ? lireObjets(shEtab, CHAMPS_ETABLISSEMENTS, tz).filter(function (e) { return String(e.nom || '').trim() !== ''; }) : [];
@@ -1108,7 +1112,7 @@ function enregistrerFiche(b) {
       var o = { id: id, code: code, nom: nom, lieu: String(x.lieu || ''), quartier: String(x.quartier || ''),
                 commune: q[0] || String(x.commune || ''), zone: q[2] || String(x.zone || ''),
                 horaireMatin: String(x.horaireMatin || ''), horaireSoir: String(x.horaireSoir || ''),
-                lat: x.lat === undefined ? '' : x.lat, lon: x.lon === undefined ? '' : x.lon };
+                lat: x.lat === undefined ? '' : x.lat, lon: x.lon === undefined ? '' : x.lon, reperes: String(x.reperes || '') };
       // 3.9.0 : pas de position prise sur place ? on cherche l'établissement sur Google Maps (Abidjan)
       if (o.lat === '' || o.lon === '') { var g = geocoderLieu(o.lieu, o.quartier, o.commune); if (g) { o.lat = g.lat; o.lon = g.lon; coords[id] = g; } }
       JOURS_CLES.forEach(function (j) { o[j] = String(x[j] || ''); });
