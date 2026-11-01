@@ -3450,3 +3450,9 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .gamme-cr-entete.gamme-compacte > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .liste-gammes-cr .lg-produits:not(.seul) { grid-template-columns: none !important; grid-auto-flow: column !important; grid-auto-columns: minmax(0, 1fr) !important; }
 .liste-gammes-cr .pastille-produit { padding: 0 6px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* 3.26.74 : bouton « Modifier le planning hebdomadaire » centré, 36 px comme Planifier ; boutons du contact resserrés */
+.pres-actions { display: flex !important; justify-content: center !important; border: 0 !important; padding: 8px 0 2px !important; }
+.pres-actions .bouton-planning { min-height: 36px !important; height: 36px !important; padding: 0 14px !important; gap: 6px; font-size: 14px; width: auto !important; }
+.pres-actions .bouton-planning svg { width: 16px; height: 16px; }
+.rangee-actions-contact { gap: 6px !important; justify-content: center !important; }
+.pres-actions { margin: 4px 0 6px !important; padding-top: 4px !important; }

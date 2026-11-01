@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.73';
+  var APP_VERSION = '3.26.74';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.74', ['Répertoire : « Modifier le planning hebdomadaire » devient un bouton centré, à la hauteur de « Planifier » ; boutons du bas resserrés']],
     ['3.26.73', ['Téléphone relié mais base non reçue : écran « Chargement » avec Réessayer au lieu de l’écran d’accueil ; délai de 2 min au premier chargement', 'Un même lieu saisi sur plusieurs lignes n’apparaît qu’une fois (jours réunis), et l’enregistrement de la fiche nettoie la base', 'Notifications du téléphone (Réglages) : pharmacie ou médecin proche avec la distance, conflit avec un collègue']],
     ['3.26.72', ['Compte rendu : seuls les produits actifs de la base apparaissent (Losartan AM retiré) ; Gamme Aura 2, compteur et « Tous » sur une ligne ; produits d’une même famille sur une seule ligne']],
     ['3.26.71', ['Liste des quartiers : Cocody, Yopougon et Abobo regroupés sous leur commune ; les secteurs apparaissent en sous-titres une fois la commune dépliée']],
@@ -5782,7 +5783,7 @@
     });
     h += '</tbody></table></div>' +
       '<div class="pres-actions">' +
-        '<button type="button" class="bouton-texte" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
+        '<button type="button" class="bouton petit bouton-planning" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
         icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +
       '</div>';
     return h;
