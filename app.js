@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.67';
+  var APP_VERSION = '3.26.68';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.68', ['Abréviations : Dermato, Néphro, Ophtalmo, Rhumato, Gastro', 'Planifier : km du parcours du jour estimés d’une visite à la suivante', 'Répertoire, pharmacie : « Réception » avec le Tél dans le même encadré']],
     ['3.26.67', ['Planifier : date courte (Mar. 03 Nov.) ; ligne de détail centrée avec Cœur / Autres selon le cœur de cible']],
     ['3.26.66', ['Planifier : Ajouter, Recalculer, Accepter à la même hauteur que « Critères »']],
     ['3.26.65', ['Planifier : « Ajouter », « Recalculer » et « Accepter » (ou « WhatsApp ») sur une seule ligne', 'Journée : samedis, dimanches et jours fériés présents dans la frise, grisés']],
@@ -1268,6 +1269,11 @@
     if (/endocrino/.test(k)) return 'Endocrino';
     if (/gyneco/.test(k)) return 'Gynéco';
     if (/cardio/.test(k)) return 'Cardio';
+    if (/dermato/.test(k)) return 'Dermato';
+    if (/nephro/.test(k)) return 'Néphro';
+    if (/ophtalmo|ophthalmo/.test(k)) return 'Ophtalmo';
+    if (/rhumato/.test(k)) return 'Rhumato';
+    if (/gastro/.test(k)) return 'Gastro';
     return t;
   }
   function specialitesListe() {
@@ -3258,7 +3264,9 @@
     var nSoir = duJour.length - nMatin;
     var nPhar = duJour.filter(function (a) { return estPharmacie(a); }).length;
     var nMed = duJour.length - nPhar;
-    var totalKm = duJour.reduce(function (s, a) { return s + (a.dist || 0); }, 0);
+    // 3.26.68 : distance du parcours estimée d'une visite à la suivante (ordre des heures), coefficient routier inclus
+    var totalKm = (function () { var l = duJour.slice().sort(function (x, y) { return String(x.heure || '').localeCompare(String(y.heure || '')); }), t = 0, prec = null;
+      l.forEach(function (a) { var c = coordArret(a); if (c && prec) { var dk = distanceKm(prec, c); if (dk < 99) t += dk; } if (c) prec = c; }); return t; })();
     var comJour = Array.from(new Set(duJour.map(function (a) { return a.commune; }).filter(Boolean)));
     var etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmé' + (S.jours[d] && S.jours[d].modifieLe ? ', modifié' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
     var details = [
@@ -5655,7 +5663,7 @@
         var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
         h += actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
                               lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
-        if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
+        if (p.telephone && !estPharmacie(p)) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
         if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
         if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
         if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
@@ -5703,7 +5711,7 @@
       var l0 = lieux[0] || {};
       var hM = lireHoraire(l0.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(l0.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
       h += '<div class="horaires-pharma-vue" style="margin:4px 0 8px;padding:8px 10px;background:var(--fond,#f4f7f8);border-radius:8px;font-size:13px">' +
-        '<b>' + icone('horloge') + ' Horaires de réception :</b> ' +
+        (p.telephone ? '<div style="margin-bottom:4px"><b>Tél :</b> ' + esc(p.telephone) + '</div>' : '') + '<b>' + icone('horloge') + ' Réception :</b> ' +
         '<span>Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) + '</span> · ' +
         '<span>Soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]) + '</span>' +
         '</div>';
