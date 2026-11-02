@@ -3485,3 +3485,7 @@ li.deja-tournee { outline: 2px solid var(--vert, #1F7A45); outline-offset: -2px;
 li.deja-tournee .carte-bouton[disabled] { opacity: 1; cursor: default; }
 /* 3.26.93 : en-tête fixe aussi quand une fenêtre est ouverte (le défilement de la page est bloqué) */
 body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-index: 41; }
+/* 3.26.95 : Journée : visites avec compte rendu sur fond vert léger (à faire : blanc) */
+.arret.fait .arret-carte, .arret.fait-attente .arret-carte { background: #EEF8F1; border-color: #CFEBD9; }
+:root[data-theme="sombre"] .arret.fait .arret-carte, :root[data-theme="sombre"] .arret.fait-attente .arret-carte { background: #16302A; border-color: #24503F; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="clair"]) .arret.fait .arret-carte, :root:not([data-theme="clair"]) .arret.fait-attente .arret-carte { background: #16302A; border-color: #24503F; } }

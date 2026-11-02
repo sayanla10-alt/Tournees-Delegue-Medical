@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.94';
+  var APP_VERSION = '3.26.95';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.95', ['Dans des hôpitaux : spécialités et moment rappelés en tête', 'Journée : cartes des visites avec compte rendu sur fond vert léger']],
     ['3.26.94', ['Planifier : un praticien retiré ou remplacé dans la liste proposée n’est plus jamais reproposé au recalcul tant que les critères ne changent pas']],
     ['3.26.93', ['En-tête MediPlanner (date, nom, synchro, roue crantée) visible sur toutes les fenêtres et sous-pages', 'Dans des hôpitaux / Pharmacies dans une zone : « Dans la tournée du jour » en évidence, collègue qui l’a prévu indiqué, engagés en couleur comme dans le Répertoire']],
     ['3.26.92', ['Pharmacies dans une zone et Dans des hôpitaux : communes ou hôpitaux retenus rappelés en tête et dans le filtre ; « Jamais visité » / « Vu il y a » en étiquette comme dans le Répertoire']],
@@ -7164,7 +7165,7 @@
     tous.sort(function (x, y) { return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score; });
     var nJamais = tous.filter(function (x) { return !x.p.derniere; }).length, nPrevu = tous.filter(function (x) { return dans[x.p.code]; }).length;
     var plusProche = pos ? tous.filter(function (x) { return x.dist !== null; })[0] : null;
-    var insights = [tous.length + ' pharmacie' + (tous.length > 1 ? 's' : '') + ' ouverte' + (tous.length > 1 ? 's' : '') + ' à ' + libelleCommunes(z.communes)];
+    var insights = [tous.length + ' pharmacie' + (tous.length > 1 ? 's' : '') + ' ouverte' + (tous.length > 1 ? 's' : '') + ' à ' + libelleCommunes(z.communes) + ({ tout: '', Matin: ' le matin', Soir: ' le soir', maintenant: ' maintenant' }[z.moment] || '')];
     if (nJamais) insights.push(nJamais + ' jamais visitée' + (nJamais > 1 ? 's' : ''));
     if (plusProche) insights.push('la plus proche à ' + distanceCourte(plusProche.dist));
     if (nPrevu) insights.push(nPrevu + ' déjà dans la tournée');
@@ -7206,7 +7207,9 @@
     tous.sort(function (x, y) { return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score; });
     var nJamais = tous.filter(function (x) { return !x.p.derniere; }).length, nVus = tous.length - nJamais, nPrevu = tous.filter(function (x) { return dans[x.p.code]; }).length;
     var plusProche = pos ? tous.filter(function (x) { return x.dist !== null; })[0] : null;
-    var ins = [tous.length + ' médecin' + (tous.length > 1 ? 's' : '') + ' présent' + (tous.length > 1 ? 's' : '') + ' à ' + ordre.map(function (k) { return groupes[k].lieu; }).join(', ')];
+    // 3.26.95 : on rappelle aussi les spécialités et le moment retenus
+    var momTxt = { tout: '', Matin: ' le matin', Soir: ' le soir', maintenant: ' maintenant' }[h.moment] || '';
+    var ins = [tous.length + ' médecin' + (tous.length > 1 ? 's' : '') + ' ' + (h.specs.length ? h.specs.map(abrSpec).join(', ') : 'toutes spécialités') + ' présent' + (tous.length > 1 ? 's' : '') + ' à ' + ordre.map(function (k) { return groupes[k].lieu; }).join(', ') + momTxt];
     if (nVus) ins.push(nVus + ' déjà visité' + (nVus > 1 ? 's' : ''));
     if (nJamais) ins.push(nJamais + ' jamais visité' + (nJamais > 1 ? 's' : ''));
     if (plusProche) ins.push('le plus proche à ' + distanceCourte(plusProche.dist));
