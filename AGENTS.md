@@ -40,3 +40,10 @@ Ce document consigne les directives fermes et les interdictions absolues établi
 ## 7. VOCABULAIRE & PHRASES D'INTRODUCTION
 * **Répertoire** : Utiliser impérativement la formule **« Tous vos contacts »** (et non « Tous vos médecins et pharmacies »).
 * **Phrases d'introduction des onglets** : Doivent rester concises, sobres et tenir sur 2 lignes maximum.
+
+---
+
+## 8. POINTS DE RETOUR (refontes à l'essai)
+Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'état d'avant avec le tag git correspondant (restaurer `app.js` et `app.css` depuis le tag, puis publier une nouvelle version).
+* `avant-fiche-v2` : fiche contact (Ajouter / Modifier) avant la refonte 3.27.1 (chercher avant de créer, semaine type, carte de visite).
+* `avant-fiche-repertoire-v2` : fiche dépliée du Répertoire avant la refonte 3.27.6 (prochaine présence, contact sur une ligne, une seule semaine en petits carrés).

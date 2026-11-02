@@ -3575,3 +3575,35 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .fx-plus-specs[aria-expanded="true"] svg { transform: rotate(180deg); }
 .fx-specs-plus { padding: 4px 0 0; }
 .fx-sous { font-size: 12.5px; color: var(--gris); font-weight: 600; margin: 8px 0 4px; }
+
+/* 3.27.6 : fiche Répertoire repensée */
+.contact-barre { display: flex; align-items: center; gap: 5px; margin-top: 10px; padding: 5px 5px 5px 10px; background: var(--papier-2); border: 1px solid var(--trait); border-radius: 12px; }
+.cb-n { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: visible; }
+.cb-b { width: 40px; height: 40px; flex: none; border-radius: 10px; background: var(--primaire-pale); color: var(--primaire); display: flex; align-items: center; justify-content: center; border: 1px solid var(--trait); }
+.cb-b svg { width: 20px; height: 20px; }
+.cb-b[aria-disabled="true"] { background: var(--papier-2); color: var(--gris-2); pointer-events: none; }
+.proch-pres { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 10px; background: var(--ambre-pale); border: 1px solid var(--ambre-trait); border-radius: 12px; }
+.pp-d { flex: none; width: 44px; text-align: center; background: var(--papier); border: 1px solid var(--ambre-trait); border-radius: 9px; padding: 3px 0; }
+.pp-d b { display: block; font-size: 18px; line-height: 1.1; }
+.pp-d small { display: block; font-size: 10.5px; color: var(--ambre); font-weight: 700; }
+.proch-pres p { margin: 0; flex: 1; min-width: 0; font-size: 12.5px; color: var(--gris); }
+.proch-pres p b { display: block; font-size: 14px; color: var(--encre); }
+.proch-pres .bouton { flex: none; }
+.sem-rep { margin-top: 12px; }
+.sr-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 5px; }
+.sr-tete b { font-size: 14.5px; }
+.sr-tete small { display: block; font-size: 11.5px; color: var(--gris); }
+.sr-modif { flex: none; }
+.sr-grille { display: grid; grid-template-columns: 16px repeat(5, 1fr); gap: 3px; }
+.sr-j { text-align: center; font-size: 11.5px; color: var(--gris); font-weight: 700; padding: 2px 0; border-radius: 7px 7px 0 0; }
+.sr-j.auj { color: var(--primaire); background: var(--primaire-pale); }
+.sr-ms { font-size: 10.5px; color: var(--gris); font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.sr-cel { display: flex; gap: 2px; min-width: 0; }
+.sr-c { flex: 1; min-width: 0; height: 30px; border-radius: 7px; border: 1px dashed var(--trait); background: var(--papier-2); padding: 0; }
+.sr-c.on { border: 0; background: var(--k, var(--primaire)); color: var(--sur-primaire); font: 700 12px var(--texte); cursor: pointer; }
+.sr-lieux { list-style: none; margin: 8px 0 0; padding: 0; }
+.sr-lieux li { display: flex; gap: 7px; padding: 6px 0; border-top: 1px solid var(--trait); }
+.sr-lieux li:first-child { border-top: 0; }
+.sr-pt { width: 10px; height: 10px; border-radius: 3px; flex: none; margin-top: 5px; }
+.sr-lieux b { font-size: 14px; }
+.sr-lieux small { display: block; font-size: 12px; color: var(--gris); line-height: 1.35; }
