@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.87';
+  var APP_VERSION = '3.26.88';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.88', ['Compte rendu de visite : choix proposés par défaut (visite faite : Oui ; types et produits : les derniers choisis ; produits présentés : Oui ; réaction : la dernière, sinon Intéressé ; échantillons : Oui ; suite : Aucune) ; un toucher suffit pour confirmer']],
     ['3.26.87', ['+ Pharmacie : 3e choix « Dans une zone » : toutes les pharmacies ouvertes dans les communes ou secteurs choisis, ce jour-là, au moment choisi (journée, matin, soir ou maintenant), avec la distance']],
     ['3.26.86', ['Autour de moi : 3e choix « Dans des hôpitaux » : médecins présents dans un ou plusieurs hôpitaux, ce jour-là, à un moment donné (journée, matin, soir ou maintenant), filtrés par spécialité si besoin']],
     ['3.26.85', ['Données : une ancienne copie de la base restée sur le téléphone ne revient plus à l’ouverture (fin des noms corrigés qui réapparaissent puis sautent) ; la copie la plus récente est toujours retenue', 'Réglages › Avancé : « Recharger toute la base »']],
@@ -4320,7 +4321,7 @@
     var c = crDe(a), ph = estPharmacie(a), im = implicite(a, c), cat = produitsRef(), l = [];
     function e(id, titre, type, rendu, resume, ok) { l.push({ id: id, titre: titre, type: type, rendu: rendu, resume: resume, valide: ok }); }
     var oui = function (v) { return v === 'oui' ? 'Oui' : (v === 'non' ? 'Non' : ''); };
-    e('faite', 'La visite a-t-elle été faite ?', 'auto', function () { return ouiNonCr(a, 'faite', c.faite); }, function () { return oui(c.faite); });
+    e('faite', 'La visite a-t-elle été faite ?', 'auto', function () { return ouiNonCr(a, 'faite', c.faite || 'oui'); }, function () { return oui(c.faite); });
     if (!c.faite) return l;
     if (c.faite === 'non') {
       e('motif', 'Motif', 'auto', function () { return choixCr(a, 'motif', motifsPour(a), c.motif); }, function () { return c.motif; });
@@ -4339,18 +4340,21 @@
     if (!ph) {
       e('types', 'Type(s) de visite médicale', 'continuer', function () { return rendreChoixTypesCr(a, c.types); }, function () { return (c.types || []).join(', '); },
         function () { return (c.types || []).length ? '' : 'choisissez au moins un type de visite médicale'; });
-      if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes); }, function () { return oui(c.presentes); });
+      if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes || 'oui'); }, function () { return oui(c.presentes); });
       if (c.presentes === 'oui' || im.presentes) {
         e('produits', 'Produits présentés', 'continuer', function () {
           return rendreChoixProduitsCr(a, 'produits', c.produits);
         }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
         e('reactions', 'Réaction du médecin', 'continuer', function () {
+          // 3.26.88 : réaction par défaut : la dernière donnée pour ce produit, sinon « Intéressé »
+          var memR = LS.get('dernieresReactionsCr', {}); c.reactions = c.reactions || {};
+          produitsPresentes(c).forEach(function (p) { if (!c.reactions[p]) c.reactions[p] = memR[p] || 'Intéressé'; });
           return '<div class="champs-cr">' + produitsPresentes(c).map(function (p) {
             return '<div class="champ champ-reaction-produit"><div class="etiquette-med-cr"><b>' + esc(p) + '</b></div><div class="grille-reactions-cr">' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div></div>';
           }).join('') + '</div>';
         }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
       }
-      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant); }, function () { return oui(c.echant); });
+      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'oui'); }, function () { return oui(c.echant); });
       if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
       e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
       etapesSuite(a, c, SUITES.medecin, e);
@@ -9596,6 +9600,7 @@
       if (el.dataset.v === 'types') {
         memoriserDerniersTypesCr(estPharmacie(a), c.types);
       }
+      if (el.dataset.v === 'reactions') { var memR = LS.get('dernieresReactionsCr', {}); Object.keys(c.reactions || {}).forEach(function (p) { memR[p] = c.reactions[p]; }); LS.set('dernieresReactionsCr', memR); }
       if (el.dataset.v === 'produits') {
         c.reactions = c.reactions || {};
         if (!estPharmacie(a)) memoriserDerniersProduitsCr(c.produits);
