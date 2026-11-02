@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.90';
+  var APP_VERSION = '3.26.91';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.91', ['Dans des hôpitaux : repères en tête (médecins trouvés, déjà visités, jamais visités, le plus proche), une seule liste du plus proche au plus lointain, spécialité, hôpital et Tél dans la carte']],
     ['3.26.90', ['Pharmacies dans une zone : repères en tête (nombre trouvé, jamais visitées, la plus proche), une seule liste de la plus proche à la plus lointaine, quartier et Tél dans la carte']],
     ['3.26.89', ['Autour de moi : 4 choix (Par ma position, Selon mes filtres, Dans des hôpitaux, Pharmacies dans une zone) ; « Dans une zone » renommé « Pharmacies dans une zone »']],
     ['3.26.88', ['Compte rendu de visite : choix proposés par défaut (visite faite : Oui ; types et produits : les derniers choisis ; produits présentés : Oui ; réaction : la dernière, sinon Intéressé ; échantillons : Oui ; suite : Aucune) ; un toucher suffit pour confirmer']],
@@ -7177,20 +7178,29 @@
       x.crs.push(cr);
     });
     if (!ordre.length) return '<p class="discret">Personne de présent dans ces hôpitaux le ' + esc(dateCourte(d)) + (h.moment !== 'tout' ? ' (' + esc(h.moment === 'maintenant' ? 'maintenant' : h.moment.toLowerCase()) + ')' : '') + ', selon ces critères.</p>';
-    return ordre.map(function (k) {
-      var g = groupes[k], l = Object.keys(g.parCode).map(function (c) { return g.parCode[c]; }).sort(function (x, y) { return y.score - x.score; });
-      return '<div class="aire-titre">' + esc(g.lieu) + ' <small>· ' + l.length + ' présent' + (l.length > 1 ? 's' : '') + '</small></div>' +
-        '<ul class="liste">' + l.map(function (x) {
-          var p = x.p, cr = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; })[0];
-          var plages = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }).map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
-          var deja = dans[p.code], coll = ex[p.code];
-          var etat = deja ? ' · <b>déjà dans la tournée</b>' : (coll ? ' · prévu par un collègue' : '');
-          return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
-            '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-            '<span class="discret bloc-texte"><b>' + esc(abrSpec(p.specialite)) + '</b></span>' +
-            '<span class="discret bloc-texte">' + esc(plages) + ' · ' + esc(vuDepuis(p.derniere, d)) + etat + '</span></button></li>';
-        }).join('') + '</ul>';
-    }).join('');
+    // 3.26.91 : même présentation que « Pharmacies dans une zone » : repères en tête, une seule liste du plus proche au plus lointain
+    var pos = positionActuelle(), tous = [];
+    ordre.forEach(function (k) { var g = groupes[k]; Object.keys(g.parCode).forEach(function (c) { var x = g.parCode[c]; var co = x.crs[0].coord; x.dist = pos && co ? distanceVol(pos, co) : null; x.approx = !!(co && co.approx); x.lieu = g.lieu; tous.push(x); }); });
+    tous.sort(function (x, y) { return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score; });
+    var nJamais = tous.filter(function (x) { return !x.p.derniere; }).length, nVus = tous.length - nJamais, nPrevu = tous.filter(function (x) { return dans[x.p.code]; }).length;
+    var plusProche = pos ? tous.filter(function (x) { return x.dist !== null; })[0] : null;
+    var ins = [tous.length + ' médecin' + (tous.length > 1 ? 's' : '') + ' présent' + (tous.length > 1 ? 's' : '') + (ordre.length > 1 ? ' dans ' + ordre.length + ' hôpitaux' : '')];
+    if (nVus) ins.push(nVus + ' déjà visité' + (nVus > 1 ? 's' : ''));
+    if (nJamais) ins.push(nJamais + ' jamais visité' + (nJamais > 1 ? 's' : ''));
+    if (plusProche) ins.push('le plus proche à ' + distanceCourte(plusProche.dist));
+    if (nPrevu) ins.push(nPrevu + ' déjà dans la tournée');
+    return '<p class="insights-zone"><b>' + esc(ins[0]) + '</b>' + (ins.length > 1 ? ' · ' + esc(ins.slice(1).join(' · ')) : '') + (pos ? '' : '<br><small>Position inconnue : touchez « Par ma position » pour classer par distance.</small>') + '</p>' +
+      '<ul class="liste">' + tous.map(function (x) {
+        var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
+        var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
+        var deja = dans[p.code], etat = deja ? ' · <b>déjà dans la tournée</b>' : (ex[p.code] ? ' · prévu par un collègue' : '');
+        var dist = x.dist !== null ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' : '';
+        var ligne1 = '<b>' + esc(abrSpec(p.specialite)) + '</b> · ' + esc(x.lieu) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
+        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
+          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="discret bloc-texte">' + ligne1 + '</span>' +
+          '<span class="discret bloc-texte">' + esc(plages) + ' · ' + esc(vuDepuis(p.derniere, d)) + dist + etat + '</span></button></li>';
+      }).join('') + '</ul>';
   }
   // 3.26.50 : instructions selon le navigateur ; un lien ouvert dans WhatsApp, Facebook ou Instagram s'ouvre dans un
   // navigateur intégré qui ne peut pas installer l'application (et n'a pas la même mémoire) : il faut l'ouvrir dans Chrome / Safari
