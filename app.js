@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.95';
+  var APP_VERSION = '3.26.96';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.96', ['Distances : point de départ et précision affichés (votre position ± X m, ou point choisi) ; position GPS remesurée à l’ouverture des recherches ; alerte si la position est imprécise']],
     ['3.26.95', ['Dans des hôpitaux : spécialités et moment rappelés en tête', 'Journée : cartes des visites avec compte rendu sur fond vert léger']],
     ['3.26.94', ['Planifier : un praticien retiré ou remplacé dans la liste proposée n’est plus jamais reproposé au recalcul tant que les critères ne changent pas']],
     ['3.26.93', ['En-tête MediPlanner (date, nom, synchro, roue crantée) visible sur toutes les fenêtres et sous-pages', 'Dans des hôpitaux / Pharmacies dans une zone : « Dans la tournée du jour » en évidence, collègue qui l’a prévu indiqué, engagés en couleur comme dans le Répertoire']],
@@ -7169,7 +7170,7 @@
     if (nJamais) insights.push(nJamais + ' jamais visitée' + (nJamais > 1 ? 's' : ''));
     if (plusProche) insights.push('la plus proche à ' + distanceCourte(plusProche.dist));
     if (nPrevu) insights.push(nPrevu + ' déjà dans la tournée');
-    return '<p class="insights-zone"><b>' + esc(insights[0]) + '</b>' + (insights.length > 1 ? ' · ' + esc(insights.slice(1).join(' · ')) : '') + (pos ? '' : '<br><small>Position inconnue : touchez « Par ma position » pour classer par distance.</small>') + '</p>' +
+    return '<p class="insights-zone"><b>' + esc(insights[0]) + '</b>' + (insights.length > 1 ? ' · ' + esc(insights.slice(1).join(' · ')) : '') + (pos ? '<br><small>' + esc(texteReferenceDistance()) + '</small>' : '<br><small>Position inconnue : touchez « Par ma position » pour classer par distance.</small>') + '</p>' +
       '<ul class="liste">' + tous.map(function (x) {
         var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
         var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
@@ -7214,7 +7215,7 @@
     if (nJamais) ins.push(nJamais + ' jamais visité' + (nJamais > 1 ? 's' : ''));
     if (plusProche) ins.push('le plus proche à ' + distanceCourte(plusProche.dist));
     if (nPrevu) ins.push(nPrevu + ' déjà dans la tournée');
-    return '<p class="insights-zone"><b>' + esc(ins[0]) + '</b>' + (ins.length > 1 ? ' · ' + esc(ins.slice(1).join(' · ')) : '') + (pos ? '' : '<br><small>Position inconnue : touchez « Par ma position » pour classer par distance.</small>') + '</p>' +
+    return '<p class="insights-zone"><b>' + esc(ins[0]) + '</b>' + (ins.length > 1 ? ' · ' + esc(ins.slice(1).join(' · ')) : '') + (pos ? '<br><small>' + esc(texteReferenceDistance()) + '</small>' : '<br><small>Position inconnue : touchez « Par ma position » pour classer par distance.</small>') + '</p>' +
       '<ul class="liste">' + tous.map(function (x) {
         var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
         var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
@@ -8729,6 +8730,18 @@
   }
   function gpsPrecis() { var g = gpsFrais(); return !!(g && g.prec && g.prec <= 60); }
   // 3.25.8 : position actuelle connue : GPS de moins de 15 min, sinon le point choisi dans « Autour de moi »
+  // 3.26.96 : d'où partent les distances affichées (et avec quelle précision), pour que le délégué puisse en juger
+  function texteReferenceDistance() {
+    var g = gpsFrais();
+    if (g) {
+      var min = Math.round((Date.now() - g.t) / 60000), pr = g.prec || 0;
+      return 'Distances depuis votre position' + (pr ? ' (± ' + pr + ' m' : ' (') + (min ? ', il y a ' + min + ' min' : '') + ')' +
+        (pr > 100 ? '. Position imprécise : sortez à découvert ou activez la « localisation précise », les distances peuvent être fausses de ' + pr + ' m.' : '.');
+    }
+    var A = S.ui.autour;
+    if (A && A.lat !== null && A.lat !== undefined) return 'Distances depuis ' + (A.src === 'gps' ? 'votre dernière position connue (ancienne)' : 'le point choisi : ' + (A.label || 'quartier')) + ', pas votre position actuelle.';
+    return '';
+  }
   function positionActuelle() {
     var g = gpsFrais(); if (g) return { lat: g.lat, lon: g.lon };
     var A = S.ui.autour; return A && A.lat !== null && A.lat !== undefined ? { lat: A.lat, lon: A.lon } : null;
@@ -9232,13 +9245,13 @@
         var zR = LS.get('rechZonePh', null) || {};
         S.ui.feuille = { type: 'ajouterZonePharma', titre: 'Pharmacies dans une zone, ' + dateCourte(j), pleine: true,
           z: { communes: (zR.communes || []).slice(), moment: zR.moment && (zR.moment !== 'maintenant' || j === aujourdhui()) ? zR.moment : (j === aujourdhui() ? 'maintenant' : 'tout') } };
-        rendre(); return;
+        rendre(); localiser(true, 'position', true); return;
       }
       if (el.dataset.v === 'hopitaux') {
         var hR = LS.get('rechHop', null) || {}; 
         S.ui.feuille = { type: 'ajouterHopitaux', titre: 'Dans des hôpitaux, ' + dateCourte(j), pleine: true,
           h: { lieux: (hR.lieux || []).slice(), specs: (hR.specs || []).slice(), moment: hR.moment && (hR.moment !== 'maintenant' || j === aujourdhui()) ? hR.moment : 'tout' } };
-        rendre(); return;
+        rendre(); localiser(true, 'position', true); return;
       }
       S.ui.feuille = { type: 'ajouterCommunes', titre: (S.ui.typeAjout ? 'Selon mes filtres, ' : 'Communes du ') + dateCourte(j), pleine: true }; rendre();
     },
