@@ -1,7 +1,9 @@
 {
-  "version": "3.27.3",
+  "version": "3.27.4",
   "date": "2026-11-02",
   "notes": [
-    "Fiche, mode sombre : contraste des cases Oui"
+    "Ajouter : Qui puis Où et quand, Enregistrer en bas",
+    "Dr / Pharmacie ajoutés au nom, 1 étoile par défaut",
+    "Visite non réalisée en rouge léger"
   ]
 }

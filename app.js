@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.3';
+  var APP_VERSION = '3.27.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.4', ['Ajouter : « Créer » mène à 1. Qui puis 2. Où et quand ; plus de choix Médecin / Pharmacie après « Créer » ; Suivant vérifie l’étape ; Enregistrer en bas, en fin de parcours', '« Dr » ajouté au nom d’un médecin sans titre, « Pharmacie » au nom d’une officine qui ne le précise pas ; potentiel à 1 étoile par défaut', 'Spécialités : cœur de cible affiché, les autres en dépliant ; établissement connu : quartier, repères et GPS repris', 'Journée : carte d’une visite non réalisée en rouge léger (comme le vert léger des visites faites)']],
     ['3.27.3', ['Fiche, mode sombre : texte des cases « Oui » et de « C’est ici » lisible']],
     ['3.27.2', ['Fiche : retour de tout ce qui existait avant (M / S pour cocher toute la ligne, GPS de la pharmacie affiché avec ✕, commune sous le quartier, spécialités groupées, téléphone dans les doublons, choix Médecin / Pharmacie tant que la fiche est nouvelle, titre « Planning hebdomadaire »)']],
     ['3.27.1', ['Fiche contact repensée : « + Ajouter » commence par chercher la personne rencontrée (contacts existants à ouvrir, sinon Créer) ; pharmacies connues autour de vous', '1. Où et quand : semaine type avec tous les lieux en couleur, créneaux en double signalés, « C’est ici » propose l’établissement où vous êtes', '2. Qui : nom en grand, spécialités en tuiles, potentiel en étoiles, Prescription engagée Oui / Non, bouton Appeler', 'Enregistrer toujours visible en haut ; Modifier (en haut et sur la carte) ouvre le même écran']],
@@ -7775,7 +7776,7 @@
           l0.prec = S.ui.posGps.prec;
         }
       }
-      return { code: '', type: 'Médecin', nom: '', telephone: '', specialite: '', autreSpec: '', note: 2, conventionne: 'Non', actif: 'Oui', lieux: [l0] };
+      return { code: '', type: 'Médecin', nom: '', telephone: '', specialite: '', autreSpec: '', note: 1, conventionne: 'Non', actif: 'Oui', lieux: [l0] };
     }
     var p = (S.data.praticiens || []).filter(function (x) { return x.code === code; })[0] || {};
     var estPh = p.type === 'Pharmacie' || /^PHA-/i.test(code);
@@ -7917,7 +7918,28 @@
     Object.keys(par).forEach(function (x) { if (par[x].length > 1) conf[x] = par[x]; });
     return conf;
   }
-  function nomCreer(d) { var n = String(d.nom || '').trim(); return n ? '« ' + n + ' »' : (d.type === 'Pharmacie' ? 'cette pharmacie' : 'ce médecin'); }
+  // 3.27.4 : « Dr » ajouté si le nom du médecin n'a pas de titre ; « Pharmacie » si le nom de l'officine ne le dit pas
+  function nomAvecTitre(nom, type) {
+    var n = String(nom || '').trim().replace(/\s+/g, ' '); if (n.length < 2) return n;
+    if (type === 'Pharmacie') {
+      if (/^(pharmacie|phcie|pharma)\b\.?\s*/i.test(n)) return n.replace(/^(pharmacie|phcie|pharma)\b\.?\s*/i, 'Pharmacie ').trim();
+      return 'Pharmacie ' + n;
+    }
+    var m = n.match(/^(docteur|dr|pr|professeur|prof)\b\.?\s*/i);
+    if (m) { var t = /^d/i.test(m[1]) ? 'Dr' : 'Pr'; return (t + ' ' + n.slice(m[0].length)).trim(); }
+    return 'Dr ' + n;
+  }
+  // repères et GPS déjà connus pour un établissement (autres praticiens du même lieu)
+  function infosLieuBase(nom) {
+    var k = normaliser(nom || ''), r = { reperes: '', lat: '', lon: '' }; if (!k) return r;
+    ((S.data && S.data.presences) || []).forEach(function (x) {
+      if (normaliser(x.lieu || '') !== k) return;
+      if (!r.reperes && x.reperes) r.reperes = x.reperes;
+      if (!r.lat && aCoord(x)) { var c = lireCoord(x); r.lat = c.lat; r.lon = c.lon; }
+    });
+    return r;
+  }
+  function nomCreer(d) { var n = nomAvecTitre(d.nom, d.type); return n ? '« ' + n + ' »' : (d.type === 'Pharmacie' ? 'cette pharmacie' : 'ce médecin'); }
 
   FEUILLES.fiche = function (f) {
     var d = f.d, seulPlanning = !!f.planningSeul;
@@ -7948,17 +7970,23 @@
       return { corps: h };
     }
 
-    if (!existante && !seulPlanning) h += '<div class="segment" role="group" aria-label="Type">' + ['Médecin', 'Pharmacie'].map(function (t) {
-        return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
-      }).join('') + '</div>';
-    if (!seulPlanning) h += '<div class="segment" role="group" aria-label="Étapes">' +
-      '<button type="button" data-a="ficheAller" data-v="1" aria-pressed="' + (f.etape === 1) + '">1. Où et quand</button>' +
-      '<button type="button" data-a="ficheAller" data-v="0" aria-pressed="' + (f.etape === 0) + '">2. ' + (estPh ? 'Pharmacie' : 'Qui') + '</button></div>';
+    // 3.27.4 : ajout : 1. Qui (ouvert d'abord), 2. Où et quand ; modification : 1. Où et quand, 2. Qui
+    var libQui = estPh ? 'Pharmacie' : 'Qui', etQui = { v: 0, lib: libQui }, etOu = { v: 1, lib: 'Où et quand' };
+    var ordre = f.nouveau ? [etQui, etOu] : [etOu, etQui];
+    if (!seulPlanning) h += '<div class="segment" role="group" aria-label="Étapes">' + ordre.map(function (x, n) {
+      return '<button type="button" data-a="ficheAller" data-v="' + x.v + '" aria-pressed="' + (f.etape === x.v) + '">' + (n + 1) + '. ' + x.lib + '</button>';
+    }).join('') + '</div>';
     if (seulPlanning) f.etape = 1;
 
     if (f.etape === 1) h += ficheOuEtQuand(f, d, estPh);
     else h += ficheQui(f, d, estPh, existante);
-    return { corps: h, tete: '<button type="button" class="bouton bouton-plein fx-enregistrer" data-a="ficheEnregistrer">Enregistrer</button>' };
+    var pos = ordre[0].v === f.etape ? 0 : 1, autre = ordre[1 - pos];
+    var pied = '<button class="bouton-texte sortir-question" type="button" data-a="fermerFeuille">Annuler</button>';
+    if (seulPlanning) pied += '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>';
+    else if (f.nouveau && pos === 0) pied += '<button class="bouton bouton-plein" type="button" data-a="ficheSuivant" data-v="' + autre.v + '">Suivant : ' + autre.lib + '</button>';
+    else pied += '<button class="bouton" type="button" data-a="ficheAller" data-v="' + autre.v + '">' + (pos === 0 ? autre.lib + ' →' : '← ' + autre.lib) + '</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="ficheEnregistrer">' + icone('valider') + 'Enregistrer</button>';
+    return { corps: h, pied: pied };
   };
 
   function grilleSemaine(f, d, idx, couleur, conf) {
@@ -8054,15 +8082,14 @@
       if (d.specialite && d.specialite !== '__autre' && specs.indexOf(d.specialite) < 0) specs.unshift(d.specialite);
       var CHIR = ['Chirurgien', 'Urologue', 'ORL'], horsCoeur = d.specialite && coeur.indexOf(d.specialite) < 0;
       var specMed = specs.filter(function (s) { return coeur.indexOf(s) < 0 && CHIR.indexOf(s) < 0; }), specChir = specs.filter(function (s) { return CHIR.indexOf(s) >= 0; });
-      h += '<div class="champ"><span class="requis">Spécialité</span><div class="fx-specs">' + coeur.map(function (s) {
-          return '<button type="button" data-a="ficheSpecRapide" data-v="' + esc(s) + '" aria-pressed="' + (d.specialite === s) + '">' + esc(abrSpec(s)) + '</button>';
-        }).join('') + '</div>' +
-        selecteurListe('ficheSpec', { titre: 'Autre spécialité', valeur: horsCoeur ? d.specialite : '', vide: 'Autre spécialité…', invalide: !!f.err.specialite,
-          sections: [
-            { titre: '🎯 Cœur de cible', options: coeur.map(function (s) { return [s, abrSpec(s)]; }) },
-            { titre: '🩺 Spécialités médicales', options: specMed.map(function (s) { return [s, abrSpec(s)]; }) },
-            { titre: '🏥 Chirurgie & Autres', options: specChir.map(function (s) { return [s, s]; }).concat([['__autre', 'Autre spécialité…']]) }],
-          appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.specialite = v; delete fe.err.specialite; } } }) +
+      var tuiles = function (l, court) { return '<div class="fx-specs">' + l.map(function (s) {
+          return '<button type="button" data-a="ficheSpecRapide" data-v="' + esc(s) + '" aria-pressed="' + (d.specialite === s) + '">' + esc(court ? abrSpec(s) : s) + '</button>';
+        }).join('') + '</div>'; };
+      var deplie = f.voirSpecs || horsCoeur;
+      h += '<div class="champ"><span class="requis">Spécialité</span>' + tuiles(coeur, true) +
+        '<button type="button" class="fx-plus-specs" data-a="ficheVoirSpecs" aria-expanded="' + !!deplie + '"><span>Autres spécialités' + (horsCoeur && d.specialite !== '__autre' ? ' : <b>' + esc(abrSpec(d.specialite)) + '</b>' : '') + '</span>' + icone('chevron') + '</button>' +
+        (deplie ? '<div class="fx-specs-plus"><p class="fx-sous">Spécialités médicales</p>' + tuiles(specMed, true) +
+          '<p class="fx-sous">Chirurgie & autres</p>' + tuiles(specChir.concat(['__autre']), false).replace('>__autre<', '>Autre…<') + '</div>' : '') +
         '<span class="erreur" data-err="specialite" id="err-specialite">' + esc(f.err.specialite || '') + '</span></div>';
       if (d.specialite === '__autre') h += champFiche('autreSpec', 'Autre spécialité *', '<input type="text" data-f="fiche" data-k="autreSpec" value="' + esc(d.autreSpec) + '"' + attrInvalide(f, 'autreSpec') + '>', f, true);
     }
@@ -10184,12 +10211,13 @@
         rendre();
       }
     },
-    nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau contact', pleine: true, etape: 1, cherche: true, d: brouillonFiche(''), err: {} }; rendre(); setTimeout(function () { var i = document.querySelector('.fx-champ-g'); if (i) i.focus(); }, 250); },
+    nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau contact', pleine: true, etape: 0, cherche: true, nouveau: true, d: brouillonFiche(''), err: {} }; rendre(); setTimeout(function () { var i = document.querySelector('.fx-champ-g'); if (i) i.focus(); }, 250); },
     // 3.27.1 : personne introuvable dans la base : on passe à la fiche (1. Où et quand)
     ficheCreer: function () {
       var f = S.ui.feuille; if (!f) return;
       if (String(f.d.nom || '').trim().length < 2) { f.err = { nom: 'Indiquez le nom (2 caractères min.).' }; rendre(); focusErreur(); return; }
-      f.cherche = false; f.err = {}; f.etape = 1; f.lieuOuvert = 0; synchroniserDefautsFiche(f.d); rendre();
+      f.d.nom = nomAvecTitre(f.d.nom, f.d.type); if (f.d.type === 'Pharmacie') f.d.lieux[0].lieu = f.d.nom;
+      f.cherche = false; f.err = {}; f.etape = 0; f.lieuOuvert = 0; synchroniserDefautsFiche(f.d); rendre();
     },
     ficheIci: function () {
       var f = S.ui.feuille, e = f && f.ici; if (!e) return;
@@ -10199,6 +10227,15 @@
       ['lieu', 'quartier'].forEach(function (k) { delete f.err[k + i]; });
       f.lieuOuvert = i; f.ici = null; rendre(); toast('Lieu : ' + e.lieu + '.');
     },
+    // 3.27.4 : « Suivant » vérifie d'abord l'étape en cours
+    ficheSuivant: function (el) {
+      var f = S.ui.feuille; if (!f) return;
+      if (f.etape === 0 && String(f.d.nom || '').trim().length >= 2) { f.d.nom = nomAvecTitre(f.d.nom, f.d.type); if (f.d.type === 'Pharmacie') f.d.lieux[0].lieu = f.d.nom; }
+      var e = erreursEtape(f.d, f.etape);
+      if (Object.keys(e).length) { f.err = e; rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
+      ACTIONS.ficheAller(el);
+    },
+    ficheVoirSpecs: function () { var f = S.ui.feuille; if (f) { f.voirSpecs = !(f.voirSpecs || (f.d.specialite && coeurDeCible().indexOf(f.d.specialite) < 0)); rendre(); } },
     ficheIciNon: function () { var f = S.ui.feuille; if (f && f.ici) { f.iciRefuse = normaliser(f.ici.lieu); f.ici = null; rendre(); } },
     modifierFiche: function (el) {
       var code = el.dataset.v || S.ui.contactOuvert;
@@ -10442,6 +10479,8 @@
     },
     ficheEnregistrer: function () {
       var f = S.ui.feuille;
+      var nomInit = f.initial ? JSON.parse(f.initial).nom : null;
+      if (String(f.d.nom || '').trim().length >= 2 && f.d.nom !== nomInit) { f.d.nom = nomAvecTitre(f.d.nom, f.d.type); if (f.d.type === 'Pharmacie') f.d.lieux[0].lieu = f.d.nom; }
       synchroniserDefautsFiche(f.d);
       for (var i = 0; i < 2; i++) {
         var e = erreursEtape(f.d, i);
@@ -10696,6 +10735,10 @@
         }
         if (can.commune && !/^NL$/i.test(can.commune)) d.lieux[+i].commune = can.commune;
         if (can.lat && can.lon) { d.lieux[+i].lat = can.lat; d.lieux[+i].lon = can.lon; }
+        // 3.27.4 : repères et GPS des autres praticiens du même établissement
+        var ib = infosLieuBase(can.lieu);
+        if (!d.lieux[+i].reperes && ib.reperes) d.lieux[+i].reperes = ib.reperes;
+        if (ib.lat && !(can.lat && can.lon)) { d.lieux[+i].lat = ib.lat; d.lieux[+i].lon = ib.lon; }
         delete f.err['lieu' + i];
         rendre();
         return;
