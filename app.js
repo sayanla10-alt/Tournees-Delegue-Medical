@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.4';
+  var APP_VERSION = '3.27.5';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.5', ['Fiche : seules les spécialités du cœur de cible sont affichées ; les autres restent repliées, même en modification (la spécialité choisie s’affiche sur le bouton)']],
     ['3.27.4', ['Ajouter : « Créer » mène à 1. Qui puis 2. Où et quand ; plus de choix Médecin / Pharmacie après « Créer » ; Suivant vérifie l’étape ; Enregistrer en bas, en fin de parcours', '« Dr » ajouté au nom d’un médecin sans titre, « Pharmacie » au nom d’une officine qui ne le précise pas ; potentiel à 1 étoile par défaut', 'Spécialités : cœur de cible affiché, les autres en dépliant ; établissement connu : quartier, repères et GPS repris', 'Journée : carte d’une visite non réalisée en rouge léger (comme le vert léger des visites faites)']],
     ['3.27.3', ['Fiche, mode sombre : texte des cases « Oui » et de « C’est ici » lisible']],
     ['3.27.2', ['Fiche : retour de tout ce qui existait avant (M / S pour cocher toute la ligne, GPS de la pharmacie affiché avec ✕, commune sous le quartier, spécialités groupées, téléphone dans les doublons, choix Médecin / Pharmacie tant que la fiche est nouvelle, titre « Planning hebdomadaire »)']],
@@ -8085,7 +8086,7 @@
       var tuiles = function (l, court) { return '<div class="fx-specs">' + l.map(function (s) {
           return '<button type="button" data-a="ficheSpecRapide" data-v="' + esc(s) + '" aria-pressed="' + (d.specialite === s) + '">' + esc(court ? abrSpec(s) : s) + '</button>';
         }).join('') + '</div>'; };
-      var deplie = f.voirSpecs || horsCoeur;
+      var deplie = !!f.voirSpecs;   // 3.27.5 : jamais déplié d'office
       h += '<div class="champ"><span class="requis">Spécialité</span>' + tuiles(coeur, true) +
         '<button type="button" class="fx-plus-specs" data-a="ficheVoirSpecs" aria-expanded="' + !!deplie + '"><span>Autres spécialités' + (horsCoeur && d.specialite !== '__autre' ? ' : <b>' + esc(abrSpec(d.specialite)) + '</b>' : '') + '</span>' + icone('chevron') + '</button>' +
         (deplie ? '<div class="fx-specs-plus"><p class="fx-sous">Spécialités médicales</p>' + tuiles(specMed, true) +
@@ -10235,7 +10236,7 @@
       if (Object.keys(e).length) { f.err = e; rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
       ACTIONS.ficheAller(el);
     },
-    ficheVoirSpecs: function () { var f = S.ui.feuille; if (f) { f.voirSpecs = !(f.voirSpecs || (f.d.specialite && coeurDeCible().indexOf(f.d.specialite) < 0)); rendre(); } },
+    ficheVoirSpecs: function () { var f = S.ui.feuille; if (f) { f.voirSpecs = !f.voirSpecs; rendre(); } },
     ficheIciNon: function () { var f = S.ui.feuille; if (f && f.ici) { f.iciRefuse = normaliser(f.ici.lieu); f.ici = null; rendre(); } },
     modifierFiche: function (el) {
       var code = el.dataset.v || S.ui.contactOuvert;

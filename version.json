@@ -1,9 +1,7 @@
 {
-  "version": "3.27.4",
+  "version": "3.27.5",
   "date": "2026-11-02",
   "notes": [
-    "Ajouter : Qui puis Où et quand, Enregistrer en bas",
-    "Dr / Pharmacie ajoutés au nom, 1 étoile par défaut",
-    "Visite non réalisée en rouge léger"
+    "Fiche : autres spécialités toujours repliées"
   ]
 }
