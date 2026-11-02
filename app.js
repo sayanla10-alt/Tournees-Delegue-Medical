@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.97';
+  var APP_VERSION = '3.26.98';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.98', ['Recherches : seule la précision de la position est indiquée (± X m) dans l’encadré ; l’alerte d’imprécision reste dans le message temporaire']],
     ['3.26.97', ['Géolocalisation : position remesurée à chaque synchronisation et ouverture, en attendant une précision de ± 20 m (jusqu’à 25 s) ; alerte si la position reste imprécise ; les distances sont recalculées dès la mesure obtenue']],
     ['3.26.96', ['Distances : point de départ et précision affichés (votre position ± X m, ou point choisi) ; position GPS remesurée à l’ouverture des recherches ; alerte si la position est imprécise']],
     ['3.26.95', ['Dans des hôpitaux : spécialités et moment rappelés en tête', 'Journée : cartes des visites avec compte rendu sur fond vert léger']],
@@ -8731,14 +8732,11 @@
   // 3.25.8 : position actuelle connue : GPS de moins de 15 min, sinon le point choisi dans « Autour de moi »
   // 3.26.96 : d'où partent les distances affichées (et avec quelle précision), pour que le délégué puisse en juger
   function texteReferenceDistance() {
+    // 3.26.98 : juste la précision, sans avertissement (l'alerte reste dans le message qui s'efface)
     var g = gpsFrais();
-    if (g) {
-      var min = Math.round((Date.now() - g.t) / 60000), pr = g.prec || 0;
-      return 'Distances depuis votre position' + (pr ? ' (± ' + pr + ' m' : ' (') + (min ? ', il y a ' + min + ' min' : '') + ')' +
-        (pr > 100 ? '. Position imprécise : sortez à découvert ou activez la « localisation précise », les distances peuvent être fausses de ' + pr + ' m.' : '.');
-    }
+    if (g) return 'Distances depuis votre position' + (g.prec ? ' (± ' + g.prec + ' m)' : '') + '.';
     var A = S.ui.autour;
-    if (A && A.lat !== null && A.lat !== undefined) return 'Distances depuis ' + (A.src === 'gps' ? 'votre dernière position connue (ancienne)' : 'le point choisi : ' + (A.label || 'quartier')) + ', pas votre position actuelle.';
+    if (A && A.lat !== null && A.lat !== undefined) return 'Distances depuis ' + (A.src === 'gps' ? 'votre dernière position connue' : (A.label || 'le point choisi')) + '.';
     return '';
   }
   function positionActuelle() {
