@@ -1,8 +1,8 @@
 {
-  "version": "3.27.10",
+  "version": "3.27.11",
   "date": "2026-11-02",
   "notes": [
-    "Journée : boutons de remplacement figés en bas",
-    "Remplacer centré, en-tête de Planifier centré"
+    "Base vérifiée chaque minute et à chaque retour dans l'application",
+    "Journée : boutons de remplacement figés en bas ; Remplacer et en-tête de Planifier centrés"
   ]
 }

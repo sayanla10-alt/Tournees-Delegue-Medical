@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.10';
+  var APP_VERSION = '3.27.11';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.11', ['Synchronisation : la base est vérifiée chaque minute quand l’application est ouverte, et relue à chaque retour dans l’application ; les corrections faites dans le Google Sheet apparaissent sans attendre', 'Noms, spécialités et potentiels corrigés dans la base : repris aussi sur les visites déjà faites']],
     ['3.27.10', ['Journée : + Médecin, + Pharmacie et Autour de moi figés en bas, à la taille des boutons de Planifier', 'Journée : bouton Remplacer centré', 'Planifier : date, nombre de visites et ligne de détail centrées']],
     ['3.27.9', ['Défilement automatique : les options suivantes se placent toujours là où l’écran a été touché en dernier, sans l’exception qui gardait l’intitulé visible']],
     ['3.27.8', ['CR pharmacie, étape 5 : « Aucune » et « Périmé » sur la même ligne, « Proche péremption » en dessous']],
@@ -2048,8 +2049,14 @@
     ctxCache.data = null;
     var c = ctx(), t = aujourdhui(), n = 0;
     S.plan.forEach(function (a) {
-      if (a.date < t || a.statut || a.etat === 'valide') return;
       var p = c.prat[a.code]; if (!p) return;
+      // 3.27.10 : nom, spécialité, potentiel et engagement corrigés dans la base : repris sur toutes les visites
+      if (a.date < t || a.statut || a.etat === 'valide') {
+        var av = JSON.stringify([a.nom, a.specialite, a.note]);
+        a.nom = p.nom; a.specialite = p.specialite; a.note = p.note; a.conventionne = p.conv ? 'Oui' : 'Non';
+        if (JSON.stringify([a.nom, a.specialite, a.note]) !== av) n++;
+        return;
+      }
       var avant = JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.commune, a.lat, a.lon, a.debut, a.fin]);
       a.nom = p.nom; a.specialite = p.specialite; a.note = p.note; a.conventionne = p.conv ? 'Oui' : 'Non';
       var cr = creneauDe(a.code, a.date, a.idPresence, a.creneau);
@@ -2064,13 +2071,13 @@
     return n;
   }
   var minuteurReprise;
-  function synchroniser(silencieux) {
+  function synchroniser(silencieux, sansGps) {
     if (!connecte()) return Promise.resolve();
     if (S.ui.enCours) return Promise.resolve();
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
     S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete(); if (!pret()) rendreSiPossible();
-    localiser(true, 'sync', true);   // 3.26.97 : position précise remesurée à chaque synchronisation
-    var tentePub = false;
+    if (!sansGps) localiser(true, 'sync', true);   // 3.26.97 : position précise remesurée à chaque synchronisation
+    var tentePub = false, aChange = true;
     // 1. fiches praticiens (codes définitifs), 2. comptes rendus, 3. tournée, 4. données à jour
     var envoi = envoyerFiches().catch(function (errF) {
       console.warn('Erreur envoi fiches, poursuite des comptes rendus:', errF);
@@ -2118,7 +2125,8 @@
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data);
-      try { actualiserVisitesPlanifiees(); } catch (eA) { console.warn(eA); }
+      var nVis = 0; try { nVis = actualiserVisitesPlanifiees() || 0; } catch (eA) { console.warn(eA); }
+      aChange = !d.inchange || nVis > 0 || hist.length !== (ancien.historique || []).length || JSON.stringify(d.plannings || []) !== JSON.stringify(ancien.plannings || []);
       if (!d.inchange && d.doublons === undefined) basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
@@ -2133,8 +2141,8 @@
     }).then(function () {
       S.ui.enCours = false;
       importerAgenda();
-      rendreSiPossible();
-      localiser(true, 'sync', true);
+      if (!sansGps || (aChange && !S.ui.feuille)) rendreSiPossible(); else afficherEntete();
+      if (!sansGps) localiser(true, 'sync', true);
       if (S.ui.aPublier && !tentePub && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
     });
   }
@@ -10859,15 +10867,14 @@
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') return;
     relocaliserSiBesoin('ouverture');
-    var age = S.data && S.data.syncedAt ? Date.now() - new Date(S.data.syncedAt).getTime() : Infinity;
-    if (enAttente() || age > 10 * 60 * 1000) synchroniser(true);
-    else rafraichirEquipe().then(function (ok) { if (ok) rendreSiPossible(); });
+    // 3.27.10 : à chaque retour dans l'application, la base est relue (réponse « inchangé » si rien n'a bougé)
+    synchroniser(true, true);
   });
   // Tournées de l'équipe rafraîchies chaque minute quand l'application est ouverte
   setInterval(function () {
     if (document.visibilityState !== 'visible') return;
-    if (enAttente() || S.ui.aPublier) { synchroniser(true); return; }
-    rafraichirEquipe().then(function (ok) { if (ok && !S.ui.feuille) rendreSiPossible(); });
+    // 3.27.10 : chaque minute, envoi de ce qui attend et vérification de la base (corrections faites dans le Google Sheet)
+    synchroniser(true, true);
   }, 60000);
 
   // ------------------------------------------------------------------ Thème
