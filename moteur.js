@@ -230,8 +230,11 @@ var Moteur = (function () {
   }
 
   // Ordonne une liste d'arrêts d'une même journée (après ajout, retrait, nouveau tirage)
-  function ordonnerJour(arrets, depart) {
-    var its = arrets.map(item).sort(function (a, b) { return a.tot - b.tot || a.tard - b.tard; });
+  // 3.27.13 : apres (minutes) : aujourd'hui, aucune visite à faire n'est proposée avant l'heure actuelle
+  function ordonnerJour(arrets, depart, apres) {
+    var its = arrets.map(item);
+    if (apres) its.forEach(function (it) { if (!it.fixe && !it.a.rdv && !it.a.statut) it.tot = Math.max(it.tot, apres); });
+    its.sort(function (a, b) { return a.tot - b.tot || a.tard - b.tard; });
     var route = [], dep = depart ? { coord: depart } : null;
     its.forEach(function (it) { route = insererAuMieux(route, it, dep); });
     return finaliser(meilleurOrdre(route, dep));

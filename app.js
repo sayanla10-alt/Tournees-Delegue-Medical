@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.12';
+  var APP_VERSION = '3.27.13';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.13', ['Journée : une visite ajoutée aujourd’hui n’a plus d’heure déjà passée ; si le créneau du matin est terminé, celui du soir est pris']],
     ['3.27.12', ['Journée : carte Rappel à la même hauteur que la carte Compte Rendu ; « Autour de moi » n’est plus coupé dans la barre du bas']],
     ['3.27.11', ['Synchronisation : la base est vérifiée chaque minute quand l’application est ouverte, et relue à chaque retour dans l’application ; les corrections faites dans le Google Sheet apparaissent sans attendre', 'Noms, spécialités et potentiels corrigés dans la base : repris aussi sur les visites déjà faites']],
     ['3.27.10', ['Journée : + Médecin, + Pharmacie et Autour de moi figés en bas, à la taille des boutons de Planifier', 'Journée : bouton Remplacer centré', 'Planifier : date, nombre de visites et ligne de détail centrées']],
@@ -8298,9 +8299,10 @@
     var autres = S.plan.filter(function (a) { return a.date !== date; }), duJour = S.plan.filter(function (a) { return a.date === date; });
     var g = S.ui.posGps && Date.now() - S.ui.posGps.t < 15 * 60000 ? S.ui.posGps : null, jour;
     // 3.25.8 : aujourd'hui, avec une position GPS récente : les visites faites restent, les autres s'enchaînent depuis ma position
+    var apres = date === aujourdhui() ? minutesMaintenant() : 0;   // 3.27.13 : pas d'heure déjà passée pour une visite à faire
     if (date === aujourdhui() && g && duJour.some(function (a) { return !a.statut; })) {
-      jour = duJour.filter(function (a) { return a.statut; }).concat(Moteur.ordonnerJour(duJour.filter(function (a) { return !a.statut; }), { lat: g.lat, lon: g.lon }));
-    } else jour = Moteur.ordonnerJour(duJour, departCoord());
+      jour = duJour.filter(function (a) { return a.statut; }).concat(Moteur.ordonnerJour(duJour.filter(function (a) { return !a.statut; }), { lat: g.lat, lon: g.lon }, apres));
+    } else jour = Moteur.ordonnerJour(duJour, departCoord(), apres);
     S.plan = autres.concat(jour).sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
     trierPlan();
   }
@@ -8552,6 +8554,12 @@
 
   function ajouterArret(c, date) {
     if (S.plan.some(function (a) { return a.date === date && a.code === c.code; })) { toast('Ce praticien est déjà prévu ce jour-là.'); return false; }
+    // 3.27.13 : aujourd'hui, créneau déjà terminé : on prend le créneau suivant du même lieu (ex. le soir)
+    if (date === aujourdhui() && c.fin <= minutesMaintenant()) {
+      var suite = (ctx().parCode[c.code] || []).filter(function (x) { return x.jourIdx === c.jourIdx && String(x.idPresence) === String(c.idPresence) && x.fin > minutesMaintenant(); })
+        .sort(function (x, y) { return x.debut - y.debut; })[0];
+      if (suite) c = suite;
+    }
     var a = Moteur.arretDepuisCreneau(c, date);
     a.etat = 'ajoute'; a.garde = true;
     S.plan.push(a);
