@@ -1,7 +1,7 @@
 {
-  "version": "3.27.13",
+  "version": "3.27.14",
   "date": "2026-11-02",
   "notes": [
-    "Journée : plus d'heure déjà passée pour une visite ajoutée"
+    "Journée : carte Rappel avec actions (Appeler, Ajouter au jour, Demain, Fait)"
   ]
 }

@@ -3614,8 +3614,14 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .bilan-jour .bj-ligne1, .bilan-jour .details-plan { text-align: center; }
 
 /* 3.27.12 : carte Rappel au gabarit de la carte Compte Rendu */
-.rappels-cartes { list-style: none; margin: 0; padding: 0; }
-.rappel-carte { cursor: default; }
-.rappel-carte > .bouton { flex: none; min-height: 34px; }
+.rappel-carte { cursor: pointer; }
+/* 3.27.14 : fenêtre des rappels */
+.liste-rappels-f { list-style: none; margin: 0; padding: 0; }
+.liste-rappels-f li { padding: 10px 0; border-top: 1px solid var(--trait); }
+.liste-rappels-f li:first-child { border-top: 0; padding-top: 0; }
+.rappel-actions { display: flex; flex-wrap: nowrap; gap: 5px; margin-top: 8px; }
+.rappel-actions .bouton { flex: 1 1 auto; min-height: 36px; padding: 0 8px; font-size: 13.5px; white-space: nowrap; gap: 4px; }
+.rappel-actions .rappel-appel { flex: 0 0 44px; padding: 0; justify-content: center; }
+.rappel-actions .etiquette { flex: 1 1 auto; justify-content: center; }
 .rangee-tirage.barre-remplacant .bouton:nth-child(-n+2) { flex: 0.9 1 0 !important; }
 .rangee-tirage.barre-remplacant .bouton:nth-child(3) { flex: 1.25 1 0 !important; }

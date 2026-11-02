@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.13';
+  var APP_VERSION = '3.27.14';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.14', ['Journée : la carte Rappel s’ouvre au toucher ; pour chaque rappel : Appeler, Ajouter au jour, Demain (report) ou Fait (retiré) ; plusieurs rappels tiennent dans une seule carte']],
     ['3.27.13', ['Journée : une visite ajoutée aujourd’hui n’a plus d’heure déjà passée ; si le créneau du matin est terminé, celui du soir est pris']],
     ['3.27.12', ['Journée : carte Rappel à la même hauteur que la carte Compte Rendu ; « Autour de moi » n’est plus coupé dans la barre du bas']],
     ['3.27.11', ['Synchronisation : la base est vérifiée chaque minute quand l’application est ouverte, et relue à chaque retour dans l’application ; les corrections faites dans le Google Sheet apparaissent sans attendre', 'Noms, spécialités et potentiels corrigés dans la base : repris aussi sur les visites déjà faites']],
@@ -4716,21 +4717,43 @@
     });
     Object.keys(dernier).forEach(function (k) {
       var v = dernier[k].v, p = String(v.prochaine || '').slice(0, 10);
-      if (/^Rappel/.test(v.suite || '') && p && p <= t) l.push({ v: v, date: p });
+      if (/^Rappel/.test(v.suite || '') && p && p <= t) {
+        // 3.27.14 : rappel traité (« Fait ») ou reporté depuis la carte : masqué
+        var st = LS.get('rappelsTraites', {})[v.code + '|' + p];
+        if (st && (st.fait || (st.jusqua && st.jusqua > t))) return;
+        l.push({ v: v, date: p });
+      }
     });
     return l.sort(function (x, y) { return x.date < y.date ? -1 : 1; });
   }
   function rendreRappels() {
     var l = rappelsDuJour();
     if (!l.length) return '';
-    // 3.27.12 : même gabarit que la carte « Compte Rendu » (une ligne par rappel)
-    return '<ul class="rappels-cartes">' + l.map(function (x) {
-      var p = praticien(x.v.code) || {};
-      return '<li class="acces-rapport rappel-carte"><span>' + icone('calendrier') + '<b>Rappel' + (l.length > 1 ? 's (' + l.length + ')' : '') + ' · ' + esc(x.v.nom) + '</b><small>' + esc(String(x.v.suite).replace(/^Rappel : /, '')) +
-        (x.date < aujourdhui() ? ', prévu le ' + dateCourte(x.date) : '') + '</small></span>' +
-        (p.telephone ? '<a class="bouton petit" href="tel:' + esc(String(p.telephone).replace(/\s/g, '')) + '">' + icone('tel') + 'Appeler</a>' : '') + '</li>';
-    }).join('') + '</ul>';
+    // 3.27.14 : une seule carte (même gabarit que « Compte Rendu ») ; un appui ouvre les actions : Appeler, Ajouter au jour, Demain, Fait
+    var noms = l.map(function (x) { return x.v.nom; }), x0 = l[0];
+    return '<button type="button" class="acces-rapport rappel-carte" data-a="ouvrirRappels"><span>' + icone('calendrier') +
+      '<b>' + (l.length > 1 ? 'Rappels (' + l.length + ')' : 'Rappel · ' + esc(x0.v.nom)) + '</b><small>' +
+      esc(l.length > 1 ? noms.join(', ') : String(x0.v.suite).replace(/^Rappel : /, '') + (x0.date < aujourdhui() ? ', prévu le ' + dateCourte(x0.date) : '')) +
+      '</small></span>' + icone('chevron') + '</button>';
   }
+  function feuilleRappels() {   // enregistrée dans FEUILLES plus bas (FEUILLES n'existe pas encore ici)
+    var l = rappelsDuJour(), t = aujourdhui();
+    if (!l.length) return '<p class="discret">Aucun rappel en attente.</p>';
+    return '<ul class="liste-rappels-f">' + l.map(function (x) {
+      var p = praticien(x.v.code) || {}, k = esc(x.v.code + '|' + x.date), num = normaliserNumero(p.telephone);
+      var deja = S.plan.some(function (a) { return a.date === t && a.code === x.v.code; });
+      return '<li><b>' + esc(x.v.nom) + '</b><span class="discret bloc-texte">' + esc(String(x.v.suite).replace(/^Rappel : /, '')) +
+        (x.date < t ? ', prévu le ' + dateCourte(x.date) : '') + (p.telephone ? ' · ' + esc(p.telephone) : '') + '</span>' +
+        '<div class="rappel-actions">' +
+          (num ? '<a class="bouton petit rappel-appel" href="tel:+' + esc(num) + '" aria-label="Appeler" title="Appeler">' + icone('tel') + '</a>' : '') +
+          (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la journée</span>' : '<button type="button" class="bouton petit" data-a="rappelAjouter" data-v="' + esc(x.v.code) + '">' + icone('plus') + 'Ajouter au jour</button>') +
+          '<button type="button" class="bouton petit" data-a="rappelTraiter" data-k="' + k + '" data-v="demain">Demain</button>' +
+          '<button type="button" class="bouton petit bouton-plein" data-a="rappelTraiter" data-k="' + k + '" data-v="fait">' + icone('valider') + 'Fait</button>' +
+        '</div></li>';
+    }).join('') + '</ul><p class="discret" style="margin:8px 0 0">« Fait » retire le rappel ; « Demain » le reporte au jour ouvré suivant.</p>';
+  }
+
+
 
   // jours passés : modifiables seulement si l'option cachée « Modifier les jours passés » (Réglages › Avancé) est activée
   function passeVerrouille(d) { return d < aujourdhui() && !S.config.modifPasse; }
@@ -5945,6 +5968,7 @@
   // 3.21.0 : un seul filtre « Qui / Quand » pour le Bilan (tableau de bord et historique) et l'Équipe :
   // moi, toute l'équipe ou plusieurs délégués choisis ; jour, semaine, mois ou période, avec ‹ › pour avancer ou reculer
   var FEUILLES = {};   // feuilles (fenêtres) : déclarées ici car certaines sont définies plus haut que leur section
+  FEUILLES.rappels = feuilleRappels;
   S.ui.fq = LS.get('filtreQui', { qui: 'moi', liste: [] });
   function nomsDelegues() {
     var n = {}; ((S.data && S.data.delegues) || []).forEach(function (x) { n[x] = true; });
@@ -10275,6 +10299,16 @@
       var e = erreursEtape(f.d, f.etape);
       if (Object.keys(e).length) { f.err = e; rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
       ACTIONS.ficheAller(el);
+    },
+    ouvrirRappels: function () { S.ui.feuille = { type: 'rappels', titre: 'Rappels du jour' }; rendre(); },
+    rappelAjouter: function (el) { S.ui.feuille = null; ACTIONS.visiteInopineeDirect({ dataset: { v: el.dataset.v } }); },
+    rappelTraiter: function (el) {
+      var m = LS.get('rappelsTraites', {}), k = el.dataset.k;
+      m[k] = el.dataset.v === 'fait' ? { fait: true, le: aujourdhui() } : { jusqua: prochainJourOuvre(ajouterJours(aujourdhui(), 1)) };
+      LS.set('rappelsTraites', m);
+      toast(el.dataset.v === 'fait' ? 'Rappel retiré.' : 'Rappel reporté au ' + dateCourte(m[k].jusqua) + '.');
+      if (!rappelsDuJour().length) S.ui.feuille = null;
+      rendre();
     },
     ficheVoirSpecs: function () { var f = S.ui.feuille; if (f) { f.voirSpecs = !f.voirSpecs; rendre(); } },
     ficheIciNon: function () { var f = S.ui.feuille; if (f && f.ici) { f.iciRefuse = normaliser(f.ici.lieu); f.ici = null; rendre(); } },
