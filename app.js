@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.9';
+  var APP_VERSION = '3.27.10';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.10', ['Journée : + Médecin, + Pharmacie et Autour de moi figés en bas, à la taille des boutons de Planifier', 'Journée : bouton Remplacer centré', 'Planifier : date, nombre de visites et ligne de détail centrées']],
     ['3.27.9', ['Défilement automatique : les options suivantes se placent toujours là où l’écran a été touché en dernier, sans l’exception qui gardait l’intitulé visible']],
     ['3.27.8', ['CR pharmacie, étape 5 : « Aucune » et « Périmé » sur la même ligne, « Proche péremption » en dessous']],
     ['3.27.7', ['Répertoire : boutons Appeler, SMS, WhatsApp, Maps et ligne « Tél » comme avant ; « Modifier le planning hebdomadaire » de retour en bas ; étiquettes des cartes sur une seule ligne tant que possible']],
@@ -2941,11 +2942,12 @@
   // + Médecin, + Pharmacie (présents près de moi), Autour de moi (par ma position ou dans les communes du jour)
   function blocRemplacant(d) {
     if (d < aujourdhui() || jourSemaineIndex(d) > 4) return '';
-    return '<section class="bloc-remplacant"><p class="discret">Praticien indisponible ? Trouver un remplaçant :</p>' +
-      '<div class="rangee-3"><button class="bouton" type="button" data-a="ajouterProches" data-v="Médecin" data-d="' + d + '">' + icone('plus') + 'Médecin</button>' +
-      '<button class="bouton" type="button" data-a="ajouterProches" data-v="Pharmacie" data-d="' + d + '">' + icone('plus') + 'Pharmacie</button>' +
-      '<button class="bouton" type="button" data-a="ajouterTournee" data-d="' + d + '">' + icone('cible') + 'Autour de moi</button></div>' +
-      '<button class="bouton-texte" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button></section>';
+    // 3.27.10 : + Médecin, + Pharmacie, Autour de moi figés en bas comme la barre de Planifier, même taille de boutons
+    return '<section class="bloc-remplacant"><p class="discret">Praticien indisponible ? Trouver un remplaçant avec les boutons du bas.</p>' +
+      '<button class="bouton-texte" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button></section>' +
+      '<div class="barre-plan-actions-flottante"><div class="rangee-tirage"><button class="bouton" type="button" data-a="ajouterProches" data-v="Médecin" data-d="' + d + '">' + icone('plus') + '<span>Médecin</span></button>' +
+      '<button class="bouton" type="button" data-a="ajouterProches" data-v="Pharmacie" data-d="' + d + '">' + icone('plus') + '<span>Pharmacie</span></button>' +
+      '<button class="bouton" type="button" data-a="ajouterTournee" data-d="' + d + '">' + icone('cible') + '<span>Autour de moi</span></button></div></div>';
   }
   // jour sans visite (aujourd'hui ou à venir, jour ouvré) : planifier directement cette journée
   function boutonPlanifierJour(d) {

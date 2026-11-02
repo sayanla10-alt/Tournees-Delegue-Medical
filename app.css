@@ -3607,3 +3607,8 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .sr-pt { width: 10px; height: 10px; border-radius: 3px; flex: none; margin-top: 5px; }
 .sr-lieux b { font-size: 14px; }
 .sr-lieux small { display: block; font-size: 12px; color: var(--gris); line-height: 1.35; }
+
+/* 3.27.10 : Remplacer centré ; en-tête du jour de Planifier centré */
+.remplacer-ligne { display: flex; margin: 6px auto 0; justify-content: center; }
+.bilan-jour { text-align: center; }
+.bilan-jour .bj-ligne1, .bilan-jour .details-plan { text-align: center; }
