@@ -11,7 +11,8 @@ function installerApkDansDrive() {
   f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   var lien = 'https://drive.google.com/uc?export=download&id=' + f.getId();
   PropertiesService.getScriptProperties().setProperty('LIEN_APK', lien);
-  Logger.log('LIEN_APK ' + lien + ' taille ' + f.getSize());
+  var md5 = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, rep.getBlob().getBytes()).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join('');
+  Logger.log('LIEN_APK ' + lien + ' taille ' + f.getSize() + ' md5 ' + md5);
   return lien;
 }
 function dossierApk() {
