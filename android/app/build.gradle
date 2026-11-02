@@ -6,7 +6,7 @@ android {
         applicationId 'com.mediplanner.tournees'
         minSdk 24
         targetSdk 34
-        versionCode Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
+        versionCode 100 + Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
         versionName System.getenv('VERSION_NAME') ?: '1.0'
     }
     buildTypes { release { minifyEnabled false } }
