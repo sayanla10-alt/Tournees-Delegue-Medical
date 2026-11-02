@@ -3470,3 +3470,5 @@ li.li-retirable { -webkit-user-select: none; user-select: none; -webkit-touch-ca
 .ligne-ajouter-imp { display: flex; justify-content: flex-end; margin-top: 8px; }
 .bouton-ajouter-imp { background: #1F7A45 !important; border-color: #1F7A45 !important; color: #fff !important; }
 .liste-imposes li .bouton-retirer-imp, .bouton-ajouter-imp { min-width: 96px; justify-content: center; }
+/* 3.26.86 : choix du moment sur une ligne */
+.groupe-filtre[data-groupe="hmom"] .segment button { white-space: nowrap; font-size: 13px; padding-left: 4px; padding-right: 4px; }
