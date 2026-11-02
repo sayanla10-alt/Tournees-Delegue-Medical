@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.96';
+  var APP_VERSION = '3.26.97';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.97', ['Géolocalisation : position remesurée à chaque synchronisation et ouverture, en attendant une précision de ± 20 m (jusqu’à 25 s) ; alerte si la position reste imprécise ; les distances sont recalculées dès la mesure obtenue']],
     ['3.26.96', ['Distances : point de départ et précision affichés (votre position ± X m, ou point choisi) ; position GPS remesurée à l’ouverture des recherches ; alerte si la position est imprécise']],
     ['3.26.95', ['Dans des hôpitaux : spécialités et moment rappelés en tête', 'Journée : cartes des visites avec compte rendu sur fond vert léger']],
     ['3.26.94', ['Planifier : un praticien retiré ou remplacé dans la liste proposée n’est plus jamais reproposé au recalcul tant que les critères ne changent pas']],
@@ -2046,6 +2047,7 @@
     if (S.ui.enCours) return Promise.resolve();
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
     S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete(); if (!pret()) rendreSiPossible();
+    localiser(true, 'sync', true);   // 3.26.97 : position précise remesurée à chaque synchronisation
     var tentePub = false;
     // 1. fiches praticiens (codes définitifs), 2. comptes rendus, 3. tournée, 4. données à jour
     var envoi = envoyerFiches().catch(function (errF) {
@@ -8579,7 +8581,8 @@
       }
       rendreSiPossible();
       alerteProximite(declencheur === 'ouverture' || !discret); notifierProximite();
-      if (!discret && p.prec > 150) toast('Position imprécise (± ' + p.prec + ' m). Activez la « localisation précise » du téléphone, ou sortez à découvert.');
+      if (p.prec > 100 && !S.ui.alerteImprecis) { S.ui.alerteImprecis = true; toast('Position imprécise (± ' + p.prec + ' m) : les distances peuvent être fausses. Activez la « localisation précise » du téléphone ou approchez-vous d\'une fenêtre.', 6000); }
+      else if (!discret && p.prec > 150) toast('Position imprécise (± ' + p.prec + ' m). Activez la « localisation précise » du téléphone, ou sortez à découvert.');
       else if (!discret && r && r.km > 8) toast('Vous semblez hors d\'Abidjan. Quartier le plus proche : ' + r.quartier.quartier + '.');
     }, function () {
       S.ui.localisation = false; if (S.ui.tab === 'autour') rendreSiPossible();
@@ -8692,32 +8695,28 @@
     el.hidden = false;
   }
   // 3.25.36 : mesure GPS haute précision (arrêt immédiat <= 35 m, filtrage des faux relais > 500 m, sans cache obsolète)
+  // 3.26.97 : mesure GPS haute précision : on écoute le GPS jusqu'à obtenir ± 20 m (au plus 25 s). Une mesure
+  // grossière (Wi-Fi, antenne) n'est retenue qu'à défaut, et signalée comme imprécise.
   function mesurePrecise(ok, ko) {
     if (!navigator.geolocation) { if (ko) ko(); return; }
-    var best = null, fini = false, id = null, t = null;
+    var best = null, fini = false, id = null, t = null, t2 = null, debut = Date.now();
     function terminer() {
       if (fini) return; fini = true;
-      if (id !== null) navigator.geolocation.clearWatch(id); clearTimeout(t);
+      if (id !== null) navigator.geolocation.clearWatch(id); clearTimeout(t); clearTimeout(t2);
       if (best) ok({ lat: best.coords.latitude, lon: best.coords.longitude, prec: Math.round(best.coords.accuracy || 0) });
       else if (ko) ko();
     }
-    try {
-      navigator.geolocation.getCurrentPosition(function (p) {
-        if (fini) return;
-        var prec = precisionDe(p);
-        if (prec <= 500 && (!best || prec < precisionDe(best))) best = p;
-        if (precisionDe(best) <= 35) terminer();
-      }, function () {}, { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 });
-    } catch (e) {}
-    id = navigator.geolocation.watchPosition(function (p) {
+    function recevoir(p) {
       if (fini) return;
-      var prec = precisionDe(p);
-      if (!best || prec < precisionDe(best)) {
-        if (prec <= 800 || !best) best = p;
-      }
-      if (precisionDe(best) <= 35) terminer();
-    }, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-    t = setTimeout(terminer, 12000);
+      if (!best || precisionDe(p) < precisionDe(best)) best = p;
+      var pr = precisionDe(best);
+      if (pr <= 20) terminer();
+      else if (pr <= 50 && Date.now() - debut > 8000) terminer();   // bonne précision et déjà 8 s d'écoute : suffisant
+    }
+    try { navigator.geolocation.getCurrentPosition(recevoir, function () {}, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }); } catch (e) {}
+    id = navigator.geolocation.watchPosition(recevoir, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
+    t2 = setTimeout(function () { if (best && precisionDe(best) <= 50) terminer(); }, 8000);
+    t = setTimeout(terminer, 25000);
   }
   function precisionDe(p) { var a = p && p.coords && p.coords.accuracy; return a === null || a === undefined || isNaN(a) ? 9999 : a; }
   function distanceCourte(k) {
