@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.92';
+  var APP_VERSION = '3.26.94';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.94', ['Planifier : un praticien retiré ou remplacé dans la liste proposée n’est plus jamais reproposé au recalcul tant que les critères ne changent pas']],
+    ['3.26.93', ['En-tête MediPlanner (date, nom, synchro, roue crantée) visible sur toutes les fenêtres et sous-pages', 'Dans des hôpitaux / Pharmacies dans une zone : « Dans la tournée du jour » en évidence, collègue qui l’a prévu indiqué, engagés en couleur comme dans le Répertoire']],
     ['3.26.92', ['Pharmacies dans une zone et Dans des hôpitaux : communes ou hôpitaux retenus rappelés en tête et dans le filtre ; « Jamais visité » / « Vu il y a » en étiquette comme dans le Répertoire']],
     ['3.26.91', ['Dans des hôpitaux : repères en tête (médecins trouvés, déjà visités, jamais visités, le plus proche), une seule liste du plus proche au plus lointain, spécialité, hôpital et Tél dans la carte']],
     ['3.26.90', ['Pharmacies dans une zone : repères en tête (nombre trouvé, jamais visitées, la plus proche), une seule liste de la plus proche à la plus lointaine, quartier et Tél dans la carte']],
@@ -2181,7 +2183,11 @@
   }
 
   // ------------------------------------------------------------------ En-tête, barre, navigation
+  // 3.26.93 : l'en-tête (MediPlanner, date, nom, synchro, roue crantée) reste visible au-dessus de toutes les fenêtres
+  function majHauteurEntete() { var e = document.querySelector('.entete'); if (e) document.documentElement.style.setProperty('--h-entete', e.offsetHeight + 'px'); }
+  window.addEventListener('resize', majHauteurEntete);
   function afficherEntete() {
+    setTimeout(majHauteurEntete, 0);
     var t = aujourdhui();
     var moisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
     $('enteteDate').textContent = majuscule(JOURS_COURTS[jourSemaineIndex(t)]) + ' ' + (+t.slice(8)) + ' ' + moisCourts[+t.slice(5, 7) - 1] + (moi() ? ' · ' + moi() : '');
@@ -3518,6 +3524,7 @@
   // ceux du même établissement d'abord (+ bonus), ceux qui s'insèrent sans retard, puis par priorité et proximité du lieu remplacé
   function candidatsRemplacement(a) {
     var d = a.date, j = jourSemaineIndex(d), c = ctx(), filtre = filtreCibles(), ex = exclusCollegues([d]);
+    Object.keys(refusesActuels().codes).forEach(function (cR) { ex[cR] = true; });   // 3.26.94 : retirés à la main : pas reproposés en remplacement
     var dansPlan = ensemble(S.plan.filter(function (x) { return x.date === d; }).map(function (x) { return x.code; }));
     var origine = coordArret(a), vus = {}, l = [];
     var lieuA = a.lieu || '';
@@ -3564,7 +3571,7 @@
   }
   function appliquerRemplacement(uid, cle, garder) {
     var a = arret(uid), cr = Moteur.creneauParCle(ctx(), cle); if (!a || !cr) return;
-    if (!garder) { S.rejetes[a.code] = true; S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
+    if (!garder) { S.rejetes[a.code] = true; refuser(a.code); S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
     var n = Moteur.arretDepuisCreneau(cr, a.date); n.etat = 'ajoute'; n.garde = true;
     S.plan.push(n); reordonner(a.date);
     if (S.ui.tab === 'semaine') mettreBrouillon([a.date]);
@@ -3572,11 +3579,23 @@
     var placé = arret(n.uid);
     toast((garder ? n.nom + ' ajouté en remplacement de ' + a.nom : a.nom + ' remplacé par ' + n.nom) + (placé ? ' (' + placé.heure + ', ' + n.quartier + ')' : '') + '.', 5000);
   }
+  // 3.26.94 : praticiens retirés à la main d'une liste proposée : ils ne reviennent plus dans les propositions (recalcul,
+  // nouveau tirage, complément) tant que les critères de planification restent les mêmes ; un changement de critère les libère
+  function signatureCriteres() {
+    var p = S.params || {};
+    return JSON.stringify([p.communes || [], p.parJour ? p.communesJour || {} : {}, (p.specialites || []).slice().sort(), (p.potentiels || []).slice().sort(), p.typeCibles || '', +p.delai || 0, +p.maxJour || 0, p.eviterCollegues !== false]);
+  }
+  function refusesActuels() {
+    var r = LS.get('refuses', null), s = signatureCriteres();
+    if (!r || r.crit !== s) { r = { crit: s, codes: {} }; LS.set('refuses', r); }
+    return r;
+  }
+  function refuser(code) { var r = refusesActuels(); r.codes[code] = true; LS.set('refuses', r); }
   function retirerArret(uid) {
     var a = arret(uid); if (!a) return;
     S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; });
     if (!S.plan.some(function (x) { return x.date === a.date; })) { var rt = LS.get('joursRetires', {}); rt[a.date] = true; LS.set('joursRetires', rt); }
-    S.rejetes[a.code] = true;
+    S.rejetes[a.code] = true; refuser(a.code);
     S.imposes = S.imposes.filter(function (im) { return im.code !== a.code; });
     reordonner(a.date);
     if (S.ui.tab === 'semaine' && S.plan.some(function (x) { return x.date === a.date; })) mettreBrouillon([a.date]);
@@ -7153,14 +7172,15 @@
       '<ul class="liste">' + tous.map(function (x) {
         var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
         var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
-        var deja = dans[p.code], etat = deja ? ' · <b>déjà dans la tournée</b>' : (ex[p.code] ? ' · prévue par un collègue' : '');
+        var deja = dans[p.code], etat = '';
         var dist = x.dist !== null ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' : '';
+        var etiqPlus = (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la tournée du jour</span>' : '') + etiquetteCollegues(p.code, d);
         var loc = esc([cr.quartier, cr.commune].filter(Boolean).join(', ')) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
-        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
+        return '<li class="element' + classeType(p) + (deja ? ' deja-tournee' : '') + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
           '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + loc + '</span>' +
           '<span class="discret bloc-texte">' + esc(plages) + dist + etat + '</span>' +
-          '<span class="etiquettes">' + (p.type !== 'Pharmacie' ? badgeConv(p.conventionne) : '') + '<span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span></span></button></li>';
+          '<span class="etiquettes"><span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span>' + etiqPlus + '</span></button></li>';
       }).join('') + '</ul>';
   }
   function resultatsHopitaux(h, d) {
@@ -7195,14 +7215,15 @@
       '<ul class="liste">' + tous.map(function (x) {
         var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
         var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
-        var deja = dans[p.code], etat = deja ? ' · <b>déjà dans la tournée</b>' : (ex[p.code] ? ' · prévu par un collègue' : '');
+        var deja = dans[p.code], etat = '';
         var dist = x.dist !== null ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' : '';
+        var etiqPlus = (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la tournée du jour</span>' : '') + etiquetteCollegues(p.code, d);
         var ligne1 = '<b>' + esc(abrSpec(p.specialite)) + '</b> · ' + esc(x.lieu) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
-        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
+        return '<li class="element' + classeType(p) + (deja ? ' deja-tournee' : '') + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
           '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + ligne1 + '</span>' +
           '<span class="discret bloc-texte">' + esc(plages) + dist + etat + '</span>' +
-          '<span class="etiquettes">' + (p.type !== 'Pharmacie' ? badgeConv(p.conventionne) : '') + '<span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span></span></button></li>';
+          '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span>' + etiqPlus + '</span></button></li>';
       }).join('') + '</ul>';
   }
   // 3.26.50 : instructions selon le navigateur ; un lien ouvert dans WhatsApp, Facebook ou Instagram s'ouvre dans un
@@ -8247,6 +8268,7 @@
       var horsCible = S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
       horsCible.forEach(function (a) { if (cible.some(function (d) { return Math.abs(joursEcoules(a.date, d)) < ecart; })) exclus[a.code] = true; });
+      Object.keys(refusesActuels().codes).forEach(function (c) { exclus[c] = true; });   // 3.26.94 : retirés à la main : jamais reproposés
       var r = Moteur.genererPlanning(ctx(), {
         dates: cible, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0,
         exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles()
@@ -8786,6 +8808,7 @@
 
   var ACTIONS = {
     nav: function (el) {
+      if (S.ui.feuille && el && el.closest && el.closest('.entete')) S.ui.feuille = null;   // 3.26.93 : la roue crantée referme la fenêtre ouverte
       var dest = el.dataset.tab;
       if (dest === 'semaine' && S.ui.tab !== 'semaine' && (!S.plan.length || S.ui.voirParams)) etapesPDepuisDebut();
       // 3.25.42 : Gestion de l'onglet Suivi unifié et compatibilité avec equipe/bilan
@@ -9505,6 +9528,7 @@
       });
     },
     sync: function () {
+      if (S.ui.feuille && S.ui.feuille.type !== 'fiche') { /* la fenêtre reste ouverte : la synchro se fait en arrière-plan */ }
       if (S.config.demo) { toast('Mode démonstration : aucune synchronisation.'); return; }
       if (!S.config.url) { S.ui.tab = 'reglages'; rendre(); return; }
       synchroniser(false);

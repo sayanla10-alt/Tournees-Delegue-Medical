@@ -3475,3 +3475,13 @@ li.li-retirable { -webkit-user-select: none; user-select: none; -webkit-touch-ca
 /* 3.26.90 : repères en tête de « Pharmacies dans une zone » */
 .insights-zone { margin: 10px 0 8px; padding: 8px 12px; border-radius: 12px; background: var(--primaire-pale); color: var(--encre); font-size: 13.5px; line-height: 1.4; }
 .insights-zone small { color: var(--gris); }
+/* 3.26.93 : fenêtres sous l'en-tête (qui reste visible), sur téléphone */
+@media (max-width: 767px) {
+  #feuille { top: var(--h-entete, 0px); }
+  .feuille.pleine { top: 0; }
+}
+.etiquette.ok svg { width: 12px; height: 12px; vertical-align: -2px; margin-right: 2px; }
+li.deja-tournee { outline: 2px solid var(--vert, #1F7A45); outline-offset: -2px; border-radius: var(--r, 14px); }
+li.deja-tournee .carte-bouton[disabled] { opacity: 1; cursor: default; }
+/* 3.26.93 : en-tête fixe aussi quand une fenêtre est ouverte (le défilement de la page est bloqué) */
+body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-index: 41; }
