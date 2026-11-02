@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.7';
+  var APP_VERSION = '3.27.8';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.8', ['CR pharmacie, étape 5 : « Aucune » et « Périmé » sur la même ligne, « Proche péremption » en dessous']],
     ['3.27.7', ['Répertoire : boutons Appeler, SMS, WhatsApp, Maps et ligne « Tél » comme avant ; « Modifier le planning hebdomadaire » de retour en bas ; étiquettes des cartes sur une seule ligne tant que possible']],
     ['3.27.6', ['Répertoire, fiche dépliée : prochaine présence en tête (avec Planifier) ; numéro et 4 boutons de contact sur une ligne ; une seule semaine pour tous les lieux en petits carrés M / S à la couleur du lieu, légende dessous ; « Planning » à côté du titre']],
     ['3.27.5', ['Fiche : seules les spécialités du cœur de cible sont affichées ; les autres restent repliées, même en modification (la spécialité choisie s’affiche sur le bouton)']],
@@ -4432,7 +4433,7 @@
           var s = c.stocks[p] || (c.stocks[p] = { etat: 'Disponible' });
           return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="champ"><span>État</span>' + pucesValCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, null, 'puces-etats-stock') + '</div>' +
             '<label class="champ"><span>Quantité</span>' + qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</label>' +
-            (s.etat === 'Disponible' || s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="champ"><span>Anomalie</span>' + pucesValCr(a, 'stocks.' + p + '.anomalie', [''].concat(ANOMALIES), s.anomalie || '', { '': 'Aucune' }) + '</div>' +
+            (s.etat === 'Disponible' || s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="champ"><span>Anomalie</span>' + pucesValCr(a, 'stocks.' + p + '.anomalie', ['', 'Périmé', 'Proche péremption'], s.anomalie || '', { '': 'Aucune' }) + '</div>' +
               (s.anomalie ? '<label class="champ"><span>N° de lot</span><input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot"></label>' : '') : '') + '</div>';
         }).join('') + '</div>';
       }, function () { var r = champsCr(a).stocks; return r || 'aucun produit renseigné'; });

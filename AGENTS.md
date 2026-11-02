@@ -47,3 +47,8 @@ Ce document consigne les directives fermes et les interdictions absolues établi
 Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'état d'avant avec le tag git correspondant (restaurer `app.js` et `app.css` depuis le tag, puis publier une nouvelle version).
 * `avant-fiche-v2` : fiche contact (Ajouter / Modifier) avant la refonte 3.27.1 (chercher avant de créer, semaine type, carte de visite).
 * `avant-fiche-repertoire-v2` : fiche dépliée du Répertoire avant la refonte 3.27.6 (prochaine présence, contact sur une ligne, une seule semaine en petits carrés).
+
+---
+
+## 9. PASTILLES (PUCES) : GAGNER DE LA PLACE
+* Partout dans l'application, disposer les petites pastilles de choix pour occuper le **moins de lignes possible** : regrouper les choix courts sur une même ligne (ex. « Aucune » et « Périmé »), placer les libellés longs ensemble, et serrer les étiquettes pour qu'elles tiennent sur une ligne tant que la largeur le permet.
