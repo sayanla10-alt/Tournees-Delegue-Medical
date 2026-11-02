@@ -6,7 +6,7 @@ android {
         applicationId 'com.mediplanner.app'
         minSdk 24
         targetSdk 34
-        versionCode (System.getenv('VERSION_CODE') ?: '1').toInteger()
+        versionCode Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
         versionName System.getenv('VERSION_NAME') ?: '1.0'
     }
     buildTypes { release { minifyEnabled false } }
