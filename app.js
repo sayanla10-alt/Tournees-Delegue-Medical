@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.8';
+  var APP_VERSION = '3.27.9';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.9', ['Défilement automatique : les options suivantes se placent toujours là où l’écran a été touché en dernier, sans l’exception qui gardait l’intitulé visible']],
     ['3.27.8', ['CR pharmacie, étape 5 : « Aucune » et « Périmé » sur la même ligne, « Proche péremption » en dessous']],
     ['3.27.7', ['Répertoire : boutons Appeler, SMS, WhatsApp, Maps et ligne « Tél » comme avant ; « Modifier le planning hebdomadaire » de retour en bas ; étiquettes des cartes sur une seule ligne tant que possible']],
     ['3.27.6', ['Répertoire, fiche dépliée : prochaine présence en tête (avec Planifier) ; numéro et 4 boutons de contact sur une ligne ; une seule semaine pour tous les lieux en petits carrés M / S à la couleur du lieu, légende dessous ; « Planning » à côté du titre']],
@@ -4607,7 +4608,7 @@
   }
   function validerEtape(a, id) { var c = crDe(a); c.ok = c.ok || {}; c.ok[id] = true; LS.set('plan', S.plan); }
 
-  // 3.26.48 : compte rendu : les options se calent sous la hauteur du pouce mémorisée, avec garantie que l'intitulé reste toujours visible
+  // 3.26.48 / 3.27.9 : compte rendu : les options se calent sous le dernier point touché (sans exception pour l'intitulé)
   function centrerQuestion(uid, pouceY) {
     setTimeout(function () {
       var c = document.querySelector('.arret.ouvert .cr-question') ||
@@ -8413,7 +8414,7 @@
 
   function horodatageCourt() { var d = new Date(); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   // Programme validé puis modifié : il reste validé pour l'équipe, avec la date de modification
-  // 3.26.48 : Défilement sous le pouce avec garde-fou obligatoire pour que l'intitulé reste 100 % visible
+  // 3.27.9 : défilement sous le pouce : les prochaines options sont placées là où l'écran a été touché en dernier
   function centrerCarte(uid, pouceY) { centrerQuestion(uid, pouceY); }
   function centrerElement(c, forceQuestion, pouceY) {
     if (!c) return;
@@ -8457,12 +8458,7 @@
         var cibleOptY = yPouce - Math.min(25, rOpt.height * 0.45);
         var delta = rOpt.top - cibleOptY;
 
-        // 5. GARDE-FOU ESSENTIEL : L'intitulé doit impérativement rester visible sous l'en-tête
-        var minTitreTop = ent + 8;
-        var maxDelta = rTitre.top - minTitreTop;
-        if (delta > maxDelta) {
-          delta = maxDelta;
-        }
+        // 5. 3.27.9 : plus d'exception pour l'intitulé : les options vont toujours sous le dernier point touché
 
         // 6. GARDE-FOU BAS : Ne pas pousser les options sous la barre de navigation basse
         var maxOptBottom = window.innerHeight - nav - 8;
