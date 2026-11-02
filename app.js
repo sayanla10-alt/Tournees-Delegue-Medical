@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.6';
+  var APP_VERSION = '3.27.7';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.7', ['Répertoire : boutons Appeler, SMS, WhatsApp, Maps et ligne « Tél » comme avant ; « Modifier le planning hebdomadaire » de retour en bas ; étiquettes des cartes sur une seule ligne tant que possible']],
     ['3.27.6', ['Répertoire, fiche dépliée : prochaine présence en tête (avec Planifier) ; numéro et 4 boutons de contact sur une ligne ; une seule semaine pour tous les lieux en petits carrés M / S à la couleur du lieu, légende dessous ; « Planning » à côté du titre']],
     ['3.27.5', ['Fiche : seules les spécialités du cœur de cible sont affichées ; les autres restent repliées, même en modification (la spécialité choisie s’affiche sur le bouton)']],
     ['3.27.4', ['Ajouter : « Créer » mène à 1. Qui puis 2. Où et quand ; plus de choix Médecin / Pharmacie après « Créer » ; Suivant vérifie l’étape ; Enregistrer en bas, en fin de parcours', '« Dr » ajouté au nom d’un médecin sans titre, « Pharmacie » au nom d’une officine qui ne le précise pas ; potentiel à 1 étoile par défaut', 'Spécialités : cœur de cible affiché, les autres en dépliant ; établissement connu : quartier, repères et GPS repris', 'Journée : carte d’une visite non réalisée en rouge léger (comme le vert léger des visites faites)']],
@@ -5805,7 +5806,8 @@
       if (ouvert) {
         var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
         h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
-                              lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune, compact: true });
+                              lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
+        if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
         if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
         if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
         if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
@@ -5896,7 +5898,7 @@
       return 'Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) + ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]); };
     var jAuj = jourSemaineIndex(aujourdhui());
     var h = '<div class="sem-rep"><div class="sr-tete"><div><b>' + (estPh ? 'Reçoit les délégués' : 'Semaine type') + '</b><small>' + (estPh ? esc(hor(lieux[0])) : 'Touchez un créneau pour planifier') + '</small></div>' +
-      '<button type="button" class="bouton petit sr-modif" data-a="modifierPlanning" data-v="' + esc(code) + '">' + icone('crayon') + (estPh ? 'Horaires' : 'Planning') + '</button></div>' +
+      '</div>' +
       '<div class="sr-grille"><span></span>' + JOURS.map(function (j, i) { return '<span class="sr-j' + (i === jAuj ? ' auj' : '') + '">' + j.slice(0, 3) + '</span>'; }).join('');
     [['Matin', 'M', 'matin'], ['Soir', 'S', 'soir']].forEach(function (cr) {
       h += '<span class="sr-ms">' + cr[1] + '</span>';
@@ -5916,7 +5918,11 @@
       return '<li>' + (estPh ? '' : '<span class="sr-pt" style="background:' + COULEURS_GRILLE[idx % COULEURS_GRILLE.length] + '"></span>') + '<div>' +
         (estPh ? '' : '<b class="lieu-nom-plein">' + esc(abregerHopital(pr.lieu || 'Établissement')) + '</b>') +
         (adr ? '<small>' + esc(adr) + '</small>' : '') + (estPh ? '' : '<small>' + esc(hor(pr)) + '</small>') + '</div></li>';
-    }).join('') + '</ul></div>';
+    }).join('') + '</ul></div>' +
+      '<div class="pres-actions">' +
+        '<button type="button" class="bouton petit bouton-planning" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
+        icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +
+      '</div>';
     return h;
   }
 
