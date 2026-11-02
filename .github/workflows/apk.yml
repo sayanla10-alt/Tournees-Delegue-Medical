@@ -21,12 +21,16 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
           VERSION_NAME: 1.${{ github.run_number }}
         run: |
-          gradle --no-daemon assembleRelease
+          set -o pipefail
+          gradle --no-daemon assembleRelease --stacktrace 2>&1 | tee $RUNNER_TEMP/construction.log
           cp app/build/outputs/apk/release/app-release-unsigned.apk $RUNNER_TEMP/MediPlanner-non-signe.apk
           BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
           cp $BT/lib/apksigner.jar $RUNNER_TEMP/apksigner.jar
       - name: Publication (release « apk-build »)
+        if: always()
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
-          gh release view apk-build >/dev/null 2>&1 || gh release create apk-build --title "MediPlanner Android (construction)" --notes "APK non signée et outil de signature, pour la publication."
-          gh release upload apk-build $RUNNER_TEMP/MediPlanner-non-signe.apk $RUNNER_TEMP/apksigner.jar --clobber
+          gh release view apk-build >/dev/null 2>&1 || gh release create apk-build --title "MediPlanner Android (construction)" --notes "APK non signée, outil de signature et journal de construction."
+          tail -c 60000 $RUNNER_TEMP/construction.log > $RUNNER_TEMP/construction.txt 2>/dev/null || echo "pas de journal" > $RUNNER_TEMP/construction.txt
+          gh release upload apk-build $RUNNER_TEMP/construction.txt --clobber
+          if [ -f $RUNNER_TEMP/apksigner.jar ]; then gh release upload apk-build $RUNNER_TEMP/MediPlanner-non-signe.apk $RUNNER_TEMP/apksigner.jar --clobber; fi
