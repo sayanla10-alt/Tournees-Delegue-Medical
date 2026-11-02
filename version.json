@@ -1,8 +1,7 @@
 {
-  "version": "3.27.11",
+  "version": "3.27.12",
   "date": "2026-11-02",
   "notes": [
-    "Base vérifiée chaque minute et à chaque retour dans l'application",
-    "Journée : boutons de remplacement figés en bas ; Remplacer et en-tête de Planifier centrés"
+    "Journée : carte Rappel compacte"
   ]
 }

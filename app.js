@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.11';
+  var APP_VERSION = '3.27.12';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.12', ['Journée : carte Rappel à la même hauteur que la carte Compte Rendu ; « Autour de moi » n’est plus coupé dans la barre du bas']],
     ['3.27.11', ['Synchronisation : la base est vérifiée chaque minute quand l’application est ouverte, et relue à chaque retour dans l’application ; les corrections faites dans le Google Sheet apparaissent sans attendre', 'Noms, spécialités et potentiels corrigés dans la base : repris aussi sur les visites déjà faites']],
     ['3.27.10', ['Journée : + Médecin, + Pharmacie et Autour de moi figés en bas, à la taille des boutons de Planifier', 'Journée : bouton Remplacer centré', 'Planifier : date, nombre de visites et ligne de détail centrées']],
     ['3.27.9', ['Défilement automatique : les options suivantes se placent toujours là où l’écran a été touché en dernier, sans l’exception qui gardait l’intitulé visible']],
@@ -2953,7 +2954,7 @@
     // 3.27.10 : + Médecin, + Pharmacie, Autour de moi figés en bas comme la barre de Planifier, même taille de boutons
     return '<section class="bloc-remplacant"><p class="discret">Praticien indisponible ? Trouver un remplaçant avec les boutons du bas.</p>' +
       '<button class="bouton-texte" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button></section>' +
-      '<div class="barre-plan-actions-flottante"><div class="rangee-tirage"><button class="bouton" type="button" data-a="ajouterProches" data-v="Médecin" data-d="' + d + '">' + icone('plus') + '<span>Médecin</span></button>' +
+      '<div class="barre-plan-actions-flottante"><div class="rangee-tirage barre-remplacant"><button class="bouton" type="button" data-a="ajouterProches" data-v="Médecin" data-d="' + d + '">' + icone('plus') + '<span>Médecin</span></button>' +
       '<button class="bouton" type="button" data-a="ajouterProches" data-v="Pharmacie" data-d="' + d + '">' + icone('plus') + '<span>Pharmacie</span></button>' +
       '<button class="bouton" type="button" data-a="ajouterTournee" data-d="' + d + '">' + icone('cible') + '<span>Autour de moi</span></button></div></div>';
   }
@@ -4721,12 +4722,13 @@
   function rendreRappels() {
     var l = rappelsDuJour();
     if (!l.length) return '';
-    return '<section class="bloc rappels"><h3 style="margin-top:0">Rappels (' + l.length + ')</h3><ul class="liste-rappels">' + l.map(function (x) {
+    // 3.27.12 : même gabarit que la carte « Compte Rendu » (une ligne par rappel)
+    return '<ul class="rappels-cartes">' + l.map(function (x) {
       var p = praticien(x.v.code) || {};
-      return '<li><div><b>' + esc(x.v.nom) + '</b><span class="discret bloc-texte">' + esc(String(x.v.suite).replace(/^Rappel : /, '')) +
-        (x.date < aujourdhui() ? ', prévu le ' + dateCourte(x.date) : '') + '</span></div>' +
+      return '<li class="acces-rapport rappel-carte"><span>' + icone('calendrier') + '<b>Rappel' + (l.length > 1 ? 's (' + l.length + ')' : '') + ' · ' + esc(x.v.nom) + '</b><small>' + esc(String(x.v.suite).replace(/^Rappel : /, '')) +
+        (x.date < aujourdhui() ? ', prévu le ' + dateCourte(x.date) : '') + '</small></span>' +
         (p.telephone ? '<a class="bouton petit" href="tel:' + esc(String(p.telephone).replace(/\s/g, '')) + '">' + icone('tel') + 'Appeler</a>' : '') + '</li>';
-    }).join('') + '</ul></section>';
+    }).join('') + '</ul>';
   }
 
   // jours passés : modifiables seulement si l'option cachée « Modifier les jours passés » (Réglages › Avancé) est activée
