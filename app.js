@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.98';
+  var APP_VERSION = '3.26.99';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.99', ['Géolocalisation : une mesure moins précise ne remplace plus une mesure récente plus précise (sauf vrai déplacement)', 'Distances : si la position est à plus de ± 50 m, elles sont affichées « ≈ » et arrondies à 50 m']],
     ['3.26.98', ['Recherches : seule la précision de la position est indiquée (± X m) dans l’encadré ; l’alerte d’imprécision reste dans le message temporaire']],
     ['3.26.97', ['Géolocalisation : position remesurée à chaque synchronisation et ouverture, en attendant une précision de ± 20 m (jusqu’à 25 s) ; alerte si la position reste imprécise ; les distances sont recalculées dès la mesure obtenue']],
     ['3.26.96', ['Distances : point de départ et précision affichés (votre position ± X m, ou point choisi) ; position GPS remesurée à l’ouverture des recherches ; alerte si la position est imprécise']],
@@ -3741,7 +3742,7 @@
     var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || coord) : null;
     if (c && pos) {
       var d = distanceVol(pos, c);
-      morceaux.push(distanceCourte(d));
+      morceaux.push(distMoi(d));
     }
     return morceaux.join(' · ');
   }
@@ -3754,7 +3755,7 @@
     var base = infosSansDoublon(a, [a.lieu, a.quartier, a.commune]);
     if (c && pos) {
       var d = distanceVol(pos, c);
-      return (base ? base + ' · ' : '') + distanceCourte(d);
+      return (base ? base + ' · ' : '') + distMoi(d);
     }
     return base;
   }
@@ -4721,7 +4722,7 @@
     var pos = gpsFrais(), cp = pos ? coordPrecise(a) : null, c = cp || (pos ? coordArret(a) : null);
     if (!c || !pos) return '';
     var route = distanceVol(pos, c);
-    var d = (cp ? '' : '≈ ') + distanceCourte(route);
+    var d = distMoi(route, !cp);
     var minPied = Math.max(1, Math.round(route * 15));
     var minVoit = Math.max(1, minutesTrajet(route * REGLAGES_MOTEUR.detourRoutier, '', a.commune || '', minutesMaintenant()));
     return '<span class="dist-moi' + (route < 0.5 ? ' tout-pres' : '') + '" role="img" aria-label="À ' + d + ' de vous, ' + formaterDureeTrajet(minPied) + ' à pied, ' + formaterDureeTrajet(minVoit) + ' en voiture">' +
@@ -5282,7 +5283,7 @@
       '<span class="discret bloc-texte">' + esc(c.quartier) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</span>' +
       '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, date)) + '</span>' +
       etiquetteCollegues(p.code, date) + '</span></div>' +
-      '<div class="element-mesure">' + (avecDist === false ? '' : (c.coord && c.coord.approx ? '≈ ' : '') + distanceCourte(x.dist)) +
+      '<div class="element-mesure">' + (avecDist === false ? '' : distMoi(x.dist, c.coord && c.coord.approx)) +
         (avecDist !== false && c.coord && c.coord.approx ? '<small>quartier</small>' : '') + '<small>score ' + Math.round(x.score) + '</small></div></div>' +
       (avecDist !== false && c.coord && gpsPrecis() && (c.coord.approx || x.dist <= 2.5) ? '<p class="discret pos-approx">' + (c.coord.approx ? 'Position du lieu non enregistrée (centre du quartier). ' : 'Vous êtes devant mais la distance est fausse ? ') +
         '<button type="button" class="bouton-texte" data-a="posLieuIci" data-v="' + esc(c.cle) + '">' + icone('cible') + 'Je suis devant : enregistrer sa position</button></p>' : '') +
@@ -7093,7 +7094,7 @@
         if (p.type === 'Pharmacie') {
           st = infosSansDoublon(p, [cr.lieu, cr.quartier]);
           if (x.dist !== null && x.dist !== undefined) {
-            details += ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' + (x.approx ? ' <small>(position du quartier)</small>' : '');
+            details += ' · <b>' + distMoi(x.dist, x.approx) + '</b>' + (x.approx ? ' <small>(position du quartier)</small>' : '');
           }
         } else {
           var hopital = abregerHopital(cr.lieu || (p.lieux && p.lieux[0] && p.lieux[0].lieu) || '');
@@ -7171,14 +7172,14 @@
     var plusProche = pos ? tous.filter(function (x) { return x.dist !== null; })[0] : null;
     var insights = [tous.length + ' pharmacie' + (tous.length > 1 ? 's' : '') + ' ouverte' + (tous.length > 1 ? 's' : '') + ' à ' + libelleCommunes(z.communes) + ({ tout: '', Matin: ' le matin', Soir: ' le soir', maintenant: ' maintenant' }[z.moment] || '')];
     if (nJamais) insights.push(nJamais + ' jamais visitée' + (nJamais > 1 ? 's' : ''));
-    if (plusProche) insights.push('la plus proche à ' + distanceCourte(plusProche.dist));
+    if (plusProche) insights.push('la plus proche à ' + distMoi(plusProche.dist, plusProche.approx));
     if (nPrevu) insights.push(nPrevu + ' déjà dans la tournée');
     return '<p class="insights-zone"><b>' + esc(insights[0]) + '</b>' + (insights.length > 1 ? ' · ' + esc(insights.slice(1).join(' · ')) : '') + (pos ? '<br><small>' + esc(texteReferenceDistance()) + '</small>' : '<br><small>Position inconnue : touchez « Par ma position » pour classer par distance.</small>') + '</p>' +
       '<ul class="liste">' + tous.map(function (x) {
         var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
         var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
         var deja = dans[p.code], etat = '';
-        var dist = x.dist !== null ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' : '';
+        var dist = x.dist !== null ? ' · <b>' + distMoi(x.dist, x.approx) + '</b>' : '';
         var etiqPlus = (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la tournée du jour</span>' : '') + etiquetteCollegues(p.code, d);
         var loc = esc([cr.quartier, cr.commune].filter(Boolean).join(', ')) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
         return '<li class="element' + classeType(p) + (deja ? ' deja-tournee' : '') + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
@@ -7216,14 +7217,14 @@
     var ins = [tous.length + ' médecin' + (tous.length > 1 ? 's' : '') + ' ' + (h.specs.length ? h.specs.map(abrSpec).join(', ') : 'toutes spécialités') + ' présent' + (tous.length > 1 ? 's' : '') + ' à ' + ordre.map(function (k) { return groupes[k].lieu; }).join(', ') + momTxt];
     if (nVus) ins.push(nVus + ' déjà visité' + (nVus > 1 ? 's' : ''));
     if (nJamais) ins.push(nJamais + ' jamais visité' + (nJamais > 1 ? 's' : ''));
-    if (plusProche) ins.push('le plus proche à ' + distanceCourte(plusProche.dist));
+    if (plusProche) ins.push('le plus proche à ' + distMoi(plusProche.dist, plusProche.approx));
     if (nPrevu) ins.push(nPrevu + ' déjà dans la tournée');
     return '<p class="insights-zone"><b>' + esc(ins[0]) + '</b>' + (ins.length > 1 ? ' · ' + esc(ins.slice(1).join(' · ')) : '') + (pos ? '<br><small>' + esc(texteReferenceDistance()) + '</small>' : '<br><small>Position inconnue : touchez « Par ma position » pour classer par distance.</small>') + '</p>' +
       '<ul class="liste">' + tous.map(function (x) {
         var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
         var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
         var deja = dans[p.code], etat = '';
-        var dist = x.dist !== null ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' : '';
+        var dist = x.dist !== null ? ' · <b>' + distMoi(x.dist, x.approx) + '</b>' : '';
         var etiqPlus = (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la tournée du jour</span>' : '') + etiquetteCollegues(p.code, d);
         var ligne1 = '<b>' + esc(abrSpec(p.specialite)) + '</b> · ' + esc(x.lieu) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
         return '<li class="element' + classeType(p) + (deja ? ' deja-tournee' : '') + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
@@ -8573,7 +8574,13 @@
     if (!discret) { toast('Recherche de votre position…'); if (S.ui.tab === 'autour') rendre(); }
     mesurePrecise(function (p) {
       S.ui.localisation = false;
-      S.ui.posGps = { lat: p.lat, lon: p.lon, t: Date.now(), prec: p.prec }; LS.set('derniereGps', S.ui.posGps);
+      // 3.26.99 : une mesure moins précise ne remplace pas une mesure récente plus précise, sauf vrai déplacement
+      var g0 = gpsFrais();
+      if (g0 && g0.prec && p.prec > g0.prec) {
+        var ecartM = distanceKm(g0, p) / REGLAGES_MOTEUR.detourRoutier * 1000;
+        if (ecartM <= p.prec + g0.prec) p = { lat: g0.lat, lon: g0.lon, prec: g0.prec, garde: true };
+      }
+      if (!p.garde) { S.ui.posGps = { lat: p.lat, lon: p.lon, t: Date.now(), prec: p.prec }; LS.set('derniereGps', S.ui.posGps); }
       var A = S.ui.autour, r = Moteur.quartierLePlusProche(p.lat, p.lon, quartiers());
       if (!discret || forcerGps || positionGps()) {
         A.lat = p.lat; A.lon = p.lon; A.src = 'gps'; A.prec = p.prec; A.t = Date.now();
@@ -8727,6 +8734,15 @@
       return m <= 30 ? 'Sur place (< 30 m)' : m + ' m';
     }
     return km(k);
+  }
+  // 3.26.99 : distance depuis ma position. Position à plus de ± 50 m : « ≈ » et arrondi à 50 m (pas de fausse précision au mètre)
+  var PREC_DISTANCE_M = 50;
+  function positionImprecise() { var g = gpsFrais(); return !!(g && g.prec && g.prec > PREC_DISTANCE_M); }
+  function distMoi(k, approx) {
+    if (k === null || k === undefined) return '';
+    var imp = positionImprecise();
+    if (!imp) return (approx ? '≈ ' : '') + distanceCourte(k);
+    return '≈ ' + (k < 1 ? Math.max(50, Math.round(k * 20) * 50) + ' m' : km(k));
   }
   function gpsPrecis() { var g = gpsFrais(); return !!(g && g.prec && g.prec <= 60); }
   // 3.25.8 : position actuelle connue : GPS de moins de 15 min, sinon le point choisi dans « Autour de moi »
@@ -10976,5 +10992,5 @@
   // Accès pour les tests automatisés
   window.__tournees = { S: S, ctx: ctx, actualiserLieux: actualiserLieux, texteProgramme: texteProgramme, texteRapport: texteRapport, urlWhatsapp: urlWhatsapp, normaliserNumero: normaliserNumero,
                         supprimerJourPlanifie: supprimerJourPlanifie, demanderSuppressionJour: demanderSuppressionJour,
-                        version: APP_VERSION, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre };
+                        version: APP_VERSION, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre, distMoi: distMoi };
 })();

@@ -1,9 +1,8 @@
 {
-  "version": "3.26.98",
-  "date": "2026-10-30",
+  "version": "3.26.99",
+  "date": "2026-11-02",
   "notes": [
-    "CR Pharmacie : Seuls les produits strictement sélectionnés à l'étape 4 apparaissent à l'étape 5 (suppression du pré-remplissage parasite)",
-    "Remplacement Praticien : Libellés des actions raccourcis et clarifiés (« Changer » et « Remplacer ») avec hauteur harmonisée à 44 px",
-    "Mode Sombre : Adaptation intégrale du bandeau de critères du Répertoire et du bouton « Réinitialiser les filtres » aux tons sombres"
+    "Géolocalisation : la mesure la plus précise des 10 dernières minutes est conservée, sauf vrai déplacement",
+    "Distances : affichées « ≈ » et arrondies à 50 m quand la position est à plus de ± 50 m"
   ]
 }
