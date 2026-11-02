@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.84';
+  var APP_VERSION = '3.26.85';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.85', ['Données : une ancienne copie de la base restée sur le téléphone ne revient plus à l’ouverture (fin des noms corrigés qui réapparaissent puis sautent) ; la copie la plus récente est toujours retenue', 'Réglages › Avancé : « Recharger toute la base »']],
     ['3.26.84', ['Modifier : « 1. Lieux & planning » à gauche (ouvert d’abord), « 2. Médecin » à droite']],
     ['3.26.83', ['Synchroniser : un téléphone relié à un ancien déploiement du serveur bascule tout seul sur le serveur à jour (même classeur, même jeton) puis recharge les données']],
     ['3.26.82', ['Les visites à venir reprennent à chaque synchronisation les données actuelles de la base (spécialité, hôpital, quartier, GPS, horaires), sans recalculer la tournée']],
@@ -776,6 +777,10 @@
         var str = JSON.stringify(v);
         if (str.length < 500000) {
           localStorage.setItem(PREFIXE + k, str);
+        } else {
+          // 3.26.85 : trop gros pour localStorage : l'ancienne copie y est effacée, sinon elle revenait à chaque ouverture
+          // (anciens noms d'hôpitaux qui réapparaissent puis « sautent » vers les bons)
+          localStorage.removeItem(PREFIXE + k);
         }
       } catch (e) {}
     },
@@ -6521,7 +6526,8 @@
       (pret() ? ' ' + S.data.praticiens.length + ' praticiens, ' + S.data.presences.length + ' lieux de présence.' : '') +
       (S.queue.length ? ' ' + S.queue.length + ' compte(s) rendu(s) en attente.' : '') +
       (S.fiches.length ? ' ' + S.fiches.length + ' fiche(s) praticien en attente' + (S.ui.serveurAncien ? ' : le serveur Apps Script doit être mis à jour pour les recevoir.' : '.') : '') + '</p>' +
-      (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' : '') +
+      (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' +
+        '<button class="bouton bouton-large" type="button" data-a="rechargerBase" style="margin-bottom:10px">Recharger toute la base</button>' : '') +
       '<button class="bouton bouton-large" type="button" data-a="demo" style="margin-bottom:10px">Charger les données de démonstration</button>' +
       '<h3>Sauvegarde</h3><p class="discret" style="margin-top:0">' +
         (S.data && S.data.sauvegarde ? 'Base : dernière copie le ' + new Date(S.data.sauvegarde).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' (7 copies dans Drive).' : 'Base : sauvegarde quotidienne à installer dans le Google Sheet (menu MediPlanner › Sauvegardes).') +
@@ -9340,6 +9346,14 @@
       });
     },
     notifTest: function () { notifier('essai', 'MediPlanner', 'Les notifications fonctionnent sur ce téléphone.', true); },
+    // 3.26.85 : oublie la copie de la base gardée sur le téléphone et la retélécharge entièrement (tournée et saisies conservées)
+    rechargerBase: function () {
+      confirmerPuis('Recharger toute la base', 'Retélécharger toute la base (environ 1,4 Mo) ? Votre tournée et vos saisies en attente sont conservées.', 'Recharger', function () {
+        if (S.data) { S.data.sig = ''; S.data.serveurRecent = false; }
+        try { localStorage.removeItem(PREFIXE + 'data'); } catch (e) {}
+        synchroniser(false);
+      });
+    },
     sync: function () {
       if (S.config.demo) { toast('Mode démonstration : aucune synchronisation.'); return; }
       if (!S.config.url) { S.ui.tab = 'reglages'; rendre(); return; }
@@ -10486,7 +10500,8 @@
       return IDB.get(k).then(function (val) {
         if (val !== null && val !== undefined) {
           LS._mem[k] = val;
-          if (k === 'data' && (!S.data || !S.data.praticiens)) S.data = val;
+          // 3.26.85 : on garde la copie la plus récente (IndexedDB ou localStorage), jamais une plus ancienne
+          if (k === 'data' && (!S.data || !S.data.praticiens || String(val.syncedAt || '') > String(S.data.syncedAt || ''))) S.data = val;
           if (k === 'plan' && (!S.plan || !S.plan.length)) S.plan = val;
         }
       });
