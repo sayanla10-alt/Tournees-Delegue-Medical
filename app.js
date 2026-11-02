@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.99';
+  var APP_VERSION = '3.27.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.0', ['Position imprécise : le message n’apparaît plus lors des mesures automatiques (ouverture, synchronisation, toutes les quelques minutes), seulement quand vous demandez votre position, au plus une fois par heure ; la précision reste indiquée dans l’encadré']],
     ['3.26.99', ['Géolocalisation : une mesure moins précise ne remplace plus une mesure récente plus précise (sauf vrai déplacement)', 'Distances : si la position est à plus de ± 50 m, elles sont affichées « ≈ » et arrondies à 50 m']],
     ['3.26.98', ['Recherches : seule la précision de la position est indiquée (± X m) dans l’encadré ; l’alerte d’imprécision reste dans le message temporaire']],
     ['3.26.97', ['Géolocalisation : position remesurée à chaque synchronisation et ouverture, en attendant une précision de ± 20 m (jusqu’à 25 s) ; alerte si la position reste imprécise ; les distances sont recalculées dès la mesure obtenue']],
@@ -8589,8 +8590,9 @@
       }
       rendreSiPossible();
       alerteProximite(declencheur === 'ouverture' || !discret); notifierProximite();
-      if (p.prec > 100 && !S.ui.alerteImprecis) { S.ui.alerteImprecis = true; toast('Position imprécise (± ' + p.prec + ' m) : les distances peuvent être fausses. Activez la « localisation précise » du téléphone ou approchez-vous d\'une fenêtre.', 6000); }
-      else if (!discret && p.prec > 150) toast('Position imprécise (± ' + p.prec + ' m). Activez la « localisation précise » du téléphone, ou sortez à découvert.');
+      // 3.27.0 : alerte d'imprécision seulement quand le délégué demande sa position (pas lors des mesures automatiques), au plus une fois par heure ; la précision reste affichée dans l'encadré
+      var demande = !discret || declencheur === 'position', dernAl = +LS.get('alerteImprecisT', 0);
+      if (demande && p.prec > 150 && !p.garde && Date.now() - dernAl > 3600000) { LS.set('alerteImprecisT', Date.now()); toast('Position imprécise (± ' + p.prec + ' m). Activez la « localisation précise » du téléphone ou approchez-vous d\'une fenêtre.', 5000); }
       else if (!discret && r && r.km > 8) toast('Vous semblez hors d\'Abidjan. Quartier le plus proche : ' + r.quartier.quartier + '.');
     }, function () {
       S.ui.localisation = false; if (S.ui.tab === 'autour') rendreSiPossible();

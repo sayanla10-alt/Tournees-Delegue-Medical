@@ -1,8 +1,7 @@
 {
-  "version": "3.26.99",
+  "version": "3.27.0",
   "date": "2026-11-02",
   "notes": [
-    "Géolocalisation : la mesure la plus précise des 10 dernières minutes est conservée, sauf vrai déplacement",
-    "Distances : affichées « ≈ » et arrondies à 50 m quand la position est à plus de ± 50 m"
+    "Position imprécise : message seulement quand vous demandez votre position, au plus une fois par heure"
   ]
 }
