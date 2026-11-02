@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.91';
+  var APP_VERSION = '3.26.92';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.92', ['Pharmacies dans une zone et Dans des hôpitaux : communes ou hôpitaux retenus rappelés en tête et dans le filtre ; « Jamais visité » / « Vu il y a » en étiquette comme dans le Répertoire']],
     ['3.26.91', ['Dans des hôpitaux : repères en tête (médecins trouvés, déjà visités, jamais visités, le plus proche), une seule liste du plus proche au plus lointain, spécialité, hôpital et Tél dans la carte']],
     ['3.26.90', ['Pharmacies dans une zone : repères en tête (nombre trouvé, jamais visitées, la plus proche), une seule liste de la plus proche à la plus lointaine, quartier et Tél dans la carte']],
     ['3.26.89', ['Autour de moi : 4 choix (Par ma position, Selon mes filtres, Dans des hôpitaux, Pharmacies dans une zone) ; « Dans une zone » renommé « Pharmacies dans une zone »']],
@@ -1388,7 +1389,7 @@
     var totalOpts = o.sections ? o.sections.reduce(function (s, sec) { return s + sec.options.length; }, 0) : (o.options ? o.options.length : 0);
     // 3.26.86 : le résumé affiche les libellés (et non les valeurs techniques)
     var libDe = {}; (o.sections ? [].concat.apply([], o.sections.map(function (s) { return s.options; })) : (o.options || [])).forEach(function (op) { if (op && op.v !== undefined) libDe[op.v] = op.lib; });
-    var resume = o.multiple ? (nb ? (nb <= 2 ? val.map(function (v) { return libDe[v] || v; }).join(', ') : nb + ' choisis') : (o.resume || 'Tous')) : '';
+    var resume = o.multiple ? (nb ? (nb <= 2 || o.resumeComplet ? val.map(function (v) { return libDe[v] || v; }).join(', ') : nb + ' choisis') : (o.resume || 'Tous')) : '';
     var h = '<section class="groupe-filtre' + (ouvert ? ' ouvert' : '') + '" data-groupe="' + o.id + '">' +
       '<div class="groupe-tete">' + (o.repliable ? '<button type="button" class="groupe-bascule" data-a="basculeGroupe" data-v="' + o.id + '" aria-expanded="' + ouvert + '">' : '<div class="groupe-bascule">') +
       '<b>' + esc(o.titre) + '</b>' + (nb ? '<span class="compteur">' + nb + '</span>' : '') + (o.repliable ? '<small>' + esc(resume) + '</small>' + icone('chevron') + '</button>' : '</div>') +
@@ -7105,7 +7106,7 @@
     var h = f.h, d = S.ui.dateAjout || S.ui.jour; LS.set('rechHop', h);
     var moments = [['tout', 'Journée'], ['Matin', 'Matin'], ['Soir', 'Soir']];
     if (d === aujourdhui()) moments.push(['maintenant', 'Maintenant']);
-    var corps = groupeChoix(f, { id: 'hop', titre: 'Hôpitaux', chemin: 'h.lieux', multiple: true, repliable: true, recherche: true, resume: 'Choisir', sections: hopitauxConnus(), accordeon: 'hop' }) +
+    var corps = groupeChoix(f, { id: 'hop', titre: 'Hôpitaux', chemin: 'h.lieux', multiple: true, repliable: true, recherche: true, resume: 'Choisir', resumeComplet: true, sections: hopitauxConnus(), accordeon: 'hop' }) +
       groupeChoix(f, { id: 'hspec', titre: 'Spécialités', chemin: 'h.specs', multiple: true, repliable: true, recherche: true, resume: 'Toutes',
         options: specialitesListe().filter(function (x) { return x.nom !== 'Pharmacien'; }).map(function (x) { return { v: x.nom, lib: abrSpec(x.nom), n: x.n }; }) }) +
       '<section class="groupe-filtre ouvert" data-groupe="hmom"><div class="groupe-tete"><div class="groupe-bascule"><b>Moment</b></div></div>' + segment('Moment', 'hopMoment', moments, h.moment, 'margin:0 0 4px') + '</section>';
@@ -7117,7 +7118,7 @@
     var z = f.z, d = S.ui.dateAjout || S.ui.jour; LS.set('rechZonePh', z);
     var moments = [['tout', 'Journée'], ['Matin', 'Matin'], ['Soir', 'Soir']];
     if (d === aujourdhui()) moments.push(['maintenant', 'Maintenant']);
-    return groupeChoix(f, { id: 'com', titre: 'Zone', chemin: 'z.communes', multiple: true, repliable: true, recherche: true, resume: 'Choisir', sections: sectionsCommunes(), accordeon: 'com' }) +
+    return groupeChoix(f, { id: 'com', titre: 'Zone', chemin: 'z.communes', multiple: true, repliable: true, recherche: true, resume: 'Choisir', resumeComplet: true, sections: sectionsCommunes(), accordeon: 'com' }) +
       '<section class="groupe-filtre ouvert" data-groupe="hmom"><div class="groupe-tete"><div class="groupe-bascule"><b>Moment</b></div></div>' + segment('Moment', 'hopMoment', moments, z.moment, 'margin:0 0 4px') + '</section>' +
       '<div id="resZonePharma">' + resultatsZonePharma(z, d) + '</div>';
   };
@@ -7144,7 +7145,7 @@
     tous.sort(function (x, y) { return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score; });
     var nJamais = tous.filter(function (x) { return !x.p.derniere; }).length, nPrevu = tous.filter(function (x) { return dans[x.p.code]; }).length;
     var plusProche = pos ? tous.filter(function (x) { return x.dist !== null; })[0] : null;
-    var insights = [tous.length + ' pharmacie' + (tous.length > 1 ? 's' : '') + ' ouverte' + (tous.length > 1 ? 's' : '')];
+    var insights = [tous.length + ' pharmacie' + (tous.length > 1 ? 's' : '') + ' ouverte' + (tous.length > 1 ? 's' : '') + ' à ' + libelleCommunes(z.communes)];
     if (nJamais) insights.push(nJamais + ' jamais visitée' + (nJamais > 1 ? 's' : ''));
     if (plusProche) insights.push('la plus proche à ' + distanceCourte(plusProche.dist));
     if (nPrevu) insights.push(nPrevu + ' déjà dans la tournée');
@@ -7158,7 +7159,8 @@
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
           '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + loc + '</span>' +
-          '<span class="discret bloc-texte">' + esc(plages) + ' · ' + esc(vuDepuis(p.derniere, d)) + dist + etat + '</span></button></li>';
+          '<span class="discret bloc-texte">' + esc(plages) + dist + etat + '</span>' +
+          '<span class="etiquettes">' + (p.type !== 'Pharmacie' ? badgeConv(p.conventionne) : '') + '<span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span></span></button></li>';
       }).join('') + '</ul>';
   }
   function resultatsHopitaux(h, d) {
@@ -7184,7 +7186,7 @@
     tous.sort(function (x, y) { return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score; });
     var nJamais = tous.filter(function (x) { return !x.p.derniere; }).length, nVus = tous.length - nJamais, nPrevu = tous.filter(function (x) { return dans[x.p.code]; }).length;
     var plusProche = pos ? tous.filter(function (x) { return x.dist !== null; })[0] : null;
-    var ins = [tous.length + ' médecin' + (tous.length > 1 ? 's' : '') + ' présent' + (tous.length > 1 ? 's' : '') + (ordre.length > 1 ? ' dans ' + ordre.length + ' hôpitaux' : '')];
+    var ins = [tous.length + ' médecin' + (tous.length > 1 ? 's' : '') + ' présent' + (tous.length > 1 ? 's' : '') + ' à ' + ordre.map(function (k) { return groupes[k].lieu; }).join(', ')];
     if (nVus) ins.push(nVus + ' déjà visité' + (nVus > 1 ? 's' : ''));
     if (nJamais) ins.push(nJamais + ' jamais visité' + (nJamais > 1 ? 's' : ''));
     if (plusProche) ins.push('le plus proche à ' + distanceCourte(plusProche.dist));
@@ -7199,7 +7201,8 @@
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
           '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + ligne1 + '</span>' +
-          '<span class="discret bloc-texte">' + esc(plages) + ' · ' + esc(vuDepuis(p.derniere, d)) + dist + etat + '</span></button></li>';
+          '<span class="discret bloc-texte">' + esc(plages) + dist + etat + '</span>' +
+          '<span class="etiquettes">' + (p.type !== 'Pharmacie' ? badgeConv(p.conventionne) : '') + '<span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span></span></button></li>';
       }).join('') + '</ul>';
   }
   // 3.26.50 : instructions selon le navigateur ; un lien ouvert dans WhatsApp, Facebook ou Instagram s'ouvre dans un
