@@ -1,8 +1,7 @@
 {
-  "version": "3.27.1",
+  "version": "3.27.2",
   "date": "2026-11-02",
   "notes": [
-    "Fiche contact repensée : chercher avant de créer, semaine type, carte de visite",
-    "Enregistrer toujours visible en haut"
+    "Fiche : toutes les fonctions d'avant conservées dans la nouvelle organisation"
   ]
 }
