@@ -3525,14 +3525,14 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .fx-ici p b { display: block; font-size: 16px; }
 .fx-ici-r { display: flex; gap: 8px; }
 .fx-ici-r .bouton { flex: 1; }
-.fx-ici-oui { background: var(--vert); border-color: var(--vert); color: #fff; }
+.fx-ici-oui { background: var(--vert); border-color: var(--vert); color: var(--sur-primaire); }
 .fx-ici-non { color: var(--vert); border-color: var(--vert); background: var(--papier); }
 .fx-jours, .fx-sem { display: grid; grid-template-columns: 20px repeat(5, 1fr); gap: 4px; }
 .fx-jours { text-align: center; font-size: 12.5px; color: var(--gris); font-weight: 700; margin-bottom: 2px; }
 .fx-ms { font: 700 11px var(--texte); color: var(--gris); display: flex; align-items: center; justify-content: center; background: none; border: 0; padding: 0; cursor: pointer; border-radius: 6px; }
 .fx-ms[aria-pressed="true"] { color: var(--primaire); }
 .fx-c { height: 32px; border-radius: 7px; border: 1px dashed var(--trait); background: var(--papier-2); color: transparent; font: 700 12.5px var(--texte); padding: 0; cursor: pointer; }
-.fx-c.on { background: var(--c, var(--primaire)); border: 0; color: #fff; }
+.fx-c.on { background: var(--c, var(--primaire)); border: 0; color: var(--sur-primaire); }
 .fx-c.conf { outline: 2px solid var(--ambre); outline-offset: 1px; }
 .fx-lieu { padding: 8px 0 4px; border-top: 1px solid var(--trait); margin-top: 6px; }
 .fx-lieu:first-of-type { border-top: 0; margin-top: 0; }

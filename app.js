@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.2';
+  var APP_VERSION = '3.27.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.3', ['Fiche, mode sombre : texte des cases « Oui » et de « C’est ici » lisible']],
     ['3.27.2', ['Fiche : retour de tout ce qui existait avant (M / S pour cocher toute la ligne, GPS de la pharmacie affiché avec ✕, commune sous le quartier, spécialités groupées, téléphone dans les doublons, choix Médecin / Pharmacie tant que la fiche est nouvelle, titre « Planning hebdomadaire »)']],
     ['3.27.1', ['Fiche contact repensée : « + Ajouter » commence par chercher la personne rencontrée (contacts existants à ouvrir, sinon Créer) ; pharmacies connues autour de vous', '1. Où et quand : semaine type avec tous les lieux en couleur, créneaux en double signalés, « C’est ici » propose l’établissement où vous êtes', '2. Qui : nom en grand, spécialités en tuiles, potentiel en étoiles, Prescription engagée Oui / Non, bouton Appeler', 'Enregistrer toujours visible en haut ; Modifier (en haut et sur la carte) ouvre le même écran']],
     ['3.27.0', ['Position imprécise : le message n’apparaît plus lors des mesures automatiques (ouverture, synchronisation, toutes les quelques minutes), seulement quand vous demandez votre position, au plus une fois par heure ; la précision reste indiquée dans l’encadré']],
