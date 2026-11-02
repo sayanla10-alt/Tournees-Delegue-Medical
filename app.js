@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.88';
+  var APP_VERSION = '3.26.89';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.89', ['Autour de moi : 4 choix (Par ma position, Selon mes filtres, Dans des hôpitaux, Pharmacies dans une zone) ; « Dans une zone » renommé « Pharmacies dans une zone »']],
     ['3.26.88', ['Compte rendu de visite : choix proposés par défaut (visite faite : Oui ; types et produits : les derniers choisis ; produits présentés : Oui ; réaction : la dernière, sinon Intéressé ; échantillons : Oui ; suite : Aucune) ; un toucher suffit pour confirmer']],
     ['3.26.87', ['+ Pharmacie : 3e choix « Dans une zone » : toutes les pharmacies ouvertes dans les communes ou secteurs choisis, ce jour-là, au moment choisi (journée, matin, soir ou maintenant), avec la distance']],
     ['3.26.86', ['Autour de moi : 3e choix « Dans des hôpitaux » : médecins présents dans un ou plusieurs hôpitaux, ce jour-là, à un moment donné (journée, matin, soir ou maintenant), filtrés par spécialité si besoin']],
@@ -7011,7 +7012,7 @@
     if (t !== 'Pharmacie') tuiles.push(['hopitaux', 'loupe', 'Dans des hôpitaux', resHop]);
     // 3.26.87 : + Pharmacie : 3e choix : toutes les pharmacies ouvertes dans une zone choisie (communes ou secteurs)
     var zS = LS.get('rechZonePh', null), resZone = zS && zS.communes && zS.communes.length ? libelleCommunes(zS.communes) : 'Pharmacies ouvertes dans les communes ou secteurs choisis';
-    if (t === 'Pharmacie') tuiles.push(['zone', 'loupe', 'Dans une zone', resZone]);
+    if (t !== 'Médecin') tuiles.push(['zone', 'loupe', 'Pharmacies dans une zone', resZone]);   // 3.26.89 : aussi dans « Autour de moi »
     return rech + '<div class="choix-ajout">' + tuiles.map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
     }).join('') + '</div>';
@@ -9183,7 +9184,7 @@
       }
       if (el.dataset.v === 'zone') {
         var zR = LS.get('rechZonePh', null) || {};
-        S.ui.feuille = { type: 'ajouterZonePharma', titre: 'Dans une zone, ' + dateCourte(j), pleine: true,
+        S.ui.feuille = { type: 'ajouterZonePharma', titre: 'Pharmacies dans une zone, ' + dateCourte(j), pleine: true,
           z: { communes: (zR.communes || []).slice(), moment: zR.moment && (zR.moment !== 'maintenant' || j === aujourdhui()) ? zR.moment : (j === aujourdhui() ? 'maintenant' : 'tout') } };
         rendre(); return;
       }
