@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.89';
+  var APP_VERSION = '3.26.90';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.90', ['Pharmacies dans une zone : repères en tête (nombre trouvé, jamais visitées, la plus proche), une seule liste de la plus proche à la plus lointaine, quartier et Tél dans la carte']],
     ['3.26.89', ['Autour de moi : 4 choix (Par ma position, Selon mes filtres, Dans des hôpitaux, Pharmacies dans une zone) ; « Dans une zone » renommé « Pharmacies dans une zone »']],
     ['3.26.88', ['Compte rendu de visite : choix proposés par défaut (visite faite : Oui ; types et produits : les derniers choisis ; produits présentés : Oui ; réaction : la dernière, sinon Intéressé ; échantillons : Oui ; suite : Aucune) ; un toucher suffit pour confirmer']],
     ['3.26.87', ['+ Pharmacie : 3e choix « Dans une zone » : toutes les pharmacies ouvertes dans les communes ou secteurs choisis, ce jour-là, au moment choisi (journée, matin, soir ou maintenant), avec la distance']],
@@ -7136,22 +7137,28 @@
       x.crs.push(cr);
     });
     if (!ordre.length) return '<p class="discret">Aucune pharmacie ouverte dans cette zone le ' + esc(dateCourte(d)) + (z.moment !== 'tout' ? ' (' + esc(z.moment === 'maintenant' ? 'maintenant' : z.moment.toLowerCase()) + ')' : '') + '.</p>';
-    var tri = function (x, y) { return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) : y.score - x.score; };
-    var proche = function (k) { var l = Object.keys(groupes[k].parCode).map(function (c) { return groupes[k].parCode[c]; }); return pos ? Math.min.apply(null, l.map(function (x) { return x.dist === null ? 999 : x.dist; })) : 0; };
-    ordre.sort(function (a1, b1) { return pos ? proche(a1) - proche(b1) : a1.localeCompare(b1, 'fr'); });
-    return ordre.map(function (k) {
-      var g = groupes[k], l = Object.keys(g.parCode).map(function (c) { return g.parCode[c]; }).sort(tri);
-      return '<div class="aire-titre">' + esc(g.titre) + ' <small>· ' + l.length + ' pharmacie' + (l.length > 1 ? 's' : '') + '</small></div>' +
-        '<ul class="liste">' + l.map(function (x) {
-          var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
-          var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
-          var deja = dans[p.code], etat = deja ? ' · <b>déjà dans la tournée</b>' : (ex[p.code] ? ' · prévue par un collègue' : '');
-          var dist = x.dist !== null ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' : '';
-          return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
-            '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-            '<span class="discret bloc-texte">' + esc(plages) + ' · ' + esc(vuDepuis(p.derniere, d)) + dist + etat + '</span></button></li>';
-        }).join('') + '</ul>';
-    }).join('');
+    // 3.26.90 : une seule liste, de la plus proche à la plus lointaine ; en tête, quelques repères ; la localisation et le Tél dans la carte
+    var tous = [];
+    ordre.forEach(function (k) { var g = groupes[k]; Object.keys(g.parCode).forEach(function (c) { tous.push(g.parCode[c]); }); });
+    tous.sort(function (x, y) { return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score; });
+    var nJamais = tous.filter(function (x) { return !x.p.derniere; }).length, nPrevu = tous.filter(function (x) { return dans[x.p.code]; }).length;
+    var plusProche = pos ? tous.filter(function (x) { return x.dist !== null; })[0] : null;
+    var insights = [tous.length + ' pharmacie' + (tous.length > 1 ? 's' : '') + ' ouverte' + (tous.length > 1 ? 's' : '')];
+    if (nJamais) insights.push(nJamais + ' jamais visitée' + (nJamais > 1 ? 's' : ''));
+    if (plusProche) insights.push('la plus proche à ' + distanceCourte(plusProche.dist));
+    if (nPrevu) insights.push(nPrevu + ' déjà dans la tournée');
+    return '<p class="insights-zone"><b>' + esc(insights[0]) + '</b>' + (insights.length > 1 ? ' · ' + esc(insights.slice(1).join(' · ')) : '') + (pos ? '' : '<br><small>Position inconnue : touchez « Par ma position » pour classer par distance.</small>') + '</p>' +
+      '<ul class="liste">' + tous.map(function (x) {
+        var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
+        var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
+        var deja = dans[p.code], etat = deja ? ' · <b>déjà dans la tournée</b>' : (ex[p.code] ? ' · prévue par un collègue' : '');
+        var dist = x.dist !== null ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' : '';
+        var loc = esc([cr.quartier, cr.commune].filter(Boolean).join(', ')) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
+        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
+          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="discret bloc-texte">' + loc + '</span>' +
+          '<span class="discret bloc-texte">' + esc(plages) + ' · ' + esc(vuDepuis(p.derniere, d)) + dist + etat + '</span></button></li>';
+      }).join('') + '</ul>';
   }
   function resultatsHopitaux(h, d) {
     if (!h.lieux.length) return '<p class="discret">Choisissez au moins un hôpital pour voir qui y est présent le ' + esc(dateCourte(d)) + '.</p>';

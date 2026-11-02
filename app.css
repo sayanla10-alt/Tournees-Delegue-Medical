@@ -3472,3 +3472,6 @@ li.li-retirable { -webkit-user-select: none; user-select: none; -webkit-touch-ca
 .liste-imposes li .bouton-retirer-imp, .bouton-ajouter-imp { min-width: 96px; justify-content: center; }
 /* 3.26.86 : choix du moment sur une ligne */
 .groupe-filtre[data-groupe="hmom"] .segment button { white-space: nowrap; font-size: 13px; padding-left: 4px; padding-right: 4px; }
+/* 3.26.90 : repères en tête de « Pharmacies dans une zone » */
+.insights-zone { margin: 10px 0 8px; padding: 8px 12px; border-radius: 12px; background: var(--primaire-pale); color: var(--encre); font-size: 13.5px; line-height: 1.4; }
+.insights-zone small { color: var(--gris); }
