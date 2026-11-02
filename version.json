@@ -1,7 +1,8 @@
 {
-  "version": "3.27.0",
+  "version": "3.27.1",
   "date": "2026-11-02",
   "notes": [
-    "Position imprécise : message seulement quand vous demandez votre position, au plus une fois par heure"
+    "Fiche contact repensée : chercher avant de créer, semaine type, carte de visite",
+    "Enregistrer toujours visible en haut"
   ]
 }
