@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.26.86';
+  var APP_VERSION = '3.26.87';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.26.87', ['+ Pharmacie : 3e choix « Dans une zone » : toutes les pharmacies ouvertes dans les communes ou secteurs choisis, ce jour-là, au moment choisi (journée, matin, soir ou maintenant), avec la distance']],
     ['3.26.86', ['Autour de moi : 3e choix « Dans des hôpitaux » : médecins présents dans un ou plusieurs hôpitaux, ce jour-là, à un moment donné (journée, matin, soir ou maintenant), filtrés par spécialité si besoin']],
     ['3.26.85', ['Données : une ancienne copie de la base restée sur le téléphone ne revient plus à l’ouverture (fin des noms corrigés qui réapparaissent puis sautent) ; la copie la plus récente est toujours retenue', 'Réglages › Avancé : « Recharger toute la base »']],
     ['3.26.84', ['Modifier : « 1. Lieux & planning » à gauche (ouvert d’abord), « 2. Médecin » à droite']],
@@ -7004,6 +7005,9 @@
     var hS = LS.get('rechHop', null), resHop = hS && hS.lieux && hS.lieux.length ? hS.lieux.length + ' hôpita' + (hS.lieux.length > 1 ? 'ux' : 'l') + (hS.specs && hS.specs.length ? ' · ' + hS.specs.map(abrSpec).join(', ') : '') : 'Médecins présents dans un ou plusieurs hôpitaux, à un moment donné';
     var tuiles = [['position', 'cible', 'Par ma position', qui + ' présents près de vous'], ['communes', 'filtre', 'Selon mes filtres', filtres]];
     if (t !== 'Pharmacie') tuiles.push(['hopitaux', 'loupe', 'Dans des hôpitaux', resHop]);
+    // 3.26.87 : + Pharmacie : 3e choix : toutes les pharmacies ouvertes dans une zone choisie (communes ou secteurs)
+    var zS = LS.get('rechZonePh', null), resZone = zS && zS.communes && zS.communes.length ? libelleCommunes(zS.communes) : 'Pharmacies ouvertes dans les communes ou secteurs choisis';
+    if (t === 'Pharmacie') tuiles.push(['zone', 'loupe', 'Dans une zone', resZone]);
     return rech + '<div class="choix-ajout">' + tuiles.map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
     }).join('') + '</div>';
@@ -7100,6 +7104,50 @@
       '<section class="groupe-filtre ouvert" data-groupe="hmom"><div class="groupe-tete"><div class="groupe-bascule"><b>Moment</b></div></div>' + segment('Moment', 'hopMoment', moments, h.moment, 'margin:0 0 4px') + '</section>';
     return corps + '<div id="resHopitaux">' + resultatsHopitaux(h, d) + '</div>';
   };
+  // 3.26.87 : « Dans une zone » (+ Pharmacie) : pharmacies ouvertes ce jour-là, au moment choisi, dans les communes ou secteurs choisis.
+  // Même présentation que « Dans des hôpitaux » : regroupées par quartier, du plus proche au plus loin si la position est connue.
+  FEUILLES.ajouterZonePharma = function (f) {
+    var z = f.z, d = S.ui.dateAjout || S.ui.jour; LS.set('rechZonePh', z);
+    var moments = [['tout', 'Journée'], ['Matin', 'Matin'], ['Soir', 'Soir']];
+    if (d === aujourdhui()) moments.push(['maintenant', 'Maintenant']);
+    return groupeChoix(f, { id: 'com', titre: 'Zone', chemin: 'z.communes', multiple: true, repliable: true, recherche: true, resume: 'Choisir', sections: sectionsCommunes(), accordeon: 'com' }) +
+      '<section class="groupe-filtre ouvert" data-groupe="hmom"><div class="groupe-tete"><div class="groupe-bascule"><b>Moment</b></div></div>' + segment('Moment', 'hopMoment', moments, z.moment, 'margin:0 0 4px') + '</section>' +
+      '<div id="resZonePharma">' + resultatsZonePharma(z, d) + '</div>';
+  };
+  function resultatsZonePharma(z, d) {
+    if (!z.communes.length) return '<p class="discret">Choisissez au moins une commune ou un secteur pour voir les pharmacies ouvertes le ' + esc(dateCourte(d)) + '.</p>';
+    if (jourSemaineIndex(d) > 4 || estFerie(d)) return '<p class="discret">Jour non ouvré : aucune présence connue.</p>';
+    var j = jourSemaineIndex(d), now = minutesMaintenant(), com = ensemble(z.communes), pos = positionActuelle();
+    var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), ex = exclusCollegues([d]);
+    var groupes = {}, ordre = [];
+    (ctx().parJour[j] || []).forEach(function (cr) {
+      var p = cr.prat; if (!p || p.type !== 'Pharmacie' || absentLe(p, d)) return;
+      if (!communeCorrespondante(cr, com)) return;
+      if (z.moment === 'Matin' || z.moment === 'Soir') { if (cr.creneau !== z.moment) return; }
+      else if (z.moment === 'maintenant' && (now < cr.debut || now > cr.fin)) return;
+      var k = (cr.quartier || cr.commune || 'Autres') + ' · ' + (cr.commune || '');
+      var g = groupes[k] || (groupes[k] = { titre: [cr.quartier, cr.commune].filter(Boolean).join(', '), parCode: {} }); if (ordre.indexOf(k) < 0) ordre.push(k);
+      var x = g.parCode[cr.code] || (g.parCode[cr.code] = { p: p, crs: [], score: Moteur.scoreDe(p, d), dist: pos && cr.coord ? distanceVol(pos, cr.coord) : null, approx: !!(cr.coord && cr.coord.approx) });
+      x.crs.push(cr);
+    });
+    if (!ordre.length) return '<p class="discret">Aucune pharmacie ouverte dans cette zone le ' + esc(dateCourte(d)) + (z.moment !== 'tout' ? ' (' + esc(z.moment === 'maintenant' ? 'maintenant' : z.moment.toLowerCase()) + ')' : '') + '.</p>';
+    var tri = function (x, y) { return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) : y.score - x.score; };
+    var proche = function (k) { var l = Object.keys(groupes[k].parCode).map(function (c) { return groupes[k].parCode[c]; }); return pos ? Math.min.apply(null, l.map(function (x) { return x.dist === null ? 999 : x.dist; })) : 0; };
+    ordre.sort(function (a1, b1) { return pos ? proche(a1) - proche(b1) : a1.localeCompare(b1, 'fr'); });
+    return ordre.map(function (k) {
+      var g = groupes[k], l = Object.keys(g.parCode).map(function (c) { return g.parCode[c]; }).sort(tri);
+      return '<div class="aire-titre">' + esc(g.titre) + ' <small>· ' + l.length + ' pharmacie' + (l.length > 1 ? 's' : '') + '</small></div>' +
+        '<ul class="liste">' + l.map(function (x) {
+          var p = x.p, crs = x.crs.slice().sort(function (u, v) { return u.debut - v.debut; }), cr = crs[0];
+          var plages = crs.map(function (c) { return c.creneau + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin); }).join(' · ');
+          var deja = dans[p.code], etat = deja ? ' · <b>déjà dans la tournée</b>' : (ex[p.code] ? ' · prévue par un collègue' : '');
+          var dist = x.dist !== null ? ' · <b>' + (x.approx ? '≈ ' : '') + distanceCourte(x.dist) + '</b>' : '';
+          return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
+            '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+            '<span class="discret bloc-texte">' + esc(plages) + ' · ' + esc(vuDepuis(p.derniere, d)) + dist + etat + '</span></button></li>';
+        }).join('') + '</ul>';
+    }).join('');
+  }
   function resultatsHopitaux(h, d) {
     if (!h.lieux.length) return '<p class="discret">Choisissez au moins un hôpital pour voir qui y est présent le ' + esc(dateCourte(d)) + '.</p>';
     if (jourSemaineIndex(d) > 4 || estFerie(d)) return '<p class="discret">Jour non ouvré : aucune présence connue.</p>';
@@ -9129,6 +9177,12 @@
         S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true);
         return;
       }
+      if (el.dataset.v === 'zone') {
+        var zR = LS.get('rechZonePh', null) || {};
+        S.ui.feuille = { type: 'ajouterZonePharma', titre: 'Dans une zone, ' + dateCourte(j), pleine: true,
+          z: { communes: (zR.communes || []).slice(), moment: zR.moment && (zR.moment !== 'maintenant' || j === aujourdhui()) ? zR.moment : (j === aujourdhui() ? 'maintenant' : 'tout') } };
+        rendre(); return;
+      }
       if (el.dataset.v === 'hopitaux') {
         var hR = LS.get('rechHop', null) || {}; 
         S.ui.feuille = { type: 'ajouterHopitaux', titre: 'Dans des hôpitaux, ' + dateCourte(j), pleine: true,
@@ -9137,7 +9191,7 @@
       }
       S.ui.feuille = { type: 'ajouterCommunes', titre: (S.ui.typeAjout ? 'Selon mes filtres, ' : 'Communes du ') + dateCourte(j), pleine: true }; rendre();
     },
-    hopMoment: function (el) { var f = S.ui.feuille; if (!f || !f.h) return; f.h.moment = el.dataset.v; rendre(); },
+    hopMoment: function (el) { var f = S.ui.feuille; if (!f) return; (f.h || f.z).moment = el.dataset.v; rendre(); },
     ajouterCandidat: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v), d = S.ui.dateAjout || S.ui.jour; if (!c) return;
       var fAvant = S.ui.feuille && JSON.parse(JSON.stringify(S.ui.feuille));
