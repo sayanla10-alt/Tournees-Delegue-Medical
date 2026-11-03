@@ -830,6 +830,23 @@ function sansAccents(s) {
 }
 function normaliser(s) { return sansAccents(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
+// 3.27.18 : abréviations courantes des noms d'établissements (2 Pltx = Deux Plateaux, St = Saint, CSU-COM = CSU Com)
+function abregesEtab(s) {
+  return (' ' + String(s || '').replace(/[-\/'’().,]/g, ' ') + ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/ 2 /g, ' deux ')
+    .replace(/ (pltx|plts|plx|plat|plateau) /g, ' plateaux ')
+    .replace(/ ste /g, ' sainte ').replace(/ st /g, ' saint ')
+    .replace(/ (csu ?com|csucom) /g, ' csucom ').replace(/ (fsu ?com|fsucom) /g, ' fsucom ')
+    .replace(/\s+/g, ' ').trim();
+}
+// Clé d'un établissement : sans accents, sans abréviations, sans mots génériques ni espaces
+function cleEtablissement(s) {
+  var t = abregesEtab(sansAccents(String(s || '')).toLowerCase());
+  return (' ' + t + ' ').replace(/ (de|du|des|d|l|le|la|les|et|au|aux|centre|medical|medicale|polyclinique|clinique|hopital|cabinet|sante|urbain|communautaire) /g, ' ')
+    .replace(/ (de|du|des|d|l|le|la|les|et|au|aux) /g, ' ').replace(/[^a-z0-9]/g, '');
+}
+
 // 3.26.9 : Détection intelligente d'un même établissement (CHU, cliniques, hôpitaux avec variantes d'écriture)
 function memeEtablissement(a, b) {
   if (!a || !b) return false;
@@ -838,7 +855,7 @@ function memeEtablissement(a, b) {
   if (sa === sb) return true;
 
   function nettoyerEtab(s) {
-    return s
+    return abregesEtab(s)
       .replace(/\b(centre hospitalier universitaire|centre hospitalier et universitaire|centre hosp univ)\b/g, 'chu')
       .replace(/\b(hopital militaire d abidjan|hopital militaire abidjan)\b/g, 'hma')
       .replace(/\b(institut de cardiologie d abidjan|institut cardiologie abidjan|institut de cardiologie)\b/g, 'ica')

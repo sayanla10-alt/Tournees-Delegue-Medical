@@ -1,7 +1,8 @@
 {
-  "version": "3.27.17",
+  "version": "3.27.18",
   "date": "2026-11-03",
   "notes": [
-    "CR pharmacie : Retour retiré, activités sur 3 colonnes"
+    "Établissements : abréviations reconnues (2 Pltx, St, CSU-COM)",
+    "Doublon : code existant affiché, « Compléter sa fiche »"
   ]
 }

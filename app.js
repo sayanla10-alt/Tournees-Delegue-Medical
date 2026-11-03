@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.17';
+  var APP_VERSION = '3.27.18';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.18', ['Établissements : « 2 Pltx », « St », « CSU-COM » reconnus comme le nom officiel (pas de doublon de lieu)', 'Doublon de praticien : le code existant est affiché, avec « Compléter sa fiche »']],
     ['3.27.17', ['CR pharmacie, étape 3 : « Retour » retiré ; les activités se rangent au plus serré (3 par ligne)']],
     ['3.27.16', ['Semaine type (Répertoire et fiche) : couleur fixe par établissement, la même chez tous les délégués : 1 vert, 2 bleu, puis violet, orange, rose, sarcelle, brun, indigo, olive, ardoise (10 établissements)']],
     ['3.27.15', ['CR pharmacie : PLV remplacé par MEP ; plus de coche sur les choix sélectionnés (déjà en couleur) ; stock par produit sans quantité ; « Commande passée ? » sur Non par défaut, Oui ouvre « Besoin de réapprovisionnement » (facultatif)']],
@@ -7650,11 +7651,11 @@
     }
 
     // 3. Établissements connus de la BDD (mutualisation pour éviter fautes & doublons)
-    var connus = etablissementsConnus();
+    var connus = etablissementsConnus(), cleS = cleEtablissement(raw);   // 3.27.18 : « 2 Pltx » = « Deux-Plateaux »
     for (var j = 0; j < connus.length; j++) {
       var e = connus[j];
       var ne = normaliser(e.lieu);
-      if (ne && (norm === ne || (norm.length >= 4 && (contientMot(norm, ne) || contientMot(ne, norm))))) {
+      if (ne && (norm === ne || (cleS.length >= 5 && cleEtablissement(e.lieu) === cleS) || (norm.length >= 4 && (contientMot(norm, ne) || contientMot(ne, norm))))) {
         return {
           lieu: e.lieu,
           quartier: e.quartier || quartierSaisi || '',
@@ -10578,8 +10579,8 @@
         if (doublons.length) {
           var ex = doublons[0].p, fSauve = JSON.parse(JSON.stringify(f));
           confirmerPuis('Doublon potentiel',
-            '<b>' + esc(ex.nom) + '</b> (' + esc(doublons[0].lieu || ex.specialite) + ') existe déjà dans la base.<br>Voulez-vous ouvrir sa fiche existante au lieu de créer un doublon ?',
-            'Ouvrir la fiche existante',
+            '<b>' + esc(ex.nom) + '</b> (' + esc(doublons[0].lieu || ex.specialite) + ') existe déjà sous le code <b>' + esc(ex.code) + '</b>.<br>Voulez-vous compléter sa fiche au lieu de créer un doublon ?',
+            'Compléter sa fiche',
             function () {
               var dEx = brouillonFiche(ex.code);
               S.ui.feuille = { type: 'fiche', titre: (dEx.type === 'Pharmacie' ? 'Modifier la pharmacie' : 'Modifier le médecin'), pleine: true, etape: 1, d: dEx, err: {}, initial: JSON.stringify(dEx) };
