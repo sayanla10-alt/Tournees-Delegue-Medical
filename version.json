@@ -1,7 +1,8 @@
 {
-  "version": "3.27.22",
+  "version": "3.27.23",
   "date": "2026-11-03",
   "notes": [
-    "Planifier et Journée : repères du lieu affichés"
+    "Répertoire : prochaine présence selon l’heure, Planifier avec choix de la date et conflits",
+    "CR : notification à 18 h 30 si non finalisé, échantillons sur Non par défaut"
   ]
 }

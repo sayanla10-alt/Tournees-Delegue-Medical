@@ -3635,3 +3635,12 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 /* 3.27.17 : activités en pharmacie sur 3 colonnes (gain de place) */
 .puces-types-cr.puces-types-ph { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
 .puces-types-cr.puces-types-ph .puce { flex: 1 1 auto !important; width: auto !important; padding: 6px 8px !important; min-height: 38px !important; white-space: nowrap !important; font-size: 13px !important; }
+
+/* 3.27.23 : Planifier depuis le Répertoire, choix de la date avec conflits */
+.choix-planif { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.feuille .choix-planif .puce.choix-planif-l { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left;
+  border-radius: 12px; padding: 8px 10px !important; min-height: 56px !important; height: auto !important; max-height: none !important; gap: 2px; white-space: normal; overflow: visible; font-weight: 500; line-height: 1.25; }
+.feuille .choix-planif .choix-planif-l b { font-weight: 700; }
+.feuille .choix-planif .choix-planif-l small { display: block; font-size: 12px; opacity: .85; white-space: normal; overflow-wrap: anywhere; }
+.feuille .choix-planif .conflit-planif { color: #9A5B00; font-weight: 700; opacity: 1; }
+.feuille .choix-planif .choix-planif-l[aria-pressed="true"] .conflit-planif { color: inherit; }

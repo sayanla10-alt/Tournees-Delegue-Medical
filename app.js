@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.22';
+  var APP_VERSION = '3.27.23';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.23', ['Répertoire : la prochaine présence tient compte de l’heure (aujourd’hui jusqu’à la fermeture, puis la suivante)', 'Répertoire : « Planifier » propose aujourd’hui, demain et les présences suivantes, avec les conflits signalés', 'Compte rendu non finalisé à 18 h 30 : notification du téléphone', 'Compte rendu : « Échantillons remis » sur Non par défaut']],
     ['3.27.22', ['Planifier et Journée : les repères du lieu (colonne Repères, ex. « Enceinte CHU Treichville, Blvd de Marseille ») s’affichent comme dans le Répertoire']],
     ['3.27.21', ['Journée : l’application restée ouverte depuis la veille repasse seule sur la date du jour', 'Erreur d’affichage : le détail technique est affiché pour diagnostic']],
     ['3.27.20', ['Base des présences vérifiée avec le cerveau terrain : 868 présences confirmées, doublons de lieux fusionnés, noms d’établissements harmonisés']],
@@ -3134,7 +3135,8 @@
         actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte Rendu de cette visite</button></div>';
     }
-    if (finJournee && !crValide) {
+    var notifsOn = LS.get('notifs', false) && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+    if (finJournee && !crValide && !notifsOn) {
       corps += '<div class="rappel-cr-soir"><p>Rappel 18 h 30 : pensez à finaliser votre compte rendu de la journée.</p>' +
         '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div></div>';
     }
@@ -4443,7 +4445,8 @@
           }).join('') + '</div>';
         }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
       }
-      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'oui'); }, function () { return oui(c.echant); });
+      if (!im.echant && !c.echant) c.echant = 'non';   // 3.27.23 : Non par défaut
+      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
       if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
       e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
       etapesSuite(a, c, SUITES.medecin, e);
@@ -5936,9 +5939,29 @@
     for (var k = 0; k < 28; k++) {
       var d = ajouterJours(t, k), j = jourSemaineIndex(d);
       if (j > 4 || estFerie(d) || absentLe(p, d)) continue;
-      for (var n = 0; n < crs.length; n++) { var c = crs[n]; if (c.jourIdx === j && (k > 0 || now < c.fin)) return { d: d, c: c }; }
+      for (var n = 0; n < crs.length; n++) { var c = crs[n]; if (c.jourIdx === j && (k > 0 || now <= c.fin)) return { d: d, c: c }; }
     }
     return null;
+  }
+  // 3.27.23 : prochaines présences (aujourd'hui jusqu'à la fermeture incluse, puis les jours suivants), pour choisir la date
+  function prochainesPresences(p, max) {
+    var crs = (ctx().parCode[p.code] || []).slice().sort(function (x, y) { return x.debut - y.debut; }), res = [];
+    var t = aujourdhui(), now = minutesMaintenant();
+    for (var k = 0; k < 21 && res.length < max; k++) {
+      var d = ajouterJours(t, k), j = jourSemaineIndex(d);
+      if (j > 4 || estFerie(d) || absentLe(p, d)) continue;
+      crs.forEach(function (c) { if (res.length < max && c.jourIdx === j && (k > 0 || now <= c.fin)) res.push({ d: d, c: c }); });
+    }
+    return res;
+  }
+  // conflits d'une date : déjà prévu, prévu par un collègue, autre lieu dans votre tournée sur ce créneau
+  function conflitsPlanif(c, d) {
+    var l = [];
+    if (S.plan.some(function (a) { return a.date === d && a.code === c.code; })) return { bloque: true, l: ['déjà dans votre tournée'] };
+    arretsCollegues().filter(function (x) { return x.code === c.code && x.date === d; }).forEach(function (x) { l.push('prévu par ' + x.delegue); });
+    var ailleurs = S.plan.filter(function (a) { return a.date === d && a.creneau === c.creneau && a.lieu && !memeEtablissement(a.lieu, c.lieu); });
+    if (ailleurs.length) l.push(ailleurs.length + ' visite' + (ailleurs.length > 1 ? 's' : '') + ' ailleurs ce ' + c.creneau.toLowerCase() + ' (' + abregerHopital(ailleurs[0].lieu) + ')');
+    return { bloque: false, l: l };
   }
   function prochainePresenceHtml(p) {
     var x = prochainePresence(p); if (!x) return '';
@@ -5947,7 +5970,7 @@
     var mois = new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { month: 'short' });
     return '<div class="proch-pres"><span class="pp-d"><small>' + JOURS[jourSemaineIndex(d)].slice(0, 3) + '</small><b>' + (+d.slice(8)) + '</b><small>' + esc(mois) + '</small></span>' +
       '<p><b>' + esc(quand) + ', ' + c.creneau.toLowerCase() + (estPharmacie(p) ? '' : ' à ' + esc(abregerHopital(c.lieu))) + '</b>' + esc(abs) + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</p>' +
-      '<button type="button" class="bouton bouton-plein petit" data-a="planifierCle" data-v="' + esc(c.cle) + '" data-d="' + d + '">Planifier</button></div>';
+      '<button type="button" class="bouton bouton-plein petit" data-a="planifierProchaines" data-v="' + esc(p.code) + '">Planifier</button></div>';
   }
   // 3.27.16 : couleur fixe par établissement (ordre de la base, identique chez tous les délégués) : 1 vert, 2 bleu, puis 8 autres
   var COULEURS_GRILLE = ['#1B7448', '#1E5AA8', '#6A3FA0', '#B4580A', '#B03A7A', '#0A6C74', '#7A5230', '#3B4BA8', '#5E6B1F', '#4A5A66'];
@@ -7490,6 +7513,23 @@
       }).join('') + '</div></div>' +
       '<p style="margin:14px 0 0">Ajouter <b>' + esc(c.prat.nom) + '</b> à votre tournée du <b>' + dateFr(f.d) + '</b> ?</p></div>';
     return { corps: h, pied: piedQuestion('data-a="planifierDateOui"', 'Ajouter') };
+  };
+  // 3.27.23 : Planifier depuis le Répertoire : aujourd'hui, demain ou les présences suivantes, conflits signalés
+  FEUILLES.planifierProchaines = function (f) {
+    var p = praticien(f.code) || {}, l = prochainesPresences(p, 8), t = aujourdhui();
+    if (!l.length) return { corps: '<p class="discret">Aucune présence connue dans les 3 prochaines semaines.</p>', pied: '<button class="bouton" type="button" data-a="fermerFeuille">Fermer</button>' };
+    if (!f.sel) { var libre = l.filter(function (x) { return !conflitsPlanif(x.c, x.d).bloque; })[0]; f.sel = libre ? libre.c.cle + '@' + libre.d : ''; }
+    var h = '<div class="cr-pas etapes-filtres"><div class="cr-question"><span class="etape-titre">Quand ?</span>' +
+      '<p class="discret" style="margin:4px 0 0">' + esc(p.nom) + '</p><div class="choix-planif">' +
+      l.map(function (x) {
+        var k = x.c.cle + '@' + x.d, cf = conflitsPlanif(x.c, x.d);
+        var quand = x.d === t ? 'Aujourd\'hui' : (x.d === ajouterJours(t, 1) ? 'Demain' : JOURS[jourSemaineIndex(x.d)] + ' ' + (+x.d.slice(8)));
+        return '<button type="button" class="puce choix-planif-l" data-a="planifierProchainesChoix" data-v="' + esc(k) + '" aria-pressed="' + (f.sel === k) + '"' + (cf.bloque ? ' disabled' : '') + '>' +
+          '<b>' + esc(quand) + ', ' + x.c.creneau.toLowerCase() + '</b> ' + minutesVersHeure(x.c.debut) + '-' + minutesVersHeure(x.c.fin) +
+          (estPharmacie(p) ? '' : '<small>' + esc(abregerHopital(x.c.lieu)) + '</small>') +
+          (cf.l.length ? '<small class="conflit-planif">' + esc(cf.l.join(' · ')) + '</small>' : '') + '</button>';
+      }).join('') + '</div></div></div>';
+    return { corps: h, pied: piedQuestion('data-a="planifierProchainesOui"' + (f.sel ? '' : ' disabled'), 'Ajouter') };
   };
   FEUILLES.listeChoix = function (f) {
     var cfg = S.ui.listes[f.id] || {}, n = 0;
@@ -9587,6 +9627,15 @@
         function () { if (ajouterArret(c, d)) { S.ui.tab = 'jour'; window.scrollTo(0, 0); } rendre(); });
     },
     planifierDateChoix: function (el) { S.ui.feuille.d = el.dataset.v; rendre(); },
+    planifierProchaines: function (el) { S.ui.feuille = { type: 'planifierProchaines', titre: 'Planifier une visite', code: el.dataset.v, sel: '' }; rendre(); },
+    planifierProchainesChoix: function (el) { S.ui.feuille.sel = el.dataset.v; rendre(); },
+    planifierProchainesOui: function () {
+      var f = S.ui.feuille; if (!f || !f.sel) return;
+      var i = f.sel.lastIndexOf('@'), c = Moteur.creneauParCle(ctx(), f.sel.slice(0, i)), d = f.sel.slice(i + 1);
+      S.ui.feuille = null;
+      if (c && ajouterArret(c, d)) { S.ui.tab = 'jour'; S.ui.jour = d; S.ui.jourVue = null; window.scrollTo(0, 0); }
+      rendre();
+    },
     planifierDateOui: function () {
       var f = S.ui.feuille, c = Moteur.creneauParCle(ctx(), f.cle); S.ui.feuille = null;
       if (f && f.uidDeplacer) {
@@ -10938,6 +10987,23 @@
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.ui.installEvt = e; if (S.ui.tab === 'reglages') rendre(); });
   // 3.25.28 : recalcul de la position et des distances à l'ouverture, réouverture, focus et réveil
   if (S.ui.tab === 'jour') { var tj0 = aujourdhui(); if (datesPlan().indexOf(tj0) >= 0) { S.ui.jour = tj0; S.ui.jourVue = null; } else S.ui.jourVue = tj0; }
+  // 3.27.23 : 18 h 30, compte rendu du jour non finalisé : notification du téléphone (une fois par jour)
+  function rappelCrSoir() {
+    if (!pret() || minutesMaintenant() < 18 * 60 + 30) return;
+    var t = aujourdhui(), R = rapportDe(t);
+    if (R && R.valideLe) return;
+    if (!S.plan.some(function (a) { return a.date === t; })) return;
+    notifier('cr-soir', 'Compte rendu à finaliser', 'Votre compte rendu du ' + dateCourte(t) + ' n\'est pas encore finalisé. Touchez pour le terminer.');
+  }
+  // 3.27.23 : Répertoire ouvert : la prochaine présence change dès la fermeture d'un créneau (19 h -> 19 h 01)
+  var minuteRep = minutesMaintenant();
+  function rafraichirRepertoireHeure() {
+    var m = minutesMaintenant(), avant = minuteRep; minuteRep = m;
+    if (S.ui.tab !== 'praticiens' || S.ui.feuille || m <= avant || !pret()) return;
+    var ae = document.activeElement; if (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName)) return;
+    var fins = {}; Object.keys(ctx().parCode || {}).forEach(function (k) { ctx().parCode[k].forEach(function (c) { fins[c.fin] = true; }); });
+    if (Object.keys(fins).some(function (f) { return +f >= avant && +f < m; })) rendreSiPossible();
+  }
   // 3.27.21 : application restée ouverte d'un jour à l'autre (APK, onglet) : Journée repasse sur aujourd'hui
   var jourOuverture = aujourdhui();
   function verifierChangementJour() {
@@ -10964,6 +11030,8 @@
   setInterval(function () {
     if (document.visibilityState !== 'visible') return;
     verifierChangementJour();
+    rappelCrSoir();
+    rafraichirRepertoireHeure();
     // 3.27.10 : chaque minute, envoi de ce qui attend et vérification de la base (corrections faites dans le Google Sheet)
     synchroniser(true, true);
   }, 60000);
