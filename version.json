@@ -1,8 +1,7 @@
 {
-  "version": "3.27.18",
+  "version": "3.27.19",
   "date": "2026-11-03",
   "notes": [
-    "Établissements : abréviations reconnues (2 Pltx, St, CSU-COM)",
-    "Doublon : code existant affiché, « Compléter sa fiche »"
+    "IDE et SAG gardent leur titre (pas de « Dr » ajouté)"
   ]
 }

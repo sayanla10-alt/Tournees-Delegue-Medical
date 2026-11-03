@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.18';
+  var APP_VERSION = '3.27.19';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.19', ['Fiche : les infirmiers (IDE) et sages-femmes (SAG) ne reçoivent plus « Dr » devant leur nom']],
     ['3.27.18', ['Établissements : « 2 Pltx », « St », « CSU-COM » reconnus comme le nom officiel (pas de doublon de lieu)', 'Doublon de praticien : le code existant est affiché, avec « Compléter sa fiche »']],
     ['3.27.17', ['CR pharmacie, étape 3 : « Retour » retiré ; les activités se rangent au plus serré (3 par ligne)']],
     ['3.27.16', ['Semaine type (Répertoire et fiche) : couleur fixe par établissement, la même chez tous les délégués : 1 vert, 2 bleu, puis violet, orange, rose, sarcelle, brun, indigo, olive, ardoise (10 établissements)']],
@@ -8001,6 +8002,7 @@
       if (/^(pharmacie|phcie|pharma)\b\.?\s*/i.test(n)) return n.replace(/^(pharmacie|phcie|pharma)\b\.?\s*/i, 'Pharmacie ').trim();
       return 'Pharmacie ' + n;
     }
+    if (/^(ide|sag|sf|inf)\b/i.test(n)) return n;   // 3.27.19 : infirmiers (IDE) et sages-femmes (SAG) gardent leur titre
     var m = n.match(/^(docteur|dr|pr|professeur|prof)\b\.?\s*/i);
     if (m) { var t = /^d/i.test(m[1]) ? 'Dr' : 'Pr'; return (t + ' ' + n.slice(m[0].length)).trim(); }
     return 'Dr ' + n;
