@@ -59,7 +59,7 @@ var Moteur = (function () {
           if (!x[1]) return;
           var c = {
             cle: pr.id + '|' + j + '|' + x[0], idPresence: pr.id, code: pr.code, jourIdx: j, jour: JOURS[j],
-            creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu, quartier: pr.quartier,
+            creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu, quartier: pr.quartier, reperes: pr.reperes || '',
             commune: pr.commune || (q && q.commune) || '', zone: pr.zone || (q && q.zone) || '', coord: coord, prat: p,
             fiab: fiab, fiabTexte: st && st.n >= 3 ? st.ok + '/' + st.n : ''
           };
@@ -97,7 +97,7 @@ var Moteur = (function () {
       uid: uid(), date: date, jour: c.jour, creneau: c.creneau, cle: c.cle, idPresence: c.idPresence,
       debut: minutesVersHeure(c.debut), fin: minutesVersHeure(c.fin), heure: minutesVersHeure(c.debut),
       code: p.code, nom: p.nom, type: p.type, specialite: p.specialite, note: p.note, conventionne: p.conv ? 'Oui' : 'Non',
-      lieu: c.lieu, quartier: c.quartier, commune: c.commune, zone: c.zone,
+      lieu: c.lieu, quartier: c.quartier, reperes: c.reperes || '', commune: c.commune, zone: c.zone,
       lat: c.coord ? c.coord.lat : null, lon: c.coord ? c.coord.lon : null,
       derniere: p.derniere || '', joursEcoules: joursEcoules(p.derniere, date), score: scoreDe(p, date),
       prochaine: p.prochaine || '', fiab: c.fiab === undefined ? 1 : c.fiab, fiabTexte: c.fiabTexte || '',

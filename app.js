@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.21';
+  var APP_VERSION = '3.27.22';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.22', ['Planifier et Journée : les repères du lieu (colonne Repères, ex. « Enceinte CHU Treichville, Blvd de Marseille ») s’affichent comme dans le Répertoire']],
     ['3.27.21', ['Journée : l’application restée ouverte depuis la veille repasse seule sur la date du jour', 'Erreur d’affichage : le détail technique est affiché pour diagnostic']],
     ['3.27.20', ['Base des présences vérifiée avec le cerveau terrain : 868 présences confirmées, doublons de lieux fusionnés, noms d’établissements harmonisés']],
     ['3.27.19', ['Fiche : les infirmiers (IDE) et sages-femmes (SAG) ne reçoivent plus « Dr » devant leur nom']],
@@ -2067,15 +2068,15 @@
         if (JSON.stringify([a.nom, a.specialite, a.note]) !== av) n++;
         return;
       }
-      var avant = JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.commune, a.lat, a.lon, a.debut, a.fin]);
+      var avant = JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.reperes, a.commune, a.lat, a.lon, a.debut, a.fin]);
       a.nom = p.nom; a.specialite = p.specialite; a.note = p.note; a.conventionne = p.conv ? 'Oui' : 'Non';
       var cr = creneauDe(a.code, a.date, a.idPresence, a.creneau);
       if (cr && (!a.idPresence || String(cr.idPresence) === String(a.idPresence))) {
-        a.lieu = cr.lieu; a.quartier = cr.quartier; a.commune = cr.commune; a.zone = cr.zone;
+        a.lieu = cr.lieu; a.quartier = cr.quartier; a.commune = cr.commune; a.zone = cr.zone; a.reperes = cr.reperes || '';
         if (cr.coord && !cr.coord.approx) { a.lat = cr.coord.lat; a.lon = cr.coord.lon; }
         a.debut = minutesVersHeure(cr.debut); a.fin = minutesVersHeure(cr.fin);
       }
-      if (JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.commune, a.lat, a.lon, a.debut, a.fin]) !== avant) n++;
+      if (JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.reperes, a.commune, a.lat, a.lon, a.debut, a.fin]) !== avant) n++;
     });
     if (n) { LS.set('plan', S.plan); }
     return n;
@@ -2927,7 +2928,7 @@
       if (!a.debut) a.debut = minutesVersHeure(c.debut);
       if (!a.fin) a.fin = minutesVersHeure(c.fin);
       if (!a.creneau) a.creneau = c.creneau;
-      if (!a.lieu) a.lieu = c.lieu; if (!a.quartier) a.quartier = c.quartier;
+      if (!a.lieu) a.lieu = c.lieu; if (!a.quartier) a.quartier = c.quartier; if (!a.reperes) a.reperes = c.reperes || '';
     }
     return a;
   }
@@ -3769,6 +3770,16 @@
     return s.replace(/\s{2,}/g, ' ').trim();
   }
 
+  // 3.27.22 : repères du lieu (colonne Repères de Presences), retrouvés par le n° de présence pour les visites déjà planifiées
+  function reperesDe(a) {
+    if (a.reperes) return a.reperes;
+    var id = String(a.idPresence || ''), l = (S.data && S.data.presences) || [];
+    var pr = id ? l.filter(function (x) { return String(x.id) === id; })[0] : null;
+    if (!pr && a.code && a.lieu) pr = l.filter(function (x) { return x.code === a.code && normaliser(x.lieu) === normaliser(a.lieu); })[0];
+    var r = pr && pr.reperes ? String(pr.reperes).trim() : '';
+    // anciennes visites : repères déjà écrits dans le quartier, pas de redite
+    return r && normaliser(a.quartier || '').indexOf(normaliser(r)) < 0 ? r : '';
+  }
   // 3.25.36 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour (abrégé), Secteur réel et distance
   function infosMedecinPlan(a) {
     var pObj = (typeof praticien === 'function' && praticien(a.code)) || {};
@@ -3782,6 +3793,7 @@
     if (a.specialite) morceaux.push(abrSpec(a.specialite));
     if (hopital) morceaux.push(hopital);
     if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) morceaux.push(secteur);
+    var rep = reperesDe(a); if (rep) morceaux.push(rep);
     var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || coord) : null;
     if (c && pos) {
       var d = distanceVol(pos, c);
@@ -3795,7 +3807,7 @@
     var pObj = (typeof praticien === 'function' && praticien(a.code)) || {};
     var pCoord = (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lat) ? { lat: +pObj.lieux[0].lat, lon: +pObj.lieux[0].lon } : (pObj.lat && pObj.lon ? { lat: +pObj.lat, lon: +pObj.lon } : null);
     var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || a.coord || pCoord) : null;
-    var base = infosSansDoublon(a, [a.lieu, a.quartier, a.commune]);
+    var base = infosSansDoublon(a, [a.lieu, a.quartier, reperesDe(a), a.commune]);
     if (c && pos) {
       var d = distanceVol(pos, c);
       return (base ? base + ' · ' : '') + distMoi(d);
@@ -4831,7 +4843,7 @@
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
           '<span class="arret-nom">' + pastilleType(a) + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
           (ouvert ? (lieuEtSpec(a) ? '<span class="arret-lieu">' + specGras(a, lieuEtSpec(a)) + '</span>' : '') +
-            '<span class="arret-lieu">' + esc(a.quartier) + ', ' + esc(a.commune) + '</span>' +
+            '<span class="arret-lieu">' + esc([a.quartier, reperesDe(a), a.commune].filter(Boolean).join(', ')) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + specGras(a, lieuQuartier(a)) + '</span>' : '') + ligneEtat(a)) +
         '</button>' +
         (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && !futurVerrouille(a.date) ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');

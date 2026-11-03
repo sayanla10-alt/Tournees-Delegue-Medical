@@ -1,7 +1,7 @@
 {
-  "version": "3.27.21",
+  "version": "3.27.22",
   "date": "2026-11-03",
   "notes": [
-    "Journée : passage automatique au jour actuel si l’application est restée ouverte depuis la veille"
+    "Planifier et Journée : repères du lieu affichés"
   ]
 }
