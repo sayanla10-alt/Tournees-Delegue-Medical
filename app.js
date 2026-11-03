@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.16';
+  var APP_VERSION = '3.27.17';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.17', ['CR pharmacie, étape 3 : « Retour » retiré ; les activités se rangent au plus serré (3 par ligne)']],
     ['3.27.16', ['Semaine type (Répertoire et fiche) : couleur fixe par établissement, la même chez tous les délégués : 1 vert, 2 bleu, puis violet, orange, rose, sarcelle, brun, indigo, olive, ardoise (10 établissements)']],
     ['3.27.15', ['CR pharmacie : PLV remplacé par MEP ; plus de coche sur les choix sélectionnés (déjà en couleur) ; stock par produit sans quantité ; « Commande passée ? » sur Non par défaut, Oui ouvre « Besoin de réapprovisionnement » (facultatif)']],
     ['3.27.14', ['Journée : la carte Rappel s’ouvre au toucher ; pour chaque rappel : Appeler, Ajouter au jour, Demain (report) ou Fait (retiré) ; plusieurs rappels tiennent dans une seule carte']],
@@ -4177,6 +4178,11 @@
       options.map(function (o) { return puceCr(a, cle, o, o, v.indexOf(o) >= 0, true); }).join('') + '</div>';
   }
   // 3.25.27 : Parcours et types de visite strictement différenciés Médecin vs Pharmacie (sans mention croisée)
+  // 3.27.17 : activités en pharmacie rangées pour tenir sur le moins de lignes (courtes ensemble, « Autre » en dernier)
+  function ordrePastillesPh(l) {
+    var pref = ['Routine', 'Stocks', 'MEP', 'Commande', 'Formation', 'Échantillons', 'Animation'];
+    return l.slice().sort(function (x, y) { var a = pref.indexOf(x), b = pref.indexOf(y); if (x === 'Autre') return 1; if (y === 'Autre') return -1; return (a < 0 ? 99 : a) - (b < 0 ? 99 : b); });
+  }
   function rendreChoixTypesCr(a, vals) {
     var ph = estPharmacie(a), sel = vals || [];
     var list = ph ? activitesPharmacie() : activites();
@@ -4187,7 +4193,7 @@
       '<span><button type="button" class="lien-action" data-a="crMultiTous" data-uid="' + a.uid + '" data-k="types">' + (toutCoche ? 'Tout décocher' : 'Tous') + '</button>' +
       (sel.length ? ' · <button type="button" class="lien-action" data-a="crTypesAucun" data-uid="' + a.uid + '">Effacer</button>' : '') + '</span></div>';
     h += '<div class="gamme-cr-bloc"><div class="gamme-cr-titre"><span><b>' + (ph ? 'Activités en pharmacie' : 'Types de visite médicale') + '</b></span></div>' +
-      '<div class="puces puces-types-cr">' + list.map(function (t) {
+      '<div class="puces puces-types-cr' + (ph ? ' puces-types-ph' : '') + '">' + (ph ? ordrePastillesPh(list.filter(function (t) { return !/^Retour/.test(t); })) : list).map(function (t) {
         var libT = (t === 'Présentation produit' || t === 'Présentation') ? 'Présentation'
                  : (t === 'Retour ou échange' || t === 'Retour') ? 'Retour'
                  : t;

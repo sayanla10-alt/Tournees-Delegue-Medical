@@ -3631,3 +3631,7 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 
 /* 3.27.16 : couleurs d'établissement fixes : texte toujours blanc, y compris en mode sombre */
 .sr-c.on, .fx-c.on { color: #fff; }
+
+/* 3.27.17 : activités en pharmacie sur 3 colonnes (gain de place) */
+.puces-types-cr.puces-types-ph { display: flex !important; flex-wrap: wrap !important; gap: 6px !important; }
+.puces-types-cr.puces-types-ph .puce { flex: 1 1 auto !important; width: auto !important; padding: 6px 8px !important; min-height: 38px !important; white-space: nowrap !important; font-size: 13px !important; }
