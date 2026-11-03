@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.19';
+  var APP_VERSION = '3.27.20';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.20', ['Base des présences vérifiée avec le cerveau terrain : 868 présences confirmées, doublons de lieux fusionnés, noms d’établissements harmonisés']],
     ['3.27.19', ['Fiche : les infirmiers (IDE) et sages-femmes (SAG) ne reçoivent plus « Dr » devant leur nom']],
     ['3.27.18', ['Établissements : « 2 Pltx », « St », « CSU-COM » reconnus comme le nom officiel (pas de doublon de lieu)', 'Doublon de praticien : le code existant est affiché, avec « Compléter sa fiche »']],
     ['3.27.17', ['CR pharmacie, étape 3 : « Retour » retiré ; les activités se rangent au plus serré (3 par ligne)']],
