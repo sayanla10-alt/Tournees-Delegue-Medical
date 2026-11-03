@@ -3628,3 +3628,6 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 
 /* 3.27.15 : compte rendu : un choix sélectionné est déjà en couleur, pas de coche (gain de place) */
 .cr-question .puce[aria-pressed="true"]::before, .arret .puces-types-cr .puce[aria-pressed="true"]::before { display: none; }
+
+/* 3.27.16 : couleurs d'établissement fixes : texte toujours blanc, y compris en mode sombre */
+.sr-c.on, .fx-c.on { color: #fff; }

@@ -1,7 +1,7 @@
 {
-  "version": "3.27.15",
+  "version": "3.27.16",
   "date": "2026-11-03",
   "notes": [
-    "CR pharmacie : MEP au lieu de PLV, sans coches, stock sans quantité, commande Non par défaut"
+    "Semaine type : couleur fixe par établissement (1 vert, 2 bleu…)"
   ]
 }

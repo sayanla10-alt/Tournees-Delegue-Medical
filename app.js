@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.15';
+  var APP_VERSION = '3.27.16';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.16', ['Semaine type (Répertoire et fiche) : couleur fixe par établissement, la même chez tous les délégués : 1 vert, 2 bleu, puis violet, orange, rose, sarcelle, brun, indigo, olive, ardoise (10 établissements)']],
     ['3.27.15', ['CR pharmacie : PLV remplacé par MEP ; plus de coche sur les choix sélectionnés (déjà en couleur) ; stock par produit sans quantité ; « Commande passée ? » sur Non par défaut, Oui ouvre « Besoin de réapprovisionnement » (facultatif)']],
     ['3.27.14', ['Journée : la carte Rappel s’ouvre au toucher ; pour chaque rappel : Appeler, Ajouter au jour, Demain (report) ou Fait (retiré) ; plusieurs rappels tiennent dans une seule carte']],
     ['3.27.13', ['Journée : une visite ajoutée aujourd’hui n’a plus d’heure déjà passée ; si le créneau du matin est terminé, celui du soir est pris']],
@@ -5922,12 +5923,15 @@
       '<p><b>' + esc(quand) + ', ' + c.creneau.toLowerCase() + (estPharmacie(p) ? '' : ' à ' + esc(abregerHopital(c.lieu))) + '</b>' + esc(abs) + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</p>' +
       '<button type="button" class="bouton bouton-plein petit" data-a="planifierCle" data-v="' + esc(c.cle) + '" data-d="' + d + '">Planifier</button></div>';
   }
-  var COULEURS_GRILLE = ['var(--primaire)', 'var(--bleu)', 'var(--violet)', 'var(--ambre)', 'var(--vert)'];
+  // 3.27.16 : couleur fixe par établissement (ordre de la base, identique chez tous les délégués) : 1 vert, 2 bleu, puis 8 autres
+  var COULEURS_GRILLE = ['#1B7448', '#1E5AA8', '#6A3FA0', '#B4580A', '#B03A7A', '#0A6C74', '#7A5230', '#3B4BA8', '#5E6B1F', '#4A5A66'];
   function grillePresences(code) {
     var c = ctx(), p = praticien(code) || {}, estPh = p.type === 'Pharmacie', lieux = fusionnerLieux(c.presencesParCode[code] || []);
+    var rangBase = new Map(); lieux.forEach(function (pr, i) { rangBase.set(pr, i); });   // couleur selon l'ordre de la base, pas selon le tri
     // 3.26.63 : avec un filtre de communes, le lieu de la commune choisie apparaît en premier
     var coG = ensemble(S.ui.filtres && S.ui.filtres.communes || []);
     if (Object.keys(coG).length) lieux = lieux.slice().sort(function (x, y) { return (communeCorrespondante(y, coG) ? 1 : 0) - (communeCorrespondante(x, coG) ? 1 : 0); });
+    var couleurLieu = function (pr) { return COULEURS_GRILLE[(rangBase.get(pr) || 0) % COULEURS_GRILLE.length]; };
     if (!lieux.length) {
       return '<div class="bloc-presences" style="margin:8px 0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">' +
         '<p class="discret" style="margin:0 0 6px;text-align:center">Aucune présence ou horaire renseigné.</p>' +
@@ -5948,14 +5952,14 @@
         if (!la.length) { h += '<span class="sr-c"></span>'; return; }
         h += '<span class="sr-cel">' + la.map(function (x) {
           var cle = ((x.pr._ids && x.pr._ids[i + '|' + cr[0]]) || x.pr.id) + '|' + i + '|' + cr[0];
-          return '<button type="button" class="sr-c on" style="--k:' + COULEURS_GRILLE[x.idx % COULEURS_GRILLE.length] + '" data-a="planifierCle" data-v="' + esc(cle) + '" title="Planifier ' + JOURS[i] + ' ' + cr[0].toLowerCase() + ', ' + esc(abregerHopital(x.pr.lieu || p.nom)) + '">' + cr[1] + '</button>';
+          return '<button type="button" class="sr-c on" style="--k:' + couleurLieu(x.pr) + '" data-a="planifierCle" data-v="' + esc(cle) + '" title="Planifier ' + JOURS[i] + ' ' + cr[0].toLowerCase() + ', ' + esc(abregerHopital(x.pr.lieu || p.nom)) + '">' + cr[1] + '</button>';
         }).join('') + '</span>';
       });
     });
     h += '</div><ul class="sr-lieux">' + lieux.map(function (pr, idx) {
       var quartierNet = String(pr.quartier || '').replace(/\bBoulevard\b/gi, 'Blvd.');
       var adr = [quartierNet, pr.commune].filter(Boolean).join(', ') + (pr.reperes ? ' · ' + pr.reperes : '');
-      return '<li>' + (estPh ? '' : '<span class="sr-pt" style="background:' + COULEURS_GRILLE[idx % COULEURS_GRILLE.length] + '"></span>') + '<div>' +
+      return '<li>' + (estPh ? '' : '<span class="sr-pt" style="background:' + couleurLieu(pr) + '"></span>') + '<div>' +
         (estPh ? '' : '<b class="lieu-nom-plein">' + esc(abregerHopital(pr.lieu || 'Établissement')) + '</b>') +
         (adr ? '<small>' + esc(adr) + '</small>' : '') + (estPh ? '' : '<small>' + esc(hor(pr)) + '</small>') + '</div></li>';
     }).join('') + '</ul></div>' +
@@ -7948,7 +7952,7 @@
   };
   // 3.27.1 : fiche repensée. Ajout : on cherche d'abord la personne rencontrée (doublons), puis
   // 1. Où et quand (semaine type : tous les lieux sur une seule semaine) et 2. Qui (carte de visite).
-  var COULEURS_LIEUX = ['var(--primaire)', 'var(--bleu)', 'var(--violet)', 'var(--ambre)', 'var(--vert)'];
+  var COULEURS_LIEUX = ['#1B7448', '#1E5AA8', '#6A3FA0', '#B4580A', '#B03A7A', '#0A6C74', '#7A5230', '#3B4BA8', '#5E6B1F', '#4A5A66'];   // 3.27.16 : mêmes couleurs que le Répertoire
   function etablissementsConnusProches(pos, rayonKm) {
     var vus = {}, res = [];
     function ajouter(nom, quartier, commune, lat, lon) {
