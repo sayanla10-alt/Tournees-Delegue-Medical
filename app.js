@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.26';
+  var APP_VERSION = '3.27.27';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.27', ['Autour de moi : la barre de recherche des Hôpitaux, des Spécialités et de la Zone (pharmacies) reste visible même groupe replié ; taper ouvre le groupe']],
     ['3.27.26', ['Spécialités : « Médecine générale » regroupée avec MG, Pneumo et Infectio abrégés', 'Rafraîchir la page garde l’onglet (y compris Réglages), la carte ouverte et la position de lecture']],
     ['3.27.25', ['Synchronisation beaucoup plus rapide : à l’ouverture, une simple vérification (environ 1 s) quand la base n’a pas changé ; sinon la base complète arrive d’un cache préparé par le serveur']],
     ['3.27.24', ['Journée : « Finaliser le compte rendu » disparaît dès que le compte rendu du jour est validé, y compris s’il l’a été depuis un autre appareil']],
@@ -1442,7 +1443,10 @@
       '<b>' + esc(o.titre) + '</b>' + (nb ? '<span class="compteur">' + nb + '</span>' : '') + (o.repliable ? '<small>' + esc(resume) + '</small>' + icone('chevron') + '</button>' : '</div>') +
       (o.multiple && ouvert ? '<span class="groupe-actions"><button type="button" class="lien-action" data-a="groupeTout" data-chemin="' + o.chemin + '">Tous</button>' +
         (nb ? '<button type="button" class="lien-action" data-a="groupeAucun" data-chemin="' + o.chemin + '">Effacer</button>' : '') + '</span>' : '') + '</div>';
-    if (!ouvert) return h + '</section>';
+    // 3.27.27 : barre de recherche visible même groupe replié (Hôpitaux, Spécialités, Zone) ; taper ouvre le groupe
+    var barreRech = o.recherche ? '<div class="recherche petite">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="' + o.id + '" placeholder="Rechercher…" value="' +
+      esc((f.q && f.q[o.id]) || '') + '" aria-label="Rechercher dans ' + esc(o.titre) + '"></div>' : '';
+    if (!ouvert) return h + (o.rechercheVisible ? barreRech : '') + '</section>';
     if (o.aide) h += '<p class="discret groupe-aide">' + esc(o.aide) + '</p>';
     if (o.recherche) h += '<div class="recherche petite">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="' + o.id + '" placeholder="Rechercher…" value="' +
       esc((f.q && f.q[o.id]) || '') + '" aria-label="Rechercher dans ' + esc(o.titre) + '"></div>';
@@ -7282,8 +7286,8 @@
     var h = f.h, d = S.ui.dateAjout || S.ui.jour; LS.set('rechHop', h);
     var moments = [['tout', 'Journée'], ['Matin', 'Matin'], ['Soir', 'Soir']];
     if (d === aujourdhui()) moments.push(['maintenant', 'Maintenant']);
-    var corps = groupeChoix(f, { id: 'hop', titre: 'Hôpitaux', chemin: 'h.lieux', multiple: true, repliable: true, recherche: true, resume: 'Choisir', resumeComplet: true, sections: hopitauxConnus(), accordeon: 'hop' }) +
-      groupeChoix(f, { id: 'hspec', titre: 'Spécialités', chemin: 'h.specs', multiple: true, repliable: true, recherche: true, resume: 'Toutes',
+    var corps = groupeChoix(f, { id: 'hop', titre: 'Hôpitaux', chemin: 'h.lieux', multiple: true, repliable: true, recherche: true, rechercheVisible: true, resume: 'Choisir', resumeComplet: true, sections: hopitauxConnus(), accordeon: 'hop' }) +
+      groupeChoix(f, { id: 'hspec', titre: 'Spécialités', chemin: 'h.specs', multiple: true, repliable: true, recherche: true, rechercheVisible: true, resume: 'Toutes',
         options: specialitesListe().filter(function (x) { return x.nom !== 'Pharmacien'; }).map(function (x) { return { v: x.nom, lib: abrSpec(x.nom), n: x.n }; }) }) +
       '<section class="groupe-filtre ouvert" data-groupe="hmom"><div class="groupe-tete"><div class="groupe-bascule"><b>Moment</b></div></div>' + segment('Moment', 'hopMoment', moments, h.moment, 'margin:0 0 4px') + '</section>';
     return corps + '<div id="resHopitaux">' + resultatsHopitaux(h, d) + '</div>';
@@ -7294,7 +7298,7 @@
     var z = f.z, d = S.ui.dateAjout || S.ui.jour; LS.set('rechZonePh', z);
     var moments = [['tout', 'Journée'], ['Matin', 'Matin'], ['Soir', 'Soir']];
     if (d === aujourdhui()) moments.push(['maintenant', 'Maintenant']);
-    return groupeChoix(f, { id: 'com', titre: 'Zone', chemin: 'z.communes', multiple: true, repliable: true, recherche: true, resume: 'Choisir', resumeComplet: true, sections: sectionsCommunes(), accordeon: 'com' }) +
+    return groupeChoix(f, { id: 'com', titre: 'Zone', chemin: 'z.communes', multiple: true, repliable: true, recherche: true, rechercheVisible: true, resume: 'Choisir', resumeComplet: true, sections: sectionsCommunes(), accordeon: 'com' }) +
       '<section class="groupe-filtre ouvert" data-groupe="hmom"><div class="groupe-tete"><div class="groupe-bascule"><b>Moment</b></div></div>' + segment('Moment', 'hopMoment', moments, z.moment, 'margin:0 0 4px') + '</section>' +
       '<div id="resZonePharma">' + resultatsZonePharma(z, d) + '</div>';
   };
@@ -10818,6 +10822,14 @@
     }
     if (f === 'chercheOption') {
       var fe = S.ui.feuille; fe.q = fe.q || {}; fe.q[el.dataset.g] = el.value;
+      var grp = el.closest('.groupe-filtre');
+      if (grp && !grp.classList.contains('ouvert') && el.value) {   // 3.27.27 : recherche tapée dans un groupe replié : il s'ouvre
+        var gId = el.dataset.g, pos = el.selectionStart;
+        fe.ouverts = fe.ouverts || {}; fe.ouverts[gId] = true; rendreFeuille();
+        var ch = document.querySelector('.groupe-filtre[data-groupe="' + gId + '"] input[data-f="chercheOption"]');
+        if (ch) { ch.focus(); try { ch.setSelectionRange(pos, pos); } catch (eS) {} ch.dispatchEvent(new Event('input', { bubbles: true })); }
+        return;
+      }
       var q = normaliser(el.value), g = el.closest('.groupe-filtre') || el.closest('.feuille-corps');
       if (g) {
         g.querySelectorAll('.puce').forEach(function (b) { b.hidden = !!q && b.dataset.lib && b.dataset.lib.indexOf(q) < 0; });

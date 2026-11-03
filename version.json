@@ -1,8 +1,7 @@
 {
-  "version": "3.27.26",
+  "version": "3.27.27",
   "date": "2026-11-03",
   "notes": [
-    "MG regroupé, Pneumo et Infectio abrégés",
-    "Rafraîchir garde l’onglet, la carte ouverte et la position"
+    "Autour de moi : recherche toujours visible (Hôpitaux, Spécialités, Zone)"
   ]
 }
