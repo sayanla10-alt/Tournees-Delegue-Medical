@@ -1,8 +1,7 @@
 {
-  "version": "3.27.23",
+  "version": "3.27.24",
   "date": "2026-11-03",
   "notes": [
-    "Répertoire : prochaine présence selon l’heure, Planifier avec choix de la date et conflits",
-    "CR : notification à 18 h 30 si non finalisé, échantillons sur Non par défaut"
+    "Journée : message « Finaliser le compte rendu » masqué une fois le CR validé"
   ]
 }

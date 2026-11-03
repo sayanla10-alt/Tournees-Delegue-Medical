@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.23';
+  var APP_VERSION = '3.27.24';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.24', ['Journée : « Finaliser le compte rendu » disparaît dès que le compte rendu du jour est validé, y compris s’il l’a été depuis un autre appareil']],
     ['3.27.23', ['Répertoire : la prochaine présence tient compte de l’heure (aujourd’hui jusqu’à la fermeture, puis la suivante)', 'Répertoire : « Planifier » propose aujourd’hui, demain et les présences suivantes, avec les conflits signalés', 'Compte rendu non finalisé à 18 h 30 : notification du téléphone', 'Compte rendu : « Échantillons remis » sur Non par défaut']],
     ['3.27.22', ['Planifier et Journée : les repères du lieu (colonne Repères, ex. « Enceinte CHU Treichville, Blvd de Marseille ») s’affichent comme dans le Répertoire']],
     ['3.27.21', ['Journée : l’application restée ouverte depuis la veille repasse seule sur la date du jour', 'Erreur d’affichage : le détail technique est affiché pour diagnostic']],
@@ -3187,8 +3188,13 @@
   // ------------------------------------------------------------------ Compte Rendu de la journée
   S.rapports = LS.get('rapports', {});
   function rapportDe(d) {
-    if (S.rapports[d]) return S.rapports[d];
-    var srv = ((S.data && S.data.rapports) || []).filter(function (r) { return r.date === d && estMoi(r.delegue); })[0];
+    var srv = ((S.data && S.data.rapports) || []).filter(function (r) { return String(r.date).slice(0, 10) === d && estMoi(r.delegue); })[0];
+    // 3.27.24 : un compte rendu local vide (ouvert puis laissé) ne masque plus celui validé dans la base (autre téléphone, réinstallation)
+    if (S.rapports[d]) {
+      var L = S.rapports[d];
+      if (!L.valideLe && srv && srv.valideLe && !L.edition) { L.valideLe = srv.valideLe; L.envoye = true; L.faits = L.faits || srv.faits || ''; L.concurrence = L.concurrence || srv.concurrence || ''; L.besoinsTexte = L.besoinsTexte || srv.besoins || ''; L.km = L.km || srv.km || ''; }
+      return L;
+    }
     if (srv) { S.rapports[d] = { faits: srv.faits || '', concurrence: srv.concurrence || '', besoins: [], besoinsTexte: srv.besoins || '', km: srv.km || '', valideLe: srv.valideLe || '', envoye: true, ok: { faits: 1, concurrence: 1, besoins: 1, km: 1 } }; return S.rapports[d]; }
     return null;
   }
