@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.20';
+  var APP_VERSION = '3.27.21';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.21', ['Journée : l’application restée ouverte depuis la veille repasse seule sur la date du jour', 'Erreur d’affichage : le détail technique est affiché pour diagnostic']],
     ['3.27.20', ['Base des présences vérifiée avec le cerveau terrain : 868 présences confirmées, doublons de lieux fusionnés, noms d’établissements harmonisés']],
     ['3.27.19', ['Fiche : les infirmiers (IDE) et sages-femmes (SAG) ne reçoivent plus « Dr » devant leur nom']],
     ['3.27.18', ['Établissements : « 2 Pltx », « St », « CSU-COM » reconnus comme le nom officiel (pas de doublon de lieu)', 'Doublon de praticien : le code existant est affiché, avec « Compléter sa fiche »']],
@@ -2313,7 +2314,11 @@
       try {
         vue.innerHTML = (VUES.jour || function () { return '<div class="vide">Erreur d\'affichage. Rechargement sur la journée...</div>'; })();
       } catch (e2) {
-        vue.innerHTML = '<div class="vide"><strong>Erreur d\'affichage</strong>Touchez un onglet ci-dessous ou rechargez la page.</div>';
+        // 3.27.21 : le détail technique est affiché pour pouvoir corriger (capture d'écran)
+        var det = function (e) { return String((e && e.message) || e) + ' | ' + String((e && e.stack) || '').split('\n').slice(1, 3).map(function (l) { return l.replace(/^\s*at\s*/, '').replace(/https?:\/\/[^\s)]*\//g, ''); }).join(' < '); };
+        try { LS.set('derniereErreur', { le: new Date().toISOString(), v: APP_VERSION, vue: tab, e1: det(errVue), e2: det(e2) }); } catch (e3) {}
+        vue.innerHTML = '<div class="vide"><strong>Erreur d\'affichage</strong>Touchez un onglet ci-dessous ou rechargez la page.' +
+          '<small style="display:block;margin-top:14px;font-size:11px;line-height:1.35;word-break:break-word;opacity:.75">v' + APP_VERSION + ' · ' + esc(det(e2)) + '</small></div>';
       }
     }
     animerRendu(tab, dateAvant); annoncer(tab === 'jour' ? 'Affichage de la journée' : (tab === 'semaine' ? 'Planifier' : tab));
@@ -10921,11 +10926,24 @@
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.ui.installEvt = e; if (S.ui.tab === 'reglages') rendre(); });
   // 3.25.28 : recalcul de la position et des distances à l'ouverture, réouverture, focus et réveil
   if (S.ui.tab === 'jour') { var tj0 = aujourdhui(); if (datesPlan().indexOf(tj0) >= 0) { S.ui.jour = tj0; S.ui.jourVue = null; } else S.ui.jourVue = tj0; }
+  // 3.27.21 : application restée ouverte d'un jour à l'autre (APK, onglet) : Journée repasse sur aujourd'hui
+  var jourOuverture = aujourdhui();
+  function verifierChangementJour() {
+    var t = aujourdhui();
+    if (t === jourOuverture) return;
+    var ancien = jourOuverture; jourOuverture = t;
+    if (!S.ui.jour || S.ui.jour <= ancien || (S.ui.jourVue && S.ui.jourVue <= ancien)) {
+      if (datesPlan().indexOf(t) >= 0) { S.ui.jour = t; S.ui.jourVue = null; } else S.ui.jourVue = t;
+    }
+    if (S.ui.tab === 'jour') window.scrollTo(0, 0);
+    rendreSiPossible();
+  }
   setTimeout(function () { relocaliserSiBesoin('ouverture'); }, 0);
-  window.addEventListener('pageshow', function () { relocaliserSiBesoin('ouverture'); });
-  window.addEventListener('focus', function () { relocaliserSiBesoin('ouverture'); });
+  window.addEventListener('pageshow', function () { verifierChangementJour(); relocaliserSiBesoin('ouverture'); });
+  window.addEventListener('focus', function () { verifierChangementJour(); relocaliserSiBesoin('ouverture'); });
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') return;
+    verifierChangementJour();
     relocaliserSiBesoin('ouverture');
     // 3.27.10 : à chaque retour dans l'application, la base est relue (réponse « inchangé » si rien n'a bougé)
     synchroniser(true, true);
@@ -10933,6 +10951,7 @@
   // Tournées de l'équipe rafraîchies chaque minute quand l'application est ouverte
   setInterval(function () {
     if (document.visibilityState !== 'visible') return;
+    verifierChangementJour();
     // 3.27.10 : chaque minute, envoi de ce qui attend et vérification de la base (corrections faites dans le Google Sheet)
     synchroniser(true, true);
   }, 60000);

@@ -1,7 +1,7 @@
 {
-  "version": "3.27.20",
+  "version": "3.27.21",
   "date": "2026-11-03",
   "notes": [
-    "Présences vérifiées avec le cerveau terrain, établissements harmonisés"
+    "Journée : passage automatique au jour actuel si l’application est restée ouverte depuis la veille"
   ]
 }
