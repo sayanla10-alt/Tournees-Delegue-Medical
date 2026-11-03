@@ -1,7 +1,7 @@
 {
-  "version": "3.27.24",
+  "version": "3.27.25",
   "date": "2026-11-03",
   "notes": [
-    "Journée : message « Finaliser le compte rendu » masqué une fois le CR validé"
+    "Synchronisation rapide à l’ouverture"
   ]
 }

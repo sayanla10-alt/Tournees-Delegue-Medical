@@ -577,6 +577,7 @@ function importerPharmacies() {
 // Praticiens : un nom saisi sur une nouvelle ligne reçoit un CodeContact (MED-xxx ou PHA-xxx).
 // Presences  : le quartier complète Commune et Zone ; le CodeContact complète le Nom ; IdPresence auto.
 function onEdit(e) {
+  try { marquerModif(); } catch (eM) {}   // 3.27.25 : toute saisie dans le classeur invalide le cache de lecture
   try {
     var sh = e.range.getSheet(), nom = sh.getName();
     if (e.range.getRow() < 2) return;

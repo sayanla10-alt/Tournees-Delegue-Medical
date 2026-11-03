@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.24';
+  var APP_VERSION = '3.27.25';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.25', ['Synchronisation beaucoup plus rapide : à l’ouverture, une simple vérification (environ 1 s) quand la base n’a pas changé ; sinon la base complète arrive d’un cache préparé par le serveur']],
     ['3.27.24', ['Journée : « Finaliser le compte rendu » disparaît dès que le compte rendu du jour est validé, y compris s’il l’a été depuis un autre appareil']],
     ['3.27.23', ['Répertoire : la prochaine présence tient compte de l’heure (aujourd’hui jusqu’à la fermeture, puis la suivante)', 'Répertoire : « Planifier » propose aujourd’hui, demain et les présences suivantes, avec les conflits signalés', 'Compte rendu non finalisé à 18 h 30 : notification du téléphone', 'Compte rendu : « Échantillons remis » sur Non par défaut']],
     ['3.27.22', ['Planifier et Journée : les repères du lieu (colonne Repères, ex. « Enceinte CHU Treichville, Blvd de Marseille ») s’affichent comme dans le Répertoire']],
@@ -2115,8 +2116,16 @@
       // 3.26.81 : données reçues d'un ancien serveur (sans contrôle des doublons ni filtre des produits inactifs) : rechargement complet
       var ref = S.data && S.data.sig && S.data.praticiens && S.data.serveurRecent ? '&sig=' + encodeURIComponent(S.data.sig) : '';
       var hd = S.data && S.data.historique && S.data.historique.length ? S.data.historique.reduce(function (m, v) { return v.horodatage > m ? v.horodatage : m; }, '') : '';
-      return apiGet('data' + ref + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
+      // 3.27.25 : révision de la base : réponse immédiate si rien n'a changé (sinon base complète depuis le cache du serveur)
+      var rev = '&rev=' + encodeURIComponent((S.data && S.data.praticiens && S.data.rev) || '');
+      return apiGet('data' + ref + (hd ? '&hdepuis=' + encodeURIComponent(hd) : '') + rev);
     }).then(function (d) {
+      if (d.inchangeTout && S.data && S.data.praticiens) {
+        S.data.syncedAt = new Date().toISOString(); S.data.rev = d.rev; if (d.sauvegarde) S.data.sauvegarde = d.sauvegarde;
+        aChange = false; S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
+        if (!silencieux) toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
+        return;
+      }
       var ancien = S.data || {};
       var hist = d.historique || [];
       if (d.partiel) {
@@ -2133,7 +2142,7 @@
       S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
                  statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [], fiches: base.fiches || [],
                  historique: hist, plannings: d.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: new Date().toISOString(),
-                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: d.inchange ? !!ancien.serveurRecent : d.doublons !== undefined };
+                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: d.inchange ? !!ancien.serveurRecent : d.doublons !== undefined, rev: d.rev || '' };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });

@@ -22,7 +22,7 @@ var FEUILLES = {
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour'
 };
-var VERSION_SERVEUR = '3.25.26';
+var VERSION_SERVEUR = '3.27.25';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -53,6 +53,8 @@ function doGet(e) {
     if (!jetonValide(p.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
     if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR,
       sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' });
+    // 3.27.25 : avec « rev », réponse immédiate si rien n'a changé, sinon base complète servie depuis le cache
+    if (p.action === 'data' && p.rev !== undefined) return jsonTexte(lireToutRapide(p.rev || ''));
     if (p.action === 'data') return json(lireTout(p.sig || '', p.hdepuis || ''));
     if (p.action === 'equipe') return json(lireEquipe());
     return json({ ok: false, erreur: 'Action inconnue.' });
@@ -65,13 +67,13 @@ function doPost(e) {
   try {
     var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (!jetonValide(body.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
-    if (body.action === 'valider') return json(enregistrerVisites(body.visites || []));
-    if (body.action === 'planning') return json(publierPlanning(body));
-    if (body.action === 'fiche') return json(ficheUnique(body));
-    if (body.action === 'etablissement') return json(enregistrerEtablissement(body.etablissement || body));
-    if (body.action === 'rapport') return json(enregistrerRapport(body.rapport || {}));
-    if (body.action === 'delegue') return json(ajouterDelegue(body.nom));
-    return json({ ok: false, erreur: 'Action inconnue.' });
+    var actions = { valider: function () { return enregistrerVisites(body.visites || []); }, planning: function () { return publierPlanning(body); },
+      fiche: function () { return ficheUnique(body); }, etablissement: function () { return enregistrerEtablissement(body.etablissement || body); },
+      rapport: function () { return enregistrerRapport(body.rapport || {}); }, delegue: function () { return ajouterDelegue(body.nom); } };
+    if (!actions[body.action]) return json({ ok: false, erreur: 'Action inconnue.' });
+    // 3.27.25 : toute écriture invalide le cache de lecture (avant et après, pour qu'aucune lecture en cours ne fige l'ancien état)
+    marquerModif();
+    try { return json(actions[body.action]()); } finally { marquerModif(); }
   } catch (err) {
     var m = String(err.message || err);
     return json({ ok: false, erreur: m, reessai: /occupé|timed out|Service|Lock|délai/i.test(m) });
@@ -96,6 +98,9 @@ function ficheUnique(body) {
   return r;
 }
 
+function jsonTexte(t) {
+  return ContentService.createTextOutput(t).setMimeType(ContentService.MimeType.JSON);
+}
 function json(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
