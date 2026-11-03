@@ -28,6 +28,7 @@ var Moteur = (function () {
     (data.praticiens || []).forEach(function (p) {
       if (!p.code || inactif(p)) return;
       p.note = lireNote(p.note);
+      if (p.type !== 'Pharmacie' && typeof specialiteCanonique === 'function') p.specialite = specialiteCanonique(p.specialite);
       p.conv = estConventionne(p.conventionne);
       prat[p.code] = p;
     });

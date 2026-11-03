@@ -1,7 +1,8 @@
 {
-  "version": "3.27.25",
+  "version": "3.27.26",
   "date": "2026-11-03",
   "notes": [
-    "Synchronisation rapide à l’ouverture"
+    "MG regroupé, Pneumo et Infectio abrégés",
+    "Rafraîchir garde l’onglet, la carte ouverte et la position"
   ]
 }

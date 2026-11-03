@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.25';
+  var APP_VERSION = '3.27.26';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.26', ['Spécialités : « Médecine générale » regroupée avec MG, Pneumo et Infectio abrégés', 'Rafraîchir la page garde l’onglet (y compris Réglages), la carte ouverte et la position de lecture']],
     ['3.27.25', ['Synchronisation beaucoup plus rapide : à l’ouverture, une simple vérification (environ 1 s) quand la base n’a pas changé ; sinon la base complète arrive d’un cache préparé par le serveur']],
     ['3.27.24', ['Journée : « Finaliser le compte rendu » disparaît dès que le compte rendu du jour est validé, y compris s’il l’a été depuis un autre appareil']],
     ['3.27.23', ['Répertoire : la prochaine présence tient compte de l’heure (aujourd’hui jusqu’à la fermeture, puis la suivante)', 'Répertoire : « Planifier » propose aujourd’hui, demain et les présences suivantes, avec les conflits signalés', 'Compte rendu non finalisé à 18 h 30 : notification du téléphone', 'Compte rendu : « Échantillons remis » sur Non par défaut']],
@@ -1325,7 +1326,11 @@
   // 3.26.58 : spécialités abrégées à l'affichage (la valeur enregistrée reste complète)
   function abrSpec(s) {
     var t = String(s || '').trim(), k = normaliser(t);
-    if (/generalist|medecine generale|^mg$/.test(k)) return 'MG';
+    if (/generalist|medecinegenerale|medecingeneraliste|^mg$/.test(k)) return 'MG';   // 3.27.26 : normaliser retire les espaces
+    if (/pneumo/.test(k)) return 'Pneumo';
+    if (/infectio/.test(k)) return 'Infectio';
+    if (/neurolog/.test(k)) return 'Neuro';
+    if (/pediatr/.test(k)) return 'Pédia';
     if (/diabeto/.test(k)) return 'Diabéto';
     if (/endocrino/.test(k)) return 'Endocrino';
     if (/gyneco/.test(k)) return 'Gynéco';
@@ -2274,6 +2279,11 @@
   }
 
   // ------------------------------------------------------------------ Rendu
+  // 3.27.26 : écran gardé au rafraîchissement (onglet, carte ouverte, position) pendant la session
+  var UI_SESSION = 'mediplanner.ui';
+  function memoriserEcran() {
+    try { sessionStorage.setItem(UI_SESSION, JSON.stringify({ tab: S.ui.tab, ouvert: S.ui.ouvert || null, contact: S.ui.contactOuvert || null, y: Math.round(window.scrollY), t: Date.now() })); } catch (e) {}
+  }
   function rendre() {
     var tab = S.ui.tab;
     // onglet mémorisé : l'application rouvre là où l'on était (rafraîchissement, mise à jour, relance)
@@ -2333,6 +2343,7 @@
           '<small style="display:block;margin-top:14px;font-size:11px;line-height:1.35;word-break:break-word;opacity:.75">v' + APP_VERSION + ' · ' + esc(det(e2)) + '</small></div>';
       }
     }
+    memoriserEcran();
     animerRendu(tab, dateAvant); annoncer(tab === 'jour' ? 'Affichage de la journée' : (tab === 'semaine' ? 'Planifier' : tab));
     if (!vue.classList.contains('vue-entre') && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
     centrerBandeJours();
@@ -5775,9 +5786,11 @@
     'endocrinologue': 'endocrino',
     'orl': 'ORL',
     'oto-rhino-laryngologie': 'ORL',
-    'médecine générale': 'généraliste',
-    'médecin généraliste': 'généraliste',
-    'généraliste': 'généraliste'
+    'infectiologie': 'infectio',
+    'infectiologue': 'infectio',
+    'médecine générale': 'MG',
+    'médecin généraliste': 'MG',
+    'généraliste': 'MG'
   };
 
   function abbrevSpec(x) {
@@ -5799,7 +5812,7 @@
       } else if (f.specialites.length) {
         t += ' ' + f.specialites.map(function (x) {
           var ab = abbrevSpec(x);
-          return pl && !/[sx]$/.test(ab) ? ab + 's' : ab;
+          return pl && !/[sx]$/.test(ab) && !/^[A-Z]+$/.test(ab) ? ab + 's' : ab;
         }).join(' ou ');
         if (f.type === 'tous') t += ' (+ officines)';
       }
@@ -11213,6 +11226,23 @@
   }
 
   var configureParLien = lireConfigLien();
+  // 3.27.26 : rafraîchissement dans la même session : même onglet, même carte ouverte, même position
+  var ecranSession = null;
+  try { ecranSession = JSON.parse(sessionStorage.getItem(UI_SESSION) || 'null'); } catch (e) {}
+  if (ecranSession && Date.now() - (ecranSession.t || 0) < 6 * 3600000) {
+    if (['jour', 'semaine', 'autour', 'rapport', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(ecranSession.tab) >= 0) S.ui.tab = ecranSession.tab;
+    S.ui.ouvert = ecranSession.ouvert || null; S.ui.contactOuvert = ecranSession.contact || null;
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    var yRestaurer = ecranSession.y || 0;
+    var restaurerPosition = function (n) {
+      if (!yRestaurer) return;
+      if (pret() && document.documentElement.scrollHeight > yRestaurer + 100) { window.scrollTo(0, yRestaurer); yRestaurer = 0; return; }
+      if (n < 20) setTimeout(function () { restaurerPosition(n + 1); }, 150);
+    };
+    setTimeout(function () { restaurerPosition(0); }, 60);
+  } else ecranSession = null;
+  var minuteurMemo; window.addEventListener('scroll', function () { clearTimeout(minuteurMemo); minuteurMemo = setTimeout(memoriserEcran, 250); }, { passive: true });
+  window.addEventListener('pagehide', memoriserEcran);
   chargerFeriesCalendrier();
   try { if (!sessionStorage.getItem('mediplanner.lancement')) { S.ui.lancement = true; sessionStorage.setItem('mediplanner.lancement', '1'); } }
   catch (e) { S.ui.lancement = true; }
@@ -11220,8 +11250,8 @@
   (function () {
     var vue = LS.get('versionVue', '');
     if (vue === APP_VERSION) return;
-    // après une mise à jour : retour sur « Aujourd'hui »
-    if (vue) { S.ui.tab = 'jour'; S.ui.pharmaciesProches = false; LS.set('onglet', 'jour'); }
+    // après une mise à jour : retour sur « Aujourd'hui », sauf rafraîchissement en cours de session (3.27.26)
+    if (vue && !ecranSession) { S.ui.tab = 'jour'; S.ui.pharmaciesProches = false; LS.set('onglet', 'jour'); }
     if (pret() || vue) {
       var notes = [];
       JOURNAL.forEach(function (v) { if (compVersion(v[0], vue) > 0 && compVersion(v[0], APP_VERSION) <= 0) notes = notes.concat(v[1]); });

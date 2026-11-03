@@ -830,6 +830,14 @@ function sansAccents(s) {
 }
 function normaliser(s) { return sansAccents(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
+
+// 3.27.26 : spécialité canonique (« Médecine générale », « Médecin généraliste », « MG » -> « Généraliste »)
+function specialiteCanonique(s) {
+  var t = String(s || '').trim(), k = normaliser(t);
+  if (/^(medecinegenerale|medecingeneraliste|generaliste|mg|medecingeneral)$/.test(k)) return 'Généraliste';
+  return t;
+}
+
 // 3.27.18 : abréviations courantes des noms d'établissements (2 Pltx = Deux Plateaux, St = Saint, CSU-COM = CSU Com)
 function abregesEtab(s) {
   return (' ' + String(s || '').replace(/[-\/'’().,]/g, ' ') + ' ')
