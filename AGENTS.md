@@ -52,3 +52,8 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 
 ## 9. PASTILLES (PUCES) : GAGNER DE LA PLACE
 * Partout dans l'application, disposer les petites pastilles de choix pour occuper le **moins de lignes possible** : regrouper les choix courts sur une même ligne (ex. « Aucune » et « Périmé »), placer les libellés longs ensemble, et serrer les étiquettes pour qu'elles tiennent sur une ligne tant que la largeur le permet.
+
+## 10. TESTS : NE JAMAIS SALIR LA BASE RÉELLE
+- Tester l'application sur le serveur simulé (mock-gas) ou en mode Démo, jamais connecté à la vraie base avec un faux délégué (ex. « Diagnostic ») : l'application publie seule la tournée et les comptes rendus dans les onglets Plannings, Historique et Rapports du jour.
+- Lecture seule permise sur la vraie base (appel `action=data`) ; toute écriture de test est interdite.
+- Après tout test, vérifier qu'aucune ligne de test ne reste dans la base et effacer les données locales du navigateur utilisé.
