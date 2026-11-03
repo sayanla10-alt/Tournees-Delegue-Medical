@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.14';
+  var APP_VERSION = '3.27.15';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.15', ['CR pharmacie : PLV remplacé par MEP ; plus de coche sur les choix sélectionnés (déjà en couleur) ; stock par produit sans quantité ; « Commande passée ? » sur Non par défaut, Oui ouvre « Besoin de réapprovisionnement » (facultatif)']],
     ['3.27.14', ['Journée : la carte Rappel s’ouvre au toucher ; pour chaque rappel : Appeler, Ajouter au jour, Demain (report) ou Fait (retiré) ; plusieurs rappels tiennent dans une seule carte']],
     ['3.27.13', ['Journée : une visite ajoutée aujourd’hui n’a plus d’heure déjà passée ; si le créneau du matin est terminé, celui du soir est pris']],
     ['3.27.12', ['Journée : carte Rappel à la même hauteur que la carte Compte Rendu ; « Autour de moi » n’est plus coupé dans la barre du bas']],
@@ -4104,12 +4105,12 @@
           r.produits = prodsK.filter(function (p) { return c.stocks[p] && (c.stocks[p].etat === 'Disponible' || c.stocks[p].etat === 'En stock' || c.stocks[p].etat === 'Stock faible'); }).join(', ');
           if (!r.produits && c.produitsStock && c.produitsStock.length) r.produits = c.produitsStock.join(', ');
         }
-        if (c.commande === 'oui' || im.commande) r.commande = listeQ(c.cmdQ) || 'Oui';
-        else if (c.commande === 'non' && ((c.besoin || []).length || c.besoinTexte)) r.commande = 'Besoin : ' + (c.besoin || []).concat(c.besoinTexte ? [c.besoinTexte] : []).join(', ');
+        var besoinL = (c.besoin || []).concat(c.besoinTexte ? [c.besoinTexte] : []);
+        if (c.commande === 'oui' || im.commande) r.commande = listeQ(c.cmdQ) || (besoinL.length ? 'Oui, ' + besoinL.join(', ') : 'Oui');
         var t = c.types || [], comp = [];
         if (t.indexOf('Échantillons') >= 0 && listeQ(c.echQ)) { comp.push('Échantillons : ' + listeQ(c.echQ)); r.echantillons = listeQ(c.echQ); }
         if ((t.indexOf('Retour ou échange') >= 0 || t.indexOf('Retour') >= 0) && (listeQ(c.retourQ) || c.retourMotif)) comp.push('Retour : ' + listeQ(c.retourQ) + (c.retourMotif ? ' (' + c.retourMotif + ')' : ''));
-        var act = t.filter(function (x) { return ['PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
+        var act = t.filter(function (x) { return ['MEP', 'PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
         if (act.length && (c.action || (c.actionProduits || []).length)) comp.push(act.join(', ') + ' : ' + (c.action || '') + ((c.actionProduits || []).length ? ' (' + c.actionProduits.join(', ') + ')' : ''));
         r.complements = comp.join(' ; ');
         r.commentaire = c.commentaire || '';
@@ -4446,14 +4447,15 @@
         return '<div class="champs-cr">' + prods.map(function (p) {
           var s = c.stocks[p] || (c.stocks[p] = { etat: 'Disponible' });
           return '<div class="ligne-stock"><b>' + esc(p) + '</b><div class="champ"><span>État</span>' + pucesValCr(a, 'stocks.' + p + '.etat', ETATS_STOCK, s.etat, null, 'puces-etats-stock') + '</div>' +
-            '<label class="champ"><span>Quantité</span>' + qteCr(a, 'stocks.' + p + '.qte', s.qte) + '</label>' +
             (s.etat === 'Disponible' || s.etat === 'En stock' || s.etat === 'Stock faible' ? '<div class="champ"><span>Anomalie</span>' + pucesValCr(a, 'stocks.' + p + '.anomalie', ['', 'Périmé', 'Proche péremption'], s.anomalie || '', { '': 'Aucune' }) + '</div>' +
               (s.anomalie ? '<label class="champ"><span>N° de lot</span><input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="stocks.' + p + '.lot" value="' + esc(s.lot || '') + '" placeholder="N° de lot"></label>' : '') : '') + '</div>';
         }).join('') + '</div>';
       }, function () { var r = champsCr(a).stocks; return r || 'aucun produit renseigné'; });
     }
+    // 3.27.15 : « Non » par défaut ; « Oui » ouvre le choix des produits (facultatif)
+    if (!im.commande && !c.commande) c.commande = 'non';
     if (!im.commande) e('commande', 'Commande passée ?', 'auto', function () { return choixCr(a, 'commande', [['oui', 'Oui'], ['non', 'Non']], c.commande); }, function () { return oui(c.commande); });
-    if (c.commande === 'non') e('besoin', 'Besoin de réapprovisionnement', 'facultatif', function () { return rendreChoixProduitsCr(a, 'besoin', c.besoin) + texteCr(a, 'besoinTexte', c.besoinTexte, 'Autres besoins'); },
+    if (c.commande === 'oui' || im.commande) e('besoin', 'Besoin de réapprovisionnement', 'facultatif', function () { return rendreChoixProduitsCr(a, 'besoin', c.besoin) + texteCr(a, 'besoinTexte', c.besoinTexte, 'Autres besoins'); },
       function () { var b = (c.besoin || []).concat(c.besoinTexte ? [c.besoinTexte] : []); return b.length ? b.join(', ') : 'aucun'; });
     var t = c.types || [];
     // 3.26.51 : seuls les produits cochés plus tôt (vérifiés en stock) sont proposés ensuite, sinon tout le catalogue
@@ -4461,7 +4463,7 @@
     if (t.indexOf('Échantillons') >= 0) e('echQ', 'Échantillons (quantités)', 'continuer', function () { return tableQ(a, 'echQ', catCoches, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
     if (t.indexOf('Retour') >= 0 || t.indexOf('Retour ou échange') >= 0) e('retour', 'Retour', 'continuer', function () { return tableQ(a, 'retourQ', catCoches, c.retourQ) + texteCr(a, 'retourMotif', c.retourMotif, 'Motif du retour'); },
       function () { return (listeQ(c.retourQ) || 'aucune quantité') + (c.retourMotif ? ' (' + c.retourMotif + ')' : ''); });
-    var act = t.filter(function (x) { return ['PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
+    var act = t.filter(function (x) { return ['MEP', 'PLV', 'Formation', 'Animation'].indexOf(x) >= 0; });
     if (act.length) e('action', act.join(', ') + ' : action et produits', 'continuer', function () { return texteCr(a, 'action', c.action, 'Ex. présentoir installé, équipe formée sur Rozukaa') + rendreChoixProduitsCr(a, 'actionProduits', c.actionProduits); },
       function () { return [c.action].concat(c.actionProduits || []).filter(Boolean).join(', ') || 'non précisé'; });
     e('commentaire', 'Commentaire', 'facultatif', function () { return texteCr(a, 'commentaire', c.commentaire, 'Demande du pharmacien, concurrence, prix…', true); }, function () { return c.commentaire || 'aucun'; });

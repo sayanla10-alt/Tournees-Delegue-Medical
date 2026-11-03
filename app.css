@@ -3625,3 +3625,6 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .rappel-actions .etiquette { flex: 1 1 auto; justify-content: center; }
 .rangee-tirage.barre-remplacant .bouton:nth-child(-n+2) { flex: 0.9 1 0 !important; }
 .rangee-tirage.barre-remplacant .bouton:nth-child(3) { flex: 1.25 1 0 !important; }
+
+/* 3.27.15 : compte rendu : un choix sélectionné est déjà en couleur, pas de coche (gain de place) */
+.cr-question .puce[aria-pressed="true"]::before, .arret .puces-types-cr .puce[aria-pressed="true"]::before { display: none; }

@@ -1,7 +1,7 @@
 {
-  "version": "3.27.14",
-  "date": "2026-11-02",
+  "version": "3.27.15",
+  "date": "2026-11-03",
   "notes": [
-    "Journée : carte Rappel avec actions (Appeler, Ajouter au jour, Demain, Fait)"
+    "CR pharmacie : MEP au lieu de PLV, sans coches, stock sans quantité, commande Non par défaut"
   ]
 }
