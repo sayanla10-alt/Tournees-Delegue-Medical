@@ -1,7 +1,8 @@
 {
-  "version": "3.27.27",
+  "version": "3.27.28",
   "date": "2026-11-03",
   "notes": [
-    "Autour de moi : recherche toujours visible (Hôpitaux, Spécialités, Zone)"
+    "Doublons : suggestions dès 3 lettres, contrôle par établissement et par distance",
+    "Lieux en double regroupés, lieux existants conservés"
   ]
 }

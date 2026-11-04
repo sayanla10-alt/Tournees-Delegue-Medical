@@ -217,6 +217,8 @@ function enregistrerFiche(b) {
       if (code && c === code) ligne = i;
       else if (ligne < 0 && (!code || /^TMP-/.test(code)) && cNom >= 0 && normaliser(l[cNom]) === nomNorm) { ligne = i; code = c; }
     });
+    // 3.27.28 : fiche nouvelle rattachée par son nom à une fiche existante : on complète, on n'efface rien
+    var rattache = ligne >= 0 && (!p.code || /^TMP-/.test(String(p.code)));
     if (ligne < 0) {
       var pre = type === 'Pharmacie' ? 'PHA' : 'MED';
       code = pre + '-' + ('00' + (max[pre] + 1)).slice(-3);
@@ -229,7 +231,7 @@ function enregistrerFiche(b) {
     modif.absentDu = p.absentDu ? Utilities.parseDate(p.absentDu, tzF, 'yyyy-MM-dd') : '';
     modif.absentAu = p.absentAu ? Utilities.parseDate(p.absentAu, tzF, 'yyyy-MM-dd') : '';
     if (ligne < 0) modif.nbVisites = 0;
-    CHAMPS_PRATICIENS.forEach(function (c, k) { if (posP[k] >= 0 && modif[c[0]] !== undefined) valeurs[posP[k]] = modif[c[0]]; });
+    CHAMPS_PRATICIENS.forEach(function (c, k) { if (posP[k] >= 0 && modif[c[0]] !== undefined && !(rattache && (modif[c[0]] === '' || c[0] === 'note' || c[0] === 'conventionne') && valeurs[posP[k]] !== '')) valeurs[posP[k]] = modif[c[0]]; });
     if (ligne >= 0) shP.getRange(ligne + 2, 1, 1, entP.length).setValues([valeurs]);
     else shP.getRange(shP.getLastRow() + 1, 1, 1, entP.length).setValues([valeurs]);
 
@@ -249,6 +251,20 @@ function enregistrerFiche(b) {
       if (+l[rId] > maxId) maxId = +l[rId];
       if ((anciensCode && String(l[rCode]) === anciensCode) || (code && String(l[rCode]) === code)) mesLignes.push(i);
     });
+    if (rattache) {
+      // lieux déjà connus conservés ; même établissement : jours cumulés sur la ligne existante
+      var fusionDispo = function (a, b) { var t = String(a || '') + ' ' + String(b || ''), m = /matin/i.test(t), so = /soir/i.test(t); return m && so ? 'Matin et soir' : (m ? 'Matin' : (so ? 'Soir' : '')); };
+      var exist = mesLignes.map(function (i) { var l = dataR[i], o = {}; CHAMPS_PRESENCES.forEach(function (c, k) { if (posR[k] >= 0) o[c[0]] = l[posR[k]]; }); return o; });
+      lieux = lieux.slice();
+      lieux.forEach(function (x) {
+        var e = exist.filter(function (o) { return !o._pris && normaliser(o.lieu) === normaliser(x.lieu); })[0];
+        if (!e) return;
+        e._pris = true; x.id = e.id;
+        JOURS_CLES.forEach(function (j) { x[j] = fusionDispo(e[j], x[j]); });
+        ['quartier', 'reperes', 'lat', 'lon', 'horaireMatin', 'horaireSoir'].forEach(function (k) { if ((x[k] === undefined || x[k] === '') && e[k] !== '') x[k] = e[k]; });
+      });
+      exist.forEach(function (o) { if (!o._pris) lieux.push(o); });
+    }
     var ids = {}, coords = {};
     // 3.26.50 : une correction écrase la ligne existante du lieu (même identifiant) ; une nouvelle ligne seulement pour un nouveau lieu.
     // Identifiants dédoublonnés : un même IdPresence ne peut plus être donné à deux lieux.

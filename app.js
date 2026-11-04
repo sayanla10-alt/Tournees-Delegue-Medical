@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.27';
+  var APP_VERSION = '3.27.28';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.28', ['Nouveau médecin ou pharmacie : noms existants proposés dès 3 lettres (débuts de mots en premier)', 'Nom proche déjà présent dans le même établissement (ou pharmacie proche à moins de 150 m) : signalé et confirmation demandée', 'Même établissement saisi deux fois sur une fiche : regroupé en un seul lieu', 'Fiche rattachée à une fiche existante : les lieux s’ajoutent sans effacer ceux déjà connus']],
     ['3.27.27', ['Autour de moi : la barre de recherche des Hôpitaux, des Spécialités et de la Zone (pharmacies) reste visible même groupe replié ; taper ouvre le groupe']],
     ['3.27.26', ['Spécialités : « Médecine générale » regroupée avec MG, Pneumo et Infectio abrégés', 'Rafraîchir la page garde l’onglet (y compris Réglages), la carte ouverte et la position de lecture']],
     ['3.27.25', ['Synchronisation beaucoup plus rapide : à l’ouverture, une simple vérification (environ 1 s) quand la base n’a pas changé ; sinon la base complète arrive d’un cache préparé par le serveur']],
@@ -7624,31 +7625,49 @@
   function nomCleDoublon(s) {
     return normaliser(s || '').replace(/\b(dr|docteur|pr|prof|professeur|mr|mme|mlle|pharmacie|grande|nouvelle|officine|clinique|cabinet|centre|medical|hopital|chu|chr|pmi|de|du|des|la|le|les|d|l)\b/g, ' ').replace(/\s+/g, ' ').trim();
   }
+  // 3.27.28 : mots du nom (accents, titres et mots génériques retirés), espaces conservés
+  var MOTS_VIDES_NOM = { dr: 1, docteur: 1, pr: 1, prof: 1, professeur: 1, mr: 1, mme: 1, mlle: 1, pharmacie: 1, phcie: 1, grande: 1, nouvelle: 1, officine: 1, clinique: 1,
+    cabinet: 1, centre: 1, medical: 1, hopital: 1, chu: 1, chr: 1, pmi: 1, de: 1, du: 1, des: 1, la: 1, le: 1, les: 1, d: 1, l: 1, epse: 1, nee: 1, ide: 1, sag: 1 };
+  function motsNom(s) { return sansAccents(String(s || '')).toLowerCase().split(/[^a-z0-9]+/).filter(function (w) { return w && !MOTS_VIDES_NOM[w]; }); }
   function chercherDoublonsFiche(d) {
     if (!d) return [];
-    var nomBrut = normaliser(d.nom || ''), cle = nomCleDoublon(d.nom || '');
-    var mots = cle ? cle.split(' ').filter(function (w) { return w.length >= 3; }) : [];
+    var mots = motsNom(d.nom), cle = mots.slice().sort().join(' '), tape = mots.join('');
     var tel = normaliserNumero(d.telephone || '');
-    if (cle.length < 3 && !tel) return [];
-    var c = ctx(), res = [];
+    if (tape.length < 3 && !tel) return [];
+    var c = ctx(), res = [], estPh = d.type === 'Pharmacie';
+    var lieuxD = (d.lieux || []).map(function (l) { return String(l.lieu || '').trim(); }).filter(function (x) { return x.length >= 2; });
+    var posD = estPh && d.lieux && d.lieux[0] && aCoord(d.lieux[0]) ? lireCoord(d.lieux[0]) : (estPh ? gpsFrais() : null);
     ((S.data && S.data.praticiens) || []).forEach(function (p) {
       if (d.code && p.code === d.code) return;
-      var pNom = normaliser(p.nom || ''), pCle = nomCleDoublon(p.nom || '');
-      var pMots = pCle ? pCle.split(' ').filter(function (w) { return w.length >= 3; }) : [];
-      var pTel = normaliserNumero(p.telephone || '');
+      var pMots = motsNom(p.nom), pTel = normaliserNumero(p.telephone || '');
       var memeTel = !!(tel && pTel && tel === pTel);
-      var exact = (nomBrut.length >= 3 && pNom === nomBrut) || (cle.length >= 3 && pCle === cle);
-      var proche = false;
-      if (!exact && mots.length && pMots.length) {
-        var communs = mots.filter(function (w) { return pCle.indexOf(w) >= 0; });
-        proche = (communs.length === mots.length && cle.length >= 4) || (mots.length >= 2 && communs.length >= 2);
-      }
+      var exact = !!cle && pMots.slice().sort().join(' ') === cle;
+      // dès 3 lettres : chaque mot tapé est le début d'un mot du nom (le dernier peut être incomplet)
+      var debut = mots.length > 0 && mots.every(function (w, i) { return pMots.some(function (pw) { return i === mots.length - 1 ? pw.indexOf(w) === 0 : pw === w || pw.indexOf(w) === 0; }); });
+      var communs = mots.filter(function (w) { return w.length >= 3 && pMots.indexOf(w) >= 0; }).length;
+      var proche = !exact && (debut || communs >= 2 || (tape.length >= 4 && pMots.join('').indexOf(tape) >= 0));
       if (!exact && !memeTel && !proche) return;
-      var lieux = (c.presencesParCode[p.code] || []).map(function (x) { return [x.lieu, x.quartier, x.commune].filter(Boolean).join(', '); }).filter(Boolean);
-      res.push({ p: p, exact: exact || memeTel, memeTel: memeTel, memeType: (p.type === 'Pharmacie') === (d.type === 'Pharmacie'), lieu: lieux[0] || '' });
+      var pres = c.presencesParCode[p.code] || [];
+      var memeLieu = !estPh && lieuxD.length ? pres.filter(function (x) { return lieuxD.some(function (l) { return memeEtablissement(l, x.lieu); }); })[0] : null;
+      var prPh = pres[0], dist = null;
+      if (estPh && p.type === 'Pharmacie' && posD && prPh && aCoord(prPh)) dist = distanceKm(posD, lireCoord(prPh)) * 1000;
+      var proximite = dist !== null && dist <= 150;
+      var lieux = pres.map(function (x) { return [x.lieu, x.quartier, x.commune].filter(Boolean).join(', '); }).filter(Boolean);
+      res.push({ p: p, exact: exact || memeTel, memeTel: memeTel, debut: debut, memeType: (p.type === 'Pharmacie') === estPh,
+        memeLieu: memeLieu ? memeLieu.lieu : '', proximite: proximite, dist: dist,
+        bloquant: exact || memeTel || (proche && (!!memeLieu || proximite)),
+        lieu: memeLieu ? [memeLieu.lieu, memeLieu.quartier].filter(Boolean).join(', ') : (lieux[0] || '') });
     });
-    res.sort(function (a, b) { return (b.exact - a.exact) || (b.memeType - a.memeType); });
-    return res.slice(0, 4);
+    var score = function (x) { return (x.exact ? 8 : 0) + (x.memeLieu || x.proximite ? 4 : 0) + (x.memeType ? 2 : 0) + (x.debut ? 1 : 0); };
+    res.sort(function (a, b) { return score(b) - score(a) || String(a.p.nom).localeCompare(String(b.p.nom), 'fr'); });
+    return res.slice(0, 5);
+  }
+  function rendrePresentsIci(d) {
+    var l = chercherDoublonsFiche(d).filter(function (x) { return x.memeLieu || x.proximite; });
+    if (!l.length) return '';
+    return '<div class="fx-carte fx-presents-ici"><p class="fx-sec">' + (d.type === 'Pharmacie' ? 'Pharmacie au nom proche tout près' : 'Nom proche déjà présent dans cet établissement') + '</p>' + l.map(function (x) {
+      return '<button type="button" class="fx-res" data-a="ouvrirDoublon" data-v="' + esc(x.p.code) + '"><span><b>' + esc(x.p.nom) + '</b><small>' + esc(x.lieu) + (x.proximite ? ' · à ' + Math.round(x.dist) + ' m' : '') + '</small></span><span class="fx-ouvrir">Ouvrir</span></button>';
+    }).join('') + '</div>';
   }
   function rendreDoublonsFiche(d) {
     var l = chercherDoublonsFiche(d);
@@ -7657,7 +7676,8 @@
     return '<p class="fx-sec">Déjà dans vos contacts</p>' + l.map(function (x) {
       var p = x.p;
       return '<button type="button" class="fx-res" data-a="ouvrirDoublon" data-v="' + esc(p.code) + '"><span><b>' + esc(p.nom) + '</b><small>' +
-        esc([p.type === 'Pharmacie' ? '' : abrSpec(p.specialite), x.lieu, p.telephone].filter(Boolean).join(', ')) + (x.memeTel ? ', même téléphone' : '') + '</small><small>' + esc(vuDepuis(p.derniere, aujourdhui())) + '</small></span><span class="fx-ouvrir">Ouvrir</span></button>';
+        esc([p.type === 'Pharmacie' ? '' : abrSpec(p.specialite), x.lieu, p.telephone].filter(Boolean).join(', ')) + (x.memeTel ? ', même téléphone' : '') + '</small>' +
+        (x.memeLieu ? '<small class="fx-alerte">Déjà présent dans cet établissement</small>' : '') + (x.proximite ? '<small class="fx-alerte">À ' + Math.round(x.dist) + ' m d\'ici</small>' : '') + '<small>' + esc(vuDepuis(p.derniere, aujourdhui())) + '</small></span><span class="fx-ouvrir">Ouvrir</span></button>';
     }).join('');
   }
   // 3.25.5 : saisie assistée de l'établissement : dès quelques lettres, les établissements déjà connus de la base
@@ -8192,6 +8212,7 @@
   function ficheOuEtQuand(f, d, estPh) {
     var h = '', g = gpsFrais(), l0 = d.lieux[0];
     if (f.err.lieux) h += '<p class="erreur-texte">' + esc(f.err.lieux) + '</p>';
+    if (!d.code) h += '<div id="presentsIci">' + rendrePresentsIci(d) + '</div>';   // 3.27.28
     if (estPh) {
       h += '<div class="fx-carte"><div class="fx-carte-t"><b>Localisation de l\'officine</b>' +
           (aCoord(l0) ? '<span class="fx-tag ok">' + icone('cible') + 'GPS' + (l0.prec ? ' ± ' + l0.prec + ' m' : '') + '</span>' : '<span class="fx-tag">Pas de GPS</span>') + '</div>' +
@@ -8297,6 +8318,19 @@
           if ((!l.lat || /^NL$/i.test(l.lat)) && can.lat) { l.lat = can.lat; l.lon = can.lon; }
         }
       });
+    }
+    // 3.27.28 : le même établissement saisi deux fois sur la fiche devient un seul lieu (jours cumulés)
+    if (d.type !== 'Pharmacie' && Array.isArray(d.lieux) && d.lieux.length > 1) {
+      var memeLieuFiche = function (a, b) { var na = normaliser(a), nb = normaliser(b); if (!na || !nb) return false; if (na === nb) return true; var ca = cleEtablissement(a); return ca.length >= 5 && ca === cleEtablissement(b); };
+      var garde = [];
+      d.lieux.forEach(function (l) {
+        var g = garde.filter(function (x) { return memeLieuFiche(x.lieu, l.lieu); })[0];
+        if (!g) { garde.push(l); return; }
+        (l.jours || []).forEach(function (j, k) { if (!g.jours[k]) g.jours[k] = { matin: false, soir: false }; g.jours[k].matin = g.jours[k].matin || j.matin; g.jours[k].soir = g.jours[k].soir || j.soir; });
+        if ((!g.id || /^TMP/.test(String(g.id))) && l.id && !/^TMP/.test(String(l.id))) g.id = l.id;
+        ['quartier', 'commune', 'reperes', 'lat', 'lon', 'horaireMatin', 'horaireSoir'].forEach(function (k) { if (!g[k] && l[k]) g[k] = l[k]; });
+      });
+      if (garde.length < d.lieux.length) { d.lieux = garde; toast('Établissement saisi deux fois : regroupé en un seul lieu.'); }
     }
     // 3.25.23 : évite de recréer un 2e code TMP si la même fiche locale est déjà en file d'attente
     var code = d.code;
@@ -10676,7 +10710,7 @@
         if (Object.keys(e).length) { f.err = e; var kL = Object.keys(e).map(function (x) { var m2 = x.match(/^(?:lieu|quartier|jours|hm|hs)(\d+)$/); return m2 ? +m2[1] : -1; }).filter(function (x) { return x >= 0; })[0]; f.etape = i; if (kL !== undefined) { f.lieuOuvert = kL; if (i === 1) f.etape = 1; } rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
       }
       if (!f.d.code && !f.doublonConfirme) {
-        var doublons = chercherDoublonsFiche(f.d).filter(function (x) { return x.exact; });
+        var doublons = chercherDoublonsFiche(f.d).filter(function (x) { return x.bloquant; });   // 3.27.28 : même nom, même téléphone, ou nom proche au même endroit
         if (doublons.length) {
           var ex = doublons[0].p, fSauve = JSON.parse(JSON.stringify(f));
           confirmerPuis('Doublon potentiel',
@@ -10767,6 +10801,7 @@
     if (f === 'fiche') {
       majChampFiche(el, false);
       if (el.dataset.k === 'lieu') {
+        var zpL = document.getElementById('presentsIci'); if (zpL && S.ui.feuille && S.ui.feuille.d) zpL.innerHTML = rendrePresentsIci(S.ui.feuille.d);
         var idxL = +el.dataset.i, valL = el.value.trim();
         var zs = document.getElementById('sugLieu' + idxL);
         if (zs) zs.innerHTML = suggestionsLieu(valL, idxL);
@@ -10796,6 +10831,7 @@
       if (el.dataset.k === 'nom' || el.dataset.k === 'telephone') {
         if (S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.type === 'Pharmacie' && el.dataset.k === 'nom') S.ui.feuille.d.lieux[0].lieu = el.value;
         var zd = document.getElementById('doublonsFiche'); if (zd && S.ui.feuille) zd.innerHTML = rendreDoublonsFiche(S.ui.feuille.d);
+        var zp = document.getElementById('presentsIci'); if (zp && S.ui.feuille) zp.innerHTML = rendrePresentsIci(S.ui.feuille.d);
         var zc = document.getElementById('ficheCreerNom'); if (zc && S.ui.feuille) zc.textContent = nomCreer(S.ui.feuille.d);
       }
     }

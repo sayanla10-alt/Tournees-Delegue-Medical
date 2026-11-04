@@ -3644,3 +3644,7 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .feuille .choix-planif .choix-planif-l small { display: block; font-size: 12px; opacity: .85; white-space: normal; overflow-wrap: anywhere; }
 .feuille .choix-planif .conflit-planif { color: #9A5B00; font-weight: 700; opacity: 1; }
 .feuille .choix-planif .choix-planif-l[aria-pressed="true"] .conflit-planif { color: inherit; }
+
+/* 3.27.28 : alertes de doublon (même établissement, pharmacie proche) */
+.fx-res .fx-alerte { color: #9A5B00; font-weight: 700; }
+.fx-presents-ici { border-color: #EDCF94; background: #FCF6EA; }
