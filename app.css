@@ -3654,3 +3654,18 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .bloc-remplacant p { margin: 0; text-align: center; }
 .lien-modifier-tournee { display: flex; align-items: center; gap: 6px; margin: 6px auto 0; justify-content: center; }
 .lien-modifier-tournee svg { width: 16px; height: 16px; }
+
+/* 3.27.30 : Répertoire en trois annuaires */
+.selecteur-annuaire { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; margin: 4px 0 10px; background: var(--papier-2, #F5F8F9); border: 1px solid var(--trait); border-radius: 14px; }
+.selecteur-annuaire button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 4px; border: 0; border-radius: 10px; background: transparent; color: var(--encre); font: inherit; cursor: pointer; }
+.selecteur-annuaire button b { font-size: 14.5px; }
+.selecteur-annuaire button small { font-size: 12px; color: var(--gris); }
+.selecteur-annuaire button[aria-pressed="true"] { background: var(--primaire); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.selecteur-annuaire button[aria-pressed="true"] small { color: rgba(255,255,255,.85); }
+.element-hopital { border-left: 4px solid #0A6C74; }
+.type-pastille.t-hop { color: #0A6C74; background: #E0F0F1; }
+.hop-medecins { list-style: none; margin: 10px 0 0; padding: 0; border-top: 1px solid var(--trait); }
+.hop-medecins li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--trait); }
+.hop-medecins .hop-med { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 0; font: inherit; color: var(--encre); cursor: pointer; }
+.hop-medecins .hop-med small { display: block; color: var(--gris); font-size: 12.5px; margin-top: 2px; }
+.hop-medecins .hop-med em { color: var(--primaire); font-style: normal; font-weight: 700; }

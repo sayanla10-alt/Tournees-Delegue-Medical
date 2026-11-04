@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.29';
+  var APP_VERSION = '3.27.30';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.30', ['Répertoire : trois annuaires en haut (Médecins, Pharmacies, Hôpitaux)', 'Hôpitaux : du plus proche au plus loin, avec le nombre de médecins, ceux vus ce mois et présents aujourd’hui ; la carte ouverte liste les médecins de l’établissement avec leurs jours et « Planifier »']],
     ['3.27.29', ['Journée : « Praticien indisponible ? Trouver un remplaçant. » dans un encadré ajusté au texte']],
     ['3.27.28', ['Nouveau médecin ou pharmacie : noms existants proposés dès 3 lettres (débuts de mots en premier)', 'Nom proche déjà présent dans le même établissement (ou pharmacie proche à moins de 150 m) : signalé et confirmation demandée', 'Même établissement saisi deux fois sur une fiche : regroupé en un seul lieu', 'Fiche rattachée à une fiche existante : les lieux s’ajoutent sans effacer ceux déjà connus']],
     ['3.27.27', ['Autour de moi : la barre de recherche des Hôpitaux, des Spécialités et de la Zone (pharmacies) reste visible même groupe replié ; taper ouvre le groupe']],
@@ -2288,7 +2289,7 @@
   // 3.27.26 : écran gardé au rafraîchissement (onglet, carte ouverte, position) pendant la session
   var UI_SESSION = 'mediplanner.ui';
   function memoriserEcran() {
-    try { sessionStorage.setItem(UI_SESSION, JSON.stringify({ tab: S.ui.tab, ouvert: S.ui.ouvert || null, contact: S.ui.contactOuvert || null, y: Math.round(window.scrollY), t: Date.now() })); } catch (e) {}
+    try { sessionStorage.setItem(UI_SESSION, JSON.stringify({ tab: S.ui.tab, ouvert: S.ui.ouvert || null, contact: S.ui.contactOuvert || null, hop: S.ui.hopOuvert || null, y: Math.round(window.scrollY), t: Date.now() })); } catch (e) {}
   }
   function rendre() {
     var tab = S.ui.tab;
@@ -5851,6 +5852,79 @@
     return t + ' · ' + c.join(' · ');
   }
 
+  // 3.27.30 : Répertoire en trois annuaires (Médecins, Pharmacies, Hôpitaux) ; point de retour : avant-repertoire-annuaires
+  S.ui.annuaire = LS.get('annuaire', '') === 'hop' ? 'hop' : '';
+  function selecteurAnnuaire(f) {
+    var prat = ctx().prat, nM = 0, nP = 0;
+    Object.keys(prat).forEach(function (k) { if (prat[k].type === 'Pharmacie') nP++; else nM++; });
+    var actif = S.ui.annuaire === 'hop' ? 'hop' : (f.type === 'Pharmacie' ? 'ph' : (f.type === 'Médecin' ? 'med' : ''));
+    var b = function (v, lib, n) { return '<button type="button" data-a="annuaire" data-v="' + v + '" aria-pressed="' + (actif === v) + '"><b>' + lib + '</b><small>' + n + '</small></button>'; };
+    return '<div class="selecteur-annuaire" role="group" aria-label="Annuaire">' + b('med', 'Médecins', nM) + b('ph', 'Pharmacies', nP) + b('hop', 'Hôpitaux', hopitauxRepertoire().length) + '</div>';
+  }
+  // établissements (onglet Etablissements) où au moins un médecin est présent, avec leurs médecins
+  function hopitauxRepertoire() {
+    var c = ctx(), par = {}, l = [];
+    ((S.data && S.data.etablissements) || []).forEach(function (e) {
+      var nom = String(e.nom || '').trim(), k = normaliser(nom); if (!k || par[k]) return;
+      par[k] = { cle: k, nom: nom, commune: e.commune || '', quartier: e.quartier || '', reperes: e.reperes || '', telephone: e.telephone || '',
+        lat: parseFloat(String(e.lat || '').replace(',', '.')), lon: parseFloat(String(e.lon || '').replace(',', '.')), codes: {}, pres: [] };
+    });
+    ((S.data && S.data.presences) || []).forEach(function (x) {
+      var p = c.prat[x.code]; if (!p || p.type === 'Pharmacie') return;
+      var k = normaliser(x.lieu || ''); if (!k) return;
+      var e = par[k] || (par[k] = { cle: k, nom: String(x.lieu).trim(), commune: x.commune || '', quartier: x.quartier || '', reperes: x.reperes || '', telephone: '', lat: NaN, lon: NaN, codes: {}, pres: [] });
+      if (!isFinite(e.lat) && aCoord(x)) { var co = lireCoord(x); e.lat = co.lat; e.lon = co.lon; }
+      if (!e.codes[x.code]) { e.codes[x.code] = true; e.pres.push(x); }
+    });
+    // cabinets privés d'un médecin (« Cabinet médical du Dr … ») : restent sur la fiche du médecin, pas dans l'annuaire des hôpitaux
+    var cabinet = function (nom) { var x = sansAccents(nom).toLowerCase(); return /cabinet/.test(x) && /\b(dr|docteur|pr|prive)\b/.test(x); };
+    Object.keys(par).forEach(function (k) { if (par[k].pres.length && !cabinet(par[k].nom)) l.push(par[k]); });
+    return l;
+  }
+  function vueHopitaux(f) {
+    var q = normaliser(S.ui.rechHop || ''), co = ensemble(f.communes || []), g = gpsFrais(), t = aujourdhui(), jA = jourSemaineIndex(t), c = ctx();
+    var debutMois = t.slice(0, 8) + '01';
+    var l = hopitauxRepertoire().filter(function (e) {
+      if (f.communes && f.communes.length && !communeCorrespondante(e, co)) return false;
+      return !q || normaliser(e.nom + ' ' + e.quartier + ' ' + e.commune).indexOf(q) >= 0;
+    });
+    l.forEach(function (e) { e.d = g && isFinite(e.lat) ? distanceVol(g, { lat: e.lat, lon: e.lon }) : null; });
+    l.sort(function (a, b) { return (a.d === null) - (b.d === null) || (a.d || 0) - (b.d || 0) || a.nom.localeCompare(b.nom, 'fr'); });
+    var h = '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechHop" placeholder="Hôpital, clinique, quartier, commune…" value="' +
+      esc(S.ui.rechHop || '') + '" aria-label="Rechercher un hôpital"></div></div>';
+    h += '<p class="phrase-criteres" style="text-align:center">' + l.length + ' établissement' + (l.length > 1 ? 's' : '') + (f.communes && f.communes.length ? ' · ' + esc(condenserCommunesEtSecteurs(f.communes) || '') : '') + (g ? ' · du plus proche au plus loin' : '') + '</p>';
+    if (!l.length) return h + '<div class="vide"><strong>Aucun établissement</strong>Aucun hôpital ne correspond à cette recherche.</div>';
+    h += '<ul class="liste">';
+    l.slice(0, S.ui.limite).forEach(function (e) {
+      var ouvert = S.ui.hopOuvert === e.cle;
+      var vus = e.pres.filter(function (x) { var p = c.prat[x.code]; return p && p.derniere && p.derniere >= debutMois; }).length;
+      var ici = e.pres.filter(function (x) { return jA <= 4 && (x[JOURS_CLES[jA]] || ''); }).length;
+      h += '<li class="element element-hopital"><button type="button" class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '">' +
+        '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + '</span>' +
+        '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d) : '') + '</span>' +
+        '<span class="etiquettes"><span class="etiquette">' + e.pres.length + ' médecin' + (e.pres.length > 1 ? 's' : '') + '</span>' +
+          (vus ? '<span class="etiquette ok">' + vus + ' vu' + (vus > 1 ? 's' : '') + ' ce mois</span>' : '') +
+          (ici ? '<span class="etiquette p1">' + ici + ' présent' + (ici > 1 ? 's' : '') + ' aujourd\'hui</span>' : '') + '</span></button>';
+      if (ouvert) {
+        if (e.reperes) h += '<p class="discret" style="margin:6px 0 0">' + esc(e.reperes) + '</p>';
+        h += actionsRapides({ telephone: e.telephone, lat: isFinite(e.lat) ? e.lat : null, lon: isFinite(e.lon) ? e.lon : null, lieu: e.nom, quartier: e.quartier, commune: e.commune });
+        var ordre = function (x) { var v = jA <= 4 ? (x[JOURS_CLES[jA]] || '') : ''; return v ? 0 : 1; };
+        var meds = e.pres.slice().sort(function (a, b) { return ordre(a) - ordre(b) || (+c.prat[b.code].note || 0) - (+c.prat[a.code].note || 0) || String(c.prat[a.code].nom).localeCompare(String(c.prat[b.code].nom), 'fr'); });
+        h += '<ul class="hop-medecins">' + meds.map(function (x) {
+          var p = c.prat[x.code];
+          var jours = JOURS_CLES.map(function (j, i) { var v = lireDispo(x[j]); return v.matin || v.soir ? JOURS[i].slice(0, 3) + ' ' + (v.matin && v.soir ? 'M+S' : (v.matin ? 'M' : 'S')) : ''; }).filter(Boolean).join(' · ');
+          var auj = ordre(x) === 0;
+          return '<li><button type="button" class="hop-med" data-a="hopVoirMedecin" data-v="' + esc(p.code) + '"><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) +
+            '<small>' + esc([abrSpec(p.specialite), jours].filter(Boolean).join(' · ')) + (auj ? ' · <em>aujourd\'hui</em>' : '') + '</small></button>' +
+            '<button type="button" class="bouton petit" data-a="planifierProchaines" data-v="' + esc(p.code) + '">Planifier</button></li>';
+        }).join('') + '</ul>';
+      }
+      h += '</li>';
+    });
+    h += '</ul>';
+    if (l.length > S.ui.limite) h += '<div class="rangee"><button class="bouton bouton-large" type="button" data-a="plus">Afficher plus</button></div>';
+    return h;
+  }
   VUES.praticiens = function () {
     var f = S.ui.filtres, t = aujourdhui(), c = ctx();
     var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
@@ -5866,7 +5940,9 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (liste.length ? 'les ' + liste.length + ' résultat' + (liste.length > 1 ? 's' : '') : 'les résultats') + '</button></div>';
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire</h2></div>' +
-      '<p class="sous-titre">Tous vos contacts : recherchez, filtrez, mettez à jour leurs fiches et leurs lieux de visite.</p>';
+      '<p class="sous-titre">Médecins, pharmacies et hôpitaux : recherchez, filtrez, mettez à jour leurs fiches.</p>';
+    h += selecteurAnnuaire(f);
+    if (S.ui.annuaire === 'hop') return h + vueHopitaux(f);
     h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
     h += '<div class="rangee-actions-rep">' +
@@ -9763,6 +9839,22 @@
       }
     },
     filtre: function (el) { S.ui.filtre = el.dataset.v; S.ui.limite = 40; rendre(); },
+    annuaire: function (el) {
+      var v = el.dataset.v, f = filtresCour();
+      S.ui.limite = 40; S.ui.contactOuvert = null; S.ui.hopOuvert = null;
+      if (v === 'hop') { S.ui.annuaire = 'hop'; LS.set('annuaire', 'hop'); rendre(); window.scrollTo(0, 0); return; }
+      S.ui.annuaire = ''; LS.set('annuaire', '');
+      f.type = v === 'ph' ? 'Pharmacie' : 'Médecin'; majFiltres(f); rendre(); window.scrollTo(0, 0);
+    },
+    hopital: function (el) {
+      var k = el.dataset.v, ouvrant = S.ui.hopOuvert !== k; S.ui.hopOuvert = ouvrant ? k : null; rendre();
+      if (ouvrant) { var b = document.querySelector('[data-a="hopital"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]'); if (b && b.scrollIntoView) b.closest('li').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    },
+    hopVoirMedecin: function (el) {
+      var code = el.dataset.v, f = filtresCour();
+      S.ui.annuaire = ''; LS.set('annuaire', ''); f.type = 'Médecin'; majFiltres(f);
+      S.ui.recherche = ''; S.ui.contactOuvert = code; S.ui.contactEnTete = code; S.ui.tab = 'praticiens'; rendre(); window.scrollTo(0, 0);
+    },
     plus: function () { S.ui.limite += 40; rendre(); },
     collegue: function (el) {
       // 3.25.45 : toucher le collègue sélectionné réinitialise à Toute l'équipe
@@ -10897,6 +10989,10 @@
       S.ui.rechProduit = el.value; var pp = el.selectionStart; rendre();
       var cp = document.querySelector('[data-f="rechProduit"]'); if (cp) { cp.focus(); try { cp.setSelectionRange(pp, pp); } catch (x) {} }
     }
+    if (f === 'rechHop') {   // 3.27.30 : recherche dans l'annuaire des hôpitaux
+      S.ui.rechHop = el.value; S.ui.limite = 40; pos = el.selectionStart; rendre();
+      var chH = document.querySelector('[data-f="rechHop"]'); if (chH) { chH.focus(); try { chH.setSelectionRange(pos, pos); } catch (x) {} }
+    }
     if (f === 'recherche' || f === 'rechercheImpose') {
       if (f === 'recherche') { if (S.ui.tab === 'autour') S.ui.rechercheAutour = el.value; else S.ui.recherche = el.value; S.ui.limite = 40; } else S.ui.feuille.q = el.value;
       pos = el.selectionStart; rendre();
@@ -11281,7 +11377,7 @@
   try { ecranSession = JSON.parse(sessionStorage.getItem(UI_SESSION) || 'null'); } catch (e) {}
   if (ecranSession && Date.now() - (ecranSession.t || 0) < 6 * 3600000) {
     if (['jour', 'semaine', 'autour', 'rapport', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(ecranSession.tab) >= 0) S.ui.tab = ecranSession.tab;
-    S.ui.ouvert = ecranSession.ouvert || null; S.ui.contactOuvert = ecranSession.contact || null;
+    S.ui.ouvert = ecranSession.ouvert || null; S.ui.contactOuvert = ecranSession.contact || null; S.ui.hopOuvert = ecranSession.hop || null;
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     var yRestaurer = ecranSession.y || 0;
     var restaurerPosition = function (n) {
