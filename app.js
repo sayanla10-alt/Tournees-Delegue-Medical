@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.30';
+  var APP_VERSION = '3.27.31';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.31', ['Répertoire : sélecteur Médecins / Pharmacies / Hôpitaux sur une seule ligne, nombre entre parenthèses']],
     ['3.27.30', ['Répertoire : trois annuaires en haut (Médecins, Pharmacies, Hôpitaux)', 'Hôpitaux : du plus proche au plus loin, avec le nombre de médecins, ceux vus ce mois et présents aujourd’hui ; la carte ouverte liste les médecins de l’établissement avec leurs jours et « Planifier »']],
     ['3.27.29', ['Journée : « Praticien indisponible ? Trouver un remplaçant. » dans un encadré ajusté au texte']],
     ['3.27.28', ['Nouveau médecin ou pharmacie : noms existants proposés dès 3 lettres (débuts de mots en premier)', 'Nom proche déjà présent dans le même établissement (ou pharmacie proche à moins de 150 m) : signalé et confirmation demandée', 'Même établissement saisi deux fois sur une fiche : regroupé en un seul lieu', 'Fiche rattachée à une fiche existante : les lieux s’ajoutent sans effacer ceux déjà connus']],
@@ -5858,7 +5859,7 @@
     var prat = ctx().prat, nM = 0, nP = 0;
     Object.keys(prat).forEach(function (k) { if (prat[k].type === 'Pharmacie') nP++; else nM++; });
     var actif = S.ui.annuaire === 'hop' ? 'hop' : (f.type === 'Pharmacie' ? 'ph' : (f.type === 'Médecin' ? 'med' : ''));
-    var b = function (v, lib, n) { return '<button type="button" data-a="annuaire" data-v="' + v + '" aria-pressed="' + (actif === v) + '"><b>' + lib + '</b><small>' + n + '</small></button>'; };
+    var b = function (v, lib, n) { return '<button type="button" data-a="annuaire" data-v="' + v + '" aria-pressed="' + (actif === v) + '"><b>' + lib + '</b> <span class="sa-n">(' + n + ')</span></button>'; };
     return '<div class="selecteur-annuaire" role="group" aria-label="Annuaire">' + b('med', 'Médecins', nM) + b('ph', 'Pharmacies', nP) + b('hop', 'Hôpitaux', hopitauxRepertoire().length) + '</div>';
   }
   // établissements (onglet Etablissements) où au moins un médecin est présent, avec leurs médecins

@@ -3669,3 +3669,11 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .hop-medecins .hop-med { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 0; font: inherit; color: var(--encre); cursor: pointer; }
 .hop-medecins .hop-med small { display: block; color: var(--gris); font-size: 12.5px; margin-top: 2px; }
 .hop-medecins .hop-med em { color: var(--primaire); font-style: normal; font-weight: 700; }
+
+/* 3.27.31 : sélecteur d'annuaire sur une ligne, nombre à côté du nom */
+.selecteur-annuaire { padding: 3px; gap: 3px; margin: 2px 0 8px; }
+.selecteur-annuaire button { flex-direction: row; justify-content: center; align-items: baseline; gap: 3px; padding: 6px 2px; white-space: nowrap; font-size: 13.5px; }
+.selecteur-annuaire button b { font-size: 13.5px; font-weight: 700; }
+.selecteur-annuaire .sa-n { font-weight: 400; font-size: 12.5px; color: var(--gris); }
+.selecteur-annuaire button[aria-pressed="true"] .sa-n { color: rgba(255,255,255,.85); }
+@media (max-width: 360px) { .selecteur-annuaire button, .selecteur-annuaire button b { font-size: 12.5px; } .selecteur-annuaire .sa-n { font-size: 11.5px; } }
