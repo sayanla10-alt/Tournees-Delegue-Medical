@@ -3677,3 +3677,8 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .selecteur-annuaire .sa-n { font-weight: 400; font-size: 12.5px; color: var(--gris); }
 .selecteur-annuaire button[aria-pressed="true"] .sa-n { color: rgba(255,255,255,.85); }
 @media (max-width: 360px) { .selecteur-annuaire button, .selecteur-annuaire button b { font-size: 12.5px; } .selecteur-annuaire .sa-n { font-size: 11.5px; } }
+
+/* 3.27.32 : Recherche, Ajouter, Modifier à la hauteur de « Réinitialiser les filtres » (36 px) ; spécialité en gras */
+.rangee-actions-rep .bouton { min-height: 36px !important; height: 36px; font-size: 13px; }
+.rangee-actions-rep .bouton svg { width: 16px; height: 16px; }
+.spec-gras { font-weight: 700; color: var(--encre); }
