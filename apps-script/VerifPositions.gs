@@ -10,7 +10,7 @@ function verifierPositions() {
   var dist = function (a, b, c, d) { var R = 6371000, r = Math.PI / 180, x = (d - b) * r * Math.cos((a + c) / 2 * r), y = (c - a) * r; return Math.round(Math.sqrt(x * x + y * y) * R); };
   var num = function (v) { var x = parseFloat(String(v === undefined ? '' : v).replace(',', '.')); return isFinite(x) ? x : null; };
   var items = [];
-  [['Pharmacies', ['codecontact', 'nom', 'commune', 'quartier', 'latitude', 'longitude', 'origingps']], ['Etablissements', ['codeetab', 'nom', 'commune', 'quartier', 'latitude', 'longitude', 'origingps']]].forEach(function (cfg) {
+  [['Pharmacies', ['codecontact', 'nom', 'commune', 'quartier', 'latitude', 'longitude', 'originegps']], ['Etablissements', ['codeetab', 'nom', 'commune', 'quartier', 'latitude', 'longitude', 'originegps']]].forEach(function (cfg) {
     var sh = ss.getSheetByName(cfg[0]); if (!sh || sh.getLastRow() < 2) return;
     var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
     var pos = cfg[1].map(function (k) { return ent.indexOf(k); });
