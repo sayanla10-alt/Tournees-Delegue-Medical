@@ -1,8 +1,7 @@
 {
-  "version": "3.27.28",
+  "version": "3.27.29",
   "date": "2026-11-03",
   "notes": [
-    "Doublons : suggestions dès 3 lettres, contrôle par établissement et par distance",
-    "Lieux en double regroupés, lieux existants conservés"
+    "Journée : encadré « Praticien indisponible » raccourci"
   ]
 }

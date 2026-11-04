@@ -3648,3 +3648,9 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 /* 3.27.28 : alertes de doublon (même établissement, pharmacie proche) */
 .fx-res .fx-alerte { color: #9A5B00; font-weight: 700; }
 .fx-presents-ici { border-color: #EDCF94; background: #FCF6EA; }
+
+/* 3.27.29 : encadré « Praticien indisponible » ajusté au texte */
+.bloc-remplacant { width: fit-content; max-width: 100%; margin: 16px auto 4px; padding: 8px 14px; }
+.bloc-remplacant p { margin: 0; text-align: center; }
+.lien-modifier-tournee { display: flex; align-items: center; gap: 6px; margin: 6px auto 0; justify-content: center; }
+.lien-modifier-tournee svg { width: 16px; height: 16px; }

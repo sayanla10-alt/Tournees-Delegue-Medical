@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.28';
+  var APP_VERSION = '3.27.29';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.29', ['Journée : « Praticien indisponible ? Trouver un remplaçant. » dans un encadré ajusté au texte']],
     ['3.27.28', ['Nouveau médecin ou pharmacie : noms existants proposés dès 3 lettres (débuts de mots en premier)', 'Nom proche déjà présent dans le même établissement (ou pharmacie proche à moins de 150 m) : signalé et confirmation demandée', 'Même établissement saisi deux fois sur une fiche : regroupé en un seul lieu', 'Fiche rattachée à une fiche existante : les lieux s’ajoutent sans effacer ceux déjà connus']],
     ['3.27.27', ['Autour de moi : la barre de recherche des Hôpitaux, des Spécialités et de la Zone (pharmacies) reste visible même groupe replié ; taper ouvre le groupe']],
     ['3.27.26', ['Spécialités : « Médecine générale » regroupée avec MG, Pneumo et Infectio abrégés', 'Rafraîchir la page garde l’onglet (y compris Réglages), la carte ouverte et la position de lecture']],
@@ -2993,8 +2994,9 @@
   function blocRemplacant(d) {
     if (d < aujourdhui() || jourSemaineIndex(d) > 4) return '';
     // 3.27.10 : + Médecin, + Pharmacie, Autour de moi figés en bas comme la barre de Planifier, même taille de boutons
-    return '<section class="bloc-remplacant"><p class="discret">Praticien indisponible ? Trouver un remplaçant avec les boutons du bas.</p>' +
-      '<button class="bouton-texte" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button></section>' +
+    // 3.27.29 : phrase courte, encadré ajusté au texte ; « Modifier la tournée » dessous
+    return '<section class="bloc-remplacant"><p class="discret">Praticien indisponible ? Trouver un remplaçant.</p></section>' +
+      '<button class="bouton-texte lien-modifier-tournee" type="button" data-a="nav" data-tab="semaine">' + icone('calendrier') + 'Modifier la tournée</button>' +
       '<div class="barre-plan-actions-flottante"><div class="rangee-tirage barre-remplacant"><button class="bouton" type="button" data-a="ajouterProches" data-v="Médecin" data-d="' + d + '">' + icone('plus') + '<span>Médecin</span></button>' +
       '<button class="bouton" type="button" data-a="ajouterProches" data-v="Pharmacie" data-d="' + d + '">' + icone('plus') + '<span>Pharmacie</span></button>' +
       '<button class="bouton" type="button" data-a="ajouterTournee" data-d="' + d + '">' + icone('cible') + '<span>Autour de moi</span></button></div></div>';
