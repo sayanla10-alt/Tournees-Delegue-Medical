@@ -1,4 +1,4 @@
-/* Lecture.gs : données lues par l'application (base complète, listes, pharmacies, équipe, statuts). (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
+﻿/* Lecture.gs : données lues par l'application (base complète, listes, pharmacies, équipe, statuts). (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
 // ---------------------------------------------------------------- Lecture
 // sig : empreinte des données de référence déjà présentes sur le téléphone ; si rien n'a changé,
 // seules les nouveautés (visites depuis hdepuis, tournées) sont renvoyées : moins de données mobiles.
@@ -18,8 +18,9 @@ function lireTout(sig, hdepuis) {
   var quartiers = [];
   var shQ = ss.getSheetByName(FEUILLES.quartiers);
   if (shQ && shQ.getLastRow() > 1) {
-    shQ.getRange(2, 1, shQ.getLastRow() - 1, 5).getValues().forEach(function (v) {
-      if (v[1] !== '') quartiers.push({ commune: v[0], quartier: v[1], zone: v[2], lat: +v[3], lon: +v[4] });
+    var nbColsQ = Math.max(5, shQ.getLastColumn());
+    shQ.getRange(2, 1, shQ.getLastRow() - 1, nbColsQ).getValues().forEach(function (v) {
+      if (v[1] !== '') quartiers.push({ commune: v[0], quartier: v[1], zone: v[2], lat: +v[3], lon: +v[4], secteur: v[5] ? String(v[5]).trim() : '' });
     });
   }
   var historique = [];

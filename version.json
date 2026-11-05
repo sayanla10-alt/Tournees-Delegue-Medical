@@ -1,7 +1,7 @@
 {
-  "version": "3.27.32",
-  "date": "2026-11-03",
+  "version": "3.27.33",
+  "date": "2026-11-05",
   "notes": [
-    "Répertoire : boutons alignés, spécialité en gras"
+    "Sélecteur de quartiers : Communes classées de A à Z par ordre alphabétique strict, sous-secteurs hiérarchisés et synchronisation BDD"
   ]
 }

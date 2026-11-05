@@ -1,0 +1,9 @@
+﻿*.apk
+*.aab
+*.zip
+*.keystore
+android-build/
+android-signed/
+package.json
+package-lock.json
+node_modules/

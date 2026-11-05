@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.32';
+  var APP_VERSION = '3.27.33';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.33', ['Sélecteur de quartiers : Communes classées de A à Z par ordre alphabétique strict, villes de l’intérieur en dernier', 'Cocody, Yopougon, Abobo : Découpage hiérarchique clair par sous-secteur avec quartiers classés de A à Z', 'Synchronisation BDD : Prise en compte immédiate des modifications de la feuille Quartiers de la base de données']],
     ['3.27.32', ['Répertoire : nombres sans parenthèses, Recherche / Ajouter / Modifier à la hauteur de « Réinitialiser les filtres », spécialité en gras (Médecins et Hôpitaux)']],
     ['3.27.31', ['Répertoire : sélecteur Médecins / Pharmacies / Hôpitaux sur une seule ligne, nombre entre parenthèses']],
     ['3.27.30', ['Répertoire : trois annuaires en haut (Médecins, Pharmacies, Hôpitaux)', 'Hôpitaux : du plus proche au plus loin, avec le nombre de médecins, ceux vus ce mois et présents aujourd’hui ; la carte ouverte liste les médecins de l’établissement avec leurs jours et « Planifier »']],
@@ -1520,7 +1521,26 @@
           flushSimples();
           flushSecteurs();
         } else {
-          corpsSec = sec.options.map(function (op) { return op.entete ? '<div class="sous-entete-choix">' + esc(op.lib) + '</div>' : puce(op); }).join('');
+                    if (q) {
+            var htmlSec = '', enteteEnCours = '';
+            sec.options.forEach(function (op) {
+              if (op.entete) {
+                enteteEnCours = op.lib;
+              } else {
+                var m = !q || normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')).indexOf(q) >= 0;
+                if (m) {
+                  if (enteteEnCours) {
+                    htmlSec += '<div class="sous-entete-choix">' + esc(enteteEnCours) + '</div>';
+                    enteteEnCours = '';
+                  }
+                  htmlSec += puce(op);
+                }
+              }
+            });
+            corpsSec = htmlSec;
+          } else {
+            corpsSec = sec.options.map(function (op) { return op.entete ? '<div class="sous-entete-choix">' + esc(op.lib) + '</div>' : puce(op); }).join('');
+          }
         }
 
         h += '<div class="section-choix' + (ariaExp ? ' ouverte' : '') + (nbSel ? ' a-selection' : '') + '"' + (q && !aMatch ? ' hidden' : '') + '>' +
@@ -1663,6 +1683,7 @@
       if (!nomQ || /^NL$/i.test(nomQ)) return;
       var com = (q.commune || '').trim().replace(/\s*-\s*/g, ' – ');
       var zone = (q.zone || '').trim();
+      var secBdd = (q.secteur || '').trim();
       var estInt = zone === 'Zone Intérieur' || zone === 'Zone Interieur' ||
                    (zone && zone.toLowerCase().indexOf('intérieur') >= 0) ||
                    (zone && zone.toLowerCase().indexOf('interieur') >= 0) ||
@@ -1684,14 +1705,38 @@
       var groupeTitre = com;
       if (normParent === 'cocody') {
         if (nomQ.toLowerCase() === 'centre' || nomQ.toLowerCase() === 'cocody centre') nomQ = 'Cocody Centre';
-        groupeTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Cocody', nomQ, '') : 'Cocody – Centre';
-        if (!groupeTitre || groupeTitre === 'Cocody') groupeTitre = 'Cocody – Centre';
+        var secTitre = '';
+        if (secBdd) {
+          var sN = normaliser(secBdd);
+          if (sN.indexOf('angre') >= 0 || sN.indexOf('tranche') >= 0) secTitre = 'Cocody – Angré';
+          else if (sN.indexOf('plateau') >= 0 || sN.indexOf('vallon') >= 0 || sN.indexOf('aghien') >= 0 || sN.indexOf('attoban') >= 0) secTitre = 'Cocody – Deux Plateaux';
+          else if (sN.indexOf('riviera') >= 0 || sN.indexOf('palmeraie') >= 0 || sN.indexOf('faya') >= 0 || sN.indexOf('abatta') >= 0) secTitre = 'Cocody – Riviera';
+          else if (sN.indexOf('centre') >= 0 || sN.indexOf('jean') >= 0 || sN.indexOf('danga') >= 0 || sN.indexOf('mermoz') >= 0) secTitre = 'Cocody – Centre';
+        }
+        if (!secTitre) secTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Cocody', nomQ, '') : 'Cocody – Centre';
+        groupeTitre = secTitre || 'Cocody – Centre';
       } else if (normParent === 'yopougon') {
-        groupeTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Yopougon', nomQ, '') : 'Yopougon – Centre & Mairie';
-        if (!groupeTitre || groupeTitre === 'Yopougon') groupeTitre = 'Yopougon – Centre & Mairie';
+        var secTitreY = '';
+        if (secBdd) {
+          var sNy = normaliser(secBdd);
+          if (sNy.indexOf('niangon') >= 0 || sNy.indexOf('verte') >= 0 || sNy.indexOf('academie') >= 0) secTitreY = 'Yopougon – Niangon';
+          else if (sNy.indexOf('maroc') >= 0 || sNy.indexOf('toit') >= 0 || sNy.indexOf('bel air') >= 0 || sNy.indexOf('sideci') >= 0) secTitreY = 'Yopougon – Maroc & Toits Rouges';
+          else if (sNy.indexOf('gesco') >= 0 || sNy.indexOf('koute') >= 0 || sNy.indexOf('port-bouet 2') >= 0 || sNy.indexOf('sable') >= 0 || sNy.indexOf('industrielle') >= 0) secTitreY = 'Yopougon – Sud & Gesco';
+          else if (sNy.indexOf('centre') >= 0 || sNy.indexOf('mairie') >= 0 || sNy.indexOf('siporex') >= 0 || sNy.indexOf('ficgayo') >= 0) secTitreY = 'Yopougon – Centre & Mairie';
+        }
+        if (!secTitreY) secTitreY = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Yopougon', nomQ, '') : 'Yopougon – Centre & Mairie';
+        groupeTitre = secTitreY || 'Yopougon – Centre & Mairie';
       } else if (normParent === 'abobo') {
-        groupeTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Abobo', nomQ, '') : 'Abobo – Centre & Mairie';
-        if (!groupeTitre || groupeTitre === 'Abobo') groupeTitre = 'Abobo – Centre & Mairie';
+        var secTitreA = '';
+        if (secBdd) {
+          var sNa = normaliser(secBdd);
+          if (sNa.indexOf('pk18') >= 0 || sNa.indexOf('pk 18') >= 0 || sNa.indexOf('ndotre') >= 0 || sNa.indexOf('anonkoua') >= 0 || sNa.indexOf('belle ville') >= 0) secTitreA = 'Abobo – Nord & PK18';
+          else if (sNa.indexOf('baoule') >= 0 || sNa.indexOf('avocatier') >= 0 || sNa.indexOf('clouetcha') >= 0 || sNa.indexOf('sotra') >= 0 || sNa.indexOf('abobo-te') >= 0 || sNa.indexOf('abobote') >= 0) secTitreA = 'Abobo – Baoulé & Avocatier';
+          else if (sNa.indexOf('plaque') >= 0 || sNa.indexOf('sagbe') >= 0 || sNa.indexOf('anador') >= 0 || sNa.indexOf('dokui') >= 0) secTitreA = 'Abobo – Sud & Plaque';
+          else if (sNa.indexOf('centre') >= 0 || sNa.indexOf('mairie') >= 0 || sNa.indexOf('gare') >= 0 || sNa.indexOf('samake') >= 0 || sNa.indexOf('rail') >= 0) secTitreA = 'Abobo – Centre & Mairie';
+        }
+        if (!secTitreA) secTitreA = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Abobo', nomQ, '') : 'Abobo – Centre & Mairie';
+        groupeTitre = secTitreA || 'Abobo – Centre & Mairie';
       } else {
         groupeTitre = parent || com;
       }
@@ -1703,43 +1748,46 @@
       }
     });
 
-    var sections = [];
-    var groupesOrdre = [
-      'Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre',
-      'Yopougon – Centre & Mairie', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Niangon', 'Yopougon – Sud & Gesco',
-      'Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Nord & PK18', 'Abobo – Sud & Plaque',
-      'Adjamé', 'Anyama', 'Attécoubé', 'Bingerville', 'Koumassi', 'Marcory', 'Plateau', 'Port-Bouët', 'Songon', 'Treichville'
-    ];
+    var secteursOrdreParCom = {
+      'Cocody': ['Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre'],
+      'Yopougon': ['Yopougon – Centre & Mairie', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Niangon', 'Yopougon – Sud & Gesco'],
+      'Abobo': ['Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Nord & PK18', 'Abobo – Sud & Plaque']
+    };
 
-    // 3.26.71 : Cocody, Yopougon et Abobo : une seule section par commune, ses secteurs en sous-titres une fois dépliée
-    ['Cocody', 'Yopougon', 'Abobo'].forEach(function (com) {
+    // 3.27.33 : Regrouper Cocody, Yopougon et Abobo sous leur commune, secteurs en sous-titres
+    ['Abobo', 'Cocody', 'Yopougon'].forEach(function (com) {
       var opts = [];
-      groupesOrdre.filter(function (t) { return t.indexOf(com + ' – ') === 0; }).forEach(function (t) {
+      var ordre = secteursOrdreParCom[com] || [];
+      ordre.forEach(function (t) {
         if (!par[t] || !par[t].length) return;
         par[t].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
-        opts.push(['', t.replace(com + ' – ', ''), 'entete']);
-        opts = opts.concat(par[t]); delete par[t];
+        var nomCourt = t.replace(com + ' – ', '');
+        opts.push(['', nomCourt, 'entete']);
+        opts = opts.concat(par[t]);
+        delete par[t];
       });
+      if (par[com] && par[com].length) {
+        par[com].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+        opts = opts.concat(par[com]);
+        delete par[com];
+      }
       if (opts.length) par[com] = opts;
     });
-    groupesOrdre = ['Cocody', 'Yopougon', 'Abobo'].concat(groupesOrdre.filter(function (t) { return t.indexOf(' – ') < 0; }));
-    groupesOrdre.forEach(function (titre) {
-      if (par[titre] && par[titre].length && /^(Cocody|Yopougon|Abobo)$/.test(titre)) { sections.push({ titre: titre, options: par[titre] }); delete par[titre]; return; }
+
+    // 3.27.33 : Toutes les communes du Grand Abidjan classées par ordre alphabétique strict A à Z !
+    var clesAbidjan = Object.keys(par).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+
+    var sections = [];
+    clesAbidjan.forEach(function (titre) {
       if (par[titre] && par[titre].length) {
-        par[titre].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+        if (!/^(Abobo|Cocody|Yopougon)$/.test(titre)) {
+          par[titre].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+        }
         sections.push({ titre: titre, options: par[titre] });
-        delete par[titre];
       }
     });
 
-    Object.keys(par).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (k) {
-      if (par[k] && par[k].length) {
-        par[k].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
-        sections.push({ titre: k, options: par[k] });
-      }
-    });
-
-    // Villes de l'intérieur tout en bas et masquées par défaut
+    // Villes de l'intérieur toujours en dernier et repliées par défaut
     if (interieur.length) {
       var vuInt = {};
       var optsInt = [];

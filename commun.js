@@ -1,4 +1,4 @@
-/* =============================================================================
+﻿/* =============================================================================
    commun.js : référentiel, modèle de données et fonctions partagées (version 3)
    Ce fichier est IDENTIQUE dans l'application (commun.js) et dans Google Apps
    Script (Commun.gs). Toute modification doit être reportée dans les deux.
@@ -1036,7 +1036,13 @@ function distanceKm(a, b) {
 
 function quartiersDefautObjets() {
   return QUARTIERS_DEFAUT.map(function (q) {
-    return { commune: q[0], quartier: q[1], zone: q[2], lat: q[3], lon: q[4] };
+    var com = q[0], sec = q[5] || '';
+    if (!sec && com.indexOf(' –') >= 0) {
+      sec = com.replace(/^[^\s–-]+\s*[–-]\s*/, '');
+    } else if (!sec && com.indexOf(' - ') >= 0) {
+      sec = com.replace(/^[^\s-]+\s*-\s*/, '');
+    }
+    return { commune: q[0], quartier: q[1], zone: q[2], lat: q[3], lon: q[4], secteur: sec };
   });
 }
 

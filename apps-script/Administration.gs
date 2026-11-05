@@ -1,4 +1,4 @@
-/* Administration.gs : menu du classeur, mise en forme, migrations, structure, base de test, import, saisie à la main, sauvegardes. (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
+﻿/* Administration.gs : menu du classeur, mise en forme, migrations, structure, base de test, import, saisie à la main, sauvegardes. (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
 // ---------------------------------------------------------------- Menu
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('MediPlanner')
@@ -93,7 +93,7 @@ function mettreAJourQuartiersSecteurs() {
 }
 
 function ecrireQuartiers(ss) {
-  var sh = preparerFeuille(ss, FEUILLES.quartiers, ['Commune', 'Quartier', 'Zone', 'Latitude', 'Longitude']);
+  var sh = preparerFeuille(ss, FEUILLES.quartiers, ['Commune', 'Quartier', 'Zone', 'Latitude', 'Longitude', 'Secteur']);
   sh.getRange(2, 1, QUARTIERS_DEFAUT.length, 5).setValues(QUARTIERS_DEFAUT);
   sh.autoResizeColumns(1, 5);
 }
