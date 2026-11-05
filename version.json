@@ -1,7 +1,7 @@
 {
-  "version": "3.27.34",
+  "version": "3.27.35",
   "date": "2026-11-05",
   "notes": [
-    "Répertoire (Hôpitaux) : pastille GPS interactive (GPS 1/1, 2/2...) sur le nom de chaque établissement pour capter et enregistrer sa position précise en direct"
+    "Répertoire (Hôpitaux) : pastille GPS simplifiée (« GPS ») alignée avec les étiquettes (médecins, visites du mois...)"
   ]
 }

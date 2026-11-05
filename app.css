@@ -3386,8 +3386,9 @@ span.btn-micro-gps:active { transform: none; }
 .etiquette-gps.gps-partiel { background: #FFF4DE; color: #8A5A00; border-color: #F2D9A6; }
 .etiquette-gps.gps-non { background: #FDE8E8; color: #B42318; border-color: #F6C7C3; }
 /* 3.27.34 : pastille GPS interactive pour les hôpitaux */
-.etiquette-gps-cliquable { cursor: pointer; user-select: none; transition: transform .12s ease, opacity .12s ease; margin-left: 6px; font-weight: 700; vertical-align: middle; }
+.etiquette-gps-cliquable { cursor: pointer; user-select: none; transition: transform .12s ease, opacity .12s ease; font-weight: 700; }
 .etiquette-gps-cliquable:active { transform: scale(0.93); opacity: 0.85; }
+.element-hopital .etiquettes { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
 :root[data-theme="sombre"] .etiquette-gps.gps-ok { background: #12301F; color: #66CF96; border-color: #24563A; }
 :root[data-theme="sombre"] .etiquette-gps.gps-partiel { background: #33270F; color: #F0B44C; border-color: #5A4419; }
 :root[data-theme="sombre"] .etiquette-gps.gps-non { background: #38181A; color: #F87171; border-color: #632326; }

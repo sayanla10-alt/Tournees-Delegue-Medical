@@ -9,11 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.34';
+  var APP_VERSION = '3.27.35';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.27.34', ['Répertoire (Hôpitaux) : pastille GPS interactive (GPS 1/1, 2/2...) sur le nom de chaque établissement pour capter et enregistrer sa position précise en direct']],
+    ['3.27.35', ['Répertoire (Hôpitaux) : pastille GPS simplifiée (« GPS ») alignée avec les étiquettes (médecins, visites du mois...)']],
     ['3.27.33', ['Sélecteur de quartiers : Communes classées de A à Z par ordre alphabétique strict, villes de l’intérieur en dernier', 'Cocody, Yopougon, Abobo : Découpage hiérarchique clair par sous-secteur avec quartiers classés de A à Z', 'Synchronisation BDD : Prise en compte immédiate des modifications de la feuille Quartiers de la base de données']],
     ['3.27.32', ['Répertoire : nombres sans parenthèses, Recherche / Ajouter / Modifier à la hauteur de « Réinitialiser les filtres », spécialité en gras (Médecins et Hôpitaux)']],
     ['3.27.31', ['Répertoire : sélecteur Médecins / Pharmacies / Hôpitaux sur une seule ligne, nombre entre parenthèses']],
@@ -5950,15 +5950,15 @@
       var ouvert = S.ui.hopOuvert === e.cle;
       var vus = e.pres.filter(function (x) { var p = c.prat[x.code]; return p && p.derniere && p.derniere >= debutMois; }).length;
       var ici = e.pres.filter(function (x) { return jA <= 4 && (x[JOURS_CLES[jA]] || ''); }).length;
-      var nTot = e.pres.length || 1;
-      var aGpsHop = isFinite(e.lat) && isFinite(e.lon) && e.lat !== 0;
-      var nG = aGpsHop ? nTot : e.pres.filter(aCoord).length;
-      var clGps = nG === nTot && nTot > 0 ? 'gps-ok' : (nG > 0 ? 'gps-partiel' : 'gps-non');
-      var badgeGps = '<span class="etiquette etiquette-gps etiquette-gps-cliquable ' + clGps + '" data-a="capterGpsHopital" data-v="' + esc(e.cle) + '" role="button" tabindex="0" title="Capter la position GPS de cet établissement" aria-label="Capter la position GPS de ' + esc(e.nom) + '">' + icone('carte') + 'GPS ' + nG + '/' + nTot + '</span>';
+
+      var aGpsHop = isFinite(e.lat) && isFinite(e.lon) && e.lat !== 0, clGps = aGpsHop ? 'gps-ok' : 'gps-non';
+
+
+      var badgeGps = '<span class="etiquette etiquette-gps etiquette-gps-cliquable ' + clGps + '" data-a="capterGpsHopital" data-v="' + esc(e.cle) + '" role="button" tabindex="0" title="' + (aGpsHop ? 'GPS enregistré : toucher pour actualiser' : 'Pas de GPS : toucher pour enregistrer la position') + '" aria-label="' + (aGpsHop ? 'GPS enregistré pour ' : 'Enregistrer le GPS de ') + esc(e.nom) + '">' + icone('carte') + 'GPS</span>';
       h += '<li class="element element-hopital"><div class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '" role="button" tabindex="0">' +
-        '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + badgeGps + '</span>' +
+        '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + '</span>' +
         '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d) : '') + '</span>' +
-        '<span class="etiquettes"><span class="etiquette">' + e.pres.length + ' médecin' + (e.pres.length > 1 ? 's' : '') + '</span>' +
+        '<span class="etiquettes"><span class="etiquette">' + e.pres.length + ' médecin' + (e.pres.length > 1 ? 's' : '') + '</span>' + badgeGps +
           (vus ? '<span class="etiquette ok">' + vus + ' vu' + (vus > 1 ? 's' : '') + ' ce mois</span>' : '') +
           (ici ? '<span class="etiquette p1">' + ici + ' présent' + (ici > 1 ? 's' : '') + ' aujourd\'hui</span>' : '') + '</span></div>';
       if (ouvert) {
