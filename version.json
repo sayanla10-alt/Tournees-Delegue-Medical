@@ -1,7 +1,7 @@
 {
-  "version": "3.27.39",
+  "version": "3.27.40",
   "date": "2026-11-05",
   "notes": [
-    "Répertoire (Hôpitaux) : la capture GPS actualise instantanément la position du délégué (« Sur place » immédiat et recalcul des distances de tous les établissements)"
+    "Répertoire (Hôpitaux) : fiabilisation de la capture GPS (synchronisation temps réel avec la base, sauvegarde garantie des coordonnées des établissements et affichage immédiat « Sur place »)"
   ]
 }

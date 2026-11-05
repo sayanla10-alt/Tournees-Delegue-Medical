@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.39';
+  var APP_VERSION = '3.27.40';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.40', ['Répertoire (Hôpitaux) : fiabilisation de la capture GPS (synchronisation temps réel avec la base, sauvegarde garantie des coordonnées des établissements et affichage immédiat « Sur place »)']],
     ['3.27.39', ['Répertoire (Hôpitaux) : la capture GPS actualise instantanément la position du délégué (« Sur place » immédiat et recalcul des distances de tous les établissements)']],
     ['3.27.38', ['Autour de moi / Journée : récupération automatique de la position GPS et déduction du quartier par défaut', 'Changement dynamique : sélection d’un quartier recalculant immédiatement les praticiens selon ce paramètre']],
     ['3.27.37', ['Répertoire (Médecins) : statut de visite remplacé par la présence temps réel (« Présent » en vert si en consultation à l’instant T, « Absent » en rouge sinon)']],
@@ -2205,7 +2206,7 @@
         if (k.toLowerCase() === moi().toLowerCase()) { S.config.delegue = d.alias[k]; LS.set('config', S.config); S.ui.aPublier = true; LS.set('aPublier', true); }
       });
       S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
-                 statuts: base.statuts, delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [], fiches: base.fiches || [],
+                 statuts: base.statuts, etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [], fiches: base.fiches || [],
                  historique: hist, plannings: d.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: new Date().toISOString(),
                  sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: d.inchange ? !!ancien.serveurRecent : d.doublons !== undefined, rev: d.rev || '' };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
@@ -5988,7 +5989,14 @@
     });
     // cabinets privés d'un médecin (« Cabinet médical du Dr … ») : restent sur la fiche du médecin, pas dans l'annuaire des hôpitaux
     var cabinet = function (nom) { var x = sansAccents(nom).toLowerCase(); return /cabinet/.test(x) && /\b(dr|docteur|pr|prive)\b/.test(x); };
-    Object.keys(par).forEach(function (k) { if (par[k].pres.length && !cabinet(par[k].nom)) l.push(par[k]); });
+    Object.keys(par).forEach(function (k) {
+      var it = par[k];
+      if (!isFinite(it.lat) && typeof trouverEtablissementRef === 'function') {
+        var ref = trouverEtablissementRef(it.nom);
+        if (ref && isFinite(ref.lat)) { it.lat = ref.lat; it.lon = ref.lon; }
+      }
+      if (it.pres.length && !cabinet(it.nom)) l.push(it);
+    });
     return l;
   }
   function vueHopitaux(f) {
@@ -6077,7 +6085,10 @@
     var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire</h2></div>' +
       '<p class="sous-titre">Médecins, pharmacies et hôpitaux : recherchez, filtrez, mettez à jour leurs fiches.</p>';
     h += selecteurAnnuaire(f);
-    if (S.ui.annuaire === 'hop') return h + vueHopitaux(f);
+    if (S.ui.annuaire === 'hop') {
+      if (!gpsFrais()) relocaliserSiBesoin('repertoireHop');
+      return h + vueHopitaux(f);
+    }
     h += '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="recherche" placeholder="Nom, spécialité, établissement, quartier…" value="' +
         esc(S.ui.recherche) + '" aria-label="Rechercher un praticien"></div></div>';
     h += '<div class="rangee-actions-rep">' +
@@ -9240,6 +9251,7 @@
   function positionImprecise() { var g = gpsFrais(); return !!(g && g.prec && g.prec > PREC_DISTANCE_M); }
   function distMoi(k, approx) {
     if (k === null || k === undefined) return '';
+    if (k <= 0.035) return 'Sur place';
     var imp = positionImprecise();
     if (!imp) return (approx ? '≈ ' : '') + distanceCourte(k);
     return '≈ ' + (k < 1 ? Math.max(50, Math.round(k * 20) * 50) + ' m' : km(k));
@@ -9364,7 +9376,7 @@
         // 1. Mettre à jour dans S.data.etablissements
         S.data = S.data || {};
         S.data.etablissements = S.data.etablissements || [];
-        var etabTrouve = S.data.etablissements.filter(function (x) { return normaliser(x.nom) === normaliser(nomEtab); })[0];
+        var etabTrouve = S.data.etablissements.filter(function (x) { return normaliser(x.nom) === normaliser(nomEtab) || (typeof memeEtablissement === 'function' && memeEtablissement(x.nom, nomEtab)); })[0];
         if (etabTrouve) {
           etabTrouve.lat = pCapt.lat;
           etabTrouve.lon = pCapt.lon;
@@ -9385,7 +9397,7 @@
 
         // 2. Répercuter sur toutes les présences de cet établissement
         ((S.data && S.data.presences) || []).forEach(function (x) {
-          if (normaliser(x.lieu || '') === normaliser(nomEtab)) {
+          if (normaliser(x.lieu || '') === normaliser(nomEtab) || (typeof memeEtablissement === 'function' && memeEtablissement(x.lieu, nomEtab))) {
             x.lat = pCapt.lat;
             x.lon = pCapt.lon;
             if (e.quartier) x.quartier = e.quartier;
@@ -9403,6 +9415,7 @@
 
         // 4. Enregistrer dans le cache local et re-rendre
         LS.set('data', S.data);
+        ctxCache.data = null;
         rendre();
 
         // 5. Envoyer au serveur (action: 'etablissement')
@@ -9415,10 +9428,13 @@
           originegps: 'Repertoire Hopital (±' + p.prec + 'm)'
         };
         if (e.code) payload.code = e.code;
-        apiPost('etablissement', payload);
+        apiPost('etablissement', payload).then(function () {
+          if (!S.config.demo && connecte()) synchroniser(true);
+        }).catch(function (err) {
+          console.warn('Erreur envoi etablissement:', err);
+        });
 
         toast('GPS fixé pour ' + nomEtab + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
-        if (!S.config.demo && connecte()) synchroniser(true);
       }
 
       if (refGeo && distKm > 3) {
