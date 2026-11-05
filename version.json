@@ -1,7 +1,7 @@
 {
-  "version": "3.27.38",
+  "version": "3.27.39",
   "date": "2026-11-05",
   "notes": [
-    "Autour de moi / Journée : récupération automatique de la position GPS et du quartier par défaut ; sélection dynamique d’un autre quartier recalculant immédiatement les propositions"
+    "Répertoire (Hôpitaux) : la capture GPS actualise instantanément la position du délégué (« Sur place » immédiat et recalcul des distances de tous les établissements)"
   ]
 }

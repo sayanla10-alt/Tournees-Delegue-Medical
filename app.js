@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.38';
+  var APP_VERSION = '3.27.39';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.39', ['Répertoire (Hôpitaux) : la capture GPS actualise instantanément la position du délégué (« Sur place » immédiat et recalcul des distances de tous les établissements)']],
     ['3.27.38', ['Autour de moi / Journée : récupération automatique de la position GPS et déduction du quartier par défaut', 'Changement dynamique : sélection d’un quartier recalculant immédiatement les praticiens selon ce paramètre']],
     ['3.27.37', ['Répertoire (Médecins) : statut de visite remplacé par la présence temps réel (« Présent » en vert si en consultation à l’instant T, « Absent » en rouge sinon)']],
     ['3.27.33', ['Sélecteur de quartiers : Communes classées de A à Z par ordre alphabétique strict, villes de l’intérieur en dernier', 'Cocody, Yopougon, Abobo : Découpage hiérarchique clair par sous-secteur avec quartiers classés de A à Z', 'Synchronisation BDD : Prise en compte immédiate des modifications de la feuille Quartiers de la base de données']],
@@ -9305,6 +9306,8 @@
       var nomLieu = l.lieu ? (l.lieu + (l.quartier ? ' (' + l.quartier + ')' : '')) : (l.quartier || l.commune || d.nom);
 
       function sauverDirect() {
+        S.ui.posGps = { lat: pCapt.lat, lon: pCapt.lon, t: Date.now(), prec: p.prec };
+        LS.set('derniereGps', S.ui.posGps);
         l.lat = pCapt.lat; l.lon = pCapt.lon;
         var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
         if (r && r.quartier) {
@@ -9319,8 +9322,8 @@
 
       if (refGeo && distKm > 3) {
         var distArr = Math.round(distKm);
-        confirmerPuis('🛑 Écart de position important',
-          '<div style="color:var(--rouge,#c0392b);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomLieu) + ' !</div>' +
+        confirmerPuis('Écart de position important',
+          '<div style="color:var(--primaire,#0A6C74);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomLieu) + ' !</div>' +
           '<p style="margin:0 0 8px">Ce bouton sert uniquement lorsque vous êtes <b>physiquement devant cet établissement</b>.</p>' +
           '<p style="margin:0">Voulez-vous vraiment fixer cette position pour <b>' + esc(nomLieu) + '</b> ?</p>',
           'Écraser la position',
@@ -9348,6 +9351,8 @@
       var nomEtab = e.nom;
 
       function sauverHopital() {
+        S.ui.posGps = { lat: pCapt.lat, lon: pCapt.lon, t: Date.now(), prec: p.prec };
+        LS.set('derniereGps', S.ui.posGps);
         e.lat = pCapt.lat;
         e.lon = pCapt.lon;
         var r = Moteur.quartierLePlusProche(pCapt.lat, pCapt.lon, quartiers());
@@ -11004,8 +11009,8 @@
         if (refGeo && distanceKmEcart > 3) {
           var distArr = Math.round(distanceKmEcart);
           var fSauve = JSON.parse(JSON.stringify(f));
-          confirmerPuis('🛑 Écart de position important',
-            '<div style="color:var(--rouge,#c0392b);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomLieuRef) + ' !</div>' +
+          confirmerPuis('Écart de position important',
+            '<div style="color:var(--primaire,#0A6C74);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomLieuRef) + ' !</div>' +
             '<p style="margin:0 0 8px">Ce bouton sert uniquement lorsque vous êtes <b>physiquement devant l\'officine ou l\'établissement</b>.</p>' +
             '<p style="margin:0">Voulez-vous vraiment écraser la position ?</p>',
             'Écraser la position',
