@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.37';
+  var APP_VERSION = '3.27.38';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.38', ['Autour de moi / Journée : récupération automatique de la position GPS et déduction du quartier par défaut', 'Changement dynamique : sélection d’un quartier recalculant immédiatement les praticiens selon ce paramètre']],
     ['3.27.37', ['Répertoire (Médecins) : statut de visite remplacé par la présence temps réel (« Présent » en vert si en consultation à l’instant T, « Absent » en rouge sinon)']],
     ['3.27.33', ['Sélecteur de quartiers : Communes classées de A à Z par ordre alphabétique strict, villes de l’intérieur en dernier', 'Cocody, Yopougon, Abobo : Découpage hiérarchique clair par sous-secteur avec quartiers classés de A à Z', 'Synchronisation BDD : Prise en compte immédiate des modifications de la feuille Quartiers de la base de données']],
     ['3.27.32', ['Répertoire : nombres sans parenthèses, Recherche / Ajouter / Modifier à la hauteur de « Réinitialiser les filtres », spécialité en gras (Médecins et Hôpitaux)']],
@@ -5305,13 +5306,70 @@
       '<div id="resAutourLibre">' + resultatsAutourLibre(qL) + '</div>';
     h = '';
     var fin = function (x) { return haut + '<div id="autourListe"' + (normaliser(qL) ? ' hidden' : '') + '>' + x + '</div>'; };
-    var parCommune = {};
-    quartiers().forEach(function (q) { (parCommune[q.commune] = parCommune[q.commune] || []).push(q.quartier); });
+    // 3.27.38 : Récupération automatique de la position GPS par défaut et déduction du quartier
+    if (A.lat === null || !A.src) {
+      var g0 = S.ui.posGps || LS.get('derniereGps', null);
+      if (g0 && isFinite(g0.lat) && isFinite(g0.lon)) {
+        S.ui.posGps = g0;
+        var r0 = Moteur.quartierLePlusProche(g0.lat, g0.lon, quartiers());
+        A.lat = g0.lat; A.lon = g0.lon; A.src = 'gps'; A.prec = g0.prec;
+        A.quartier = r0 && r0.quartier ? r0.quartier.quartier : '';
+        A.commune = r0 && r0.quartier ? r0.quartier.commune : '';
+        A.label = A.quartier ? A.quartier + ' (ma position)' : 'Ma position';
+        LS.set('autour', A);
+      } else if (S.config && S.config.depart) {
+        var qDef = quartiers().filter(function (x) { return x.quartier === S.config.depart; })[0];
+        if (qDef) {
+          A.lat = qDef.lat; A.lon = qDef.lon; A.quartier = qDef.quartier; A.commune = qDef.commune;
+          A.label = qDef.quartier; A.src = 'gps_init';
+          LS.set('autour', A);
+        }
+      }
+      if (!S.ui.localisation) localiser(true, 'autour', true);
+    }
+
+    var estGps = A.src === 'gps' || A.src === 'gps_init';
+    var txtGps = 'Utiliser ma position';
+    if (estGps && A.quartier) {
+      txtGps = 'Ma position : ' + A.quartier + (A.prec ? ' (± ' + A.prec + ' m)' : '');
+    } else if (S.ui.posGps) {
+      var qGps = Moteur.quartierLePlusProche(S.ui.posGps.lat, S.ui.posGps.lon, quartiers());
+      if (qGps && qGps.quartier) txtGps = 'Utiliser ma position (' + qGps.quartier.quartier + ')';
+    }
+    var styleGps = 'margin-bottom:10px;' + (estGps ? ' border-color: var(--primaire); background: rgba(16,185,129,0.08); font-weight: 600;' : '');
+    var blocBoutonGps = '<button class="bouton bouton-large' + (estGps ? ' actif' : '') + '" type="button" data-a="localiser" style="' + styleGps + '">' +
+      icone('cible') + '<span>' + esc(txtGps) + '</span></button>';
+
+    var valQuartier = (A.src === 'quartier' && A.quartier) ? A.quartier : '';
+    var libelleQuartier = valQuartier || 'Choisir un autre quartier…';
+    var blocSelecteurQuartier = '<div class="champ"><span>Ou choisir un quartier</span>' + selecteurListe('autourQuartier', {
+      titre: 'Choisir un quartier',
+      valeur: valQuartier,
+      vide: libelleQuartier,
+      sections: sectionsQuartiers(),
+      appliquer: function (v) {
+        var q = quartiers().filter(function (x) { return x.quartier === v; })[0];
+        if (q) {
+          S.ui.autour.lat = q.lat;
+          S.ui.autour.lon = q.lon;
+          S.ui.autour.label = q.quartier;
+          S.ui.autour.quartier = q.quartier;
+          S.ui.autour.commune = q.commune;
+          S.ui.autour.src = 'quartier';
+          S.ui.autour.prec = null;
+          LS.set('autour', S.ui.autour);
+          rendre();
+        }
+      }
+    }) + '</div>';
+
+    var blocRayon = '<div class="champ" style="margin:0"><span>Rayon</span>' + segment('Rayon', 'autourRayon', RAYONS.map(function (r) { return [String(r), String(r).replace('.', ',') + ' km']; }), String(A.rayon), 'margin:0') + '</div>';
+
     if (S.ui.pharmaciesProches) {
       // raccourci « Pharmacie » : juste la position et le rayon, les résultats tout de suite
-      h += '<section class="bloc compact"><p style="margin:0 0 10px"><b>' + esc(A.label || 'Position en cours de recherche…') + '</b></p>' +
-        '<button class="bouton petit" type="button" data-a="localiser" style="margin-bottom:10px">' + icone('cible') + 'Actualiser ma position</button>' +
-        segment('Rayon', 'autourRayon', RAYONS.map(function (r) { return [String(r), String(r).replace('.', ',') + ' km']; }), String(A.rayon), 'margin:0') + '</section>';
+      h += '<section class="bloc compact">' + blocBoutonGps + blocSelecteurQuartier + blocRayon + '</section>'; // 3.27.38
+
+
     } else {
     h += '<section class="bloc">' +
       '<div class="segment" role="group" aria-label="Moment">' +
@@ -5319,10 +5377,10 @@
         '<button type="button" data-a="autourMoment" data-v="choisir" aria-pressed="' + (A.moment === 'choisir') + '">Autre moment</button></div>' +
       (A.moment === 'choisir' ? '<div class="grille-2"><label class="champ"><span>Date</span><input type="date" data-f="autour" data-k="date" value="' + esc(A.date || prochainJourOuvre(aujourdhui())) + '"></label>' +
         '<label class="champ"><span>Heure (vide : toute la journée)</span><input type="time" data-f="autour" data-k="heure" value="' + esc(A.heure) + '"></label></div>' : '') +
-      '<button class="bouton bouton-large" type="button" data-a="localiser" style="margin-bottom:10px">' + icone('cible') + 'Utiliser ma position</button>' +
-      '<div class="champ"><span>Ou choisir un quartier</span>' + selecteurListe('autourQuartier', { titre: 'Choisir un quartier', valeur: '', vide: A.label ? A.label : 'Choisir un quartier', sections: sectionsQuartiers(),
-        appliquer: function (v) { var q = quartiers().filter(function (x) { return x.quartier === v; })[0]; if (q) { S.ui.autour.lat = q.lat; S.ui.autour.lon = q.lon; S.ui.autour.label = q.quartier; S.ui.autour.src = 'quartier'; LS.set('autour', S.ui.autour); } } }) + '</div>';
-    h += '<div class="champ" style="margin:0"><span>Rayon</span>' + segment('Rayon', 'autourRayon', RAYONS.map(function (r) { return [String(r), String(r).replace('.', ',') + ' km']; }), String(A.rayon), 'margin:0') + '</div></section>';
+      blocBoutonGps + blocSelecteurQuartier + blocRayon + '</section>';
+
+
+
     h += barreFiltres(S.ui.filtres, '', true);
     }
 
@@ -5347,7 +5405,7 @@
     var groupes = minute === null ? [['matin', 'Le matin'], ['soir', 'Le soir']] :
       (immediat ? [['present', 'Présents maintenant']] : [['present', 'Présents maintenant'], ['plustard', 'Plus tard dans la journée']]);
     h += '<p class="discret">' + majuscule(dateLongue(date)) + (minute !== null ? ', ' + minutesVersHeure(minute) : '') +
-      ', autour de ' + esc(A.label || 'votre position') + (A.src === 'gps' && A.prec ? ' (précision ± ' + A.prec + ' m)' : '') + ' : ' + res.length + (fa.type === 'Pharmacie' ? ' pharmacie' : (fa.type === 'Médecin' ? ' médecin' : ' praticien')) + (res.length > 1 ? 's' : '') + '.</p>';
+      ', autour de ' + esc(A.src === 'quartier' ? (A.quartier || A.label) : (A.quartier ? A.quartier + ' (ma position)' : (A.label || 'votre position'))) + (A.src === 'gps' && A.prec ? ' (précision ± ' + A.prec + ' m)' : '') + ' : ' + res.length + (fa.type === 'Pharmacie' ? ' pharmacie' : (fa.type === 'Médecin' ? ' médecin' : ' praticien')) + (res.length > 1 ? 's' : '') + '.</p>';
     groupes.forEach(function (g) {
       var l = res.map(function (x, i) { return { x: x, i: i }; }).filter(function (o) { return o.x.etat === g[0]; });
       h += '<h3>' + g[1] + ' (' + l.length + ')</h3>';
@@ -5355,7 +5413,7 @@
       h += '<ul class="liste">' + l.slice(0, 25).map(function (o) { return rendreProposition(o.x, o.i, date); }).join('') + '</ul>';
     });
     // 3.25.10 : rien dans le rayon : les plus proches au-delà, pour ne jamais laisser la page vide
-    if (!res.length && !immediat) {
+    if (!res.length) {
       var plus = Moteur.autourDe(ctx(), { lat: A.lat, lon: A.lon }, date, minute, Infinity)
         .filter(function (x) { return (!A.ref || x.c.code !== A.ref.code) && (!filtre || filtre[x.c.code]) && !dansTournee[x.c.code]; }).slice(0, 5);
       var base = S.ui.resAutour.length;
@@ -9022,7 +9080,8 @@
       var A = S.ui.autour, r = Moteur.quartierLePlusProche(p.lat, p.lon, quartiers());
       if (!discret || forcerGps || positionGps()) {
         A.lat = p.lat; A.lon = p.lon; A.src = 'gps'; A.prec = p.prec; A.t = Date.now();
-        A.label = r ? 'ma position (près ' + (/^[aeiouyéèàâîôûAEIOUYÉÈÀÂÎÔÛ]/.test(r.quartier.quartier) ? 'd\'' : 'de ') + r.quartier.quartier + ')' : 'ma position';
+        A.quartier = r && r.quartier ? r.quartier.quartier : ''; A.commune = r && r.quartier ? r.quartier.commune : '';
+        A.label = A.quartier ? A.quartier + ' (ma position)' : 'ma position';
         LS.set('autour', A);
       }
       rendreSiPossible();
@@ -9041,7 +9100,8 @@
     var g = S.ui.posGps, A = S.ui.autour; if (!g) return;
     var r = Moteur.quartierLePlusProche(g.lat, g.lon, quartiers());
     A.lat = g.lat; A.lon = g.lon; A.src = 'gps'; A.prec = g.prec;
-    A.label = r ? 'ma position (près ' + (/^[aeiouyéèàâîôûAEIOUYÉÈÀÂÎÔÛ]/.test(r.quartier.quartier) ? 'd\'' : 'de ') + r.quartier.quartier + ')' : 'ma position';
+    A.quartier = r && r.quartier ? r.quartier.quartier : ''; A.commune = r && r.quartier ? r.quartier.commune : '';
+    A.label = A.quartier ? A.quartier + ' (ma position)' : 'ma position';
     LS.set('autour', A);
   }
   // recalcul périodique, quel que soit l'onglet (application au premier plan)
@@ -9205,7 +9265,7 @@
   if (!LS.get('rayon05', false) || RAYONS.indexOf(+S.ui.autour.rayon) < 0) { S.ui.autour.rayon = 0.5; LS.set('autour', S.ui.autour); LS.set('rayon05', true); }
   // dernière position connue du téléphone (mémoire), utilisée tout de suite au démarrage
   if (!S.ui.posGps) { var dg = LS.get('derniereGps', null); if (dg && isFinite(dg.lat)) S.ui.posGps = dg; }
-  function positionGps() { var A = S.ui.autour; return A.src === 'gps' || (!A.src && /^ma position/.test(A.label || '')) || A.lat === null; }
+  function positionGps() { var A = S.ui.autour; return A.src === 'gps' || A.src === 'gps_init' || (!A.src && /^ma position/i.test(A.label || '')) || A.lat === null; }
   function relocaliserSiBesoin(declencheur) { if (!S.ui.localisation) localiser(true, declencheur); }
 
   function chargerDemo(force) {
@@ -9520,7 +9580,7 @@
     garderPlan: function (el) { ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
     retirerPlan: function (el) { ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
     voirDansJournee: function (el) { S.ui.feuille = null; S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); },
-    ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; rendre(); window.scrollTo(0, 0); relocaliserSiBesoin(); },
+    ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true); },
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) {
@@ -9975,7 +10035,20 @@
       rendre();
     },
     // Autour de moi
-    localiser: function () { localiser(); },
+    localiser: function () {
+      var g = S.ui.posGps, A = S.ui.autour;
+      A.src = 'gps';
+      if (g && isFinite(g.lat)) {
+        var r = Moteur.quartierLePlusProche(g.lat, g.lon, quartiers());
+        A.lat = g.lat; A.lon = g.lon; A.prec = g.prec;
+        A.quartier = r && r.quartier ? r.quartier.quartier : '';
+        A.commune = r && r.quartier ? r.quartier.commune : '';
+        A.label = A.quartier ? A.quartier + ' (ma position)' : 'ma position';
+        LS.set('autour', A);
+        rendre();
+      }
+      localiser(false, 'position', true);
+    },
     // 3.25.9 : enregistre la position GPS du téléphone comme position du lieu (feuille Praticiens/Pharmacies)
     posLieuIci: function (el) {
       var c = Moteur.creneauParCle(ctx(), el.dataset.v), g = S.ui.posGps; if (!c || !g) return;

@@ -1,7 +1,7 @@
 {
-  "version": "3.27.37",
+  "version": "3.27.38",
   "date": "2026-11-05",
   "notes": [
-    "Répertoire (Médecins) : statut de visite remplacé par la présence temps réel (« Présent » en vert si en consultation à l’instant T, « Absent » en rouge sinon)"
+    "Autour de moi / Journée : récupération automatique de la position GPS et du quartier par défaut ; sélection dynamique d’un autre quartier recalculant immédiatement les propositions"
   ]
 }
