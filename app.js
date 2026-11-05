@@ -1,4 +1,4 @@
-/* =============================================================================
+﻿/* =============================================================================
    app.js : interface de MediPlanner
    - Données en cache sur le téléphone : tout fonctionne hors ligne
    - Visites, fiches praticiens et tournées envoyées au Google Sheet dès que possible
@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.41';
+  var APP_VERSION = '3.27.42';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.42', ['Journée (+ Médecin / + Pharmacie) : 4e choix « Tout le répertoire » pour afficher tous les médecins ou pharmacies de la base sans filtre ni restriction']],
     ['3.27.41', ['Synchronisation temps réel : prise en compte immédiate des ajouts de médecins et des modifications de plannings par les collègues au rafraîchissement']],
     ['3.27.40', ['Répertoire (Hôpitaux) : fiabilisation de la capture GPS (synchronisation temps réel avec la base, sauvegarde garantie des coordonnées des établissements et affichage immédiat « Sur place »)']],
     ['3.27.39', ['Répertoire (Hôpitaux) : la capture GPS actualise instantanément la position du délégué (« Sur place » immédiat et recalcul des distances de tous les établissements)']],
@@ -7459,6 +7460,9 @@
     // 3.26.87 : + Pharmacie : 3e choix : toutes les pharmacies ouvertes dans une zone choisie (communes ou secteurs)
     var zS = LS.get('rechZonePh', null), resZone = zS && zS.communes && zS.communes.length ? libelleCommunes(zS.communes) : 'Pharmacies ouvertes dans les communes ou secteurs choisis';
     if (t !== 'Médecin') tuiles.push(['zone', 'loupe', 'Pharmacies dans une zone', resZone]);   // 3.26.89 : aussi dans « Autour de moi »
+    // 3.27.42 : 4e choix : Tout le répertoire sans aucun filtre ni restriction
+    var toutDesc = t === 'Pharmacie' ? 'Toutes les pharmacies de la base, sans filtre ni restriction' : (t === 'Médecin' ? 'Tous les médecins de la base, sans filtre ni restriction' : 'Tous les praticiens de la base, sans filtre');
+    tuiles.push(['tout', t === 'Pharmacie' ? 'pharmacie' : 'medecin', 'Tout le répertoire', toutDesc]);
     return rech + '<div class="choix-ajout">' + tuiles.map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
     }).join('') + '</div>';
@@ -7528,6 +7532,126 @@
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
           '<span class="discret bloc-texte">' + details + '</span></button></li>';
       }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : précisez la recherche.</p>' : '');
+  }
+  // 3.27.42 : « Tout le répertoire » (+ Médecin / + Pharmacie) : tous les médecins ou pharmacies de la BDD,
+  // affichés indépendamment des autres filtres appliqués au moment de la recherche
+  FEUILLES.ajouterTout = function (f) {
+    var d = S.ui.dateAjout || S.ui.jour || aujourdhui(), q = (f && f.q) || '';
+    var t = S.ui.typeAjout;
+    var sousTitre = t === 'Médecin' ? 'Tous les médecins au répertoire' : (t === 'Pharmacie' ? 'Toutes les pharmacies au répertoire' : 'Tout le répertoire');
+    return '<div class="rangee" style="justify-content:space-between;align-items:center;margin-bottom:6px"><span class="discret">' + esc(sousTitre) + ' · ' + esc(dateCourte(d)) + '</span>' +
+      '<button type="button" class="bouton petit" data-a="ajouterTourneeChoix" data-v="position">' + icone('cible') + 'Près de moi</button></div>' +
+      champRechercheLibre('rechTout', q) + '<div id="resTout">' + resultatsTout(q) + '</div>';
+  };
+
+  function resultatsTout(q) {
+    var d = S.ui.dateAjout || S.ui.jour || aujourdhui(), j = jourSemaineIndex(d);
+    var t = S.ui.typeAjout;
+    var tousPrat = (S.data && S.data.praticiens) || [];
+    if (t === 'Médecin') tousPrat = tousPrat.filter(function (p) { return p.type !== 'Pharmacie'; });
+    else if (t === 'Pharmacie') tousPrat = tousPrat.filter(function (p) { return p.type === 'Pharmacie'; });
+
+    var mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; }));
+    var pos = positionActuelle();
+    var cCtx = ctx();
+
+    var filtres = tousPrat.filter(function (p) {
+      if (!mots.length) return true;
+      var pres = cCtx.presencesParCode[p.code] || [];
+      var lieux = pres.map(function (x) { return [x.lieu, x.quartier, x.commune, x.zone].join(' '); }).join(' ');
+      var txt = normaliser([p.nom, p.specialite, p.titulaire, lieux].join(' '));
+      return mots.every(function (m) { return txt.indexOf(m) >= 0; });
+    });
+
+    // Distance par rapport à la position actuelle (GPS)
+    var avecDist = filtres.map(function (p) {
+      var pres = cCtx.presencesParCode[p.code] || [];
+      var minD = null, approx = false;
+      if (pos && pres.length) {
+        pres.forEach(function (pr) {
+          var coord = (pr.lat && pr.lon) ? { lat: +pr.lat, lon: +pr.lon } : null;
+          if (!coord && pr.quartier) {
+            var qO = quartiers().filter(function (x) { return x.quartier === pr.quartier; })[0];
+            if (qO) coord = { lat: +qO.lat, lon: +qO.lon, approx: true };
+          }
+          if (coord) {
+            var dst = distanceVol(pos, coord);
+            if (minD === null || dst < minD) { minD = dst; approx = !!coord.approx; }
+          }
+        });
+      }
+      return { p: p, dist: minD, approx: approx };
+    });
+
+    avecDist.sort(function (x, y) {
+      if (pos) {
+        var dDiff = (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0);
+        if (dDiff !== 0) return dDiff;
+      }
+      return String(x.p.nom || '').localeCompare(String(y.p.nom || ''), 'fr');
+    });
+
+    var limite = mots.length ? 100 : 50;
+    var l = avecDist.slice(0, limite);
+    if (!l.length) {
+      return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi tous les praticiens.' : 'Aucun praticien au répertoire.') + '</p>';
+    }
+
+    var html = (mots.length ? '<p class="discret">' + avecDist.length + ' résultat' + (avecDist.length > 1 ? 's' : '') + '.</p>' : '<p class="discret">' + avecDist.length + ' praticien' + (avecDist.length > 1 ? 's' : '') + ' au répertoire.</p>') +
+      '<ul class="liste">' + l.map(function (item) {
+        var p = item.p;
+        var pres = cCtx.presencesParCode[p.code] || [];
+        var fusion = fusionnerLieux(pres);
+        var lieuxNoms = fusion.map(function (x) { return abregerHopital(x.lieu || x.quartier || ''); }).filter(Boolean);
+        var comNoms = Array.from(new Set(fusion.map(function (x) { return x.commune; }).filter(Boolean)));
+        var crJour = (cCtx.parCode[p.code] || []).filter(function (x) { return x.jourIdx === j; });
+        var dejaPlan = !!dans[p.code];
+        var cib = cibleParCollegues(p.code, d);
+
+        var st = '';
+        if (p.type === 'Pharmacie') {
+          var qCom = Array.from(new Set(pres.map(function (x) { return [x.quartier, x.commune].filter(Boolean).join(', '); }).filter(Boolean))).join(' · ');
+          st = qCom || p.commune || '';
+        } else {
+          var m = [];
+          if (p.specialite) m.push(p.specialite);
+          if (lieuxNoms.length) m.push(lieuxNoms.slice(0, 2).join(' / '));
+          if (comNoms.length && (!lieuxNoms.length || lieuxNoms.join(' ').toLowerCase().indexOf(comNoms[0].toLowerCase()) < 0)) m.push(comNoms[0]);
+          st = m.join(' · ');
+        }
+
+        var details = '';
+        if (crJour.length) {
+          details = '<span class="etiquette ok">Présent ce jour</span> ' + crJour[0].creneau + ' ' + minutesVersHeure(crJour[0].debut) + '-' + minutesVersHeure(crJour[0].fin);
+        } else if (pres.length) {
+          var jrs = Array.from(new Set((cCtx.parCode[p.code] || []).map(function (x) { return JOURS_COURTS[x.jourIdx].replace('.', ''); }))).join(', ');
+          details = '<span class="etiquette">Présences : ' + (jrs || 'habituelles') + '</span>';
+        } else {
+          details = '<span class="etiquette">Sans planning fixe</span>';
+        }
+
+        if (item.dist !== null && item.dist !== undefined) {
+          details += ' · <b>' + distMoi(item.dist, item.approx) + '</b>' + (item.approx ? ' <small>(position du quartier)</small>' : '');
+        }
+        if (p.derniere) {
+          details += ' · <small>' + esc(vuDepuis(p.derniere, d)) + '</small>';
+        }
+        if (dejaPlan) {
+          details += ' · <span class="etiquette" style="background:#e0f2fe;color:#0369a1;font-weight:bold">Déjà dans la tournée</span>';
+        }
+        if (cib.length) {
+          details += ' · <span class="conflit-planif">Prévu par ' + esc(cib[0].delegue) + '</span>';
+        }
+
+        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterToutPrat" data-code="' + esc(p.code) + '">' +
+          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
+          '<span class="discret bloc-texte">' + details + '</span></button></li>';
+      }).join('') + '</ul>' +
+      (avecDist.length > l.length ? '<p class="discret" style="text-align:center;padding:12px 0">' + (avecDist.length - l.length) + ' autres praticiens. Tapez un nom ou un lieu dans la recherche ci-dessus pour affiner.</p>' : '');
+
+    return html;
   }
   // 3.26.86 : « Dans des hôpitaux » : qui est présent dans les hôpitaux choisis, ce jour-là, au moment choisi
   // (spécialités et moment facultatifs : sans choix, tous). Même présentation que « Selon mes filtres ».
@@ -9923,6 +10047,11 @@
           h: { lieux: (hR.lieux || []).slice(), specs: (hR.specs || []).slice(), moment: hR.moment && (hR.moment !== 'maintenant' || j === aujourdhui()) ? hR.moment : 'tout' } };
         rendre(); localiser(true, 'position', true); return;
       }
+      if (el.dataset.v === 'tout') {
+        var tNom = S.ui.typeAjout === 'Médecin' ? 'Tous les médecins' : (S.ui.typeAjout === 'Pharmacie' ? 'Toutes les pharmacies' : 'Tout le répertoire');
+        S.ui.feuille = { type: 'ajouterTout', titre: tNom + ', ' + dateCourte(j), pleine: true, q: '' };
+        rendre(); localiser(true, 'position', true); return;
+      }
       S.ui.feuille = { type: 'ajouterCommunes', titre: (S.ui.typeAjout ? 'Selon mes filtres, ' : 'Communes du ') + dateCourte(j), pleine: true }; rendre();
     },
     hopMoment: function (el) { var f = S.ui.feuille; if (!f) return; (f.h || f.z).moment = el.dataset.v; rendre(); },
@@ -9932,6 +10061,41 @@
       var retourAjout = function () { S.ui.feuille = el.dataset.r === 'recherche' && fAvant ? fAvant : { type: 'ajouterCommunes', titre: (S.ui.typeAjout ? 'Selon mes filtres, ' : 'Communes du ') + dateCourte(d), pleine: true }; rendre(); };
       confirmerPuis('Ajouter à la tournée', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ') au ' + dateFr(d) + ' ?', 'Ajouter',
         function () { ajouterArret(c, d); rendre(); }, retourAjout);
+    },
+    ajouterToutPrat: function (el) {
+      var code = el.dataset.code, d = S.ui.dateAjout || S.ui.jour || aujourdhui(), p = ctx().prat[code];
+      if (!p) return;
+      var deja = S.plan.filter(function (a) { return a.date === d && a.code === code; })[0];
+      if (deja) {
+        toast(esc(p.nom) + ' est déjà dans la tournée du ' + dateCourte(d) + '.');
+        return;
+      }
+      var fAvant = S.ui.feuille && JSON.parse(JSON.stringify(S.ui.feuille));
+      var retourAjout = function () { S.ui.feuille = fAvant || { type: 'ajouterTout', titre: 'Tout le répertoire, ' + dateCourte(d), pleine: true, q: '' }; rendre(); };
+      confirmerPuis('Ajouter à la tournée', 'Ajouter <b>' + esc(p.nom) + '</b> à la tournée du ' + dateFr(d) + ' ?', 'Ajouter', function () {
+        var jIdx = jourSemaineIndex(d);
+        var crJour = (ctx().parCode[code] || []).filter(function (x) { return x.jourIdx === jIdx; });
+        var ok = false;
+        if (crJour.length) {
+          ok = ajouterArret(crJour[0], d);
+        } else {
+          ok = forcerArretJour(code, d);
+          if (ok) {
+            sauver();
+            publierPlan();
+            var cib = cibleParCollegues(code, d);
+            toast('Ajouté au ' + dateCourte(d) + (cib.length ? ', attention : aussi prévu par ' + cib[0].delegue : '') + '.');
+          }
+        }
+        if (ok) {
+          S.ui.feuille = null;
+          S.ui.tab = 'jour';
+          S.ui.jour = d;
+          S.ui.jourVue = null;
+          window.scrollTo(0, 0);
+          rendre();
+        }
+      }, retourAjout);
     },
     exportPortee: function (el) { S.ui.feuille.portee = el.dataset.v; rendre(); },
     envoyerWhatsapp: function () {
@@ -11249,6 +11413,9 @@
     }
     if (f === 'rechCommunes' && S.ui.feuille) {
       S.ui.feuille.q = el.value; var zc = document.getElementById('resCommunes'); if (zc) zc.innerHTML = resultatsCommunes(el.value);
+    }
+    if (f === 'rechTout' && S.ui.feuille) {
+      S.ui.feuille.q = el.value; var zt = document.getElementById('resTout'); if (zt) zt.innerHTML = resultatsTout(el.value);
     }
     if (f === 'rechAutourLibre') {
       S.ui.rechAutourLibre = el.value; var za = document.getElementById('resAutourLibre'), zl = document.getElementById('autourListe');

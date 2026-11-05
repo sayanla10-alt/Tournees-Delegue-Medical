@@ -1,7 +1,7 @@
 {
-  "version": "3.27.41",
+  "version": "3.27.42",
   "date": "2026-11-05",
   "notes": [
-    "Synchronisation temps réel : prise en compte immédiate des ajouts de médecins et des modifications de plannings par les collègues au rafraîchissement"
+    "Journée (+ Médecin / + Pharmacie) : 4e option « Tout le répertoire » pour afficher tous les médecins ou pharmacies de la base sans filtre ni restriction"
   ]
 }
