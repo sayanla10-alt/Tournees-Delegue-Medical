@@ -1,7 +1,7 @@
 {
-  "version": "3.27.36",
+  "version": "3.27.37",
   "date": "2026-11-05",
   "notes": [
-    "Répertoire (Hôpitaux) : pastille GPS en 1ère position, étiquette unifiée « X/Y médecins présents aujourd’hui », badge « Aujourd’hui » très visible sur les praticiens"
+    "Répertoire (Médecins) : statut de visite remplacé par la présence temps réel (« Présent » en vert si en consultation à l’instant T, « Absent » en rouge sinon)"
   ]
 }

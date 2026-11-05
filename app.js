@@ -9,11 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.36';
+  var APP_VERSION = '3.27.37';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.27.36', ['Répertoire (Hôpitaux) : pastille GPS en 1ère position, étiquette « X/Y médecins présents aujourd’hui », badge « Aujourd’hui » bien visible pour chaque médecin disponible']],
+    ['3.27.37', ['Répertoire (Médecins) : statut de visite remplacé par la présence temps réel (« Présent » en vert si en consultation à l’instant T, « Absent » en rouge sinon)']],
     ['3.27.33', ['Sélecteur de quartiers : Communes classées de A à Z par ordre alphabétique strict, villes de l’intérieur en dernier', 'Cocody, Yopougon, Abobo : Découpage hiérarchique clair par sous-secteur avec quartiers classés de A à Z', 'Synchronisation BDD : Prise en compte immédiate des modifications de la feuille Quartiers de la base de données']],
     ['3.27.32', ['Répertoire : nombres sans parenthèses, Recherche / Ajouter / Modifier à la hauteur de « Réinitialiser les filtres », spécialité en gras (Médecins et Hôpitaux)']],
     ['3.27.31', ['Répertoire : sélecteur Médecins / Pharmacies / Hôpitaux sur une seule ligne, nombre entre parenthèses']],
@@ -5984,6 +5984,23 @@
     if (l.length > S.ui.limite) h += '<div class="rangee"><button class="bouton bouton-large" type="button" data-a="plus">Afficher plus</button></div>';
     return h;
   }
+  // 3.27.37 : Disponibilité en temps réel à l'instant T pour un médecin (Présent vert / Absent rouge)
+  function badgePresenceMedecin(code, p) {
+    var t = aujourdhui(), jA = jourSemaineIndex(t);
+    if (jA <= 4 && !estFerie(t) && !absentLe(p, t)) {
+      var now = minutesMaintenant();
+      var crs = (ctx().parCode[code] || []);
+      for (var i = 0; i < crs.length; i++) {
+        var cr = crs[i];
+        if (cr.jourIdx === jA && now >= cr.debut && now <= cr.fin) {
+          var lieuTxt = cr.lieu ? ' (' + abregerHopital(cr.lieu) + ')' : '';
+          return '<span class="etiquette ok" title="Présent actuellement en consultation' + esc(lieuTxt) + '">Présent</span>';
+        }
+      }
+    }
+    return '<span class="etiquette ko" title="Actuellement hors créneau de consultation">Absent</span>';
+  }
+
   VUES.praticiens = function () {
     var f = S.ui.filtres, t = aujourdhui(), c = ctx();
     var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
@@ -6040,7 +6057,7 @@
         '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
           (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
             return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
-        (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(p.statut) + '</span>' : '') +
+        (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
         (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
         etiquetteCollegues(p.code, t) + '</span></button>';
       if (ouvert) {
