@@ -1,4 +1,4 @@
-﻿/* Lecture.gs : données lues par l'application (base complète, listes, pharmacies, équipe, statuts). (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
+/* Lecture.gs : données lues par l'application (base complète, listes, pharmacies, équipe, statuts). (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
 // ---------------------------------------------------------------- Lecture
 // sig : empreinte des données de référence déjà présentes sur le téléphone ; si rien n'a changé,
 // seules les nouveautés (visites depuis hdepuis, tournées) sont renvoyées : moins de données mobiles.
@@ -236,7 +236,7 @@ function versIso(v, tz) {
 // REV change à chaque écriture (application ou saisie dans le classeur) et au plus tard toutes les heures.
 // Même REV que le téléphone : réponse « inchangé » sans lire le classeur (environ 1 s au lieu de 10 à 16 s).
 // REV différente : la base complète est servie depuis le cache (calculée une seule fois par révision).
-var REV_DUREE_MAX = 60 * 60 * 1000, CACHE_MORCEAU = 45000;   // 100 Ko maximum par valeur (accents sur 2 octets)
+var REV_DUREE_MAX = 2 * 60 * 1000, CACHE_MORCEAU = 45000;   // 100 Ko maximum par valeur (accents sur 2 octets)
 function marquerModif() { PropertiesService.getScriptProperties().setProperty('REV', Date.now() + '-' + Math.floor(Math.random() * 1e6)); }
 function revDonnees() {
   var pr = PropertiesService.getScriptProperties(), r = pr.getProperty('REV');
@@ -260,7 +260,8 @@ function ecrireCacheGros(cache, cle, txt) {
 function lireToutRapide(rev) {
   var cur = revDonnees();
   if (rev && rev === cur) {
-    return JSON.stringify({ ok: true, rev: cur, inchangeTout: true, version: VERSION_DONNEES, serveur: new Date().toISOString(),
+    var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
+    return JSON.stringify({ ok: true, rev: cur, inchange: true, plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), version: VERSION_DONNEES, serveur: new Date().toISOString(),
       sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' });
   }
   var cache = CacheService.getScriptCache(), cle = 'D' + cur, txt = lireCacheGros(cache, cle);

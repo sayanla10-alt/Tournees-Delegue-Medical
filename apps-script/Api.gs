@@ -54,7 +54,7 @@ function doGet(e) {
     if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR,
       sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' });
     // 3.27.25 : avec « rev », réponse immédiate si rien n'a changé, sinon base complète servie depuis le cache
-    if (p.action === 'data' && p.rev !== undefined) return jsonTexte(lireToutRapide(p.rev || ''));
+    if (p.action === 'data' && p.force !== '1' && p.rev !== undefined && p.rev !== '') return jsonTexte(lireToutRapide(p.rev));
     if (p.action === 'data') return json(lireTout(p.sig || '', p.hdepuis || ''));
     if (p.action === 'equipe') return json(lireEquipe());
     return json({ ok: false, erreur: 'Action inconnue.' });

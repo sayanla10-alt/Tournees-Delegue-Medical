@@ -1,7 +1,7 @@
 {
-  "version": "3.27.40",
+  "version": "3.27.41",
   "date": "2026-11-05",
   "notes": [
-    "Répertoire (Hôpitaux) : fiabilisation de la capture GPS (synchronisation temps réel avec la base, sauvegarde garantie des coordonnées des établissements et affichage immédiat « Sur place »)"
+    "Synchronisation temps réel : prise en compte immédiate des ajouts de médecins et des modifications de plannings par les collègues au rafraîchissement"
   ]
 }

@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.40';
+  var APP_VERSION = '3.27.41';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.41', ['Synchronisation temps réel : prise en compte immédiate des ajouts de médecins et des modifications de plannings par les collègues au rafraîchissement']],
     ['3.27.40', ['Répertoire (Hôpitaux) : fiabilisation de la capture GPS (synchronisation temps réel avec la base, sauvegarde garantie des coordonnées des établissements et affichage immédiat « Sur place »)']],
     ['3.27.39', ['Répertoire (Hôpitaux) : la capture GPS actualise instantanément la position du délégué (« Sur place » immédiat et recalcul des distances de tous les établissements)']],
     ['3.27.38', ['Autour de moi / Journée : récupération automatique de la position GPS et déduction du quartier par défaut', 'Changement dynamique : sélection d’un quartier recalculant immédiatement les praticiens selon ce paramètre']],
@@ -2182,16 +2183,10 @@
       // 3.26.81 : données reçues d'un ancien serveur (sans contrôle des doublons ni filtre des produits inactifs) : rechargement complet
       var ref = S.data && S.data.sig && S.data.praticiens && S.data.serveurRecent ? '&sig=' + encodeURIComponent(S.data.sig) : '';
       var hd = S.data && S.data.historique && S.data.historique.length ? S.data.historique.reduce(function (m, v) { return v.horodatage > m ? v.horodatage : m; }, '') : '';
-      // 3.27.25 : révision de la base : réponse immédiate si rien n'a changé (sinon base complète depuis le cache du serveur)
-      var rev = '&rev=' + encodeURIComponent((S.data && S.data.praticiens && S.data.rev) || '');
-      return apiGet('data' + ref + (hd ? '&hdepuis=' + encodeURIComponent(hd) : '') + rev);
+      // 3.27.41 : interrogation directe avec empreinte sig pour garantir la fraîcheur temps réel des médecins et plannings
+
+      return apiGet('data' + ref + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
     }).then(function (d) {
-      if (d.inchangeTout && S.data && S.data.praticiens) {
-        S.data.syncedAt = new Date().toISOString(); S.data.rev = d.rev; if (d.sauvegarde) S.data.sauvegarde = d.sauvegarde;
-        aChange = false; S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
-        if (!silencieux) toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
-        return;
-      }
       var ancien = S.data || {};
       var hist = d.historique || [];
       if (d.partiel) {
@@ -2212,9 +2207,10 @@
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
-      LS.set('data', S.data);
+      LS.set('data', S.data); ctxCache.data = null;
       var nVis = 0; try { nVis = actualiserVisitesPlanifiees() || 0; } catch (eA) { console.warn(eA); }
-      aChange = !d.inchange || nVis > 0 || hist.length !== (ancien.historique || []).length || JSON.stringify(d.plannings || []) !== JSON.stringify(ancien.plannings || []);
+      var planChange = false; try { planChange = actualiserPlanDepuisServeur(); } catch (eP) { console.warn(eP); }
+      aChange = !d.inchange || nVis > 0 || planChange || hist.length !== (ancien.historique || []).length || JSON.stringify(d.plannings || []) !== JSON.stringify(ancien.plannings || []);
       if (!d.inchange && d.doublons === undefined) basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
@@ -2229,7 +2225,7 @@
     }).then(function () {
       S.ui.enCours = false;
       importerAgenda();
-      if (!sansGps || (aChange && !S.ui.feuille)) rendreSiPossible(); else afficherEntete();
+      if (!sansGps || aChange || !S.ui.feuille) rendreSiPossible(); else afficherEntete();
       if (!sansGps) localiser(true, 'sync', true);
       if (S.ui.aPublier && !tentePub && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
     });
@@ -2299,7 +2295,7 @@
       S.data.plannings = (S.data.plannings || []).filter(function (p) { return p.date < depuis; }).concat(r.plannings || []);
       // listes de la base (produits retirés ou ajoutés, activités, statuts, délégués) prises en compte sans attendre la synchronisation complète
       if (r.listes) ['produits', 'activites', 'activitesPharmacie', 'delegues', 'statuts'].forEach(function (k) { if (r.listes[k] && r.listes[k].length) S.data[k] = r.listes[k]; });
-      LS.set('data', S.data);
+      LS.set('data', S.data); ctxCache.data = null;
       return true;
     }).catch(function () { return false; });
   }
@@ -2931,6 +2927,46 @@
     trierPlan(); sauver();
     return n;
   }
+  // 3.27.41 : mise à jour dynamique du planning depuis la feuille Plannings du serveur
+  // pour les jours futurs sans visites validées, si l'utilisateur n'a pas de saisie locale non publiée
+  function actualiserPlanDepuisServeur() {
+    if (!pret() || !moi() || S.ui.aPublier) return false;
+    var t = aujourdhui(), change = false;
+    var srvPlannings = (S.data && S.data.plannings) || [];
+    var srvParDate = {};
+    srvPlannings.forEach(function (p) {
+      if (p.delegue && estMoi(p.delegue) && p.date >= t) {
+        (srvParDate[p.date] = srvParDate[p.date] || []).push(p);
+      }
+    });
+    var datesTraitees = ensemble(Object.keys(srvParDate).concat(datesPlan().filter(function (d) { return d >= t; })));
+    Object.keys(datesTraitees).forEach(function (d) {
+      if (jourSemaineIndex(d) > 4) return;
+      var visitesJour = S.plan.filter(function (a) { return a.date === d; });
+      var aValide = visitesJour.some(function (a) { return a.statut || a.etat === 'valide'; });
+      if (aValide) return;
+      var srvVisites = srvParDate[d] || [];
+      var codesActuels = visitesJour.map(function (a) { return a.code; }).join(',');
+      var codesServeur = srvVisites.map(function (p) { return p.code; }).join(',');
+      if (codesActuels !== codesServeur) {
+        S.plan = S.plan.filter(function (a) { return a.date !== d; });
+        if (srvVisites.length) {
+          var src = donneesJour(d, true);
+          var confirme = srvVisites.some(function (x) { return x.prog ? x.prog === 'valide' : x.programme === 'Validé'; });
+          S.plan = S.plan.concat(src);
+          S.jours[d] = { etat: confirme ? 'valide' : 'proposition', valideLe: '', modifieLe: '' };
+        } else {
+          delete S.jours[d];
+        }
+        change = true;
+      }
+    });
+    if (change) {
+      trierPlan();
+      sauver();
+    }
+    return change;
+  }
   function choisirJour(dates) {
     if (!S.ui.jour || dates.indexOf(S.ui.jour) < 0) {
       var t = aujourdhui();
@@ -2989,11 +3025,13 @@
         }).join('') + '</div>' +
         '<button type="button" class="bj-cal" data-a="calOuvrir" aria-label="Choisir une date">' + icone('calendrier') + '</button></div>';
   }
-  // programme d'un jour hors tournée en cours : archive du téléphone, sinon tournée publiée (feuille Plannings)
+  // 3.27.41 : programme d'un jour hors tournée en cours : feuille Plannings du serveur en priorité, sinon archive locale
   function programmeDuJour(d) {
+    var srv = ((S.data && S.data.plannings) || []).filter(function (x) { return x.date === d && x.delegue && estMoi(x.delegue); });
+    if (srv && srv.length) return srv;
     var arch = LS.get('archives', {});
     if (arch[d] && arch[d].length) return arch[d];
-    return ((S.data && S.data.plannings) || []).filter(function (x) { return x.date === d && x.delegue && estMoi(x.delegue); });
+    return [];
   }
   // visite prévue un jour hors de la tournée en cours (passé ou aujourd'hui) : carte avec compte rendu, gardée à part
   S.horsPlan = LS.get('horsPlan', []).filter(function (a) { return a.date >= ajouterJours(aujourdhui(), -70); });
