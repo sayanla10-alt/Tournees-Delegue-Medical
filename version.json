@@ -1,7 +1,7 @@
 {
-  "version": "3.27.35",
+  "version": "3.27.36",
   "date": "2026-11-05",
   "notes": [
-    "Répertoire (Hôpitaux) : pastille GPS simplifiée (« GPS ») alignée avec les étiquettes (médecins, visites du mois...)"
+    "Répertoire (Hôpitaux) : pastille GPS en 1ère position, étiquette unifiée « X/Y médecins présents aujourd’hui », badge « Aujourd’hui » très visible sur les praticiens"
   ]
 }

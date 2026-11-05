@@ -9,11 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.35';
+  var APP_VERSION = '3.27.36';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.27.35', ['Répertoire (Hôpitaux) : pastille GPS simplifiée (« GPS ») alignée avec les étiquettes (médecins, visites du mois...)']],
+    ['3.27.36', ['Répertoire (Hôpitaux) : pastille GPS en 1ère position, étiquette « X/Y médecins présents aujourd’hui », badge « Aujourd’hui » bien visible pour chaque médecin disponible']],
     ['3.27.33', ['Sélecteur de quartiers : Communes classées de A à Z par ordre alphabétique strict, villes de l’intérieur en dernier', 'Cocody, Yopougon, Abobo : Découpage hiérarchique clair par sous-secteur avec quartiers classés de A à Z', 'Synchronisation BDD : Prise en compte immédiate des modifications de la feuille Quartiers de la base de données']],
     ['3.27.32', ['Répertoire : nombres sans parenthèses, Recherche / Ajouter / Modifier à la hauteur de « Réinitialiser les filtres », spécialité en gras (Médecins et Hôpitaux)']],
     ['3.27.31', ['Répertoire : sélecteur Médecins / Pharmacies / Hôpitaux sur une seule ligne, nombre entre parenthèses']],
@@ -5955,12 +5955,15 @@
 
 
       var badgeGps = '<span class="etiquette etiquette-gps etiquette-gps-cliquable ' + clGps + '" data-a="capterGpsHopital" data-v="' + esc(e.cle) + '" role="button" tabindex="0" title="' + (aGpsHop ? 'GPS enregistré : toucher pour actualiser' : 'Pas de GPS : toucher pour enregistrer la position') + '" aria-label="' + (aGpsHop ? 'GPS enregistré pour ' : 'Enregistrer le GPS de ') + esc(e.nom) + '">' + icone('carte') + 'GPS</span>';
+      var nTot = e.pres.length;
+      var txtPres = ici + '/' + nTot + ' médecin' + (nTot > 1 ? 's' : '') + ' présent' + (ici > 1 ? 's' : '') + ' aujourd\'hui';
+      var clPres = ici > 0 ? 'etiquette p1' : 'etiquette';
       h += '<li class="element element-hopital"><div class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '" role="button" tabindex="0">' +
         '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + '</span>' +
         '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d) : '') + '</span>' +
-        '<span class="etiquettes"><span class="etiquette">' + e.pres.length + ' médecin' + (e.pres.length > 1 ? 's' : '') + '</span>' + badgeGps +
+        '<span class="etiquettes">' + badgeGps + '<span class="' + clPres + '">' + txtPres + '</span>' +
           (vus ? '<span class="etiquette ok">' + vus + ' vu' + (vus > 1 ? 's' : '') + ' ce mois</span>' : '') +
-          (ici ? '<span class="etiquette p1">' + ici + ' présent' + (ici > 1 ? 's' : '') + ' aujourd\'hui</span>' : '') + '</span></div>';
+          '</span></div>';
       if (ouvert) {
         if (e.reperes) h += '<p class="discret" style="margin:6px 0 0">' + esc(e.reperes) + '</p>';
         h += actionsRapides({ telephone: e.telephone, lat: isFinite(e.lat) ? e.lat : null, lon: isFinite(e.lon) ? e.lon : null, lieu: e.nom, quartier: e.quartier, commune: e.commune });
@@ -5970,8 +5973,8 @@
           var p = c.prat[x.code];
           var jours = JOURS_CLES.map(function (j, i) { var v = lireDispo(x[j]); return v.matin || v.soir ? JOURS[i].slice(0, 3) + ' ' + (v.matin && v.soir ? 'M+S' : (v.matin ? 'M' : 'S')) : ''; }).filter(Boolean).join(' · ');
           var auj = ordre(x) === 0;
-          return '<li><button type="button" class="hop-med" data-a="hopVoirMedecin" data-v="' + esc(p.code) + '"><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) +
-            '<small>' + (p.specialite ? '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>' + (jours ? ' · ' : '') : '') + esc(jours) + (auj ? ' · <em>aujourd\'hui</em>' : '') + '</small></button>' +
+          return '<li><button type="button" class="hop-med" data-a="hopVoirMedecin" data-v="' + esc(p.code) + '"><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + (auj ? ' <span class="etiquette p1" style="font-size:11px;padding:1px 6px;margin-left:4px;vertical-align:middle">Aujourd\'hui</span>' : '') +
+            '<small>' + (p.specialite ? '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>' + (jours ? ' · ' : '') : '') + esc(jours) + '</small></button>' +
             '<button type="button" class="bouton petit" data-a="planifierProchaines" data-v="' + esc(p.code) + '">Planifier</button></li>';
         }).join('') + '</ul>';
       }
