@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.33';
+  var APP_VERSION = '3.27.34';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.34', ['Répertoire (Hôpitaux) : pastille GPS interactive (GPS 1/1, 2/2...) sur le nom de chaque établissement pour capter et enregistrer sa position précise en direct']],
     ['3.27.33', ['Sélecteur de quartiers : Communes classées de A à Z par ordre alphabétique strict, villes de l’intérieur en dernier', 'Cocody, Yopougon, Abobo : Découpage hiérarchique clair par sous-secteur avec quartiers classés de A à Z', 'Synchronisation BDD : Prise en compte immédiate des modifications de la feuille Quartiers de la base de données']],
     ['3.27.32', ['Répertoire : nombres sans parenthèses, Recherche / Ajouter / Modifier à la hauteur de « Réinitialiser les filtres », spécialité en gras (Médecins et Hôpitaux)']],
     ['3.27.31', ['Répertoire : sélecteur Médecins / Pharmacies / Hôpitaux sur une seule ligne, nombre entre parenthèses']],
@@ -5949,12 +5950,17 @@
       var ouvert = S.ui.hopOuvert === e.cle;
       var vus = e.pres.filter(function (x) { var p = c.prat[x.code]; return p && p.derniere && p.derniere >= debutMois; }).length;
       var ici = e.pres.filter(function (x) { return jA <= 4 && (x[JOURS_CLES[jA]] || ''); }).length;
-      h += '<li class="element element-hopital"><button type="button" class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '">' +
-        '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + '</span>' +
+      var nTot = e.pres.length || 1;
+      var aGpsHop = isFinite(e.lat) && isFinite(e.lon) && e.lat !== 0;
+      var nG = aGpsHop ? nTot : e.pres.filter(aCoord).length;
+      var clGps = nG === nTot && nTot > 0 ? 'gps-ok' : (nG > 0 ? 'gps-partiel' : 'gps-non');
+      var badgeGps = '<span class="etiquette etiquette-gps etiquette-gps-cliquable ' + clGps + '" data-a="capterGpsHopital" data-v="' + esc(e.cle) + '" role="button" tabindex="0" title="Capter la position GPS de cet établissement" aria-label="Capter la position GPS de ' + esc(e.nom) + '">' + icone('carte') + 'GPS ' + nG + '/' + nTot + '</span>';
+      h += '<li class="element element-hopital"><div class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '" role="button" tabindex="0">' +
+        '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + badgeGps + '</span>' +
         '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d) : '') + '</span>' +
         '<span class="etiquettes"><span class="etiquette">' + e.pres.length + ' médecin' + (e.pres.length > 1 ? 's' : '') + '</span>' +
           (vus ? '<span class="etiquette ok">' + vus + ' vu' + (vus > 1 ? 's' : '') + ' ce mois</span>' : '') +
-          (ici ? '<span class="etiquette p1">' + ici + ' présent' + (ici > 1 ? 's' : '') + ' aujourd\'hui</span>' : '') + '</span></button>';
+          (ici ? '<span class="etiquette p1">' + ici + ' présent' + (ici > 1 ? 's' : '') + ' aujourd\'hui</span>' : '') + '</span></div>';
       if (ouvert) {
         if (e.reperes) h += '<p class="discret" style="margin:6px 0 0">' + esc(e.reperes) + '</p>';
         h += actionsRapides({ telephone: e.telephone, lat: isFinite(e.lat) ? e.lat : null, lon: isFinite(e.lon) ? e.lon : null, lieu: e.nom, quartier: e.quartier, commune: e.commune });
@@ -9248,6 +9254,105 @@
     }, function () { toast('Position indisponible. Autorisez la localisation.'); });
   }
 
+  // 3.27.34 : Actualisation GPS directe pour un établissement / hôpital depuis le Répertoire
+  function majGpsPourHopital(e) {
+    if (!navigator.geolocation) { toast('Localisation indisponible.'); return; }
+    toast('Recherche de votre position précise…');
+    mesurePrecise(function (p) {
+      var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) };
+      var qDecl = e.quartier ? quartiers().filter(function (q) { return q.quartier === e.quartier; })[0] : null;
+      var refGeo = (isFinite(e.lat) && isFinite(e.lon) && e.lat !== 0)
+        ? { lat: e.lat, lon: e.lon }
+        : (qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : null);
+      var distKm = refGeo ? distanceVol(pCapt, refGeo) : 0;
+      var nomEtab = e.nom;
+
+      function sauverHopital() {
+        e.lat = pCapt.lat;
+        e.lon = pCapt.lon;
+        var r = Moteur.quartierLePlusProche(pCapt.lat, pCapt.lon, quartiers());
+        if (r && r.quartier) {
+          if (!e.quartier || /^NL$/i.test(e.quartier)) e.quartier = r.quartier.quartier;
+          if (!e.commune || /^NL$/i.test(e.commune)) e.commune = r.quartier.commune;
+        }
+
+        // 1. Mettre à jour dans S.data.etablissements
+        S.data = S.data || {};
+        S.data.etablissements = S.data.etablissements || [];
+        var etabTrouve = S.data.etablissements.filter(function (x) { return normaliser(x.nom) === normaliser(nomEtab); })[0];
+        if (etabTrouve) {
+          etabTrouve.lat = pCapt.lat;
+          etabTrouve.lon = pCapt.lon;
+          if (e.quartier) etabTrouve.quartier = e.quartier;
+          if (e.commune) etabTrouve.commune = e.commune;
+        } else {
+          S.data.etablissements.push({
+            code: e.code || ('ETAB-' + ('00' + (S.data.etablissements.length + 1)).slice(-3)),
+            nom: nomEtab,
+            commune: e.commune || '',
+            quartier: e.quartier || '',
+            lat: pCapt.lat,
+            lon: pCapt.lon,
+            telephone: e.telephone || '',
+            reperes: e.reperes || ''
+          });
+        }
+
+        // 2. Répercuter sur toutes les présences de cet établissement
+        ((S.data && S.data.presences) || []).forEach(function (x) {
+          if (normaliser(x.lieu || '') === normaliser(nomEtab)) {
+            x.lat = pCapt.lat;
+            x.lon = pCapt.lon;
+            if (e.quartier) x.quartier = e.quartier;
+            if (e.commune) x.commune = e.commune;
+          }
+        });
+
+        // 3. Répercuter sur l'objet en mémoire
+        (e.pres || []).forEach(function (x) {
+          x.lat = pCapt.lat;
+          x.lon = pCapt.lon;
+          if (e.quartier) x.quartier = e.quartier;
+          if (e.commune) x.commune = e.commune;
+        });
+
+        // 4. Enregistrer dans le cache local et re-rendre
+        LS.set('data', S.data);
+        rendre();
+
+        // 5. Envoyer au serveur (action: 'etablissement')
+        var payload = {
+          nom: nomEtab,
+          quartier: e.quartier || '',
+          commune: e.commune || '',
+          lat: pCapt.lat,
+          lon: pCapt.lon,
+          originegps: 'Repertoire Hopital (±' + p.prec + 'm)'
+        };
+        if (e.code) payload.code = e.code;
+        apiPost('etablissement', payload);
+
+        toast('GPS fixé pour ' + nomEtab + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
+        if (!S.config.demo && connecte()) synchroniser(true);
+      }
+
+      if (refGeo && distKm > 3) {
+        var distArr = Math.round(distKm);
+        confirmerPuis('Écart de position important',
+          '<div style="color:var(--primaire,#0A6C74);font-weight:700;margin-bottom:8px">Attention : vous êtes à ' + distArr + ' km de ' + esc(nomEtab) + ' !</div>' +
+          '<p style="margin:0 0 8px">Ce bouton sert uniquement lorsque vous êtes <b>physiquement devant cet établissement</b>.</p>' +
+          '<p style="margin:0">Voulez-vous vraiment fixer cette position pour <b>' + esc(nomEtab) + '</b> ?</p>',
+          'Fixer la position',
+          sauverHopital,
+          function () { toast('Position inchangée.'); }
+        );
+        return;
+      }
+
+      sauverHopital();
+    }, function () { toast('Position indisponible. Autorisez la localisation.'); });
+  }
+
   var ACTIONS = {
     nav: function (el) {
       if (S.ui.feuille && el && el.closest && el.closest('.entete')) S.ui.feuille = null;   // 3.26.93 : la roue crantée referme la fenêtre ouverte
@@ -9899,6 +10004,13 @@
     hopital: function (el) {
       var k = el.dataset.v, ouvrant = S.ui.hopOuvert !== k; S.ui.hopOuvert = ouvrant ? k : null; rendre();
       if (ouvrant) { var b = document.querySelector('[data-a="hopital"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]'); if (b && b.scrollIntoView) b.closest('li').scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+    },
+    capterGpsHopital: function (el, ev) {
+      if (ev && ev.stopPropagation) ev.stopPropagation();
+      var k = el.dataset.v;
+      var h = hopitauxRepertoire().filter(function (x) { return x.cle === k; })[0];
+      if (!h) { toast('Établissement introuvable.'); return; }
+      majGpsPourHopital(h);
     },
     hopVoirMedecin: function (el) {
       var code = el.dataset.v, f = filtresCour();
