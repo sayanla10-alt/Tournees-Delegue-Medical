@@ -1,10 +1,9 @@
 {
-  "version": "3.28.3",
+  "version": "3.28.4",
   "date": "2026-11-06",
   "notes": [
-    "Connexion directe Supabase ultra-rapide (10 tables synchronisees en parallele)",
-    "Double ecriture temps reel permanente (Google Sheets + Supabase)",
-    "Selecteur de base principale dans Reglages avec repli transparent",
-    "Integration complete des produits, quartiers et listes de reference"
+    "Purification intégrale UTF-8 de la base Supabase : correction des 793 spécialités Généraliste et statuts À faire",
+    "Nettoyage définitif de tous les caractères bizarres et mojibake dans les scripts et l'interface",
+    "Double écriture fluide et chargement instantané sans altération des accents"
   ]
 }

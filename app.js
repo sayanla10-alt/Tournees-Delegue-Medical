@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.3';
+  var APP_VERSION = '3.28.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -11369,11 +11369,11 @@
       S.config.bddSource = source;
       LS.set('config', S.config);
       rendre();
-      toast('Base principale : ' + (source === 'supabase' ? 'Supabase (Rapide)' : 'Google Sheets') + '. Synchronisation\u2026' + (source === 'supabase' ? 'Supabase (Rapide)' : 'Google Sheets') + '. Synchronisationâ€¦');
+      toast('Base principale : ' + (source === 'supabase' ? 'Supabase (Rapide)' : 'Google Sheets') + '. Synchronisation…');
       synchroniser(false);
     },
     testerSupabase: function () {
-      toast('Test de la connexion Supabase\u2026');
+      toast('Test de la connexion Supabase…');
       if (typeof supabasePing_ !== 'function') {
         toast('Connecteur Supabase non disponible.');
         return;
@@ -11381,7 +11381,7 @@
       var t0 = Date.now();
       supabasePing_().then(function () {
         var ms = Date.now() - t0;
-        toast('Supabase connect\u00e9 avec succ\u00e8s (' + ms + ' ms).' + ms + ' ms).');
+        toast('Supabase connecté avec succès (' + ms + ' ms).');
       }).catch(function (err) {
         toast('Erreur connexion Supabase : ' + err.message, 5000);
       });

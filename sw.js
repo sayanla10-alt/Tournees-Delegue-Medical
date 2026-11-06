@@ -4,15 +4,15 @@
    - Les fichiers de l'application sont servis depuis un cache propre a chaque version
      (jamais melanges entre deux versions).
    - Une nouvelle version s'installe en arriere-plan puis ATTEND : l'application affiche
-     un bandeau Â« Mise a jour disponible Â» et l'utilisateur choisit le moment
+     un bandeau « Mise à jour disponible » et l'utilisateur choisit le moment
      (message SKIP_WAITING). Les donnees locales ne sont jamais touchees.
-   - Exception : un telephone encore sur l'ancienne application Â« Tournees Â» (caches
+   - Exception : un telephone encore sur l'ancienne application « Tournées » (caches
      tournees-v*) n'a pas ce bandeau ; il bascule automatiquement sur cette version.
    - Les appels au Google Sheet (script.google.com) et version.json ne sont jamais mis en cache.
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.28.3';
+var VERSION = '3.28.4';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
