@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.44';
+  var APP_VERSION = '3.27.45';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.45', ['Journée (+ Médecin / + Pharmacie) : remplacement du conteneur déformé de « Près de moi » par le format compact et aligné à droite du bouton Itinéraire (sans étirement), rétablissement de l’icône cible']],
     ['3.27.44', [
       'Répertoire : affichage et tri par défaut par ordre alphabétique strict de A à Z (Médecins, Pharmacies et Hôpitaux)',
       'CR visite (Médecin) : ordre des produits rigoureusement conforme à la BDD (Zyltan 50, AM, H, Losartan AM ; Lesstrol 10, 20, AM, EZ ; Tensicard 50, AM ; puis Eurythmic)',
@@ -7522,8 +7523,8 @@
   // 3.25.2 : champ de recherche en tête, pour chercher parmi les praticiens déjà filtrés (communes du jour, critères)
   FEUILLES.ajouterCommunes = function (f) {
     var d = S.ui.dateAjout || S.ui.jour, com = Object.keys(ensemble(communesAjout(d))), q = (f && f.q) || '';
-    return '<div class="rangee" style="justify-content:space-between;align-items:center;margin-bottom:6px"><span class="discret">Présents le ' + esc(dateCourte(d)) + (com.length ? ' · ' + esc(libelleCommunes(com)) : '') + '</span>' +
-      '<button type="button" class="bouton petit" data-a="ajouterTourneeChoix" data-v="position">' + icone('cible') + 'Près de moi</button></div>' +
+    return '<div class="sj-ligne" style="margin-bottom:8px"><span class="discret" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Présents le ' + esc(dateCourte(d)) + (com.length ? ' · ' + esc(libelleCommunes(com)) : '') + '</span>' +
+      '<button type="button" class="bouton petit" data-a="ajouterTourneeChoix" data-v="position" style="flex:none;white-space:nowrap">' + icone('cible') + 'Près de moi</button></div>' +
       champRechercheLibre('rechCommunes', q) + '<div id="resCommunes">' + resultatsCommunes(q) + '</div>';
   };
   function resultatsCommunes(q) {
@@ -7577,8 +7578,8 @@
     var d = S.ui.dateAjout || S.ui.jour || aujourdhui(), q = (f && f.q) || '';
     var t = S.ui.typeAjout;
     var sousTitre = t === 'Médecin' ? 'Tous les médecins au répertoire' : (t === 'Pharmacie' ? 'Toutes les pharmacies au répertoire' : 'Tout le répertoire');
-    return '<div class="rangee" style="justify-content:space-between;align-items:center;margin-bottom:6px"><span class="discret">' + esc(sousTitre) + ' · ' + esc(dateCourte(d)) + '</span>' +
-      '<button type="button" class="bouton petit" data-a="ajouterTourneeChoix" data-v="position">' + icone('cible') + 'Près de moi</button></div>' +
+    return '<div class="sj-ligne" style="margin-bottom:8px"><span class="discret" style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(sousTitre) + ' · ' + esc(dateCourte(d)) + '</span>' +
+      '<button type="button" class="bouton petit" data-a="ajouterTourneeChoix" data-v="position" style="flex:none;white-space:nowrap">' + icone('cible') + 'Près de moi</button></div>' +
       champRechercheLibre('rechTout', q) + '<div id="resTout">' + resultatsTout(q) + '</div>';
   };
 
@@ -11637,7 +11638,7 @@
       fermer: '<path d="M6 6l12 12M18 6 6 18"/>',
       epingle: '<path d="M9 3h6l-1 6 4 4H6l4-4-1-6Z"/><path d="M12 13v8"/>',
       carte: '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>',
-      cible: '<g transform="translate(24,0) scale(-1,1)"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h6a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7h6"/></g>',
+      cible: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/>',
       loupe: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
       valider: '<path d="M5 12.5 10 17 19 7"/>',
       whatsapp: '<path d="M4 20l1.3-4.2A8 8 0 1 1 8.4 19L4 20Z"/><path d="M9.2 8.6c.2 2.6 2.4 5 5.2 5.4l1.1-1.3-1.8-.9-.8.8c-1-.4-1.9-1.3-2.3-2.3l.8-.8-.9-1.8-1.3.9Z"/>',

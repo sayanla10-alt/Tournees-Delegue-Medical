@@ -1657,6 +1657,7 @@ details.avance h3 { margin-top: 18px; }
 .bj-cal .date-fr { position: absolute; inset: 0; opacity: 0; }
 .synthese-jour { margin: 0 0 12px; }
 .sj-ligne { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14.5px; margin-bottom: 8px; }
+.sj-ligne .bouton { flex: none !important; width: auto !important; white-space: nowrap !important; }
 .progression { height: 8px; border-radius: 4px; background: var(--trait); overflow: hidden; margin-bottom: 4px; }
 .progression i { display: block; height: 100%; background: var(--primaire); border-radius: 4px; transition: width .3s; }
 .maintenant { margin: 0 0 14px; padding: 12px; border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); }
