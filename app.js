@@ -19,7 +19,7 @@
       'Service Worker sécurisé : suppression du skipWaiting automatique pour éliminer tout risque de rupture de session ou de perte de compte rendu en cours',
       'Traçabilité complète (Audit Trail) : création de la feuille Audit_Logs consignant chaque modification avec auteur, horodatage, ancienne et nouvelle valeur, sans suppression sèche',
       'Performance DOM & Infinite Scroll : affichage progressif et défilement infini sans saccade dans le Répertoire (fin du DOM bloat)',
-      'Résilience hors-ligne (Dead-Letter Queue) : isolation unitaire des fiches et visites en file d''attente (fin du blocage en tête de file)',
+      'Résilience hors-ligne (Dead-Letter Queue) : isolation unitaire des fiches et visites en file d\'attente (fin du blocage en tête de file)',
       'Régulation batterie GPS : cache de position 3 min et limitation du GPS haute précision pour préserver la batterie'
     ]],
     ['3.27.46', [
