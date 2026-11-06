@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.45';
+  var APP_VERSION = '3.27.46';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.46', [
+      'Stockage flash IndexedDB : migration intégrale du stockage local hors-ligne vers IndexedDB (zéro saturation de quota, suppression du plafond de 5 Mo et fin des saccades synchrones)',
+      'Synchronisation incrémentale Delta (syncedAt) : transmission ultra-légère des seules modifications réelles, synchro instantanée et résilience maximale en mobilité 3G/4G'
+    ]],
     ['3.27.45', ['Journée (+ Médecin / + Pharmacie) : remplacement du conteneur déformé de « Près de moi » par le format compact et aligné à droite du bouton Itinéraire (sans étirement), rétablissement de l’icône cible']],
     ['3.27.44', [
       'Répertoire : affichage et tri par défaut par ordre alphabétique strict de A à Z (Médecins, Pharmacies et Hôpitaux)',
@@ -741,70 +745,140 @@
     el.textContent = '';
     setTimeout(function () { el.textContent = texte; }, 50);
   }
-  // ------------------------------------------------------------------ Stockage flash résilient (IndexedDB & SQLite)
-  // Remplace le plafond des 5 Mo du localStorage par la mémoire flash illimitée du smartphone (WCAG & architecture offline).
+  // ------------------------------------------------------------------ Stockage flash résilient (IndexedDB)
+  // Remplace définitivement le plafond des 5 Mo du localStorage par la mémoire flash illimitée du smartphone.
+  // Wrapper asynchrone sécurisé façon idb-keyval : lectures et écritures fluides, zéro saccade UI.
   var IDB = {
     nom: 'mediplanner_db',
     version: 1,
+    magasin: 'donnees',
     db: null,
     ouvert: false,
+    _fileAttente: [],
+    _initPromise: null,
     init: function () {
+      if (IDB._initPromise) return IDB._initPromise;
       if (!window.indexedDB) return Promise.resolve(null);
-      return new Promise(function (resolve) {
+      IDB._initPromise = new Promise(function (resolve) {
         try {
           var req = window.indexedDB.open(IDB.nom, IDB.version);
           req.onupgradeneeded = function (e) {
             var db = e.target.result;
-            if (!db.objectStoreNames.contains('donnees')) {
-              db.createObjectStore('donnees', { keyPath: 'cle' });
+            if (!db.objectStoreNames.contains(IDB.magasin)) {
+              db.createObjectStore(IDB.magasin, { keyPath: 'cle' });
             }
           };
           req.onsuccess = function (e) {
             IDB.db = e.target.result;
             IDB.ouvert = true;
             IDB.migrerDepuisLocalStorage();
+            IDB._viderFileAttente();
             resolve(IDB.db);
           };
           req.onerror = function () { resolve(null); };
         } catch (e) { resolve(null); }
       });
+      return IDB._initPromise;
     },
-    set: function (k, val) {
-      if (!IDB.db) return;
+    _viderFileAttente: function () {
+      if (!IDB.db || !IDB._fileAttente.length) return;
+      var file = IDB._fileAttente.slice();
+      IDB._fileAttente = [];
       try {
-        var tx = IDB.db.transaction(['donnees'], 'readwrite');
-        tx.objectStore('donnees').put({ cle: k, val: val, maj: Date.now() });
+        var tx = IDB.db.transaction([IDB.magasin], 'readwrite');
+        var store = tx.objectStore(IDB.magasin);
+        file.forEach(function (item) {
+          store.put({ cle: item.k, val: item.val, maj: Date.now() });
+        });
       } catch (e) {}
     },
+    set: function (k, val) {
+      if (!IDB.db) {
+        IDB._fileAttente.push({ k: k, val: val });
+        IDB.init();
+        return;
+      }
+      try {
+        var tx = IDB.db.transaction([IDB.magasin], 'readwrite');
+        tx.objectStore(IDB.magasin).put({ cle: k, val: val, maj: Date.now() });
+      } catch (e) {
+        IDB._fileAttente.push({ k: k, val: val });
+      }
+    },
     get: function (k) {
-      if (!IDB.db) return Promise.resolve(null);
-      return new Promise(function (resolve) {
-        try {
-          var tx = IDB.db.transaction(['donnees'], 'readonly');
-          var req = tx.objectStore('donnees').get(k);
-          req.onsuccess = function (e) { resolve(e.target.result ? e.target.result.val : null); };
-          req.onerror = function () { resolve(null); };
-        } catch (e) { resolve(null); }
+      return IDB.init().then(function (db) {
+        if (!db) return null;
+        return new Promise(function (resolve) {
+          try {
+            var tx = db.transaction([IDB.magasin], 'readonly');
+            var req = tx.objectStore(IDB.magasin).get(k);
+            req.onsuccess = function (e) { resolve(e.target.result ? e.target.result.val : null); };
+            req.onerror = function () { resolve(null); };
+          } catch (e) { resolve(null); }
+        });
+      });
+    },
+    del: function (k) {
+      if (!IDB.db) return;
+      try {
+        var tx = IDB.db.transaction([IDB.magasin], 'readwrite');
+        tx.objectStore(IDB.magasin).delete(k);
+      } catch (e) {}
+    },
+    chargerTout: function () {
+      return IDB.init().then(function (db) {
+        if (!db) return {};
+        return new Promise(function (resolve) {
+          try {
+            var tx = db.transaction([IDB.magasin], 'readonly');
+            var store = tx.objectStore(IDB.magasin);
+            var res = {};
+            if (store.getAll) {
+              var req = store.getAll();
+              req.onsuccess = function (e) {
+                var liste = e.target.result || [];
+                liste.forEach(function (item) { if (item && item.cle) res[item.cle] = item.val; });
+                resolve(res);
+              };
+              req.onerror = function () { resolve(res); };
+            } else {
+              var cur = store.openCursor();
+              cur.onsuccess = function (e) {
+                var cursor = e.target.result;
+                if (cursor) {
+                  if (cursor.value && cursor.value.cle) res[cursor.value.cle] = cursor.value.val;
+                  cursor.continue();
+                } else resolve(res);
+              };
+              cur.onerror = function () { resolve(res); };
+            }
+          } catch (e) { resolve({}); }
+        });
       });
     },
     vider: function () {
+      IDB._fileAttente = [];
       if (!IDB.db) return;
       try {
-        var tx = IDB.db.transaction(['donnees'], 'readwrite');
-        tx.objectStore('donnees').clear();
+        var tx = IDB.db.transaction([IDB.magasin], 'readwrite');
+        tx.objectStore(IDB.magasin).clear();
       } catch (e) {}
     },
     migrerDepuisLocalStorage: function () {
       try {
-        var clesLourdes = ['data', 'plan', 'hist', 'queue', 'fiches', 'archives', 'horsPlan'];
-        clesLourdes.forEach(function (k) {
-          var brut = localStorage.getItem(PREFIXE + k);
-          if (brut) {
-            try {
-              var val = JSON.parse(brut);
-              IDB.set(k, val);
-              LS._mem[k] = val;
-            } catch (e) {}
+        var cles = Object.keys(localStorage);
+        cles.forEach(function (cleLs) {
+          if (cleLs.indexOf(PREFIXE) === 0) {
+            var k = cleLs.slice(PREFIXE.length);
+            var brut = localStorage.getItem(cleLs);
+            if (brut) {
+              try {
+                var val = JSON.parse(brut);
+                IDB.set(k, val);
+                if (LS._mem[k] === undefined) LS._mem[k] = val;
+                if (!CLES_LEGERES[k]) localStorage.removeItem(cleLs);
+              } catch (eP) {}
+            }
           }
         });
       } catch (e) {}
@@ -812,6 +886,9 @@
   };
 
   var PREFIXE = 'tournees.';
+  var CLES_LEGERES = { config: true, token: true, theme: true, onglet: true };
+  var CLES_LOURDES = { data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true };
+
   var LS = {
     _mem: {},
     get: function (k, d) {
@@ -823,33 +900,32 @@
           LS._mem[k] = obj;
           return obj;
         }
-        return d;
-      } catch (e) {
-        return d;
-      }
+      } catch (e) {}
+      return d;
     },
     set: function (k, v) {
       LS._mem[k] = v;
       IDB.set(k, v);
       if (k === 'plan' && typeof S !== 'undefined' && S && S.horsPlan) {
         IDB.set('horsPlan', S.horsPlan);
-        try { localStorage.setItem(PREFIXE + 'horsPlan', JSON.stringify(S.horsPlan)); } catch (e) {}
       }
-      try {
-        var str = JSON.stringify(v);
-        if (str.length < 500000) {
-          localStorage.setItem(PREFIXE + k, str);
-        } else {
-          // 3.26.85 : trop gros pour localStorage : l'ancienne copie y est effacée, sinon elle revenait à chaque ouverture
-          // (anciens noms d'hôpitaux qui réapparaissent puis « sautent » vers les bons)
-          localStorage.removeItem(PREFIXE + k);
-        }
-      } catch (e) {}
+      if (CLES_LEGERES[k]) {
+        try {
+          var str = JSON.stringify(v);
+          if (str.length < 50000) localStorage.setItem(PREFIXE + k, str);
+        } catch (e) {}
+      } else {
+        try { localStorage.removeItem(PREFIXE + k); } catch (e) {}
+      }
     },
     vider: function () {
       LS._mem = {};
       IDB.vider();
-      try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf(PREFIXE) === 0) localStorage.removeItem(k); }); } catch (e) {}
+      try {
+        Object.keys(localStorage).forEach(function (k) {
+          if (k.indexOf(PREFIXE) === 0) localStorage.removeItem(k);
+        });
+      } catch (e) {}
     }
   };
 
@@ -2165,7 +2241,7 @@
     return n;
   }
   var minuteurReprise;
-  function synchroniser(silencieux, sansGps) {
+  function synchroniser(silencieux, sansGps, force) {
     if (!connecte()) return Promise.resolve();
     if (S.ui.enCours) return Promise.resolve();
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
@@ -2194,13 +2270,14 @@
     }).then(function () {
       // synchro allégée : empreinte des données de référence et date de la dernière visite connue
       // 3.26.81 : données reçues d'un ancien serveur (sans contrôle des doublons ni filtre des produits inactifs) : rechargement complet
-      var ref = S.data && S.data.sig && S.data.praticiens && S.data.serveurRecent ? '&sig=' + encodeURIComponent(S.data.sig) : '';
+      var ref = S.data && S.data.sig && S.data.praticiens && !force ? '&sig=' + encodeURIComponent(S.data.sig) : '';
       var hd = S.data && S.data.historique && S.data.historique.length ? S.data.historique.reduce(function (m, v) { return v.horodatage > m ? v.horodatage : m; }, '') : '';
-      // 3.27.41 : interrogation directe avec empreinte sig pour garantir la fraîcheur temps réel des médecins et plannings
+      var sAt = S.data && S.data.syncedAt && !force ? '&syncedAt=' + encodeURIComponent(S.data.syncedAt) : '';
+      var fParam = force ? '&force=1' : '';
 
-      return apiGet('data' + ref + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
+      return apiGet('data' + ref + sAt + fParam + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
     }).then(function (d) {
-      var ancien = S.data || {};
+      var ancien = S.data || { praticiens: [], presences: [], quartiers: [], statuts: [], delegues: [], feries: [], activites: [], activitesPharmacie: [], produits: [], fiches: [], historique: [], plannings: [], rapports: [] };
       var hist = d.historique || [];
       if (d.partiel) {
         var vus = {}; hist.forEach(function (v) { vus[v.uid] = true; });
@@ -2208,27 +2285,58 @@
         hist.sort(function (a, b) { return String(b.horodatage || b.date) < String(a.horodatage || a.date) ? -1 : 1; });
         hist = hist.slice(0, 1500);
       }
-      var base = d.inchange ? ancien : d;
+      var praticiens = ancien.praticiens || [];
+      var presences = ancien.presences || [];
+
+      // 3.27.46 : Intégration de la synchronisation incrémentale Delta
+      if (d.delta) {
+        var modifsPrat = {};
+        (d.delta.praticiens || []).forEach(function (np) {
+          modifsPrat[np.code] = true;
+          var idx = -1;
+          for (var i = 0; i < praticiens.length; i++) {
+            if (praticiens[i].code === np.code) { idx = i; break; }
+          }
+          if (idx >= 0) praticiens[idx] = np;
+          else praticiens.push(np);
+        });
+        if (d.delta.presences && d.delta.presences.length) {
+          presences = presences.filter(function (pr) { return !modifsPrat[pr.code]; }).concat(d.delta.presences);
+        }
+      } else if (!d.inchange) {
+        praticiens = d.praticiens || [];
+        presences = d.presences || [];
+      }
+
+      var base = d.inchange ? ancien : (d.delta ? ancien : d);
       // nom de délégué fusionné dans la base (ex. adresse e-mail saisie comme nom) : ce téléphone prend le bon nom
       if (d.alias && moi()) Object.keys(d.alias).forEach(function (k) {
         if (k.toLowerCase() === moi().toLowerCase()) { S.config.delegue = d.alias[k]; LS.set('config', S.config); S.ui.aPublier = true; LS.set('aPublier', true); }
       });
-      S.data = { version: d.version, sig: d.sig, praticiens: base.praticiens, presences: base.presences, quartiers: base.quartiers,
-                 statuts: base.statuts, etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || [], feries: base.feries || [], activites: base.activites || [], activitesPharmacie: base.activitesPharmacie || [], produits: base.produits || [], fiches: base.fiches || [],
-                 historique: hist, plannings: d.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: new Date().toISOString(),
-                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: d.inchange ? !!ancien.serveurRecent : d.doublons !== undefined, rev: d.rev || '' };
+      S.data = { version: d.version || ancien.version, sig: d.sig || ancien.sig, praticiens: praticiens, presences: presences, quartiers: base.quartiers || ancien.quartiers || [],
+                 statuts: base.statuts || ancien.statuts || [], etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || ancien.delegues || [], feries: base.feries || ancien.feries || [], activites: base.activites || ancien.activites || [], activitesPharmacie: base.activitesPharmacie || ancien.activitesPharmacie || [], produits: base.produits || ancien.produits || [], fiches: base.fiches || ancien.fiches || [],
+                 historique: hist, plannings: d.plannings || ancien.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
+                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '' };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data); ctxCache.data = null;
       var nVis = 0; try { nVis = actualiserVisitesPlanifiees() || 0; } catch (eA) { console.warn(eA); }
       var planChange = false; try { planChange = actualiserPlanDepuisServeur(); } catch (eP) { console.warn(eP); }
-      aChange = !d.inchange || nVis > 0 || planChange || hist.length !== (ancien.historique || []).length || JSON.stringify(d.plannings || []) !== JSON.stringify(ancien.plannings || []);
-      if (!d.inchange && d.doublons === undefined) basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
+      aChange = !d.inchange || !!d.delta || nVis > 0 || planChange || hist.length !== (ancien.historique || []).length || JSON.stringify(d.plannings || []) !== JSON.stringify(ancien.plannings || []);
+      if (!d.inchange && !d.delta && d.doublons === undefined) basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
       S.ui.conflits = []; setTimeout(notifierConflits, 1500);
-      if (!silencieux) toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
+      if (!silencieux) {
+        if (d.delta && d.delta.praticiens && d.delta.praticiens.length) {
+          toast('Données à jour (delta : ' + d.delta.praticiens.length + ' praticien(s) actualisé(s)).');
+        } else if (d.inchange) {
+          toast('Données à jour (aucun changement).');
+        } else {
+          toast('Données à jour : ' + S.data.praticiens.length + ' praticiens.');
+        }
+      }
     }).catch(function (e) {
       S.ui.sync = 'erreur'; S.ui.erreur = e.message;
       if (!silencieux) toast(e.message + (enAttente() ? ' Vos saisies sont conservées et seront renvoyées automatiquement.' : ''), 5000);
@@ -10458,9 +10566,10 @@
     // 3.26.85 : oublie la copie de la base gardée sur le téléphone et la retélécharge entièrement (tournée et saisies conservées)
     rechargerBase: function () {
       confirmerPuis('Recharger toute la base', 'Retélécharger toute la base (environ 1,4 Mo) ? Votre tournée et vos saisies en attente sont conservées.', 'Recharger', function () {
-        if (S.data) { S.data.sig = ''; S.data.serveurRecent = false; }
+        if (S.data) { S.data.sig = ''; S.data.syncedAt = ''; S.data.serveurRecent = false; }
         try { localStorage.removeItem(PREFIXE + 'data'); } catch (e) {}
-        synchroniser(false);
+        IDB.del('data');
+        synchroniser(false, false, true);
       });
     },
     sync: function () {
@@ -11671,17 +11780,28 @@
   // sinon chaque ouverture retéléchargeait toute la base (1,4 Mo) et affichait « Chargement de votre base »
   S.ui.restauration = true;
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}   // évite l'effacement par le téléphone
-  var idbRestauree = IDB.init().then(function () {
-    return Promise.all(['data', 'plan', 'archives', 'queue', 'fiches'].map(function (k) {
-      return IDB.get(k).then(function (val) {
-        if (val !== null && val !== undefined) {
-          LS._mem[k] = val;
-          // 3.26.85 : on garde la copie la plus récente (IndexedDB ou localStorage), jamais une plus ancienne
-          if (k === 'data' && (!S.data || !S.data.praticiens || String(val.syncedAt || '') > String(S.data.syncedAt || ''))) S.data = val;
-          if (k === 'plan' && (!S.plan || !S.plan.length)) S.plan = val;
-        }
-      });
-    }));
+  var idbRestauree = IDB.chargerTout().then(function (tous) {
+    Object.keys(tous).forEach(function (k) {
+      LS._mem[k] = tous[k];
+    });
+    if (LS._mem.config) S.config = LS._mem.config;
+    if (LS._mem.data) {
+      if (!S.data || !S.data.praticiens || String(LS._mem.data.syncedAt || '') >= String(S.data.syncedAt || '')) {
+        S.data = LS._mem.data;
+      }
+    }
+    if (LS._mem.plan && (!S.plan || !S.plan.length || (LS._mem.plan.length && LS._mem.plan[0].cle))) {
+      S.plan = LS._mem.plan;
+    }
+    if (LS._mem.programme) S.programme = LS._mem.programme;
+    if (LS._mem.params) S.params = LS._mem.params;
+    if (LS._mem.imposes) S.imposes = LS._mem.imposes;
+    if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
+    if (LS._mem.queue) S.queue = LS._mem.queue;
+    if (LS._mem.fiches) S.fiches = LS._mem.fiches;
+    if (LS._mem.archives) S.archives = LS._mem.archives;
+    if (LS._mem.horsPlan) S.horsPlan = LS._mem.horsPlan;
+    ctxCache.data = null;
   }).then(function () {
     S.ui.restauration = false; rendreSiPossible();
   }, function () { S.ui.restauration = false; rendreSiPossible(); });

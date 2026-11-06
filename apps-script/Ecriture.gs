@@ -234,6 +234,7 @@ function enregistrerFiche(b) {
     CHAMPS_PRATICIENS.forEach(function (c, k) { if (posP[k] >= 0 && modif[c[0]] !== undefined && !(rattache && (modif[c[0]] === '' || c[0] === 'note' || c[0] === 'conventionne') && valeurs[posP[k]] !== '')) valeurs[posP[k]] = modif[c[0]]; });
     if (ligne >= 0) shP.getRange(ligne + 2, 1, 1, entP.length).setValues([valeurs]);
     else shP.getRange(shP.getLastRow() + 1, 1, 1, entP.length).setValues([valeurs]);
+    try { journaliserModif('praticien', code); } catch (eJ) {}
 
     // --- Presences : lieux du praticien remplacés (mêmes lignes réutilisées, identifiants conservés)
     var refQ = {};
@@ -340,6 +341,7 @@ function enregistrerPharmacie(ss, p, lieu) {
   if (ligne < 0) { modif.nbVisites = 0; modif.source = 'Application'; }
   CHAMPS_PHARMACIES.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
   if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]); else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
+  try { journaliserModif('pharmacie', code); } catch (eJ) {}
   var ids = {}; if (lieu.id) ids[lieu.id] = 'P-' + code;
   return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
 }
@@ -388,6 +390,7 @@ function enregistrerEtablissement(b) {
     CHAMPS_ETABLISSEMENTS.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
     if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]);
     else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
+    try { journaliserModif('etablissement', code); } catch (eJ) {}
 
     // Cascade GPS et quartier vers la feuille Presences si lat/lon modifiés
     var cascades = 0;

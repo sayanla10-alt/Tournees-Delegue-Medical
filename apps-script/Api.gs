@@ -22,7 +22,7 @@ var FEUILLES = {
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour'
 };
-var VERSION_SERVEUR = '3.27.25';
+var VERSION_SERVEUR = '3.27.46';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -53,9 +53,15 @@ function doGet(e) {
     if (!jetonValide(p.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
     if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR,
       sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' });
-    // 3.27.25 : avec « rev », réponse immédiate si rien n'a changé, sinon base complète servie depuis le cache
-    if (p.action === 'data' && p.force !== '1' && p.rev !== undefined && p.rev !== '') return jsonTexte(lireToutRapide(p.rev));
-    if (p.action === 'data') return json(lireTout(p.sig || '', p.hdepuis || ''));
+
+    // 3.27.46 : Synchronisation incrémentale Delta (syncedAt) : transmission ultra-légère des seules nouveautés
+    if (p.action === 'data') {
+      if (p.force !== '1' && p.syncedAt && p.sig) {
+        return json(lireToutDelta(p.sig, p.syncedAt, p.hdepuis || ''));
+      }
+      return json(lireTout(p.sig || '', p.hdepuis || ''));
+    }
+
     if (p.action === 'equipe') return json(lireEquipe());
     return json({ ok: false, erreur: 'Action inconnue.' });
   } catch (err) {
