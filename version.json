@@ -1,7 +1,10 @@
 {
-  "version": "3.27.43",
+  "version": "3.27.44",
   "date": "2026-11-06",
   "notes": [
-    "Interface : remplacement de l’icône cible par la version miroir de l’icône itinéraire pour « Près de moi », « Autour de moi » et les repères de position"
+    "Répertoire : affichage et tri par défaut par ordre alphabétique strict de A à Z (Médecins, Pharmacies et Hôpitaux)",
+    "CR visite (Médecin) : ordre des produits rigoureusement conforme à la BDD (Zyltan 50, AM, H, Losartan AM ; Lesstrol 10, 20, AM, EZ ; Tensicard 50, AM ; puis Eurythmic)",
+    "Fiches praticiens : forçage du formatage téléphonique international strict +225 07 47 27 55 38 à l’enregistrement et dans la BDD",
+    "Journée (+ Médecin / + Pharmacie) : icônes et harmonisation complètes des choix d’ajout"
   ]
 }

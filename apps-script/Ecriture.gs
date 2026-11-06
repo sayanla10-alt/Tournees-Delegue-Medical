@@ -225,7 +225,7 @@ function enregistrerFiche(b) {
     }
     var valeurs = ligne >= 0 ? dataP[ligne].slice() : entP.map(function () { return ''; });
     var modif = { code: code, type: type, nom: nom, specialite: String(p.specialite || ''), note: lireNote(p.note),
-                  conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non', telephone: String(p.telephone || ''),
+                  conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non', telephone: formaterTelephoneCI(p.telephone || ''),
                   actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui' };
     var tzF = ss.getSpreadsheetTimeZone();
     modif.absentDu = p.absentDu ? Utilities.parseDate(p.absentDu, tzF, 'yyyy-MM-dd') : '';
@@ -327,7 +327,7 @@ function enregistrerPharmacie(ss, p, lieu) {
   if (shQ && shQ.getLastRow() > 1) shQ.getRange(2, 1, shQ.getLastRow() - 1, 3).getValues().forEach(function (v) { if (normaliser(v[1]) === normaliser(lieu.quartier)) q = { commune: v[0], zone: v[2] }; });
   var v = ligne >= 0 ? data[ligne].slice() : ent.map(function () { return ''; });
   var modif = { code: code, nom: String(p.nom || '').trim(), quartier: lieu.quartier || '', commune: q.commune || lieu.commune || '', zone: q.zone || lieu.zone || '',
-    telephone: String(p.telephone || ''), note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
+    telephone: formaterTelephoneCI(p.telephone || ''), note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
     actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui', horaireMatin: lieu.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: lieu.horaireSoir || HORAIRES_PHARMACIE[1] };
   if (lieu.lat && lieu.lon && lieu.lat !== 'NL' && lieu.lon !== 'NL') { modif.lat = +lieu.lat; modif.lon = +lieu.lon; }
   else {
@@ -378,7 +378,7 @@ function enregistrerEtablissement(b) {
       commune: String(b.commune || ''),
       quartier: String(b.quartier || ''),
       zone: String(b.zone || ''),
-      telephone: String(b.telephone || ''),
+      telephone: formaterTelephoneCI(b.telephone || ''),
       reperes: String(b.reperes || '')
     };
     if (b.lat !== undefined && b.lon !== undefined && b.lat !== '' && b.lon !== '') {

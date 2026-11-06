@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    commun.js : référentiel, modèle de données et fonctions partagées (version 3)
    Ce fichier est IDENTIQUE dans l'application (commun.js) et dans Google Apps
    Script (Commun.gs). Toute modification doit être reportée dans les deux.
@@ -1478,6 +1478,25 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   return false;
 }
 
+// 3.27.44 : Formatage strict du numéro de téléphone en Côte d'Ivoire (+225 07 47 27 55 38)
+function formaterTelephoneCI(n) {
+  if (!n) return '';
+  var s = String(n).trim();
+  if (!s) return '';
+  var d = s.replace(/\D/g, '');
+  if (d.indexOf('00') === 0) d = d.slice(2);
+  if (d.indexOf('225') === 0) d = d.slice(3);
+  if (d.length === 9 && /^[0157]/.test(d)) d = '0' + d;
+  if (d.length === 10) {
+    return '+225 ' + d.slice(0, 2) + ' ' + d.slice(2, 4) + ' ' + d.slice(4, 6) + ' ' + d.slice(6, 8) + ' ' + d.slice(8, 10);
+  }
+  if (d.length === 8) {
+    return '+225 ' + d.slice(0, 2) + ' ' + d.slice(2, 4) + ' ' + d.slice(4, 6) + ' ' + d.slice(6, 8);
+  }
+  if (s.indexOf('+') === 0) return '+' + d;
+  return s;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     VERSION_DONNEES: VERSION_DONNEES, JOURS: JOURS, JOURS_CLES: JOURS_CLES, CRENEAUX: CRENEAUX, DISPOS: DISPOS,
@@ -1495,6 +1514,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
-    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante
+    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
+    formaterTelephoneCI: formaterTelephoneCI
   };
 }

@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.43';
+  var APP_VERSION = '3.27.44';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.44', [
+      'Répertoire : affichage et tri par défaut par ordre alphabétique strict de A à Z (Médecins, Pharmacies et Hôpitaux)',
+      'CR visite (Médecin) : ordre des produits rigoureusement conforme à la BDD (Zyltan 50, AM, H, Losartan AM ; Lesstrol 10, 20, AM, EZ ; Tensicard 50, AM ; puis Eurythmic)',
+      'Fiches praticiens : forçage du formatage téléphonique international strict +225 07 47 27 55 38 à l’enregistrement et dans la BDD',
+      'Journée (+ Médecin / + Pharmacie) : icônes et harmonisation complètes des choix d’ajout'
+    ]],
     ['3.27.43', ['Interface : remplacement de l’icône cible par la version miroir de l’icône itinéraire pour « Près de moi », « Autour de moi » et les repères de position']],
     ['3.27.42', ['Journée (+ Médecin / + Pharmacie) : 4e choix « Tout le répertoire » pour afficher tous les médecins ou pharmacies de la base sans filtre ni restriction']],
     ['3.27.41', ['Synchronisation temps réel : prise en compte immédiate des ajouts de médecins et des modifications de plannings par les collègues au rafraîchissement']],
@@ -886,7 +892,7 @@
       statsVue: 'tableau', annulReprise: LS.get('annulReprise', null), eqPortee: LS.get('eqPortee', 'semaine'), eqDate: aujourdhui(),
       autour: LS.get('autour', { lat: null, lon: null, label: '', moment: 'maintenant', date: '', heure: '', rayon: 0.5, ref: null }),
       aPublier: LS.get('aPublier', false), portee: LS.get('portee', null), conflits: [],
-      filtres: null, tri: LS.get('tri', 'priorite'), stats: null, lancement: false, dernierClicY: null
+      filtres: null, tri: LS.get('tri', 'nom'), stats: null, lancement: false, dernierClicY: null
     }
   };
   // 3.20.0 : agenda. Tous mes jours planifiés (7 jours passés et tout l'à venir) sont dans S.plan ;
@@ -1861,8 +1867,8 @@
     var k = normaliser(String(prod || '') + ' ' + String(gamme || ''));
     if (/zyltan|losartanam/.test(k)) return 0;
     if (/lesstrol|lestrol/.test(k)) return 1;
-    if (/eurithmic|eurythmic/.test(k)) return 2;
-    if (/tensicard/.test(k)) return 3;
+    if (/tensicard/.test(k)) return 2;
+    if (/eurithmic|eurythmic/.test(k)) return 3;
     return 9;
   }
   function estProduitActif(f) {
@@ -1919,16 +1925,20 @@
     function filtrer(liste, re) { return liste.filter(function (p) { return re.test(normaliser(p)); }); }
     var zyltan = filtrer(pg.gammeA, /zyltan|losartanam/);
     var lesstrol = filtrer(pg.gammeA, /lesstrol|lestrol/);
-    var autresA = pg.gammeA.filter(function (p) { return zyltan.indexOf(p) < 0 && lesstrol.indexOf(p) < 0; });
+    var tensicard = filtrer(pg.gammeA, /tensicard/);
+    var eurythmic = filtrer(pg.gammeA, /eurithmic|eurythmic/);
+    var autresA = pg.gammeA.filter(function (p) { return zyltan.indexOf(p) < 0 && lesstrol.indexOf(p) < 0 && tensicard.indexOf(p) < 0 && eurythmic.indexOf(p) < 0; });
     var telmikaa = filtrer(pg.gammeB, /telmikaa/);
     var rozukaa = filtrer(pg.gammeB, /rozukaa/);
     var antiplatt = filtrer(pg.gammeB, /antiplatt/);
     var autresB = pg.gammeB.filter(function (p) { return telmikaa.indexOf(p) < 0 && rozukaa.indexOf(p) < 0 && antiplatt.indexOf(p) < 0; });
     return {
       A: [
-        { id: 'Zyltan', titre: 'Zyltan', sous: 'Zyltan, H, AM, Losartan AM', produits: zyltan },
-        { id: 'Lesstrol', titre: 'Lesstrol', sous: '20, AM, EZ', produits: lesstrol },
-        { id: 'AutresA', titre: 'Eurythmic & Tensicard', sous: 'Rythme & bêtabloquant', produits: autresA }
+        { id: 'Zyltan', titre: 'Zyltan', sous: '50, AM, H', produits: zyltan },
+        { id: 'Lesstrol', titre: 'Lesstrol', sous: '10, 20', produits: lesstrol },
+        { id: 'Tensicard', titre: 'Tensicard', sous: '50, AM', produits: tensicard },
+        { id: 'Eurythmic', titre: 'Eurythmic', sous: 'Amiodarone', produits: eurythmic },
+        { id: 'AutresA', titre: 'Autres Aura 2', sous: autresA.length + ' produits', produits: autresA }
       ].filter(function (f) { return f.produits.length > 0; }),
       B: [
         { id: 'Telmikaa', titre: 'Telmikaa', sous: 'Telmikaa, AM, H, AMH, CT', produits: telmikaa },
@@ -4371,7 +4381,34 @@
     if (len <= 7) return 'moyen';
     return 'long';
   }
+  function rangDeclinaisonProduit(prod, nomGamme) {
+    var p = normaliser(prod);
+    if (p === 'zyltan' || p === 'zyltan 50' || p === 'zyltan 50 mg') return 0;
+    if (p === 'zyltan am' || p === 'zyltan am 50') return 1;
+    if (p === 'zyltan h' || p === 'zyltan h 50') return 2;
+    if (p === 'losartan am') return 3;
+    if (p === 'lesstrol 10' || p === 'lestrol 10' || p === 'lesstrol 10 mg') return 0;
+    if (p === 'lesstrol' || p === 'lesstrol 20' || p === 'lestrol 20' || p === 'lesstrol 20 mg') return 1;
+    if (p === 'lesstrol am' || p === 'lestrol am') return 2;
+    if (p === 'lesstrol ez' || p === 'lestrol ez') return 3;
+    if (p === 'tensicard' || p === 'tensicard 50' || p === 'tensicard 50 mg') return 0;
+    if (p === 'tensicard am' || p === 'tensicard am 50') return 1;
+    if (/eurithmic|eurythmic/.test(p)) return 0;
+    return 10;
+  }
   function harmoniserDeclinaisons(fiches, nomGamme) {
+    if (!fiches || !fiches.length) return [];
+    var nom = String(nomGamme || '').replace(/\s*\(.*\)$/, '').trim();
+    return fiches.slice().sort(function (a, b) {
+      var rA = rangDeclinaisonProduit(a.produit, nom);
+      var rB = rangDeclinaisonProduit(b.produit, nom);
+      if (rA !== rB) return rA - rB;
+      var cA = libellePastilleCr(nom, a.produit, fiches.length);
+      var cB = libellePastilleCr(nom, b.produit, fiches.length);
+      return (cA.length - cB.length) || String(a.produit || '').localeCompare(String(b.produit || ''), 'fr');
+    });
+  }
+  function harmoniserDeclinaisonsAncien(fiches, nomGamme) {
     if (!fiches || fiches.length <= 2) return fiches || [];
     var nom = String(nomGamme || '').replace(/\s*\(.*\)$/, '').trim();
     var items = fiches.map(function (f) {
@@ -4420,7 +4457,7 @@
     var sel = vals || [];
 
     // Séparation stricte Gamme A vs Gamme B
-    var famsA = gammes.filter(function (g) { return estGammeA('', g.nom); });
+    var famsA = gammes.filter(function (g) { return estGammeA('', g.nom); }).sort(function (a, b) { return rangFamilleGammeA('', a.nom) - rangFamilleGammeA('', b.nom); });
     var famsB = gammes.filter(function (g) { return !estGammeA('', g.nom); });
 
     var prodsA = [], prodsB = [];
@@ -5790,10 +5827,10 @@
   function trierPraticiens(liste, tri) {
     var t = aujourdhui();
     return liste.sort(function (a, b) {
-      if (tri === 'nom') return a.nom.localeCompare(b.nom, 'fr');
+      if (tri === 'priorite' || tri === 'potentiel') return b.note - a.note || joursEcoules(b.derniere, t) - joursEcoules(a.derniere, t);
       if (tri === 'retard') return joursEcoules(b.derniere, t) - joursEcoules(a.derniere, t) || b.note - a.note;
       if (tri === 'score') return calcScore(b.note, joursEcoules(b.derniere, t), b.statut) - calcScore(a.note, joursEcoules(a.derniere, t), a.statut);
-      return b.note - a.note || joursEcoules(b.derniere, t) - joursEcoules(a.derniere, t);
+      return String(a.nom || '').localeCompare(String(b.nom || ''), 'fr');
     });
   }
 
@@ -6047,10 +6084,10 @@
       return !q || normaliser(e.nom + ' ' + e.quartier + ' ' + e.commune).indexOf(q) >= 0;
     });
     l.forEach(function (e) { e.d = g && isFinite(e.lat) ? distanceVol(g, { lat: e.lat, lon: e.lon }) : null; });
-    l.sort(function (a, b) { return (a.d === null) - (b.d === null) || (a.d || 0) - (b.d || 0) || a.nom.localeCompare(b.nom, 'fr'); });
+    l.sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
     var h = '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechHop" placeholder="Hôpital, clinique, quartier, commune…" value="' +
       esc(S.ui.rechHop || '') + '" aria-label="Rechercher un hôpital"></div></div>';
-    h += '<p class="phrase-criteres" style="text-align:center">' + l.length + ' établissement' + (l.length > 1 ? 's' : '') + (f.communes && f.communes.length ? ' · ' + esc(condenserCommunesEtSecteurs(f.communes) || '') : '') + (g ? ' · du plus proche au plus loin' : '') + '</p>';
+    h += '<p class="phrase-criteres" style="text-align:center">' + l.length + ' établissement' + (l.length > 1 ? 's' : '') + (f.communes && f.communes.length ? ' · ' + esc(condenserCommunesEtSecteurs(f.communes) || '') : '') + ' · de A à Z' + '</p>';
     if (!l.length) return h + '<div class="vide"><strong>Aucun établissement</strong>Aucun hôpital ne correspond à cette recherche.</div>';
     h += '<ul class="liste">';
     l.slice(0, S.ui.limite).forEach(function (e) {
@@ -7463,7 +7500,7 @@
     if (t !== 'Médecin') tuiles.push(['zone', 'loupe', 'Pharmacies dans une zone', resZone]);   // 3.26.89 : aussi dans « Autour de moi »
     // 3.27.42 : 4e choix : Tout le répertoire sans aucun filtre ni restriction
     var toutDesc = t === 'Pharmacie' ? 'Toutes les pharmacies de la base, sans filtre ni restriction' : (t === 'Médecin' ? 'Tous les médecins de la base, sans filtre ni restriction' : 'Tous les praticiens de la base, sans filtre');
-    tuiles.push(['tout', t === 'Pharmacie' ? 'pharmacie' : 'medecin', 'Tout le répertoire', toutDesc]);
+    tuiles.push(['tout', 'repertoire', 'Tout le répertoire', toutDesc]);
     return rech + '<div class="choix-ajout">' + tuiles.map(function (x) {
       return '<button type="button" class="tuile" data-a="ajouterTourneeChoix" data-v="' + x[0] + '"><b>' + icone(x[1]) + esc(x[2]) + '</b><small>' + esc(x[3]) + '</small></button>';
     }).join('') + '</div>';
@@ -7915,7 +7952,7 @@
   };
 
   // Filtres avancés de la liste des praticiens (cumulables)
-  var TRIS = [['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite'], ['nom', 'Nom']];
+  var TRIS = [['nom', 'Nom (A à Z)'], ['priorite', 'Potentiel'], ['score', 'Priorité de visite'], ['retard', 'Plus longtemps sans visite']];
   // Planifier un praticien depuis sa fiche : prochaine présence, ou +7, +14, +21, +28 jours, puis Oui / Non
   FEUILLES.planifierDate = function (f) {
     var c = Moteur.creneauParCle(ctx(), f.cle); if (!c) return '';
@@ -8726,7 +8763,9 @@
       if (existTmp) code = existTmp.code;
     }
     if (!code) code = 'TMP-' + Date.now().toString(36).toUpperCase();
-    var pr = { code: code, type: d.type, nom: String(d.nom).trim(), telephone: String(d.telephone || '').trim(),
+    var telFmt = formaterTelephoneCI(d.telephone);
+    if (telFmt) d.telephone = telFmt;
+    var pr = { code: code, type: d.type, nom: String(d.nom).trim(), telephone: telFmt || String(d.telephone || '').trim(),
                specialite: d.type === 'Pharmacie' ? 'Pharmacien' : (d.specialite === '__autre' ? String(d.autreSpec).trim() : d.specialite),
                note: +d.note, conventionne: d.conventionne, actif: d.actif === 'Non' ? 'Non' : 'Oui',
                absentDu: d.absentDu || '', absentAu: d.absentAu || '' };
@@ -11535,6 +11574,10 @@
     var f = S.ui.feuille; if (!f || f.type !== 'fiche') return;
     var d = f.d, k = el.dataset.k, i = el.dataset.i;
     var v = el.type === 'checkbox' ? (el.checked ? 'Oui' : 'Non') : el.value;
+    if (k === 'telephone' && change) {
+      var telFmt = formaterTelephoneCI(v);
+      if (telFmt) { v = telFmt; el.value = telFmt; }
+    }
     if (i !== undefined) d.lieux[+i][k] = v; else d[k] = v;
     if (!change) return;
     if (k === 'lieu' && d.type !== 'Pharmacie' && i !== undefined) {
@@ -11587,6 +11630,7 @@
       voiture: '<path d="M5 16V12l1.8-4.2A2 2 0 0 1 8.6 6.5h6.8a2 2 0 0 1 1.8 1.3L19 12v4"/><path d="M4 16h16v2.5H4z"/><path d="M5 12h14"/><circle cx="7.5" cy="18.5" r="1.4"/><circle cx="16.5" cy="18.5" r="1.4"/>',
       medecin: '<path d="M12 2.5v19"/><path d="M14.6 4.2c1.3.2 1.6 1.6.4 2.2L9.4 9c-1.6.8-1.4 2.6.3 3.1l4.4 1.2c1.6.5 1.7 2.3.2 3l-3.5 1.6"/><circle cx="14.6" cy="4.1" r=".6"/>',
       pharmacie: '<path d="M5 10.5h14c0 3.6-3.1 6.5-7 6.5s-7-2.9-7-6.5z"/><path d="M12 17v3.5M8.5 21h7"/><path d="M8.5 10.5c-.4-2.3 1.2-3.4 3.3-3.4s3.3-1.2 2.7-3.1"/><circle cx="14.4" cy="3.9" r=".6"/>',
+      repertoire: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/>',
       equipe: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.8c1.7.8 2.8 2.6 3 5.2"/>',
       partager: '<path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5v10h14V11h-1"/>',
       telecharger: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
