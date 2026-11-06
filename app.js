@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    app.js : interface de MediPlanner
    - Données en cache sur le téléphone : tout fonctionne hors ligne
    - Visites, fiches praticiens et tournées envoyées au Google Sheet dès que possible
@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.42';
+  var APP_VERSION = '3.27.43';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.43', ['Interface : remplacement de l’icône cible par la version miroir de l’icône itinéraire pour « Près de moi », « Autour de moi » et les repères de position']],
     ['3.27.42', ['Journée (+ Médecin / + Pharmacie) : 4e choix « Tout le répertoire » pour afficher tous les médecins ou pharmacies de la base sans filtre ni restriction']],
     ['3.27.41', ['Synchronisation temps réel : prise en compte immédiate des ajouts de médecins et des modifications de plannings par les collègues au rafraîchissement']],
     ['3.27.40', ['Répertoire (Hôpitaux) : fiabilisation de la capture GPS (synchronisation temps réel avec la base, sauvegarde garantie des coordonnées des établissements et affichage immédiat « Sur place »)']],
@@ -11592,7 +11593,7 @@
       fermer: '<path d="M6 6l12 12M18 6 6 18"/>',
       epingle: '<path d="M9 3h6l-1 6 4 4H6l4-4-1-6Z"/><path d="M12 13v8"/>',
       carte: '<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>',
-      cible: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/>',
+      cible: '<g transform="translate(24,0) scale(-1,1)"><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h6a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7h6"/></g>',
       loupe: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
       valider: '<path d="M5 12.5 10 17 19 7"/>',
       whatsapp: '<path d="M4 20l1.3-4.2A8 8 0 1 1 8.4 19L4 20Z"/><path d="M9.2 8.6c.2 2.6 2.4 5 5.2 5.4l1.1-1.3-1.8-.9-.8.8c-1-.4-1.9-1.3-2.3-2.3l.8-.8-.9-1.8-1.3.9Z"/>',

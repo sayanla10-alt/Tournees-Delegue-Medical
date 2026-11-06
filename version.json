@@ -1,7 +1,7 @@
 {
-  "version": "3.27.42",
-  "date": "2026-11-05",
+  "version": "3.27.43",
+  "date": "2026-11-06",
   "notes": [
-    "Journée (+ Médecin / + Pharmacie) : 4e option « Tout le répertoire » pour afficher tous les médecins ou pharmacies de la base sans filtre ni restriction"
+    "Interface : remplacement de l’icône cible par la version miroir de l’icône itinéraire pour « Près de moi », « Autour de moi » et les repères de position"
   ]
 }
