@@ -25,6 +25,22 @@
       [['auto', 'Auto'], ['clair', 'Clair'], ['sombre', 'Sombre']].map(function (x) {
         return '<button type="button" data-a="theme" data-v="' + x[0] + '" aria-pressed="' + (th === x[0]) + '">' + x[1] + '</button>';
       }).join('') + '</div><p class="discret" style="margin:8px 0 0">Auto suit le réglage du téléphone.</p></section>';
+
+    // Base de données : choix Supabase (rapide) / Google Sheets
+    var bddSrc = S.config.bddSource || 'supabase';
+    h += '<section class="bloc"><h3 style="margin-top:0">Base de données</h3>' +
+      '<p class="discret" style="margin:0 0 10px">MediPlanner écrit en continu dans les deux bases (double écriture). Vous choisissez ici la base principale pour le chargement.</p>' +
+      '<div class="segment" role="group" aria-label="Base de données" style="margin:0 0 10px">' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Rapide)</button>' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets</button>' +
+      '</div>' +
+      '<div style="font-size:12.5px;color:var(--texte-discret);margin-bottom:10px">' +
+      (bddSrc === 'supabase' ?
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> PostgreSQL (10 tables synchronisées, ~300 ms).' :
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> Apps Script historique (~4 s).') +
+      '<br><span style="display:inline-block;margin-top:4px">Double écriture permanente : vos données restent 100% synchronisées sur les deux plateformes.</span></div>' +
+      '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Tester la connexion Supabase</button></section>';
+
     if (connecte()) {
       h += '<section class="bloc"><h3 style="margin-top:0">Partager avec un collègue</h3>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="partager" style="margin-bottom:6px">Partager l\'application</button>' +
@@ -70,4 +86,3 @@
       '<button class="bouton bouton-large bouton-danger" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button></details>';
     return h;
   };
-

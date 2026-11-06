@@ -1,9 +1,10 @@
 {
-  "version": "3.28.2",
+  "version": "3.28.3",
   "date": "2026-11-06",
   "notes": [
-    "Correctif visuel : retrait du bouton d'en-tête pour un accès dégagé à la pastille de synchronisation",
-    "Encodage UTF-8 : restauration complète des caractères accentués français dans l'ensemble de l'interface",
-    "Intégration double écriture : sécurisation de la réplication Google Sheets et Supabase en temps réel"
+    "Connexion directe Supabase ultra-rapide (10 tables synchronisees en parallele)",
+    "Double ecriture temps reel permanente (Google Sheets + Supabase)",
+    "Selecteur de base principale dans Reglages avec repli transparent",
+    "Integration complete des produits, quartiers et listes de reference"
   ]
 }

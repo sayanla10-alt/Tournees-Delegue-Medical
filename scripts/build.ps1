@@ -7,6 +7,7 @@ $modules = @(
     "src\core\utils.js",
     "src\storage\storage.js",
     "src\core\format.js",
+    "src\api\supabase.js",
     "src\api\api.js",
     "src\ui\render.js",
     "src\views\accueil.js",

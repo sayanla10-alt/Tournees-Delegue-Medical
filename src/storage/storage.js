@@ -198,7 +198,7 @@
   if (ancienPlan) plan = [];
 
   var S = {
-    config: LS.get('config', { url: '', token: '', demo: false, delegue: '', whatsapp: '', waWeb: false, depart: '' }),
+    config: LS.get('config', { url: '', token: '', demo: false, delegue: '', whatsapp: '', waWeb: false, depart: '', bddSource: 'supabase' }),
     data: donnees,
     plan: plan,
     programme: LS.get('programme', { etat: 'proposition', valideLe: '' }),

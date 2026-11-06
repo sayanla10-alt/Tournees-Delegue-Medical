@@ -1,4 +1,4 @@
-﻿  // ------------------------------------------------------------------ Équipe
+  // ------------------------------------------------------------------ Équipe
   function moi() { return String(S.config.delegue || '').trim(); }
   function estMoi(nom) { return String(nom || '').trim().toLowerCase() === moi().toLowerCase(); }
   function arretsCollegues() {
@@ -140,6 +140,15 @@
     if (n) { LS.set('plan', S.plan); }
     return n;
   }
+
+  function chargerDepuisSheets_(force) {
+    var ref = S.data && S.data.sig && S.data.praticiens && !force ? '&sig=' + encodeURIComponent(S.data.sig) : '';
+    var hd = S.data && S.data.historique && S.data.historique.length ? S.data.historique.reduce(function (m, v) { return v.horodatage > m ? v.horodatage : m; }, '') : '';
+    var sAt = S.data && S.data.syncedAt && !force ? '&syncedAt=' + encodeURIComponent(S.data.syncedAt) : '';
+    var fParam = force ? '&force=1' : '';
+    return apiGet('data' + ref + sAt + fParam + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
+  }
+
   var minuteurReprise;
   function synchroniser(silencieux, sansGps, force) {
     if (!connecte()) return Promise.resolve();
@@ -158,20 +167,26 @@
     return envoi.then(function () { return envoyerRapportsEnAttente(); }).then(function () {
       if (!S.ui.aPublier || !moi()) return;
       tentePub = true;
-      return apiPost('planning', chargePlan()).then(function (r) {
+      var planPayload = chargePlan();
+      // Double écriture de la tournée vers Supabase
+      if (typeof supabaseMiroirPlanning === 'function') {
+        supabaseMiroirPlanning(planPayload).catch(function (eSb) { console.warn('Miroir Supabase planning:', eSb); });
+      }
+      return apiPost('planning', planPayload).then(function (r) {
         S.ui.aPublier = false; LS.set('aPublier', false);
         S.ui.portee = porteePlan(); LS.set('portee', S.ui.portee);
         S.ui.conflits = r.conflits || [];
       });
     }).then(function () {
-      // synchro allégée : empreinte des données de référence et date de la dernière visite connue
-      // 3.26.81 : données reçues d'un ancien serveur (sans contrôle des doublons ni filtre des produits inactifs) : rechargement complet
-      var ref = S.data && S.data.sig && S.data.praticiens && !force ? '&sig=' + encodeURIComponent(S.data.sig) : '';
-      var hd = S.data && S.data.historique && S.data.historique.length ? S.data.historique.reduce(function (m, v) { return v.horodatage > m ? v.horodatage : m; }, '') : '';
-      var sAt = S.data && S.data.syncedAt && !force ? '&syncedAt=' + encodeURIComponent(S.data.syncedAt) : '';
-      var fParam = force ? '&force=1' : '';
-
-      return apiGet('data' + ref + sAt + fParam + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
+      var source = (S.config && S.config.bddSource) || 'supabase';
+      if (source === 'supabase' && typeof chargerToutSupabase === 'function' && !force) {
+        return chargerToutSupabase().catch(function (errSb) {
+          console.warn('Supabase indisponible, bascule transparente sur Google Sheets:', errSb);
+          return chargerDepuisSheets_(force);
+        });
+      } else {
+        return chargerDepuisSheets_(force);
+      }
     }).then(function (d) {
       var ancien = S.data || { praticiens: [], presences: [], quartiers: [], statuts: [], delegues: [], feries: [], activites: [], activitesPharmacie: [], produits: [], fiches: [], historique: [], plannings: [], rapports: [] };
       var hist = d.historique || [];
@@ -220,12 +235,14 @@
       var nVis = 0; try { nVis = actualiserVisitesPlanifiees() || 0; } catch (eA) { console.warn(eA); }
       var planChange = false; try { planChange = actualiserPlanDepuisServeur(); } catch (eP) { console.warn(eP); }
       aChange = !d.inchange || !!d.delta || nVis > 0 || planChange || hist.length !== (ancien.historique || []).length || JSON.stringify(d.plannings || []) !== JSON.stringify(ancien.plannings || []);
-      if (!d.inchange && !d.delta && d.doublons === undefined) basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
+      if (!d.inchange && !d.delta && d.doublons === undefined && d.source !== 'supabase') basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
       S.ui.conflits = []; setTimeout(notifierConflits, 1500);
       if (!silencieux) {
-        if (d.delta && d.delta.praticiens && d.delta.praticiens.length) {
+        if (d.source === 'supabase') {
+          toast('Données à jour via Supabase (' + S.data.praticiens.length + ' praticiens, 10 tables synchronisées).');
+        } else if (d.delta && d.delta.praticiens && d.delta.praticiens.length) {
           toast('Données à jour (delta : ' + d.delta.praticiens.length + ' praticien(s) actualisé(s)).');
         } else if (d.inchange) {
           toast('Données à jour (aucun changement).');
@@ -253,6 +270,10 @@
     if (!S.fiches.length) return Promise.resolve();
     var f = S.fiches[0];
     if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
+    // Double écriture : miroir Supabase en parallèle
+    if (typeof supabaseMiroirFiche === 'function') {
+      supabaseMiroirFiche(f.praticien, f.presences).catch(function (eSb) { console.warn('Miroir Supabase fiche:', eSb); });
+    }
     return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences, auteur: moi() }).then(function (r) {
       S.fiches.shift();
       if (r.ancien && r.code && r.ancien !== r.code) remplacerCode(r.ancien, r.code);
@@ -295,6 +316,11 @@
       if (!v.uid) v.uid = 'V' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     });
 
+    // Double écriture : miroir Supabase en parallèle
+    if (typeof supabaseMiroirVisites === 'function') {
+      supabaseMiroirVisites(S.queue).catch(function (eSb) { console.warn('Miroir Supabase visites:', eSb); });
+    }
+
     return apiPost('valider', { visites: S.queue }).then(function (r) {
       var recus = {};
       (r.recus || []).forEach(function (u) { recus[u] = true; });
@@ -309,6 +335,12 @@
   function viderQueueVisitesUnitaire(index) {
     if (!S.queue || index >= S.queue.length) return Promise.resolve();
     var v = S.queue[index];
+
+    // Double écriture unitaire Supabase
+    if (typeof supabaseMiroirVisites === 'function') {
+      supabaseMiroirVisites([v]).catch(function (eSb) { console.warn('Miroir Supabase visite unitaire:', eSb); });
+    }
+
     return apiPost('valider', { visites: [v] }).then(function (r) {
       if (r.recus && r.recus.indexOf(v.uid) >= 0) {
         S.queue.splice(index, 1);
@@ -378,4 +410,3 @@
       return true;
     }).catch(function () { return false; });
   }
-

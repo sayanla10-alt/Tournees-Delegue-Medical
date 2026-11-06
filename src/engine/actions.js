@@ -837,6 +837,28 @@
       inscrireDelegue(n);
       if (n && n !== ancien) publierPlan();
     },
+    basculerSourceBdd: function (el) {
+      var source = el.dataset.v || 'supabase';
+      S.config.bddSource = source;
+      LS.set('config', S.config);
+      rendre();
+      toast('Base principale : ' + (source === 'supabase' ? 'Supabase (Rapide)' : 'Google Sheets') + '. Synchronisation\u2026' + (source === 'supabase' ? 'Supabase (Rapide)' : 'Google Sheets') + '. Synchronisationâ€¦');
+      synchroniser(false);
+    },
+    testerSupabase: function () {
+      toast('Test de la connexion Supabase\u2026');
+      if (typeof supabasePing_ !== 'function') {
+        toast('Connecteur Supabase non disponible.');
+        return;
+      }
+      var t0 = Date.now();
+      supabasePing_().then(function () {
+        var ms = Date.now() - t0;
+        toast('Supabase connect\u00e9 avec succ\u00e8s (' + ms + ' ms).' + ms + ' ms).');
+      }).catch(function (err) {
+        toast('Erreur connexion Supabase : ' + err.message, 5000);
+      });
+    },
     tester: function () {
       var cfg = { url: ($('cfgUrl').value || '').trim(), token: ($('cfgToken').value || '').trim() };
       if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(cfg.url)) { toast('L\'URL doit commencer par https://script.google.com/'); return; }
