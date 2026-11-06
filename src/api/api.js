@@ -1,4 +1,4 @@
-  // ------------------------------------------------------------------ Équipe
+﻿  // ------------------------------------------------------------------ Équipe
   function moi() { return String(S.config.delegue || '').trim(); }
   function estMoi(nom) { return String(nom || '').trim().toLowerCase() === moi().toLowerCase(); }
   function arretsCollegues() {
@@ -146,18 +146,14 @@
     if (S.ui.enCours) return Promise.resolve();
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
     S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete(); if (!pret()) rendreSiPossible();
-    if (!sansGps) localiser(true, 'sync', true);   // 3.26.97 : position précise remesurée à chaque synchronisation
+    if (!sansGps) localiser(true, 'sync');   // 3.27.47 : localisation passive régulée (cache 3 min)
     var tentePub = false, aChange = true;
     // 1. fiches praticiens (codes définitifs), 2. comptes rendus, 3. tournée, 4. données à jour
     var envoi = envoyerFiches().catch(function (errF) {
       console.warn('Erreur envoi fiches, poursuite des comptes rendus:', errF);
       return null;
     }).then(function () {
-      return S.queue.length ? apiPost('valider', { visites: S.queue }).then(function (r) {
-        var recus = {}; (r.recus || []).forEach(function (u) { recus[u] = true; });
-        S.queue = S.queue.filter(function (v) { return !recus[v.uid]; });
-        LS.set('queue', S.queue);
-      }) : null;
+      return traiterQueueVisites();
     });
     return envoi.then(function () { return envoyerRapportsEnAttente(); }).then(function () {
       if (!S.ui.aPublier || !moi()) return;
@@ -247,34 +243,96 @@
       S.ui.enCours = false;
       importerAgenda();
       if (!sansGps || aChange || !S.ui.feuille) rendreSiPossible(); else afficherEntete();
-      if (!sansGps) localiser(true, 'sync', true);
+      // 3.27.47 : Second appel redondant localiser supprimé pour économiser la batterie
       if (S.ui.aPublier && !tentePub && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
     });
   }
 
-  // Fiches praticiens saisies sur le téléphone, envoyées une par une (dans l'ordre de saisie)
+  // 3.27.47 : Fiches praticiens envoyées avec traçabilité auteur et Dead-Letter Queue (anti-bloquant)
   function envoyerFiches() {
     if (!S.fiches.length) return Promise.resolve();
     var f = S.fiches[0];
     if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
-    return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences }).then(function (r) {
+    return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences, auteur: moi() }).then(function (r) {
       S.fiches.shift();
       if (r.ancien && r.code && r.ancien !== r.code) remplacerCode(r.ancien, r.code);
       if (r.ids) remplacerIds(r.ids);
       LS.set('fiches', S.fiches); LS.set('plan', S.plan); LS.set('imposes', S.imposes); LS.set('queue', S.queue);
       return envoyerFiches();
     }, function (e) {
-      // Serveur pas encore mis à jour (pas d'action « fiche ») : les fiches restent en attente sur le téléphone,
-      // sans bloquer l'envoi des comptes rendus ni la tournée
       if (/Action inconnue/i.test(e.message)) { S.ui.serveurAncien = true; return; }
-      // 3.26.50 : fiche refusée définitivement par le serveur (pas une coupure) : retirée de la file, sinon ses anciennes
-      // valeurs écrasaient à chaque synchro les corrections faites dans la base (noms qui sautent à l'écran)
-      if (e.refus && !/jeton/i.test(e.message)) {
-        S.fiches.shift(); LS.set('fiches', S.fiches);
-        toast('Fiche « ' + (f.praticien && f.praticien.nom || '') + ' » refusée par la base : ' + e.message, 6000);
+
+      f.tentatives = (f.tentatives || 0) + 1;
+      f.derniereErreur = e.message || String(e);
+      f.dernierEssai = new Date().toISOString();
+
+      if (e.refus || f.tentatives >= 3) {
+        var rejete = S.fiches.shift();
+        S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
+        S.deadLetter.fiches = S.deadLetter.fiches || [];
+        S.deadLetter.fiches.push(rejete);
+        LS.set('fiches', S.fiches);
+        LS.set('deadLetter', S.deadLetter);
+        console.warn('Fiche mise en Dead-Letter Queue après ' + f.tentatives + ' échecs:', rejete, e);
+        toast('Fiche « ' + (rejete.praticien && rejete.praticien.nom || '') + ' » mise de côté suite à des erreurs répétées. Les autres envois continuent.', 6000);
         return envoyerFiches();
       }
-      throw e;
+
+      if (S.fiches.length > 1) {
+        S.fiches.push(S.fiches.shift());
+        LS.set('fiches', S.fiches);
+      }
+      console.warn('Échec temporaire envoi fiche (tentative ' + f.tentatives + '/3):', e.message);
+      return null;
+    });
+  }
+
+  // 3.27.47 : Traitement résilient de la file de visites avec Dead-Letter Queue (anti-bloquant)
+  function traiterQueueVisites() {
+    if (!S.queue || !S.queue.length) return Promise.resolve();
+
+    S.queue.forEach(function (v) {
+      if (!v.uid) v.uid = 'V' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    });
+
+    return apiPost('valider', { visites: S.queue }).then(function (r) {
+      var recus = {};
+      (r.recus || []).forEach(function (u) { recus[u] = true; });
+      S.queue = S.queue.filter(function (v) { return !recus[v.uid]; });
+      LS.set('queue', S.queue);
+    }).catch(function (errBatch) {
+      console.warn('Erreur envoi groupé de la file de visites, basculement en mode unitaire résilient:', errBatch);
+      return viderQueueVisitesUnitaire(0);
+    });
+  }
+
+  function viderQueueVisitesUnitaire(index) {
+    if (!S.queue || index >= S.queue.length) return Promise.resolve();
+    var v = S.queue[index];
+    return apiPost('valider', { visites: [v] }).then(function (r) {
+      if (r.recus && r.recus.indexOf(v.uid) >= 0) {
+        S.queue.splice(index, 1);
+        LS.set('queue', S.queue);
+        return viderQueueVisitesUnitaire(index);
+      } else {
+        return viderQueueVisitesUnitaire(index + 1);
+      }
+    }).catch(function (errU) {
+      v.tentatives = (v.tentatives || 0) + 1;
+      v.derniereErreur = errU.message || String(errU);
+      v.dernierEssai = new Date().toISOString();
+      if (v.tentatives >= 3) {
+        console.warn('Visite mise en Dead-Letter Queue après 3 échecs:', v);
+        S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
+        S.deadLetter.visites = S.deadLetter.visites || [];
+        S.deadLetter.visites.push(v);
+        S.queue.splice(index, 1);
+        LS.set('queue', S.queue);
+        LS.set('deadLetter', S.deadLetter);
+        toast('Un compte rendu a été mis de côté suite à des erreurs répétées (' + (v.nom || 'visite') + '). Les autres envois continuent.', 5000);
+        return viderQueueVisitesUnitaire(index);
+      }
+      return viderQueueVisitesUnitaire(index + 1);
     });
   }
   function remplacerCode(ancien, code) {

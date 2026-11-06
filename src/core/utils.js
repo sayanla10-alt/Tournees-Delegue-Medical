@@ -1,4 +1,4 @@
-/* =============================================================================
+﻿/* =============================================================================
    app.js : interface de MediPlanner
    - Données en cache sur le téléphone : tout fonctionne hors ligne
    - Visites, fiches praticiens et tournées envoyées au Google Sheet dès que possible
@@ -9,10 +9,19 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.46';
+  var APP_VERSION = '3.27.47';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.47', [
+      'Concurrence non-destructive (Field-Level Merge) : fusion intelligente par champ lors des mises à jour de fiches (préservation des données des collègues et fin des écrasements aveugles)',
+      'Trafic Abidjan & Lagune réaliste : pénalité de franchissement des ponts ajustée à 45 min aux heures de pointe (7h30-9h30 et 16h30-19h30) pour des tournées réalisables sur le terrain',
+      'Service Worker sécurisé : suppression du skipWaiting automatique pour éliminer tout risque de rupture de session ou de perte de compte rendu en cours',
+      'Traçabilité complète (Audit Trail) : création de la feuille Audit_Logs consignant chaque modification avec auteur, horodatage, ancienne et nouvelle valeur, sans suppression sèche',
+      'Performance DOM & Infinite Scroll : affichage progressif et défilement infini sans saccade dans le Répertoire (fin du DOM bloat)',
+      'Résilience hors-ligne (Dead-Letter Queue) : isolation unitaire des fiches et visites en file d''attente (fin du blocage en tête de file)',
+      'Régulation batterie GPS : cache de position 3 min et limitation du GPS haute précision pour préserver la batterie'
+    ]],
     ['3.27.46', [
       'Stockage flash IndexedDB : migration intégrale du stockage local hors-ligne vers IndexedDB (zéro saturation de quota, suppression du plafond de 5 Mo et fin des saccades synchrones)',
       'Synchronisation incrémentale Delta (syncedAt) : transmission ultra-légère des seules modifications réelles, synchro instantanée et résilience maximale en mobilité 3G/4G'

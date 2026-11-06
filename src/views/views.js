@@ -1,4 +1,4 @@
-  // ------------------------------------------------------------------ Vue : accueil et identité
+﻿  // ------------------------------------------------------------------ Vue : accueil et identité
   // 3.26.73 : téléphone relié à la base, données pas encore reçues : on explique et on relance, au lieu de l'écran d'accueil
   VUES.chargement = function () {
     if (S.ui.restauration) return '<section class="accueil"><img src="icon-192.png" alt="" width="64" height="64" style="border-radius:16px;margin:6px 0 18px"><h1>Ouverture…</h1><p>Lecture de vos données sur le téléphone.</p></section>';
@@ -3473,55 +3473,98 @@
       '</div>' +
       '</div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
-    h += '<ul class="liste">';
-    liste.slice(0, S.ui.limite).forEach(function (p) {
-      var ouvert = S.ui.contactOuvert === p.code, lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
-      h += '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
-        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-        '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
-          (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
-            var ok = function (x) { return aF && communeCorrespondante(x, coF); };
-            var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
-            return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
-              .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
-        '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
-          (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
-            return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
-        (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
-        (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
-        etiquetteCollegues(p.code, t) + '</span></button>';
-      if (ouvert) {
-        var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
-        h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
-                              lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
-        if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
-        if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
-        if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
-        if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
-        h += grillePresences(p.code);
-        var impose = S.imposes.some(function (im) { return im.code === p.code; });
-        var nbLieux = lieux.length || 1;
-        var nbGpsFixes = lieux.filter(aCoord).length;
-        var badgeGpsClasse = nbGpsFixes === nbLieux ? 'fixe' : (nbGpsFixes > 0 ? 'partiel' : 'manquant');
-        var badgeGpsHtml = icone('carte') + '<span>' + nbGpsFixes + '/' + nbLieux + '</span>';
-        var tAuj = aujourdhui();
-        var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === tAuj; });
+  // 3.27.47 : Rendu unitaire d'une carte praticien pour Infinite Scroll et affichage progressif sans DOM bloat
+  function cartePraticienHtml(p, c, t, ouvert) {
+    if (!p) return '';
+    c = c || ctx();
+    t = t || aujourdhui();
+    if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
+    var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
+    var h = '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
+      '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+      '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
+        (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
+          var ok = function (x) { return aF && communeCorrespondante(x, coF); };
+          var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
+          return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
+            .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
+      '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
+        (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
+          return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
+      (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
+      (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
+      etiquetteCollegues(p.code, t) + '</span></button>';
+    if (ouvert) {
+      var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
+      h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
+                            lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
+      if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
+      if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
+      if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
+      if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
+      h += grillePresences(p.code);
+      var impose = S.imposes.some(function (im) { return im.code === p.code; });
+      var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === t; });
 
-        h += '<div class="bloc-actions-contact">' +
+      h += '<div class="bloc-actions-contact">' +
+        '<div class="rangee rangee-actions-contact">' +
+          (dejaAuj
+            ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
+            : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
+                icone('eclair') + '<span>Ajouter au jour</span></button>') +
+          '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
+          '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
+        '</div></div>';
+    }
+    h += '</li>';
+    return h;
+  }
 
-          '<div class="rangee rangee-actions-contact">' +
-            (dejaAuj
-              ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
-              : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
-                  icone('eclair') + '<span>Ajouter au jour</span></button>') +
-            '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
-            '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
-          '</div></div>';
+  function chargerSuitePraticiens() {
+    var ul = listePraticiens;
+    if (!ul || !S.ui._pratListe) return;
+    var liste = S.ui._pratListe;
+    var debut = S.ui._pratAffiches || 0;
+    if (debut >= liste.length) return;
+    var fin = Math.min(debut + 30, liste.length);
+    var c = ctx(), t = aujourdhui();
+    var chunks = [];
+    for (var i = debut; i < fin; i++) {
+      chunks.push(cartePraticienHtml(liste[i], c, t, S.ui.contactOuvert === liste[i].code));
+    }
+    ul.insertAdjacentHTML('beforeend', chunks.join(''));
+    S.ui._pratAffiches = fin;
+    var reste = liste.length - fin;
+    var zone = zonePlusPrat;
+    var sentinelle = sentinelleScrollRep;
+    if (reste > 0) {
+      if (zone) {
+        var btn = zone.querySelector('button');
+        if (btn) btn.textContent = 'Afficher plus (' + reste + ' restant' + (reste > 1 ? 's' : '') + ')';
       }
-      h += '</li>';
-    });
+    } else {
+      if (zone) zone.remove();
+      if (sentinelle) sentinelle.remove();
+    }
+  }
+  window.chargerSuitePraticiens = chargerSuitePraticiens;
+
+    var TAILLE_PAGE_PRAT = 30;
+    S.ui._pratListe = liste;
+    var nbInitial = Math.min(liste.length, Math.max(TAILLE_PAGE_PRAT, S.ui._pratAffiches || 0, (io >= 0 ? io + 1 : 0)));
+    S.ui._pratAffiches = nbInitial;
+
+    h += '<ul id="listePraticiens" class="liste">';
+    for (var i = 0; i < nbInitial; i++) {
+      h += cartePraticienHtml(liste[i], c, t, S.ui.contactOuvert === liste[i].code);
+    }
     h += '</ul>';
-    if (liste.length > S.ui.limite) h += '<button class="bouton bouton-large" type="button" data-a="plus">Afficher plus</button>';
+
+    var reste = liste.length - nbInitial;
+    if (reste > 0) {
+      h += '<div id="sentinelleScrollRep" class="sentinelle-scroll" style="height:24px;margin:8px 0;"></div>' +
+           '<div id="zonePlusPrat" class="rangee" style="margin:12px 0 24px"><button class="bouton bouton-large" type="button" data-a="plusPrat">Afficher plus (' + reste + ' restant' + (reste > 1 ? 's' : '') + ')</button></div>';
+    }
     return h;
   };
 

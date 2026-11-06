@@ -1,4 +1,4 @@
-  // ------------------------------------------------------------------ En-tête, barre, navigation
+﻿  // ------------------------------------------------------------------ En-tête, barre, navigation
   // 3.26.93 : l'en-tête (MediPlanner, date, nom, synchro, roue crantée) reste visible au-dessus de toutes les fenêtres
   function majHauteurEntete() { var e = document.querySelector('.entete'); if (e) document.documentElement.style.setProperty('--h-entete', e.offsetHeight + 'px'); }
   window.addEventListener('resize', majHauteurEntete);
@@ -108,6 +108,33 @@
     afficherEntete(); afficherBarre(); afficherNav();
     datesEnFrancais();
     initGlisseHorizontale();
+    attacherInfiniteScroll();
+  }
+
+  // 3.27.47 : Infinite Scroll fluide pour le Répertoire (anti DOM bloat)
+  var repObserver = null;
+  function attacherInfiniteScroll() {
+    if (repObserver) {
+      try { repObserver.disconnect(); } catch (e) {}
+      repObserver = null;
+    }
+    if (!('IntersectionObserver' in window)) return;
+    var sentinellePrat = sentinelleScrollRep;
+    if (!sentinellePrat) return;
+
+    var throttleTimer = null;
+    repObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        if (throttleTimer) return;
+        throttleTimer = setTimeout(function () { throttleTimer = null; }, 150);
+        if (typeof window.chargerSuitePraticiens === 'function') {
+          window.chargerSuitePraticiens();
+        }
+      });
+    }, { rootMargin: '300px 0px 300px 0px', threshold: 0.01 });
+
+    repObserver.observe(sentinellePrat);
   }
   // 3.19.0 : animations discrètes, seulement quand quelque chose change vraiment
   // (nouvel écran, nouvelle question d'un parcours, carte qu'on vient d'ouvrir, compte rendu qu'on vient d'enregistrer)

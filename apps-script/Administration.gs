@@ -414,6 +414,10 @@ function assurerStructure(ss) {
   if (!ss.getSheetByName(FEUILLES.presences)) preparerFeuille(ss, FEUILLES.presences, CHAMPS_PRESENCES.map(function (c) { return c[1]; }));
   if (!ss.getSheetByName(FEUILLES.etablissements)) preparerFeuille(ss, FEUILLES.etablissements, CHAMPS_ETABLISSEMENTS.map(function (c) { return c[1]; }));
   else completerEntetes(ss.getSheetByName(FEUILLES.etablissements), CHAMPS_ETABLISSEMENTS);
+  if (FEUILLES.audit && !ss.getSheetByName(FEUILLES.audit)) {
+    var shA = preparerFeuille(ss, FEUILLES.audit, ['Horodatage', 'Auteur', 'Action', 'Entite', 'Code', 'Details']);
+    shA.setFrozenRows(1);
+  }
 }
 
 function renommerEntete(sh, ancien, nouveau) {

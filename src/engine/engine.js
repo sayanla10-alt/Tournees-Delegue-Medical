@@ -1,4 +1,4 @@
-  // ------------------------------------------------------------------ Export du programme
+﻿  // ------------------------------------------------------------------ Export du programme
   function estMobile() {
     try { return window.matchMedia('(pointer: coarse)').matches && /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent); } catch (e) { return false; }
   }
@@ -484,18 +484,36 @@
   // 3.25.28 : rafraîchissement toutes les 5 minutes, à la réouverture et au rafraîchissement
   // discret : sans message ; sinon (bouton « Actualiser ») : message et position GPS imposée même si un quartier était choisi
   var PERIODE_GPS_MIN = 5;
+  var DUREE_CACHE_GPS_MS = 180000; // 3.27.47 : 3 minutes de validité de cache GPS (anti-surchauffe / batterie)
   function localiser(discret, declencheur, forcerGps) {
     if (!navigator.geolocation) { if (!discret) toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
     if (S.ui.localisation) {
       if (S.ui.localisationT && Date.now() - S.ui.localisationT > 10000) S.ui.localisation = false;
       else return;
     }
+
+    var estActionExplicite = !discret || declencheur === 'position' || declencheur === 'capter' || declencheur === 'ici' || forcerGps;
+
+    // 3.27.47 : Régulation batterie : si tâche de fond passive et que le GPS en cache a moins de 3 minutes, réutilisation immédiate
+    if (!estActionExplicite && S.ui.posGps && (Date.now() - S.ui.posGps.t < DUREE_CACHE_GPS_MS)) {
+      var pCache = S.ui.posGps;
+      var A = S.ui.autour, r = Moteur.quartierLePlusProche(pCache.lat, pCache.lon, quartiers());
+      if (positionGps()) {
+        A.lat = pCache.lat; A.lon = pCache.lon; A.src = 'gps'; A.prec = pCache.prec; A.t = pCache.t;
+        A.quartier = r && r.quartier ? r.quartier.quartier : ''; A.commune = r && r.quartier ? r.quartier.commune : '';
+        A.label = A.quartier ? A.quartier + ' (ma position)' : 'ma position';
+        LS.set('autour', A);
+      }
+      alerteProximite(declencheur === 'ouverture');
+      return;
+    }
+
     S.ui.localisation = discret ? 'discret' : true;
     S.ui.localisationT = Date.now();
     if (!discret) { toast('Recherche de votre position…'); if (S.ui.tab === 'autour') rendre(); }
-    mesurePrecise(function (p) {
+
+    function traiterResultatGps(p) {
       S.ui.localisation = false;
-      // 3.26.99 : une mesure moins précise ne remplace pas une mesure récente plus précise, sauf vrai déplacement
       var g0 = gpsFrais();
       if (g0 && g0.prec && p.prec > g0.prec) {
         var ecartM = distanceKm(g0, p) / REGLAGES_MOTEUR.detourRoutier * 1000;
@@ -511,14 +529,29 @@
       }
       rendreSiPossible();
       alerteProximite(declencheur === 'ouverture' || !discret); notifierProximite();
-      // 3.27.0 : alerte d'imprécision seulement quand le délégué demande sa position (pas lors des mesures automatiques), au plus une fois par heure ; la précision reste affichée dans l'encadré
       var demande = !discret || declencheur === 'position', dernAl = +LS.get('alerteImprecisT', 0);
       if (demande && p.prec > 150 && !p.garde && Date.now() - dernAl > 3600000) { LS.set('alerteImprecisT', Date.now()); toast('Position imprécise (± ' + p.prec + ' m). Activez la « localisation précise » du téléphone ou approchez-vous d\'une fenêtre.', 5000); }
       else if (!discret && r && r.km > 8) toast('Vous semblez hors d\'Abidjan. Quartier le plus proche : ' + r.quartier.quartier + '.');
-    }, function () {
+    }
+
+    function traiterErreurGps() {
       S.ui.localisation = false; if (S.ui.tab === 'autour') rendreSiPossible();
       if (!discret) toast('Position indisponible. Autorisez la localisation ou choisissez un quartier.');
-    });
+    }
+
+    if (!estActionExplicite) {
+      try {
+        navigator.geolocation.getCurrentPosition(function (pos) {
+          traiterResultatGps({ lat: pos.coords.latitude, lon: pos.coords.longitude, prec: Math.round(pos.coords.accuracy || 0) });
+        }, function () {
+          traiterErreurGps();
+        }, { enableHighAccuracy: false, maximumAge: DUREE_CACHE_GPS_MS, timeout: 8000 });
+      } catch (eLow) {
+        traiterErreurGps();
+      }
+    } else {
+      mesurePrecise(traiterResultatGps, traiterErreurGps);
+    }
   }
   // « Par ma position » : la dernière position connue du téléphone sert tout de suite (résultats immédiats)
   function positionConnue() {
@@ -645,10 +678,10 @@
       if (pr <= 20) terminer();
       else if (pr <= 50 && Date.now() - debut > 8000) terminer();   // bonne précision et déjà 8 s d'écoute : suffisant
     }
-    try { navigator.geolocation.getCurrentPosition(recevoir, function () {}, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }); } catch (e) {}
-    id = navigator.geolocation.watchPosition(recevoir, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
-    t2 = setTimeout(function () { if (best && precisionDe(best) <= 50) terminer(); }, 8000);
-    t = setTimeout(terminer, 25000);
+    try { navigator.geolocation.getCurrentPosition(recevoir, function () {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }); } catch (e) {}
+    id = navigator.geolocation.watchPosition(recevoir, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    t2 = setTimeout(function () { if (best && precisionDe(best) <= 50) terminer(); }, 4000);
+    t = setTimeout(terminer, 12000); // 3.27.47 : plafond à 12 s au lieu de 25 s
   }
   function precisionDe(p) { var a = p && p.coords && p.coords.accuracy; return a === null || a === undefined || isNaN(a) ? 9999 : a; }
   function distanceCourte(k) {
@@ -1584,7 +1617,14 @@
       S.ui.annuaire = ''; LS.set('annuaire', ''); f.type = 'Médecin'; majFiltres(f);
       S.ui.recherche = ''; S.ui.contactOuvert = code; S.ui.contactEnTete = code; S.ui.tab = 'praticiens'; rendre(); window.scrollTo(0, 0);
     },
-    plus: function () { S.ui.limite += 40; rendre(); },
+    plusPrat: function () {
+      if (typeof window.chargerSuitePraticiens === 'function') window.chargerSuitePraticiens();
+      else { S.ui.limite += 40; rendre(); }
+    },
+    plus: function () {
+      if (typeof window.chargerSuitePraticiens === 'function' && S.ui.tab === 'praticiens') window.chargerSuitePraticiens();
+      else { S.ui.limite += 40; rendre(); }
+    },
     collegue: function (el) {
       // 3.25.45 : toucher le collègue sélectionné réinitialise à Toute l'équipe
       var v = el.dataset.v;

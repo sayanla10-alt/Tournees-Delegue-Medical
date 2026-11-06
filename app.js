@@ -9,10 +9,19 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.46';
+  var APP_VERSION = '3.27.47';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.27.47', [
+      'Concurrence non-destructive (Field-Level Merge) : fusion intelligente par champ lors des mises à jour de fiches (préservation des données des collègues et fin des écrasements aveugles)',
+      'Trafic Abidjan & Lagune réaliste : pénalité de franchissement des ponts ajustée à 45 min aux heures de pointe (7h30-9h30 et 16h30-19h30) pour des tournées réalisables sur le terrain',
+      'Service Worker sécurisé : suppression du skipWaiting automatique pour éliminer tout risque de rupture de session ou de perte de compte rendu en cours',
+      'Traçabilité complète (Audit Trail) : création de la feuille Audit_Logs consignant chaque modification avec auteur, horodatage, ancienne et nouvelle valeur, sans suppression sèche',
+      'Performance DOM & Infinite Scroll : affichage progressif et défilement infini sans saccade dans le Répertoire (fin du DOM bloat)',
+      'Résilience hors-ligne (Dead-Letter Queue) : isolation unitaire des fiches et visites en file d''attente (fin du blocage en tête de file)',
+      'Régulation batterie GPS : cache de position 3 min et limitation du GPS haute précision pour préserver la batterie'
+    ]],
     ['3.27.46', [
       'Stockage flash IndexedDB : migration intégrale du stockage local hors-ligne vers IndexedDB (zéro saturation de quota, suppression du plafond de 5 Mo et fin des saccades synchrones)',
       'Synchronisation incrémentale Delta (syncedAt) : transmission ultra-légère des seules modifications réelles, synchro instantanée et résilience maximale en mobilité 3G/4G'
@@ -954,6 +963,7 @@
     rejetes: LS.get('rejetes', {}),
     queue: LS.get('queue', []),
     fiches: LS.get('fiches', []),
+    deadLetter: LS.get('deadLetter', { visites: [], fiches: [] }),
     ui: {
       tab: (function () {
         // 3.0.0 : nouveaux onglets du parcours (anciens noms convertis)
@@ -1122,7 +1132,7 @@
     archiverPlan(); nettoyerAgenda(); try { copieSecours(); } catch (e) { /* stockage plein : la sauvegarde n'empêche pas l'enregistrement */ }
     LS.set('config', S.config); LS.set('data', S.data); LS.set('plan', S.plan); LS.set('etatsJours', S.jours);
     LS.set('params', S.params); LS.set('queue', S.queue); LS.set('imposes', S.imposes); LS.set('rejetes', S.rejetes);
-    LS.set('fiches', S.fiches);
+    LS.set('fiches', S.fiches); LS.set('deadLetter', S.deadLetter);
     archiverPlan();
     declencherBackgroundSync();
   }
@@ -1140,6 +1150,7 @@
     LS.set('archives', arch);
   }
   function enAttente() { return S.queue.length + S.fiches.length; }
+  function rejetsEnAttente() { return (S.deadLetter && ((S.deadLetter.visites && S.deadLetter.visites.length) + (S.deadLetter.fiches && S.deadLetter.fiches.length))) || 0; }
 
   function pret() { return !!(S.data && S.data.praticiens && S.data.praticiens.length); }
   function statuts() { return (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : STATUTS_DEFAUT; }
@@ -2246,18 +2257,14 @@
     if (S.ui.enCours) return Promise.resolve();
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
     S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete(); if (!pret()) rendreSiPossible();
-    if (!sansGps) localiser(true, 'sync', true);   // 3.26.97 : position précise remesurée à chaque synchronisation
+    if (!sansGps) localiser(true, 'sync');   // 3.27.47 : localisation passive régulée (cache 3 min)
     var tentePub = false, aChange = true;
     // 1. fiches praticiens (codes définitifs), 2. comptes rendus, 3. tournée, 4. données à jour
     var envoi = envoyerFiches().catch(function (errF) {
       console.warn('Erreur envoi fiches, poursuite des comptes rendus:', errF);
       return null;
     }).then(function () {
-      return S.queue.length ? apiPost('valider', { visites: S.queue }).then(function (r) {
-        var recus = {}; (r.recus || []).forEach(function (u) { recus[u] = true; });
-        S.queue = S.queue.filter(function (v) { return !recus[v.uid]; });
-        LS.set('queue', S.queue);
-      }) : null;
+      return traiterQueueVisites();
     });
     return envoi.then(function () { return envoyerRapportsEnAttente(); }).then(function () {
       if (!S.ui.aPublier || !moi()) return;
@@ -2347,34 +2354,96 @@
       S.ui.enCours = false;
       importerAgenda();
       if (!sansGps || aChange || !S.ui.feuille) rendreSiPossible(); else afficherEntete();
-      if (!sansGps) localiser(true, 'sync', true);
+      // 3.27.47 : Second appel redondant localiser supprimé pour économiser la batterie
       if (S.ui.aPublier && !tentePub && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
     });
   }
 
-  // Fiches praticiens saisies sur le téléphone, envoyées une par une (dans l'ordre de saisie)
+  // 3.27.47 : Fiches praticiens envoyées avec traçabilité auteur et Dead-Letter Queue (anti-bloquant)
   function envoyerFiches() {
     if (!S.fiches.length) return Promise.resolve();
     var f = S.fiches[0];
     if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
-    return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences }).then(function (r) {
+    return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences, auteur: moi() }).then(function (r) {
       S.fiches.shift();
       if (r.ancien && r.code && r.ancien !== r.code) remplacerCode(r.ancien, r.code);
       if (r.ids) remplacerIds(r.ids);
       LS.set('fiches', S.fiches); LS.set('plan', S.plan); LS.set('imposes', S.imposes); LS.set('queue', S.queue);
       return envoyerFiches();
     }, function (e) {
-      // Serveur pas encore mis à jour (pas d'action « fiche ») : les fiches restent en attente sur le téléphone,
-      // sans bloquer l'envoi des comptes rendus ni la tournée
       if (/Action inconnue/i.test(e.message)) { S.ui.serveurAncien = true; return; }
-      // 3.26.50 : fiche refusée définitivement par le serveur (pas une coupure) : retirée de la file, sinon ses anciennes
-      // valeurs écrasaient à chaque synchro les corrections faites dans la base (noms qui sautent à l'écran)
-      if (e.refus && !/jeton/i.test(e.message)) {
-        S.fiches.shift(); LS.set('fiches', S.fiches);
-        toast('Fiche « ' + (f.praticien && f.praticien.nom || '') + ' » refusée par la base : ' + e.message, 6000);
+
+      f.tentatives = (f.tentatives || 0) + 1;
+      f.derniereErreur = e.message || String(e);
+      f.dernierEssai = new Date().toISOString();
+
+      if (e.refus || f.tentatives >= 3) {
+        var rejete = S.fiches.shift();
+        S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
+        S.deadLetter.fiches = S.deadLetter.fiches || [];
+        S.deadLetter.fiches.push(rejete);
+        LS.set('fiches', S.fiches);
+        LS.set('deadLetter', S.deadLetter);
+        console.warn('Fiche mise en Dead-Letter Queue après ' + f.tentatives + ' échecs:', rejete, e);
+        toast('Fiche « ' + (rejete.praticien && rejete.praticien.nom || '') + ' » mise de côté suite à des erreurs répétées. Les autres envois continuent.', 6000);
         return envoyerFiches();
       }
-      throw e;
+
+      if (S.fiches.length > 1) {
+        S.fiches.push(S.fiches.shift());
+        LS.set('fiches', S.fiches);
+      }
+      console.warn('Échec temporaire envoi fiche (tentative ' + f.tentatives + '/3):', e.message);
+      return null;
+    });
+  }
+
+  // 3.27.47 : Traitement résilient de la file de visites avec Dead-Letter Queue (anti-bloquant)
+  function traiterQueueVisites() {
+    if (!S.queue || !S.queue.length) return Promise.resolve();
+
+    S.queue.forEach(function (v) {
+      if (!v.uid) v.uid = 'V' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    });
+
+    return apiPost('valider', { visites: S.queue }).then(function (r) {
+      var recus = {};
+      (r.recus || []).forEach(function (u) { recus[u] = true; });
+      S.queue = S.queue.filter(function (v) { return !recus[v.uid]; });
+      LS.set('queue', S.queue);
+    }).catch(function (errBatch) {
+      console.warn('Erreur envoi groupé de la file de visites, basculement en mode unitaire résilient:', errBatch);
+      return viderQueueVisitesUnitaire(0);
+    });
+  }
+
+  function viderQueueVisitesUnitaire(index) {
+    if (!S.queue || index >= S.queue.length) return Promise.resolve();
+    var v = S.queue[index];
+    return apiPost('valider', { visites: [v] }).then(function (r) {
+      if (r.recus && r.recus.indexOf(v.uid) >= 0) {
+        S.queue.splice(index, 1);
+        LS.set('queue', S.queue);
+        return viderQueueVisitesUnitaire(index);
+      } else {
+        return viderQueueVisitesUnitaire(index + 1);
+      }
+    }).catch(function (errU) {
+      v.tentatives = (v.tentatives || 0) + 1;
+      v.derniereErreur = errU.message || String(errU);
+      v.dernierEssai = new Date().toISOString();
+      if (v.tentatives >= 3) {
+        console.warn('Visite mise en Dead-Letter Queue après 3 échecs:', v);
+        S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
+        S.deadLetter.visites = S.deadLetter.visites || [];
+        S.deadLetter.visites.push(v);
+        S.queue.splice(index, 1);
+        LS.set('queue', S.queue);
+        LS.set('deadLetter', S.deadLetter);
+        toast('Un compte rendu a été mis de côté suite à des erreurs répétées (' + (v.nom || 'visite') + '). Les autres envois continuent.', 5000);
+        return viderQueueVisitesUnitaire(index);
+      }
+      return viderQueueVisitesUnitaire(index + 1);
     });
   }
   function remplacerCode(ancien, code) {
@@ -2531,6 +2600,33 @@
     afficherEntete(); afficherBarre(); afficherNav();
     datesEnFrancais();
     initGlisseHorizontale();
+    attacherInfiniteScroll();
+  }
+
+  // 3.27.47 : Infinite Scroll fluide pour le Répertoire (anti DOM bloat)
+  var repObserver = null;
+  function attacherInfiniteScroll() {
+    if (repObserver) {
+      try { repObserver.disconnect(); } catch (e) {}
+      repObserver = null;
+    }
+    if (!('IntersectionObserver' in window)) return;
+    var sentinellePrat = sentinelleScrollRep;
+    if (!sentinellePrat) return;
+
+    var throttleTimer = null;
+    repObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        if (throttleTimer) return;
+        throttleTimer = setTimeout(function () { throttleTimer = null; }, 150);
+        if (typeof window.chargerSuitePraticiens === 'function') {
+          window.chargerSuitePraticiens();
+        }
+      });
+    }, { rootMargin: '300px 0px 300px 0px', threshold: 0.01 });
+
+    repObserver.observe(sentinellePrat);
   }
   // 3.19.0 : animations discrètes, seulement quand quelque chose change vraiment
   // (nouvel écran, nouvelle question d'un parcours, carte qu'on vient d'ouvrir, compte rendu qu'on vient d'enregistrer)
@@ -6299,55 +6395,98 @@
       '</div>' +
       '</div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
-    h += '<ul class="liste">';
-    liste.slice(0, S.ui.limite).forEach(function (p) {
-      var ouvert = S.ui.contactOuvert === p.code, lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
-      h += '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
-        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-        '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
-          (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
-            var ok = function (x) { return aF && communeCorrespondante(x, coF); };
-            var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
-            return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
-              .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
-        '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
-          (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
-            return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
-        (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
-        (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
-        etiquetteCollegues(p.code, t) + '</span></button>';
-      if (ouvert) {
-        var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
-        h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
-                              lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
-        if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
-        if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
-        if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
-        if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
-        h += grillePresences(p.code);
-        var impose = S.imposes.some(function (im) { return im.code === p.code; });
-        var nbLieux = lieux.length || 1;
-        var nbGpsFixes = lieux.filter(aCoord).length;
-        var badgeGpsClasse = nbGpsFixes === nbLieux ? 'fixe' : (nbGpsFixes > 0 ? 'partiel' : 'manquant');
-        var badgeGpsHtml = icone('carte') + '<span>' + nbGpsFixes + '/' + nbLieux + '</span>';
-        var tAuj = aujourdhui();
-        var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === tAuj; });
+  // 3.27.47 : Rendu unitaire d'une carte praticien pour Infinite Scroll et affichage progressif sans DOM bloat
+  function cartePraticienHtml(p, c, t, ouvert) {
+    if (!p) return '';
+    c = c || ctx();
+    t = t || aujourdhui();
+    if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
+    var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
+    var h = '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
+      '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+      '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
+        (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
+          var ok = function (x) { return aF && communeCorrespondante(x, coF); };
+          var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
+          return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
+            .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
+      '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
+        (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
+          return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
+      (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
+      (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
+      etiquetteCollegues(p.code, t) + '</span></button>';
+    if (ouvert) {
+      var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
+      h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
+                            lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
+      if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
+      if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
+      if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
+      if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
+      h += grillePresences(p.code);
+      var impose = S.imposes.some(function (im) { return im.code === p.code; });
+      var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === t; });
 
-        h += '<div class="bloc-actions-contact">' +
+      h += '<div class="bloc-actions-contact">' +
+        '<div class="rangee rangee-actions-contact">' +
+          (dejaAuj
+            ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
+            : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
+                icone('eclair') + '<span>Ajouter au jour</span></button>') +
+          '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
+          '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
+        '</div></div>';
+    }
+    h += '</li>';
+    return h;
+  }
 
-          '<div class="rangee rangee-actions-contact">' +
-            (dejaAuj
-              ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
-              : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
-                  icone('eclair') + '<span>Ajouter au jour</span></button>') +
-            '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
-            '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
-          '</div></div>';
+  function chargerSuitePraticiens() {
+    var ul = listePraticiens;
+    if (!ul || !S.ui._pratListe) return;
+    var liste = S.ui._pratListe;
+    var debut = S.ui._pratAffiches || 0;
+    if (debut >= liste.length) return;
+    var fin = Math.min(debut + 30, liste.length);
+    var c = ctx(), t = aujourdhui();
+    var chunks = [];
+    for (var i = debut; i < fin; i++) {
+      chunks.push(cartePraticienHtml(liste[i], c, t, S.ui.contactOuvert === liste[i].code));
+    }
+    ul.insertAdjacentHTML('beforeend', chunks.join(''));
+    S.ui._pratAffiches = fin;
+    var reste = liste.length - fin;
+    var zone = zonePlusPrat;
+    var sentinelle = sentinelleScrollRep;
+    if (reste > 0) {
+      if (zone) {
+        var btn = zone.querySelector('button');
+        if (btn) btn.textContent = 'Afficher plus (' + reste + ' restant' + (reste > 1 ? 's' : '') + ')';
       }
-      h += '</li>';
-    });
+    } else {
+      if (zone) zone.remove();
+      if (sentinelle) sentinelle.remove();
+    }
+  }
+  window.chargerSuitePraticiens = chargerSuitePraticiens;
+
+    var TAILLE_PAGE_PRAT = 30;
+    S.ui._pratListe = liste;
+    var nbInitial = Math.min(liste.length, Math.max(TAILLE_PAGE_PRAT, S.ui._pratAffiches || 0, (io >= 0 ? io + 1 : 0)));
+    S.ui._pratAffiches = nbInitial;
+
+    h += '<ul id="listePraticiens" class="liste">';
+    for (var i = 0; i < nbInitial; i++) {
+      h += cartePraticienHtml(liste[i], c, t, S.ui.contactOuvert === liste[i].code);
+    }
     h += '</ul>';
-    if (liste.length > S.ui.limite) h += '<button class="bouton bouton-large" type="button" data-a="plus">Afficher plus</button>';
+
+    var reste = liste.length - nbInitial;
+    if (reste > 0) {
+      h += '<div id="sentinelleScrollRep" class="sentinelle-scroll" style="height:24px;margin:8px 0;"></div>' +
+           '<div id="zonePlusPrat" class="rangee" style="margin:12px 0 24px"><button class="bouton bouton-large" type="button" data-a="plusPrat">Afficher plus (' + reste + ' restant' + (reste > 1 ? 's' : '') + ')</button></div>';
+    }
     return h;
   };
 
@@ -9382,18 +9521,36 @@
   // 3.25.28 : rafraîchissement toutes les 5 minutes, à la réouverture et au rafraîchissement
   // discret : sans message ; sinon (bouton « Actualiser ») : message et position GPS imposée même si un quartier était choisi
   var PERIODE_GPS_MIN = 5;
+  var DUREE_CACHE_GPS_MS = 180000; // 3.27.47 : 3 minutes de validité de cache GPS (anti-surchauffe / batterie)
   function localiser(discret, declencheur, forcerGps) {
     if (!navigator.geolocation) { if (!discret) toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
     if (S.ui.localisation) {
       if (S.ui.localisationT && Date.now() - S.ui.localisationT > 10000) S.ui.localisation = false;
       else return;
     }
+
+    var estActionExplicite = !discret || declencheur === 'position' || declencheur === 'capter' || declencheur === 'ici' || forcerGps;
+
+    // 3.27.47 : Régulation batterie : si tâche de fond passive et que le GPS en cache a moins de 3 minutes, réutilisation immédiate
+    if (!estActionExplicite && S.ui.posGps && (Date.now() - S.ui.posGps.t < DUREE_CACHE_GPS_MS)) {
+      var pCache = S.ui.posGps;
+      var A = S.ui.autour, r = Moteur.quartierLePlusProche(pCache.lat, pCache.lon, quartiers());
+      if (positionGps()) {
+        A.lat = pCache.lat; A.lon = pCache.lon; A.src = 'gps'; A.prec = pCache.prec; A.t = pCache.t;
+        A.quartier = r && r.quartier ? r.quartier.quartier : ''; A.commune = r && r.quartier ? r.quartier.commune : '';
+        A.label = A.quartier ? A.quartier + ' (ma position)' : 'ma position';
+        LS.set('autour', A);
+      }
+      alerteProximite(declencheur === 'ouverture');
+      return;
+    }
+
     S.ui.localisation = discret ? 'discret' : true;
     S.ui.localisationT = Date.now();
     if (!discret) { toast('Recherche de votre position…'); if (S.ui.tab === 'autour') rendre(); }
-    mesurePrecise(function (p) {
+
+    function traiterResultatGps(p) {
       S.ui.localisation = false;
-      // 3.26.99 : une mesure moins précise ne remplace pas une mesure récente plus précise, sauf vrai déplacement
       var g0 = gpsFrais();
       if (g0 && g0.prec && p.prec > g0.prec) {
         var ecartM = distanceKm(g0, p) / REGLAGES_MOTEUR.detourRoutier * 1000;
@@ -9409,14 +9566,29 @@
       }
       rendreSiPossible();
       alerteProximite(declencheur === 'ouverture' || !discret); notifierProximite();
-      // 3.27.0 : alerte d'imprécision seulement quand le délégué demande sa position (pas lors des mesures automatiques), au plus une fois par heure ; la précision reste affichée dans l'encadré
       var demande = !discret || declencheur === 'position', dernAl = +LS.get('alerteImprecisT', 0);
       if (demande && p.prec > 150 && !p.garde && Date.now() - dernAl > 3600000) { LS.set('alerteImprecisT', Date.now()); toast('Position imprécise (± ' + p.prec + ' m). Activez la « localisation précise » du téléphone ou approchez-vous d\'une fenêtre.', 5000); }
       else if (!discret && r && r.km > 8) toast('Vous semblez hors d\'Abidjan. Quartier le plus proche : ' + r.quartier.quartier + '.');
-    }, function () {
+    }
+
+    function traiterErreurGps() {
       S.ui.localisation = false; if (S.ui.tab === 'autour') rendreSiPossible();
       if (!discret) toast('Position indisponible. Autorisez la localisation ou choisissez un quartier.');
-    });
+    }
+
+    if (!estActionExplicite) {
+      try {
+        navigator.geolocation.getCurrentPosition(function (pos) {
+          traiterResultatGps({ lat: pos.coords.latitude, lon: pos.coords.longitude, prec: Math.round(pos.coords.accuracy || 0) });
+        }, function () {
+          traiterErreurGps();
+        }, { enableHighAccuracy: false, maximumAge: DUREE_CACHE_GPS_MS, timeout: 8000 });
+      } catch (eLow) {
+        traiterErreurGps();
+      }
+    } else {
+      mesurePrecise(traiterResultatGps, traiterErreurGps);
+    }
   }
   // « Par ma position » : la dernière position connue du téléphone sert tout de suite (résultats immédiats)
   function positionConnue() {
@@ -9543,10 +9715,10 @@
       if (pr <= 20) terminer();
       else if (pr <= 50 && Date.now() - debut > 8000) terminer();   // bonne précision et déjà 8 s d'écoute : suffisant
     }
-    try { navigator.geolocation.getCurrentPosition(recevoir, function () {}, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }); } catch (e) {}
-    id = navigator.geolocation.watchPosition(recevoir, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 25000, maximumAge: 0 });
-    t2 = setTimeout(function () { if (best && precisionDe(best) <= 50) terminer(); }, 8000);
-    t = setTimeout(terminer, 25000);
+    try { navigator.geolocation.getCurrentPosition(recevoir, function () {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }); } catch (e) {}
+    id = navigator.geolocation.watchPosition(recevoir, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    t2 = setTimeout(function () { if (best && precisionDe(best) <= 50) terminer(); }, 4000);
+    t = setTimeout(terminer, 12000); // 3.27.47 : plafond à 12 s au lieu de 25 s
   }
   function precisionDe(p) { var a = p && p.coords && p.coords.accuracy; return a === null || a === undefined || isNaN(a) ? 9999 : a; }
   function distanceCourte(k) {
@@ -10482,7 +10654,14 @@
       S.ui.annuaire = ''; LS.set('annuaire', ''); f.type = 'Médecin'; majFiltres(f);
       S.ui.recherche = ''; S.ui.contactOuvert = code; S.ui.contactEnTete = code; S.ui.tab = 'praticiens'; rendre(); window.scrollTo(0, 0);
     },
-    plus: function () { S.ui.limite += 40; rendre(); },
+    plusPrat: function () {
+      if (typeof window.chargerSuitePraticiens === 'function') window.chargerSuitePraticiens();
+      else { S.ui.limite += 40; rendre(); }
+    },
+    plus: function () {
+      if (typeof window.chargerSuitePraticiens === 'function' && S.ui.tab === 'praticiens') window.chargerSuitePraticiens();
+      else { S.ui.limite += 40; rendre(); }
+    },
     collegue: function (el) {
       // 3.25.45 : toucher le collègue sélectionné réinitialise à Toute l'équipe
       var v = el.dataset.v;
@@ -11799,6 +11978,7 @@
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
     if (LS._mem.queue) S.queue = LS._mem.queue;
     if (LS._mem.fiches) S.fiches = LS._mem.fiches;
+    if (LS._mem.deadLetter) S.deadLetter = LS._mem.deadLetter;
     if (LS._mem.archives) S.archives = LS._mem.archives;
     if (LS._mem.horsPlan) S.horsPlan = LS._mem.horsPlan;
     ctxCache.data = null;

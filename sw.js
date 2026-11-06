@@ -12,7 +12,7 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.27.46';
+var VERSION = '3.27.47';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -25,7 +25,7 @@ var FICHIERS = [
 ];
 
 self.addEventListener('install', function (e) {
-  self.skipWaiting();
+  // 3.27.47 : SkipWaiting supprimé à l'installation pour éviter les ruptures de session en cours de saisie
   e.waitUntil(caches.open(CACHE).then(function (c) {
     // cache: 'reload' : on prend les fichiers sur le réseau, pas dans le cache HTTP du navigateur
     return c.addAll(FICHIERS.map(function (u) { return new Request(u, { cache: 'reload' }); })).then(function () {

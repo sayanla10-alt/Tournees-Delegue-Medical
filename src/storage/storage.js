@@ -207,6 +207,7 @@
     rejetes: LS.get('rejetes', {}),
     queue: LS.get('queue', []),
     fiches: LS.get('fiches', []),
+    deadLetter: LS.get('deadLetter', { visites: [], fiches: [] }),
     ui: {
       tab: (function () {
         // 3.0.0 : nouveaux onglets du parcours (anciens noms convertis)
@@ -375,7 +376,7 @@
     archiverPlan(); nettoyerAgenda(); try { copieSecours(); } catch (e) { /* stockage plein : la sauvegarde n'empêche pas l'enregistrement */ }
     LS.set('config', S.config); LS.set('data', S.data); LS.set('plan', S.plan); LS.set('etatsJours', S.jours);
     LS.set('params', S.params); LS.set('queue', S.queue); LS.set('imposes', S.imposes); LS.set('rejetes', S.rejetes);
-    LS.set('fiches', S.fiches);
+    LS.set('fiches', S.fiches); LS.set('deadLetter', S.deadLetter);
     archiverPlan();
     declencherBackgroundSync();
   }
@@ -393,6 +394,7 @@
     LS.set('archives', arch);
   }
   function enAttente() { return S.queue.length + S.fiches.length; }
+  function rejetsEnAttente() { return (S.deadLetter && ((S.deadLetter.visites && S.deadLetter.visites.length) + (S.deadLetter.fiches && S.deadLetter.fiches.length))) || 0; }
 
   function pret() { return !!(S.data && S.data.praticiens && S.data.praticiens.length); }
   function statuts() { return (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : STATUTS_DEFAUT; }

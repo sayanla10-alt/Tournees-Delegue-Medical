@@ -1,4 +1,4 @@
-/* Ecriture.gs : enregistrements venant de l'application (visites, comptes rendus, tournées, fiches, délégués). (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
+﻿/* Ecriture.gs : enregistrements venant de l'application (visites, comptes rendus, tournées, fiches, délégués). (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
 function enregistrerRapport(r) {
   var delegue = nomDelegue(r.delegue);
   if (!delegue || !r.date) return { ok: false, erreur: 'Rapport incomplet (délégué ou date).' };
@@ -58,7 +58,14 @@ function enregistrerVisites(visites) {
         return cle && v[cle] !== undefined ? v[cle] : '';
       });
       var avant = correction ? !!statuts[ancienStatut[v.uid]] : false;
-      if (correction) corrections.push({ ligne: deja[v.uid], valeurs: ligne }); else { nouvelles.push(ligne); deja[v.uid] = true; }
+      if (correction) {
+        corrections.push({ ligne: deja[v.uid], valeurs: ligne });
+        enregistrerAudit(ss, v.delegue, 'CORRECTION_VISITE', v.type || 'Visite', v.code || v.uid, (v.nom || '') + ' (' + v.date + ') - Statut: ' + (v.statut || ''));
+      } else {
+        nouvelles.push(ligne);
+        deja[v.uid] = true;
+        enregistrerAudit(ss, v.delegue, 'VALIDATION_VISITE', v.type || 'Visite', v.code || v.uid, (v.nom || '') + ' (' + v.date + ') - Statut: ' + (v.statut || ''));
+      }
       suivis.forEach(function (f) {
         var i = f.ligneDe[String(v.code)], data = f.data, c = f.c;
         if (i === undefined) return;
@@ -192,8 +199,32 @@ function marquerArretsValides(ss, visites) {
 // b.praticien : { code ('' ou 'TMP-…' pour une création), type, nom, specialite, note, conventionne, telephone, actif }
 // b.presences : [{ id ('' ou 'TMP…' pour un nouveau lieu), lieu, quartier, lundi..vendredi, horaireMatin, horaireSoir, lat, lon }]
 // Les lieux du praticien absents de la liste sont supprimés. Renvoie le code définitif et les identifiants des lieux.
+// ---------------------------------------------------------------- Traçabilité (Audit Trail)
+function enregistrerAudit(ss, auteur, action, entite, code, details) {
+  try {
+    var nomF = (typeof FEUILLES !== 'undefined' && FEUILLES.audit) ? FEUILLES.audit : 'Audit_Logs';
+    var sh = ss.getSheetByName(nomF);
+    if (!sh) {
+      sh = preparerFeuille(ss, nomF, ['Horodatage', 'Auteur', 'Action', 'Entite', 'Code', 'Details']);
+      sh.setFrozenRows(1);
+    }
+    var detailsStr = typeof details === 'object' ? JSON.stringify(details) : String(details || '');
+    sh.appendRow([
+      new Date().toISOString(),
+      String(auteur || 'Inconnu'),
+      String(action || ''),
+      String(entite || ''),
+      String(code || ''),
+      detailsStr
+    ]);
+  } catch (e) {
+    console.warn('Erreur enregistrement audit:', e);
+  }
+}
+
 function enregistrerFiche(b) {
   var p = b.praticien || {}, lieux = b.presences || [];
+  var auteur = String(b.auteur || p.auteur || 'Délégué');
   var nom = String(p.nom || '').trim();
   if (nom.length < 3) return { ok: false, erreur: 'Nom du praticien manquant.' };
   var type = p.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin';
@@ -201,7 +232,7 @@ function enregistrerFiche(b) {
   try {
     var ss = SpreadsheetApp.getActive();
     assurerStructure(ss);
-    if (type === 'Pharmacie' && ss.getSheetByName(FEUILLES.pharmacies)) return enregistrerPharmacie(ss, p, lieux[0] || {});
+    if (type === 'Pharmacie' && ss.getSheetByName(FEUILLES.pharmacies)) return enregistrerPharmacie(ss, p, lieux[0] || {}, auteur);
     var shP = ss.getSheetByName(FEUILLES.praticiens), shR = ss.getSheetByName(FEUILLES.presences);
 
     // --- Praticiens : mise à jour de la ligne existante ou ajout avec un nouveau code
@@ -300,7 +331,14 @@ function enregistrerFiche(b) {
     var libres = mesLignes.filter(function (i) { return !utilisees[i]; });
     while (nouveaux.length && libres.length) { var li = libres.shift(); utilisees[li] = true; shR.getRange(li + 2, 1, 1, entR.length).setValues([nouveaux.shift()]); }
     if (nouveaux.length) shR.getRange(shR.getLastRow() + 1, 1, nouveaux.length, entR.length).setValues(nouveaux);
-    libres.sort(function (a, b) { return b - a; }).forEach(function (i) { shR.deleteRow(i + 2); });
+    // 3.27.47 : Pas de suppression sèche des présences d'un confrère. Les présences déjà en base sont conservées.
+    if (libres.length && b.supprimerLieux) {
+      libres.sort(function (a, b) { return b - a; }).forEach(function (i) {
+        var ancLieu = dataR[i] ? dataR[i][posR[indexChamp(CHAMPS_PRESENCES, 'lieu')]] : 'Lieu';
+        enregistrerAudit(ss, auteur, 'SUPPRESSION_PRESENCE', 'Presence', code, 'Suppression lieu: ' + ancLieu);
+        shR.deleteRow(i + 2);
+      });
+    }
     return { ok: true, code: code, ancien: String(p.code || ''), ids: ids, coords: coords };
   } finally {
     lock.releaseLock();
@@ -308,7 +346,7 @@ function enregistrerFiche(b) {
 }
 
 // Pharmacie créée ou modifiée depuis l'application (feuille Pharmacies)
-function enregistrerPharmacie(ss, p, lieu) {
+function enregistrerPharmacie(ss, p, lieu, auteur) {
   var sh = ss.getSheetByName(FEUILLES.pharmacies), tz = ss.getSpreadsheetTimeZone();
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   var pos = CHAMPS_PHARMACIES.map(function (c) { return ent.indexOf(normaliser(c[1])); });

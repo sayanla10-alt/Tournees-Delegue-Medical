@@ -66,6 +66,7 @@
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
     if (LS._mem.queue) S.queue = LS._mem.queue;
     if (LS._mem.fiches) S.fiches = LS._mem.fiches;
+    if (LS._mem.deadLetter) S.deadLetter = LS._mem.deadLetter;
     if (LS._mem.archives) S.archives = LS._mem.archives;
     if (LS._mem.horsPlan) S.horsPlan = LS._mem.horsPlan;
     ctxCache.data = null;

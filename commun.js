@@ -1,4 +1,4 @@
-/* =============================================================================
+﻿/* =============================================================================
    commun.js : référentiel, modèle de données et fonctions partagées (version 3)
    Ce fichier est IDENTIQUE dans l'application (commun.js) et dans Google Apps
    Script (Commun.gs). Toute modification doit être reportée dans les deux.
@@ -813,7 +813,8 @@ var REGLAGES_MOTEUR = {
   minutesParKm: 3,             // vitesse moyenne en ville (~20 km/h, trafic d'Abidjan)
   facteurPointe: 1.6,          // trajets plus lents aux heures de pointe
   heuresPointe: [[420, 570], [990, 1170]],   // 7:00-9:30 et 16:30-19:30
-  minutesPont: 10,             // traversée de la lagune (Plateau / Treichville : ponts souvent saturés)
+  minutesPont: 20,             // traversée de la lagune hors pointe (Plateau / Treichville / Marcory)
+  minutesPontPointe: 45,       // 3.27.47 : traversée de la lagune aux heures de pointe (7h30-9h30 et 16h30-19h30)
   communesSud: ['Treichville', 'Marcory', 'Koumassi', 'Port-Bouët'],
   dureeVisite: 20,             // minutes passées par visite
   debutTravail: 450,           // 07:30 : aucune visite proposée avant
@@ -1002,10 +1003,13 @@ function estConventionne(v) { var t = normaliser(v); return t === 'oui' || t ===
 // Durée de trajet en minutes entre deux points, selon l'heure de départ et la traversée de la lagune
 function minutesTrajet(km, communeA, communeB, minuteDepart) {
   var R = REGLAGES_MOTEUR, t = km * R.minutesParKm;
-  var sudA = R.communesSud.indexOf(communeA) >= 0, sudB = R.communesSud.indexOf(communeB) >= 0;
-  if (communeA && communeB && sudA !== sudB) t += R.minutesPont;
   var pointe = R.heuresPointe.some(function (p) { return minuteDepart !== null && minuteDepart >= p[0] && minuteDepart <= p[1]; });
-  return Math.round(pointe ? t * R.facteurPointe : t);
+  if (pointe) t *= R.facteurPointe;
+  var sudA = R.communesSud.indexOf(communeA) >= 0, sudB = R.communesSud.indexOf(communeB) >= 0;
+  if (communeA && communeB && sudA !== sudB) {
+    t += pointe ? (R.minutesPontPointe || 45) : (R.minutesPont || 20);
+  }
+  return Math.round(t);
 }
 // Jours fériés (feuille Listes, colonne JoursFériés) ; valeurs par défaut pour la Côte d'Ivoire.
 // Les fêtes musulmanes (fin du Ramadan, Tabaski, Maouloud) changent chaque année : à ajouter dans le Sheet.
