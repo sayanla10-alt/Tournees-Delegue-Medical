@@ -67,6 +67,7 @@
   --texte: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --nav-h: 62px;
   --r: 12px;
+  --ease-unslop: cubic-bezier(0.22, 1, 0.36, 1);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -464,7 +465,7 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .legende i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
 .legende i.barre { border-radius: 2px; width: 14px; }
 .liste-couv { list-style: none; margin: 0; padding: 0; }
-.couv-zone { font: 700 13px var(--titre); color: var(--primaire); text-transform: uppercase; letter-spacing: .5px; padding: 10px 0 4px; }
+.couv-zone { font: 600 13px/1.2 var(--titre); color: var(--primaire); text-transform: none; letter-spacing: 0; padding: 10px 0 4px; }
 .couv-zone-interieur { padding: 0 !important; background: transparent !important; }
 .couv-zone-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; background: var(--papier); border: 1px solid var(--trait); border-radius: 8px; padding: 8px 12px; font: 700 13px/1.2 var(--titre); color: var(--gris); cursor: pointer; margin: 6px 0; box-sizing: border-box; }
 .couv-zone-btn[aria-expanded="true"] { border-color: var(--primaire); color: var(--primaire); }
@@ -1224,7 +1225,7 @@ body.avec-barre main { padding-bottom: 90px; }
 .arret-invite { display: block; margin-top: 8px; font-size: 12.5px; font-weight: 600; color: var(--primaire); }
 .etape-cr { margin: 12px 0 4px; }
 .etape-titre { display: block; font: 700 15px/1.3 var(--titre); margin-bottom: 8px; }
-.groupe-statuts { display: block; font-size: 12px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: .4px; margin: 6px 0 6px; }
+.groupe-statuts { display: block; font-size: 12px; font-weight: 600; color: var(--gris); text-transform: none; letter-spacing: 0; margin: 6px 0 6px; }
 .resume-cr p { margin: 0 0 6px; }
 .arret-detail .bouton-texte { display: block; margin: 4px auto 0; color: var(--gris); font-size: 13.5px; }
 
@@ -1431,7 +1432,7 @@ details.avance h3 { margin-top: 18px; }
 .puce-tous svg { transform: none; }
 .puce-tous .compteur { margin-left: 2px; }
 .defile.raccourcis { align-items: center; gap: 6px; margin-bottom: 10px; }
-.raccourcis-titre { flex: none; font-size: 12px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: .04em; }
+.raccourcis-titre { flex: none; font-size: 12px; font-weight: 600; color: var(--gris); text-transform: none; letter-spacing: 0; }
 .puce.petite { min-height: 32px; padding: 0 11px; font-size: 13px; }
 .puce.petite[aria-pressed="true"] { padding-left: 8px; }
 .question-filtre + .question-filtre { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--trait); }
@@ -1509,7 +1510,7 @@ details.avance h3 { margin-top: 18px; }
 .tuiles-resume { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .tuile { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 7px 9px; text-align: left;
   border: 1px solid var(--trait); border-radius: 10px; background: var(--fond, var(--papier)); color: var(--encre); }
-.tuile small { font-size: 11px; font-weight: 600; color: var(--gris); text-transform: uppercase; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tuile small { font-size: 11px; font-weight: 600; color: var(--gris); text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tuile b { font-size: 13px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tuile:active { transform: scale(.98); }
 .tuile:hover { border-color: var(--primaire); }
@@ -1565,7 +1566,7 @@ details.avance h3 { margin-top: 18px; }
 .fiche-corps { padding: 0 14px 12px; border-top: 1px solid var(--trait); }
 .fiche-classe { margin: 10px 0 6px; font-size: 13px; font-weight: 600; color: var(--primaire); }
 .fiche-section { margin-top: 10px; padding: 8px 10px 8px 12px; border-left: 3px solid var(--trait); border-radius: 0 8px 8px 0; background: var(--fond); }
-.fiche-section h4 { margin: 0 0 4px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--gris); }
+.fiche-section h4 { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--gris); }
 .fiche-section ul { margin: 0; padding-left: 18px; }
 .fiche-section li { font-size: 14px; line-height: 1.4; margin: 2px 0; }
 .fiche-section.ci { border-left-color: var(--rouge); }
@@ -1594,11 +1595,11 @@ details.avance h3 { margin-top: 18px; }
 .bas-carte { margin-top: 12px; }
 .danger-doux { color: var(--gris); border-color: var(--trait); background: var(--papier-2); }
 .danger-doux:hover, .danger-doux:active { color: var(--encre); border-color: var(--gris-2); }
-.fiche-gamme { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--primaire); }
+.fiche-gamme { font-style: normal; font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--primaire); }
 
 /* 3.11.1 : Produits compact */
 .liste-gammes { margin-top: 4px; border: 1px solid var(--trait); border-radius: 14px; background: var(--papier); overflow: hidden; }
-.aire-titre { padding: 8px 14px 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--primaire); background: var(--fond); border-top: 1px solid var(--trait); }
+.aire-titre { padding: 8px 14px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--primaire); background: var(--fond); border-top: 1px solid var(--trait); }
 .aire-titre:first-child { border-top: 0; }
 .ligne-gamme { display: flex; align-items: center; gap: 10px; padding: 9px 12px 9px 14px; border-top: 1px solid var(--trait); }
 .aire-titre + .ligne-gamme { border-top: 0; }
@@ -1661,7 +1662,7 @@ details.avance h3 { margin-top: 18px; }
 .progression { height: 8px; border-radius: 4px; background: var(--trait); overflow: hidden; margin-bottom: 4px; }
 .progression i { display: block; height: 100%; background: var(--primaire); border-radius: 4px; transition: width .3s; }
 .maintenant { margin: 0 0 14px; padding: 12px; border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); }
-.maintenant h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--primaire); }
+.maintenant h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--primaire); }
 .maintenant p { margin: 0 0 10px; }
 .a-saisir { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 10px; margin-bottom: 10px; border-radius: 10px; background: var(--fond); }
 .a-saisir b { display: inline-flex; align-items: center; gap: 4px; color: var(--rouge); font-size: 13.5px; width: 100%; }
@@ -3770,4 +3771,33 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
   font-weight: 600;
   color: var(--encre);
   line-height: 1.35;
+}
+
+/* =============================================================================
+   Unslop Design Craft (Damir Sokolovsky heydamir/unslop) :
+   Chiffres tabulaires systÃ©matiques et transitions tactiles calmes
+   ============================================================================= */
+.kpi b,
+.arret-heure,
+.bj-jour b,
+.bj-jour i,
+.compteurs,
+.stat-chiffre,
+.date-fr-texte,
+.compteur,
+.couv-dispo,
+.arret-rail,
+.heure-visite,
+.taux,
+.ligne-reception {
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+
+.bouton:active,
+.puce:active,
+.tuile:active,
+.pastille-produit:active {
+  transform: scale(0.975);
+  transition: transform 0.12s var(--ease-unslop, cubic-bezier(0.22, 1, 0.36, 1));
 }

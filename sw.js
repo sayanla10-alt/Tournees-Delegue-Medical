@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    sw.js : service worker de MediPlanner (fonctionnement hors ligne et mises Ã  jour)
 
    - Les fichiers de l'application sont servis depuis un cache propre Ã  chaque version
@@ -12,7 +12,7 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.27.51';
+var VERSION = '3.27.52';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -25,7 +25,7 @@ var FICHIERS = [
 ];
 
 self.addEventListener('install', function (e) {
-  // 3.27.48 : auto-activation immediate pour recuperer les clients bloques
+  // 3.27.52 : auto-activation immediate pour recuperer les clients bloques
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function (c) {
     // cache: 'reload' : on prend les fichiers sur le rÃ©seau, pas dans le cache HTTP du navigateur
