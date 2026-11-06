@@ -9,11 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.49';
+  var APP_VERSION = '3.27.50';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.27.49', [
+    ['3.27.50', [
+      'Modularisation intégrale de l\'architecture (19 composants indépendants) : découpage strict de toutes les vues et moteurs pour éliminer tout risque de régression',
+      'Mode Clôture de journée (après 18h30) : synthèse valorisante de fin de tournée (« X visites sur Y réalisées, Z comptes-rendus à synchroniser ») et encouragement terrain',
       'Planning (Suppression de date) : Jauge visuelle circulaire sous le doigt et vibration haptique (50 ms) lors de l\'appui long de 650 ms (retour sensoriel immédiat)',
       'Auto-recovery Service Worker : Rétablissement et auto-recovery du Service Worker (mise à jour immédiate et résilience)',
       'Concurrence non-destructive (Field-Level Merge) : fusion intelligente par champ lors des mises à jour de fiches (préservation des données des collègues et fin des écrasements aveugles)',

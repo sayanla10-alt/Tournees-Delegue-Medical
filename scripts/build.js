@@ -14,9 +14,19 @@ const modules = [
   'src/core/format.js',
   'src/api/api.js',
   'src/ui/render.js',
-  'src/views/views.js',
+  'src/views/accueil.js',
+  'src/views/jour.js',
+  'src/views/planifier.js',
+  'src/views/produits.js',
+  'src/views/autour.js',
+  'src/views/equipe.js',
+  'src/views/repertoire.js',
+  'src/views/suivi.js',
+  'src/views/reglages.js',
   'src/views/feuilles.js',
-  'src/engine/engine.js',
+  'src/engine/export.js',
+  'src/engine/planning.js',
+  'src/engine/actions.js',
   'src/ui/lifecycle.js'
 ];
 
@@ -38,4 +48,4 @@ for (const mod of modules) {
 }
 
 fs.writeFileSync(appJsPath, contenu.trimEnd() + '\r\n', 'utf8');
-console.log(`\nSuccès : app.js regénéré (${totalLignes} lignes).`);
+console.log(`\nSuccès : app.js regénéré (${totalLignes} lignes, ${modules.length} modules).`);

@@ -3742,3 +3742,29 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .rangee-actions-rep .bouton { min-height: 36px !important; height: 36px; font-size: 13px; }
 .rangee-actions-rep .bouton svg { width: 16px; height: 16px; }
 .spec-gras { font-weight: 700; color: var(--encre); }
+
+/* 3.27.49 : Écran et bandeau de clôture de journée après 18h30 */
+.cloture-journee {
+  background: var(--papier);
+  border: 1.5px solid var(--primaire);
+  border-radius: var(--r);
+  padding: 16px;
+  margin: 12px 0 16px;
+  box-shadow: 0 4px 12px rgba(10, 108, 116, 0.12);
+}
+.cloture-journee .cj-tete {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--primaire);
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+.cloture-journee .cj-texte {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--encre);
+  line-height: 1.35;
+}

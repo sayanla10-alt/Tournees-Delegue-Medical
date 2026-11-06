@@ -9,11 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.49';
+  var APP_VERSION = '3.27.50';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.27.49', [
+    ['3.27.50', [
+      'Modularisation intégrale de l\'architecture (19 composants indépendants) : découpage strict de toutes les vues et moteurs pour éliminer tout risque de régression',
+      'Mode Clôture de journée (après 18h30) : synthèse valorisante de fin de tournée (« X visites sur Y réalisées, Z comptes-rendus à synchroniser ») et encouragement terrain',
       'Planning (Suppression de date) : Jauge visuelle circulaire sous le doigt et vibration haptique (50 ms) lors de l\'appui long de 650 ms (retour sensoriel immédiat)',
       'Auto-recovery Service Worker : Rétablissement et auto-recovery du Service Worker (mise à jour immédiate et résilience)',
       'Concurrence non-destructive (Field-Level Merge) : fusion intelligente par champ lors des mises à jour de fiches (préservation des données des collègues et fin des écrasements aveugles)',
@@ -3513,7 +3515,17 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte Rendu de cette visite</button></div>';
     }
     var notifsOn = LS.get('notifs', false) && typeof Notification !== 'undefined' && Notification.permission === 'granted';
-    if (finJournee && !crValide && !notifsOn) {
+    if (finJournee && duJour.length > 0) {
+      var real = duJour.filter(function (a) { return a.statut; }).length;
+      var attSync = enAttente();
+      var msgSynthese = real + ' visite' + (real > 1 ? 's' : '') + ' sur ' + duJour.length + ' réalisée' + (real > 1 ? 's' : '') +
+        (attSync ? ', ' + attSync + ' compte' + (attSync > 1 ? 's' : '') + ' rendu' + (attSync > 1 ? 's' : '') + ' à synchroniser' : '') +
+        ' — Bravo pour votre journée !';
+      corps = '<div class="cloture-journee"><div class="cj-tete">' + icone('valider') + '<b>Clôture de la journée (après 18h30)</b></div>' +
+        '<p class="cj-texte">« ' + esc(msgSynthese) + ' »</p>' +
+        (!crValide ? '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div>' : '<span class="etiquette ok">Rapport du jour validé</span>') +
+        '</div>' + corps;
+    } else if (finJournee && !crValide && !notifsOn) {
       corps += '<div class="rappel-cr-soir"><p>Rappel 18 h 30 : pensez à finaliser votre compte rendu de la journée.</p>' +
         '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div></div>';
     }
