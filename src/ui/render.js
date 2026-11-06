@@ -1,24 +1,9 @@
-﻿  // ------------------------------------------------------------------ En-tête, barre, navigation
+  // ------------------------------------------------------------------ En-tête, barre, navigation
   // 3.26.93 : l'en-tête (MediPlanner, date, nom, synchro, roue crantée) reste visible au-dessus de toutes les fenêtres
   function majHauteurEntete() { var e = document.querySelector('.entete'); if (e) document.documentElement.style.setProperty('--h-entete', e.offsetHeight + 'px'); }
   window.addEventListener('resize', majHauteurEntete);
-    function actualiserBadgeSourceBdd() {
-    var b = badgeSourceBdd;
-    if (!b) return;
-    var prim = (S.config && S.config.basePrimaire) || 'supabase';
-    if (prim === 'supabase') {
-      b.className = 'badge-source badge-supabase';
-      b.innerHTML = 'âš¡ Supabase';
-      b.title = 'Base active : Supabase Cloud (Google Sheets en miroir secondaire). Cliquez pour basculer.';
-    } else {
-      b.className = 'badge-source badge-sheets';
-      b.innerHTML = 'ðŸ“Š Sheets';
-      b.title = 'Base active : Google Sheets (Supabase en miroir secondaire). Cliquez pour basculer.';
-    }
-  }
-function afficherEntete() {
+  function afficherEntete() {
     setTimeout(majHauteurEntete, 0);
-    try { actualiserBadgeSourceBdd(); } catch (e) {}
     var t = aujourdhui();
     var moisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
     var ed = $('enteteDate'); if (ed) ed.textContent = majuscule(JOURS_COURTS[jourSemaineIndex(t)]) + ' ' + (+t.slice(8)) + ' ' + moisCourts[+t.slice(5, 7) - 1] + (moi() ? ' · ' + moi() : '');

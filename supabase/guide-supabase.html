@@ -1,0 +1,314 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Guide Visuel : Coller dans Supabase</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .pulse-glow { box-shadow: 0 0 25px rgba(62, 207, 142, 0.4); animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.02); opacity: 0.9; }
+    }
+  </style>
+</head>
+<body class="bg-[#0f0f11] text-neutral-100 min-h-screen p-4 sm:p-8 flex flex-col items-center">
+
+  <div class="max-w-4xl w-full">
+    <!-- En-tÃªte -->
+    <div class="mb-6 text-center">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-2">
+        âš¡ Guide Visuel Pas-Ã -Pas
+      </div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-white">OÃ¹ et comment coller votre script dans Supabase</h1>
+      <p class="text-neutral-400 text-sm mt-1">Suivez les 3 Ã©tapes trÃ¨s simples ci-dessous.</p>
+    </div>
+
+    <!-- Ã‰TAPE 1 : BOUTON COPIER DIRECT -->
+    <div class="bg-[#18181b] border-2 border-emerald-500/40 rounded-2xl p-5 mb-6 shadow-xl">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Ã‰tape 1 sur 3</span>
+          <h2 class="text-lg font-bold text-white mt-0.5">Copier le script SQL dans votre presse-papier</h2>
+          <p class="text-xs text-neutral-400">Cliquez sur ce gros bouton vert pour charger le code directement :</p>
+        </div>
+        <button id="btn-copier" onclick="copierCodeSql()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95 transition cursor-pointer">
+          <span id="icone-copie" class="text-base">ðŸ“‹</span>
+          <span id="texte-copie">1. CLIQUER ICI POUR COPIER LE CODE</span>
+        </button>
+      </div>
+      <div id="confirmation-copie" class="hidden mt-3 p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
+        <span>âœ“</span> <strong>Code copiÃ© avec succÃ¨s dans votre presse-papier !</strong> Vous pouvez maintenant le coller dans Supabase.
+      </div>
+    </div>
+
+    <!-- Ã‰TAPE 2 & 3 : CAPTURE VISUELLE DE L'Ã‰CRAN SUPABASE -->
+    <div class="bg-[#18181b] border border-neutral-800 rounded-2xl p-5 mb-6 shadow-xl">
+      <div class="mb-4">
+        <span class="text-xs font-bold uppercase tracking-wider text-neutral-400">Ã‰tapes 2 & 3 sur 3</span>
+        <h2 class="text-lg font-bold text-white mt-0.5">Voici exactement Ã  quoi ressemble l'Ã©cran Supabase :</h2>
+      </div>
+
+      <!-- Maquette fidÃ¨le de la page Supabase SQL Editor -->
+      <div class="rounded-xl border border-neutral-700 bg-[#121214] overflow-hidden shadow-2xl relative">
+        
+        <!-- Barre de titre navigateur de simulation -->
+        <div class="bg-[#1e1e24] px-4 py-2 flex items-center justify-between border-b border-neutral-800 text-xs text-neutral-400">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500/70 inline-block"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/70 inline-block"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/70 inline-block"></span>
+            <span class="ml-2 font-mono text-[11px] text-neutral-300">supabase.com/dashboard/project/nldyinokqgshnzvdsxgr/sql/new</span>
+          </div>
+          <span class="text-neutral-400 font-semibold text-[11px]">Projet : MediPlanner</span>
+        </div>
+
+        <!-- Corps de l'Ã©cran Supabase -->
+        <div class="flex min-h-[380px]">
+          <!-- Menu latÃ©ral gauche -->
+          <div class="w-14 bg-[#141416] border-r border-neutral-800 flex flex-col items-center py-4 gap-4 shrink-0 text-neutral-500">
+            <div class="w-7 h-7 rounded bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">âš¡</div>
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-800 text-neutral-400" title="Table Editor">ðŸ“Š</div>
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-mono font-bold text-xs" title="SQL Editor">
+              &gt;_
+            </div>
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-neutral-800 text-neutral-400" title="Settings">âš™ï¸</div>
+          </div>
+
+          <!-- Zone centrale de l'Ã©diteur SQL -->
+          <div class="flex-1 flex flex-col relative bg-[#0e0e10]">
+            <!-- Onglet supÃ©rieur -->
+            <div class="h-9 border-b border-neutral-800 bg-[#161619] px-4 flex items-center justify-between">
+              <span class="text-xs text-neutral-300 font-medium flex items-center gap-2">
+                <span class="text-neutral-500">&gt;_</span> New query
+              </span>
+            </div>
+
+            <!-- Grande zone noire de texte avec ANNOTATION CLAIRE -->
+            <div class="flex-1 p-6 relative font-mono text-xs flex flex-col items-center justify-center text-center">
+              
+              <!-- Zone ciblÃ©e : Ã©tape 2 -->
+              <div class="border-2 border-dashed border-emerald-400 bg-emerald-500/5 rounded-xl p-8 max-w-lg w-full flex flex-col items-center">
+                <div class="w-10 h-10 rounded-full bg-emerald-500 text-black font-extrabold flex items-center justify-center text-lg shadow-lg shadow-emerald-500/30 mb-2">
+                  2
+                </div>
+                <h3 class="text-white font-bold text-base mb-1">CLIQUEZ ICI DANS LA ZONE NOIRE</h3>
+                <p class="text-emerald-300 text-xs mb-3 font-sans font-semibold">
+                  Puis faites un Clic Droit &gt; Â« Coller Â» (ou les touches <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-600 text-white">Ctrl</kbd> + <kbd class="px-1.5 py-0.5 rounded bg-neutral-800 border border-neutral-600 text-white">V</kbd>)
+                </p>
+                <div class="text-[11px] text-neutral-400 font-sans">
+                  Tout le texte du schÃ©ma MediPlanner apparaÃ®tra aussitÃ´t dans cette boÃ®te.
+                </div>
+              </div>
+
+              <!-- Ligne numÃ©rotÃ©e simulant l'Ã©diteur -->
+              <div class="absolute left-3 top-3 text-neutral-600 select-none text-[10px]">
+                1<br>2<br>3<br>4
+              </div>
+            </div>
+
+            <!-- Barre infÃ©rieure avec le BOUTON RUN (Ã©tape 3) -->
+            <div class="h-14 border-t border-neutral-800 bg-[#141417] px-6 flex items-center justify-between">
+              <span class="text-[11px] text-neutral-500 hidden sm:inline">PostgreSQL 15 Â· PrÃªt</span>
+
+              <!-- Bouton RUN mis en avant -->
+              <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 text-right">
+                  <span class="w-6 h-6 rounded-full bg-emerald-500 text-black font-extrabold flex items-center justify-center text-xs shadow">
+                    3
+                  </span>
+                  <span class="text-xs text-white font-bold hidden sm:inline">Cliquez sur ce bouton :</span>
+                </div>
+                <div class="relative">
+                  <div class="px-4 py-2 rounded-lg bg-emerald-500 text-neutral-950 font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-500/30 ring-4 ring-emerald-400/40 animate-pulse">
+                    <span>â–¶</span> Run (ou Ctrl+Enter)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOUTON D'ACCÃˆS DIRECT Ã€ SUPABASE -->
+    <div class="text-center">
+      <a href="https://supabase.com/dashboard/project/nldyinokqgshnzvdsxgr/sql/new" target="_blank" 
+         class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-sm border border-neutral-600 shadow-md transition">
+        <span>ðŸš€</span> Ouvrir l'Ã‰diteur SQL Supabase (Nouvel onglet)
+      </a>
+      <p class="text-neutral-500 text-xs mt-2">
+        Une fois sur l'onglet Supabase : faites <strong>Clic Droit &gt; Coller</strong> puis cliquez sur <strong>Run</strong> !
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    var scriptSql = {
+    "value":  "-- =============================================================================\n-- MediPlanner : SchÃ©ma de base de donnÃ©es PostgreSQL pour Supabase\n-- Version : 1.0.0\n-- Compatible Ã  100 % avec le modÃ¨le de donnÃ©es Google Sheets existant\n-- =============================================================================\n\n-- Extension pour la gÃ©nÃ©ration automatique des UUID si besoin\nCREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";\n\n-- -------------------------------------------------------------\n-- 1. Table : Praticiens (MÃ©decins \u0026 SpÃ©cialistes)\n-- -------------------------------------------------------------\nCREATE TABLE IF NOT EXISTS public.praticiens (\n    code VARCHAR(32) PRIMARY KEY,                    -- CodeContact (ex: MED-001)\n    type VARCHAR(32) NOT NULL DEFAULT \u0027MÃ©decin\u0027,     -- Type (MÃ©decin, Pharmacie, etc.)\n    nom TEXT NOT NULL,                               -- Nom complet du praticien\n    specialite TEXT NOT NULL DEFAULT \u0027GÃ©nÃ©raliste\u0027,  -- SpÃ©cialitÃ© mÃ©dicale canonique\n    note SMALLINT NOT NULL DEFAULT 2 CHECK (note BETWEEN 1 AND 3), -- Potentiel (1=C, 2=B, 3=A)\n    conventionne BOOLEAN NOT NULL DEFAULT false,     -- EngagÃ© / Prescription engagÃ©e\n    telephone VARCHAR(32),                           -- NumÃ©ro de tÃ©lÃ©phone normalisÃ©\n    derniere DATE,                                   -- Date derniÃ¨re visite (YYYY-MM-DD)\n    statut VARCHAR(64),                              -- Dernier statut de visite\n    commentaire TEXT,                                -- Dernier commentaire / compte-rendu\n    nb_visites INTEGER NOT NULL DEFAULT 0,           -- Nombre total de visites rÃ©alisÃ©es\n    actif BOOLEAN NOT NULL DEFAULT true,             -- Actif dans le rÃ©pertoire\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\n-- Index pour la recherche et les tris frÃ©quents\nCREATE INDEX IF NOT EXISTS idx_praticiens_nom ON public.praticiens (nom);\nCREATE INDEX IF NOT EXISTS idx_praticiens_specialite ON public.praticiens (specialite);\nCREATE INDEX IF NOT EXISTS idx_praticiens_note ON public.praticiens (note);\nCREATE INDEX IF NOT EXISTS idx_praticiens_actif ON public.praticiens (actif);\n\n-- -------------------------------------------------------------\n-- 2. Table : PrÃ©sences (Lieux de consultation et crÃ©neaux des mÃ©decins)\n-- -------------------------------------------------------------\nCREATE TABLE IF NOT EXISTS public.presences (\n    id VARCHAR(64) PRIMARY KEY,                      -- IdPresence (ex: PRES-001)\n    code VARCHAR(32) NOT NULL REFERENCES public.praticiens(code) ON UPDATE CASCADE ON DELETE CASCADE,\n    nom TEXT,                                        -- Nom du praticien (dÃ©normalisÃ© pour lecture rapide)\n    lieu TEXT NOT NULL,                              -- HÃ´pital, CHU, polyclinique ou cabinet\n    quartier TEXT,                                   -- Quartier ou repÃ¨re\n    commune VARCHAR(64) NOT NULL,                    -- Commune (Cocody, Plateau, Treichville...)\n    zone VARCHAR(32),                                -- Zone (Nord, Sud, etc.)\n    lundi VARCHAR(32),                               -- CrÃ©neaux du lundi (ex: \"Matin\", \"Matin/Soir\", \"08:00-12:00\")\n    mardi VARCHAR(32),\n    mercredi VARCHAR(32),\n    jeudi VARCHAR(32),\n    vendredi VARCHAR(32),\n    horaire_matin VARCHAR(32),                       -- Heure prÃ©cise matin (ex: \"08:00-12:00\")\n    horaire_soir VARCHAR(32),                        -- Heure prÃ©cise soir (ex: \"15:00-18:00\")\n    lat DOUBLE PRECISION,                            -- CoordonnÃ©es GPS latitude\n    lon DOUBLE PRECISION,                            -- CoordonnÃ©es GPS longitude\n    reperes TEXT,                                    -- RepÃ¨res d\u0027accÃ¨s (ex: \"Enceinte CHU, BÃ¢timent B\")\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_presences_code ON public.presences (code);\nCREATE INDEX IF NOT EXISTS idx_presences_commune ON public.presences (commune);\nCREATE INDEX IF NOT EXISTS idx_presences_lieu ON public.presences (lieu);\n\n-- -------------------------------------------------------------\n-- 3. Table : Pharmacies (Officines et points de distribution)\n-- -------------------------------------------------------------\nCREATE TABLE IF NOT EXISTS public.pharmacies (\n    code VARCHAR(32) PRIMARY KEY,                    -- CodeContact (ex: PHA-001)\n    nom TEXT NOT NULL,                               -- Nom de l\u0027officine\n    titulaire TEXT,                                  -- Pharmacien titulaire\n    quartier TEXT,                                   -- Quartier\n    commune VARCHAR(64) NOT NULL,                    -- Commune\n    zone VARCHAR(32),\n    lat DOUBLE PRECISION,\n    lon DOUBLE PRECISION,\n    telephone VARCHAR(32),\n    horaire_matin VARCHAR(32),\n    horaire_soir VARCHAR(32),\n    note SMALLINT NOT NULL DEFAULT 2 CHECK (note BETWEEN 1 AND 3),\n    conventionne BOOLEAN NOT NULL DEFAULT false,     -- Partenariat / Commande engagÃ©e\n    derniere DATE,                                   -- Date derniÃ¨re visite\n    statut VARCHAR(64),\n    commentaire TEXT,\n    nb_visites INTEGER NOT NULL DEFAULT 0,\n    actif BOOLEAN NOT NULL DEFAULT true,\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_pharmacies_commune ON public.pharmacies (commune);\nCREATE INDEX IF NOT EXISTS idx_pharmacies_actif ON public.pharmacies (actif);\n\n-- -------------------------------------------------------------\n-- 4. Table : Ã‰tablissements (RÃ©pertoire de rÃ©fÃ©rence des structures de santÃ©)\n-- -------------------------------------------------------------\nCREATE TABLE IF NOT EXISTS public.etablissements (\n    code VARCHAR(32) PRIMARY KEY,                    -- CodeEtab\n    nom TEXT NOT NULL,                               -- Nom officiel\n    categorie VARCHAR(64),                           -- CHU, HG, Polyclinique, Clinique, Cabinet\n    commune VARCHAR(64) NOT NULL,\n    quartier TEXT,\n    zone VARCHAR(32),\n    lat DOUBLE PRECISION,\n    lon DOUBLE PRECISION,\n    telephone VARCHAR(32),\n    reperes TEXT,\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_etablissements_nom ON public.etablissements (nom);\nCREATE INDEX IF NOT EXISTS idx_etablissements_commune ON public.etablissements (commune);\n\n-- -------------------------------------------------------------\n-- 5. Table : Visites (Historique des passages et comptes-rendus)\n-- -------------------------------------------------------------\nCREATE TABLE IF NOT EXISTS public.visites (\n    uid VARCHAR(64) PRIMARY KEY,                     -- IdSync (UUID gÃ©nÃ©rÃ© cÃ´tÃ© client)\n    date DATE NOT NULL,                              -- Date de la visite (YYYY-MM-DD)\n    horodatage TIMESTAMPTZ NOT NULL DEFAULT NOW(),   -- Heure exacte d\u0027enregistrement\n    delegue VARCHAR(64) NOT NULL,                    -- Nom du dÃ©lÃ©guÃ© mÃ©dical\n    code VARCHAR(32) NOT NULL,                       -- CodeContact\n    id_presence VARCHAR(64),                         -- RÃ©fÃ©rence au lieu visitÃ©\n    nom TEXT NOT NULL,                               -- Nom du praticien ou de l\u0027officine\n    type VARCHAR(32) NOT NULL DEFAULT \u0027MÃ©decin\u0027,     -- MÃ©decin ou Pharmacie\n    specialite VARCHAR(64),\n    note SMALLINT DEFAULT 2,\n    commune VARCHAR(64),\n    quartier TEXT,\n    lieu TEXT,\n    creneau VARCHAR(32),                             -- Matin, Soir, ou horaire fixe\n    statut VARCHAR(64) NOT NULL,                     -- \"Vu / Ã‰change rÃ©alisÃ©\", \"Absent\", etc.\n    type_echange VARCHAR(64),                        -- PrÃ©sentation produit, Remise Ã©chantillons, etc.\n    produits_presentes JSONB,                        -- Tableau JSON des molÃ©cules abordÃ©es\n    echantillons JSONB,                              -- Tableau JSON des Ã©chantillons remis\n    prochaine_visite DATE,                           -- Date prÃ©vue du prochain passage\n    commentaire TEXT,                                -- SynthÃ¨se / remarques\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_visites_date ON public.visites (date);\nCREATE INDEX IF NOT EXISTS idx_visites_delegue ON public.visites (delegue);\nCREATE INDEX IF NOT EXISTS idx_visites_code ON public.visites (code);\n\n-- -------------------------------------------------------------\n-- 6. Table : Plannings (TournÃ©es prÃ©vues par dÃ©lÃ©guÃ© et par date)\n-- -------------------------------------------------------------\nCREATE TABLE IF NOT EXISTS public.plannings (\n    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n    delegue VARCHAR(64) NOT NULL,\n    date DATE NOT NULL,                              -- Date planifiÃ©e\n    heure VARCHAR(16),                               -- Heure de passage prÃ©vue (ex: \"09:30\")\n    creneau VARCHAR(32),\n    debut INTEGER,                                   -- Minute de dÃ©but dans la journÃ©e\n    fin INTEGER,                                     -- Minute de fin dans la journÃ©e\n    id_presence VARCHAR(64),\n    code VARCHAR(32) NOT NULL,\n    nom TEXT NOT NULL,\n    specialite VARCHAR(64),\n    note SMALLINT DEFAULT 2,\n    quartier TEXT,\n    commune VARCHAR(64),\n    lieu TEXT,\n    statut VARCHAR(64),\n    etat VARCHAR(32) DEFAULT \u0027planifie\u0027,             -- \u0027planifie\u0027, \u0027valide\u0027, \u0027reporte\u0027\n    programme VARCHAR(64),                           -- LibellÃ© du programme\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_plannings_delegue_date ON public.plannings (delegue, date);\n\n-- -------------------------------------------------------------\n-- 7. Table : Rapports Journaliers (SynthÃ¨ses de fin de journÃ©e)\n-- -------------------------------------------------------------\nCREATE TABLE IF NOT EXISTS public.rapports (\n    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),\n    delegue VARCHAR(64) NOT NULL,\n    date DATE NOT NULL,\n    valide_le TIMESTAMPTZ DEFAULT NOW(),\n    prevues INTEGER NOT NULL DEFAULT 0,\n    faites INTEGER NOT NULL DEFAULT 0,\n    non_faites INTEGER NOT NULL DEFAULT 0,\n    sans_cr INTEGER NOT NULL DEFAULT 0,\n    synthese TEXT,\n    faits TEXT,\n    concurrence TEXT,\n    besoins TEXT,\n    km NUMERIC(6, 2) DEFAULT 0,\n    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),\n    CONSTRAINT unq_rapport_delegue_date UNIQUE (delegue, date)\n);\n\n-- -------------------------------------------------------------\n-- 8. Activation de la SÃ©curitÃ© Ligne par Ligne (Row Level Security)\n-- -------------------------------------------------------------\nALTER TABLE public.praticiens ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.presences ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.pharmacies ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.etablissements ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.visites ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.plannings ENABLE ROW LEVEL SECURITY;\nALTER TABLE public.rapports ENABLE ROW LEVEL SECURITY;\n\n-- Politiques ouvertes pour l\u0027application cliente (avec la clÃ© publique anon)\nCREATE POLICY \"Lecture autorisÃ©e pour tous\" ON public.praticiens FOR SELECT USING (true);\nCREATE POLICY \"Ã‰criture autorisÃ©e pour tous\" ON public.praticiens FOR ALL USING (true);\n\nCREATE POLICY \"Lecture presences\" ON public.presences FOR SELECT USING (true);\nCREATE POLICY \"Ã‰criture presences\" ON public.presences FOR ALL USING (true);\n\nCREATE POLICY \"Lecture pharmacies\" ON public.pharmacies FOR SELECT USING (true);\nCREATE POLICY \"Ã‰criture pharmacies\" ON public.pharmacies FOR ALL USING (true);\n\nCREATE POLICY \"Lecture etablissements\" ON public.etablissements FOR SELECT USING (true);\nCREATE POLICY \"Ã‰criture etablissements\" ON public.etablissements FOR ALL USING (true);\n\nCREATE POLICY \"Lecture visites\" ON public.visites FOR SELECT USING (true);\nCREATE POLICY \"Ã‰criture visites\" ON public.visites FOR ALL USING (true);\n\nCREATE POLICY \"Lecture plannings\" ON public.plannings FOR SELECT USING (true);\nCREATE POLICY \"Ã‰criture plannings\" ON public.plannings FOR ALL USING (true);\n\nCREATE POLICY \"Lecture rapports\" ON public.rapports FOR SELECT USING (true);\nCREATE POLICY \"Ã‰criture rapports\" ON public.rapports FOR ALL USING (true);\n\n-- -------------------------------------------------------------\n-- 9. DonnÃ©es initiales d\u0027exemple MediPlanner\n-- -------------------------------------------------------------\nINSERT INTO public.praticiens (code, type, nom, specialite, note, conventionne, telephone, actif)\nVALUES\n(\u0027MED-001\u0027, \u0027MÃ©decin\u0027, \u0027Dr Kouassi Marcel\u0027, \u0027Cardiologue\u0027, 3, true, \u002707 07 12 34 56\u0027, true),\n(\u0027MED-002\u0027, \u0027MÃ©decin\u0027, \u0027Dr Yao Ahou Estelle\u0027, \u0027PÃ©diatre\u0027, 2, false, \u002705 04 22 11 00\u0027, true),\n(\u0027MED-003\u0027, \u0027MÃ©decin\u0027, \u0027Dr Diallo Ibrahima\u0027, \u0027DiabÃ©tologue\u0027, 3, true, \u002701 02 88 99 77\u0027, true),\n(\u0027MED-004\u0027, \u0027MÃ©decin\u0027, \u0027Dr Bamba Souleymane\u0027, \u0027GÃ©nÃ©raliste\u0027, 1, false, \u002707 48 33 22 11\u0027, true),\n(\u0027PHA-001\u0027, \u0027Pharmacie\u0027, \u0027Pharmacie des Lagunes\u0027, \u0027Pharmacie\u0027, 3, true, \u002727 20 21 00 11\u0027, true),\n(\u0027MED-005\u0027, \u0027MÃ©decin\u0027, \u0027Dr KonÃ© Fatou\u0027, \u0027GynÃ©cologue\u0027, 2, true, \u002707 55 44 33 22\u0027, true),\n(\u0027MED-006\u0027, \u0027MÃ©decin\u0027, \u0027Dr N\u0027\u0027Goran Jean-Paul\u0027, \u0027Pneumologue\u0027, 3, false, \u002705 11 22 33 44\u0027, true),\n(\u0027PHA-002\u0027, \u0027Pharmacie\u0027, \u0027Pharmacie Saint-Jean\u0027, \u0027Pharmacie\u0027, 2, true, \u002727 22 44 55 66\u0027, true),\n(\u0027MED-007\u0027, \u0027MÃ©decin\u0027, \u0027Dr TourÃ© Amadou\u0027, \u0027Cardiologue\u0027, 3, true, \u002701 99 88 77 66\u0027, true),\n(\u0027MED-008\u0027, \u0027MÃ©decin\u0027, \u0027Dr Bakayoko Mariam\u0027, \u0027PÃ©diatre\u0027, 2, false, \u002707 12 34 56 78\u0027, true),\n(\u0027MED-009\u0027, \u0027MÃ©decin\u0027, \u0027Dr CissÃ© Lamine\u0027, \u0027GÃ©nÃ©raliste\u0027, 1, false, \u002705 66 77 88 99\u0027, true),\n(\u0027PHA-003\u0027, \u0027Pharmacie\u0027, \u0027Grande Pharmacie de Treich\u0027, \u0027Pharmacie\u0027, 3, true, \u002727 21 24 00 00\u0027, true)\nON CONFLICT (code) DO NOTHING;\n\nINSERT INTO public.presences (id, code, nom, lieu, commune, lundi, mardi, mercredi, jeudi, vendredi, lat, lon)\nVALUES\n(\u0027PRES-01\u0027, \u0027MED-001\u0027, \u0027Dr Kouassi Marcel\u0027, \u0027CHU Treichville (Pavillon Cardiologie)\u0027, \u0027Treichville\u0027, NULL, \u0027Matin\u0027, NULL, \u0027Soir\u0027, NULL, 5.3012, -4.0045),\n(\u0027PRES-02\u0027, \u0027MED-001\u0027, \u0027Dr Kouassi Marcel\u0027, \u0027Polyclinique Sainte Anne-Marie (PISAM)\u0027, \u0027Cocody\u0027, \u0027Soir\u0027, NULL, \u0027Matin\u0027, NULL, NULL, 5.3421, -3.9982),\n(\u0027PRES-03\u0027, \u0027MED-002\u0027, \u0027Dr Yao Ahou Estelle\u0027, \u0027Clinique Farah\u0027, \u0027Marcory\u0027, \u0027Matin\u0027, \u0027Matin\u0027, \u0027Matin\u0027, \u0027Matin\u0027, \u0027Matin\u0027, 5.3120, -3.9850),\n(\u0027PRES-04\u0027, \u0027MED-003\u0027, \u0027Dr Diallo Ibrahima\u0027, \u0027HG Yopougon AttiÃ©\u0027, \u0027Yopougon\u0027, NULL, NULL, \u0027Toute la journÃ©e\u0027, NULL, NULL, 5.3450, -4.0780),\n(\u0027PRES-05\u0027, \u0027PHA-001\u0027, \u0027Pharmacie des Lagunes\u0027, \u0027Avenue Chardy, Immeuble Alpha\u0027, \u0027Plateau\u0027, \u0027JournÃ©e\u0027, \u0027JournÃ©e\u0027, \u0027JournÃ©e\u0027, \u0027JournÃ©e\u0027, \u0027JournÃ©e\u0027, 5.3210, -4.0190)\nON CONFLICT (id) DO NOTHING;\n\n",
+    "PSPath":  "C:\\Users\\YBS106386\\.gemini\\antigravity\\scratch\\mediplanner\\supabase\\schema.sql",
+    "PSParentPath":  "C:\\Users\\YBS106386\\.gemini\\antigravity\\scratch\\mediplanner\\supabase",
+    "PSChildName":  "schema.sql",
+    "PSDrive":  {
+                    "CurrentLocation":  "Users\\YBS106386\\AppData\\Local\\Programs\\antigravity",
+                    "Name":  "C",
+                    "Provider":  {
+                                     "ImplementingType":  "Microsoft.PowerShell.Commands.FileSystemProvider",
+                                     "HelpFile":  "System.Management.Automation.dll-Help.xml",
+                                     "Name":  "FileSystem",
+                                     "PSSnapIn":  "Microsoft.PowerShell.Core",
+                                     "ModuleName":  "Microsoft.PowerShell.Core",
+                                     "Module":  null,
+                                     "Description":  "",
+                                     "Capabilities":  52,
+                                     "Home":  "C:\\Users\\YBS106386",
+                                     "Drives":  "C"
+                                 },
+                    "Root":  "C:\\",
+                    "Description":  "Windows",
+                    "MaximumSize":  null,
+                    "Credential":  {
+                                       "UserName":  null,
+                                       "Password":  null
+                                   },
+                    "DisplayRoot":  null
+                },
+    "PSProvider":  {
+                       "ImplementingType":  {
+                                                "Module":  "System.Management.Automation.dll",
+                                                "Assembly":  "System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35",
+                                                "TypeHandle":  "System.RuntimeTypeHandle",
+                                                "DeclaringMethod":  null,
+                                                "BaseType":  "System.Management.Automation.Provider.NavigationCmdletProvider",
+                                                "UnderlyingSystemType":  "Microsoft.PowerShell.Commands.FileSystemProvider",
+                                                "FullName":  "Microsoft.PowerShell.Commands.FileSystemProvider",
+                                                "AssemblyQualifiedName":  "Microsoft.PowerShell.Commands.FileSystemProvider, System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35",
+                                                "Namespace":  "Microsoft.PowerShell.Commands",
+                                                "GUID":  "b4755d19-b6a7-38dc-ae06-4167f801062f",
+                                                "IsEnum":  false,
+                                                "GenericParameterAttributes":  null,
+                                                "IsSecurityCritical":  true,
+                                                "IsSecuritySafeCritical":  false,
+                                                "IsSecurityTransparent":  false,
+                                                "IsGenericTypeDefinition":  false,
+                                                "IsGenericParameter":  false,
+                                                "GenericParameterPosition":  null,
+                                                "IsGenericType":  false,
+                                                "IsConstructedGenericType":  false,
+                                                "ContainsGenericParameters":  false,
+                                                "StructLayoutAttribute":  "System.Runtime.InteropServices.StructLayoutAttribute",
+                                                "Name":  "FileSystemProvider",
+                                                "MemberType":  32,
+                                                "DeclaringType":  null,
+                                                "ReflectedType":  null,
+                                                "MetadataToken":  33556359,
+                                                "GenericTypeParameters":  "",
+                                                "DeclaredConstructors":  "Void .ctor() Void .cctor()",
+                                                "DeclaredEvents":  "",
+                                                "DeclaredFields":  "System.Collections.ObjectModel.Collection`1[System.Management.Automation.WildcardPattern] excludeMatcher System.Management.Automation.PSTraceSource tracer Char[] s_remoteCopyNameInvalidChars Int32 FILETRANSFERSIZE System.String ProviderName",
+                                                "DeclaredMembers":  "System.String NormalizePath(System.String) System.IO.FileSystemInfo GetFileSystemInfo(System.String, Boolean ByRef) Boolean IsFilterSet() System.Object GetChildNamesDynamicParameters(System.String) System.Object GetChildItemsDynamicParameters(System.String, Boolean) System.Object CopyItemDynamicParameters(System.String, System.String, Boolean) Boolean IsNetworkMappedDrive(System.Management.Automation.PSDriveInfo) Boolean IsSupportedDriveForPersistence(System.Management.Automation.PSDriveInfo) System.String GetRootPathForNetworkDriveOrDosDevice(System.IO.DriveInfo) System.Collections.ObjectModel.Collection`1[System.Management.Automation.PSDriveInfo] InitializeDefaultDrives() System.Object GetItemDynamicParameters(System.String) Void InvokeDefaultAction(System.String) Void GetChildItems(System.String, Boolean, UInt32) Void GetChildNames(System.String, System.Management.Automation.ReturnContainers) Boolean CheckItemExists(System.String, Boolean ByRef) System.Object RemoveItemDynamicParameters(System.String, Boolean) Void RemoveFileInfoItem(System.IO.FileInfo, Boolean) Boolean ItemExists(System.String) System.Object ItemExistsDynamicParameters(System.String) Boolean HasChildItems(System.String) Void CopyItemLocalOrToSession(System.String, System.String, Boolean, Boolean, System.Management.Automation.PowerShell) Void InitilizeFunctionPSCopyFileFromRemoteSession(System.Management.Automation.PowerShell) Boolean ValidRemoteSessionForScripting(System.Management.Automation.Runspaces.Runspace) Void InitilizeFunctionsPSCopyFileToRemoteSession(System.Management.Automation.PowerShell) Boolean PathIsReservedDeviceName(System.String, System.String) Boolean IsAbsolutePath(System.String) System.String GetCommonBase(System.String, System.String) System.String CreateNormalizedRelativePathFromStack(System.Collections.Generic.Stack`1[System.String]) Boolean IsItemContainer(System.String) Void MoveDirectoryInfoUnchecked(System.IO.DirectoryInfo, System.String, Boolean) Boolean IsSameVolume(System.String, System.String) System.Object GetPropertyDynamicParameters(System.String, System.Collections.ObjectModel.Collection`1[System.String]) System.Object SetPropertyDynamicParameters(System.String, System.Management.Automation.PSObject) System.Object ClearPropertyDynamicParameters(System.String, System.Collections.ObjectModel.Collection`1[System.String]) System.Object GetContentWriterDynamicParameters(System.String) System.Object ClearContentDynamicParameters(System.String) Int32 SafeGetFileAttributes(System.String) System.Security.AccessControl.ObjectSecurity NewSecurityDescriptorFromPath(System.String, System.Security.AccessControl.AccessControlSections) System.Security.AccessControl.ObjectSecurity NewSecurityDescriptorOfType(System.String, System.Security.AccessControl.AccessControlSections) System.Security.AccessControl.ObjectSecurity NewSecurityDescriptor(ItemType) System.Management.Automation.ErrorRecord CreateErrorRecord(System.String, System.String) System.String GetHelpMaml(System.String, System.String) System.Management.Automation.ProviderInfo Start(System.Management.Automation.ProviderInfo) System.Management.Automation.PSDriveInfo NewDrive(System.Management.Automation.PSDriveInfo) Void MapNetworkDrive(System.Management.Automation.PSDriveInfo) System.Management.Automation.PSDriveInfo RemoveDrive(System.Management.Automation.PSDriveInfo) System.String GetUNCForNetworkDrive(System.String) System.String GetSubstitutedPathForNetworkDosDevice(System.String) Boolean IsValidPath(System.String) Void GetItem(System.String) System.IO.FileSystemInfo GetFileSystemItem(System.String, Boolean ByRef, Boolean) Boolean ConvertPath(System.String, System.String, System.String ByRef, System.String ByRef) Void GetPathItems(System.String, Boolean, UInt32, Boolean, System.Management.Automation.ReturnContainers) Void Dir(System.IO.DirectoryInfo, Boolean, UInt32, Boolean, System.Management.Automation.ReturnContainers, InodeTracker) System.Management.Automation.FlagsExpression`1[System.IO.FileAttributes] FormatAttributeSwitchParamters() System.String Mode(System.Management.Automation.PSObject) Void RenameItem(System.String, System.String) Void NewItem(System.String, System.String, System.Object) ItemType GetItemType(System.String) Void CreateDirectory(System.String, Boolean) Boolean CreateIntermediateDirectories(System.String) Void RemoveItem(System.String, Boolean) Void RemoveDirectoryInfoItem(System.IO.DirectoryInfo, Boolean, Boolean, Boolean) Void RemoveFileSystemItem(System.IO.FileSystemInfo, Boolean) Boolean ItemExists(System.String, System.Management.Automation.ErrorRecord ByRef) Boolean DirectoryInfoHasChildItems(System.IO.DirectoryInfo) Void CopyItem(System.String, System.String, Boolean) Void CopyItemFromRemoteSession(System.String, System.String, Boolean, Boolean, System.Management.Automation.Runspaces.PSSession) Void CopyDirectoryInfoItem(System.IO.DirectoryInfo, System.String, Boolean, Boolean, System.Management.Automation.PowerShell) Void CopyFileInfoItem(System.IO.FileInfo, System.String, Boolean, System.Management.Automation.PowerShell) Void CopyDirectoryFromRemoteSession(System.String, System.String, System.String, Boolean, Boolean, System.Management.Automation.PowerShell) System.Collections.ArrayList GetRemoteSourceAlternateStreams(System.Management.Automation.PowerShell, System.String) Void RemoveFunctionsPSCopyFileFromRemoteSession(System.Management.Automation.PowerShell) System.Collections.Hashtable GetRemoteFileMetadata(System.String, System.Management.Automation.PowerShell) Void SetFileMetadata(System.String, System.IO.FileInfo, System.Management.Automation.PowerShell) Void CopyFileFromRemoteSession(System.String, System.String, System.String, Boolean, System.Management.Automation.PowerShell, Int64) Boolean PerformCopyFileFromRemoteSession(System.String, System.IO.FileInfo, System.String, Boolean, System.Management.Automation.PowerShell, Int64, Boolean, System.String) Void RemoveFunctionPSCopyFileToRemoteSession(System.Management.Automation.PowerShell) Boolean RemoteTargetSupportsAlternateStreams(System.Management.Automation.PowerShell, System.String) System.String MakeRemotePath(System.Management.Automation.PowerShell, System.String, System.String) Boolean RemoteDirectoryExist(System.Management.Automation.PowerShell, System.String) Boolean CopyFileStreamToRemoteSession(System.IO.FileInfo, System.String, System.Management.Automation.PowerShell, Boolean, System.String) System.Collections.Hashtable GetFileMetadata(System.IO.FileInfo) Void SetRemoteFileMetadata(System.IO.FileInfo, System.String, System.Management.Automation.PowerShell) Boolean PerformCopyFileToRemoteSession(System.IO.FileInfo, System.String, System.Management.Automation.PowerShell) Boolean RemoteDestinationPathIsFile(System.String, System.Management.Automation.PowerShell) System.String CreateDirectoryOnRemoteSession(System.String, Boolean, System.Management.Automation.PowerShell) Boolean IsValidRemoteName(System.String) Void ValidateRemoteName(System.String) System.String GetParentPath(System.String, System.String) Boolean IsUNCPath(System.String) Boolean IsUNCRoot(System.String) Boolean IsPathRoot(System.String) System.String NormalizeRelativePath(System.String, System.String) System.String NormalizeRelativePathHelper(System.String, System.String) System.String RemoveRelativeTokens(System.String) System.Collections.Generic.Stack`1[System.String] TokenizePathToStack(System.String, System.String) System.Collections.Generic.Stack`1[System.String] NormalizeThePath(System.String, System.Collections.Generic.Stack`1[System.String]) System.String GetChildName(System.String) System.String EnsureDriveIsRooted(System.String) Void MoveItem(System.String, System.String) Void MoveFileInfoItem(System.IO.FileInfo, System.String, Boolean, Boolean) Void MoveDirectoryInfoItem(System.IO.DirectoryInfo, System.String, Boolean) Void CopyAndDelete(System.IO.DirectoryInfo, System.String, Boolean) Void GetProperty(System.String, System.Collections.ObjectModel.Collection`1[System.String]) Void SetProperty(System.String, System.Management.Automation.PSObject) Void ClearProperty(System.String, System.Collections.ObjectModel.Collection`1[System.String]) System.Management.Automation.Provider.IContentReader GetContentReader(System.String) System.Object GetContentReaderDynamicParameters(System.String) System.Management.Automation.Provider.IContentWriter GetContentWriter(System.String) Void ClearContent(System.String) Void ValidateParameters(Boolean) Void GetSecurityDescriptor(System.String, System.Security.AccessControl.AccessControlSections) Void SetSecurityDescriptor(System.String, System.Security.AccessControl.ObjectSecurity) Void SetSecurityDescriptor(System.String, System.Security.AccessControl.ObjectSecurity, System.Security.AccessControl.AccessControlSections) Void \u003cRemoveDirectoryInfoItem\u003eg__WriteErrorHelper|43_0(System.Exception, \u003c\u003ec__DisplayClass43_0 ByRef) Void .ctor() Void .cctor() System.Collections.ObjectModel.Collection`1[System.Management.Automation.WildcardPattern] excludeMatcher System.Management.Automation.PSTraceSource tracer Char[] s_remoteCopyNameInvalidChars Int32 FILETRANSFERSIZE System.String ProviderName Microsoft.PowerShell.Commands.FileSystemProvider+ItemType Microsoft.PowerShell.Commands.FileSystemProvider+NativeMethods Microsoft.PowerShell.Commands.FileSystemProvider+NetResource Microsoft.PowerShell.Commands.FileSystemProvider+InodeTracker Microsoft.PowerShell.Commands.FileSystemProvider+\u003c\u003ec__DisplayClass43_0",
+                                                "DeclaredMethods":  "System.String Mode(System.Management.Automation.PSObject) System.String NormalizePath(System.String) System.IO.FileSystemInfo GetFileSystemInfo(System.String, Boolean ByRef) Boolean IsFilterSet() System.Object GetChildNamesDynamicParameters(System.String) System.Object GetChildItemsDynamicParameters(System.String, Boolean) System.Object CopyItemDynamicParameters(System.String, System.String, Boolean) Boolean IsNetworkMappedDrive(System.Management.Automation.PSDriveInfo) Boolean IsSupportedDriveForPersistence(System.Management.Automation.PSDriveInfo) System.String GetRootPathForNetworkDriveOrDosDevice(System.IO.DriveInfo) System.Collections.ObjectModel.Collection`1[System.Management.Automation.PSDriveInfo] InitializeDefaultDrives() System.Object GetItemDynamicParameters(System.String) Void InvokeDefaultAction(System.String) Void GetChildItems(System.String, Boolean, UInt32) Void GetChildNames(System.String, System.Management.Automation.ReturnContainers) Boolean CheckItemExists(System.String, Boolean ByRef) System.Object RemoveItemDynamicParameters(System.String, Boolean) Void RemoveFileInfoItem(System.IO.FileInfo, Boolean) Boolean ItemExists(System.String) System.Object ItemExistsDynamicParameters(System.String) Boolean HasChildItems(System.String) Void CopyItemLocalOrToSession(System.String, System.String, Boolean, Boolean, System.Management.Automation.PowerShell) Void InitilizeFunctionPSCopyFileFromRemoteSession(System.Management.Automation.PowerShell) Boolean ValidRemoteSessionForScripting(System.Management.Automation.Runspaces.Runspace) Void InitilizeFunctionsPSCopyFileToRemoteSession(System.Management.Automation.PowerShell) Boolean PathIsReservedDeviceName(System.String, System.String) Boolean IsAbsolutePath(System.String) System.String GetCommonBase(System.String, System.String) System.String CreateNormalizedRelativePathFromStack(System.Collections.Generic.Stack`1[System.String]) Boolean IsItemContainer(System.String) Void MoveDirectoryInfoUnchecked(System.IO.DirectoryInfo, System.String, Boolean) Boolean IsSameVolume(System.String, System.String) System.Object GetPropertyDynamicParameters(System.String, System.Collections.ObjectModel.Collection`1[System.String]) System.Object SetPropertyDynamicParameters(System.String, System.Management.Automation.PSObject) System.Object ClearPropertyDynamicParameters(System.String, System.Collections.ObjectModel.Collection`1[System.String]) System.Object GetContentWriterDynamicParameters(System.String) System.Object ClearContentDynamicParameters(System.String) Int32 SafeGetFileAttributes(System.String) System.Security.AccessControl.ObjectSecurity NewSecurityDescriptorFromPath(System.String, System.Security.AccessControl.AccessControlSections) System.Security.AccessControl.ObjectSecurity NewSecurityDescriptorOfType(System.String, System.Security.AccessControl.AccessControlSections) System.Security.AccessControl.ObjectSecurity NewSecurityDescriptor(ItemType) System.Management.Automation.ErrorRecord CreateErrorRecord(System.String, System.String) System.String GetHelpMaml(System.String, System.String) System.Management.Automation.ProviderInfo Start(System.Management.Automation.ProviderInfo) System.Management.Automation.PSDriveInfo NewDrive(System.Management.Automation.PSDriveInfo) Void MapNetworkDrive(System.Management.Automation.PSDriveInfo) System.Management.Automation.PSDriveInfo RemoveDrive(System.Management.Automation.PSDriveInfo) System.String GetUNCForNetworkDrive(System.String) System.String GetSubstitutedPathForNetworkDosDevice(System.String) Boolean IsValidPath(System.String) Void GetItem(System.String) System.IO.FileSystemInfo GetFileSystemItem(System.String, Boolean ByRef, Boolean) Boolean ConvertPath(System.String, System.String, System.String ByRef, System.String ByRef) Void GetPathItems(System.String, Boolean, UInt32, Boolean, System.Management.Automation.ReturnContainers) Void Dir(System.IO.DirectoryInfo, Boolean, UInt32, Boolean, System.Management.Automation.ReturnContainers, InodeTracker) System.Management.Automation.FlagsExpression`1[System.IO.FileAttributes] FormatAttributeSwitchParamters() Void RenameItem(System.String, System.String) Void NewItem(System.String, System.String, System.Object) ItemType GetItemType(System.String) Void CreateDirectory(System.String, Boolean) Boolean CreateIntermediateDirectories(System.String) Void RemoveItem(System.String, Boolean) Void RemoveDirectoryInfoItem(System.IO.DirectoryInfo, Boolean, Boolean, Boolean) Void RemoveFileSystemItem(System.IO.FileSystemInfo, Boolean) Boolean ItemExists(System.String, System.Management.Automation.ErrorRecord ByRef) Boolean DirectoryInfoHasChildItems(System.IO.DirectoryInfo) Void CopyItem(System.String, System.String, Boolean) Void CopyItemFromRemoteSession(System.String, System.String, Boolean, Boolean, System.Management.Automation.Runspaces.PSSession) Void CopyDirectoryInfoItem(System.IO.DirectoryInfo, System.String, Boolean, Boolean, System.Management.Automation.PowerShell) Void CopyFileInfoItem(System.IO.FileInfo, System.String, Boolean, System.Management.Automation.PowerShell) Void CopyDirectoryFromRemoteSession(System.String, System.String, System.String, Boolean, Boolean, System.Management.Automation.PowerShell) System.Collections.ArrayList GetRemoteSourceAlternateStreams(System.Management.Automation.PowerShell, System.String) Void RemoveFunctionsPSCopyFileFromRemoteSession(System.Management.Automation.PowerShell) System.Collections.Hashtable GetRemoteFileMetadata(System.String, System.Management.Automation.PowerShell) Void SetFileMetadata(System.String, System.IO.FileInfo, System.Management.Automation.PowerShell) Void CopyFileFromRemoteSession(System.String, System.String, System.String, Boolean, System.Management.Automation.PowerShell, Int64) Boolean PerformCopyFileFromRemoteSession(System.String, System.IO.FileInfo, System.String, Boolean, System.Management.Automation.PowerShell, Int64, Boolean, System.String) Void RemoveFunctionPSCopyFileToRemoteSession(System.Management.Automation.PowerShell) Boolean RemoteTargetSupportsAlternateStreams(System.Management.Automation.PowerShell, System.String) System.String MakeRemotePath(System.Management.Automation.PowerShell, System.String, System.String) Boolean RemoteDirectoryExist(System.Management.Automation.PowerShell, System.String) Boolean CopyFileStreamToRemoteSession(System.IO.FileInfo, System.String, System.Management.Automation.PowerShell, Boolean, System.String) System.Collections.Hashtable GetFileMetadata(System.IO.FileInfo) Void SetRemoteFileMetadata(System.IO.FileInfo, System.String, System.Management.Automation.PowerShell) Boolean PerformCopyFileToRemoteSession(System.IO.FileInfo, System.String, System.Management.Automation.PowerShell) Boolean RemoteDestinationPathIsFile(System.String, System.Management.Automation.PowerShell) System.String CreateDirectoryOnRemoteSession(System.String, Boolean, System.Management.Automation.PowerShell) Boolean IsValidRemoteName(System.String) Void ValidateRemoteName(System.String) System.String GetParentPath(System.String, System.String) Boolean IsUNCPath(System.String) Boolean IsUNCRoot(System.String) Boolean IsPathRoot(System.String) System.String NormalizeRelativePath(System.String, System.String) System.String NormalizeRelativePathHelper(System.String, System.String) System.String RemoveRelativeTokens(System.String) System.Collections.Generic.Stack`1[System.String] TokenizePathToStack(System.String, System.String) System.Collections.Generic.Stack`1[System.String] NormalizeThePath(System.String, System.Collections.Generic.Stack`1[System.String]) System.String GetChildName(System.String) System.String EnsureDriveIsRooted(System.String) Void MoveItem(System.String, System.String) Void MoveFileInfoItem(System.IO.FileInfo, System.String, Boolean, Boolean) Void MoveDirectoryInfoItem(System.IO.DirectoryInfo, System.String, Boolean) Void CopyAndDelete(System.IO.DirectoryInfo, System.String, Boolean) Void GetProperty(System.String, System.Collections.ObjectModel.Collection`1[System.String]) Void SetProperty(System.String, System.Management.Automation.PSObject) Void ClearProperty(System.String, System.Collections.ObjectModel.Collection`1[System.String]) System.Management.Automation.Provider.IContentReader GetContentReader(System.String) System.Object GetContentReaderDynamicParameters(System.String) System.Management.Automation.Provider.IContentWriter GetContentWriter(System.String) Void ClearContent(System.String) Void ValidateParameters(Boolean) Void GetSecurityDescriptor(System.String, System.Security.AccessControl.AccessControlSections) Void SetSecurityDescriptor(System.String, System.Security.AccessControl.ObjectSecurity) Void SetSecurityDescriptor(System.String, System.Security.AccessControl.ObjectSecurity, System.Security.AccessControl.AccessControlSections) Void \u003cRemoveDirectoryInfoItem\u003eg__WriteErrorHelper|43_0(System.Exception, \u003c\u003ec__DisplayClass43_0 ByRef)",
+                                                "DeclaredNestedTypes":  "Microsoft.PowerShell.Commands.FileSystemProvider+ItemType Microsoft.PowerShell.Commands.FileSystemProvider+NativeMethods Microsoft.PowerShell.Commands.FileSystemProvider+NetResource Microsoft.PowerShell.Commands.FileSystemProvider+InodeTracker Microsoft.PowerShell.Commands.FileSystemProvider+\u003c\u003ec__DisplayClass43_0",
+                                                "DeclaredProperties":  "",
+                                                "ImplementedInterfaces":  "System.Management.Automation.IResourceSupplier System.Management.Automation.Provider.IContentCmdletProvider System.Management.Automation.Provider.IPropertyCmdletProvider System.Management.Automation.Provider.ISecurityDescriptorCmdletProvider System.Management.Automation.Provider.ICmdletProviderSupportsHelp",
+                                                "TypeInitializer":  "Void .cctor()",
+                                                "IsNested":  false,
+                                                "Attributes":  1048833,
+                                                "IsVisible":  true,
+                                                "IsNotPublic":  false,
+                                                "IsPublic":  true,
+                                                "IsNestedPublic":  false,
+                                                "IsNestedPrivate":  false,
+                                                "IsNestedFamily":  false,
+                                                "IsNestedAssembly":  false,
+                                                "IsNestedFamANDAssem":  false,
+                                                "IsNestedFamORAssem":  false,
+                                                "IsAutoLayout":  true,
+                                                "IsLayoutSequential":  false,
+                                                "IsExplicitLayout":  false,
+                                                "IsClass":  true,
+                                                "IsInterface":  false,
+                                                "IsValueType":  false,
+                                                "IsAbstract":  false,
+                                                "IsSealed":  true,
+                                                "IsSpecialName":  false,
+                                                "IsImport":  false,
+                                                "IsSerializable":  false,
+                                                "IsAnsiClass":  true,
+                                                "IsUnicodeClass":  false,
+                                                "IsAutoClass":  false,
+                                                "IsArray":  false,
+                                                "IsByRef":  false,
+                                                "IsPointer":  false,
+                                                "IsPrimitive":  false,
+                                                "IsCOMObject":  false,
+                                                "HasElementType":  false,
+                                                "IsContextful":  false,
+                                                "IsMarshalByRef":  false,
+                                                "GenericTypeArguments":  "",
+                                                "CustomAttributes":  "[System.Management.Automation.OutputTypeAttribute(new Type[2] { typeof(System.String), typeof(System.IO.FileInfo) }, ProviderCmdlet = \"New-Item\")] [System.Management.Automation.OutputTypeAttribute(typeof(System.Security.AccessControl.FileSecurity), ProviderCmdlet = \"Set-Acl\")] [System.Management.Automation.OutputTypeAttribute(new Type[2] { typeof(System.String), typeof(System.Management.Automation.PathInfo) }, ProviderCmdlet = \"Resolve-Path\")] [System.Management.Automation.OutputTypeAttribute(typeof(System.Management.Automation.PathInfo), ProviderCmdlet = \"Push-Location\")] [System.Management.Automation.OutputTypeAttribute(new Type[2] { typeof(System.Byte), typeof(System.String) }, ProviderCmdlet = \"Get-Content\")] [System.Management.Automation.OutputTypeAttribute(typeof(System.IO.FileInfo), ProviderCmdlet = \"Get-Item\")] [System.Management.Automation.OutputTypeAttribute(new Type[2] { typeof(System.IO.FileInfo), typeof(System.IO.DirectoryInfo) }, ProviderCmdlet = \"Get-ChildItem\")] [System.Management.Automation.OutputTypeAttribute(new Type[2] { typeof(System.Security.AccessControl.FileSecurity), typeof(System.Security.AccessControl.DirectorySecurity) }, ProviderCmdlet = \"Get-Acl\")] [System.Management.Automation.OutputTypeAttribute(new Type[4] { typeof(System.Boolean), typeof(System.String), typeof(System.IO.FileInfo), typeof(System.IO.DirectoryInfo) }, ProviderCmdlet = \"Get-Item\")] [System.Management.Automation.OutputTypeAttribute(new Type[5] { typeof(System.Boolean), typeof(System.String), typeof(System.DateTime), typeof(System.IO.FileInfo), typeof(System.IO.DirectoryInfo) }, ProviderCmdlet = \"Get-ItemProperty\")] [System.Management.Automation.Provider.CmdletProviderAttribute(\"FileSystem\", (System.Management.Automation.Provider.ProviderCapabilities)52)]"
+                                            },
+                       "HelpFile":  "System.Management.Automation.dll-Help.xml",
+                       "Name":  "FileSystem",
+                       "PSSnapIn":  {
+                                        "Name":  "Microsoft.PowerShell.Core",
+                                        "IsDefault":  true,
+                                        "ApplicationBase":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0",
+                                        "AssemblyName":  "System.Management.Automation, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, ProcessorArchitecture=MSIL",
+                                        "ModuleName":  "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\System.Management.Automation.dll",
+                                        "PSVersion":  "5.1.26100.9711",
+                                        "Version":  "3.0.0.0",
+                                        "Types":  "types.ps1xml typesv3.ps1xml",
+                                        "Formats":  "Certificate.format.ps1xml DotNetTypes.format.ps1xml FileSystem.format.ps1xml Help.format.ps1xml HelpV3.format.ps1xml PowerShellCore.format.ps1xml PowerShellTrace.format.ps1xml Registry.format.ps1xml",
+                                        "Description":  "This Windows PowerShell snap-in contains cmdlets used to manage components of Windows PowerShell.",
+                                        "Vendor":  "Microsoft Corporation",
+                                        "LogPipelineExecutionDetails":  false
+                                    },
+                       "ModuleName":  "Microsoft.PowerShell.Core",
+                       "Module":  null,
+                       "Description":  "",
+                       "Capabilities":  52,
+                       "Home":  "C:\\Users\\YBS106386",
+                       "Drives":  [
+                                      "C"
+                                  ]
+                   },
+    "ReadCount":  1
+};
+
+    // Chargement automatique du schÃ©ma
+    fetch('schema.sql')
+      .then(r => r.text())
+      .then(t => { scriptSql = t; })
+      .catch(() => {
+        scriptSql = "-- SchÃ©ma MediPlanner pour Supabase\n-- (Veuillez utiliser le fichier schema.sql fourni)";
+      });
+
+    function copierCodeSql() {
+      if (!scriptSql) {
+        // En cas de non chargement via fetch, charge le fallback
+        fetch('../supabase/schema.sql').then(r => r.text()).then(copierTexte).catch(() => {
+          copierTexte("-- SchÃ©ma MediPlanner...");
+        });
+      } else {
+        copierTexte(scriptSql);
+      }
+    }
+
+    function copierTexte(texte) {
+      navigator.clipboard.writeText(texte).then(() => {
+        document.getElementById('confirmation-copie').classList.remove('hidden');
+        document.getElementById('texte-copie').innerText = "âœ“ CODE COPIÃ‰ DANS LE PRESSE-PAPIER !";
+        document.getElementById('btn-copier').classList.remove('bg-emerald-500');
+        document.getElementById('btn-copier').classList.add('bg-emerald-400');
+      }).catch(err => {
+        alert("Veuillez autoriser l'accÃ¨s au presse-papier ou faire un copier manuel.");
+      });
+    }
+  </script>
+</body>
+</html>

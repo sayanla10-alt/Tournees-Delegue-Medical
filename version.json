@@ -1,16 +1,9 @@
 {
-  "version": "3.28.1",
+  "version": "3.28.2",
   "date": "2026-11-06",
   "notes": [
-    "Modularisation intégrale de l'architecture (19 composants indépendants) : découpage strict de toutes les vues et moteurs pour éliminer tout risque de régression",
-    "Mode Clôture de journée (après 18h30) : synthèse valorisante de fin de tournée (« X visites sur Y réalisées, Z comptes-rendus à synchroniser ») et encouragement terrain",
-    "Planning (Suppression de date) : Jauge visuelle circulaire sous le doigt et vibration haptique (50 ms) lors de l'appui long de 650 ms (retour sensoriel immédiat)",
-    "Auto-recovery Service Worker : Rétablissement et auto-recovery du Service Worker (mise à jour immédiate et résilience)",
-    "Concurrence non-destructive (Field-Level Merge) : fusion intelligente par champ lors des mises à jour de fiches (préservation des données des collègues et fin des écrasements aveugles)",
-    "Trafic Abidjan & Lagune réaliste : pénalité de franchissement des ponts ajustée à 45 min aux heures de pointe (7h30-9h30 et 16h30-19h30) pour des tournées réalisables sur le terrain",
-    "Traçabilité complète (Audit Trail) : création de la feuille Audit_Logs consignant chaque modification avec auteur, horodatage, ancienne et nouvelle valeur, sans suppression sèche",
-    "Performance DOM & Infinite Scroll : affichage progressif et défilement infini sans saccade dans le Répertoire (fin du DOM bloat)",
-    "Résilience hors-ligne (Dead-Letter Queue) : isolation unitaire des fiches et visites en file d'attente (fin du blocage en tête de file)",
-    "Régulation batterie GPS : cache de position 3 min et limitation du GPS haute précision pour préserver la batterie"
+    "Correctif visuel : retrait du bouton d'en-tête pour un accès dégagé à la pastille de synchronisation",
+    "Encodage UTF-8 : restauration complète des caractères accentués français dans l'ensemble de l'interface",
+    "Intégration double écriture : sécurisation de la réplication Google Sheets et Supabase en temps réel"
   ]
 }

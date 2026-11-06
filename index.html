@@ -14,18 +14,18 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="MediPlanner">
   <script>
-    // Thème choisi (Auto, Clair, Sombre) appliqué avant l'affichage pour éviter un flash
+    // ThÃ¨me choisi (Auto, Clair, Sombre) appliquÃ© avant l'affichage pour Ã©viter un flash
     try { var t = JSON.parse(localStorage.getItem('tournees.theme') || '"clair"'); if (t === 'clair' || t === 'sombre') document.documentElement.dataset.theme = t; } catch (e) {}
-    // Protection anti-écran blanc globale au démarrage
+    // Protection anti-Ã©cran blanc globale au dÃ©marrage
     window.onerror = function (msg, url, line, col, err) {
       console.error('Erreur globale MediPlanner:', msg, url, line, col, err);
       var vue = document.getElementById('vue');
       if (vue && !vue.innerHTML.trim()) {
         vue.innerHTML = '<div style="padding:40px 20px;text-align:center;font-family:sans-serif">' +
           '<h2 style="font-size:20px;margin-bottom:8px;color:#0B4F6C">MediPlanner</h2>' +
-          '<p style="color:#555;font-size:14px;margin-bottom:20px">Une mise à jour ou une anomalie est survenue lors de l\'affichage.</p>' +
+          '<p style="color:#555;font-size:14px;margin-bottom:20px">Une mise Ã  jour ou une anomalie est survenue lors de l\'affichage.</p>' +
           '<button type="button" onclick="relancerApplication()" style="background:#0B4F6C;color:#fff;border:0;padding:14px 28px;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;box-shadow:0 4px 12px rgba(11,79,108,0.25)">Recharger l\'application</button>' +
-          '<br><button type="button" onclick="reinitialiserAffichage()" style="background:transparent;border:0;color:#888;margin-top:16px;font-size:13px;text-decoration:underline;cursor:pointer">Réinitialiser l\'affichage</button>' +
+          '<br><button type="button" onclick="reinitialiserAffichage()" style="background:transparent;border:0;color:#888;margin-top:16px;font-size:13px;text-decoration:underline;cursor:pointer">RÃ©initialiser l\'affichage</button>' +
           (msg ? '<p style="margin-top:20px;font-size:11px;color:#999;word-break:break-all">' + msg + (line ? ' (L.' + line + ')' : '') + '</p>' : '') +
           '</div>';
       }
@@ -61,16 +61,16 @@
       relancerApplication();
     }
   </script>
-  <link rel="stylesheet" href="app.css?v=3.28.1">
+  <link rel="stylesheet" href="app.css?v=3.28.2">
 </head>
 <body>
   <header class="entete">
     <div class="entete-titre">
-      <div style="display:flex;align-items:center;gap:7px"><span class="marque">MediPlanner</span><span class="badge-version">v3.28.1</span> <button id="badgeSourceBdd" class="badge-source badge-supabase" data-a="basculerSourceBdd" type="button" title="Base active : Supabase Cloud (Google Sheets en miroir). Cliquez pour basculer.">âš¡ Supabase</button></div>
+      <div style="display:flex;align-items:center;gap:7px"><span class="marque">MediPlanner</span><span class="badge-version">v3.28.2</span></div>
       <span class="entete-date" id="enteteDate"></span>
     </div>
     <button class="pastille-sync" id="pastilleSync" data-a="sync" type="button"></button>
-    <button class="bouton-icone" data-a="nav" data-tab="reglages" type="button" aria-label="Réglages">
+    <button class="bouton-icone" data-a="nav" data-tab="reglages" type="button" aria-label="RÃ©glages">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
     </button>
   </header>
@@ -86,7 +86,7 @@
   <nav class="navigation" aria-label="Navigation principale">
     <button data-a="nav" data-tab="jour" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="5" r="2.2"/><circle cx="18" cy="12" r="2.2"/><circle cx="6" cy="19" r="2.2"/><path d="M8 5h6a4 4 0 0 1 0 8H10a3 3 0 0 0 0 6h-2"/></svg>
-      <span>Journée</span>
+      <span>JournÃ©e</span>
     </button>
     <button data-a="nav" data-tab="semaine" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h3M13 14h3M8 17h3"/></svg>
@@ -94,7 +94,7 @@
     </button>
     <button data-a="nav" data-tab="praticiens" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 4.5a3.2 3.2 0 0 1 0 6.2M18 14.5a5.5 5.5 0 0 1 2.5 5.5"/></svg>
-      <span>Répertoire</span>
+      <span>RÃ©pertoire</span>
     </button>
     <button data-a="nav" data-tab="produits" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-35 12 12)"/><path d="M9.2 8 14.8 16"/></svg>
@@ -113,8 +113,8 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div id="annonceur" class="visuellement-cache" role="status" aria-live="polite"></div>
 
-  <script src="commun.js?v=3.28.1"></script>
-  <script src="moteur.js?v=3.28.1"></script>
-  <script src="app.js?v=3.28.1"></script>
+  <script src="commun.js?v=3.28.2"></script>
+  <script src="moteur.js?v=3.28.2"></script>
+  <script src="app.js?v=3.28.2"></script>
 </body>
 </html>

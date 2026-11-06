@@ -1,0 +1,794 @@
+CodeContact,Type,Nom,Spécialité,Note,Engagé,Téléphone,DateDerniereVisite,DernierStatut,DernierCommentaire,NbVisites,Actif,ProchaineEtape,AbsentDu,AbsentAu,Conventionné
+MED-254,Médecin,Dr A. Annabelle G. Kpi-N'Dih,Neurologue,3,Non,+225 05 05 05 04 07,12/10/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-256,Médecin,Dr Abale Anita K.,Généraliste,1,Oui,+225 01 02 88 43 00,22/08/2026,Visite faite,Prêt à essayer sur quelques patients,7,Oui
+MED-601,Médecin,Dr Abaoye Oshwa,Généraliste,1,Non,+225 00 24 30 51 94,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-717,Médecin,Dr Abbe Philippe Pierri,Généraliste,1,Non,+225 00 05 99 23 34,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-258,Médecin,Dr Abbe Stéphane,Généraliste,1,Oui,+225 07 78 26 70 33,18/07/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-260,Médecin,Dr Abe Hyapaut,Généraliste,1,Non,+225 00 14 38 44 28,09/10/2026,Visite faite,"Bon accueil, rappel des indications",5,Oui
+MED-418,Médecin,Dr Abodo Jacko Rhedok,Endocrinologue,1,Oui,+225 07 45 45 17 71,24/10/2026,Absent,Médecin absent lors du passage,2,Oui
+MED-346,Médecin,Dr Abou A. Dorothée,Endocrinologue,3,Oui,+225 05 92 62 42 41,30/10/2026,Visite faite,,3,Oui
+MED-499,Médecin,Dr Abou Tra Marie C.,Pédiatre,1,Non,+225 27 20 25 84 01,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-024,Médecin,Dr Aboya Ilhwa,Généraliste,1,Non,+225 00 70 67 60 98,23/09/2026,Visite faite,"Bon accueil, rappel des indications",4,Oui
+MED-754,Médecin,Dr Abuke Phaîres S.,Généraliste,1,Non,+225 00 43 25 90 93,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-787,Médecin,Dr Acho Jean Kevin,Généraliste,2,Non,,25/08/2026,Visite faite,Visite de prospection Bouaké,1,Oui
+MED-420,Médecin,Dr Achy Yapo Eloge,Généraliste,1,Non,+225 01 42 44 36 22,27/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-177,Médecin,Dr Acka Kouamé Felix,Cardiologue,3,Oui,+225 01 02 53 60 07,28/06/2026,Absent,,7,Oui
+MED-422,Médecin,Dr Adagra Ofelia I.,Généraliste,1,Oui,+225 07 49 89 70 17,06/07/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-550,Médecin,Dr Adiko Anoma K. Marie,Généraliste,1,Non,+225 00 29 19 10 22,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-054,Médecin,Dr Adjepone Nancy,Cardiologue,1,Non,+225 00 03 39 26 93,01/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",7,Oui
+MED-122,Médecin,Dr Adjoumani Abran Rose,Diabétologue,1,Oui,+225 00 27 39 10 95,10/07/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,1,Oui
+MED-055,Médecin,Dr Adjoumani K. Désiré,Généraliste,1,Non,+225 05 06 40 13 02,21/08/2026,Absent,,7,Oui
+MED-150,Médecin,Dr Adopo Raphaëlle Euphrasie,Cardiologue,3,Oui,+225 27 23 46 72 67,03/11/2026,Visite faite,Rappel de produits et demande de nouvelles boîtes ,5,Oui
+MED-605,Médecin,Dr Adou N. Gisèle,Cardiologue,1,Non,+225 00 35 60 33 24,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-533,Médecin,Dr Adou Seka Didier E.,Diabétologue,1,Non,+225 05 05 43 43 70,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-660,Médecin,Dr Adou-Assale N. épse Sam,Cardiologue,1,Non,+225 01 50 25 55 64,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-448,Médecin,Dr Adoubi Anicet,Cardiologue,3,Oui,+225 07 08 81 19 53,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-093,Médecin,Dr Adoueni Katche,Diabétologue,1,Oui,+225 27 20 25 29 30,03/10/2026,Visite faite,"Bon accueil, rappel des indications",8,Oui
+MED-206,Médecin,Dr Adoueni Paul Valéry,Diabétologue,3,Non,,23/07/2026,Visite faite,"Visite courte, entre deux consultations",2,Oui
+MED-057,Médecin,Dr Affognitode Morel,Cardiologue,1,Non,+225 05 05 99 10 16,21/08/2026,Visite faite,"Visite courte, entre deux consultations",7,Oui
+MED-685,Médecin,Dr Agba Lasme Emmanuel,Généraliste,1,Non,+225 27 23 22 00 88,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-604,Médecin,Dr Agbedje Elidje Beatri,Généraliste,1,Non,+225 00 45 93 03 03,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-385,Médecin,Dr Agbo Cedric,Neurologue,1,Non,+225 01 03 16 39 55,26/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",6,Oui
+MED-261,Médecin,Dr Agnerdoua Nazaire,Généraliste,1,Oui,+225 05 05 34 68 84,26/10/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-768,Médecin,Dr Agoussi Joseph,Cardiologue,2,Non,+225 27 21 26 53 23,07/01/2026,Visite faite,Présentation Tenocare / Zyltan,1,Oui
+MED-003,Médecin,Dr Ahmtat S. Mahreb,Neurologue,1,Non,+225 01 02 99 38 48,08/07/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,1,Oui
+MED-185,Médecin,Dr Ahoua Acouba Bouzouma Anne,Cardiologue,1,Oui,+225 07 68 81 91 63,30/08/2026,Visite faite,Prêt à essayer sur quelques patients,5,Oui
+MED-598,Médecin,Dr Ahoussi Ahoussi,Généraliste,1,Non,+225 01 40 72 03 03,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-539,Médecin,Dr Ahoussy Frejus,Généraliste,1,Non,+225 05 75 36 46 92,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-688,Médecin,Dr Ahyé Stéphane Lambert,Généraliste,1,Non,+225 00 89 66 33 71,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-005,Médecin,Dr Aibuki Maliki,Cardiologue,1,Oui,+225 00 35 92 30 19,25/09/2026,Visite faite,Prêt à essayer sur quelques patients,8,Oui
+MED-497,Médecin,Dr Aisha Aida Youssef,Gynécologue,1,Non,+225 00 99 31 10 73,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-576,Médecin,Dr Aka Georges Erick Affoum,Généraliste,1,Non,+225 07 07 08 33 27,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-114,Médecin,Dr Aka Nadège,Généraliste,1,Non,+225 00 39 52 10 42,05/07/2026,Visite faite,"Visite courte, entre deux consultations",0,Oui
+MED-007,Médecin,Dr Aka Romeo,Cardiologue,1,Non,+225 00 69 47 82 57,29/07/2026,Visite faite,"Bon accueil, rappel des indications",1,Oui
+MED-008,Médecin,Dr Aka Wilfried,Généraliste,1,Oui,+225 00 52 03 49 24,09/10/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",8,Oui
+MED-263,Médecin,Dr Akahi Jean-Noël,Interniste,1,Non,+225 07 07 63 48 24,07/09/2026,Visite faite,Prêt à essayer sur quelques patients,5,Oui
+MED-446,Médecin,Dr Akatchi,Pneumologue,3,Oui,+225 05 76 61 73 15,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-558,Médecin,Dr Ake Asoi Hugues Menor,Généraliste,1,Non,+225 27 20 25 39 39,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-025,Médecin,Dr Ake Traboulsi Evelyne,Cardiologue,1,Non,+225 27 22 48 31 19,27/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-013,Médecin,Dr Akilimali Salumu Cicero,Généraliste,1,Non,+225 07 12 55 79 67,02/09/2026,Visite faite,Prêt à essayer sur quelques patients,5,Oui
+MED-617,Médecin,Dr Akouatia Djedji G.,Généraliste,1,Non,+225 07 57 62 77 96,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-298,Médecin,Dr Akpesse épse Amari Affoue Marie Thérèse,Endocrinologue,3,Oui,+225 01 01 90 83 19,10/08/2026,Autre motif,Manque de temps pour y aller ,4,Oui
+MED-016,Médecin,Dr Akpro Dominique,Endocrinologue,1,Non,+225 01 02 67 19 44,24/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui,16/11/2026
+MED-595,Médecin,Dr Alebe G. Desire,Généraliste,1,Non,+225 00 45 98 28 68,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-570,Médecin,Dr Alla Bienvenu,Généraliste,1,Non,+225 01 53 54 59 40,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-621,Médecin,Dr Alla Gnamien,Généraliste,1,Non,+225 07 59 65 79 50,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-094,Médecin,Dr Amadou Kouame Barenson,Généraliste,1,Non,+225 05 05 76 16 58,19/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",8,Oui
+MED-001,Médecin,Dr Aman Yaye,Cardiologue,1,Oui,,02/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",1,Oui
+MED-541,Médecin,Dr Amani Alexis,Généraliste,1,Non,+225 00 63 10 21 57,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-266,Médecin,Dr Amani Jean Maurel,Cardiologue,1,Oui,+225 07 07 06 75 13,23/07/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",5,Oui
+MED-652,Médecin,Dr Amani K. Germain,Généraliste,1,Non,+225 07 89 05 10 29,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-642,Médecin,Dr Amani Kouamé Mathias,Généraliste,1,Non,+225 01 42 58 92 50,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-268,Médecin,Dr Ambe Raymond,Généraliste,1,Oui,+225 27 20 33 58 40,26/07/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-651,Médecin,Dr Amian Cedric,Généraliste,1,Non,+225 07 57 55 67 86,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-269,Médecin,Dr Amon A. Solange,Interniste,1,Oui,+225 07 67 99 99 99,05/11/2026,Visite faite,Revoir régulièrement ,7,Oui
+MED-486,Médecin,Dr Amon Carole épse Sokouri,Généraliste,1,Non,+225 01 41 74 74 14,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-390,Médecin,Dr Amon Koffi Georges,Interniste,1,Non,+225 00 55 42 40 52,06/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",2,Oui
+MED-019,Médecin,Dr Andjanga Rapono Yoan Eric,Cardiologue,1,Non,+225 00 36 07 01 14,04/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-684,Médecin,Dr Andou A. Richard K.,Pédiatre,1,Non,+225 07 01 04 26 74,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-771,Médecin,Dr Andrey Assi,Cardiologue,3,Oui,,28/09/2026,Visite faite,"CHU de Bouaké - Antiplatt, Zyltan, Lesstrol",1,Oui
+MED-632,Médecin,Dr Angu Jean Stanislas,Généraliste,1,Non,+225 27 23 50 97 96,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-023,Médecin,Dr Aouame Lourec et Lydie Claudine,Neurologue,1,Oui,+225 00 86 78 80 03,27/06/2026,Visite faite,"Présentation du produit faite, échantillons remis",3,Oui
+MED-435,Médecin,Dr Aphala Olga,Pédiatre,3,Oui,,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-656,Médecin,Dr Appia Benie Bernard,Généraliste,1,Non,+225 07 57 01 72 21,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-116,Médecin,Dr Appia M. Lydie Pascale,Néphrologue,1,Oui,+225 00 05 96 58 04,30/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",8,Oui
+MED-458,Médecin,Dr Asre G. Edgard,Généraliste,1,Non,+225 07 07 56 50 25,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-026,Médecin,Dr Assa Tanoh,Généraliste,1,Non,+225 01 01 01 51 15,17/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",3,Oui
+MED-271,Médecin,Dr Assale Assale Yannick,Cardiologue,3,Oui,+225 07 78 76 17 73,08/09/2026,Visite faite,"Bon accueil, rappel des indications",1,Oui
+MED-095,Médecin,Dr Assamoi Judith,Endocrinologue,1,Oui,+225 27 22 44 95 86,13/07/2026,Visite faite,Rappeler en début de semaine prochaine,8,Oui
+MED-030,Médecin,Dr Assemian Luc Patrik,Généraliste,1,Oui,+225 27 22 44 56 83 / +225 27 22 45 75,05/08/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",8,Oui
+MED-476,Médecin,Dr Assi Angbo Brice,Généraliste,1,Non,+225 07 08 66 57 44,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-638,Médecin,Dr Assi Cho Danielle,Généraliste,1,Non,+225 07 74 30 52 98,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-524,Médecin,Dr Assi Yapo Paulin,Généraliste,1,Non,+225 00 73 87 57 36,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-119,Médecin,Dr Assie Koffi Augustin,Cardiologue,1,Non,+225 00 28 44 18 41,18/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",8,Oui
+MED-785,Médecin,Dr Assouan Jacques-Delaure,Généraliste,2,Oui,+225 05 54 15 26 53,08/04/2026,Visite faite,"Clinique Médicale Trade Center - Zyltan, Tensicard",1,Oui
+MED-031,Médecin,Dr Assy Boris,Généraliste,1,Oui,+225 01 73 06 10 48,28/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",10,Oui
+MED-315,Médecin,Dr Atayi T. Eugène,Neurologue,3,Non,+225 05 03 05 71 31,02/11/2026,Visite faite,Présence de la concurrence sur place en opération commando,2,Oui,16/11/2026
+MED-058,Médecin,Dr Athangba Beugre Salomon,Cardiologue,3,Oui,+225 05 45 85 30 75,18/10/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",7,Oui
+MED-035,Médecin,Dr Atsin Guillaume,Généraliste,1,Non,+225 07 08 71 00 75,06/09/2026,Visite faite,Rappeler en début de semaine prochaine,7,Oui
+MED-006,Médecin,Dr Attie Goua Emma épse Diby,Endocrinologue,1,Non,+225 07 89 30 40 46,09/09/2026,Visite faite,"Visite courte, entre deux consultations",8,Oui
+MED-681,Médecin,Dr Attie Jean-Marc-Aurele,Cardiologue,1,Non,+225 00 64 77 65 25,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-430,Médecin,Dr Attri Roméo,Généraliste,3,Oui,,30/10/2026,Visite faite,,1,Oui
+MED-508,Médecin,Dr Audrey Assi,Cardiologue,1,Non,+225 07 57 68 32 66,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-432,Médecin,Dr Auguste Léa,Cardiologue,3,Oui,+225 01 00 97 06 15,03/11/2026,Visite faite,,2,Oui
+MED-180,Médecin,Dr Avodagbe épse Gogne Aude,Cardiologue,1,Oui,+225 27 20 25 24 01,08/08/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-009,Médecin,Dr Ayinla Akani Marius,Endocrinologue,3,Non,+225 01 02 16 18 52,30/10/2026,Visite faite,,11,Oui
+MED-036,Médecin,Dr Ayoh Ami épse Diarrassouba,Cardiologue,1,Non,+225 00 70 82 31 93,23/09/2026,Visite faite,"Visite courte, entre deux consultations",7,Oui
+MED-028,Médecin,Dr Ayouba Adamou,Neurologue,1,Oui,+225 01 73 50 69 60,05/07/2026,Absent,,4,Oui
+MED-182,Médecin,Dr Azoh Auguste Jean Claude,Endocrinologue,1,Non,+225 27 20 25 29 30,16/09/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-668,Médecin,Dr Babacar Sy,Cardiologue,1,Non,+225 00 18 60 79 92,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-068,Médecin,Dr Babatunde Carolle,Cardiologue,1,Non,+225 07 07 27 67 16 / +225 01 01 97 24 73,08/07/2026,Visite faite,Prêt à essayer sur quelques patients,4,Oui
+MED-037,Médecin,Dr Badreddine Ali,Cardiologue,1,Oui,+225 00 54 04 55 74,24/09/2026,Visite faite,"Visite courte, entre deux consultations",0,Oui
+MED-530,Médecin,Dr Bakayoko Mory,Cardiologue,1,Non,+225 00 02 59 45 21,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-760,Médecin,Dr Bakayoko Sidick,Généraliste,2,Oui,+225 27 22 53 59 36,03/11/2026,Visite faite,,1,Oui,,,,Oui
+MED-628,Médecin,Dr Bakou épse Yao Gnimsoa,Cardiologue,1,Non,+225 00 21 16 03 19,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-599,Médecin,Dr Ballo Aissata,Généraliste,1,Non,+225 01 40 67 65 54,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-364,Médecin,Dr Ballo Amadou,Cardiologue,3,Non,+225 27 23 45 55 99,05/08/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,5,Oui
+MED-731,Médecin,Dr Bamba Moritié,Généraliste,1,Non,+225 00 08 33 15 58,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-039,Médecin,Dr Bamba Nasséré,Interniste,1,Non,+225 07 08 27 67 02,14/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",8,Oui
+MED-762,Médecin,Dr Bamba Zakaria,Pédiatre,2,Non,+225 07 59 34 56 12,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui,,,,Oui
+MED-309,Médecin,Dr Bambara Z. Jean Eudes,Cardiologue,1,Non,+225 27 22 48 31 31,07/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-042,Médecin,Dr Bamidele Sikirou,Généraliste,1,Non,+225 07 08 37 24 45,10/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",2,Oui
+MED-704,Médecin,Dr Bapoua Cyrille,Généraliste,1,Non,,02/11/2026,Visite faite,,1,Oui
+MED-047,Médecin,Dr Barroura J. Claude,Cardiologue,1,Oui,+225 00 52 91 27 41,03/08/2026,Visite faite,"Bon accueil, rappel des indications",3,Oui
+MED-707,Médecin,Dr Battey Guy-Martial,Cardiologue,1,Non,+225 00 40 11 92 46,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-428,Médecin,Dr Becelly Ademauh,Endocrinologue,3,Oui,,04/11/2026,Visite faite,,1,Oui
+MED-053,Médecin,Dr Bede épse Evi,Cardiologue,3,Oui,+225 27 20 25 29 30,23/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-634,Médecin,Dr Behi Edi Esaïe,Généraliste,1,Non,+225 00 44 19 70 70,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-398,Médecin,Dr Behibro Nicole R. épse Coffi,Endocrinologue,1,Oui,+225 07 09 84 16 12,23/10/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,1,Oui
+MED-431,Médecin,Dr Behou Corinne,Cardiologue,3,Oui,,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-056,Médecin,Dr Beko Anicette,Pédiatre,1,Non,+225 00 69 83 74 55,01/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",7,Oui
+MED-096,Médecin,Dr Benavimpi Badika,Cardiologue,1,Oui,+225 00 71 80 89 31,15/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",8,Oui
+MED-272,Médecin,Dr Beugré Lévry,Généraliste,1,Oui,+225 07 08 81 50 10,23/10/2026,Visite faite,"Visite courte, entre deux consultations",1,Oui
+MED-453,Médecin,Dr Bile Arnaud,Généraliste,1,Non,+225 01 42 50 68 98,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-644,Médecin,Dr Blais Achille,Généraliste,1,Non,+225 07 07 76 75 23,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-534,Médecin,Dr Ble Kiégbé Wilfreid,Généraliste,1,Non,+225 00 27 98 36 16,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-442,Médecin,Dr Bléoué Gisèle,Endocrinologue,3,Oui,,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-239,Médecin,Dr Boa Ange Trevis,Généraliste,1,Oui,+225 07 05 25 55 77,03/11/2026,Visite faite,,6,Oui
+MED-477,Médecin,Dr Boa Brou,Interniste,1,Non,+225 07 07 93 00 26,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-011,Médecin,Dr Boa E. Herve,Généraliste,1,Non,+225 07 07 70 05 07,09/10/2026,Visite faite,"Bon accueil, rappel des indications",5,Oui
+MED-186,Médecin,Dr Bogning Hermann,Généraliste,1,Oui,+225 07 79 87 97 08,17/07/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",6,Oui
+MED-189,Médecin,Dr Bogui Agueri Anicet,Généraliste,1,Oui,+225 07 58 52 23 55,10/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",5,Oui
+MED-429,Médecin,Dr Boka Joël,Diabétologue,3,Oui,,30/10/2026,Indisponible,,1,Oui
+MED-536,Médecin,Dr Boli Bi Trazie,Généraliste,1,Non,+225 01 03 07 94 77,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-510,Médecin,Dr Bomian Sylvain,Généraliste,1,Non,+225 07 07 00 23 49,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-443,Médecin,Dr Boni Rolande,Interniste,3,Oui,,29/10/2026,Visite faite,Dr Boni Rolande déjà engagé dit continuer à prescrire et demande une prise en charge pour le congrès de Paris France du 13-15 janvier 2027,1,Oui
+MED-062,Médecin,Dr Bosson Bosson Yannick,Généraliste,1,Oui,+225 27 23 45 00 01,09/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",0,Oui
+MED-583,Médecin,Dr Bosson Landry,Généraliste,1,Non,+225 07 09 84 19 81,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-193,Médecin,Dr Botty Fouha,Cardiologue,1,Oui,+225 00 30 38 74 83,04/10/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",0,Oui
+MED-064,Médecin,Dr Bouadi Innocent R. N.,Endocrinologue,3,Oui,+225 07 57 55 24 16,24/10/2026,Absent,,4,Oui
+MED-326,Médecin,Dr Bouadi K. Anicet,Cardiologue,3,Non,+225 27 22 44 05 85,18/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",3,Oui
+MED-273,Médecin,Dr Boundjike Rosette,Neurologue,1,Non,+225 00 64 86 43 80,21/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",1,Oui
+MED-405,Médecin,Dr Bouo Ama Adingra,Endocrinologue,3,Non,+225 07 78 01 84 64,26/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-662,Médecin,Dr Bouoji Trazie,Généraliste,1,Non,+225 07 07 20 09 68,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-327,Médecin,Dr Boussou Fabiola,Cardiologue,3,Oui,+225 27 23 45 00 01,02/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",3,Oui
+MED-493,Médecin,Dr Bre O. Jules,Généraliste,1,Non,+225 07 09 19 04 03,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-496,Médecin,Dr Bredou Amoakon Benjamin,Généraliste,1,Non,+225 00 38 31 23 89,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-279,Médecin,Dr Brou N'Gandy Jean Philippe,Cardiologue,1,Non,+225 07 07 09 69 23,02/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",2,Oui
+MED-059,Médecin,Dr Brou N'Nanmonnin P.,Cardiologue,1,Non,+225 07 09 04 54 14,02/10/2026,Visite faite,"Bon accueil, rappel des indications",7,Oui
+MED-044,Médecin,Dr Brouh Yapo Kore,Cardiologue,3,Non,+225 07 07 69 82 34,05/11/2026,Visite faite,,4,Oui
+MED-060,Médecin,Dr Buhendwa Mweze Grâce épse Ouelle Pauly,Généraliste,1,Non,+225 05 04 58 44 56,13/08/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",3,Oui
+MED-282,Médecin,Dr Camara Djibril Bilal,Généraliste,1,Oui,+225 07 89 38 40 83,30/10/2026,Visite faite,,9,Oui
+MED-542,Médecin,Dr Camara Salou,Généraliste,1,Non,+225 00 51 70 35 17,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-061,Médecin,Dr Camara Zenabou épse Traore,Interniste,1,Non,+225 27 22 48 31 31 / +225 27 22 41 33 20,08/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",3,Oui
+MED-784,Médecin,Dr Caré Khadidja,Généraliste,2,Non,,23/10/2026,Visite faite,Visite de routine,1,Oui
+MED-676,Médecin,Dr Charbel Ola Fagbite,Cardiologue,1,Non,+225 05 68 92 24 41,03/11/2026,Visite faite,Prise de contact ,1,Oui
+MED-063,Médecin,Dr Charles Gnamien,Généraliste,1,Non,+225 00 20 31 74 07,20/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",3,Oui
+MED-469,Médecin,Dr Chehade Adell,Pédiatre,1,Non,+225 07 08 08 64 90,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-455,Médecin,Dr Cherif Lanciné,Généraliste,1,Non,+225 27 20 20 82 30,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-459,Médecin,Dr Cherif Massati,Généraliste,1,Non,+225 27 22 44 32 58,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-569,Médecin,Dr Cisse Abdoubakar S.,Généraliste,1,Non,+225 05 56 41 51 93,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-283,Médecin,Dr Cisse Adama,Généraliste,1,Oui,+225 00 15 60 79 35,08/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",8,Oui
+MED-745,Médecin,Dr Cisse Bilaly,Généraliste,1,Non,+225 00 34 44 02 32,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-065,Médecin,Dr Cissé Sandra,Cardiologue,1,Oui,+225 00 86 76 21 69,10/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",3,Oui
+MED-141,Médecin,Dr Coba Prosper,Diabétologue,3,Oui,+225 27 20 21 17 37,30/10/2026,Visite faite,,9,Oui
+MED-553,Médecin,Dr Cocobe Jean de Paul,Généraliste,1,Non,+225 00 01 62 75 23,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-574,Médecin,Dr Coulibaly Abdoulaye,Cardiologue,1,Non,+225 27 22 41 35 14,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-194,Médecin,Dr Coulibaly Achille,Cardiologue,3,Non,+225 07 09 93 70 09,23/08/2026,Absent,,2,Oui
+MED-674,Médecin,Dr Coulibaly Koffi Ernestine,Généraliste,1,Non,+225 00 07 31 24 35,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-284,Médecin,Dr Coulibaly Kopfie,Généraliste,1,Oui,+225 00 65 27 50 78,02/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",8,Oui
+MED-487,Médecin,Dr Coulibaly Mariam T.,Généraliste,1,Non,+225 00 24 47 12 70,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-564,Médecin,Dr Coulibaly Mohamed,Généraliste,1,Non,+225 07 59 91 15 87,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-066,Médecin,Dr Coulibaly Nanga,Généraliste,1,Non,+225 05 05 63 22 13,30/06/2026,Visite faite,"Échantillons remis, à revoir dans un mois",3,Oui
+MED-691,Médecin,Dr Coulibaly Ndoh Mohamed,Généraliste,1,Non,+225 07 78 45 77 04,,Absent,Médecin absent lors du passage,0,Oui
+MED-368,Médecin,Dr Coulibaly Soualiho,Cardiologue,1,Oui,+225 07 07 55 12 55,19/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",5,Oui
+MED-285,Médecin,Dr Coulibaly T. Fatouma,Endocrinologue,3,Non,+225 07 07 73 37 41,25/10/2026,Visite faite,"Bon accueil, rappel des indications",9,Oui,09/11/2026
+MED-073,Médecin,Dr Coulibaly Yenaldiz,Endocrinologue,1,Non,+225 00 02 22 06 86,13/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-195,Médecin,Dr Dadie Adjiri Jean Christophe,Généraliste,1,Oui,+225 27 21 26 53 23,12/07/2026,Visite faite,"Visite courte, entre deux consultations",2,Oui
+MED-778,Médecin,Dr Dagri Hippolyte,Généraliste,2,Oui,+225 07 44 21 95 63,27/09/2026,Visite faite,"CREMOSS Bouaké 1 - Rappel d'indications Amlotroy, Lesstrol",1,Oui
+MED-445,Médecin,Dr Dakoi Serge,Cardiologue,3,Oui,,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-586,Médecin,Dr Danhin S. Jean-I,Généraliste,1,Non,+225 01 03 20 84 94,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-188,Médecin,Dr Daouda Diallo,Endocrinologue,1,Non,+225 07 67 99 99 99,14/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",0,Oui
+MED-543,Médecin,Dr Darwiche Haysam,Généraliste,1,Non,+225 07 08 06 01 46,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-775,Médecin,Dr David Hien,Généraliste,2,Oui,,15/09/2026,Visite faite,"Présentation Amlotroy, Telmikaa, Rosukaa",1,Oui
+MED-074,Médecin,Dr De Paulousky Aye,Généraliste,1,Non,+225 00 52 55 35 43,06/10/2026,Visite faite,"Bon accueil, rappel des indications",5,Oui
+MED-080,Médecin,Dr Dembele Hamed,Généraliste,1,Oui,+225 05 55 05 12 89,28/06/2026,Visite faite,"Bon accueil, rappel des indications",0,Oui
+MED-614,Médecin,Dr Dembele Sinaly,Généraliste,1,Non,+225 07 07 13 80 55,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-649,Médecin,Dr Dento Florence Jessica,Néphrologue,1,Non,+225 25 22 00 88 88,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-169,Médecin,Dr Derbe Augustin,Endocrinologue,1,Non,+225 27 20 30 52 98,09/08/2026,Visite faite,"Visite courte, entre deux consultations",4,Oui
+MED-412,Médecin,Dr Dessi Oria Guy Stanislas,Diabétologue,3,Oui,+225 07 08 25 89 95,24/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",2,Oui
+MED-312,Médecin,Dr Diabate Abdoulaye,Généraliste,1,Oui,+225 07 09 65 09 87,06/11/2026,Visite faite,,4,Oui
+MED-097,Médecin,Dr Diaby Mamadou,Endocrinologue,3,Non,+225 01 43 57 91 32,22/07/2026,Visite faite,"Échantillons remis, à revoir dans un mois",8,Oui
+MED-289,Médecin,Dr Diakite Coulibaly Nafissa Tieplé,Généraliste,1,Oui,+225 01 40 18 57 90,03/08/2026,Visite faite,Demande à être revu après ses congés,1,Oui
+MED-082,Médecin,Dr Diakite Ibrahim,Généraliste,1,Non,+225 07 89 30 08 97,16/09/2026,Visite faite,"Bon accueil, rappel des indications",8,Oui
+MED-722,Médecin,Dr Diallo Cheick Dumar,Généraliste,1,Non,+225 07 08 79 13 24,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-290,Médecin,Dr Diappo Okani,Généraliste,1,Oui,+225 07 57 44 62 46,24/10/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,6,Oui
+MED-294,Médecin,Dr Diarra N. Hamed,Généraliste,1,Oui,+225 07 78 26 70 33,14/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",5,Oui
+MED-559,Médecin,Dr Diarrassouba Dobon,Généraliste,1,Non,+225 00 94 06 58 99,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-117,Médecin,Dr Diby Choyi,Endocrinologue,3,Non,+225 27 23 45 00 01 / +225 07 47 57 47 57,17/09/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",8,Oui
+MED-084,Médecin,Dr Diceratogne Arouna,Généraliste,1,Oui,,24/08/2026,Visite faite,"Visite courte, entre deux consultations",7,Oui
+MED-589,Médecin,Dr Diea Raymond,Généraliste,1,Non,+225 00 69 03 97 67,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-088,Médecin,Dr Diedo Zirignon Marina Edwige,Cardiologue,3,Oui,+225 27 27 22 41 33,04/11/2026,Visite faite,Elle prescrit déjà nos produits ,1,Oui
+MED-763,Médecin,Dr Diehi Jean Néhémie,Gynécologue,2,Non,+225 27 22 44 30 78,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui,,,,Oui
+MED-296,Médecin,Dr Dikumbu K. Elie,Cardiologue,1,Oui,+225 07 04 09 07 39,18/09/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",5,Oui
+MED-297,Médecin,Dr Din Dekaihi Jean Noël,Généraliste,1,Oui,,07/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",5,Oui
+MED-592,Médecin,Dr Diomande Sahi Marie Louise,Cardiologue,1,Non,+225 00 38 82 11 89,03/11/2026,Visite faite,,1,Oui
+MED-511,Médecin,Dr Diop Prisca,Généraliste,1,Non,+225 07 08 88 85 90,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-125,Médecin,Dr Dirabou Yoann,Cardiologue,3,Oui,,04/11/2026,Visite faite,,2,Oui
+MED-761,Médecin,Dr Djabia Tanoh Julien,Cardiologue,2,Non,+225 01 02 02 44 01,,,Présentation générale des produits à planifier lors de la tournée,0,Oui,,,,Oui
+MED-087,Médecin,Dr Djadda Umar,Cardiologue,1,Oui,+225 07 09 65 09 87,01/07/2026,Visite faite,"Échantillons remis, à revoir dans un mois",7,Oui
+MED-089,Médecin,Dr Djadou Franck Donald,Généraliste,1,Oui,+225 27 21 26 53 23,29/08/2026,Visite faite,"Visite courte, entre deux consultations",8,Oui
+MED-090,Médecin,Dr Djahi Tiapa Pierre Eric,Généraliste,1,Non,+225 27 23 50 27 63 / +225 27 23 45 56 01,12/08/2026,Visite faite,Souhaite recevoir la documentation scientifique,1,Oui
+MED-014,Médecin,Dr Dje Boussou Michel,Neurologue,1,Non,,13/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",5,Oui
+MED-091,Médecin,Dr Djeufouiche Michel,Neurologue,1,Non,+225 00 55 69 70 26,06/08/2026,Visite faite,"Visite courte, entre deux consultations",1,Oui
+MED-092,Médecin,Dr Djibey Yahaya,Interniste,1,Oui,+225 00 38 91 94 07,20/07/2026,Visite faite,"Échantillons remis, à revoir dans un mois",8,Oui
+MED-099,Médecin,Dr Djibom Diana,Cardiologue,1,Non,+225 00 89 91 79 78,22/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",1,Oui
+MED-076,Médecin,Dr Djoma Adon Hugues,Cardiologue,3,Non,+225 07 07 52 53 27,15/09/2026,Absent,Médecin absent lors du passage,5,Oui
+MED-526,Médecin,Dr Djoman Adon Philomène épse Diabete,Cardiologue,1,Non,,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-375,Médecin,Dr Djoman Audrey A. Déborah,Généraliste,1,Oui,,26/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",8,Oui
+MED-196,Médecin,Dr Dogoni Mabougouri,Généraliste,1,Oui,+225 27 22 40 64 15,24/07/2026,Visite faite,"Bon accueil, rappel des indications",2,Oui
+MED-102,Médecin,Dr Doh-Yao Francois,Généraliste,1,Non,+225 27 23 46 72 37,08/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-216,Médecin,Dr Dolly Ornella Berenice,Cardiologue,1,Non,+225 27 22 41 33 20,19/07/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",1,Oui
+MED-494,Médecin,Dr Don Raoul,Cardiologue,1,Non,+225 00 68 54 99 40,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-104,Médecin,Dr Dongo K. David,Cardiologue,1,Oui,+225 05 06 19 03 08,26/06/2026,Visite faite,"Bon accueil, rappel des indications",4,Oui
+MED-299,Médecin,Dr Dongo Yao Serge Arthur,Généraliste,1,Non,+225 05 85 98 68 58,22/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-105,Médecin,Dr Donoumassou Ghislain,Cardiologue,1,Oui,+225 01 71 13 66 54,13/09/2026,Visite faite,Demande à être revu après ses congés,3,Oui
+MED-585,Médecin,Dr Dore Aly,Généraliste,1,Non,+225 07 07 40 38 02,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-750,Médecin,Dr Dosso Sory,Gynécologue,1,Non,+225 01 01 45 57 49,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-108,Médecin,Dr Doua Gbongue Landry,Interniste,1,Non,+225 00 12 47 70 31,22/07/2026,Visite faite,"Visite courte, entre deux consultations",5,Oui
+MED-098,Médecin,Dr Douehi Michael Nynsemond J.,Diabétologue,1,Non,+225 07 12 02 01 44,22/10/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",1,Oui
+MED-113,Médecin,Dr Doumba Souleymane,Neurologue,1,Non,+225 07 08 74 42 58,04/07/2026,Visite faite,"Visite courte, entre deux consultations",7,Oui
+MED-067,Médecin,Dr Doumbia Mohamed,Généraliste,3,Oui,+225 07 07 96 43 73,22/10/2026,Visite faite,Demande à être revu après ses congés,3,Oui
+MED-069,Médecin,Dr Douzan Ange Elvis Jacob,Endocrinologue,3,Oui,+225 00 88 09 35 97,16/07/2026,Visite faite,"Visite courte, entre deux consultations",4,Oui
+MED-682,Médecin,Dr Doyere Yaya Soro,Généraliste,1,Non,+225 07 59 86 29 04,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-687,Médecin,Dr Dry Koffi Alain,Généraliste,1,Non,+225 00 68 61 64 31,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-115,Médecin,Dr Duia Audda Esaïe,Cardiologue,1,Oui,+225 00 56 29 86 61,08/10/2026,Visite faite,"Bon accueil, rappel des indications",8,Oui
+MED-017,Médecin,Dr Dzade Koffi B.,Diabétologue,1,Oui,+225 07 02 40 37 81,08/08/2026,Visite faite,"Visite courte, entre deux consultations",5,Oui
+MED-301,Médecin,Dr E. S. Kattilion,Généraliste,1,Oui,+225 00 72 29 72 66,26/10/2026,Visite faite,"Bon accueil, rappel des indications",2,Oui
+MED-556,Médecin,Dr Edjeme Esperance,Pédiatre,1,Non,+225 00 72 40 16 88,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-743,Médecin,Dr Édouard Kokoun,Interniste,1,Non,+225 00 57 64 86 22,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-308,Médecin,Dr Edoukou Nelson,Diabétologue,3,Non,+225 07 09 95 35 66 / +225 01 01 00 45 53,17/09/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-170,Médecin,Dr Ehoussou N'Ta Elysee,Cardiologue,3,Oui,+225 27 23 51 03 19,23/10/2026,Indisponible,,1,Oui
+MED-280,Médecin,Dr Elloh Coffie Paul André,Généraliste,1,Oui,+225 00 32 38 55 54,25/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",8,Oui
+MED-456,Médecin,Dr Emmanuel Natolban,Généraliste,1,Non,+225 05 06 93 33 32,03/11/2026,Visite faite,,1,Oui
+MED-029,Médecin,Dr Emmanuelle Bohou épse Sanogo,Cardiologue,1,Non,+225 07 47 66 44 60,19/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-627,Médecin,Dr Esse Alexis Kouame,Généraliste,1,Non,+225 07 07 88 88 00,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-033,Médecin,Dr Essis Lorng J.C.,Généraliste,1,Non,+225 07 07 92 63 32,03/11/2026,Visite faite,Échange par rapport à une table à venir ,9,Oui
+MED-491,Médecin,Dr Etian Bedia Clement,Généraliste,1,Non,+225 07 58 68 97 92,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-118,Médecin,Dr Ette Koffi,Généraliste,1,Oui,+225 07 07 04 70 71,28/06/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",8,Oui
+MED-774,Médecin,Dr Ezoué Boidy Florence,Cardiologue,3,Oui,+225 07 07 46 44 91,24/09/2026,Visite faite,"Dépistage et remise en place Tensicard, Zyltan",1,Oui
+MED-313,Médecin,Dr Fagnidi K. Fabrice,Endocrinologue,1,Non,+225 00 38 59 49 33,02/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",1,Oui
+MED-643,Médecin,Dr Fanny née N'Da Adopo,Généraliste,1,Non,+225 07 77 94 17 33,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-449,Médecin,Dr Fatou Sall,Pédiatre,3,Oui,,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-127,Médecin,Dr Fioklou Messan,Cardiologue,3,Oui,+225 27 20 21 82 84,14/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",1,Oui
+MED-120,Médecin,Dr Flainde Laure,Cardiologue,1,Oui,+225 00 60 94 63 33,19/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",0,Oui
+MED-124,Médecin,Dr Fofana Abdel,Généraliste,1,Oui,+225 06 54 03 74 82 / +225 07 50 02 29 10,08/10/2026,Visite faite,"Bon accueil, rappel des indications",1,Oui
+MED-498,Médecin,Dr Fofana Adama,Généraliste,1,Non,+225 05 05 90 08 64,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-572,Médecin,Dr Fofana Djeneba,Généraliste,1,Non,+225 05 54 03 74 82,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-655,Médecin,Dr Fofana Lamine,Généraliste,1,Non,,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-501,Médecin,Dr Folquet Paule Josephe,Généraliste,1,Non,+225 00 09 15 65 53,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-247,Médecin,Dr Fotso Michele,Endocrinologue,1,Non,+225 27 20 21 97 97,03/09/2026,Visite faite,Souhaite recevoir la documentation scientifique,6,Oui
+MED-464,Médecin,Dr Gabo T. Pascal,Généraliste,1,Non,+225 01 40 84 55 91,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-314,Médecin,Dr Gadji Jonathan,Généraliste,1,Oui,,11/10/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,1,Oui
+MED-316,Médecin,Dr Ganame David,Généraliste,1,Non,+225 00 54 70 68 38,28/06/2026,Visite faite,"Bon accueil, rappel des indications",0,Oui
+MED-128,Médecin,Dr Gbadamassi S. Elie,Endocrinologue,1,Oui,+225 00 26 72 53 81,21/10/2026,Visite faite,Souhaite recevoir la documentation scientifique,1,Oui
+MED-436,Médecin,Dr Gbando Marie,Diabétologue,3,Oui,,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-734,Médecin,Dr Gbe Mahika,Endocrinologue,1,Non,+225 07 48 57 33 21,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-199,Médecin,Dr Gbea née Yebouet,Cardiologue,1,Oui,+225 27 23 50 27 63,20/09/2026,Absent,Médecin absent lors du passage,1,Oui
+MED-488,Médecin,Dr Gbekedi D. Noel,Généraliste,1,Non,+225 07 07 09 97 91,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-773,Médecin,Dr Gboko Landry,Généraliste,2,Non,+225 07 58 45 81 65,28/09/2026,Visite faite,"Interne CHU de Bouaké - Zyltan, Antiplatt",1,Oui
+MED-048,Médecin,Dr Gboko Solange,Cardiologue,3,Oui,+225 27 21 26 53 23,06/10/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",3,Oui
+MED-200,Médecin,Dr Ghislain Latifu,Généraliste,1,Oui,+225 00 02 10 73 86,12/07/2026,Visite faite,"Bon accueil, rappel des indications",2,Oui
+MED-100,Médecin,Dr Gnaba B. Joseph,Diabétologue,3,Non,+225 07 08 84 05 33,17/07/2026,Visite faite,Prêt à essayer sur quelques patients,4,Oui
+MED-735,Médecin,Dr Gnangoui Aka Serge,Endocrinologue,1,Non,+225 01 73 07 52 77,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-142,Médecin,Dr Gnoupkoho Ange Herman,Endocrinologue,1,Oui,+225 01 53 20 37 06,07/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",1,Oui
+MED-203,Médecin,Dr Goehan Bonao Sax,Généraliste,3,Non,+225 00 85 32 97 67,09/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",2,Oui
+MED-631,Médecin,Dr Gogbe Alexis,Cardiologue,1,Non,+225 01 02 51 07 83,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-126,Médecin,Dr Gogoue Joseph Roger,Généraliste,1,Oui,+225 01 51 54 14 14 / +225 27 21 21 80 51,12/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",1,Oui
+MED-538,Médecin,Dr Gokou Evariste,Endocrinologue,1,Non,+225 00 94 31 50 50,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-450,Médecin,Dr Gonan Yanick,Néphrologue,3,Oui,,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-319,Médecin,Dr Gotta Jacques,Généraliste,1,Oui,+225 01 73 15 25 03,17/07/2026,Visite faite,Demande à être revu après ses congés,2,Oui
+MED-130,Médecin,Dr Gouamene Ange Ornella,Généraliste,1,Oui,+225 00 60 13 35 24,09/10/2026,Visite faite,Souhaite recevoir la documentation scientifique,5,Oui
+MED-070,Médecin,Dr Goule Bi Arthur,Généraliste,1,Non,+225 07 49 27 07 58,05/10/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",4,Oui
+MED-295,Médecin,Dr Goulia Diegne Yves,Néphrologue,1,Oui,+225 00 83 53 12 20,19/10/2026,Visite faite,"Bon accueil, rappel des indications",5,Oui
+MED-415,Médecin,Dr Goun Fagnan Levy,Endocrinologue,1,Non,+225 00 21 80 94 66,29/07/2026,Visite faite,"Bon accueil, rappel des indications",2,Oui
+MED-594,Médecin,Dr Guezo Melissa,Cardiologue,1,Non,+225 27 22 26 00 69,03/11/2026,Visite faite,,1,Oui
+MED-136,Médecin,Dr Guy-Claude Acray,Généraliste,1,Oui,+225 00 26 57 82 86,07/08/2026,Refus de recevoir,Fidèle à un produit concurrent,5,Oui
+MED-320,Médecin,Dr Henyo Florence Jeanine,Néphrologue,1,Non,+225 00 43 26 84 39,14/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",3,Oui
+MED-323,Médecin,Dr Hijazi Sanaa,Cardiologue,3,Oui,+225 00 60 04 60 58,11/10/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",3,Oui
+MED-137,Médecin,Dr Hogan Toualy Ibrahim,Néphrologue,1,Non,+225 00 43 35 59 05,21/08/2026,Visite faite,"Visite courte, entre deux consultations",5,Oui
+MED-139,Médecin,Dr Houffouet Akpeaud,Généraliste,1,Non,+225 00 42 69 01 91,11/08/2026,Visite faite,"Bon accueil, rappel des indications",4,Oui
+MED-209,Médecin,Dr Ibrahim Abdel-Nasser,Endocrinologue,1,Oui,,21/10/2026,Visite faite,Rappeler en début de semaine prochaine,2,Oui
+MED-265,Médecin,Dr Idrahima Toure,Endocrinologue,1,Non,+225 27 21 26 53 23,09/09/2026,Visite faite,Prêt à essayer sur quelques patients,0,Oui
+MED-324,Médecin,Dr Inwoley Isaac Kouassi,Généraliste,1,Non,+225 00 76 15 79 63,22/10/2026,Visite faite,Demande à être revu après ses congés,3,Oui
+MED-665,Médecin,Dr Issa Coulibaly,Généraliste,1,Non,+225 27 22 40 04 15,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-144,Médecin,Dr Jacque Bia Dit Cling,Cardiologue,1,Non,+225 07 59 84 64 76,26/07/2026,Visite faite,"Visite courte, entre deux consultations",1,Oui
+MED-523,Médecin,Dr Joachim Dangny,Diabétologue,1,Non,+225 05 05 06 40 33,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-328,Médecin,Dr K. M. Yves-Cedric,Cardiologue,1,Oui,+225 00 09 04 74 87,04/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",2,Oui
+MED-210,Médecin,Dr Kablan A.,Généraliste,1,Oui,+225 07 15 31 78 71,05/08/2026,Visite faite,"Bon accueil, rappel des indications",8,Oui
+MED-350,Médecin,Dr Kabore Koudpinga Gaston,Généraliste,3,Oui,+225 27 23 50 27 63,04/11/2026,Visite faite,Dr kaboré prescrit déjà la gamme aura 1 donc il est indécis sur la gamme aura 2,7,Oui
+MED-584,Médecin,Dr Kacou Halloux épse Gnaba,Généraliste,1,Non,+225 01 03 62 66 73 / +225 27 23 46 72 67,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-552,Médecin,Dr Kacou Serge,Généraliste,1,Non,+225 07 77 99 68 34,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-146,Médecin,Dr Kacou Yannick Opportune M'Lan,Généraliste,1,Oui,+225 00 59 98 64 29,24/07/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,1,Oui
+MED-012,Médecin,Dr Kadio Ede Martin,Cardiologue,1,Oui,+225 27 20 25 29 30,21/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",5,Oui
+MED-231,Médecin,Dr Kakou Jacques,Interniste,1,Non,+225 01 40 14 21 45 / +225 05 65 00 84 84,06/07/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-495,Médecin,Dr Kaliffa Bamba,Généraliste,1,Non,+225 00 59 74 58 46,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-330,Médecin,Dr Kamagate Ismaila,Généraliste,1,Oui,+225 00 42 45 56 30,12/10/2026,Visite faite,"Bon accueil, rappel des indications",7,Oui
+MED-692,Médecin,Dr Kambire Sie Fulbert,Cardiologue,1,Non,+225 00 25 57 17 53,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-149,Médecin,Dr Kamdem Herna,Généraliste,1,Non,+225 01 40 48 44 47,13/07/2026,Visite faite,"Visite courte, entre deux consultations",8,Oui
+MED-281,Médecin,Dr Kamissoko épse Dao Mariama,Généraliste,1,Non,+225 00 49 16 31 73,07/09/2026,Visite faite,Rappeler en début de semaine prochaine,8,Oui
+MED-782,Médecin,Dr Kangah Mathieu,Généraliste,2,Oui,+225 07 48 30 02 16,02/09/2026,Visite faite,"Amlotroy, Telmikaa, Rosukaa",1,Oui
+MED-725,Médecin,Dr Kangah Synthia Josiane,Généraliste,1,Non,+225 00 41 11 35 07,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-331,Médecin,Dr Kangou Kangou Pascal,Généraliste,1,Non,+225 00 59 23 32 49,13/10/2026,Visite faite,"Bon accueil, rappel des indications",0,Oui
+MED-333,Médecin,Dr Kassi Joseph,Généraliste,1,Oui,+225 00 25 67 80 11,06/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",7,Oui
+MED-755,Médecin,Dr Katchire Narcisse,Généraliste,1,Non,+225 00 81 17 51 44,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-151,Médecin,Dr Kegbou Willy,Généraliste,1,Non,+225 00 75 28 55 25,24/10/2026,Visite faite,"Visite courte, entre deux consultations",5,Oui,27/11/2026
+MED-377,Médecin,Dr Keita Ismaël,Néphrologue,1,Non,+225 05 76 22 69 69,09/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-129,Médecin,Dr Keita Madiadi Terlin,Infectiologue,1,Oui,+225 05 45 65 92 33,12/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",1,Oui
+MED-153,Médecin,Dr Keita Mohamed Latifee,Généraliste,1,Non,+225 00 41 73 02 87,01/07/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-050,Médecin,Dr Kinnoudo Isaac M.,Cardiologue,3,Non,+225 07 58 04 36 69,03/11/2026,Visite faite,Docteur Kinnoudo m'a rassurée qu'il prescrit déjà nos produits et donc  plus besoin de m'attarder sur la présentation juste rappeler le produit et c'est bon . Rappel de dépistage à une date ultérieure ,8,Oui
+MED-131,Médecin,Dr Kitanha Traore,Généraliste,1,Non,+225 00 76 91 11 43,12/08/2026,Visite faite,"Bon accueil, rappel des indications",5,Oui
+MED-132,Médecin,Dr Koadjo K. Cyril,Endocrinologue,1,Non,,03/11/2026,Visite faite,Promesse d'une nouvelle boîte de Zyltan s'il y a un nouveau cas,6,Oui
+MED-133,Médecin,Dr Koffi A. Augustine,Généraliste,1,Non,+225 07 03 39 40 73,14/09/2026,Visite faite,Souhaite recevoir la documentation scientifique,5,Oui
+MED-622,Médecin,Dr Koffi Abey Jean-I,Généraliste,1,Non,+225 00 55 81 42 11,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-463,Médecin,Dr Koffi Aka Yves Roch,Généraliste,1,Non,+225 07 58 11 37 10,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-329,Médecin,Dr Koffi Alphonse Konan,Cardiologue,1,Oui,+225 27 22 40 30 06,29/10/2026,Visite faite,"Dr Konan Alphonse, déjà engagé à prescrire réitère son engagement de prescription des produits ",3,Oui
+MED-512,Médecin,Dr Koffi André épse Konan Maria Christelle,Généraliste,1,Non,+225 07 07 64 02 73,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-154,Médecin,Dr Koffi Aya Rosine Patone,Généraliste,1,Oui,+225 00 91 39 74 30,02/10/2026,Visite faite,"Visite courte, entre deux consultations",4,Oui
+MED-672,Médecin,Dr Koffi Dinguie Benjamin,Cardiologue,1,Non,+225 00 87 66 67 71,,Absent,Médecin absent lors du passage,0,Oui
+MED-334,Médecin,Dr Koffi Djinguin Ben Justin,Cardiologue,1,Non,+225 27 23 46 72 67,04/11/2026,Visite faite,Professeur s'est fait remplacer par le docteur N'Guettio,8,Oui
+MED-516,Médecin,Dr Koffi Guy Angl Aristide,Généraliste,1,Non,+225 01 43 02 52 98,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-337,Médecin,Dr Koffi J. Christ Lavry K.,Généraliste,1,Oui,+225 07 47 20 32 64,21/08/2026,Visite faite,"Visite courte, entre deux consultations",0,Oui
+MED-155,Médecin,Dr Koffi K. Florent,Cardiologue,1,Oui,+225 27 21 21 61 71,27/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",4,Oui
+MED-015,Médecin,Dr Koffi Mac Amiton,Cardiologue,3,Non,,13/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-156,Médecin,Dr Koffi Noël,Généraliste,1,Non,+225 00 57 84 21 92,20/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",3,Oui
+MED-483,Médecin,Dr Koffi-Oura Sophie,Généraliste,1,Non,+225 00 13 74 73 81,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-159,Médecin,Dr Koffive Abah Sandra L. épse G.,Cardiologue,3,Non,+225 00 09 50 64 77,02/08/2026,Visite faite,"Visite courte, entre deux consultations",5,Oui
+MED-010,Médecin,Dr Koffiye épse Agnimel Sandra,Cardiologue,3,Oui,+225 27 21 26 53 23,03/11/2026,Visite faite,,6,Oui
+MED-190,Médecin,Dr Kohoro Cedric Yann Aime Kraidy,Neurologue,1,Oui,+225 27 23 50 27 63,11/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-211,Médecin,Dr Kohou B. Wilfried,Généraliste,1,Non,+225 05 04 96 09 41,18/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",8,Oui
+MED-724,Médecin,Dr Koivogui Solange,Pédiatre,1,Non,+225 00 65 73 63 89,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-160,Médecin,Dr Kokusa Francis,Cardiologue,1,Non,+225 07 11 45 59 32,27/09/2026,Visite faite,Prêt à essayer sur quelques patients,3,Oui
+MED-340,Médecin,Dr Kolassi Kan Justin,Généraliste,1,Non,+225 00 75 17 22 25,30/08/2026,Visite faite,"Visite courte, entre deux consultations",2,Oui
+MED-675,Médecin,Dr Konan Eliane,Généraliste,1,Non,+225 00 05 98 12 64,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-527,Médecin,Dr Konan K. Ange Martial,Généraliste,1,Non,+225 07 48 94 99 20,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-619,Médecin,Dr Konan K. Arène Hermann,Généraliste,1,Non,+225 00 96 25 61 22,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-162,Médecin,Dr Konan Kanga Alain Patrice,Généraliste,1,Oui,+225 00 71 57 19 23,25/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",3,Oui
+MED-164,Médecin,Dr Konan N. Colostin,Généraliste,1,Non,+225 00 72 23 76 37,25/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",3,Oui
+MED-777,Médecin,Dr Konan Varis Christèle,Généraliste,2,Oui,,26/09/2026,Visite faite,"EPHR Bouaké - Amlotroy, Lesstrol",1,Oui
+MED-134,Médecin,Dr Konate N. Armel,Généraliste,1,Oui,+225 07 47 07 40 25,15/09/2026,Visite faite,Souhaite recevoir la documentation scientifique,0,Oui
+MED-212,Médecin,Dr Kone Aboubakar,Généraliste,1,Oui,+225 07 57 39 71 39,24/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",9,Oui
+MED-769,Médecin,Dr Koné Didjehin Pélagie,Généraliste,2,Oui,+225 07 79 87 97 08,18/03/2026,Visite faite,Rappel de Telmikaa et Rosukaa,2,Oui
+MED-140,Médecin,Dr Kone G. Pacome,Cardiologue,1,Non,+225 27 23 52 93 58,17/09/2026,Visite faite,Souhaite recevoir la documentation scientifique,8,Oui
+MED-171,Médecin,Dr Kone Ibrahim,Neurologue,1,Non,+225 00 21 09 19 71,19/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-145,Médecin,Dr Koné Mohamed,Généraliste,1,Non,+225 07 59 91 15 87,21/09/2026,Visite faite,Prêt à essayer sur quelques patients,1,Oui
+MED-175,Médecin,Dr Kone Moussa,Néphrologue,1,Non,+225 00 88 20 24 47,19/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",7,Oui
+MED-181,Médecin,Dr Kone Nadja,Cardiologue,1,Oui,+225 00 31 20 02 92,12/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-183,Médecin,Dr Kone Namongo Idrissa,Interniste,1,Oui,,07/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-184,Médecin,Dr Kone Sanata,Généraliste,1,Non,+225 01 52 52 12 22,26/09/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-034,Médecin,Dr Kone Silie Djakaridja,Endocrinologue,1,Non,+225 05 04 96 36 65,05/11/2026,Visite faite,Intéressé demande prise en charge billet d'avion 4 million,8,Oui
+MED-214,Médecin,Dr Kone Soumaila,Généraliste,1,Non,+225 07 77 96 67 04,16/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",1,Oui
+MED-730,Médecin,Dr Kone Tiezan,Généraliste,1,Non,+225 07 08 05 19 16,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-187,Médecin,Dr Kone Yacouba,Généraliste,1,Oui,+225 07 68 81 91 63,26/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",7,Oui
+MED-143,Médecin,Dr Kone Yoroh,Cardiologue,1,Non,+225 07 99 73 59 87,15/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",1,Oui
+MED-018,Médecin,Dr Kossa Emmanuel,Généraliste,1,Non,+225 07 67 62 27 31,07/08/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",4,Oui
+MED-568,Médecin,Dr Koua A. Dorothée,Endocrinologue,1,Non,+225 00 48 19 81 32,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-071,Médecin,Dr Koua Bouadou Aboli Dominique,Interniste,1,Oui,+225 00 68 66 54 48,17/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",4,Oui
+MED-191,Médecin,Dr Kouablan Rie Tanguy,Généraliste,1,Oui,+225 00 63 94 27 21,20/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",2,Oui
+MED-344,Médecin,Dr Kouadio Adama N'Guessan Claude,Généraliste,1,Oui,+225 05 76 54 52 14 / +225 87 79 27 39 23,08/10/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",2,Oui
+MED-588,Médecin,Dr Kouadio Anima,Diabétologue,1,Non,+225 05 64 53 92 26,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-101,Médecin,Dr Kouadio épse Komoé Adjoua Sabrina S.,Généraliste,1,Non,+225 27 20 25 29 30,20/08/2026,Visite faite,"Visite courte, entre deux consultations",4,Oui
+MED-620,Médecin,Dr Kouadio L. Samuel,Généraliste,1,Non,+225 05 06 37 17 96,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-218,Médecin,Dr Kouadio Mireille Yabla,Cardiologue,1,Non,,06/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",1,Oui
+MED-221,Médecin,Dr Kouadio née Soro Miyerkina Sarah Benedicte,Généraliste,1,Oui,+225 05 56 71 35 94,28/07/2026,Visite faite,Rappeler en début de semaine prochaine,1,Oui
+MED-349,Médecin,Dr Kouadiou Koffi Blaise,Cardiologue,1,Oui,+225 00 24 17 36 54,18/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",1,Oui
+MED-654,Médecin,Dr Kouakou A. Gisele Audrey,Généraliste,1,Non,+225 00 58 84 74 66,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-354,Médecin,Dr Kouakou Amenan Nathalie,Généraliste,1,Non,+225 27 22 30 05 72 / +225 07 03 04 82 37,06/10/2026,Visite faite,Demande à être revu après ses congés,6,Oui
+MED-509,Médecin,Dr Kouakou Christel,Cardiologue,1,Non,+225 01 43 14 48 24,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-197,Médecin,Dr Kouakou K. Ernest,Pédiatre,1,Non,+225 07 58 09 46 04,19/10/2026,Visite faite,Prêt à essayer sur quelques patients,2,Oui
+MED-192,Médecin,Dr Kouakou K. Théodore,Endocrinologue,1,Non,+225 00 13 60 98 64,03/10/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",1,Oui
+MED-147,Médecin,Dr Kouakou Kouame Vincent,Généraliste,1,Non,+225 00 43 20 88 10,02/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",1,Oui
+MED-198,Médecin,Dr Kouakou Loukou Franck,Neurologue,1,Non,+225 00 12 94 41 50,20/10/2026,Visite faite,Prêt à essayer sur quelques patients,0,Oui
+MED-680,Médecin,Dr Kouakou N. Guillaume,Généraliste,1,Non,+225 27 20 31 04 80,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-201,Médecin,Dr Kouakou N. Marc-Thierry,Généraliste,1,Non,+225 00 18 88 50 05,14/10/2026,Visite faite,Demande à être revu après ses congés,2,Oui
+MED-561,Médecin,Dr Kouakou N'Dri Sebastien,Généraliste,1,Non,+225 00 51 50 13 61,02/11/2026,Visite faite,,1,Oui
+MED-571,Médecin,Dr Kouakou N'Sreke Hypolite,Généraliste,1,Non,+225 07 09 30 09 16,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-517,Médecin,Dr Kouakou Parfait,Généraliste,1,Non,+225 07 09 89 59 37,02/11/2026,Visite faite,,1,Oui
+MED-359,Médecin,Dr Kouakou Roméo,Cardiologue,1,Non,+225 00 56 91 60 83,03/08/2026,Visite faite,Souhaite recevoir la documentation scientifique,5,Oui
+MED-360,Médecin,Dr Kouakou Siaka,Cardiologue,3,Oui,,24/10/2026,Refus de recevoir,Fidèle à un produit concurrent,6,Oui
+MED-223,Médecin,Dr Kouakou Sinan,Cardiologue,1,Non,+225 00 50 81 46 25,01/08/2026,Visite faite,"Visite courte, entre deux consultations",2,Oui
+MED-224,Médecin,Dr Kouakoutie N. Marie Thérèse,Diabétologue,1,Oui,+225 00 67 59 22 44,20/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",2,Oui
+MED-103,Médecin,Dr Kouame A.S. Inès H.,Cardiologue,1,Non,+225 07 07 25 39 27,07/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-081,Médecin,Dr Kouame Cathy Nadege,Cardiologue,3,Non,+225 27 20 21 18 27,28/10/2026,Visite faite,Prêt à essayer sur quelques patients,9,Oui
+MED-690,Médecin,Dr Kouame Dalli Noël,Généraliste,1,Non,+225 07 07 80 87 43,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-204,Médecin,Dr Kouame Esther,Cardiologue,1,Oui,+225 01 43 52 89 59,03/11/2026,Visite faite,,3,Oui
+MED-205,Médecin,Dr Kouame K. Sylvain,Généraliste,1,Oui,+225 07 69 35 93 96,16/08/2026,RDV reporté,A reconfirmer,2,Oui
+MED-417,Médecin,Dr Kouame Kadio Auguste,Cardiologue,1,Non,+225 07 08 12 78 80,20/10/2026,Visite faite,"Visite courte, entre deux consultations",2,Oui
+MED-419,Médecin,Dr Kouame Koffi Flaviano,Endocrinologue,1,Oui,+225 05 01 86 47 10,26/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-489,Médecin,Dr Kouame Koffi Jean-Pierre,Endocrinologue,1,Non,,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-356,Médecin,Dr Kouame Kouassi,Néphrologue,1,Oui,+225 07 48 38 30 65,17/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-207,Médecin,Dr Kouame Lehou Faustin,Généraliste,1,Oui,+225 00 18 21 92 91,24/10/2026,Visite faite,Souhaite recevoir la documentation scientifique,3,Oui,02/12/2026
+MED-726,Médecin,Dr Kouame Olivier,Généraliste,1,Non,+225 07 64 32 44 44,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-106,Médecin,Dr Kouame Samson,Diabétologue,3,Non,+225 00 39 66 81 37,11/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",4,Oui
+MED-226,Médecin,Dr Kouame Stephane,Cardiologue,1,Oui,,18/08/2026,Visite faite,Souhaite recevoir la documentation scientifique,2,Oui
+MED-444,Médecin,Dr Kouamé Yao,Néphrologue,3,Oui,+225 01 40 58 63 36,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-623,Médecin,Dr Kouao Barnabe,Diabétologue,1,Non,+225 05 55 99 16 10,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-683,Médecin,Dr Kouassi Assemien,Généraliste,1,Non,+225 07 08 48 61 93,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-085,Médecin,Dr Kouassi Becely,Cardiologue,1,Oui,+225 27 21 26 53 23,21/07/2026,Visite faite,Souhaite recevoir la documentation scientifique,7,Oui
+MED-220,Médecin,Dr Kouassi Bi Fardy,Généraliste,1,Oui,+225 07 03 59 79 00,09/10/2026,Visite faite,"Visite courte, entre deux consultations",0,Oui
+MED-658,Médecin,Dr Kouassi Blé Iarc,Généraliste,1,Non,+225 00 19 67 65 02,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-606,Médecin,Dr Kouassi Claver,Généraliste,1,Non,+225 01 01 80 14 94,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-437,Médecin,Dr Kouassi Dominique,Néphrologue,3,Oui,,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-208,Médecin,Dr Kouassi Emma,Interniste,1,Oui,+225 00 67 88 64 34,09/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",2,Oui
+MED-222,Médecin,Dr Kouassi épse Assi Ama Marie,Cardiologue,3,Oui,+225 27 20 25 29 30,30/08/2026,Indisponible,"Très occupé, rappeler pour fixer un RDV",2,Oui
+MED-438,Médecin,Dr Kouassi Eric,Cardiologue,3,Oui,+225 07 79 01 87 92,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-213,Médecin,Dr Kouassi Frank-Herve,Généraliste,1,Oui,+225 07 08 15 37 96,13/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",8,Oui
+MED-677,Médecin,Dr Kouassi Gertrude,Généraliste,1,Non,+225 27 22 44 22 38,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-227,Médecin,Dr Kouassi Iasiah,Cardiologue,1,Non,+225 00 17 92 51 01,19/08/2026,Visite faite,Souhaite recevoir la documentation scientifique,0,Oui
+MED-052,Médecin,Dr Kouassi Jean Martial,Néphrologue,1,Oui,+225 27 23 45 56 99,03/07/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-384,Médecin,Dr Kouassi K. Guillaume A.,Généraliste,1,Oui,+225 00 89 12 63 85,28/09/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,6,Oui
+MED-663,Médecin,Dr Kouassi Koffi Koin Valérie,Généraliste,1,Non,+225 00 00 99 19 22,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-215,Médecin,Dr Kouassi Koffi Valentin,Généraliste,1,Oui,+225 00 63 90 44 76,19/09/2026,Visite faite,Prêt à essayer sur quelques patients,1,Oui
+MED-229,Médecin,Dr Kouassi Konan Valérie,Généraliste,1,Oui,+225 00 83 03 84 35,20/10/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",1,Oui
+MED-573,Médecin,Dr Kouassi Licely,Cardiologue,1,Non,+225 00 44 77 46 60,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-480,Médecin,Dr Kouassi Lucien,Généraliste,1,Non,,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-267,Médecin,Dr Kouassi N'Da Batiny Linda,Cardiologue,3,Non,+225 00 97 60 68 09,30/06/2026,Visite faite,"Présentation du produit faite, échantillons remis",5,Oui
+MED-770,Médecin,Dr Kouassi N'Dri Jean,Cardiologue,3,Oui,+225 27 31 63 22 63,25/08/2026,Visite faite,"Médecin Chef CSU Nimbo / CHU Bouaké - Amlotroy, Antiplatt",1,Oui
+MED-230,Médecin,Dr Kouassi N'Guessan Claude S.,Généraliste,1,Non,,01/07/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-288,Médecin,Dr Kouassi Pierre,Néphrologue,1,Non,+225 07 49 45 66 44,05/10/2026,Visite faite,"Bon accueil, rappel des indications",1,Oui
+MED-217,Médecin,Dr Kouassi Rosine,Endocrinologue,1,Oui,+225 00 97 45 97 14,26/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",1,Oui
+MED-219,Médecin,Dr Kouassi Serge-Constant,Généraliste,1,Non,+225 00 31 01 49 52,08/10/2026,Visite faite,"Visite courte, entre deux consultations",1,Oui
+MED-148,Médecin,Dr Kouassi-Gnapi Patricia,Endocrinologue,1,Non,+225 05 05 76 16 58,02/09/2026,Visite faite,Prêt à essayer sur quelques patients,8,Oui
+MED-152,Médecin,Dr Kouate Romaric Ludovic,Cardiologue,1,Oui,+225 01 02 78 64 18,19/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",0,Oui
+MED-157,Médecin,Dr Koubegnaglo D. Helene,Endocrinologue,1,Oui,+225 00 74 61 98 11,01/09/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",3,Oui
+MED-537,Médecin,Dr Koudou Alain,Généraliste,1,Non,+225 05 05 39 07 86,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-522,Médecin,Dr Kouin S. Loic,Généraliste,1,Non,+225 07 08 40 72 66,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-225,Médecin,Dr Kourouma Mavoulon T.,Neurologue,1,Non,+225 00 84 36 98 63,21/10/2026,Visite faite,"Bon accueil, rappel des indications",2,Oui
+MED-575,Médecin,Dr Koutouan Alvine,Généraliste,1,Non,+225 01 01 64 81 81,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-361,Médecin,Dr Koutouan Vanessa,Généraliste,1,Oui,+225 07 07 37 59 60,25/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",4,Oui
+MED-365,Médecin,Dr Kpea Ivan Cedric,Généraliste,1,Oui,+225 00 37 78 21 24,01/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",5,Oui
+MED-689,Médecin,Dr Kple N'Guessan,Généraliste,1,Non,+225 22 27 55 01 96,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-158,Médecin,Dr Kra Affoue,Généraliste,1,Oui,+225 07 07 02 01 20,28/09/2026,Visite faite,Souhaite recevoir la documentation scientifique,5,Oui
+MED-367,Médecin,Dr Kra Magna Marylène,Diabétologue,3,Non,,18/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",5,Oui
+MED-232,Médecin,Dr Kra Yao Marcelin,Généraliste,1,Oui,+225 27 22 41 33 20 / +225 27 22 42 33 84,11/08/2026,Visite faite,Souhaite recevoir la documentation scientifique,6,Oui
+MED-038,Médecin,Dr Kraidy L.-C.A.,Neurologue,1,Oui,+225 05 94 90 44 55,25/08/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",8,Oui
+MED-233,Médecin,Dr Lagbanon Nondia Esperance,Généraliste,1,Oui,,08/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",6,Oui
+MED-703,Médecin,Dr Lago Ferdinand,Généraliste,1,Non,+225 05 05 05 33 55,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-240,Médecin,Dr Lasme Diomandé M.,Généraliste,1,Non,+225 27 23 45 16 93,27/10/2026,Visite faite,"Bon accueil, rappel des indications",7,Oui
+MED-560,Médecin,Dr Lattah Franck O.A.,Généraliste,1,Non,+225 00 87 71 50 50,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-700,Médecin,Dr Latte Akpa Michel,Généraliste,1,Non,+225 00 20 85 28 20,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-242,Médecin,Dr Lattes Jean-Louis-Roi,Généraliste,1,Oui,,19/08/2026,Visite faite,Rappeler en début de semaine prochaine,6,Oui
+MED-369,Médecin,Dr Laubhouet Arnaud B. M.,Cardiologue,1,Non,+225 01 02 10 59 97,20/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-040,Médecin,Dr Laubhouet-Koffi M. V.,Généraliste,1,Oui,+225 27 20 21 91 30,05/11/2026,Visite faite,Promesse de prescription car produits disponibles CMU,3,Oui
+MED-072,Médecin,Dr Lawani Ousmane Aime,Cardiologue,1,Oui,+225 07 03 48 71 19,03/11/2026,Visite faite,Docteur Lawani remplacé par docteur Konan Koffi  Ahoussou promet des prescriptions,1,Oui
+MED-593,Médecin,Dr Lawani Semiyou,Généraliste,1,Non,+225 00 33 66 46 21,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-370,Médecin,Dr Legret D. Saint-Clair,Neurologue,3,Non,+225 07 79 51 16 22,03/10/2026,Visite faite,"Visite courte, entre deux consultations",7,Oui
+MED-371,Médecin,Dr Lisse Mahoua,Endocrinologue,1,Non,+225 00 92 76 26 53,05/07/2026,Visite faite,Prêt à essayer sur quelques patients,7,Oui
+MED-249,Médecin,Dr Lobah Yves Gontran,Interniste,1,Oui,+225 07 07 18 87 28,15/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-161,Médecin,Dr Ly Mohamed M.,Généraliste,1,Oui,+225 07 67 15 05 22,28/09/2026,Visite faite,"Bon accueil, rappel des indications",3,Oui
+MED-669,Médecin,Dr Magatsing Carine épse N'Gankou,Endocrinologue,1,Non,+225 27 21 31 35 77,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-107,Médecin,Dr Mahamat Idriss,Endocrinologue,1,Non,+225 00 22 89 05 18,15/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",4,Oui
+MED-163,Médecin,Dr Mahi Gadji,Généraliste,1,Non,+225 00 54 79 43 04,09/07/2026,Visite faite,"Visite courte, entre deux consultations",3,Oui
+MED-736,Médecin,Dr Maiga Seydou,Endocrinologue,1,Non,+225 07 04 34 28 47,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-255,Médecin,Dr Maïrousgou Boursou,Endocrinologue,1,Oui,+225 00 85 50 26 96,28/06/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-234,Médecin,Dr Malik K. Simone,Cardiologue,1,Non,+225 07 48 55 28 92,11/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-372,Médecin,Dr Mangoua Pau,Généraliste,1,Oui,+225 07 08 67 00 36,28/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",6,Oui
+MED-521,Médecin,Dr Manhan Ka,Diabétologue,1,Non,+225 07 48 46 41 44,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-610,Médecin,Dr Manhan Kan,Diabétologue,1,Non,+225 00 28 13 29 60,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-694,Médecin,Dr Mani Paule Lucie épse Kouamé,Généraliste,1,Non,+225 00 09 85 30 54,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-467,Médecin,Dr Marie Chantal Aby Anoman,Généraliste,1,Non,+225 00 70 54 07 72,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-718,Médecin,Dr Mea Niangoran,Dermatologue,1,Non,+225 07 08 29 13 58,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-262,Médecin,Dr Meïté Fatoumata,Interniste,1,Non,+225 07 08 13 82 05,04/07/2026,Visite faite,"Échantillons remis, à revoir dans un mois",0,Oui
+MED-165,Médecin,Dr Mel Biaffou Pierre,Cardiologue,1,Non,+225 27 23 50 27 63,23/07/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",3,Oui
+MED-257,Médecin,Dr Mel Nane,Généraliste,1,Non,+225 07 59 76 37 64,29/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",7,Oui
+MED-123,Médecin,Dr Mendy Gregoire Henri,Généraliste,3,Oui,+225 27 23 45 55 99,04/11/2026,Visite faite,Routine ,2,Oui
+MED-506,Médecin,Dr Mensah-Akaki,Généraliste,1,Non,+225 00 76 63 74 58,02/11/2026,Visite faite,,1,Oui
+MED-259,Médecin,Dr Mezene Igambotchina Paul-Laurent,Cardiologue,1,Oui,+225 00 18 39 22 20,12/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-479,Médecin,Dr Miessan A. Jean Claude,Généraliste,1,Non,+225 27 20 25 29 30,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-567,Médecin,Dr Minhin Phyllis,Généraliste,1,Non,+225 00 03 09 26 78,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-699,Médecin,Dr Mobio Marie Denise,Pédiatre,1,Non,,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-374,Médecin,Dr Monney-Seri Evelyn,Cardiologue,3,Oui,+225 00 08 87 45 58,02/11/2026,Visite faite,,7,Oui
+MED-693,Médecin,Dr Morigbe Silué Françoise Edwige épse Koffi,Généraliste,1,Non,+225 00 15 50 56 40,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-235,Médecin,Dr Mzebaze Gaelle,Cardiologue,1,Non,+225 01 02 99 23 54,27/08/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-765,Médecin,Dr N'Cho Akiepi Baudelaire,Généraliste,2,Non,+225 01 40 23 63 23,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui,,,,Oui
+MED-492,Médecin,Dr N'Cho Auguste,Diabétologue,1,Non,+225 07 07 50 30 31,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-753,Médecin,Dr N'Cho épse Al,Généraliste,1,Non,+225 00 39 88 27 29,02/11/2026,Visite faite,,1,Oui
+MED-505,Médecin,Dr N'Da Christiane A. Chantal,Gynécologue,1,Non,+225 00 40 43 88 44,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-264,Médecin,Dr N'Da Niamke Rosine,Généraliste,1,Non,+225 00 47 27 39 52,08/09/2026,Visite faite,Prêt à essayer sur quelques patients,0,Oui
+MED-466,Médecin,Dr N'Dey Achy Gildas,Généraliste,1,Non,+225 05 04 75 20 15,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-378,Médecin,Dr N'Doja Marie Viviane A.,Cardiologue,1,Oui,+225 07 69 47 15 74,31/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-640,Médecin,Dr N'Dri Kouakou Emmanuel,Généraliste,1,Non,+225 00 64 30 97 75,03/11/2026,Visite faite,,1,Oui
+MED-426,Médecin,Dr N'Gankou Steve,Cardiologue,3,Oui,+225 27 21 20 53 20,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-236,Médecin,Dr N'Golo Blonde,Cardiologue,1,Oui,+225 27 22 41 43 48,25/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-270,Médecin,Dr N'Goran A. A. Nelly épse Tano,Endocrinologue,1,Non,+225 07 69 02 76 11,24/10/2026,Refus de recevoir,Médecin à voir prochainement,3,Oui
+MED-275,Médecin,Dr N'Goran Adolphe,Cardiologue,1,Non,+225 05 56 16 84 22,17/09/2026,Visite faite,Prêt à essayer sur quelques patients,1,Oui
+MED-379,Médecin,Dr N'Guessan Amoin Marie-Madeleine,Généraliste,1,Oui,+225 00 58 54 17 01,28/06/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",6,Oui
+MED-276,Médecin,Dr N'Guessan Fideline,Généraliste,1,Non,+225 07 07 67 42 54,08/07/2026,Absent,,1,Oui
+MED-277,Médecin,Dr N'Guessan Jules,Généraliste,1,Oui,+225 00 97 75 39 04,06/11/2026,Visite faite,,2,Oui
+MED-286,Médecin,Dr N'Guessan Olivier,Généraliste,1,Oui,+225 01 03 97 92 93,30/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",8,Oui
+MED-439,Médecin,Dr N'Guessan Wilfried,Cardiologue,3,Oui,+225 27 22 59 04 17,03/11/2026,Visite faite,,2,Oui
+MED-020,Médecin,Dr N'Guessan Yao Anselme,Endocrinologue,1,Non,+225 07 58 49 49 77,03/07/2026,Visite faite,Souhaite recevoir la documentation scientifique,3,Oui
+MED-759,Médecin,Dr N'Guettia Etienne,Généraliste,1,Non,+225 07 09 25 74 99,28/10/2026,Visite faite,Prise de contact à effectuer lors du prochain passage,1,Oui
+MED-287,Médecin,Dr N'Guettia K. Drissa,Généraliste,1,Oui,+225 05 04 34 36 36,13/09/2026,Visite faite,"Bon accueil, rappel des indications",8,Oui
+MED-135,Médecin,Dr N'Takpé D. Richard,Endocrinologue,1,Non,+225 07 07 23 97 93,15/07/2026,Absent,"Bon accueil, rappel des indications",5,Oui
+MED-386,Médecin,Dr N'Za Amenan Aissa,Cardiologue,1,Oui,+225 05 94 90 44 53,30/10/2026,Visite faite,,7,Oui
+MED-237,Médecin,Dr N'Za Kouacou A. Aissata,Cardiologue,1,Non,+225 05 94 90 44 55,24/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",7,Oui,05/11/2026
+MED-238,Médecin,Dr Nana Jorelle,Cardiologue,3,Non,+225 27 21 26 53 23,30/10/2026,Visite faite,,6,Oui
+MED-291,Médecin,Dr Nanguy Henri,Généraliste,1,Oui,+225 07 77 09 79 18,24/07/2026,Visite faite,"Bon accueil, rappel des indications",5,Oui
+MED-388,Médecin,Dr Ngassan Fachallat,Cardiologue,1,Non,+225 01 73 12 45 32,12/08/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-293,Médecin,Dr Ngoassam Pachelle,Généraliste,1,Oui,+225 00 49 97 59 82,29/09/2026,Absent,Médecin absent lors du passage,5,Oui
+MED-440,Médecin,Dr Niamien Charles,Cardiologue,3,Oui,,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-389,Médecin,Dr Niamkey Joseph Thierry,Généraliste,3,Oui,,20/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-300,Médecin,Dr Nognibo A. Hortense,Généraliste,1,Non,+225 00 89 07 48 85,27/09/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-241,Médecin,Dr Nvounay Christ,Neurologue,1,Non,+225 01 03 63 47 51,16/07/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-228,Médecin,Dr Nzeale Druisile Gaelle,Endocrinologue,1,Non,+225 01 02 99 23 54,29/10/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",3,Oui
+MED-358,Médecin,Dr Ocho Alain Delmas,Généraliste,1,Oui,+225 07 97 48 09 34,27/07/2026,Visite faite,"Visite courte, entre deux consultations",5,Oui
+MED-554,Médecin,Dr Ohouna Brigitte,Pneumologue,1,Non,+225 07 05 92 27 90 / +225 05 84 91 93 92,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-032,Médecin,Dr Ohue Niango Marc-Armel,Cardiologue,3,Non,+225 01 01 15 24 28,24/09/2026,Visite faite,"Visite courte, entre deux consultations",8,Oui
+MED-302,Médecin,Dr Olaniyan Ebenezer,Généraliste,1,Oui,+225 00 55 51 96 47,13/08/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",5,Oui
+MED-515,Médecin,Dr Orega Gnabri Deya Stanislas,Généraliste,1,Non,+225 27 23 50 97 96,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-531,Médecin,Dr Orou Yerima épse Abekan,Généraliste,1,Non,+225 05 86 79 70 67,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-243,Médecin,Dr Otchoumou Christophe,Généraliste,1,Non,+225 07 59 71 86 15,18/07/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-304,Médecin,Dr Ouari A. Ousmane,Généraliste,1,Oui,+225 07 07 99 99 86,05/09/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,5,Oui
+MED-274,Médecin,Dr Ouattara Berthe,Cardiologue,3,Oui,+225 27 20 30 91 01,04/11/2026,Visite faite,Elle dit qu'elle prescrira s'il y a un nouveau cas ,2,Oui
+MED-485,Médecin,Dr Ouattara Doignan,Interniste,1,Non,+225 07 09 00 77 49,04/11/2026,Visite faite,,1,Oui
+MED-471,Médecin,Dr Ouattara G. Ismael,Cardiologue,1,Non,+225 07 07 14 10 10,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-447,Médecin,Dr Ouattara Penin,Cardiologue,3,Oui,,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-600,Médecin,Dr Ouattara Samson,Généraliste,1,Non,+225 00 81 28 78 97,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-305,Médecin,Dr Ouattara Tiepe Rokia - Solange,Endocrinologue,1,Non,+225 00 05 18 67 90,30/09/2026,Visite faite,"Visite courte, entre deux consultations",5,Oui
+MED-546,Médecin,Dr Ouattara Ycianu,Diabétologue,1,Non,+225 01 51 26 80 98,02/11/2026,Absent,,0,Oui
+MED-306,Médecin,Dr Ouattara Yehona,Généraliste,1,Oui,+225 00 88 40 91 71,06/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",5,Oui
+MED-525,Médecin,Dr Ouattara Yolande,Cardiologue,1,Non,+225 00 91 49 85 44,02/11/2026,Visite faite,,1,Oui
+MED-391,Médecin,Dr Ouffoué née Zrango Josseline,Cardiologue,1,Oui,+225 01 40 77 49 70,08/08/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",2,Oui
+MED-307,Médecin,Dr Oure Jouvence Ankouan,Généraliste,1,Oui,+225 07 08 00 61 98,21/10/2026,Visite faite,Rappeler en début de semaine prochaine,5,Oui
+MED-109,Médecin,Dr Outtara Mory,Généraliste,1,Non,+225 27 20 25 29 30,29/07/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",5,Oui
+MED-637,Médecin,Dr Oyebi,Généraliste,1,Non,+225 00 17 55 24 27,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-518,Médecin,Dr Pale K. Paul,Généraliste,1,Non,+225 07 79 92 67 02,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-244,Médecin,Dr Pan Djoudé,Généraliste,1,Non,+225 00 83 12 05 22,23/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",6,Oui
+MED-641,Médecin,Dr Pare Boubacar,Généraliste,1,Non,+225 07 69 82 32 82,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-310,Médecin,Dr Peachmont Jeils,Généraliste,1,Oui,+225 00 88 26 20 76,08/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-021,Médecin,Dr Pélméyo Madeleine,Généraliste,1,Non,+225 27 21 24 13 29 / +225 07 48 46 51 48,06/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",3,Oui
+MED-434,Médecin,Dr Peuhmond Leïla,Endocrinologue,3,Oui,,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-540,Médecin,Dr Porgo Ahoua,Généraliste,1,Non,+225 07 79 59 70 48,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-043,Médecin,Dr Pouaha Danielle,Cardiologue,1,Non,+225 00 85 80 22 65,13/07/2026,Visite faite,Demande à être revu après ses congés,2,Oui
+MED-609,Médecin,Dr Pouana Mougoue Danielle Larissa,Cardiologue,1,Non,+225 00 92 44 46 10,05/11/2026,Visite faite,,1,Oui
+MED-075,Médecin,Dr Raboue P. Cyrille,Cardiologue,3,Oui,,25/07/2026,Refus de recevoir,Ne reçoit pas les délégués pour le moment,4,Oui
+MED-394,Médecin,Dr Randriamaroson Tsarandro Olivier,Cardiologue,1,Oui,+225 05 64 32 44 44,12/08/2026,Refus de recevoir,Fidèle à un produit concurrent,2,Oui
+MED-325,Médecin,Dr Remy Takogue Tomeyum,Cardiologue,3,Non,+225 07 77 04 40 55,01/07/2026,Visite faite,"Bon accueil, rappel des indications",3,Oui
+MED-311,Médecin,Dr Reubou Willy,Généraliste,1,Non,+225 00 05 03 96 95,09/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-686,Médecin,Dr Roukougnon Christian,Généraliste,1,Non,+225 07 67 15 09 22,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-245,Médecin,Dr Ruth Seydou,Cardiologue,1,Oui,+225 27 23 45 55 99,13/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",6,Oui
+MED-027,Médecin,Dr Sado Christian G.,Cardiologue,3,Oui,+225 27 20 21 16 82,30/10/2026,Visite faite,,4,Oui
+MED-176,Médecin,Dr Saïd Brahim Saïd,Cardiologue,1,Non,+225 07 04 73 04 30,20/07/2026,Visite faite,"Visite courte, entre deux consultations",7,Oui
+MED-596,Médecin,Dr Sakanogo épse Dembele,Généraliste,1,Non,+225 00 69 99 64 42,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-317,Médecin,Dr Sako Nabitou,Généraliste,1,Non,+225 27 20 30 52 98,26/09/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",1,Oui
+MED-514,Médecin,Dr Samassi Abdourahamane,Généraliste,1,Non,+225 00 93 89 39 82,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-733,Médecin,Dr Sangare Tidjane,Généraliste,1,Non,+225 00 34 79 16 05,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-395,Médecin,Dr Sangwa M. Francis,Cardiologue,1,Non,+225 01 52 12 91 39,05/11/2026,Visite faite,Besoin de rappel WhatsApp intéressé Eurythmic Zyltan Lesstrol ,1,Oui
+MED-740,Médecin,Dr Sanogo Maimadou,Endocrinologue,1,Non,+225 00 67 97 26 37,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-318,Médecin,Dr Sanogo Natou,Généraliste,1,Oui,+225 07 07 55 03 00,22/07/2026,Visite faite,"Visite courte, entre deux consultations",2,Oui
+MED-173,Médecin,Dr Sanogo Sindou,Néphrologue,3,Non,+225 07 09 26 03 05,10/10/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",7,Oui
+MED-679,Médecin,Dr Sanogo Thata épse Suro,Généraliste,1,Non,+225 00 08 56 41 78,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-532,Médecin,Dr Saraka Walter Olivier,Généraliste,1,Non,,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-780,Médecin,Dr Savadogo Semkian,Cardiologue,3,Oui,+225 27 21 75 91 81,15/05/2026,Visite faite,Polyclinique Hôtel Dieu Abidjan - Suivi cardiologie,1,Oui
+MED-678,Médecin,Dr Savy Floriane,Généraliste,1,Non,+225 00 57 71 03 97,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-397,Médecin,Dr Segu Diane Claudia,Endocrinologue,1,Non,+225 00 38 64 64 33,10/09/2026,Absent,Médecin absent lors du passage,0,Oui
+MED-653,Médecin,Dr Seka Yacé Eloi,Cardiologue,1,Non,+225 00 16 07 94 45,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-138,Médecin,Dr Sekou Kassi,Cardiologue,1,Oui,+225 05 06 10 09 04,22/08/2026,Visite faite,"Visite courte, entre deux consultations",0,Oui
+MED-246,Médecin,Dr Selly Charles-Patrick,Diabétologue,1,Non,+225 07 09 02 48 03,25/06/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-166,Médecin,Dr Senou Beecham,Cardiologue,1,Oui,+225 01 53 06 71 68,25/07/2026,Visite faite,"Visite courte, entre deux consultations",3,Oui
+MED-041,Médecin,Dr Serge Guegue,Cardiologue,3,Non,+225 07 09 17 39 10,28/10/2026,Visite faite,Docteur Guegue Serge s'est assur de la la disponibilité de eurythmique à Anyama et a aimé le sac reçu ,3,Oui
+MED-520,Médecin,Dr Serge Monpoeho,Interniste,1,Non,+225 07 58 71 48 54,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-779,Médecin,Dr Sery Strody,Généraliste,2,Non,+225 07 08 38 55 48,27/09/2026,Visite faite,"Présentation Amlotroy, Lesstrol, Rosukaa",1,Oui
+MED-321,Médecin,Dr Sery Unezale Marie,Cardiologue,1,Non,+225 00 26 49 08 20,05/11/2026,Visite faite,Prise de contact ,4,Oui
+MED-322,Médecin,Dr Siby Abdoulaye,Interniste,1,Oui,+225 00 76 82 36 77,27/09/2026,Visite faite,"Visite courte, entre deux consultations",3,Oui
+MED-335,Médecin,Dr Sidibe Adama,Généraliste,1,Non,+225 00 26 34 37 25,27/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",7,Oui
+MED-712,Médecin,Dr Sidibe Moussa,Généraliste,1,Non,+225 00 42 66 79 37,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-399,Médecin,Dr Sigue Chaka,Généraliste,1,Oui,+225 01 43 60 21 00,04/09/2026,Visite faite,"Très occupé, rappeler pour fixer un RDV",1,Oui
+MED-400,Médecin,Dr Sikeli Conte Arthur,Interniste,1,Oui,+225 07 09 05 87 13,07/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",5,Oui
+MED-611,Médecin,Dr Silue D. Souleymane,Pneumologue,1,Non,+225 07 74 70 14 70,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-441,Médecin,Dr Singa Louanne,Cardiologue,3,Oui,,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-336,Médecin,Dr Sinte Karetle Esther,Généraliste,1,Oui,+225 00 76 01 08 68,20/08/2026,Absent,,7,Oui
+MED-507,Médecin,Dr Sita Diallo,Généraliste,1,Non,+225 07 07 88 08 69,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-582,Médecin,Dr Som Sie Nicolas,Généraliste,1,Non,+225 07 47 38 88 58,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-338,Médecin,Dr Sonh Mouzarou Christian,Généraliste,1,Oui,+225 05 55 74 28 91,06/10/2026,Visite faite,"Échantillons remis, à revoir dans un mois",6,Oui
+MED-339,Médecin,Dr Sonia Nkwamien,Cardiologue,1,Oui,+225 00 25 01 22 97,07/08/2026,Visite faite,Souhaite recevoir la documentation scientifique,6,Oui
+MED-077,Médecin,Dr Sorho Abou,Interniste,1,Non,+225 00 69 33 11 62,26/10/2026,Visite faite,Rappeler en début de semaine prochaine,7,Oui
+MED-481,Médecin,Dr Soro Segbelawa,Généraliste,1,Non,+225 00 39 71 87 23,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-578,Médecin,Dr Soro Yetchemandjo Amandine,Généraliste,1,Non,+225 05 07 46 60 54,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-776,Médecin,Dr Soro Yetchenandjo Amandine,Généraliste,2,Oui,,26/09/2026,Visite faite,"EPHR Bouaké - Amlotroy, Lesstrol, Zyltan",1,Oui
+MED-591,Médecin,Dr Soueni-Oro Vaya,Généraliste,1,Non,+225 27 30 56 60 90,03/11/2026,Visite faite,,1,Oui
+MED-624,Médecin,Dr Soumahoro Tata,Généraliste,1,Non,,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-341,Médecin,Dr Soumano Maimouna,Cardiologue,1,Oui,+225 00 58 39 46 06,28/07/2026,Visite faite,"Échantillons remis, à revoir dans un mois",2,Oui
+MED-721,Médecin,Dr Soumaro-Kanate Daouda,Généraliste,1,Non,+225 00 33 51 19 68,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-462,Médecin,Dr Stephane Aboussou,Généraliste,1,Non,+225 05 86 09 27 03,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-345,Médecin,Dr Sylla Hawa,Généraliste,1,Oui,+225 27 22 41 33 20,24/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",2,Oui
+MED-565,Médecin,Dr Tadji Saliou,Généraliste,1,Non,+225 00 13 00 72 19,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-720,Médecin,Dr Tah Bi Boli,Généraliste,1,Non,+225 00 96 16 54 86,,,"Intéressé par la nouvelle forme, demande une étude",0,Oui
+MED-347,Médecin,Dr Tah Bi Tra Jules,Généraliste,1,Non,+225 00 91 94 98 44,23/07/2026,Visite faite,Prise de contact à effectuer lors du prochain passage,2,Oui
+MED-723,Médecin,Dr Taha Stephane,Généraliste,1,Non,+225 07 67 00 80 37,,,"Intéressé par la nouvelle forme, demande une étude",0,Oui
+MED-348,Médecin,Dr Tahou B. Fouah,Généraliste,1,Non,+225 00 40 95 12 73,24/07/2026,Visite faite,Médecin absent lors du passage,0,Oui
+MED-167,Médecin,Dr Tai Oula Fideline,Généraliste,1,Oui,+225 07 57 62 66 34,29/10/2026,Absent,"Intéressé par la nouvelle forme, demande une étude",3,Oui
+MED-110,Médecin,Dr Tamko Carelle,Endocrinologue,1,Non,+225 05 03 05 71 31,17/10/2026,Visite faite,Médecin absent lors du passage,7,Oui
+MED-427,Médecin,Dr Tanda Dorival,Cardiologue,3,Oui,+225 05 56 39 70 23,,Absent,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-248,Médecin,Dr Tano A. Esthere,Cardiologue,3,Non,+225 27 73 40 89 90,14/09/2026,Visite faite,"Intéressé par la nouvelle forme, demande une étude",5,Oui
+MED-351,Médecin,Dr Tano Kouadio Narcisse,Généraliste,1,Oui,+225 00 91 13 70 35,27/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-352,Médecin,Dr Tano Lena Maria Olivia,Cardiologue,1,Oui,+225 05 56 87 41 72,04/08/2026,Visite faite,"Échantillons remis, à revoir dans un mois",6,Oui
+MED-786,Médecin,Dr Tano William,Généraliste,2,Non,+225 07 67 64 78 52,31/03/2026,Visite faite,Interne des Hôpitaux - Rappel de Telmikaa et Rosukaa,1,Oui
+MED-353,Médecin,Dr Tano-Adou Thomas,Généraliste,1,Oui,+225 00 24 69 22 73,29/08/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-425,Médecin,Dr Tanoh Assouan J.A.,Généraliste,1,Oui,+225 07 69 26 23 00,24/08/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-355,Médecin,Dr Tanoh Koffi Georges,Généraliste,1,Non,+225 00 58 24 75 11,28/10/2026,Visite faite,"Fiche enregistrée, première visite de prospection à planifier",7,Oui
+MED-618,Médecin,Dr Tayoro Audrey,Cardiologue,1,Non,+225 00 84 15 49 91,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-701,Médecin,Dr Tcheumani Pascal,Gynécologue,1,Non,+225 07 47 47 40 41,,,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-401,Médecin,Dr Tchimou Cinthia,Généraliste,1,Oui,,10/08/2026,Visite faite,"Praticien à prospecter, première prise de contact à planifier",6,Oui
+MED-551,Médecin,Dr Tehe T. Jules,Gynécologue,1,Non,+225 00 19 29 84 29,,,"Visite courte, entre deux consultations",0,Oui
+MED-402,Médecin,Dr Teme Alassane,Généraliste,1,Non,+225 00 04 21 90 38,22/09/2026,Visite faite,"Bon accueil, rappel des indications",6,Oui
+MED-403,Médecin,Dr Teme Grimenan Guy Damlen,Généraliste,1,Oui,+225 07 07 07 80 08,04/11/2026,Visite faite,,7,Oui
+MED-404,Médecin,Dr Tetty Houenou,Généraliste,1,Oui,+225 00 37 77 42 76,13/08/2026,Visite faite,Contact à initier lors de la prochaine tournée sectorielle,6,Oui
+MED-661,Médecin,Dr Theodore Aka Kadio,Généraliste,1,Non,+225 00 56 99 23 77,,,"Bon accueil, rappel des indications",0,Oui
+MED-357,Médecin,Dr Thierry Hodencq,Généraliste,1,Non,+225 07 05 05 73 39,16/09/2026,Visite faite,Demande à être revu après ses congés,6,Oui
+MED-078,Médecin,Dr Tia Séa Augustin,Cardiologue,1,Non,+225 27 22 48 44 44,22/09/2026,Visite faite,"Bon accueil, rappel des indications",3,Oui
+MED-168,Médecin,Dr Timite Aboudramane,Diabétologue,1,Oui,+225 07 07 96 19 58,10/08/2026,Visite faite,"Fiche créée, visite de prospection et présentation à programmer",4,Oui
+MED-751,Médecin,Dr Toboue Kouadio Nestor,Généraliste,1,Non,+225 00 84 83 55 84,,,Rappeler en début de semaine prochaine,0,Oui
+MED-363,Médecin,Dr Tohe Eric Rodrigue H.,Généraliste,1,Oui,+225 27 22 55 80 00,29/09/2026,Visite faite,Souhaite recevoir la documentation scientifique,5,Oui
+MED-202,Médecin,Dr Toualy V. Wilfried,Néphrologue,1,Oui,+225 00 68 55 21 48,12/07/2026,Indisponible,,2,Oui
+MED-406,Médecin,Dr Toudonou Sandra,Cardiologue,1,Non,+225 01 50 09 32 22,27/07/2026,Visite faite,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-608,Médecin,Dr Toure Adama,Généraliste,1,Non,+225 07 88 88 62 06,,,Souhaite recevoir la documentation scientifique,0,Oui
+MED-366,Médecin,Dr Toure Fatouma,Endocrinologue,1,Non,+225 01 03 78 78 75,17/08/2026,Visite faite,Rappeler en début de semaine prochaine,5,Oui
+MED-407,Médecin,Dr Toure Ihin Aboubacar,Généraliste,1,Non,,02/09/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-250,Médecin,Dr Toure Ismaïla,Généraliste,1,Oui,+225 05 56 49 04 13,22/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",7,Oui
+MED-373,Médecin,Dr Toure Issa Abdoulaye,Généraliste,1,Oui,+225 05 05 92 40 32,16/09/2026,Visite faite,À intégrer dans le planning de tournée pour premier contact,6,Oui
+MED-657,Médecin,Dr Toure Mohamed,Généraliste,1,Non,+225 00 53 64 16 68,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-772,Médecin,Dr Touré-M'Bo Aïcha,Neurologue,3,Oui,,28/09/2026,Visite faite,"CHU de Bouaké - Zyltan, Antiplatt",1,Oui
+MED-752,Médecin,Dr Toussaint Boidy,Généraliste,1,Non,+225 00 63 69 50 64,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-702,Médecin,Dr Traby Gustave Gobia,Pédiatre,1,Non,+225 00 90 55 65 51,,,Prêt à essayer sur quelques patients,0,Oui
+MED-022,Médecin,Dr Traore Aissata épse Ouattara,Cardiologue,1,Oui,+225 07 03 83 25 43,26/10/2026,Visite faite,Prise de contact à effectuer lors du prochain passage,1,Oui
+MED-457,Médecin,Dr Traore Aliou,Pédiatre,1,Non,+225 00 46 74 07 64,,,"Bon accueil, rappel des indications",0,Oui
+MED-303,Médecin,Dr Traore Assita A.,Endocrinologue,1,Oui,+225 00 38 74 20 28,19/08/2026,Visite faite,"Fiche enregistrée, première visite de prospection à planifier",5,Oui
+MED-566,Médecin,Dr Traore B. Boubel,Pédiatre,1,Non,+225 00 68 12 46 78,,,"Échantillons remis, à revoir dans un mois",0,Oui
+MED-376,Médecin,Dr Traore Djeneba,Généraliste,1,Non,+225 05 05 30 20 37,04/09/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-332,Médecin,Dr Traore Idrissa,Cardiologue,1,Non,+225 27 22 48 31 19,11/08/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-002,Médecin,Dr Traore Korotoum,Endocrinologue,1,Non,+225 07 48 96 79 72,02/11/2026,Visite faite,,2,Oui
+MED-342,Médecin,Dr Traore Mory,Endocrinologue,1,Non,+225 27 22 50 76 86 / +225 27 22 48 93 11,30/10/2026,Visite faite,,3,Oui
+MED-111,Médecin,Dr Traore W. Claudia,Généraliste,1,Oui,,10/07/2026,Visite faite,"Bon accueil, rappel des indications",8,Oui
+MED-380,Médecin,Dr Traoré Ynoussa,Généraliste,1,Non,+225 05 05 20 98 47,25/10/2026,Présent,"Présentation du produit faite, échantillons remis",7,Oui,16/11/2026
+MED-251,Médecin,Dr Tuo Bambelé,Néphrologue,1,Non,+225 07 08 57 98 28,26/10/2026,Visite faite,Présentation générale des produits à planifier lors de la tournée,9,Oui
+MED-454,Médecin,Dr Tuo Mamadou,Généraliste,1,Non,+225 27 22 44 22 58 / +225 05 46 79 27 44,03/11/2026,Visite faite,,1,Oui
+MED-630,Médecin,Dr Ukolbe Mathieu,Généraliste,1,Non,+225 07 07 07 69 21,,,"Échantillons remis, à revoir dans un mois",0,Oui
+MED-381,Médecin,Dr Valery Cedric Kadjo,Neurologue,3,Non,+225 01 51 01 29 05,22/07/2026,Visite faite,Contact à initier lors de la prochaine tournée sectorielle,7,Oui
+MED-695,Médecin,Dr Victorien Kouame,Généraliste,1,Non,+225 07 07 88 88 07,,,Prêt à essayer sur quelques patients,0,Oui
+MED-382,Médecin,Dr Wani Ruth,Cardiologue,1,Non,+225 00 22 68 16 23,19/10/2026,Visite faite,"Visite courte, entre deux consultations",6,Oui
+MED-172,Médecin,Dr Yahou Gnabro Paulin,Généraliste,1,Non,+225 01 10 18 95 08,24/09/2026,Visite faite,"Fiche créée, visite de prospection et présentation à programmer",7,Oui
+MED-475,Médecin,Dr Yao A. Richarde,Endocrinologue,1,Non,+225 00 50 06 28 05,,,"Échantillons remis, à revoir dans un mois",0,Oui
+MED-004,Médecin,Dr Yao Akissi A. M. épse Akesse,Endocrinologue,1,Non,+225 07 58 29 86 70,11/10/2026,Visite faite,"Praticien cible à rencontrer, présentation de la gamme à prévoir",8,Oui
+MED-474,Médecin,Dr Yao Assita épse Kamissoko,Endocrinologue,1,Non,+225 07 08 64 42 65,03/11/2026,Visite faite,Rappel de produits ,1,Oui
+MED-383,Médecin,Dr Yao K. Aka Isaac,Généraliste,1,Oui,+225 07 58 79 78 77,31/07/2026,Visite faite,"Présentation du produit faite, échantillons remis",6,Oui
+MED-121,Médecin,Dr Yao K. Raoul,Cardiologue,1,Oui,+225 07 07 70 33 81,20/08/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-408,Médecin,Dr Yao Koffi Maïzan François,Généraliste,1,Oui,,17/08/2026,Visite faite,Rappeler en début de semaine prochaine,5,Oui
+MED-112,Médecin,Dr Yao N'Dri E.,Généraliste,1,Oui,+225 07 72 78 06 83,23/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",1,Oui
+MED-252,Médecin,Dr Yao Romeo,Cardiologue,1,Oui,+225 07 08 55 92 73,13/08/2026,Visite faite,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-697,Médecin,Dr Yao Sandrine épse Mambé,Généraliste,1,Non,+225 00 82 84 46 18,,,"Très occupé, rappeler pour fixer un RDV",0,Oui
+MED-387,Médecin,Dr Yapi Benedicte Flora,Cardiologue,1,Oui,+225 00 38 79 35 28,05/09/2026,Visite faite,Rappeler en début de semaine prochaine,6,Oui
+MED-411,Médecin,Dr Yapi David,Généraliste,1,Oui,+225 05 54 97 73 70,08/09/2026,Visite faite,Visite d'introduction et remise de documentation à planifier,2,Oui
+MED-544,Médecin,Dr Yapi K. Adeline,Généraliste,1,Non,+225 01 42 46 05 04,,,"Présentation du produit faite, échantillons remis",0,Oui
+MED-392,Médecin,Dr Yassoua Yao,Généraliste,1,Non,+225 00 88 97 92 90,30/07/2026,Visite faite,"Visite courte, entre deux consultations",2,Oui
+MED-413,Médecin,Dr Yeboua Ange Mireille épse Kouassi,Généraliste,1,Oui,+225 00 21 14 37 52,28/09/2026,Visite faite,"Bon accueil, rappel des indications",2,Oui
+MED-393,Médecin,Dr Yeboue Koffi Arsene,Généraliste,1,Oui,+225 07 07 68 26 21,25/07/2026,Visite faite,Prêt à essayer sur quelques patients,2,Oui
+MED-396,Médecin,Dr Yec née Adjossan Stéphanie,Généraliste,1,Non,+225 01 02 57 56 84,09/09/2026,Visite faite,"Visite courte, entre deux consultations",2,Oui
+MED-409,Médecin,Dr Yeffe Colombe,Généraliste,1,Oui,+225 00 53 22 04 67,06/09/2026,Visite faite,"Nouveau praticien ciblé, premier échange à organiser",5,Oui
+MED-433,Médecin,Dr Yéo Augustin,Cardiologue,3,Oui,,,,"Présentation du produit faite, échantillons remis",0,Oui
+MED-292,Médecin,Dr Yeo Nawa Samuel,Neurologue,1,Oui,+225 27 23 46 72 67,10/10/2026,Visite faite,"Discussion sur les cas cliniques, documentation remise",5,Oui
+MED-781,Médecin,Dr Yéo Nawe Samuel,Neurologue,3,Oui,+225 27 23 51 03 19,18/04/2026,Visite faite,"Clinique Médicale Le Grand Centre - Zyltan, Lesstrol",1,Oui
+MED-045,Médecin,Dr Yoboué Brou Bernard,Interniste,1,Oui,+225 00 67 99 99 01,16/10/2026,Visite faite,Prise de contact à effectuer lors du prochain passage,3,Oui
+MED-639,Médecin,Dr Yoboue Grace,Généraliste,1,Non,+225 07 12 83 23 01,,,"Dr Yougbare prescrit Zyltan , Lesstrol et Eurythmic . En guise de remerciement , je lui ai remis un sac d'ordinateur qu'il a considéré .",0,Oui
+MED-046,Médecin,Dr Yougbare Blaise,Généraliste,1,Non,+225 00 36 13 51 22,29/10/2026,Visite faite,"Fiche enregistrée, première visite de prospection à planifier",4,Oui
+MED-529,Médecin,Dr Yrogbo Roseline,Cardiologue,1,Non,+225 07 57 36 88 67,,,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-764,Médecin,Dr Zamble Bi Zamble Felix,Neurologue,2,Non,+225 07 08 23 92 60,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui,,,,Oui
+MED-410,Médecin,Dr Zanhi Koin Denis,Généraliste,1,Oui,+225 01 40 39 48 66,20/08/2026,Visite faite,"Bon accueil, rappel des indications",2,Oui
+MED-079,Médecin,Dr Zate Geoffroy,Généraliste,1,Oui,+225 01 42 08 74 24,27/06/2026,Visite faite,Fidèle à un produit concurrent,3,Oui
+MED-083,Médecin,Dr Zegbede Siaba Nadege,Cardiologue,3,Non,,29/09/2026,Refus de recevoir,"Bon accueil, rappel des indications",8,Oui
+MED-174,Médecin,Dr Zongo Brice,Cardiologue,1,Non,+225 05 66 43 62 28,04/11/2026,Visite faite,Il prescrit mieux Tensicard ,8,Oui
+MED-414,Médecin,Dr Zougouri Christiane,Cardiologue,1,Non,+225 00 38 58 70 85,05/11/2026,Visite faite,Promesse de prescription,4,Oui
+MED-278,Médecin,Dr Zoumenou Alcibiade Modeste,Cardiologue,3,Non,+225 07 07 09 12 31,04/11/2026,Visite faite,Il dit : pas d'inquiétude à me faire ,3,Oui
+MED-178,Médecin,Dr Zozo Eric,Généraliste,1,Non,+225 07 57 04 62 20,22/09/2026,Visite faite,Présentation générale des produits à planifier lors de la tournée,7,Oui
+MED-729,Infirmier,IDE Abdoul Konta,Généraliste,1,Non,+225 01 01 47 25 27,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-741,Infirmier,IDE Aboya Kouame,Généraliste,1,Non,+225 05 05 54 37 78,02/11/2026,Visite faite,,1,Oui
+MED-746,Infirmier,IDE Aguy L. Dorex,Pédiatre,1,Non,+225 00 04 01 02 93,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-616,Infirmier,IDE Amoin S. Yannick,Interniste,1,Non,+225 00 83 44 82 10,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-635,Infirmier,IDE Ane Anunata Hassane,Cardiologue,1,Non,+225 00 16 02 01 92,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-473,Infirmier,IDE Annin née Kouame,Cardiologue,1,Non,+225 27 23 50 27 63,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-452,Infirmier,IDE Aouro née Yablai Johane,Cardiologue,1,Non,+225 07 47 96 49 27,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-468,Infirmier,IDE Armand Lucien Affitchin,Généraliste,1,Non,+225 00 15 28 80 80,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-788,Infirmier,IDE Assi Luc,Infirmier,1,Non,+225 07 68 68 81 73,26/09/2026,Visite faite,"EPHR Bouaké - Rappel Amlotroy, Lesstrol",1,Oui
+MED-528,Infirmier,IDE Atse Abei Armel Pacome,Néphrologue,1,Non,+225 07 67 32 42 39,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-748,Infirmier,IDE Ayehoua Tatiana,Généraliste,1,Non,+225 01 51 27 37 07,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-742,Infirmier,IDE Bayoko Lassina,Généraliste,1,Non,+225 07 08 52 88 98,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-562,Infirmier,IDE Blaise Adon,Généraliste,1,Non,+225 00 81 51 07 24,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-607,Infirmier,IDE Bliyne,Néphrologue,1,Non,+225 00 88 77 44 57,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-666,Infirmier,IDE Bogbon Celestin,Généraliste,1,Non,+225 01 40 67 18 24,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-590,Infirmier,IDE Boniassi Angèle Alice,Cardiologue,1,Non,+225 01 01 81 83 29,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-756,Infirmier,IDE Cebamele Antoinette,Généraliste,1,Non,+225 07 09 31 29 60,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-478,Infirmier,IDE Cissé Gaoussou,Généraliste,1,Non,,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-548,Infirmier,IDE Cisse Sabaty,Généraliste,1,Non,+225 07 07 76 85 93,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-727,Infirmier,IDE Dadie Ahoua Joseph,Généraliste,1,Non,+225 00 34 02 81 11,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-580,Infirmier,IDE Diapo Teda,Diabétologue,1,Non,+225 00 18 13 95 43,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-732,Infirmier,IDE Dibon N'Guessan Victoria,Généraliste,1,Non,+225 00 01 43 70 53,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-708,Infirmier,IDE Diomandé Yaya,Généraliste,1,Non,+225 00 02 43 70 58,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-602,Infirmier,IDE Doussou Pascal,Neurologue,1,Non,+225 00 29 25 66 63,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-645,Infirmier,IDE Ekra A. Felix,Généraliste,1,Non,+225 07 48 07 92 35,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-739,Infirmier,IDE Essis Richmond,Généraliste,1,Non,+225 00 20 33 06 23,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-484,Infirmier,IDE Ettien N. Alexandre,Généraliste,1,Non,+225 27 20 20 96 98,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-482,Infirmier,IDE Gaoudis Boga Justin,Généraliste,1,Non,+225 05 04 96 09 14,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-709,Infirmier,IDE Gouesse D. Georges,Généraliste,1,Non,+225 00 56 90 02 49,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-749,Infirmier,IDE Guei Gina,Généraliste,1,Non,+225 00 64 70 24 65,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-737,Infirmier,IDE Guei Gino,Généraliste,1,Non,,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-490,Infirmier,IDE Guy Simplice Sia,Cardiologue,1,Non,+225 07 08 72 84 03,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-500,Infirmier,IDE Ibie Di Zan Suy,Généraliste,1,Non,+225 00 93 57 36 77,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-612,Infirmier,IDE Jboute Gnard S.,Cardiologue,1,Non,+225 05 64 38 65 18,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-659,Infirmier,IDE Kadjo Kraidy,Généraliste,1,Non,+225 07 47 77 13 90,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-728,Infirmier,IDE Kamagate Pf,Généraliste,1,Non,+225 00 33 10 77 28,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-460,Infirmier,IDE Kamate née Cisse Sira,Cardiologue,1,Non,+225 00 27 04 11 55,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-545,Infirmier,IDE Kodjo Valérie,Cardiologue,1,Non,+225 00 55 70 35 90,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-555,Infirmier,IDE Koffi Jean-Phillipe,Généraliste,1,Non,+225 00 53 68 47 78,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-603,Infirmier,IDE Koffi N'Dri,Généraliste,1,Non,+225 01 47 09 51 08,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-472,Infirmier,IDE Konan Hermann,Cardiologue,1,Non,+225 07 59 71 73 65,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-698,Infirmier,IDE Kossomou Kouadio,Généraliste,1,Non,+225 00 32 17 59 28,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-646,Infirmier,IDE Kouadjo Leyo épse Koua,Généraliste,1,Non,+225 00 41 33 69 53,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-719,Infirmier,IDE Kouakou Ariko Françoise de Paule,Généraliste,1,Non,+225 05 45 86 99 16,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-461,Infirmier,IDE Kouakou née Sarraka Nanan Ahou Huberte,Cardiologue,1,Non,+225 01 41 83 86 66,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-636,Infirmier,IDE Kouakou O. Desirée Louis,Cardiologue,1,Non,+225 00 83 13 67 95,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-563,Infirmier,IDE Kouassi Yao,Généraliste,1,Non,+225 00 08 26 56 20,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-710,Infirmier,IDE Kra Amoin Antoinette,Généraliste,1,Non,+225 07 07 87 70 93,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-535,Infirmier,IDE Landry Paha,Cardiologue,1,Non,+225 27 20 37 23 97,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-615,Infirmier,IDE Mdc Houessou Philippe,Généraliste,1,Non,+225 00 79 78 00 61,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-503,Infirmier,IDE N'Cho Marie Rachel,Généraliste,1,Non,+225 00 62 53 05 85,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-451,Infirmier,IDE N'Da Kouassi Olivier,Cardiologue,1,Non,+225 07 08 03 66 61,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-706,Infirmier,IDE N'Goran Kouadou,Généraliste,1,Non,+225 01 51 58 72 80,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-713,Infirmier,IDE N'Guessan Reine,Généraliste,1,Non,+225 05 46 38 52 98,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-557,Infirmier,IDE Nebavi Ange Leandre Emanuel,Généraliste,1,Non,+225 07 57 29 71 59,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-465,Infirmier,IDE Oka Eustache,Endocrinologue,1,Non,+225 00 53 08 30 11,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-671,Infirmier,IDE Ouedraogo Abdoul Aziz,Généraliste,1,Non,+225 00 15 71 07 41,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-579,Infirmier,IDE Sekongo Salifou,Généraliste,1,Non,+225 07 48 73 73 25,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-664,Infirmier,IDE Sidibé,Cardiologue,1,Non,+225 07 77 51 63 18,,,Prise de contact à effectuer lors du prochain passage,0,Oui
+MED-629,Infirmier,IDE Toure Wassa,Cardiologue,1,Non,+225 00 75 59 83 18,,,"Fiche enregistrée, première visite de prospection à planifier",0,Oui
+MED-581,Infirmier,IDE Traore Richard,Généraliste,1,Non,+225 27 23 46 32 83,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-502,Infirmier,IDE Wassiou Oro Sanya,Généraliste,1,Non,+225 00 21 96 43 19,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-650,Infirmier,IDE Yabi Cedric Armand,Généraliste,1,Non,+225 07 07 60 70 78,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-577,Infirmier,IDE Yao N'Da N'Dri Rose épse N'Guessan,Généraliste,1,Non,+225 07 47 52 48 84,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-513,Infirmier,IDE Yatte Clotilde,Cardiologue,1,Non,+225 00 89 85 08 07,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-504,Infirmier,IDE Yavo J. Jaures,Généraliste,1,Non,+225 00 09 97 71 73,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-519,Infirmier,IDE Yeboi Andrée Michelle,Généraliste,1,Non,+225 05 74 05 83 85,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-747,Infirmier,IDE Zongo Marie Anyo,Généraliste,1,Non,+225 07 09 85 28 60,,,"Visite courte, entre deux consultations",0,Oui
+MED-613,Médecin,Pr Any Gnazegbo,Neurologue,1,Non,+225 00 25 43 26 61,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-421,Médecin,Pr Boka Bénédicte Carine,Cardiologue,1,Non,+225 27 27 21 61 71,22/08/2026,Visite faite,Ne reçoit pas les délégués pour le moment,7,Oui
+MED-547,Médecin,Pr Buraïma Fataho,Généraliste,1,Non,+225 07 57 69 64 02,,,"Discussion sur les cas cliniques, documentation remise",0,Oui
+MED-253,Médecin,Pr Diakite Ismaïla,Neurologue,1,Oui,+225 00 86 16 84 10,23/08/2026,Refus de recevoir,"Bon accueil, rappel des indications",7,Oui
+MED-049,Médecin,Pr Koffi Dago,Endocrinologue,1,Non,+225 00 86 46 79 79,02/11/2026,Indisponible,,3,Oui
+MED-362,Médecin,Pr Kouame Kouamé Bérenger,Cardiologue,1,Oui,+225 07 09 40 05 48,05/07/2026,Visite faite,"Bon accueil, rappel des indications",5,Oui
+MED-416,Médecin,Pr Kouassi K. Leonard,Neurologue,1,Oui,+225 01 02 32 93 29,31/07/2026,Visite faite,Rappeler en début de semaine prochaine,2,Oui
+MED-086,Médecin,Pr Lokrou Adrien,Endocrinologue,3,Oui,+225 05 74 74 75 26,07/10/2026,Visite faite,"Présentation du produit faite, échantillons remis",7,Oui
+MED-423,Médecin,Pr Michel Adoh Adoh,Cardiologue,1,Non,+225 07 02 38 38 38,26/09/2026,Visite faite,"Échantillons remis, à revoir dans un mois",6,Oui
+MED-343,Médecin,Pr Ndjessan Jean-Jacques,Cardiologue,1,Non,+225 01 02 52 87 57,27/07/2026,Visite faite,"Échantillons remis, à revoir dans un mois",2,Oui
+MED-051,Médecin,Pr Soya Kossa Esaie,Cardiologue,1,Oui,+225 07 07 70 08 52,10/09/2026,Visite faite,Souhaite recevoir la documentation scientifique,6,Oui
+MED-179,Médecin,Pr Tanoh A. Christian,Neurologue,3,Non,+225 07 07 23 48 01,06/09/2026,Visite faite,Prise de contact à effectuer lors du prochain passage,7,Oui
+MED-424,Médecin,Pr Traore Fatoumata,Généraliste,1,Oui,+225 00 21 61 21 74,09/07/2026,Visite faite,"Fiche enregistrée, première visite de prospection à planifier",6,Oui
+MED-648,Médecin,Pr Zairi épse Hannachi Ihsen,Cardiologue,1,Non,+225 27 21 59 97 97,,,Présentation générale des produits à planifier lors de la tournée,0,Oui
+MED-714,Sage-femme,SAG Arriko Allate C. Marina,Généraliste,1,Non,+225 07 49 96 39 51,,,"Praticien à prospecter, première prise de contact à planifier",0,Oui
+MED-711,Sage-femme,SAG Bolou née Dago Aminata,Généraliste,1,Non,+225 01 73 68 11 01,,,Contact à initier lors de la prochaine tournée sectorielle,0,Oui
+MED-716,Sage-femme,SAG Dosso Kadidiatou,Généraliste,1,Non,+225 00 13 10 33 34,,,"Fiche créée, visite de prospection et présentation à programmer",0,Oui
+MED-705,Sage-femme,SAG Guemelin Adélaïde,Généraliste,1,Non,+225 00 43 53 25 45,,,"Praticien cible à rencontrer, présentation de la gamme à prévoir",0,Oui
+MED-696,Sage-femme,SAG Kesse Soly Thérèse née Toure,Généraliste,1,Non,+225 00 15 99 19 91,,,À intégrer dans le planning de tournée pour premier contact,0,Oui
+MED-715,Sage-femme,SAG Kouassi B1 née Zamien Lou S.,Généraliste,1,Non,+225 00 65 08 14 29,,,Visite d'introduction et remise de documentation à planifier,0,Oui
+MED-738,Sage-femme,SAG N'Guetta Alida,Dermatologue,1,Non,+225 00 67 90 30 14,,,Docteur N'Guettia a apprécié la visite il promet des prescription si les cas se présentent surtout à la clinique Notre-Dame des Victoires à Jules Verne ,0,Oui
+MED-549,Sage-femme,SAG Pouho Olivia,Généraliste,1,Non,+225 00 53 45 87 48,,,"Nouveau praticien ciblé, premier échange à organiser",0,Oui
+MED-791,Médecin,Dr Ibrahima Toure,Endocrinologue,1,Non,,25/10/2026,Visite faite,Visite effectuée - Gamme métabolique,1,Oui
+MED-793,Médecin,Dr Razafindranoro Célestine,Cardiologie,1,Non,,25/10/2026,Visite faite,Visite effectuée - ONMCI 10043,1,Oui
+MED-794,Médecin,Dr Solama Mory,Neurologie,1,Non,+225 07 47 21 52 38,25/10/2026,Visite faite,Visite effectuée - ONMCI 9837,1,Oui
+MED-795,Médecin,Dr Weaja Adjifack Emilie,Endocrinologue,1,Non,,25/10/2026,Visite faite,Visite effectuée - Gamme métabolique,1,Oui
+MED-796,Médecin,Dr Hie Yeradounou Valéri,Neurologie,1,Non,,25/10/2026,Visite faite,Visite effectuée - Neurologie Bouaké,1,Oui
+MED-797,Médecin,Dr Yapo Assaba Cédrich,Endocrinologue,1,Non,+225 01 03 16 39 55,25/10/2026,Visite faite,Visite effectuée - ONMCI 7663,1,Oui
+MED-798,Médecin,Dr Bamba Ibrahima,Cardiologie,1,Non,,25/10/2026,Visite faite,Visite effectuée - Cardiologie Yamoussoukro,1,Oui
+MED-799,Médecin,Dr Koffi Gerville Onan,Généraliste,1,Non,,25/10/2026,Visite faite,Visite effectuée - ONMCI 1945,1,Oui
+MED-804,Médecin,Dr Kaboue P Cyrille,Généraliste,1,Non,,05/11/2026,Visite faite,Contact renoué promesse de prescriptions,2,Oui
+MED-805,Médecin,Dr Kouabenan Affoua Rosine,Endocrinologue,1,Non,,25/10/2026,Absent,Repos maladie,1,Oui
+MED-806,Médecin,Dr Mensah Farak,Généraliste,1,Non,,25/10/2026,Visite faite,Visite effectuée - Gamme Troikaa,1,Oui
+MED-808,Médecin,Dr Eny Ametafe T,Généraliste,1,Non,,25/10/2026,Visite faite,Visite effectuée - Gamme Troikaa,1,Oui
+MED-809,Médecin,Dr Togba Sai Guillaume,Généraliste,1,Non,+225 07 08 14 22 82,25/10/2026,Visite faite,Visite effectuée - Gamme Troikaa,1,Oui
+MED-810,Médecin,Dr N'gouanay Christ,Neurologie,1,Non,,25/10/2026,Visite faite,Visite effectuée - Gamme Troikaa,1,Oui
+MED-811,Médecin,Dr Tahirou Carelle,Endocrinologue,1,Non,,25/10/2026,Visite faite,Visite effectuée - Gamme Troikaa,1,Oui
+MED-812,Médecin,Dr Kouakou Romo,Cardiologie,1,Non,,25/10/2026,Visite faite,Visite effectuée - Gamme Troikaa,1,Oui
+MED-814,Médecin,Dr Aka Elodie S Alika,Endocrinologue,1,Non,+225 07 47 27 55 38,25/10/2026,Visite faite,Visite effectuée - Gamme Troikaa,1,Oui
+MED-815,Médecin,Dr Ougnan Agenor,Cardiologue,1,Non,0707091231,04/11/2026,Visite faite,Prise de contact ,1,Oui
+MED-816,Médecin,Dr N'Goran-Theckly S,Cardiologue,3,Oui,0707858523,05/11/2026,Visite faite,"Bel échange , promesse de prescriptions si les différents cas se présentent ",1,Oui
+MED-817,Médecin,Dr Beugre Arthur,Néphrologue,1,Non,0566405438,05/11/2026,Visite faite,Réticent par rapport au losartan potassique,1,Oui
+MED-818,Médecin,Dr Tohouri André-Yves,Interniste,1,Non,0797525480,05/11/2026,Visite faite,Prise de contact ,1,Oui

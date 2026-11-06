@@ -1,4 +1,4 @@
-﻿/* Accessibilité universelle WCAG 2.1 AA : Annonceur vocal d'écran */
+/* Accessibilité universelle WCAG 2.1 AA : Annonceur vocal d'écran */
 .visuellement-cache {
   position: absolute;
   width: 1px;
@@ -3109,7 +3109,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   transition: transform .65s cubic-bezier(.2, .8, .2, 1), opacity .65s ease, background-color .65s ease !important;
 }
 
-/* 3.27.51 : Jauge visuelle circulaire HUD surÃ©levÃ©e lors de l'appui long (650ms) */
+/* 3.27.51 : Jauge visuelle circulaire HUD surélevée lors de l'appui long (650ms) */
 .jauge-appui-long {
   position: fixed;
   width: 76px;
@@ -3786,7 +3786,7 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 
 /* =============================================================================
    Unslop Design Craft (Damir Sokolovsky heydamir/unslop) :
-   Chiffres tabulaires systÃ©matiques et transitions tactiles calmes
+   Chiffres tabulaires systématiques et transitions tactiles calmes
    ============================================================================= */
 .kpi b,
 .arret-heure,
@@ -3811,33 +3811,4 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .pastille-produit:active {
   transform: scale(0.975);
   transition: transform 0.12s var(--ease-unslop, cubic-bezier(0.22, 1, 0.36, 1));
-}
-
-/* Badge Source Base de donnÃ©es (Bascule Supabase / Sheets) */
-.badge-source {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 9999px;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.15s ease;
-  user-select: none;
-  line-height: 1.2;
-}
-.badge-source:active {
-  transform: scale(0.94);
-}
-.badge-source.badge-supabase {
-  background: #10b981;
-  color: #ffffff;
-  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.35);
-}
-.badge-source.badge-sheets {
-  background: #0284c7;
-  color: #ffffff;
-  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.35);
 }

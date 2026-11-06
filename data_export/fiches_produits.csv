@@ -1,0 +1,400 @@
+Actif,Gamme,Aire thérapeutique,Produit,DCI et dosage,Classe,Indications,Contre-indications,Posologie,Précautions et interactions,Effets indésirables,Arguments clés,Laboratoire,Sources
+TRUE,Antiplatt (clopidogrel),Prévention de la thrombose,Antiplatt,"Clopidogrel 75 mg, comprimé",Antiagrégant plaquettaire (inhibiteur du récepteur P2Y12),"Prévention des accidents athérothrombotiques après infarctus récent, AVC ischémique récent ou artériopathie des membres inférieurs
+Syndrome coronarien aigu, en association à l'aspirine (dont pose de stent)","Allergie au clopidogrel
+Saignement évolutif (ulcère gastroduodénal, hémorragie cérébrale)
+Insuffisance hépatique sévère
+Allaitement","75 mg par jour en une prise
+Syndrome coronarien aigu : dose de charge de 300 mg puis 75 mg par jour","Arrêter 5 à 7 jours avant une chirurgie programmée (avis du cardiologue)
+Éviter oméprazole et ésoméprazole : préférer un autre IPP
+AINS, anticoagulants, antidépresseurs ISRS : risque de saignement","Saignements, hématomes
+Troubles digestifs
+Rare : purpura thrombotique","Une prise par jour
+Référence de la double antiagrégation après stent
+Alternative en cas d'intolérance à l'aspirine",Troikaa Pharmaceuticals (Inde),"RCP clopidogrel / Plavix (ANSM, VIDAL) ; pharmeasy.in (composition Antiplatt)"
+TRUE,Eurythmic (amiodarone),Troubles du rythme cardiaque,Eurythmic,"Amiodarone 100 ou 200 mg, comprimé",Antiarythmique de classe III,"Troubles du rythme graves : prévention des récidives de tachycardie ou fibrillation ventriculaire
+Tachycardies supraventriculaires, fibrillation et flutter auriculaires, en particulier sur cardiopathie","Bradycardie sinusale, bloc auriculo-ventriculaire de haut degré ou maladie du sinus sans stimulateur
+Trouble de la thyroïde
+Allergie à l'iode ou à l'amiodarone
+Grossesse et allaitement
+Association aux médicaments donnant des torsades de pointes","Charge : 600 à 800 mg par jour pendant 8 à 10 jours
+Entretien : 100 à 400 mg par jour (souvent 200 mg, 5 jours sur 7)","Surveiller ECG, thyroïde (TSH), foie, poumons, yeux
+Éviter le soleil (photosensibilisation)
+Anticoagulants (AVK), digoxine, statines, bêtabloquants : doses et surveillance à adapter","Photosensibilisation, dépôts cornéens
+Hypo ou hyperthyroïdie
+Bradycardie ; rare : atteinte pulmonaire ou hépatique","Antiarythmique de référence, efficace sur les troubles du rythme auriculaires et ventriculaires
+Utilisable en cas d'insuffisance cardiaque
+Longue durée d'action",Troikaa Pharmaceuticals (Inde),"RCP amiodarone / Cordarone (ANSM, VIDAL) ; 1mg.com (composition Eurythmic)"
+TRUE,Lesstrol (atorvastatine),Cholestérol et risque cardiovasculaire,Lesstrol 10,"Atorvastatine 10 mg, comprimé pelliculé","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase)",Hypercholestérolémie primaire et dyslipidémie mixte (en complément du régime alimentaire) ; Prévention des événements cardiovasculaires majeurs chez les patients à risque cardiovasculaire élevé,"Hypersensibilité à l'atorvastatine ; Affection hépatique évolutive ou élévation inexpliquée et persistante des transaminases (> 3 fois la LSN) ; Grossesse, allaitement, femmes en âge de procréer sans contraception efficace ; Association avec les antiviraux d'action directe (glécaprévir / pibrentasvir)","10 mg une fois par jour, à prendre à tout moment de la journée (avec ou sans repas) ; Adaptation posologique possible par paliers de 4 semaines (jusqu'à 80 mg/jour si nécessaire)","Bilan hépatique avant initiation et périodique ; Surveillance des CPK en cas de myalgies inexpliquées ou crampes ; Prudence avec les inhibiteurs puissants du CYP3A4 (clarithromycine, kétoconazole, ritonavir) et consommation de pamplemousse (> 1,2 L/jour)","Myalgies, spasmes musculaires, arthralgies ; Troubles gastro-intestinaux (constipation, flatulences, dyspepsie, nausées, diarrhée) ; Céphalées, nasopharyngite ; Élévation des transaminases hépatiques ; Rare : rhabdomyolyse",Statine de référence la plus prescrite et documentée au monde ; Réduction efficace du LDL-cholestérol dès la dose initiale de 10 mg (-35% à -40%) ; Prise unique quotidienne souple (matin ou soir) ; Protection cardiovasculaire prouvée en prévention primaire et secondaire,Troikaa Pharmaceuticals (Inde),"RCP atorvastatine / Tahor (ANSM, VIDAL) ; 1mg.com, pharmeasy.in (composition Lesstrol 10)"
+TRUE,Lesstrol (atorvastatine),Cholestérol et risque cardiovasculaire,Lesstrol 20,"Atorvastatine 20 mg, comprimé","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase)","Hypercholestérolémie et dyslipidémie mixte, en complément du régime
+Prévention des événements cardiovasculaires chez le patient à risque","Allergie à l'atorvastatine
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Grossesse, allaitement, femme sans contraception efficace
+Association au glécaprévir/pibrentasvir (hépatite C)","10 à 80 mg par jour en une prise, à tout moment de la journée
+Adapter après 4 semaines","Inhibiteurs puissants du CYP3A4 (clarithromycine, itraconazole, inhibiteurs de protéase) : éviter ou réduire la dose
+Jus de pamplemousse en grande quantité
+Douleurs musculaires : doser les CPK","Douleurs musculaires
+Troubles digestifs, maux de tête
+Hausse des transaminases","Statine de référence, très documentée en prévention cardiovasculaire
+Dose flexible de 10 à 80 mg
+Une prise par jour, à tout moment",Troikaa Pharmaceuticals (Inde),"RCP atorvastatine / Tahor (ANSM, VIDAL) ; myupchar.com (composition Lesstrol 20)"
+TRUE,Lesstrol (atorvastatine),Cholestérol et risque cardiovasculaire,Lesstrol AM,"Atorvastatine + amlodipine, comprimé (dosage à confirmer sur la boîte, par exemple 10/5 mg)","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase) + inhibiteur calcique (dihydropyridine)","Patient hypertendu (ou angineux) ayant aussi un cholestérol élevé ou un risque cardiovasculaire, déjà équilibré par les deux molécules","Allergie à l'atorvastatine ou aux dihydropyridines
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Grossesse, allaitement, femme sans contraception efficace
+Hypotension sévère, choc (dont cardiogénique)
+Rétrécissement aortique serré ; insuffisance cardiaque instable après infarctus","1 comprimé par jour, à heure fixe","Inhibiteurs du CYP3A4 : hausse des deux molécules
+Douleurs musculaires inexpliquées : doser les CPK
+Bilan hépatique avant et pendant le traitement
+Prudence chez le sujet âgé et l'insuffisant hépatique","Œdèmes des chevilles, bouffées de chaleur
+Douleurs musculaires
+Maux de tête","Tension et cholestérol traités en un seul comprimé
+Moins de comprimés : meilleure observance
+Pour le patient à double risque, fréquent en consultation",Troikaa Pharmaceuticals (Inde),"RCP amlodipine/atorvastatine / Caduet (ANSM, VIDAL) ; pharmeasy.in (Lesstrol AM)"
+TRUE,Myonit (trinitrine),Angine de poitrine,Myonit SR,"Trinitrine libération prolongée 2,6 mg",Dérivé nitré,Prophylaxie des crises d'angor,"Hypotension sévère, association IPDE-5",1 gélule matin et midi,Respecter un intervalle libre de 8h,Céphalées en début de traitement,Prévention continue des crises d'angine de poitrine
+TRUE,Rozukaa (rosuvastatine),Cholestérol et risque cardiovasculaire,Rozukaa 10,"Rosuvastatine 10 mg, comprimé","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase)","Hypercholestérolémie et dyslipidémie mixte, en complément du régime
+Prévention des événements cardiovasculaires majeurs chez le patient à risque élevé","Allergie à la rosuvastatine
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Insuffisance rénale sévère (clairance < 30 ml/min)
+Myopathie ; association à la ciclosporine
+Grossesse, allaitement, femme sans contraception efficace","Début : 5 à 10 mg par jour, à tout moment de la journée
+Adapter après 4 semaines
+Patient d'origine asiatique : débuter à 5 mg","Douleurs musculaires inexpliquées : doser les CPK
+Bilan hépatique avant et pendant le traitement
+Gemfibrozil, inhibiteurs de protéase : à éviter ou dose réduite","Douleurs musculaires
+Maux de tête, douleurs abdominales, constipation
+Rare : atteinte musculaire grave (rhabdomyolyse)","Statine puissante : baisse importante du LDL-cholestérol dès 10 mg
+Prise à tout moment, 1 fois par jour
+Peu d'interactions par le CYP3A4",Troikaa Pharmaceuticals (Inde),"RCP rosuvastatine / Crestor (ANSM, VIDAL) ; 1mg.com (composition Rosukaa)"
+TRUE,Rozukaa (rosuvastatine),Cholestérol et risque cardiovasculaire,Rozukaa 20,"Rosuvastatine 20 mg, comprimé","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase)","Hypercholestérolémie et dyslipidémie mixte insuffisamment contrôlées à 10 mg
+Prévention des événements cardiovasculaires majeurs chez le patient à risque élevé","Allergie à la rosuvastatine
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Insuffisance rénale sévère (clairance < 30 ml/min)
+Myopathie ; association à la ciclosporine
+Grossesse, allaitement, femme sans contraception efficace","20 mg par jour, après un palier à 10 mg si nécessaire
+Patient d'origine asiatique : prudence au-delà de 10 mg","Douleurs musculaires inexpliquées : doser les CPK
+Bilan hépatique
+Sujet âgé, insuffisance rénale modérée : prudence","Douleurs musculaires
+Maux de tête, troubles digestifs
+Rare : rhabdomyolyse","Statine de haute intensité pour les patients à haut risque
+Objectif de LDL atteint plus souvent
+Une prise par jour, à tout moment",Troikaa Pharmaceuticals (Inde),"RCP rosuvastatine / Crestor (ANSM, VIDAL) ; 1mg.com (Rosukaa 20)"
+TRUE,Telmikaa (telmisartan),Hypertension artérielle,Telmikaa,"Telmisartan 20, 40 ou 80 mg, comprimé",Antagoniste de l'angiotensine II (ARA II),"Hypertension artérielle essentielle
+Prévention cardiovasculaire (80 mg) : maladie athérothrombotique avérée ou diabète de type 2 avec atteinte d'organe","Allergie au telmisartan
+Grossesse (2e et 3e trimestres)
+Obstruction des voies biliaires, insuffisance hépatique sévère
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal","HTA : 40 mg par jour (20 à 80 mg)
+Prévention cardiovasculaire : 80 mg par jour
+Insuffisance hépatique légère à modérée : 40 mg maximum","Contrôler kaliémie et créatinine
+Sténose des artères rénales
+Pas de double blocage (IEC + ARA II)","Vertiges, hypotension
+Hyperkaliémie
+Douleurs dorsales, infections ORL","Longue durée d'action : contrôle sur 24 h, pic tensionnel du matin couvert
+Élimination biliaire : pas d'adaptation en insuffisance rénale légère à modérée
+Seul ARA II avec une indication de prévention cardiovasculaire",Troikaa Pharmaceuticals (Inde),"RCP telmisartan (ANSM, sante.fr) ; 1mg.com (composition Telmikaa)"
+TRUE,Tensicard (aténolol),Hypertension artérielle,Tensicard,"Aténolol 25, 50 ou 100 mg, comprimé",Bêtabloquant cardiosélectif (β1),"Hypertension artérielle
+Angor d'effort
+Prévention secondaire après infarctus
+Troubles du rythme supraventriculaires","Asthme et bronchopneumopathie obstructive sévère
+Insuffisance cardiaque non contrôlée, choc cardiogénique
+Bloc auriculo-ventriculaire 2e et 3e degré non appareillé, maladie du sinus
+Bradycardie importante (< 45 à 50/min)
+Phéochromocytome non traité ; hypotension ; maladie de Raynaud ou artériopathie sévère","HTA : 50 à 100 mg par jour en une prise
+Insuffisance rénale : réduire la dose (élimination par le rein)","Ne jamais arrêter brutalement (risque d'angor ou d'infarctus)
+Diabétique : masque les signes d'hypoglycémie
+Vérapamil, diltiazem, amiodarone : risque de bradycardie","Fatigue, extrémités froides
+Bradycardie
+Troubles digestifs, troubles du sommeil (rares)","Cardiosélectif, une prise par jour
+Peu de passage dans le cerveau : moins de troubles du sommeil
+Ralentit le cœur : utile en HTA avec palpitations ou angor",Troikaa Pharmaceuticals (Inde),"RCP aténolol / Ténormine (ANSM, VIDAL) ; pharmeasy.in (composition Tensicard)"
+TRUE,Tensicard (aténolol),Hypertension artérielle,Tensicard 50,"Aténolol 50 mg, comprimé sécable",Bêtabloquant cardiosélectif (bêta-1 adrénergique),Hypertension artérielle essentielle ; Prophylaxie de l'angor d'effort stable ; Arythmies cardiaques supraventriculaires ; Post-infarctus du myocarde (traitement précoce et à long terme),"Hypersensibilité à l'aténolol ; Asthme sévère et bronchopneumopathie chronique obstructive (BPCO) sévère ; Insuffisance cardiaque non contrôlée, choc cardiogénique ; Blocs auriculo-ventriculaires du 2e et 3e degré non appareillés, maladie du sinus ; Bradycardie sévère (< 50 battements/min) ; Hypotension sévère ; Phéochromocytome non traité ; Troubles circulatoires périphériques sévères (syndrome de Raynaud)",HTA : 50 mg une fois par jour le matin (peut être augmentée à 100 mg/j si nécessaire) ; Angor : 50 à 100 mg/jour en une prise ; Adapter la posologie en cas d'insuffisance rénale sévère (clairance < 35 ml/min),"Ne jamais interrompre brutalement le traitement (risque de rebond angineux ou d'IDM) ; Masquage des signes d'hypoglycémie (tachycardie) chez le diabétique ; Prudence avec les inhibiteurs calciques bradycardisants (vérapamil, diltiazem), l'amiodarone et la digoxine","Bradycardie, hypotension orthostatique, extrémités froides ; Asthénie, fatigue musculaire ; Troubles gastro-intestinaux ; Rarement insomnie ou cauchemars (faible passage de la barrière hémato-encéphalique)",Bêtabloquant cardiosélectif β1 de référence assurant une protection myocardique 24h/24 ; Prise unique matinale ; Faible lipophilie limitant les effets secondaires sur le système nerveux central ; Réduction éprouvée de la morbi-mortalité cardiovasculaire,Troikaa Pharmaceuticals (Inde),"RCP aténolol / Ténormine (ANSM, VIDAL) ; 1mg.com, pharmeasy.in (composition Tensicard 50)"
+TRUE,Tensicard (aténolol),Hypertension artérielle,Tensicard AM,"Aténolol 50 mg + amlodipine 5 mg (sous forme de bésilate), comprimé",Association d'un bêtabloquant cardiosélectif (aténolol) et d'un inhibiteur calcique dihydropyridine (amlodipine),Hypertension artérielle essentielle chez les patients dont la pression artérielle est insuffisamment contrôlée par l'aténolol ou l'amlodipine en monothérapie ; Angor stable associé à une HTA,"Hypersensibilité à l'aténolol, à l'amlodipine ou aux dihydropyridines ; Choc cardiogénique, hypotension sévère ; Obstruction de la voie d'éjection ventriculaire gauche (sténose aortique serrée) ; Insuffisance cardiaque hémodynamiquement instable après IDM ; Blocs AV de 2e et 3e degré, bradycardie sévère ; Asthme ou bronchospasme sévère ; Grossesse et allaitement","1 comprimé par jour, de préférence le matin à heure fixe, avec un verre d'eau","Surveillance de la fréquence cardiaque et de la pression artérielle ; Prudence chez le sujet âgé et l'insuffisant hépatique ou rénal ; Ne pas arrêter brutalement ; Éviter l'association au vérapamil ou diltiazem ; Inhibiteurs puissants du CYP3A4 (azoles, macrolides) augmentant les concentrations d'amlodipine","Œdèmes périphériques (malléolaires), céphalées, bouffées vasomotrices, vertiges ; Bradycardie, palpitations ; Fatigue, somnolence ; Troubles gastro-intestinaux (nausées, douleurs abdominales)",Synergie d'action thérapeutique : vasodilatation périphérique (amlodipine) couplée à la baisse du débit cardiaque et de la fréquence cardiaque (aténolol) ; Atténuation mutuelle des effets indésirables (le bêtabloquant limite la tachycardie réflexe induite par la dihydropyridine) ; Observance thérapeutique grandement facilitée par la mono-prise fixe (Single Pill Combination),Troikaa Pharmaceuticals (Inde),"RCP amlodipine et aténolol (ANSM, VIDAL) ; 1mg.com, pharmeasy.in (composition Tensicard AM 50/5)"
+TRUE,Zyltan (losartan),Hypertension artérielle,Zyltan 50,"Losartan potassique 50 mg, comprimé pelliculé sécable",Antagoniste des récepteurs de l'angiotensine II (ARA II),Hypertension artérielle essentielle ; Néphropathie chez le diabétique de type 2 hypertendu avec protéinurie ; Insuffisance cardiaque chronique (si intolérance aux IEC) ; Réduction du risque d'AVC chez le patient hypertendu avec HVG,Hypersensibilité au losartan ; Grossesse (2e et 3e trimestres) ; Insuffisance hépatique sévère ; Association à l'aliskiren chez diabétique ou insuffisant rénal,"50 mg une fois par jour (le matin ou le soir), pendant ou en dehors des repas ; Peut être augmenté à 100 mg/jour selon la réponse clinique ; 25 mg chez sujet âgé > 75 ans ou insuffisance hépatique légère à modérée",Contrôler kaliémie et créatinine ; Risque d'hypotension si déplétion hydrosodée ; Prudence en cas de sténose des artères rénales ; Éviter le double blocage du SRAA ; AINS et sels de potassium : surveiller,"Vertiges, hypotension orthostatique ; Hyperkaliémie ; Asthénie, fatigue ; Absence de toux sèche (profil de tolérance supérieur aux IEC) ; Rare : angio-œdème","ARA II de référence à forte preuve clinique (études RENAAL, LIFE) ; Protection rénale démontrée chez le diabétique de type 2 ; Effet uricosurique propre réduisant l'acide urique ; Excellente observance en monoprise quotidienne sans toux",Troikaa Pharmaceuticals (Inde),"RCP losartan potassique / Cozaar (ANSM, VIDAL) ; 1mg.com, truemeds.in (composition Zyltan 50)"
+TRUE,Zyltan (losartan),Hypertension artérielle,Zyltan AM,"Losartan 50 mg + amlodipine 5 mg, comprimé",Antagoniste de l'angiotensine II (ARA II) + inhibiteur calcique (dihydropyridine),Hypertension artérielle essentielle non contrôlée par une monothérapie,"Allergie au losartan ou aux dihydropyridines
+Grossesse (2e et 3e trimestres)
+Insuffisance hépatique sévère
+Hypotension sévère, choc (dont cardiogénique)
+Rétrécissement aortique serré ; insuffisance cardiaque instable après infarctus
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal","1 comprimé par jour, à heure fixe","Contrôler kaliémie et créatinine
+Prudence chez l'insuffisant hépatique et le sujet âgé
+Inhibiteurs du CYP3A4 (clarithromycine, itraconazole) : hausse de l'amlodipine","Œdèmes des chevilles, bouffées de chaleur
+Maux de tête, vertiges
+Palpitations","Deux mécanismes complémentaires en une seule prise
+L'ARA II atténue les œdèmes de l'amlodipine
+Observance facilitée",Troikaa Pharmaceuticals (Inde),"RCP losartan et amlodipine (ANSM, VIDAL) ; 1mg.com (composition Zyltan AM 50/5)"
+TRUE,Zyltan (losartan),Hypertension artérielle,Zyltan H,"Losartan 50 mg + hydrochlorothiazide 12,5 mg, comprimé",Antagoniste de l'angiotensine II (ARA II) + diurétique thiazidique,Hypertension artérielle essentielle non contrôlée par le losartan ou l'hydrochlorothiazide seuls,"Allergie au losartan, à l'hydrochlorothiazide ou aux sulfamides
+Grossesse (2e et 3e trimestres)
+Insuffisance rénale sévère (clairance < 30 ml/min) ou anurie
+Insuffisance hépatique sévère, cholestase
+Hypokaliémie, hyponatrémie ou hypercalcémie réfractaires ; goutte symptomatique
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal","1 comprimé par jour, pendant ou en dehors des repas
+Effet maximal en 3 à 4 semaines","Contrôler kaliémie, natrémie et créatinine
+Hypotension si déshydratation ou régime sans sel strict
+AINS, lithium, autres hypotenseurs : surveiller
+Photosensibilisation (thiazide)","Vertiges, hypotension
+Troubles électrolytiques (potassium, sodium)
+Hausse de l'acide urique et de la glycémie","Une seule prise par jour, deux mécanismes complémentaires
+Le losartan protège le rein (néphropathie du diabétique de type 2)
+Le losartan limite la hausse d'acide urique due au diurétique",Troikaa Pharmaceuticals (Inde),"RCP losartan/hydrochlorothiazide (ANSM, VIDAL) ; 1mg.com, pharmeasy.in (composition)"
+TRUE,Myonit (trinitrine),Angine de poitrine,,"Trinitrine (nitroglycérine) 2,6 ou 6,4 mg, comprimé à libération prolongée","Dérivé nitré, vasodilatateur anti-angineux","Traitement préventif des crises d'angor (angine de poitrine)
+Ne traite pas une crise en cours : utiliser un nitré d'action rapide","Allergie aux dérivés nitrés
+Association au sildénafil, tadalafil ou vardénafil (chute de tension grave)
+Hypotension sévère, choc
+Cardiomyopathie obstructive, rétrécissement aortique serré
+Hypertension intracrânienne","1 comprimé 2 fois par jour, à avaler sans croquer
+Garder un intervalle libre la nuit pour éviter l'accoutumance","Lever progressif : risque d'hypotension orthostatique
+Alcool et autres hypotenseurs : majorent la baisse de tension
+Ne pas arrêter brutalement","Maux de tête (fréquents en début de traitement)
+Vertiges, hypotension
+Rougeur du visage","Forme à libération prolongée : protection sur plusieurs heures avec 2 prises
+Complète le bêtabloquant chez l'angineux encore symptomatique
+Action directe sur la cause de la douleur : dilatation des coronaires",Troikaa Pharmaceuticals (Inde),"RCP trinitrine LP (ANSM, VIDAL) ; truemeds.in, netmeds.com (Myonit SR 2,6 et 6,4)"
+FALSE,Antiplatt (clopidogrel),Prévention de la thrombose,Antiplatt Plus,"Clopidogrel 75 mg + aspirine 75 mg, comprimé",Double antiagrégation plaquettaire (inhibiteur P2Y12 + aspirine),"Syndrome coronarien aigu, en particulier après pose de stent, quand la double antiagrégation est indiquée
+Patient déjà traité par clopidogrel et aspirine séparément","Allergie au clopidogrel, à l'aspirine ou aux AINS
+Saignement évolutif (ulcère gastroduodénal, hémorragie cérébrale)
+Insuffisance hépatique ou rénale sévère
+Grossesse à partir du 6e mois ; allaitement","1 comprimé par jour
+Début : dose de charge par clopidogrel et aspirine séparés, puis Antiplatt Plus
+Durée fixée par le cardiologue (souvent 6 à 12 mois)","Arrêter 5 à 7 jours avant une chirurgie programmée (avis du cardiologue)
+Éviter oméprazole et ésoméprazole : préférer un autre IPP
+AINS, anticoagulants, antidépresseurs ISRS : risque de saignement","Saignements, hématomes
+Troubles digestifs
+Rare : purpura thrombotique","La double antiagrégation de l'après-stent en un seul comprimé
+Observance : l'arrêt prématuré est la première cause de thrombose de stent
+Une prise par jour",Troikaa Pharmaceuticals (Inde),"RCP clopidogrel/aspirine / DuoPlavin (ANSM, VIDAL) ; truemeds.in (Antiplatt Plus 75/75)"
+FALSE,Lesskaa (atorvastatine),Cholestérol et risque cardiovasculaire,Lesskaa,"Atorvastatine 10 ou 20 mg, comprimé","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase)","Hypercholestérolémie et dyslipidémie mixte, en complément du régime
+Prévention des événements cardiovasculaires chez le patient à risque","Allergie à l'atorvastatine
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Grossesse, allaitement, femme sans contraception efficace","10 à 20 mg par jour en une prise, à tout moment de la journée
+Adapter après 4 semaines","Inhibiteurs puissants du CYP3A4 : éviter ou réduire la dose
+Jus de pamplemousse en grande quantité
+Douleurs musculaires inexpliquées : doser les CPK
+Bilan hépatique avant et pendant le traitement","Douleurs musculaires
+Troubles digestifs, maux de tête
+Hausse des transaminases","Même molécule que Lesstrol : atorvastatine, statine de référence
+Une prise par jour, à tout moment
+Bien toléré aux doses de 10 et 20 mg",Troikaa Pharmaceuticals (Inde),"RCP atorvastatine / Tahor (ANSM, VIDAL) ; truemeds.in (Lesskaa 10 et 20)"
+FALSE,Lesstrol (atorvastatine),Cholestérol et risque cardiovasculaire,Lesstrol EZ,"Atorvastatine 10 mg + ézétimibe 10 mg, comprimé","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase) + inhibiteur de l'absorption intestinale du cholestérol","Hypercholestérolémie non contrôlée par une statine seule
+Patient déjà traité par atorvastatine et ézétimibe séparément","Allergie à l'atorvastatine ou à l'ézétimibe
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Grossesse, allaitement, femme sans contraception efficace","1 comprimé par jour, à tout moment de la journée","Douleurs musculaires inexpliquées : doser les CPK
+Bilan hépatique avant et pendant le traitement
+Ciclosporine, fibrates : prudence
+Inhibiteurs puissants du CYP3A4 : éviter","Douleurs musculaires
+Troubles digestifs (diarrhée, ballonnements)
+Hausse des transaminases","Double action : la statine freine la fabrication du cholestérol, l'ézétimibe son absorption
+Baisse du LDL plus forte qu'en doublant la dose de statine
+Un seul comprimé par jour",Troikaa Pharmaceuticals (Inde),"RCP ézétimibe/atorvastatine (ANSM, VIDAL) ; zeelabpharmacy.com (Lesstrol EZ 10/10)"
+FALSE,Zyltan (losartan),Hypertension artérielle,Losartan AM,"Losartan 50 mg + amlodipine 5 mg, comprimé (dosage à confirmer sur la boîte)",Antagoniste de l'angiotensine II (ARA II) + inhibiteur calcique (dihydropyridine),Hypertension artérielle essentielle non contrôlée par une monothérapie,"Allergie au losartan ou aux dihydropyridines
+Grossesse (2e et 3e trimestres)
+Insuffisance hépatique sévère
+Hypotension sévère, choc (dont cardiogénique)
+Rétrécissement aortique serré ; insuffisance cardiaque instable après infarctus
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal","1 comprimé par jour, à heure fixe","Contrôler kaliémie et créatinine
+Prudence chez l'insuffisant hépatique et le sujet âgé
+Inhibiteurs du CYP3A4 : hausse de l'amlodipine","Œdèmes des chevilles, bouffées de chaleur
+Maux de tête, vertiges","Même association que Zyltan AM : losartan + amlodipine
+Une seule prise par jour",Troikaa Pharmaceuticals (Inde),"RCP losartan et amlodipine (ANSM, VIDAL)"
+FALSE,Orlitroy (orlistat),Métabolisme et neuropathie,Orlitroy,"Orlistat 60 ou 120 mg, gélule",Inhibiteur des lipases digestives (anti-obésité),"Obésité (IMC ≥ 30) ou surpoids (IMC ≥ 28) avec facteurs de risque (diabète, hypertension, cholestérol), en association à un régime modérément hypocalorique","Allergie à l'orlistat
+Syndrome de malabsorption chronique
+Cholestase
+Grossesse et allaitement","1 gélule à chacun des 3 repas principaux contenant des graisses
+Sauter la prise si le repas est sauté ou sans graisses
+Arrêter si perte de poids < 5 % après 12 semaines","Prendre une multivitamine le soir (vitamines A, D, E, K)
+Ciclosporine, lévothyroxine, antiépileptiques, anticoagulants : espacer ou surveiller
+Repas trop gras : troubles digestifs","Selles grasses, urgences pour aller à la selle
+Gaz, douleurs abdominales
+Baisse des vitamines liposolubles","Agit dans l'intestin, sans effet sur le cerveau ni le cœur
+Bloque environ 30 % des graisses du repas
+Aide l'hypertendu ou le diabétique en surpoids à atteindre ses objectifs",Troikaa Pharmaceuticals (Inde),"RCP orlistat / Xenical (ANSM, VIDAL) ; truemeds.in, netmeds.com (Orlitroy 60 et 120)"
+FALSE,Rozukaa (rosuvastatine),Cholestérol et risque cardiovasculaire,Rozukaa A,"Rosuvastatine 10 ou 20 mg + aspirine 150 mg, gélule","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase) + antiagrégant plaquettaire (aspirine)","Prévention secondaire chez le patient coronarien ou après AVC ischémique, ayant besoin d'une statine et d'aspirine","Allergie à la rosuvastatine
+Ulcère gastroduodénal évolutif, saignement en cours
+Allergie à l'aspirine ou aux AINS (asthme induit)
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Grossesse, allaitement, femme sans contraception efficace
+Insuffisance rénale sévère","1 gélule par jour, après un repas","Douleurs musculaires inexpliquées : doser les CPK
+Bilan hépatique avant et pendant le traitement
+Anticoagulants, AINS, corticoïdes : risque de saignement
+Arrêt avant chirurgie : avis du médecin","Douleurs musculaires
+Brûlures d'estomac, saignements
+Maux de tête","Les deux piliers de la prévention secondaire en une gélule
+Moins de comprimés pour le patient coronarien
+Rosuvastatine puissante",Troikaa Pharmaceuticals (Inde),"RCP rosuvastatine et aspirine (ANSM, VIDAL) ; apollopharmacy.in, netmeds.com (Rosukaa A 10/150 et 20/150)"
+FALSE,Rozukaa (rosuvastatine),Cholestérol et risque cardiovasculaire,Rozukaa F,"Rosuvastatine 10 mg + fénofibrate 145 mg, comprimé","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase) + fibrate","Dyslipidémie mixte (LDL et triglycérides élevés, HDL bas) chez le patient à risque cardiovasculaire, quand la statine seule ne suffit pas","Allergie à la rosuvastatine ou au fénofibrate
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Grossesse, allaitement, femme sans contraception efficace
+Insuffisance rénale sévère
+Maladie de la vésicule biliaire ; pancréatite
+Photosensibilisation connue aux fibrates","1 comprimé par jour, de préférence au cours d'un repas","Douleurs musculaires inexpliquées : doser les CPK
+Bilan hépatique avant et pendant le traitement
+Association statine + fibrate : surveillance musculaire renforcée, surtout chez le sujet âgé ou l'insuffisant rénal
+Anticoagulants (AVK) : contrôler l'INR","Douleurs musculaires
+Troubles digestifs
+Hausse des transaminases et de la créatinine","Traite à la fois le LDL et les triglycérides
+Adapté au diabétique avec triglycérides élevés
+Un seul comprimé par jour",Troikaa Pharmaceuticals (Inde),"RCP rosuvastatine et fénofibrate (ANSM, VIDAL) ; apollopharmacy.in (Rosukaa F 10/145)"
+FALSE,Rozukaa (rosuvastatine),Cholestérol et risque cardiovasculaire,Rozukaa Gold,"Rosuvastatine 10 mg + aspirine 75 mg + clopidogrel 75 mg, gélule (existe aussi en 20 mg)","Hypolipémiant, statine (inhibiteur de l'HMG-CoA réductase) + double antiagrégation (aspirine, clopidogrel)",Patient coronarien ayant besoin d'une double antiagrégation et d'une statine : après syndrome coronarien aigu ou pose de stent,"Allergie à l'un des composants
+Ulcère gastroduodénal évolutif, saignement en cours
+Allergie à l'aspirine ou aux AINS (asthme induit)
+Maladie du foie évolutive, transaminases > 3 fois la normale
+Grossesse, allaitement, femme sans contraception efficace
+Insuffisance hépatique sévère","1 gélule par jour
+Durée de la double antiagrégation fixée par le cardiologue","Douleurs musculaires inexpliquées : doser les CPK
+Bilan hépatique avant et pendant le traitement
+Éviter oméprazole et ésoméprazole : préférer un autre IPP
+Arrêt 5 à 7 jours avant une chirurgie programmée (avis du cardiologue)
+Anticoagulants, AINS : risque de saignement","Saignements, hématomes
+Troubles digestifs
+Douleurs musculaires","Trois traitements de l'après-stent en une seule gélule
+Observance : l'arrêt prématuré de l'antiagrégation est la première cause de thrombose de stent
+Une prise par jour",Troikaa Pharmaceuticals (Inde),"RCP rosuvastatine, aspirine, clopidogrel (ANSM, VIDAL) ; netmeds.com, medkart.in (Rosukaa Gold 75/75/10)"
+FALSE,Telmikaa (telmisartan),Hypertension artérielle,Telmikaa 40,"Telmisartan 40 mg, comprimé",ARA II,"Hypertension artérielle, prévention CV","Grossesse (2e/3e T), insuffisance hépatique sévère",40 mg par jour,Surveillance kaliémie,"Vertiges, hypotension",24h de couverture continue
+FALSE,Telmikaa (telmisartan),Hypertension artérielle,Telmikaa AM,"Telmisartan 40 mg + amlodipine 5 mg, comprimé",Antagoniste de l'angiotensine II (ARA II) + inhibiteur calcique (dihydropyridine),Hypertension artérielle essentielle non contrôlée par le telmisartan ou l'amlodipine seuls,"Allergie au telmisartan ou aux dihydropyridines
+Obstruction biliaire, insuffisance hépatique sévère
+Hypotension sévère, choc (dont cardiogénique)
+Rétrécissement aortique serré ; insuffisance cardiaque instable après infarctus
+Grossesse (2e et 3e trimestres)
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal","1 comprimé par jour, à heure fixe","Contrôler kaliémie et créatinine
+Pas de double blocage (IEC + ARA II)
+AINS, lithium, sels de potassium : surveiller
+Inhibiteurs du CYP3A4 : hausse de l'amlodipine","Œdèmes des chevilles
+Vertiges, maux de tête
+Bouffées de chaleur","Deux mécanismes complémentaires, contrôle sur 24 h
+L'ARA II réduit les œdèmes de l'amlodipine
+Une seule prise par jour",Troikaa Pharmaceuticals (Inde),"RCP telmisartan/amlodipine / Twynsta (ANSM, VIDAL) ; truemeds.in (Telmikaa AM 40/5)"
+FALSE,Telmikaa (telmisartan),Hypertension artérielle,Telmikaa AMH,"Telmisartan 40 mg + amlodipine 5 mg + hydrochlorothiazide 12,5 mg, comprimé",Antagoniste de l'angiotensine II (ARA II) + inhibiteur calcique + diurétique thiazidique,"Hypertension artérielle non contrôlée par une bithérapie, ou patient déjà équilibré par les trois molécules","Allergie à l'un des composants ou aux sulfamides
+Insuffisance rénale sévère (clairance < 30 ml/min) ou anurie
+Hypokaliémie, hyponatrémie ou hypercalcémie réfractaires ; goutte symptomatique
+Insuffisance hépatique sévère
+Hypotension sévère, choc (dont cardiogénique)
+Rétrécissement aortique serré ; insuffisance cardiaque instable après infarctus
+Grossesse (2e et 3e trimestres)
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal","1 comprimé par jour, à heure fixe
+À réserver au patient déjà traité par bithérapie","Contrôler kaliémie, natrémie et créatinine
+Risque d'hypotension chez le sujet âgé ou déshydraté
+Inhibiteurs du CYP3A4, lithium, AINS : surveiller","Vertiges, hypotension
+Œdèmes des chevilles
+Troubles électrolytiques","Trithérapie recommandée par les sociétés savantes en un seul comprimé
+Pour l'hypertension sévère, fréquente en Afrique de l'Ouest
+Une prise par jour : observance nettement meilleure",Troikaa Pharmaceuticals (Inde),"RCP telmisartan, amlodipine, hydrochlorothiazide (ANSM, VIDAL) ; pharmeasy.in (Telmikaa AMH 40/5/12,5)"
+FALSE,Telmikaa (telmisartan),Hypertension artérielle,Telmikaa CT,"Telmisartan 40 mg + chlortalidone 12,5 mg, comprimé",Antagoniste de l'angiotensine II (ARA II) + diurétique apparenté aux thiazidiques,Hypertension artérielle essentielle non contrôlée par une monothérapie,"Allergie au telmisartan, à la chlortalidone ou aux sulfamides
+Insuffisance rénale sévère (clairance < 30 ml/min) ou anurie
+Hypokaliémie, hyponatrémie ou hypercalcémie réfractaires ; goutte symptomatique
+Obstruction biliaire, insuffisance hépatique sévère
+Grossesse (2e et 3e trimestres)
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal","1 comprimé par jour, le matin de préférence","Contrôler kaliémie, natrémie et créatinine
+Hypotension si déshydratation
+Lithium, AINS : surveiller","Vertiges, hypotension
+Troubles électrolytiques (potassium, sodium)
+Hausse de l'acide urique","La chlortalidone agit plus longtemps que l'hydrochlorothiazide : couverture sur 24 h et au-delà
+Diurétique le mieux documenté sur la prévention des accidents cardiovasculaires
+Une prise par jour",Troikaa Pharmaceuticals (Inde),"RCP telmisartan et chlortalidone (ANSM, VIDAL) ; pharmeasy.in (Telmikaa CT 40/12,5)"
+FALSE,Telmikaa (telmisartan),Hypertension artérielle,Telmikaa H,"Telmisartan 40 mg + hydrochlorothiazide 12,5 mg, comprimé",Antagoniste de l'angiotensine II (ARA II) + diurétique thiazidique,Hypertension artérielle essentielle non contrôlée par le telmisartan seul,"Allergie au telmisartan ou à l'hydrochlorothiazide
+Allergie aux sulfamides
+Insuffisance rénale sévère (clairance < 30 ml/min) ou anurie
+Hypokaliémie, hyponatrémie ou hypercalcémie réfractaires ; goutte symptomatique
+Obstruction biliaire, insuffisance hépatique sévère
+Grossesse (2e et 3e trimestres)
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal",1 comprimé par jour,"Contrôler kaliémie, natrémie et créatinine
+Hypotension si déshydratation
+Lithium, AINS : surveiller
+Photosensibilisation (thiazide)","Vertiges, hypotension
+Troubles électrolytiques
+Hausse de l'acide urique et de la glycémie","Association de référence de l'hypertension non contrôlée
+Le telmisartan compense la perte de potassium du diurétique
+Une prise par jour",Troikaa Pharmaceuticals (Inde),"RCP telmisartan/hydrochlorothiazide / Micardisplus (ANSM, VIDAL) ; pharmeasy.in (Telmikaa H 40/12,5)"
+FALSE,Troynuron (prégabaline),Métabolisme et neuropathie,Troynuron,"Troynuron (NT) : prégabaline 75 mg + nortriptyline 10 mg + méthylcobalamine 1500 µg, comprimé
+Troynuron SR : complément (méthylcobalamine, acide folique, pyridoxine)",Traitement de la douleur neuropathique (antiépileptique + antidépresseur tricyclique + vitamine B12) ; SR : complément vitaminique,"Douleurs neuropathiques : neuropathie du diabétique, névralgies, sciatique
+Troynuron SR : carences en vitamines B, anémie, fatigue","Allergie à l'un des composants
+Infarctus récent, troubles du rythme ou bloc cardiaque (nortriptyline)
+Association aux IMAO
+Glaucome à angle fermé, adénome de la prostate avec rétention urinaire","1 comprimé le soir au coucher
+Augmentation progressive selon le médecin
+Ne pas arrêter brutalement","Somnolence, vertiges : prudence pour la conduite
+Alcool, sédatifs, opioïdes : majorent la somnolence
+Sujet âgé, insuffisant rénal : adapter (prégabaline éliminée par le rein)
+Risque de mésusage de la prégabaline","Somnolence, vertiges
+Bouche sèche, constipation
+Prise de poids, œdèmes","Trois actions complémentaires sur la douleur nerveuse en un comprimé
+Prise le soir : améliore aussi le sommeil
+La vitamine B12 aide à réparer le nerf",Troikaa Pharmaceuticals (Inde),"RCP prégabaline / Lyrica et nortriptyline (ANSM, VIDAL) ; 1mg.com (Troynuron 75/10/1500 µg, Troynuron SR)"
+FALSE,Zyltan (losartan),Hypertension artérielle,Zyltan,"Losartan 25 ou 50 mg, comprimé",Antagoniste de l'angiotensine II (ARA II),"Hypertension artérielle essentielle
+Néphropathie du diabétique de type 2 hypertendu avec protéinurie
+Insuffisance cardiaque quand un IEC n'est pas toléré","Allergie au losartan
+Insuffisance hépatique sévère
+Grossesse (2e et 3e trimestres)
+Association à l'aliskiren chez le diabétique ou l'insuffisant rénal","50 mg par jour en une prise, pendant ou en dehors des repas
+Jusqu'à 100 mg par jour si besoin
+Débuter à 25 mg si déshydratation ou insuffisance hépatique","Contrôler kaliémie et créatinine
+Pas de double blocage (IEC + ARA II)
+AINS, lithium, sels de potassium : surveiller
+Sténose des artères rénales","Vertiges, hypotension
+Hyperkaliémie
+Fatigue","Une prise par jour, très bien toléré (pas de toux comme les IEC)
+Protège le rein du diabétique de type 2
+Baisse l'acide urique : intéressant chez l'hypertendu goutteux",Troikaa Pharmaceuticals (Inde),"RCP losartan / Cozaar (ANSM, VIDAL) ; truemeds.in, netmeds.com (Zyltan 25 et 50)"
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
+FALSE
