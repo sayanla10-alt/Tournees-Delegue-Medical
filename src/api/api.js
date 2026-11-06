@@ -178,8 +178,16 @@
         S.ui.conflits = r.conflits || [];
       });
     }).then(function () {
-      var source = (S.config && S.config.bddSource) || 'supabase';
-      if (source === 'supabase' && typeof chargerToutSupabase === 'function' && !force) {
+      var source = (S.config && S.config.bddSource) || 'sheets';
+      if (source === 'sheets') {
+        return chargerDepuisSheets_(force).catch(function (errSheets) {
+          if (typeof chargerToutSupabase === 'function' && !force) {
+            console.warn('Google Sheets indisponible, bascule de secours sur Supabase:', errSheets);
+            return chargerToutSupabase();
+          }
+          throw errSheets;
+        });
+      } else if (source === 'supabase' && typeof chargerToutSupabase === 'function' && !force) {
         return chargerToutSupabase().catch(function (errSb) {
           console.warn('Supabase indisponible, bascule transparente sur Google Sheets:', errSb);
           return chargerDepuisSheets_(force);

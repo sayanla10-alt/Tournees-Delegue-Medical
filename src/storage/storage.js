@@ -197,8 +197,15 @@
   var ancienPlan = plan.length && !plan[0].cle;   // tournée d'une version précédente (ancienne base)
   if (ancienPlan) plan = [];
 
+  var cfgInit = LS.get('config', { url: '', token: '', demo: false, delegue: '', whatsapp: '', waWeb: false, depart: '', bddSource: 'sheets' });
+  if (cfgInit.bddSourceReset3285 !== true) {
+    cfgInit.bddSource = 'sheets';
+    cfgInit.bddSourceReset3285 = true;
+    LS.set('config', cfgInit);
+  }
+
   var S = {
-    config: LS.get('config', { url: '', token: '', demo: false, delegue: '', whatsapp: '', waWeb: false, depart: '', bddSource: 'supabase' }),
+    config: cfgInit,
     data: donnees,
     plan: plan,
     programme: LS.get('programme', { etat: 'proposition', valideLe: '' }),

@@ -26,19 +26,19 @@
         return '<button type="button" data-a="theme" data-v="' + x[0] + '" aria-pressed="' + (th === x[0]) + '">' + x[1] + '</button>';
       }).join('') + '</div><p class="discret" style="margin:8px 0 0">Auto suit le réglage du téléphone.</p></section>';
 
-    // Base de données : choix Supabase (rapide) / Google Sheets
-    var bddSrc = S.config.bddSource || 'supabase';
+    // Base de données : Google Sheets par défaut, Supabase en miroir temps réel
+    var bddSrc = (S.config && S.config.bddSource) || 'sheets';
     h += '<section class="bloc"><h3 style="margin-top:0">Base de données</h3>' +
-      '<p class="discret" style="margin:0 0 10px">MediPlanner écrit en continu dans les deux bases (double écriture). Vous choisissez ici la base principale pour le chargement.</p>' +
+      '<p class="discret" style="margin:0 0 10px">Google Sheets est la base principale par défaut. Vos visites, fiches et plannings sont également répliqués en continu vers Supabase (double écriture temps réel).</p>' +
       '<div class="segment" role="group" aria-label="Base de données" style="margin:0 0 10px">' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets (Défaut)</button>' +
       '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Rapide)</button>' +
-      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets</button>' +
       '</div>' +
       '<div style="font-size:12.5px;color:var(--texte-discret);margin-bottom:10px">' +
-      (bddSrc === 'supabase' ?
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> PostgreSQL (10 tables synchronisées, ~300 ms).' :
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> Apps Script historique (~4 s).') +
-      '<br><span style="display:inline-block;margin-top:4px">Double écriture permanente : vos données restent 100% synchronisées sur les deux plateformes.</span></div>' +
+      (bddSrc === 'sheets' ?
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> Base de données principale.' :
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> Chargement ultra-rapide (~300 ms).') +
+      '<br><span style="display:inline-block;margin-top:4px">Double écriture active : chaque visite, fiche ou planning est enregistré simultanément sur Google Sheets et Supabase.</span></div>' +
       '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Tester la connexion Supabase</button></section>';
 
     if (connecte()) {
