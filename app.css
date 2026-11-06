@@ -3079,31 +3079,35 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .frise-plan .bj-jour {
   touch-action: manipulation;
 }
-.bj-jour.appui-long-actif {
+.bj-jour.appui-long-actif,
+.appui-long-actif {
   transform: scale(.92) !important;
-  border-color: var(--primaire) !important;
-  box-shadow: 0 0 0 3px rgba(10, 108, 116, .25) !important;
+  border-color: var(--primaire, #0A6C74) !important;
+  box-shadow: 0 0 0 4px rgba(10, 108, 116, .35), 0 0 16px rgba(10, 108, 116, .45) !important;
   transition: transform .65s cubic-bezier(.2, .8, .2, 1), border-color .65s ease, box-shadow .65s ease !important;
 }
 .tete-jour-plan.appui-long-actif,
-.bilan-jour.appui-long-actif {
-  opacity: 0.75 !important;
+.bilan-jour.appui-long-actif,
+.tete-jour.appui-long-actif {
+  opacity: 0.8 !important;
   transform: scale(.98) !important;
   background: rgba(10, 108, 116, .08) !important;
   border-radius: 8px !important;
+  box-shadow: 0 0 0 3px rgba(10, 108, 116, .25) !important;
   transition: transform .65s cubic-bezier(.2, .8, .2, 1), opacity .65s ease, background-color .65s ease !important;
 }
 
-/* 3.27.49 : Jauge visuelle circulaire sous le doigt lors de l'appui long (650ms) */
+/* 3.27.51 : Jauge visuelle circulaire HUD surÃ©levÃ©e lors de l'appui long (650ms) */
 .jauge-appui-long {
   position: fixed;
-  width: 56px;
-  height: 56px;
+  width: 76px;
+  height: 76px;
   pointer-events: none;
-  z-index: 99999;
+  z-index: 999999;
   transform: translate(-50%, -50%) scale(0.65);
   opacity: 0;
   transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.16s ease;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 12px rgba(10, 108, 116, 0.65));
 }
 .jauge-appui-long.active {
   opacity: 1;
@@ -3112,31 +3116,30 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .jauge-appui-long.succes {
   opacity: 0;
   transform: translate(-50%, -50%) scale(1.4);
-  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.24s ease;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease;
 }
 .jauge-appui-long svg {
   width: 100%;
   height: 100%;
   display: block;
   transform: rotate(-90deg);
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.28));
 }
 .jauge-appui-long .cercle-fond {
-  fill: rgba(10, 21, 27, 0.45);
-  stroke: rgba(255, 255, 255, 0.25);
-  stroke-width: 3.5;
+  fill: rgba(15, 23, 42, 0.90);
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 4.5;
 }
 .jauge-appui-long .cercle-progression {
   fill: none;
   stroke: var(--primaire, #0A6C74);
-  stroke-width: 4;
+  stroke-width: 5.5;
   stroke-linecap: round;
-  stroke-dasharray: 113.1;
-  stroke-dashoffset: 113.1;
+  stroke-dasharray: 163.4;
+  stroke-dashoffset: 163.4;
   animation: animProgressionJauge linear forwards;
 }
 @keyframes animProgressionJauge {
-  from { stroke-dashoffset: 113.1; }
+  from { stroke-dashoffset: 163.4; }
   to { stroke-dashoffset: 0; }
 }
 

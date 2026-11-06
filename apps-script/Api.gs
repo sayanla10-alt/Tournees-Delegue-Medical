@@ -22,7 +22,7 @@ var FEUILLES = {
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour', audit: 'Audit_Logs'
 };
-var VERSION_SERVEUR = '3.27.50';
+var VERSION_SERVEUR = '3.27.51';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
@@ -54,7 +54,7 @@ function doGet(e) {
     if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR,
       sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' });
 
-    // 3.27.46 : Synchronisation incrémentale Delta (syncedAt) : transmission ultra-légère des seules nouveautés
+    // 3.27.51 : Synchronisation incrémentale Delta (syncedAt) : transmission ultra-légère des seules nouveautés
     if (p.action === 'data') {
       if (p.force !== '1' && p.syncedAt && p.sig) {
         return json(lireToutDelta(p.sig, p.syncedAt, p.hdepuis || ''));
@@ -77,7 +77,7 @@ function doPost(e) {
       fiche: function () { return ficheUnique(body); }, etablissement: function () { return enregistrerEtablissement(body.etablissement || body); },
       rapport: function () { return enregistrerRapport(body.rapport || {}); }, delegue: function () { return ajouterDelegue(body.nom); } };
     if (!actions[body.action]) return json({ ok: false, erreur: 'Action inconnue.' });
-    // 3.27.25 : toute écriture invalide le cache de lecture (avant et après, pour qu'aucune lecture en cours ne fige l'ancien état)
+    // 3.27.51 : toute écriture invalide le cache de lecture (avant et après, pour qu'aucune lecture en cours ne fige l'ancien état)
     marquerModif();
     try { return json(actions[body.action]()); } finally { marquerModif(); }
   } catch (err) {

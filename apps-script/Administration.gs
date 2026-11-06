@@ -22,6 +22,10 @@ function onOpen() {
       .addItem('Sauvegarder maintenant', 'sauvegarderMaintenant')
       .addItem('Ouvrir le dossier des sauvegardes', 'ouvrirDossierSauvegardes'))
     .addSeparator()
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Base Cloud Supabase')
+      .addItem('Cloner Google Sheets vers Supabase (Copie miroir)', 'exporterToutVersSupabase')
+      .addItem('Configurer les identifiants Supabase', 'dialogConfigSupabase'))
+    .addSeparator()
     .addItem('Afficher le jeton d\'accès', 'afficherJeton')
     .addItem('Changer le jeton d\'accès', 'changerJeton')
     .addToUi();
@@ -663,6 +667,10 @@ function sauvegarderMaintenant() {
   try { SpreadsheetApp.getUi().alert('Sauvegarde faite dans le dossier Drive « ' + DOSSIER_SAUVEGARDES + ' ».'); } catch (e) {}
 }
 function ouvrirDossierSauvegardes() {
+    .addSeparator()
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Base Cloud Supabase')
+      .addItem('Cloner Google Sheets vers Supabase (Copie miroir)', 'exporterToutVersSupabase')
+      .addItem('Configurer les identifiants Supabase', 'dialogConfigSupabase'))
   var url = dossierSauvegardes().getUrl();
   SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput('<p style="font-family:sans-serif">Dossier des sauvegardes : <a href="' + url + '" target="_blank">ouvrir dans Drive</a></p>').setWidth(360).setHeight(90), 'Sauvegardes');
 }

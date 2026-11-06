@@ -1,5 +1,5 @@
 {
-  "version": "3.27.50",
+  "version": "3.27.51",
   "date": "2026-11-06",
   "notes": [
     "Modularisation intégrale de l'architecture (19 composants indépendants) : découpage strict de toutes les vues et moteurs pour éliminer tout risque de régression",

@@ -1,18 +1,18 @@
-/* =============================================================================
-   sw.js : service worker de MediPlanner (fonctionnement hors ligne et mises à jour)
+﻿/* =============================================================================
+   sw.js : service worker de MediPlanner (fonctionnement hors ligne et mises Ã  jour)
 
-   - Les fichiers de l'application sont servis depuis un cache propre à chaque version
-     (jamais mélangés entre deux versions).
-   - Une nouvelle version s'installe en arrière-plan puis ATTEND : l'application affiche
-     un bandeau « Mise à jour disponible » et l'utilisateur choisit le moment
-     (message SKIP_WAITING). Les données locales (localStorage) ne sont jamais touchées.
-   - Exception : un téléphone encore sur l'ancienne application « Tournées » (caches
+   - Les fichiers de l'application sont servis depuis un cache propre Ã  chaque version
+     (jamais mÃ©langÃ©s entre deux versions).
+   - Une nouvelle version s'installe en arriÃ¨re-plan puis ATTEND : l'application affiche
+     un bandeau Â« Mise Ã  jour disponible Â» et l'utilisateur choisit le moment
+     (message SKIP_WAITING). Les donnÃ©es locales (localStorage) ne sont jamais touchÃ©es.
+   - Exception : un tÃ©lÃ©phone encore sur l'ancienne application Â« TournÃ©es Â» (caches
      tournees-v*) n'a pas ce bandeau ; il bascule automatiquement sur cette version.
    - Les appels au Google Sheet (script.google.com) et version.json ne sont jamais mis en cache.
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.27.50';
+var VERSION = '3.27.51';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -28,9 +28,9 @@ self.addEventListener('install', function (e) {
   // 3.27.48 : auto-activation immediate pour recuperer les clients bloques
   self.skipWaiting();
   e.waitUntil(caches.open(CACHE).then(function (c) {
-    // cache: 'reload' : on prend les fichiers sur le réseau, pas dans le cache HTTP du navigateur
+    // cache: 'reload' : on prend les fichiers sur le rÃ©seau, pas dans le cache HTTP du navigateur
     return c.addAll(FICHIERS.map(function (u) { return new Request(u, { cache: 'reload' }); })).then(function () {
-      // polices : facultatives, jamais bloquantes (réseau lent ou coupé)
+      // polices : facultatives, jamais bloquantes (rÃ©seau lent ou coupÃ©)
       var polices = Promise.all(POLICES.map(function (u) { return c.add(new Request(u, { mode: 'cors' })).catch(function () {}); }));
       return Promise.race([polices, new Promise(function (r) { setTimeout(r, 6000); })]);
     });
@@ -46,7 +46,7 @@ self.addEventListener('activate', function (e) {
     }).then(function () {
       return self.clients.claim();
     }).then(function () {
-      // Rafraîchissement automatique de tous les écrans ouverts dès l'activation
+      // RafraÃ®chissement automatique de tous les Ã©crans ouverts dÃ¨s l'activation
       return self.clients.matchAll({ type: 'window' }).then(function (fen) {
         fen.forEach(function (f) {
           if (f.navigate) f.navigate(f.url).catch(function () {});
@@ -69,7 +69,7 @@ self.addEventListener('fetch', function (e) {
     return;
   }
   if (url.origin !== self.location.origin) return;
-  if (/\/version\.json$/.test(url.pathname)) return;           // toujours le réseau
+  if (/\/version\.json$/.test(url.pathname)) return;           // toujours le rÃ©seau
   if (e.request.mode === 'navigate') {
     e.respondWith(caches.open(CACHE).then(function (c) {
       return c.match('./index.html').then(function (r) { return r || fetch(e.request); });
@@ -81,7 +81,7 @@ self.addEventListener('fetch', function (e) {
   }));
 });
 
-// Background Sync : réveil en arrière-plan dès le retour du réseau (zones blanches en Côte d'Ivoire)
+// Background Sync : rÃ©veil en arriÃ¨re-plan dÃ¨s le retour du rÃ©seau (zones blanches en CÃ´te d'Ivoire)
 self.addEventListener('sync', function (e) {
   if (e.tag === 'mediplanner-sync-queue') {
     e.waitUntil(
@@ -93,7 +93,7 @@ self.addEventListener('sync', function (e) {
     );
   }
 });
-// 3.26.73 : toucher une notification ouvre (ou ramène au premier plan) l'application
+// 3.26.73 : toucher une notification ouvre (ou ramÃ¨ne au premier plan) l'application
 self.addEventListener('notificationclick', function (e) {
   e.notification.close();
   var url = (e.notification.data && e.notification.data.url) || self.registration.scope;

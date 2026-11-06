@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.50';
+  var APP_VERSION = '3.27.51';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -2687,7 +2687,7 @@
     o.style.left = (e.clientX - r.left - s / 2) + 'px'; o.style.top = (e.clientY - r.top - s / 2) + 'px';
     b.appendChild(o); setTimeout(function () { o.remove(); }, 600);
   }, { passive: true });
-  // 3.26.31 & 3.27.49 : appui très long (~650ms) sur une date planifiée dans l'onglet Planifier (frise ou titre) pour la supprimer
+  // 3.26.31 & 3.27.51 : appui tactile dynamique (650ms) avec jauge circulaire HUD surelevee et retour haptique
   (function () {
     var timer = null, startX = 0, startY = 0, cibleDate = null, cibleEl = null, longPressFired = false;
     var dernierAppuiLongFired = 0;
@@ -2699,11 +2699,17 @@
       retirerJaugeAppuiLong();
       var j = document.createElement('div');
       j.className = 'jauge-appui-long';
-      j.style.left = x + 'px';
-      j.style.top = y + 'px';
-      j.innerHTML = '<svg viewBox="0 0 44 44" aria-hidden="true">' +
-        '<circle class="cercle-fond" cx="22" cy="22" r="18"></circle>' +
-        '<circle class="cercle-progression" cx="22" cy="22" r="18" style="animation-duration:' + (duree || 650) + 'ms"></circle>' +
+      // Surelevation intelligente : 65px au-dessus du contact pour que le pouce ne masque jamais la jauge
+      var jaugeY = y > 95 ? (y - 65) : (y + 65);
+      var jaugeX = Math.max(50, Math.min((window.innerWidth || 360) - 50, x));
+      j.style.left = jaugeX + 'px';
+      j.style.top = jaugeY + 'px';
+      j.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true">' +
+        '<circle class="cercle-fond" cx="32" cy="32" r="26"></circle>' +
+        '<circle class="cercle-progression" cx="32" cy="32" r="26" style="animation-duration:' + (duree || DUREE_APPUI_LONG) + 'ms"></circle>' +
+        '<g class="icone-jauge" transform="rotate(90 32 32)">' +
+          '<path d="M26 27h12M28 27v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V27M30 24h4" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>' +
+        '</g>' +
         '</svg>';
       document.body.appendChild(j);
       j.offsetWidth;
@@ -2735,74 +2741,89 @@
 
     function demarrerAppuiLong(e) {
       annulerAppuiLong();
-      // 3.26.51 : Journée : appui très long (1,5 s) sur une visite renseignée = effacer son compte rendu, après confirmation
-      if (S.ui.tab === 'jour') {
-        var li = e.target && e.target.closest && e.target.closest('li.arret[data-uid-arret]');
-        if (!li || (e.target.closest && e.target.closest('input, textarea, select'))) return;
-        var av = arret(li.dataset.uidArret); if (!av) return;
-        var ptj = e.touches ? e.touches[0] : e; startX = ptj.clientX; startY = ptj.clientY;
-        cibleEl = li.querySelector('.arret-carte') || li; cibleEl.classList.add('appui-long-actif');
-        creerJaugeAppuiLong(startX, startY, 1500);
+
+      // 1. Bouton de date (frise semaine ou bande-jours accueil/journée) OU titre/en-tête de la journée
+      var bjBtn = e.target && e.target.closest && e.target.closest('.bj-jour[data-v]');
+      var tetePlan = e.target && e.target.closest && e.target.closest('.tete-jour-plan, .tete-jour');
+      if (bjBtn || tetePlan) {
+        var date = bjBtn ? bjBtn.dataset.v : (S.ui.jour || (typeof jourAffiche === 'function' ? jourAffiche() : aujourdhui()));
+        if (!date) return;
+        var pt = e.touches ? e.touches[0] : e;
+        startX = pt.clientX;
+        startY = pt.clientY;
+        cibleDate = date;
+        cibleEl = bjBtn || (tetePlan.querySelector('.bilan-jour') || tetePlan);
+        if (cibleEl) cibleEl.classList.add('appui-long-actif');
+        creerJaugeAppuiLong(startX, startY, DUREE_APPUI_LONG);
+
         timer = setTimeout(function () {
-          timer = null; longPressFired = true; dernierAppuiLongFired = Date.now();
+          timer = null;
+          longPressFired = true;
+          dernierAppuiLongFired = Date.now();
+          if (cibleEl) {
+            cibleEl.classList.remove('appui-long-actif');
+            cibleEl = null;
+          }
+          retirerJaugeAppuiLong(true);
+          try {
+            if (navigator.vibrate) navigator.vibrate(50);
+          } catch (err) {}
+
+          var nb = S.plan.filter(function (a) { return a.date === date; }).length;
+          if (nb > 0 || (S.jours && S.jours[date]) || (typeof datesPlan === 'function' && datesPlan().indexOf(date) >= 0)) {
+            demanderSuppressionJour(date, nb);
+          } else {
+            toast('Journee vide (' + majuscule(dateLongue(date)) + ') : aucune visite a supprimer');
+          }
+        }, DUREE_APPUI_LONG);
+        return;
+      }
+
+      // 2. Visites dans la Journee : appui 650 ms sur un arret = effacer le compte rendu ou retirer la visite
+      var li = e.target && e.target.closest && e.target.closest('li.arret[data-uid-arret]');
+      if (li && !(e.target.closest && e.target.closest('input, textarea, select, button, a'))) {
+        var av = typeof arret === 'function' ? arret(li.dataset.uidArret) : null;
+        if (!av) return;
+        var ptj = e.touches ? e.touches[0] : e;
+        startX = ptj.clientX;
+        startY = ptj.clientY;
+        cibleEl = li.querySelector('.arret-carte') || li;
+        if (cibleEl) cibleEl.classList.add('appui-long-actif');
+        creerJaugeAppuiLong(startX, startY, DUREE_APPUI_LONG);
+        timer = setTimeout(function () {
+          timer = null;
+          longPressFired = true;
+          dernierAppuiLongFired = Date.now();
           if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
           retirerJaugeAppuiLong(true);
           try { if (navigator.vibrate) navigator.vibrate(50); } catch (err) {}
           if (av.statut) { S.ui.feuille = { type: 'effacerVisite', titre: 'Effacer le compte rendu', uid: av.uid }; rendre(); }
-          else confirmerPuis('Supprimer la visite', 'Retirer <b>' + esc(av.nom) + '</b> de la journée ?', 'Supprimer', function () { supprimerVisiteJour(av); });
-        }, 1500);
-        return;
-      }
-      // 3.26.75 : appui long sur un RDV ou un prioritaire de l'étape 7 : retrait après confirmation
-      var liR = e.target && e.target.closest && e.target.closest('li.li-retirable[data-retirer]');
-      if (liR && !(e.target.closest('button'))) {
-        var ptr = e.touches ? e.touches[0] : e; startX = ptr.clientX; startY = ptr.clientY;
-        cibleEl = liR; cibleEl.classList.add('appui-long-actif');
-        creerJaugeAppuiLong(startX, startY, DUREE_APPUI_LONG);
-        timer = setTimeout(function () {
-          timer = null; longPressFired = true; dernierAppuiLongFired = Date.now();
-          if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
-          retirerJaugeAppuiLong(true);
-          try { if (navigator.vibrate) navigator.vibrate(50); } catch (err) {}
-          if (liR.dataset.retirer === 'imp') ACTIONS.retirerImposeDemande({ dataset: { i: liR.dataset.v } }); else ACTIONS.retirerRdvDemande({ dataset: { v: liR.dataset.v } });
+          else confirmerPuis('Supprimer la visite', 'Retirer <b>' + esc(av.nom) + '</b> de la journee ?', 'Supprimer', function () { supprimerVisiteJour(av); });
         }, DUREE_APPUI_LONG);
         return;
       }
-      if (S.ui.tab !== 'semaine') return;
 
-      // Détection sur n'importe quelle date planifiée de la frise OU sur le titre / en-tête de la journée
-      var bjBtn = e.target && e.target.closest && e.target.closest('.frise-plan .bj-jour[data-v]');
-      var tetePlan = e.target && e.target.closest && e.target.closest('.tete-jour-plan');
-      if (!bjBtn && !tetePlan) return;
-
-      var date = bjBtn ? bjBtn.dataset.v : S.ui.jour;
-      if (!date) return;
-      var nb = S.plan.filter(function (a) { return a.date === date; }).length;
-      if (!nb && !S.jours[date] && datesPlan().indexOf(date) < 0) return;
-
-      var pt = e.touches ? e.touches[0] : e;
-      startX = pt.clientX;
-      startY = pt.clientY;
-      cibleDate = date;
-      cibleEl = bjBtn || (tetePlan.querySelector('.bilan-jour') || tetePlan);
-      cibleEl.classList.add('appui-long-actif');
-      creerJaugeAppuiLong(startX, startY, DUREE_APPUI_LONG);
-
-      timer = setTimeout(function () {
-        timer = null;
-        longPressFired = true;
-        dernierAppuiLongFired = Date.now();
-        if (cibleEl) {
-          cibleEl.classList.remove('appui-long-actif');
-          cibleEl = null;
-        }
-        retirerJaugeAppuiLong(true);
-        // Retour haptique : vibration nette de 50 ms à la confirmation
-        try {
-          if (navigator.vibrate) navigator.vibrate(50);
-        } catch (err) {}
-        demanderSuppressionJour(date, nb);
-      }, DUREE_APPUI_LONG);
+      // 3. RDV ou element retirable de l'etape 7 : retrait apres confirmation
+      var liR = e.target && e.target.closest && e.target.closest('li.li-retirable[data-retirer]');
+      if (liR && !(e.target.closest('button'))) {
+        var ptr = e.touches ? e.touches[0] : e;
+        startX = ptr.clientX;
+        startY = ptr.clientY;
+        cibleEl = liR;
+        if (cibleEl) cibleEl.classList.add('appui-long-actif');
+        creerJaugeAppuiLong(startX, startY, DUREE_APPUI_LONG);
+        timer = setTimeout(function () {
+          timer = null;
+          longPressFired = true;
+          dernierAppuiLongFired = Date.now();
+          if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
+          retirerJaugeAppuiLong(true);
+          try { if (navigator.vibrate) navigator.vibrate(50); } catch (err) {}
+          if (liR.dataset.retirer === 'imp') ACTIONS.retirerImposeDemande({ dataset: { i: liR.dataset.v } });
+          else ACTIONS.retirerRdvDemande({ dataset: { v: liR.dataset.v } });
+        }, DUREE_APPUI_LONG);
+        return;
+      }
     }
 
     function bougerAppuiLong(e) {
