@@ -1,6 +1,6 @@
   // ------------------------------------------------------------------ Feuilles (fenêtres du bas)
   function rendreFeuille() {
-    var f = S.ui.feuille, el = $('feuille');
+    var f = S.ui.feuille, el = $('feuille'); if (!el) return;
     if (!f) { el.hidden = true; el.innerHTML = ''; el.dataset.ouverte = ''; document.body.classList.remove('feuille-ouverte'); return; }
     el.hidden = false; document.body.classList.add('feuille-ouverte');
     var contenu = FEUILLES[f.type](f), pied = '', tete = '';

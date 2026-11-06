@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    Code.gs : serveur de MediPlanner
    À coller dans Extensions > Apps Script du Google Sheet, avec Commun.gs.
 
@@ -22,7 +22,7 @@ var FEUILLES = {
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour', audit: 'Audit_Logs'
 };
-var VERSION_SERVEUR = '3.27.47';
+var VERSION_SERVEUR = '3.27.48';
 var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes

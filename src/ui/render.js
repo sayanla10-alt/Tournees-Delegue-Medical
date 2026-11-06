@@ -1,4 +1,4 @@
-﻿  // ------------------------------------------------------------------ En-tête, barre, navigation
+  // ------------------------------------------------------------------ En-tête, barre, navigation
   // 3.26.93 : l'en-tête (MediPlanner, date, nom, synchro, roue crantée) reste visible au-dessus de toutes les fenêtres
   function majHauteurEntete() { var e = document.querySelector('.entete'); if (e) document.documentElement.style.setProperty('--h-entete', e.offsetHeight + 'px'); }
   window.addEventListener('resize', majHauteurEntete);
@@ -6,8 +6,8 @@
     setTimeout(majHauteurEntete, 0);
     var t = aujourdhui();
     var moisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-    $('enteteDate').textContent = majuscule(JOURS_COURTS[jourSemaineIndex(t)]) + ' ' + (+t.slice(8)) + ' ' + moisCourts[+t.slice(5, 7) - 1] + (moi() ? ' · ' + moi() : '');
-    var p = $('pastilleSync'), etat, texte;
+    var ed = $('enteteDate'); if (ed) ed.textContent = majuscule(JOURS_COURTS[jourSemaineIndex(t)]) + ' ' + (+t.slice(8)) + ' ' + moisCourts[+t.slice(5, 7) - 1] + (moi() ? ' · ' + moi() : '');
+    var p = $('pastilleSync'), etat, texte; if (!p) return;
     if (S.config.demo) { etat = 'demo'; texte = 'Démo'; }
     else if (!S.config.url) { etat = 'erreur'; texte = 'Non connecté'; }
     else if (S.ui.sync === 'encours') { etat = 'encours'; texte = 'Synchro…'; }
@@ -22,9 +22,9 @@
     var att = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }), n = att.length;
     // inutile si le seul compte rendu en attente est celui de la carte ouverte (qui a son propre bouton)
     var visible = S.ui.tab === 'jour' && n > 0 && !S.ui.feuille && !(n === 1 && S.ui.ouvert === att[0].uid);
-    $('barreValider').hidden = !visible;
+    var bv = $('barreValider'); if (bv) bv.hidden = !visible;
     document.body.classList.toggle('avec-barre', visible);
-    $('boutonValider').textContent = n > 1 ? 'Enregistrer les ' + n + ' comptes rendus' : 'Enregistrer le compte rendu';
+    var btv = $('boutonValider'); if (btv) btv.textContent = n > 1 ? 'Enregistrer les ' + n + ' comptes rendus' : 'Enregistrer le compte rendu';
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
@@ -119,7 +119,7 @@
       repObserver = null;
     }
     if (!('IntersectionObserver' in window)) return;
-    var sentinellePrat = sentinelleScrollRep;
+    var sentinellePrat = document.getElementById('sentinelleScrollRep');
     if (!sentinellePrat) return;
 
     var throttleTimer = null;

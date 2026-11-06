@@ -9,14 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.27.47';
+  var APP_VERSION = '3.27.48';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.27.47', [
+    ['3.27.48', [
+      'Auto-recovery Service Worker : Rétablissement et auto-recovery du Service Worker (mise à jour immédiate et résilience)',
       'Concurrence non-destructive (Field-Level Merge) : fusion intelligente par champ lors des mises à jour de fiches (préservation des données des collègues et fin des écrasements aveugles)',
       'Trafic Abidjan & Lagune réaliste : pénalité de franchissement des ponts ajustée à 45 min aux heures de pointe (7h30-9h30 et 16h30-19h30) pour des tournées réalisables sur le terrain',
-      'Service Worker sécurisé : suppression du skipWaiting automatique pour éliminer tout risque de rupture de session ou de perte de compte rendu en cours',
       'Traçabilité complète (Audit Trail) : création de la feuille Audit_Logs consignant chaque modification avec auteur, horodatage, ancienne et nouvelle valeur, sans suppression sèche',
       'Performance DOM & Infinite Scroll : affichage progressif et défilement infini sans saccade dans le Répertoire (fin du DOM bloat)',
       'Résilience hors-ligne (Dead-Letter Queue) : isolation unitaire des fiches et visites en file d\'attente (fin du blocage en tête de file)',
@@ -2498,8 +2498,8 @@
     setTimeout(majHauteurEntete, 0);
     var t = aujourdhui();
     var moisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-    $('enteteDate').textContent = majuscule(JOURS_COURTS[jourSemaineIndex(t)]) + ' ' + (+t.slice(8)) + ' ' + moisCourts[+t.slice(5, 7) - 1] + (moi() ? ' · ' + moi() : '');
-    var p = $('pastilleSync'), etat, texte;
+    var ed = $('enteteDate'); if (ed) ed.textContent = majuscule(JOURS_COURTS[jourSemaineIndex(t)]) + ' ' + (+t.slice(8)) + ' ' + moisCourts[+t.slice(5, 7) - 1] + (moi() ? ' · ' + moi() : '');
+    var p = $('pastilleSync'), etat, texte; if (!p) return;
     if (S.config.demo) { etat = 'demo'; texte = 'Démo'; }
     else if (!S.config.url) { etat = 'erreur'; texte = 'Non connecté'; }
     else if (S.ui.sync === 'encours') { etat = 'encours'; texte = 'Synchro…'; }
@@ -2514,9 +2514,9 @@
     var att = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }), n = att.length;
     // inutile si le seul compte rendu en attente est celui de la carte ouverte (qui a son propre bouton)
     var visible = S.ui.tab === 'jour' && n > 0 && !S.ui.feuille && !(n === 1 && S.ui.ouvert === att[0].uid);
-    $('barreValider').hidden = !visible;
+    var bv = $('barreValider'); if (bv) bv.hidden = !visible;
     document.body.classList.toggle('avec-barre', visible);
-    $('boutonValider').textContent = n > 1 ? 'Enregistrer les ' + n + ' comptes rendus' : 'Enregistrer le compte rendu';
+    var btv = $('boutonValider'); if (btv) btv.textContent = n > 1 ? 'Enregistrer les ' + n + ' comptes rendus' : 'Enregistrer le compte rendu';
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
@@ -2611,7 +2611,7 @@
       repObserver = null;
     }
     if (!('IntersectionObserver' in window)) return;
-    var sentinellePrat = sentinelleScrollRep;
+    var sentinellePrat = document.getElementById('sentinelleScrollRep');
     if (!sentinellePrat) return;
 
     var throttleTimer = null;
@@ -6443,7 +6443,7 @@
   }
 
   function chargerSuitePraticiens() {
-    var ul = listePraticiens;
+    var ul = document.getElementById('listePraticiens');
     if (!ul || !S.ui._pratListe) return;
     var liste = S.ui._pratListe;
     var debut = S.ui._pratAffiches || 0;
@@ -6457,8 +6457,8 @@
     ul.insertAdjacentHTML('beforeend', chunks.join(''));
     S.ui._pratAffiches = fin;
     var reste = liste.length - fin;
-    var zone = zonePlusPrat;
-    var sentinelle = sentinelleScrollRep;
+    var zone = document.getElementById('zonePlusPrat');
+    var sentinelle = document.getElementById('sentinelleScrollRep');
     if (reste > 0) {
       if (zone) {
         var btn = zone.querySelector('button');
@@ -7282,7 +7282,7 @@
 
   // ------------------------------------------------------------------ Feuilles (fenêtres du bas)
   function rendreFeuille() {
-    var f = S.ui.feuille, el = $('feuille');
+    var f = S.ui.feuille, el = $('feuille'); if (!el) return;
     if (!f) { el.hidden = true; el.innerHTML = ''; el.dataset.ouverte = ''; document.body.classList.remove('feuille-ouverte'); return; }
     el.hidden = false; document.body.classList.add('feuille-ouverte');
     var contenu = FEUILLES[f.type](f), pied = '', tete = '';

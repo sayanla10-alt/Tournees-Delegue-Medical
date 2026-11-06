@@ -1,4 +1,4 @@
-﻿  // ------------------------------------------------------------------ Vue : accueil et identité
+  // ------------------------------------------------------------------ Vue : accueil et identité
   // 3.26.73 : téléphone relié à la base, données pas encore reçues : on explique et on relance, au lieu de l'écran d'accueil
   VUES.chargement = function () {
     if (S.ui.restauration) return '<section class="accueil"><img src="icon-192.png" alt="" width="64" height="64" style="border-radius:16px;margin:6px 0 18px"><h1>Ouverture…</h1><p>Lecture de vos données sur le téléphone.</p></section>';
@@ -3521,7 +3521,7 @@
   }
 
   function chargerSuitePraticiens() {
-    var ul = listePraticiens;
+    var ul = document.getElementById('listePraticiens');
     if (!ul || !S.ui._pratListe) return;
     var liste = S.ui._pratListe;
     var debut = S.ui._pratAffiches || 0;
@@ -3535,8 +3535,8 @@
     ul.insertAdjacentHTML('beforeend', chunks.join(''));
     S.ui._pratAffiches = fin;
     var reste = liste.length - fin;
-    var zone = zonePlusPrat;
-    var sentinelle = sentinelleScrollRep;
+    var zone = document.getElementById('zonePlusPrat');
+    var sentinelle = document.getElementById('sentinelleScrollRep');
     if (reste > 0) {
       if (zone) {
         var btn = zone.querySelector('button');
