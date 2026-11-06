@@ -1,4 +1,4 @@
-  var ACTIONS = {
+﻿  var ACTIONS = {
     nav: function (el) {
       if (S.ui.feuille && el && el.closest && el.closest('.entete')) S.ui.feuille = null;   // 3.26.93 : la roue crantée referme la fenêtre ouverte
       var dest = el.dataset.tab;
@@ -804,6 +804,25 @@
     },
     notifTest: function () { notifier('essai', 'MediPlanner', 'Les notifications fonctionnent sur ce téléphone.', true); },
     // 3.26.85 : oublie la copie de la base gardée sur le téléphone et la retélécharge entièrement (tournée et saisies conservées)
+        basculerSourceBdd: function () {
+      var act = (S.config && S.config.basePrimaire) || 'supabase';
+      var nouv = act === 'supabase' ? 'sheets' : 'supabase';
+      S.config.basePrimaire = nouv;
+      LS.set('config', S.config);
+      var libelle = nouv === 'supabase' ? 'âš¡ Supabase Cloud (Sheets en miroir)' : 'ðŸ“Š Google Sheets (Supabase en miroir)';
+      toast('Base active : ' + libelle + '. Rechargement immÃ©diat...', 3000);
+      try { actualiserBadgeSourceBdd(); } catch (e) {}
+      setTimeout(function () { synchroniser(false, false, true); }, 200);
+    },
+    choisirBase: function (v) {
+      if (!v) return;
+      S.config.basePrimaire = v;
+      LS.set('config', S.config);
+      var libelle = v === 'supabase' ? 'âš¡ Supabase Cloud' : 'ðŸ“Š Google Sheets';
+      toast('Base active : ' + libelle + '. Rechargement...', 3000);
+      try { actualiserBadgeSourceBdd(); } catch (e) {}
+      setTimeout(function () { synchroniser(false, false, true); }, 200);
+    },
     rechargerBase: function () {
       confirmerPuis('Recharger toute la base', 'Retélécharger toute la base (environ 1,4 Mo) ? Votre tournée et vos saisies en attente sont conservées.', 'Recharger', function () {
         if (S.data) { S.data.sig = ''; S.data.syncedAt = ''; S.data.serveurRecent = false; }

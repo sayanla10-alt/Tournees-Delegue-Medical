@@ -1,4 +1,4 @@
-  VUES.reglages = function () {
+﻿  VUES.reglages = function () {
     var c = S.config;
     var qOpts = '<option value="">Aucun (début à la première visite)</option>' + quartiers().map(function (q) {
       return '<option' + (q.quartier === c.depart ? ' selected' : '') + '>' + esc(q.quartier) + '</option>';
@@ -62,6 +62,12 @@
       (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' +
         '<button class="bouton bouton-large" type="button" data-a="rechargerBase" style="margin-bottom:10px">Recharger toute la base</button>' : '') +
       '<button class="bouton bouton-large" type="button" data-a="demo" style="margin-bottom:10px">Charger les données de démonstration</button>' +
+            '<h3>Base de donnÃ©es active</h3>' +
+      '<p class="discret" style="margin-top:0">Basculez entre Supabase (ultra-rapide) et Google Sheets. L\'autre base reste synchronisÃ©e en miroir.</p>' +
+      '<div style="display:flex;gap:8px;margin-bottom:14px">' +
+        '<button class="bouton ' + (((S.config && S.config.basePrimaire) || 'supabase') === 'supabase' ? 'bouton-plein' : '') + '" type="button" data-a="choisirBase" data-v="supabase" style="flex:1">âš¡ Supabase Cloud (Actif)</button>' +
+        '<button class="bouton ' + ((S.config && S.config.basePrimaire) === 'sheets' ? 'bouton-plein' : '') + '" type="button" data-a="choisirBase" data-v="sheets" style="flex:1">ðŸ“Š Google Sheets</button>' +
+      '</div>' +
       '<h3>Sauvegarde</h3><p class="discret" style="margin-top:0">' +
         (S.data && S.data.sauvegarde ? 'Base : dernière copie le ' + new Date(S.data.sauvegarde).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' (7 copies dans Drive).' : 'Base : sauvegarde quotidienne à installer dans le Google Sheet (menu MediPlanner › Sauvegardes).') +
         ' Téléphone : ' + Object.keys(LS.get('secours', {})).length + ' copie(s) sur 7 jours.</p>' +

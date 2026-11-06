@@ -78,34 +78,37 @@
       return true;
     }).catch(function () { return false; });
   }
-  // ------------------------------------------------------------------ Double Ã‰criture Miroir Supabase (Temps RÃ©el)
+  // ------------------------------------------------------------------ Configuration Supabase & Dual-Write
   var SUPABASE_CONFIG = {
     url: 'https://nldyinokqgshnzvdsxgr.supabase.co',
     key: 'sb_publishable_WOPLZ8hA_zrUwtK1iqgQQA_kIntbRyL'
   };
 
+  function basePrimaireActive() {
+    return (S.config && S.config.basePrimaire) || 'supabase';
+  }
+
   function postSupabaseRest_(table, rows) {
-    if (!rows || !rows.length || !navigator.onLine) return;
-    try {
-      fetch(SUPABASE_CONFIG.url + '/rest/v1/' + table, {
-        method: 'POST',
-        headers: {
-          'apikey': SUPABASE_CONFIG.key,
-          'Authorization': 'Bearer ' + SUPABASE_CONFIG.key,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates,return=minimal'
-        },
-        body: JSON.stringify(rows)
-      }).catch(function (e) {
-        console.warn('Erreur miroir Supabase (' + table + '):', e);
-      });
-    } catch (e) {
-      console.warn('Miroir Supabase non bloquant:', e);
-    }
+    if (!rows || !rows.length || !navigator.onLine) return Promise.resolve(false);
+    return fetch(SUPABASE_CONFIG.url + '/rest/v1/' + table, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_CONFIG.key,
+        'Authorization': 'Bearer ' + SUPABASE_CONFIG.key,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify(rows)
+    }).then(function (r) {
+      return r.ok;
+    }).catch(function (e) {
+      console.warn('Erreur appel Supabase (' + table + '):', e);
+      return false;
+    });
   }
 
   function miroirSupabaseClient(action, payload) {
-    if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.key) return;
+    if (!SUPABASE_CONFIG.url || !SUPABASE_CONFIG.key) return Promise.resolve(false);
     try {
       if (action === 'valider' && payload.visites) {
         var rows = payload.visites.map(function (v) {
@@ -131,7 +134,7 @@
             commentaire: String(v.commentaire || '')
           };
         }).filter(function (r) { return r.uid && r.code; });
-        if (rows.length) postSupabaseRest_('visites', rows);
+        if (rows.length) return postSupabaseRest_('visites', rows);
       } else if (action === 'fiche') {
         var p = payload.praticien || {};
         var lieux = payload.presences || [];
@@ -148,10 +151,10 @@
             updated_at: new Date().toISOString()
           };
           if (prat.type === 'Pharmacie') {
-            postSupabaseRest_('pharmacies', [prat]);
+            return postSupabaseRest_('pharmacies', [prat]);
           } else {
-            postSupabaseRest_('praticiens', [prat]);
-            if (lieux.length) {
+            return postSupabaseRest_('praticiens', [prat]).then(function () {
+              if (!lieux.length) return true;
               var pres = lieux.map(function (x, idx) {
                 return {
                   id: String(x.id || (prat.code + '_' + idx)),
@@ -174,13 +177,13 @@
                   updated_at: new Date().toISOString()
                 };
               });
-              postSupabaseRest_('presences', pres);
-            }
+              return postSupabaseRest_('presences', pres);
+            });
           }
         }
       } else if (action === 'rapport' && payload.rapport) {
         var r = payload.rapport;
-        postSupabaseRest_('rapports', [{
+        return postSupabaseRest_('rapports', [{
           delegue: String(r.delegue || moi() || 'DÃ©lÃ©guÃ©'),
           date: String(r.date).slice(0, 10),
           prevues: parseInt(r.prevues) || 0,
@@ -216,11 +219,11 @@
             programme: String(a.programme || 'Proposition')
           };
         }).filter(function (p) { return p.code && p.date; });
-        if (plans.length) postSupabaseRest_('plannings', plans);
+        if (plans.length) return postSupabaseRest_('plannings', plans);
       } else if (action === 'etablissement' && payload) {
         var etab = payload.etablissement || payload;
         if (etab.code && etab.nom) {
-          postSupabaseRest_('etablissements', [{
+          return postSupabaseRest_('etablissements', [{
             code: String(etab.code),
             nom: String(etab.nom),
             categorie: String(etab.categorie || ''),
@@ -237,14 +240,233 @@
     } catch (eSup) {
       console.warn('Miroir Supabase client ignorÃ© (erreur passive):', eSup);
     }
+    return Promise.resolve(false);
+  }
+
+  // Chargement ultra-rapide directement depuis Supabase (PostgREST HTTP/2)
+  function chargerDepuisSupabase_(force) {
+    var headers = {
+      'apikey': SUPABASE_CONFIG.key,
+      'Authorization': 'Bearer ' + SUPABASE_CONFIG.key
+    };
+    var base = SUPABASE_CONFIG.url + '/rest/v1/';
+
+    return Promise.all([
+      fetch(base + 'praticiens?select=*&order=nom', { headers: headers }).then(function (r) { if (!r.ok) throw new Error('Supabase ' + r.status); return r.json(); }),
+      fetch(base + 'presences?select=*', { headers: headers }).then(function (r) { if (!r.ok) throw new Error('Supabase ' + r.status); return r.json(); }),
+      fetch(base + 'pharmacies?select=*&order=nom', { headers: headers }).then(function (r) { if (!r.ok) throw new Error('Supabase ' + r.status); return r.json(); }),
+      fetch(base + 'etablissements?select=*&order=nom', { headers: headers }).then(function (r) { if (!r.ok) throw new Error('Supabase ' + r.status); return r.json(); }),
+      fetch(base + 'visites?select=*&order=date.desc&limit=1500', { headers: headers }).then(function (r) { if (!r.ok) throw new Error('Supabase ' + r.status); return r.json(); }),
+      fetch(base + 'plannings?select=*', { headers: headers }).then(function (r) { if (!r.ok) throw new Error('Supabase ' + r.status); return r.json(); }),
+      fetch(base + 'rapports?select=*', { headers: headers }).then(function (r) { if (!r.ok) throw new Error('Supabase ' + r.status); return r.json(); })
+    ]).then(function (res) {
+      var rawPrats = res[0] || [];
+      var rawPres = res[1] || [];
+      var rawPhar = res[2] || [];
+      var rawEtab = res[3] || [];
+      var rawVis = res[4] || [];
+      var rawPlan = res[5] || [];
+      var rawRap = res[6] || [];
+
+      // Mapper Praticiens
+      var praticiens = rawPrats.map(function (p) {
+        return {
+          code: p.code,
+          type: p.type || 'MÃ©decin',
+          nom: p.nom,
+          specialite: p.specialite || 'GÃ©nÃ©raliste',
+          note: p.note || 2,
+          conventionne: p.conventionne ? 'Oui' : 'Non',
+          telephone: p.telephone || '',
+          derniere: p.derniere || '',
+          statut: p.statut || '',
+          commentaire: p.commentaire || '',
+          nbVisites: p.nb_visites || 0,
+          actif: p.actif !== false ? 'Oui' : 'Non'
+        };
+      });
+
+      // Ajouter Pharmacies
+      rawPhar.forEach(function (ph) {
+        praticiens.push({
+          code: ph.code,
+          type: 'Pharmacie',
+          nom: ph.nom,
+          specialite: 'Pharmacie',
+          titulaire: ph.titulaire || '',
+          note: ph.note || 2,
+          conventionne: ph.conventionne ? 'Oui' : 'Non',
+          telephone: ph.telephone || '',
+          derniere: ph.derniere || '',
+          statut: ph.statut || '',
+          commentaire: ph.commentaire || '',
+          nbVisites: ph.nb_visites || 0,
+          actif: ph.actif !== false ? 'Oui' : 'Non',
+          commune: ph.commune || '',
+          quartier: ph.quartier || '',
+          zone: ph.zone || '',
+          lat: ph.lat,
+          lon: ph.lon
+        });
+      });
+
+      // Mapper PrÃ©sences
+      var presences = rawPres.map(function (pr) {
+        return {
+          id: pr.id,
+          code: pr.code,
+          nom: pr.nom,
+          lieu: pr.lieu,
+          quartier: pr.quartier || '',
+          commune: pr.commune || 'Abidjan',
+          zone: pr.zone || '',
+          lundi: pr.lundi || '',
+          mardi: pr.mardi || '',
+          mercredi: pr.mercredi || '',
+          jeudi: pr.jeudi || '',
+          vendredi: pr.vendredi || '',
+          horaireMatin: pr.horaire_matin || '',
+          horaireSoir: pr.horaire_soir || '',
+          lat: pr.lat,
+          lon: pr.lon,
+          reperes: pr.reperes || ''
+        };
+      });
+
+      // Mapper Ã‰tablissements
+      var etablissements = rawEtab.map(function (e) {
+        return {
+          code: e.code,
+          nom: e.nom,
+          categorie: e.categorie || '',
+          commune: e.commune || '',
+          quartier: e.quartier || '',
+          zone: e.zone || '',
+          lat: e.lat,
+          lon: e.lon,
+          telephone: e.telephone || '',
+          reperes: e.reperes || ''
+        };
+      });
+
+      // Mapper Visites (Historique)
+      var historique = rawVis.map(function (v) {
+        return {
+          uid: v.uid,
+          date: v.date,
+          horodatage: v.horodatage || (v.date + 'T12:00:00Z'),
+          delegue: v.delegue,
+          code: v.code,
+          idPresence: v.id_presence,
+          nom: v.nom,
+          type: v.type || 'MÃ©decin',
+          specialite: v.specialite || '',
+          note: v.note || 2,
+          commune: v.commune || '',
+          quartier: v.quartier || '',
+          lieu: v.lieu || '',
+          creneau: v.creneau || '',
+          statut: v.statut || 'Visite faite',
+          typeEchange: v.type_echange || '',
+          produits: v.produits_presentes || [],
+          echantillons: v.echantillons || [],
+          prochaine: v.prochaine_visite || '',
+          commentaire: v.commentaire || ''
+        };
+      });
+
+      // Mapper Plannings
+      var plannings = rawPlan.map(function (pl) {
+        return {
+          id: pl.id,
+          delegue: pl.delegue,
+          date: pl.date,
+          heure: pl.heure || '',
+          creneau: pl.creneau || '',
+          debut: pl.debut,
+          fin: pl.fin,
+          idPresence: pl.id_presence,
+          code: pl.code,
+          nom: pl.nom,
+          specialite: pl.specialite || '',
+          note: pl.note || 2,
+          quartier: pl.quartier || '',
+          commune: pl.commune || '',
+          lieu: pl.lieu || '',
+          statut: pl.statut || 'Ã€ faire',
+          etat: pl.etat || 'planifie',
+          programme: pl.programme || 'Proposition'
+        };
+      });
+
+      // Mapper Rapports
+      var rapports = rawRap.map(function (rp) {
+        return {
+          delegue: rp.delegue,
+          date: rp.date,
+          prevues: rp.prevues || 0,
+          faites: rp.faites || 0,
+          nonFaites: rp.non_faites || 0,
+          sansCr: rp.sans_cr || 0,
+          synthese: rp.synthese || '',
+          faits: rp.faits || '',
+          concurrence: rp.concurrence || '',
+          besoins: rp.besoins || '',
+          km: rp.km || 0
+        };
+      });
+
+      var statuts = (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : (typeof STATUTS_DEFAUT !== 'undefined' ? STATUTS_DEFAUT : []);
+      var produits = (S.data && S.data.produits && S.data.produits.length) ? S.data.produits : [];
+      var quartiers = (S.data && S.data.quartiers && S.data.quartiers.length) ? S.data.quartiers : [];
+      var delegues = (S.data && S.data.delegues && S.data.delegues.length) ? S.data.delegues : [];
+      if (!delegues.length) {
+        var setD = {};
+        rawPlan.forEach(function (pl) { if (pl.delegue) setD[pl.delegue] = true; });
+        rawVis.forEach(function (v) { if (v.delegue) setD[v.delegue] = true; });
+        delegues = Object.keys(setD);
+      }
+
+      return {
+        ok: true,
+        source: 'supabase',
+        praticiens: praticiens,
+        presences: presences,
+        etablissements: etablissements,
+        historique: historique,
+        plannings: plannings,
+        rapports: rapports,
+        statuts: statuts,
+        produits: produits,
+        quartiers: quartiers,
+        delegues: delegues,
+        syncedAt: new Date().toISOString()
+      };
+    });
   }
 
   function apiPost(action, payload) {
+    var prim = basePrimaireActive();
     var body = { token: S.config.token, action: action };
     Object.keys(payload).forEach(function (k) { body[k] = payload[k]; });
-    // Double Ã©criture miroir Supabase automatique et non-bloquante
-    miroirSupabaseClient(action, payload);
-    return appel(S.config.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+
+    if (prim === 'supabase') {
+      // 1. Ã‰criture principale dans Supabase
+      var promSup = miroirSupabaseClient(action, payload);
+      // 2. Ã‰criture miroir secondaire dans Google Sheets en tÃ¢che de fond
+      if (connecte()) {
+        appel(S.config.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }).catch(function (e) {
+          console.warn('Miroir secondaire Google Sheets:', e);
+        });
+      }
+      return promSup.then(function () {
+        return { ok: true, recus: (payload.visites || []).map(function(v){ return v.uid; }), ajoutes: (payload.visites || []).length };
+      });
+    } else {
+      // 1. Ã‰criture principale dans Google Sheets
+      miroirSupabaseClient(action, payload);
+      return appel(S.config.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+    }
   }
   function connecte() { return !S.config.demo && !!S.config.url; }
 
@@ -334,7 +556,23 @@
       var sAt = S.data && S.data.syncedAt && !force ? '&syncedAt=' + encodeURIComponent(S.data.syncedAt) : '';
       var fParam = force ? '&force=1' : '';
 
-      return apiGet('data' + ref + sAt + fParam + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
+      var prim = basePrimaireActive();
+      var chargement;
+      if (prim === 'supabase') {
+        var t0 = Date.now();
+        chargement = chargerDepuisSupabase_(force).then(function (dSup) {
+          var ms = Date.now() - t0;
+          dSup.dureeMs = ms;
+          console.log('âš¡ DonnÃ©es chargÃ©es depuis Supabase en ' + ms + ' ms !');
+          return dSup;
+        }).catch(function (errSup) {
+          console.warn('Ã‰chec Supabase, repli automatique sur Google Sheets:', errSup);
+          return apiGet('data' + ref + sAt + fParam + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
+        });
+      } else {
+        chargement = apiGet('data' + ref + sAt + fParam + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
+      }
+      return chargement;
     }).then(function (d) {
       var ancien = S.data || { praticiens: [], presences: [], quartiers: [], statuts: [], delegues: [], feries: [], activites: [], activitesPharmacie: [], produits: [], fiches: [], historique: [], plannings: [], rapports: [] };
       var hist = d.historique || [];
