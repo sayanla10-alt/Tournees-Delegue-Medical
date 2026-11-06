@@ -1,7 +1,8 @@
 {
-  "version": "3.27.48",
+  "version": "3.27.49",
   "date": "2026-11-06",
   "notes": [
+    "Planning (Suppression de date) : Jauge visuelle circulaire sous le doigt et vibration haptique (50 ms) lors de l'appui long de 650 ms (retour sensoriel immédiat)",
     "Auto-recovery Service Worker : Rétablissement et auto-recovery du Service Worker (mise à jour immédiate et résilience)",
     "Concurrence non-destructive (Field-Level Merge) : fusion intelligente par champ lors des mises à jour de fiches (préservation des données des collègues et fin des écrasements aveugles)",
     "Trafic Abidjan & Lagune réaliste : pénalité de franchissement des ponts ajustée à 45 min aux heures de pointe (7h30-9h30 et 16h30-19h30) pour des tournées réalisables sur le terrain",
