@@ -1734,7 +1734,11 @@
     },
     ouvrirLancement: function () { S.ui.lancement = true; S.ui.lancementAuto = false; rendre(); },
     appliquerMaj: appliquerMaj,
-    plusTardMaj: function () { $('bandeauMaj').hidden = true; },
+    plusTardMaj: function () {
+      var b = $('bandeauMaj');
+      if (b) b.hidden = true;
+      try { sessionStorage.setItem('mediplanner_maj_reportee', S.ui.majVersion || '1'); } catch (e) {}
+    },
     verifierMaj: function () {
       if (!swReg) { toast('Mises à jour indisponibles dans ce navigateur.'); return; }
       toast('Recherche d\'une mise à jour…');

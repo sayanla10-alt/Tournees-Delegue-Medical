@@ -12,7 +12,7 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.28.5';
+var VERSION = '3.28.6';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -76,7 +76,8 @@ self.addEventListener('fetch', function (e) {
 });
 
 self.addEventListener('message', function (e) {
-  if (e.data === 'SKIP_WAITING') {
+  var d = e.data;
+  if (d === 'SKIP_WAITING' || (d && (d.type === 'SKIP_WAITING' || d.action === 'skipWaiting'))) {
     self.skipWaiting();
   }
 });

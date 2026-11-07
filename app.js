@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.5';
+  var APP_VERSION = '3.28.6';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.6', [
+      'Mises a jour : fin des notifications intempestives et activation fluide du nouveau Service Worker sans re-notification en boucle',
+      'Planning : suppression de journee par appui long epure avec vibration et confirmation immediate (suppression de l\'animation circulaire HUD)',
+      'Navigation & Ergonomie : delai d\'appui long calibre a 550 ms avec retour haptique direct'
+    ]],
     ['3.27.50', [
       'Modularisation intégrale de l\'architecture (19 composants indépendants) : découpage strict de toutes les vues et moteurs pour éliminer tout risque de régression',
       'Mode Clôture de journée (après 18h30) : synthèse valorisante de fin de tournée (« X visites sur Y réalisées, Z comptes-rendus à synchroniser ») et encouragement terrain',
@@ -3202,56 +3207,17 @@
     o.style.left = (e.clientX - r.left - s / 2) + 'px'; o.style.top = (e.clientY - r.top - s / 2) + 'px';
     b.appendChild(o); setTimeout(function () { o.remove(); }, 600);
   }, { passive: true });
-  // 3.26.31 & 3.27.51 : appui tactile dynamique (650ms) avec jauge circulaire HUD surelevee et retour haptique
+  // 3.28.6 : appui tactile long epure avec confirmation immediate (sans animation circulaire)
   (function () {
     var timer = null, startX = 0, startY = 0, cibleDate = null, cibleEl = null, longPressFired = false;
     var dernierAppuiLongFired = 0;
     var dernierTouchTime = 0;
-    var DUREE_APPUI_LONG = 650;
-    var jaugeAppuiLong = null;
-
-    function creerJaugeAppuiLong(x, y, duree) {
-      retirerJaugeAppuiLong();
-      var j = document.createElement('div');
-      j.className = 'jauge-appui-long';
-      // Surelevation intelligente : 65px au-dessus du contact pour que le pouce ne masque jamais la jauge
-      var jaugeY = y > 95 ? (y - 65) : (y + 65);
-      var jaugeX = Math.max(50, Math.min((window.innerWidth || 360) - 50, x));
-      j.style.left = jaugeX + 'px';
-      j.style.top = jaugeY + 'px';
-      j.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true">' +
-        '<circle class="cercle-fond" cx="32" cy="32" r="26"></circle>' +
-        '<circle class="cercle-progression" cx="32" cy="32" r="26" style="animation-duration:' + (duree || DUREE_APPUI_LONG) + 'ms"></circle>' +
-        '<g class="icone-jauge" transform="rotate(90 32 32)">' +
-          '<path d="M26 27h12M28 27v11a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V27M30 24h4" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>' +
-        '</g>' +
-        '</svg>';
-      document.body.appendChild(j);
-      j.offsetWidth;
-      j.classList.add('active');
-      jaugeAppuiLong = j;
-    }
-
-    function retirerJaugeAppuiLong(succes) {
-      if (!jaugeAppuiLong) return;
-      var el = jaugeAppuiLong;
-      jaugeAppuiLong = null;
-      if (succes) {
-        el.classList.remove('active');
-        el.classList.add('succes');
-        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 280);
-      } else {
-        el.classList.remove('active');
-        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 160);
-      }
-    }
-
+    var DUREE_APPUI_LONG = 550;
     function annulerAppuiLong() {
       if (timer) { clearTimeout(timer); timer = null; }
       if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
       cibleDate = null;
       longPressFired = false;
-      retirerJaugeAppuiLong(false);
     }
 
     function demarrerAppuiLong(e) {
@@ -3269,7 +3235,6 @@
         cibleDate = date;
         cibleEl = bjBtn || (tetePlan.querySelector('.bilan-jour') || tetePlan);
         if (cibleEl) cibleEl.classList.add('appui-long-actif');
-        creerJaugeAppuiLong(startX, startY, DUREE_APPUI_LONG);
 
         timer = setTimeout(function () {
           timer = null;
@@ -3279,7 +3244,6 @@
             cibleEl.classList.remove('appui-long-actif');
             cibleEl = null;
           }
-          retirerJaugeAppuiLong(true);
           try {
             if (navigator.vibrate) navigator.vibrate(50);
           } catch (err) {}
@@ -3304,13 +3268,11 @@
         startY = ptj.clientY;
         cibleEl = li.querySelector('.arret-carte') || li;
         if (cibleEl) cibleEl.classList.add('appui-long-actif');
-        creerJaugeAppuiLong(startX, startY, DUREE_APPUI_LONG);
         timer = setTimeout(function () {
           timer = null;
           longPressFired = true;
           dernierAppuiLongFired = Date.now();
           if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
-          retirerJaugeAppuiLong(true);
           try { if (navigator.vibrate) navigator.vibrate(50); } catch (err) {}
           if (av.statut) { S.ui.feuille = { type: 'effacerVisite', titre: 'Effacer le compte rendu', uid: av.uid }; rendre(); }
           else confirmerPuis('Supprimer la visite', 'Retirer <b>' + esc(av.nom) + '</b> de la journee ?', 'Supprimer', function () { supprimerVisiteJour(av); });
@@ -3326,13 +3288,11 @@
         startY = ptr.clientY;
         cibleEl = liR;
         if (cibleEl) cibleEl.classList.add('appui-long-actif');
-        creerJaugeAppuiLong(startX, startY, DUREE_APPUI_LONG);
         timer = setTimeout(function () {
           timer = null;
           longPressFired = true;
           dernierAppuiLongFired = Date.now();
           if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
-          retirerJaugeAppuiLong(true);
           try { if (navigator.vibrate) navigator.vibrate(50); } catch (err) {}
           if (liR.dataset.retirer === 'imp') ACTIONS.retirerImposeDemande({ dataset: { i: liR.dataset.v } });
           else ACTIONS.retirerRdvDemande({ dataset: { v: liR.dataset.v } });
@@ -12276,7 +12236,11 @@
     },
     ouvrirLancement: function () { S.ui.lancement = true; S.ui.lancementAuto = false; rendre(); },
     appliquerMaj: appliquerMaj,
-    plusTardMaj: function () { $('bandeauMaj').hidden = true; },
+    plusTardMaj: function () {
+      var b = $('bandeauMaj');
+      if (b) b.hidden = true;
+      try { sessionStorage.setItem('mediplanner_maj_reportee', S.ui.majVersion || '1'); } catch (e) {}
+    },
     verifierMaj: function () {
       if (!swReg) { toast('Mises à jour indisponibles dans ce navigateur.'); return; }
       toast('Recherche d\'une mise à jour…');
@@ -12760,6 +12724,19 @@
   function proposerMaj() {
     if (!swReg || !swReg.waiting) return;
     fetch('version.json?_=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; }).then(function (v) {
+      if (!swReg || !swReg.waiting) return;
+      var verServeur = v && v.version ? v.version : '';
+      if (verServeur && typeof compVersion === 'function' && compVersion(verServeur, APP_VERSION) <= 0) {
+        try {
+          swReg.waiting.postMessage('SKIP_WAITING');
+          swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        } catch (e) {}
+        return;
+      }
+      var reportee = null;
+      try { reportee = sessionStorage.getItem('mediplanner_maj_reportee'); } catch (e) {}
+      if (reportee && (!verServeur || reportee === verServeur)) return;
+      S.ui.majVersion = verServeur;
       var b = $('bandeauMaj');
       b.innerHTML = '<div class="contenu"><div class="texte"><b>Mise à jour disponible' + (v && v.version ? ' : v' + esc(v.version) : '') + '</b>' +
         (v && v.notes && v.notes.length ? '<ul>' + v.notes.slice(0, 3).map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>'
@@ -12774,9 +12751,14 @@
     majDemandee = true;
     $('bandeauMaj').hidden = true;
     toast('Mise à jour en cours…');
-    if (swReg && swReg.waiting) swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    if (swReg && swReg.waiting) {
+      try {
+        swReg.waiting.postMessage('SKIP_WAITING');
+        swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      } catch (err) {}
+    }
     else location.reload();
-    setTimeout(function () { location.reload(); }, 5000);
+    setTimeout(function () { location.reload(); }, 2500);
   }
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     var controleurInitial = !!navigator.serviceWorker.controller;
@@ -12794,7 +12776,16 @@
         w.addEventListener('statechange', function () { if (w.state === 'installed' && navigator.serviceWorker.controller) proposerMaj(); });
       });
       setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
-      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') reg.update().catch(function () {}); });
+      var dernierUpdateSw = 0;
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+          var now = Date.now();
+          if (now - dernierUpdateSw > 60 * 60 * 1000) {
+            dernierUpdateSw = now;
+            reg.update().catch(function () {});
+          }
+        }
+      });
     }).catch(function () {});
   }
 

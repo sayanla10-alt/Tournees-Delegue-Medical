@@ -223,6 +223,19 @@
   function proposerMaj() {
     if (!swReg || !swReg.waiting) return;
     fetch('version.json?_=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; }).then(function (v) {
+      if (!swReg || !swReg.waiting) return;
+      var verServeur = v && v.version ? v.version : '';
+      if (verServeur && typeof compVersion === 'function' && compVersion(verServeur, APP_VERSION) <= 0) {
+        try {
+          swReg.waiting.postMessage('SKIP_WAITING');
+          swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        } catch (e) {}
+        return;
+      }
+      var reportee = null;
+      try { reportee = sessionStorage.getItem('mediplanner_maj_reportee'); } catch (e) {}
+      if (reportee && (!verServeur || reportee === verServeur)) return;
+      S.ui.majVersion = verServeur;
       var b = $('bandeauMaj');
       b.innerHTML = '<div class="contenu"><div class="texte"><b>Mise à jour disponible' + (v && v.version ? ' : v' + esc(v.version) : '') + '</b>' +
         (v && v.notes && v.notes.length ? '<ul>' + v.notes.slice(0, 3).map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>'
@@ -237,9 +250,14 @@
     majDemandee = true;
     $('bandeauMaj').hidden = true;
     toast('Mise à jour en cours…');
-    if (swReg && swReg.waiting) swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    if (swReg && swReg.waiting) {
+      try {
+        swReg.waiting.postMessage('SKIP_WAITING');
+        swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      } catch (err) {}
+    }
     else location.reload();
-    setTimeout(function () { location.reload(); }, 5000);
+    setTimeout(function () { location.reload(); }, 2500);
   }
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     var controleurInitial = !!navigator.serviceWorker.controller;
@@ -257,7 +275,16 @@
         w.addEventListener('statechange', function () { if (w.state === 'installed' && navigator.serviceWorker.controller) proposerMaj(); });
       });
       setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
-      document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') reg.update().catch(function () {}); });
+      var dernierUpdateSw = 0;
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+          var now = Date.now();
+          if (now - dernierUpdateSw > 60 * 60 * 1000) {
+            dernierUpdateSw = now;
+            reg.update().catch(function () {});
+          }
+        }
+      });
     }).catch(function () {});
   }
 

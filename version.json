@@ -1,9 +1,9 @@
 {
-  "version": "3.28.5",
-  "date": "2026-11-06",
+  "version": "3.28.6",
+  "date": "2026-11-07",
   "notes": [
-    "Google Sheets retabli comme base de donnees par defaut pour la lecture",
-    "Double ecriture temps reel garantie : chaque compte rendu, fiche et planning s'enregistre simultanement dans Supabase",
-    "Securite et redondance totales : Google Sheets reste le referentiel historique avec repli automatique"
+    "Mises a jour : fin des notifications intempestives et activation fluide du Service Worker sans re-notification en boucle",
+    "Planning : suppression de journee par appui long epure et confirmation immediate (suppression de l'animation circulaire HUD)",
+    "Navigation & Ergonomie : retour haptique direct et fluidite accrue sur les dates"
   ]
 }

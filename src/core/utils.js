@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.5';
+  var APP_VERSION = '3.28.6';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.6', [
+      'Mises a jour : fin des notifications intempestives et activation fluide du nouveau Service Worker sans re-notification en boucle',
+      'Planning : suppression de journee par appui long epure avec vibration et confirmation immediate (suppression de l\'animation circulaire HUD)',
+      'Navigation & Ergonomie : delai d\'appui long calibre a 550 ms avec retour haptique direct'
+    ]],
     ['3.27.50', [
       'Modularisation intégrale de l\'architecture (19 composants indépendants) : découpage strict de toutes les vues et moteurs pour éliminer tout risque de régression',
       'Mode Clôture de journée (après 18h30) : synthèse valorisante de fin de tournée (« X visites sur Y réalisées, Z comptes-rendus à synchroniser ») et encouragement terrain',
