@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.13';
+  var APP_VERSION = '3.28.14';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.14', [
+      'Réglages, « Recharger toute la base » : relit Supabase en entier (base principale)'
+    ]],
     ['3.28.13', [
       'Ce qu\'un délégué ajoute ou corrige apparaît chez tous les autres en 15 secondes environ (vérification légère de Supabase, rechargement seulement si quelque chose a changé)'
     ]],

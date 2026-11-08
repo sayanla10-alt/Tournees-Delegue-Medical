@@ -1,7 +1,7 @@
 {
-  "version": "3.28.13",
+  "version": "3.28.14",
   "date": "2026-11-08",
   "notes": [
-    "Changements des autres délégués visibles en 15 s environ"
+    "Recharger toute la base relit Supabase"
   ]
 }

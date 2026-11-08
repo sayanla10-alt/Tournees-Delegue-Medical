@@ -187,9 +187,10 @@
           }
           throw errSheets;
         });
-      } else if (source === 'supabase' && typeof chargerToutSupabase === 'function' && !force) {
+      } else if (source === 'supabase' && typeof chargerToutSupabase === 'function') {
+        // 3.28.14 : « Recharger toute la base » (force) relit aussi Supabase, en entier, sans comparer l'empreinte
         return marqueurSupabase_().then(function (m) {
-          if (S.data && S.data.marqueurSb === m && (S.data.praticiens || []).length) return Object.assign({}, S.data, { inchange: true, source: 'supabase' });
+          if (!force && S.data && S.data.marqueurSb === m && (S.data.praticiens || []).length) return Object.assign({}, S.data, { inchange: true, source: 'supabase' });
           return chargerToutSupabase().then(function (dS) { dS.marqueurSb = m; return dS; });
         }).catch(function (errSb) {
           console.warn('Supabase indisponible, bascule transparente sur Google Sheets:', errSb);

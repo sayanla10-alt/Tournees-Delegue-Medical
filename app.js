@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.13';
+  var APP_VERSION = '3.28.14';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.14', [
+      'Réglages, « Recharger toute la base » : relit Supabase en entier (base principale)'
+    ]],
     ['3.28.13', [
       'Ce qu\'un délégué ajoute ou corrige apparaît chez tous les autres en 15 secondes environ (vérification légère de Supabase, rechargement seulement si quelque chose a changé)'
     ]],
@@ -2860,9 +2863,10 @@
           }
           throw errSheets;
         });
-      } else if (source === 'supabase' && typeof chargerToutSupabase === 'function' && !force) {
+      } else if (source === 'supabase' && typeof chargerToutSupabase === 'function') {
+        // 3.28.14 : « Recharger toute la base » (force) relit aussi Supabase, en entier, sans comparer l'empreinte
         return marqueurSupabase_().then(function (m) {
-          if (S.data && S.data.marqueurSb === m && (S.data.praticiens || []).length) return Object.assign({}, S.data, { inchange: true, source: 'supabase' });
+          if (!force && S.data && S.data.marqueurSb === m && (S.data.praticiens || []).length) return Object.assign({}, S.data, { inchange: true, source: 'supabase' });
           return chargerToutSupabase().then(function (dS) { dS.marqueurSb = m; return dS; });
         }).catch(function (errSb) {
           console.warn('Supabase indisponible, bascule transparente sur Google Sheets:', errSb);
