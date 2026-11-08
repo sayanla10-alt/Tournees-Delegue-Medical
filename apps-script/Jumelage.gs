@@ -85,8 +85,8 @@ function jumDate_(v) {
   return null;
 }
 function jumHoro_(v) { if (v instanceof Date) return v.toISOString(); var s = String(v || '').trim(); return /^\d{4}-\d{2}-\d{2}T/.test(s) ? s : null; }
-// téléphone : la colonne Supabase est limitée à 32 caractères ; deux numéros sont alors écrits sans espaces
-function jumTel_(v) { var s = jumTxt_(v); return s.length > 32 ? s.replace(/\s+/g, '').slice(0, 32) : s; }
+// téléphone tel quel (colonnes Supabase en texte libre depuis 3.28.11)
+function jumTel_(v) { return jumTxt_(v); }
 function jumVide_(v) { var s = jumTxt_(v); return s === '' ? null : s; }
 
 // Chaque table : lignes du Sheet converties au format Supabase
@@ -97,10 +97,11 @@ function jumLignes_(table) {
     case 'praticiens':
       f = jumFeuille_(FEUILLES.praticiens); if (!f) return null;
       c = { code: f.col(['CodeContact']), type: f.col(['Type']), nom: f.col(['Nom']), spec: f.col(['Spécialité']), note: f.col(['Note']), conv: f.col(['Engagé', 'Conventionné']),
-        tel: f.col(['Téléphone']), der: f.col(['DateDerniereVisite']), st: f.col(['DernierStatut']), com: f.col(['DernierCommentaire']), nb: f.col(['NbVisites']), act: f.col(['Actif']) };
+        tel: f.col(['Téléphone']), der: f.col(['DateDerniereVisite']), st: f.col(['DernierStatut']), com: f.col(['DernierCommentaire']), nb: f.col(['NbVisites']), act: f.col(['Actif']),
+        pro: f.col(['ProchaineEtape']), adu: f.col(['AbsentDu']), aau: f.col(['AbsentAu']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
-        out.push({ code: code, type: jumTxt_(get(l, c.type)) || 'Médecin', nom: nom, specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
+        out.push({ prochaine: jumTxt_(get(l, c.pro)), absent_du: jumDate_(get(l, c.adu)), absent_au: jumDate_(get(l, c.aau)), code: code, type: jumTxt_(get(l, c.type)) || 'Médecin', nom: nom, specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
           conventionne: jumOui_(get(l, c.conv)), telephone: jumTel_(get(l, c.tel)), derniere: jumDate_(get(l, c.der)), statut: jumVide_(get(l, c.st)),
           commentaire: jumVide_(get(l, c.com)), nb_visites: jumInt_(get(l, c.nb), 0), actif: jumActif_(get(l, c.act)) });
       });
@@ -108,11 +109,11 @@ function jumLignes_(table) {
     case 'presences':
       f = jumFeuille_(FEUILLES.presences); if (!f) return null;
       c = { id: f.col(['IdPresence']), code: f.col(['CodeContact']), nom: f.col(['Nom']), lieu: f.col(['Lieu/Etablissement']), q: f.col(['Quartier']), co: f.col(['Commune']), z: f.col(['Zone']),
-        j: JOURS_CLES.map(function (j) { return f.col([j]); }), hm: f.col(['HoraireMatin']), hs: f.col(['HoraireSoir']), la: f.col(['Latitude']), lo: f.col(['Longitude']), rep: f.col(['Repères']) };
+        j: JOURS_CLES.map(function (j) { return f.col([j]); }), hm: f.col(['HoraireMatin']), hs: f.col(['HoraireSoir']), la: f.col(['Latitude']), lo: f.col(['Longitude']), rep: f.col(['Repères']), se: f.col(['Secteur']), og: f.col(['OrigineGPS']) };
       f.lignes.forEach(function (l) {
         var id = jumTxt_(get(l, c.id)), code = jumTxt_(get(l, c.code)); if (!id || !code) return;
         var o = { id: id, code: code, nom: jumTxt_(get(l, c.nom)), lieu: jumTxt_(get(l, c.lieu)), quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), zone: jumTxt_(get(l, c.z)),
-          horaire_matin: jumTxt_(get(l, c.hm)), horaire_soir: jumTxt_(get(l, c.hs)), lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), reperes: jumTxt_(get(l, c.rep)) };
+          horaire_matin: jumTxt_(get(l, c.hm)), horaire_soir: jumTxt_(get(l, c.hs)), lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), reperes: jumTxt_(get(l, c.rep)), secteur: jumTxt_(get(l, c.se)), origine_gps: jumTxt_(get(l, c.og)) };
         JOURS_CLES.forEach(function (j, k) { o[j] = jumTxt_(get(l, c.j[k])); });
         out.push(o);
       });
@@ -121,10 +122,11 @@ function jumLignes_(table) {
       f = jumFeuille_(FEUILLES.pharmacies); if (!f) return null;
       c = { code: f.col(['CodeContact']), nom: f.col(['Nom']), tit: f.col(['Titulaire']), q: f.col(['Quartier']), co: f.col(['Commune']), z: f.col(['Zone']), la: f.col(['Latitude']), lo: f.col(['Longitude']),
         tel: f.col(['Téléphone']), hm: f.col(['HoraireMatin']), hs: f.col(['HoraireSoir']), note: f.col(['Note']), conv: f.col(['Engagé']), der: f.col(['DateDerniereVisite']), st: f.col(['DernierStatut']),
-        com: f.col(['DernierCommentaire']), nb: f.col(['NbVisites']), act: f.col(['Actif']) };
+        com: f.col(['DernierCommentaire']), nb: f.col(['NbVisites']), act: f.col(['Actif']),
+        rep: f.col(['Repères']), pro: f.col(['ProchaineEtape']), src: f.col(['Source']), og: f.col(['OrigineGPS']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
-        out.push({ code: code, nom: nom, titulaire: jumTxt_(get(l, c.tit)), quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), zone: jumTxt_(get(l, c.z)),
+        out.push({ reperes: jumTxt_(get(l, c.rep)), prochaine: jumTxt_(get(l, c.pro)), source: jumTxt_(get(l, c.src)), origine_gps: jumTxt_(get(l, c.og)), code: code, nom: nom, titulaire: jumTxt_(get(l, c.tit)), quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), zone: jumTxt_(get(l, c.z)),
           lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel)), horaire_matin: jumTxt_(get(l, c.hm)), horaire_soir: jumTxt_(get(l, c.hs)),
           note: jumNote_(get(l, c.note)), conventionne: jumOui_(get(l, c.conv)), derniere: jumDate_(get(l, c.der)), statut: jumVide_(get(l, c.st)), commentaire: jumVide_(get(l, c.com)),
           nb_visites: jumInt_(get(l, c.nb), 0), actif: jumActif_(get(l, c.act)) });
@@ -133,18 +135,19 @@ function jumLignes_(table) {
     case 'etablissements':
       f = jumFeuille_(FEUILLES.etablissements); if (!f) return null;
       c = { code: f.col(['CodeEtab']), nom: f.col(['Nom']), cat: f.col(['Categorie']), co: f.col(['Commune']), q: f.col(['Quartier']), z: f.col(['Zone']), la: f.col(['Latitude']), lo: f.col(['Longitude']),
-        tel: f.col(['Telephone', 'Téléphone']), rep: f.col(['Reperes', 'Repères']) };
+        tel: f.col(['Telephone', 'Téléphone']), rep: f.col(['Reperes', 'Repères']), pos: f.col(['Position']), og: f.col(['OrigineGPS']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
         out.push({ code: code, nom: nom, categorie: jumTxt_(get(l, c.cat)), commune: jumTxt_(get(l, c.co)), quartier: jumTxt_(get(l, c.q)), zone: jumTxt_(get(l, c.z)),
-          lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel)), reperes: jumTxt_(get(l, c.rep)) });
+          lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel)), reperes: jumTxt_(get(l, c.rep)), position: jumTxt_(get(l, c.pos)), origine_gps: jumTxt_(get(l, c.og)) });
       });
       return out;
     case 'visites':
       f = jumFeuille_(FEUILLES.hist); if (!f) return null;
       c = { date: f.col(['DateVisite']), horo: f.col(['Horodatage']), idp: f.col(['IdPresence']), code: f.col(['CodeContact']), nom: f.col(['Nom']), type: f.col(['Type']), spec: f.col(['Spécialité']),
         note: f.col(['Note']), co: f.col(['Commune']), q: f.col(['Quartier']), lieu: f.col(['Lieu/Etablissement']), cr: f.col(['Créneau']), st: f.col(['Statut']), com: f.col(['Commentaire']),
-        uid: f.col(['IdSync']), del: f.col(['Délégué']), prod: f.col(['Produits']), act: f.col(['Activité']), ech: f.col(['Échantillons']), pro: f.col(['ProchaineEtape']) };
+        uid: f.col(['IdSync']), del: f.col(['Délégué']), prod: f.col(['Produits']), act: f.col(['Activité']), ech: f.col(['Échantillons']), pro: f.col(['ProchaineEtape']), itl: f.col(['Interlocuteur']), rea: f.col(['Réactions']), sto: f.col(['Stocks']),
+        cmd: f.col(['Commande']), cpl: f.col(['Compléments']), sui: f.col(['Suite']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), date = jumDate_(get(l, c.date)); if (!code || !date) return;
         var uid = jumTxt_(get(l, c.uid)) || ('H-' + date + '-' + code);
@@ -152,29 +155,33 @@ function jumLignes_(table) {
           nom: jumTxt_(get(l, c.nom)), type: jumTxt_(get(l, c.type)) || 'Médecin', specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
           commune: jumTxt_(get(l, c.co)), quartier: jumTxt_(get(l, c.q)), lieu: jumTxt_(get(l, c.lieu)), creneau: jumTxt_(get(l, c.cr)), statut: jumTxt_(get(l, c.st)) || 'Visite faite',
           type_echange: jumTxt_(get(l, c.act)), produits_presentes: jumVide_(get(l, c.prod)), echantillons: jumVide_(get(l, c.ech)),
-          prochaine_visite: jumDate_(get(l, c.pro)), commentaire: jumTxt_(get(l, c.com)) });
+          prochaine_visite: jumDate_(get(l, c.pro)), prochaine_etape: jumTxt_(get(l, c.pro)), commentaire: jumTxt_(get(l, c.com)),
+          interlocuteur: jumTxt_(get(l, c.itl)), reactions: jumTxt_(get(l, c.rea)), stocks: jumTxt_(get(l, c.sto)), commande: jumTxt_(get(l, c.cmd)),
+          complements: jumTxt_(get(l, c.cpl)), suite: jumTxt_(get(l, c.sui)) });
       });
       return out;
     case 'plannings':
       f = jumFeuille_(FEUILLES.plannings); if (!f) return null;
       c = { del: f.col(['Délégué']), date: f.col(['Date']), h: f.col(['HeurePrevue']), cr: f.col(['Créneau']), d: f.col(['Debut']), fi: f.col(['Fin']), idp: f.col(['IdPresence']), code: f.col(['CodeContact']),
-        nom: f.col(['Nom']), spec: f.col(['Spécialité']), note: f.col(['Note']), q: f.col(['Quartier']), co: f.col(['Commune']), lieu: f.col(['Lieu/Etablissement']), st: f.col(['Statut']), et: f.col(['Etat']), pr: f.col(['Programme']) };
+        nom: f.col(['Nom']), spec: f.col(['Spécialité']), note: f.col(['Note']), q: f.col(['Quartier']), co: f.col(['Commune']), lieu: f.col(['Lieu/Etablissement']), st: f.col(['Statut']), et: f.col(['Etat']), pr: f.col(['Programme']), maj: f.col(['MiseAJour']), ida: f.col(['IdArret']), dep: f.col(['CibleDepuis']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), date = jumDate_(get(l, c.date)); if (!code || !date) return;
         var hv = get(l, c.h), heure = hv instanceof Date ? Utilities.formatDate(hv, Session.getScriptTimeZone(), 'HH:mm') : jumTxt_(hv);
         out.push({ delegue: jumTxt_(get(l, c.del)), date: date, heure: heure, creneau: jumTxt_(get(l, c.cr)), debut: jumInt_(get(l, c.d)), fin: jumInt_(get(l, c.fi)),
           id_presence: jumVide_(get(l, c.idp)), code: code, nom: jumTxt_(get(l, c.nom)), specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
-          quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), lieu: jumTxt_(get(l, c.lieu)), statut: jumTxt_(get(l, c.st)), etat: jumTxt_(get(l, c.et)) || 'planifie', programme: jumTxt_(get(l, c.pr)) });
+          quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), lieu: jumTxt_(get(l, c.lieu)), statut: jumTxt_(get(l, c.st)), etat: jumTxt_(get(l, c.et)) || 'planifie', programme: jumTxt_(get(l, c.pr)),
+          maj: jumHoro_(get(l, c.maj)) || jumTxt_(get(l, c.maj)), id_arret: jumTxt_(get(l, c.ida)), cible_depuis: jumTxt_(get(l, c.dep)) });
       });
       return out;
     case 'rapports':
       f = jumFeuille_(FEUILLES.rapports); if (!f) return null;
       c = { del: f.col(['Délégué']), date: f.col(['Date']), pv: f.col(['Visites prévues']), fa: f.col(['Visites faites']), nf: f.col(['Non faites']), sc: f.col(['Sans compte rendu']),
-        sy: f.col(['Synthèse']), fm: f.col(['Faits marquants']), cc: f.col(['Concurrence']), be: f.col(['Besoins']), km: f.col(['Kilomètres']) };
+        sy: f.col(['Synthèse']), fm: f.col(['Faits marquants']), cc: f.col(['Concurrence']), be: f.col(['Besoins']), km: f.col(['Kilomètres']), vl: f.col(['Validé le']), maj: f.col(['Mise à jour']) };
       f.lignes.forEach(function (l) {
         var del = jumTxt_(get(l, c.del)), date = jumDate_(get(l, c.date)); if (!del || !date) return;
         out.push({ delegue: del, date: date, prevues: jumInt_(get(l, c.pv), 0), faites: jumInt_(get(l, c.fa), 0), non_faites: jumInt_(get(l, c.nf), 0), sans_cr: jumInt_(get(l, c.sc), 0),
-          synthese: jumTxt_(get(l, c.sy)), faits: jumTxt_(get(l, c.fm)), concurrence: jumTxt_(get(l, c.cc)), besoins: jumTxt_(get(l, c.be)), km: jumNum_(get(l, c.km)) || 0 });
+          synthese: jumTxt_(get(l, c.sy)), faits: jumTxt_(get(l, c.fm)), concurrence: jumTxt_(get(l, c.cc)), besoins: jumTxt_(get(l, c.be)), km: jumNum_(get(l, c.km)) || 0,
+          valide_le: jumHoro_(get(l, c.vl)) || jumTxt_(get(l, c.vl)), maj: jumHoro_(get(l, c.maj)) || jumTxt_(get(l, c.maj)) });
       });
       return out;
     case 'quartiers':

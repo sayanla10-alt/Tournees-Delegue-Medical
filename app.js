@@ -2225,16 +2225,27 @@
       }).join('') + '</tbody></table>';
     return h;
   }
+  // 3.28.11 : Supabase renvoie au plus 1000 lignes par appel : lecture par pages
+  function supabaseGetTout_(endpoint, max) {
+    var pas = 1000, tout = [];
+    function page(off) {
+      return supabaseGet_(endpoint + (endpoint.indexOf('?') < 0 ? '?' : '&') + 'limit=' + pas + '&offset=' + off).then(function (l) {
+        tout = tout.concat(l || []);
+        return (l && l.length === pas && (!max || tout.length < max)) ? page(off + pas) : tout;
+      });
+    }
+    return page(0);
+  }
   function chargerToutSupabase() {
     return Promise.all([
-      supabaseGet_('praticiens?select=*&order=nom'),
-      supabaseGet_('presences?select=*'),
-      supabaseGet_('pharmacies?select=*&order=nom'),
+      supabaseGetTout_('praticiens?select=*&order=code'),
+      supabaseGetTout_('presences?select=*&order=id'),
+      supabaseGetTout_('pharmacies?select=*&order=code'),
       supabaseGet_('etablissements?select=*&order=nom'),
       supabaseGet_('fiches_produits?select=*&order=produit'),
-      supabaseGet_('quartiers?select=*&order=quartier'),
+      supabaseGetTout_('quartiers?select=*&order=quartier'),
       supabaseGet_('listes_reference?select=*&order=ordre'),
-      supabaseGet_('plannings?select=*'),
+      supabaseGetTout_('plannings?select=*&order=id'),
       supabaseGet_('visites?select=*&order=date.desc&limit=1500'),
       supabaseGet_('rapports?select=*&order=date.desc&limit=100')
     ]).then(function (res) {
@@ -2263,7 +2274,8 @@
           statut: p.statut || '',
           commentaire: p.commentaire || '',
           nbVisites: +p.nb_visites || 0,
-          actif: (p.actif === false || p.actif === 'Non' || p.actif === '0') ? 'Non' : 'Oui'
+          actif: (p.actif === false || p.actif === 'Non' || p.actif === '0') ? 'Non' : 'Oui',
+          prochaine: p.prochaine || '', absentDu: p.absent_du || '', absentAu: p.absent_au || ''
         };
       });
 
@@ -2286,7 +2298,8 @@
           horaireSoir: pr.horaire_soir || '',
           lat: isFinite(pr.lat) && pr.lat !== null ? +pr.lat : null,
           lon: isFinite(pr.lon) && pr.lon !== null ? +pr.lon : null,
-          reperes: pr.reperes || ''
+          reperes: pr.reperes || '',
+          secteur: pr.secteur || '', origineGps: pr.origine_gps || ''
         };
       });
 
@@ -2305,7 +2318,7 @@
           commentaire: ph.commentaire || '',
           nbVisites: +ph.nb_visites || 0,
           actif: (ph.actif === false || ph.actif === 'Non' || ph.actif === '0') ? 'Non' : 'Oui',
-          prochaine: ph.prochaine ? String(ph.prochaine).slice(0, 10) : '',
+          prochaine: ph.prochaine || '',
           titulaire: ph.titulaire || ''
         });
 
@@ -2321,7 +2334,7 @@
           horaireSoir: ph.horaire_soir || '15:00 - 19:30',
           lat: isFinite(ph.lat) && ph.lat !== null ? +ph.lat : null,
           lon: isFinite(ph.lon) && ph.lon !== null ? +ph.lon : null,
-          reperes: ph.reperes || '',
+          reperes: ph.reperes || '', origineGps: ph.origine_gps || '',
           lundi: 'Matin et soir',
           mardi: 'Matin et soir',
           mercredi: 'Matin et soir',
@@ -2423,7 +2436,8 @@
           statut: p.statut || '',
           etat: p.etat || 'planifie',
           programme: p.programme || '',
-          idPresence: p.id_presence || null
+          idPresence: p.id_presence || '',
+          maj: p.maj || '', uid: p.id_arret || '', depuis: p.cible_depuis || ''
         };
       });
 
@@ -2445,11 +2459,13 @@
           lieu: v.lieu || '',
           creneau: v.creneau || '',
           statut: v.statut || 'Visite faite',
-          typeEchange: v.type_echange || '',
-          produits: v.produits_presentes || [],
-          echantillons: v.echantillons || [],
-          prochaine: v.prochaine_visite ? String(v.prochaine_visite).slice(0, 10) : '',
-          commentaire: v.commentaire || ''
+          activite: v.type_echange || '',
+          produits: v.produits_presentes || '',
+          echantillons: v.echantillons || '',
+          prochaine: v.prochaine_etape || (v.prochaine_visite ? String(v.prochaine_visite).slice(0, 10) : ''),
+          commentaire: v.commentaire || '',
+          interlocuteur: v.interlocuteur || '', reactions: v.reactions || '', stocks: v.stocks || '',
+          commande: v.commande || '', complements: v.complements || '', suite: v.suite || ''
         };
       });
 
@@ -2458,12 +2474,10 @@
         return {
           date: r.date ? String(r.date).slice(0, 10) : '',
           delegue: r.delegue || '',
-          visites: +r.faites || 0,
-          medecins: +r.prevues || 0,
-          pharmacies: +r.non_faites || 0,
           valideLe: r.valide_le || r.created_at || '',
-          commentaire: r.synthese || '',
-          tauxEngagement: 0
+          prevues: +r.prevues || 0, faites: +r.faites || 0, nonFaites: +r.non_faites || 0, sansCr: +r.sans_cr || 0,
+          synthese: r.synthese || '', faits: r.faits || '', concurrence: r.concurrence || '', besoins: r.besoins || '',
+          km: +r.km || 0, maj: r.maj || ''
         };
       });
 
