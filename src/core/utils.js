@@ -17,10 +17,6 @@
       'Bases jumelles : tout ce qui est enregistré dans Google Sheets (application, saisie à la main, corrections) est recopié dans Supabase toutes les 5 minutes, suppressions comprises',
       'Réglages : date de la dernière synchronisation et nombre de lignes de chaque base (Sheets et Supabase)'
     ]],
-    ['3.28.10', [
-      'Bases jumelles : tout ce qui est enregistré dans Google Sheets (application, saisie à la main, corrections) est recopié dans Supabase toutes les 5 minutes, suppressions comprises',
-      'Réglages : date de la dernière synchronisation et nombre de lignes de chaque base (Sheets et Supabase)'
-    ]],
     ['3.28.9', [
       'Médecins engagés : nom en ambre partout, y compris dans la fiche hôpital, les doublons et le Suivi',
       'Hôpitaux : bulle sarcelle « Aujourd\'hui » pour les médecins présents et « présents aujourd\'hui » sur la carte',
