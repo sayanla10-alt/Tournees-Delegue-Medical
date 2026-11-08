@@ -3780,13 +3780,10 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .nom-lien:focus-visible { outline: 2px solid var(--accent, #0A6C74); outline-offset: 2px; }
 .fiche-contact { margin: 0; padding: 0; list-style: none; }
 
-/* 3.28.20 : Planifier, liste regroupée par quartier puis par hôpital */
+/* 3.28.21 : Planifier, liste regroupée par quartier */
 .lp-groupe { display: flex; align-items: center; gap: 6px; list-style: none; border-top: 1px solid var(--trait); }
 .lp-groupe small { margin-left: auto; color: var(--gris); font-weight: 600; font-size: 12px; }
 .lp-groupe-q { padding: 9px 10px 7px; background: var(--carte-fond); color: var(--primaire); font: 700 13.5px var(--texte); }
 .lp-groupe-q svg { width: 16px; height: 16px; flex: none; }
-.lp-groupe-l { padding: 6px 10px 4px 14px; color: var(--encre); font: 650 13px var(--texte); border-top: 0; }
-.lp-groupe-l::before { content: ""; width: 3px; height: 16px; border-radius: 2px; background: var(--primaire); flex: none; }
-.ligne-plan.dans-groupe { padding-left: 14px; box-shadow: inset 3px 0 0 var(--primaire-pale); }
 .plan-jour > .lp-groupe:first-child { border-top: 0; }
-.lp-groupe + .ligne-plan, .lp-groupe-q + .lp-groupe-l { border-top: 0; }
+.lp-groupe + .ligne-plan { border-top: 0; }

@@ -9,12 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.20';
+  var APP_VERSION = '3.28.21';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.21', [
+      'Planifier : la liste garde un titre par quartier ; les médecins d\'un même hôpital se suivent, sans titre d\'hôpital'
+    ]],
     ['3.28.20', [
-      'Planifier : la liste est regroupée, les médecins d\'un même hôpital se suivent et les hôpitaux d\'un même quartier aussi, avec un titre par quartier et par hôpital',
+      'Planifier : la liste est regroupée, les médecins d\'un même hôpital se suivent et les hôpitaux d\'un même quartier aussi',
       'La version s\'affiche en petit à la suite du nom MediPlanner'
     ]],
     ['3.28.19', [
@@ -4815,7 +4818,7 @@
     return base;
   }
 
-  // 3.28.20 : liste regroupée : un titre par quartier (si la journée en compte plusieurs), puis par hôpital (si plusieurs visites s'y suivent)
+  // 3.28.21 : liste regroupée par quartier (un titre si la journée en compte plusieurs) ; les médecins d'un même hôpital se suivent, sans titre
   function rendreGroupesPlan(l) {
     var cleL = function (a) { return normaliser(a.lieu || '') ? normaliser(a.lieu) + '|' + normaliser(a.commune || '') : 'u|' + a.uid; };
     var cleQ = function (a) { return normaliser(a.quartier || '') ? normaliser(a.quartier) + '|' + normaliser(a.commune || '') : cleL(a); };
@@ -4828,18 +4831,13 @@
         var sect = nomSecteur(a0.quartier || '', a0.commune || '', a0.coord || null) || [a0.quartier, a0.commune].filter(Boolean).join(', ');
         h += '<li class="lp-groupe lp-groupe-q" aria-hidden="true">' + icone('localisation') + '<span>' + esc(sect || 'Autre secteur') + '</span><small>' + bq.l.length + ' visite' + (bq.l.length > 1 ? 's' : '') + '</small></li>';
       }
-      var gl = [];
-      bq.l.forEach(function (a) { var k = cleL(a), d = gl[gl.length - 1]; if (d && d.k === k) d.l.push(a); else gl.push({ k: k, l: [a] }); });
-      gl.forEach(function (g) {
-        if (g.l.length > 1) h += '<li class="lp-groupe lp-groupe-l" aria-hidden="true"><span>' + esc(abregerHopital(g.l[0].lieu)) + '</span><small>' + g.l.length + ' ' + (g.l.every(estPharmacie) ? 'visites' : 'médecins') + '</small></li>';
-        h += g.l.map(function (a) { return rendreLignePlan(a, g.l.length > 1); }).join('');
-      });
-      return h;
+      // les médecins d'un même hôpital se suivent déjà (ordre de la tournée) : pas de titre par hôpital
+      return h + bq.l.map(function (a) { return rendreLignePlan(a); }).join('');
     }).join('');
   }
 
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
-  function rendreLignePlan(a, dansGroupe) {
+  function rendreLignePlan(a) {
     var verrou = a.etat === 'valide', e = '';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
@@ -4853,7 +4851,7 @@
       ? infosPharmaciePlan(a)
       : infosMedecinPlan(a);
 
-    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + (dansGroupe ? ' dans-groupe' : '') + '">' +
+    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
         '<span class="lp-pastille-col">' + pastilleType(a) + '</span>' +
         '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +

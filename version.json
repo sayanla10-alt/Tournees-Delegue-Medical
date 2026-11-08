@@ -1,7 +1,7 @@
 {
-  "version": "3.28.20",
+  "version": "3.28.21",
   "date": "2026-11-08",
   "notes": [
-    "Planifier : liste regroupée par hôpital et par quartier"
+    "Planifier : titres par quartier seulement"
   ]
 }

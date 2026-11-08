@@ -9,12 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.20';
+  var APP_VERSION = '3.28.21';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.21', [
+      'Planifier : la liste garde un titre par quartier ; les médecins d\'un même hôpital se suivent, sans titre d\'hôpital'
+    ]],
     ['3.28.20', [
-      'Planifier : la liste est regroupée, les médecins d\'un même hôpital se suivent et les hôpitaux d\'un même quartier aussi, avec un titre par quartier et par hôpital',
+      'Planifier : la liste est regroupée, les médecins d\'un même hôpital se suivent et les hôpitaux d\'un même quartier aussi',
       'La version s\'affiche en petit à la suite du nom MediPlanner'
     ]],
     ['3.28.19', [
