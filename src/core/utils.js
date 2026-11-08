@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.25';
+  var APP_VERSION = '3.28.26';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.26', [
+      'Planifier garde ses critères (journée ou semaine, communes, spécialités, potentiel) jusqu\'à ce que vous les changiez ou les réinitialisiez : les filtres du Répertoire ne les modifient plus',
+      'Dans un même hôpital, les médecins d\'une même spécialité se suivent (cardiologues ensemble, généralistes ensemble…)'
+    ]],
     ['3.28.25', [
       'Les filtres et critères choisis (communes, spécialités, potentiel, type, réglages de Planifier) sont gardés d\'une ouverture à l\'autre ; ils ne reviennent à zéro que si vous les réinitialisez'
     ]],

@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.25';
+  var APP_VERSION = '3.28.26';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.26', [
+      'Planifier garde ses critères (journée ou semaine, communes, spécialités, potentiel) jusqu\'à ce que vous les changiez ou les réinitialisiez : les filtres du Répertoire ne les modifient plus',
+      'Dans un même hôpital, les médecins d\'une même spécialité se suivent (cardiologues ensemble, généralistes ensemble…)'
+    ]],
     ['3.28.25', [
       'Les filtres et critères choisis (communes, spécialités, potentiel, type, réglages de Planifier) sont gardés d\'une ouverture à l\'autre ; ils ne reviennent à zéro que si vous les réinitialisez'
     ]],
@@ -1115,32 +1119,15 @@
   function filtresCour() { return S.ui[cleFiltres()]; }
   function rechercheCour() { return S.ui.tab === 'autour' ? S.ui.rechercheAutour : S.ui.recherche; }
   function majFiltres(f) {
-    if (f && Array.isArray(f.specialites) && f.specialites.length) sauverCoeurDeCible(f.specialites);
+    // 3.28.26 : le cœur de cible se règle dans Planifier, pas par un filtre du Répertoire
     S.ui[cleFiltres()] = f;
     LS.set(cleFiltres(), f);
     S.ui.limite = 40;
-    // 3.25.35 : Harmonisation totale avec le filtre maître (Recherche / Répertoire)
-    if (f) {
-      if (Array.isArray(f.communes)) {
-        S.params.communes = f.communes.slice();
-        LS.set('params', S.params);
-        if (S.ui.filtresAutour) {
-          S.ui.filtresAutour.communes = f.communes.slice();
-          LS.set('filtresAutour', S.ui.filtresAutour);
-        }
-      }
-      if (Array.isArray(f.specialites)) {
-        S.params.specialites = f.specialites.slice();
-        LS.set('params', S.params);
-        if (S.ui.filtresAutour) {
-          S.ui.filtresAutour.specialites = f.specialites.slice();
-          LS.set('filtresAutour', S.ui.filtresAutour);
-        }
-      }
-      if (Array.isArray(f.potentiels)) {
-        S.params.potentiels = f.potentiels.slice();
-        LS.set('params', S.params);
-      }
+    // 3.28.26 : les filtres du Répertoire ne touchent plus aux critères de Planifier (gardés jusqu'à leur réinitialisation)
+    if (f && S.ui.filtresAutour) {
+      if (Array.isArray(f.communes)) S.ui.filtresAutour.communes = f.communes.slice();
+      if (Array.isArray(f.specialites)) S.ui.filtresAutour.specialites = f.specialites.slice();
+      LS.set('filtresAutour', S.ui.filtresAutour);
     }
   }
   S.ui.stats = Object.assign({ periode: 'semaine', debut: '', fin: '', portee: 'moi', objectif: 40, vueSpec: 'base' }, LS.get('stats', {}));
@@ -1164,18 +1151,7 @@
   // v2.0.4 : par défaut, tournée sans pharmacies (réglage appliqué une fois aux téléphones existants)
   if (!S.params.defauts204) { S.params.typeCibles = 'medecins'; S.params.defauts204 = true; LS.set('params', S.params); }
   if (!Array.isArray(S.params.potentiels)) S.params.potentiels = [];
-  // 3.25.35 : Harmonisation immédiate de tous les filtres de l'application (le filtre maître est dans Répertoire / Recherche)
-  if (S.ui.filtres && Array.isArray(S.ui.filtres.communes) && S.ui.filtres.communes.length) {
-    S.params.communes = S.ui.filtres.communes.slice();
-    if (S.ui.filtresAutour) S.ui.filtresAutour.communes = S.ui.filtres.communes.slice();
-    LS.set('params', S.params);
-    LS.set('filtresAutour', S.ui.filtresAutour);
-  } else if (S.params && Array.isArray(S.params.communes) && S.params.communes.length) {
-    S.ui.filtres.communes = S.params.communes.slice();
-    if (S.ui.filtresAutour) S.ui.filtresAutour.communes = S.params.communes.slice();
-    LS.set('filtres', S.ui.filtres);
-    LS.set('filtresAutour', S.ui.filtresAutour);
-  }
+  // 3.28.26 : au démarrage, critères de Planifier et filtres du Répertoire restent chacun tels qu'ils ont été laissés
   // 3.25.0 : la période proposée commence demain (J+1), y compris après rafraîchissement
   if (!S.params.dateRef || S.params.dateRef <= aujourdhui()) { S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); LS.set('params', S.params); }
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);
@@ -3706,9 +3682,8 @@
       var j = p.communesJour[jourSemaineIndex(date)];
       if (j && j.length) return j;
     }
-    // 3.25.35 : Le filtre maître est dans Répertoire (S.ui.filtres.communes)
-    var fCom = (S.ui.filtres && Array.isArray(S.ui.filtres.communes) && S.ui.filtres.communes.length) ? S.ui.filtres.communes : p.communes;
-    return fCom && fCom.length ? fCom : null;
+    // 3.28.26 : les communes de Planifier (critères du dernier tirage), indépendantes des filtres du Répertoire
+    return p.communes && p.communes.length ? p.communes : null;
   }
   function dansCommunesDu(a, d) {
     var l = communesPour(d);
@@ -4652,8 +4627,8 @@
   // nouveau tirage, complément) tant que les critères de planification restent les mêmes ; un changement de critère les libère
   function signatureCriteres() {
     // 3.28.18 : tous les filtres comptent, ceux de Planifier comme ceux du Répertoire (communes, spécialités)
-    var p = S.params || {}, f = S.ui.filtres || {}, tri = function (l) { return (l || []).slice().sort(); };
-    return JSON.stringify([tri(p.communes), tri(f.communes), p.parJour ? p.communesJour || {} : {}, tri(p.specialites), tri(f.specialites), tri(p.potentiels), p.typeCibles || '', +p.delai || 0, +p.maxJour || 0, p.eviterCollegues !== false]);
+    var p = S.params || {}, tri = function (l) { return (l || []).slice().sort(); };
+    return JSON.stringify([tri(p.communes), p.parJour ? p.communesJour || {} : {}, tri(p.specialites), tri(p.potentiels), p.typeCibles || '', +p.delai || 0, +p.maxJour || 0, p.eviterCollegues !== false]);
   }
   function refusesActuels() {
     var r = LS.get('refuses', null), s = signatureCriteres();
@@ -11682,10 +11657,7 @@
     filtreSpecToggle: function (el) {
       var f = filtresCour(), v = el.dataset.v, l = f.specialites;
       var i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v);
-      if (l.length) {
-        sauverCoeurDeCible(l);
-        S.params.specialites = l.slice(); LS.set('params', S.params);
-      }
+      // 3.28.26 : filtre du Répertoire seulement : les spécialités de Planifier ne changent pas
       majFiltres(f); rendre();
     },
     filtreSpecToutes: function () { var f = filtresCour(); f.specialites = []; majFiltres(f); rendre(); },

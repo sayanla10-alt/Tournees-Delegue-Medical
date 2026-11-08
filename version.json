@@ -1,7 +1,7 @@
 {
-  "version": "3.28.25",
+  "version": "3.28.26",
   "date": "2026-11-08",
   "notes": [
-    "Filtres gardés d'une ouverture à l'autre"
+    "Critères de Planifier gardés jusqu'au reset"
   ]
 }

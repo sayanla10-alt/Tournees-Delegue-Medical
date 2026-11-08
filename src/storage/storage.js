@@ -288,32 +288,15 @@
   function filtresCour() { return S.ui[cleFiltres()]; }
   function rechercheCour() { return S.ui.tab === 'autour' ? S.ui.rechercheAutour : S.ui.recherche; }
   function majFiltres(f) {
-    if (f && Array.isArray(f.specialites) && f.specialites.length) sauverCoeurDeCible(f.specialites);
+    // 3.28.26 : le cœur de cible se règle dans Planifier, pas par un filtre du Répertoire
     S.ui[cleFiltres()] = f;
     LS.set(cleFiltres(), f);
     S.ui.limite = 40;
-    // 3.25.35 : Harmonisation totale avec le filtre maître (Recherche / Répertoire)
-    if (f) {
-      if (Array.isArray(f.communes)) {
-        S.params.communes = f.communes.slice();
-        LS.set('params', S.params);
-        if (S.ui.filtresAutour) {
-          S.ui.filtresAutour.communes = f.communes.slice();
-          LS.set('filtresAutour', S.ui.filtresAutour);
-        }
-      }
-      if (Array.isArray(f.specialites)) {
-        S.params.specialites = f.specialites.slice();
-        LS.set('params', S.params);
-        if (S.ui.filtresAutour) {
-          S.ui.filtresAutour.specialites = f.specialites.slice();
-          LS.set('filtresAutour', S.ui.filtresAutour);
-        }
-      }
-      if (Array.isArray(f.potentiels)) {
-        S.params.potentiels = f.potentiels.slice();
-        LS.set('params', S.params);
-      }
+    // 3.28.26 : les filtres du Répertoire ne touchent plus aux critères de Planifier (gardés jusqu'à leur réinitialisation)
+    if (f && S.ui.filtresAutour) {
+      if (Array.isArray(f.communes)) S.ui.filtresAutour.communes = f.communes.slice();
+      if (Array.isArray(f.specialites)) S.ui.filtresAutour.specialites = f.specialites.slice();
+      LS.set('filtresAutour', S.ui.filtresAutour);
     }
   }
   S.ui.stats = Object.assign({ periode: 'semaine', debut: '', fin: '', portee: 'moi', objectif: 40, vueSpec: 'base' }, LS.get('stats', {}));
@@ -337,18 +320,7 @@
   // v2.0.4 : par défaut, tournée sans pharmacies (réglage appliqué une fois aux téléphones existants)
   if (!S.params.defauts204) { S.params.typeCibles = 'medecins'; S.params.defauts204 = true; LS.set('params', S.params); }
   if (!Array.isArray(S.params.potentiels)) S.params.potentiels = [];
-  // 3.25.35 : Harmonisation immédiate de tous les filtres de l'application (le filtre maître est dans Répertoire / Recherche)
-  if (S.ui.filtres && Array.isArray(S.ui.filtres.communes) && S.ui.filtres.communes.length) {
-    S.params.communes = S.ui.filtres.communes.slice();
-    if (S.ui.filtresAutour) S.ui.filtresAutour.communes = S.ui.filtres.communes.slice();
-    LS.set('params', S.params);
-    LS.set('filtresAutour', S.ui.filtresAutour);
-  } else if (S.params && Array.isArray(S.params.communes) && S.params.communes.length) {
-    S.ui.filtres.communes = S.params.communes.slice();
-    if (S.ui.filtresAutour) S.ui.filtresAutour.communes = S.params.communes.slice();
-    LS.set('filtres', S.ui.filtres);
-    LS.set('filtresAutour', S.ui.filtresAutour);
-  }
+  // 3.28.26 : au démarrage, critères de Planifier et filtres du Répertoire restent chacun tels qu'ils ont été laissés
   // 3.25.0 : la période proposée commence demain (J+1), y compris après rafraîchissement
   if (!S.params.dateRef || S.params.dateRef <= aujourdhui()) { S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); LS.set('params', S.params); }
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);

@@ -125,9 +125,8 @@
       var j = p.communesJour[jourSemaineIndex(date)];
       if (j && j.length) return j;
     }
-    // 3.25.35 : Le filtre maître est dans Répertoire (S.ui.filtres.communes)
-    var fCom = (S.ui.filtres && Array.isArray(S.ui.filtres.communes) && S.ui.filtres.communes.length) ? S.ui.filtres.communes : p.communes;
-    return fCom && fCom.length ? fCom : null;
+    // 3.28.26 : les communes de Planifier (critères du dernier tirage), indépendantes des filtres du Répertoire
+    return p.communes && p.communes.length ? p.communes : null;
   }
   function dansCommunesDu(a, d) {
     var l = communesPour(d);

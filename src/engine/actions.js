@@ -944,10 +944,7 @@
     filtreSpecToggle: function (el) {
       var f = filtresCour(), v = el.dataset.v, l = f.specialites;
       var i = l.indexOf(v); if (i >= 0) l.splice(i, 1); else l.push(v);
-      if (l.length) {
-        sauverCoeurDeCible(l);
-        S.params.specialites = l.slice(); LS.set('params', S.params);
-      }
+      // 3.28.26 : filtre du Répertoire seulement : les spécialités de Planifier ne changent pas
       majFiltres(f); rendre();
     },
     filtreSpecToutes: function () { var f = filtresCour(); f.specialites = []; majFiltres(f); rendre(); },

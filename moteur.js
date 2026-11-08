@@ -245,6 +245,8 @@ var Moteur = (function () {
   // tant que cela ne crée aucun retard et ne finit pas la journée plus de 20 min plus tard
   function cleNorm(x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ''); }
   function cleLieu(it) { var a = it.a; return cleNorm(a.lieu) ? cleNorm(a.lieu) + '|' + cleNorm(a.commune) : 'u|' + (a.uid || a.code); }
+  // 3.28.26 : dans un même hôpital, les médecins d'une même spécialité se suivent
+  function cleLieuSpec(it) { return cleLieu(it) + '|' + cleNorm(it.a.specialite || it.a.type); }
   // 3.28.22 : quartier ramené à son nom principal : « Anador », « Abobo Anador » et « Anador Sogefiha » vont ensemble ;
   // le nom de la commune n'est retiré que s'il est un mot séparé (« Aboboté » reste « Aboboté »)
   function cleSecteur(quartier, commune) {
@@ -275,11 +277,11 @@ var Moteur = (function () {
       return ordre.reduce(function (l, k) { return l.concat(par[k]); }, []);
     }
     // 1. d'un coup, si possible
-    var r1 = grouperPar(route, cleLieu), r2 = grouperPar(r1, cleQuartier), r3 = grouperPar(r2, cleSecteurTournee);
+    var r0 = grouperPar(route, cleLieuSpec), r1 = grouperPar(r0, cleLieu), r2 = grouperPar(r1, cleQuartier), r3 = grouperPar(r2, cleSecteurTournee);
     if (acceptable(r3)) return r3;
-    var r = acceptable(r2) ? r2 : (acceptable(r1) ? r1 : route.slice());
+    var r = acceptable(r2) ? r2 : (acceptable(r1) ? r1 : (acceptable(r0) ? r0 : route.slice()));
     // 2. sinon, visite par visite : rapprochée de la dernière visite du même hôpital (puis du même quartier) si l'horaire le permet
-    [cleLieu, cleQuartier, cleSecteurTournee].forEach(function (cle) {
+    [cleLieuSpec, cleLieu, cleQuartier, cleSecteurTournee].forEach(function (cle) {
       for (var passe = 0; passe < 2; passe++) {
         for (var i = 1; i < r.length; i++) {
           var k = cle(r[i]);
