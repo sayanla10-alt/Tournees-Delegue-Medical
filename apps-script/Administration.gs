@@ -1,4 +1,4 @@
-﻿/* Administration.gs : menu du classeur, mise en forme, migrations, structure, base de test, import, saisie à la main, sauvegardes. (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
+/* Administration.gs : menu du classeur, mise en forme, migrations, structure, base de test, import, saisie à la main, sauvegardes. (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
 // ---------------------------------------------------------------- Menu
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('MediPlanner')
@@ -23,7 +23,10 @@ function onOpen() {
       .addItem('Ouvrir le dossier des sauvegardes', 'ouvrirDossierSauvegardes'))
     .addSeparator()
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Base Cloud Supabase')
-      .addItem('Cloner Google Sheets vers Supabase (Copie miroir)', 'exporterToutVersSupabase')
+      .addItem('⚡ Activer la synchro automatique (Sheets -> Supabase en temps réel)', 'installerSyncAutomatiqueSupabase')
+      .addItem('⏸️ Désactiver la synchro automatique', 'desactiverSyncAutomatiqueSupabase')
+      .addSeparator()
+      .addItem('Cloner Google Sheets vers Supabase (Copie miroir complète)', 'exporterToutVersSupabase')
       .addItem('Configurer les identifiants Supabase', 'dialogConfigSupabase'))
     .addSeparator()
     .addItem('Afficher le jeton d\'accès', 'afficherJeton')
@@ -667,10 +670,6 @@ function sauvegarderMaintenant() {
   try { SpreadsheetApp.getUi().alert('Sauvegarde faite dans le dossier Drive « ' + DOSSIER_SAUVEGARDES + ' ».'); } catch (e) {}
 }
 function ouvrirDossierSauvegardes() {
-    .addSeparator()
-    .addSubMenu(SpreadsheetApp.getUi().createMenu('Base Cloud Supabase')
-      .addItem('Cloner Google Sheets vers Supabase (Copie miroir)', 'exporterToutVersSupabase')
-      .addItem('Configurer les identifiants Supabase', 'dialogConfigSupabase'))
   var url = dossierSauvegardes().getUrl();
   SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput('<p style="font-family:sans-serif">Dossier des sauvegardes : <a href="' + url + '" target="_blank">ouvrir dans Drive</a></p>').setWidth(360).setHeight(90), 'Sauvegardes');
 }

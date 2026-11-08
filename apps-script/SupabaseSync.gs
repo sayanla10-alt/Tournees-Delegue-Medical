@@ -385,3 +385,315 @@ function exporterToutVersSupabase() {
     ui.alert('Erreur de synchronisation', err.message, ui.ButtonSet.OK);
   }
 }
+
+// =============================================================================
+// SYNCHRONISATION EN TEMPS RÉEL SUR SAISIE DANS LE GOOGLE SHEET (DÉCLENCHEUR INSTALLABLE)
+// =============================================================================
+
+/**
+ * Fonction appelée automatiquement à chaque modification saisie dans le classeur Google Sheets
+ * lorsqu'un déclencheur installable "onEdit" est actif.
+ */
+function syncOnEditInstallable(e) {
+  if (!e || !e.range) return;
+  var cfg = obtenirConfigSupabase_();
+  if (!cfg.actif || !cfg.url || !cfg.key) return;
+
+  try {
+    var sh = e.range.getSheet();
+    var nomFeuille = sh.getName();
+    var r0 = e.range.getRow();
+    var nb = e.range.getNumRows();
+    if (r0 < 2) {
+      if (r0 + nb - 1 < 2) return; // Seulement la ligne d'en-tête
+      nb = nb - (2 - r0);
+      r0 = 2;
+    }
+
+    // Petit délai pour laisser onEdit simple auto-compléter CodeContact ou IdPresence si nouvelle ligne
+    Utilities.sleep(150);
+
+    var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+    var data = sh.getRange(r0, 1, nb, sh.getLastColumn()).getValues();
+
+    if (nomFeuille === FEUILLES.praticiens) {
+      syncLignesPraticiensVersSupabase_(ent, data);
+    } else if (nomFeuille === FEUILLES.pharmacies) {
+      syncLignesPharmaciesVersSupabase_(ent, data);
+    } else if (nomFeuille === FEUILLES.presences) {
+      syncLignesPresencesVersSupabase_(ent, data);
+    } else if (nomFeuille === FEUILLES.etablissements) {
+      syncLignesEtablissementsVersSupabase_(ent, data);
+    } else if (nomFeuille === FEUILLES.hist) {
+      syncLignesHistoriqueVersSupabase_(ent, data);
+    } else if (nomFeuille === FEUILLES.plannings) {
+      syncLignesPlanningsVersSupabase_(ent, data);
+    } else if (nomFeuille === FEUILLES.rapports) {
+      syncLignesRapportsVersSupabase_(ent, data);
+    }
+  } catch (err) {
+    console.warn('Erreur syncOnEditInstallable:', err.message);
+  }
+}
+
+function syncLignesPraticiensVersSupabase_(ent, data) {
+  var pos = CHAMPS_PRATICIENS.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var lots = [];
+  data.forEach(function (r) {
+    var code = String(r[pos[0]] || '').trim();
+    var nom = String(r[pos[2]] || '').trim();
+    if (!code || !nom) return;
+    var dStr = r[pos[7]] instanceof Date ? Utilities.formatDate(r[pos[7]], 'GMT', 'yyyy-MM-dd') : (r[pos[7]] ? String(r[pos[7]]).slice(0, 10) : null);
+    lots.push({
+      code: code,
+      type: String(r[pos[1]] || 'Médecin').trim(),
+      nom: nom,
+      specialite: String(r[pos[3]] || 'Généraliste').trim(),
+      note: Math.max(1, Math.min(3, parseInt(r[pos[4]]) || 2)),
+      conventionne: estConventionne(r[pos[5]]),
+      telephone: String(r[pos[6]] || '').trim(),
+      derniere: dStr,
+      statut: String(r[pos[8]] || ''),
+      commentaire: String(r[pos[9]] || ''),
+      nb_visites: parseInt(r[pos[10]]) || 0,
+      actif: String(r[pos[11]]).toLowerCase() !== 'non',
+      updated_at: new Date().toISOString()
+    });
+  });
+  if (lots.length) appelSupabase_('praticiens', 'post', lots);
+}
+
+function syncLignesPharmaciesVersSupabase_(ent, data) {
+  var pos = CHAMPS_PHARMACIES.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var lots = [];
+  data.forEach(function (r) {
+    var code = String(r[pos[0]] || '').trim();
+    var nom = String(r[pos[1]] || '').trim();
+    if (!code || !nom) return;
+    var lat = parseFloat(r[pos[6]]), lon = parseFloat(r[pos[7]]);
+    var dStr = r[pos[13]] instanceof Date ? Utilities.formatDate(r[pos[13]], 'GMT', 'yyyy-MM-dd') : (r[pos[13]] ? String(r[pos[13]]).slice(0, 10) : null);
+    lots.push({
+      code: code,
+      nom: nom,
+      titulaire: String(r[pos[2]] || '').trim(),
+      quartier: String(r[pos[3]] || '').trim(),
+      commune: String(r[pos[4]] || 'Abidjan').trim(),
+      zone: String(r[pos[5]] || '').trim(),
+      lat: isFinite(lat) ? lat : null,
+      lon: isFinite(lon) ? lon : null,
+      telephone: String(r[pos[8]] || '').trim(),
+      horaire_matin: String(r[pos[9]] || '').trim(),
+      horaire_soir: String(r[pos[10]] || '').trim(),
+      note: Math.max(1, Math.min(3, parseInt(r[pos[11]]) || 2)),
+      conventionne: estConventionne(r[pos[12]]),
+      derniere: dStr,
+      statut: String(r[pos[14]] || ''),
+      commentaire: String(r[pos[15]] || ''),
+      nb_visites: parseInt(r[pos[16]]) || 0,
+      actif: String(r[pos[17]]).toLowerCase() !== 'non',
+      updated_at: new Date().toISOString()
+    });
+  });
+  if (lots.length) appelSupabase_('pharmacies', 'post', lots);
+}
+
+function syncLignesPresencesVersSupabase_(ent, data) {
+  var pos = CHAMPS_PRESENCES.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var lots = [];
+  data.forEach(function (r) {
+    var id = String(r[pos[0]] || '').trim();
+    var code = String(r[pos[1]] || '').trim();
+    var lieu = String(r[pos[3]] || '').trim();
+    if (!code || !lieu) return;
+    if (!id) id = code + '_' + normaliser(lieu);
+    var lat = parseFloat(r[pos[14]]), lon = parseFloat(r[pos[15]]);
+    lots.push({
+      id: id,
+      code: code,
+      nom: String(r[pos[2]] || '').trim(),
+      lieu: lieu,
+      quartier: String(r[pos[4]] || '').trim(),
+      commune: String(r[pos[5]] || 'Abidjan').trim(),
+      zone: String(r[pos[6]] || '').trim(),
+      lundi: String(r[pos[7]] || '').trim(),
+      mardi: String(r[pos[8]] || '').trim(),
+      mercredi: String(r[pos[9]] || '').trim(),
+      jeudi: String(r[pos[10]] || '').trim(),
+      vendredi: String(r[pos[11]] || '').trim(),
+      horaire_matin: String(r[pos[12]] || '').trim(),
+      horaire_soir: String(r[pos[13]] || '').trim(),
+      lat: isFinite(lat) ? lat : null,
+      lon: isFinite(lon) ? lon : null,
+      reperes: String(r[pos[16]] || '').trim(),
+      updated_at: new Date().toISOString()
+    });
+  });
+  if (lots.length) appelSupabase_('presences', 'post', lots);
+}
+
+function syncLignesEtablissementsVersSupabase_(ent, data) {
+  var pos = CHAMPS_ETABLISSEMENTS.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var lots = [];
+  data.forEach(function (r) {
+    var code = String(r[pos[0]] || '').trim();
+    var nom = String(r[pos[1]] || '').trim();
+    if (!code || !nom) return;
+    var lat = parseFloat(r[pos[6]]), lon = parseFloat(r[pos[7]]);
+    lots.push({
+      code: code,
+      nom: nom,
+      categorie: String(r[pos[2]] || '').trim(),
+      commune: String(r[pos[3]] || '').trim(),
+      quartier: String(r[pos[4]] || '').trim(),
+      zone: String(r[pos[5]] || '').trim(),
+      lat: isFinite(lat) ? lat : null,
+      lon: isFinite(lon) ? lon : null,
+      telephone: String(r[pos[8]] || '').trim(),
+      reperes: String(r[pos[9]] || '').trim()
+    });
+  });
+  if (lots.length) appelSupabase_('etablissements', 'post', lots);
+}
+
+function syncLignesHistoriqueVersSupabase_(ent, data) {
+  var pos = CHAMPS_HIST.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var lots = [];
+  data.forEach(function (r) {
+    var uid = String(r[pos[14]] || '').trim();
+    var code = String(r[pos[3]] || '').trim();
+    if (!uid || !code) return;
+    var dStr = r[pos[0]] instanceof Date ? Utilities.formatDate(r[pos[0]], 'GMT', 'yyyy-MM-dd') : (r[pos[0]] ? String(r[pos[0]]).slice(0, 10) : null);
+    var pStr = r[pos[17]] instanceof Date ? Utilities.formatDate(r[pos[17]], 'GMT', 'yyyy-MM-dd') : (r[pos[17]] ? String(r[pos[17]]).slice(0, 10) : null);
+    lots.push({
+      uid: uid,
+      date: dStr,
+      delegue: String(r[pos[15]] || 'Délégué').trim(),
+      code: code,
+      id_presence: r[pos[2]] ? String(r[pos[2]]) : null,
+      nom: String(r[pos[4]] || '').trim(),
+      type: String(r[pos[5]] || 'Médecin').trim(),
+      specialite: String(r[pos[6]] || '').trim(),
+      note: Math.max(1, Math.min(3, parseInt(r[pos[7]]) || 2)),
+      commune: String(r[pos[8]] || '').trim(),
+      quartier: String(r[pos[9]] || '').trim(),
+      lieu: String(r[pos[10]] || '').trim(),
+      creneau: String(r[pos[11]] || '').trim(),
+      statut: String(r[pos[12]] || 'Visite faite').trim(),
+      type_echange: String(r[pos[18]] || '').trim(),
+      produits_presentes: r[pos[16]] ? String(r[pos[16]]) : null,
+      echantillons: r[pos[21]] ? String(r[pos[21]]) : null,
+      prochaine_visite: pStr,
+      commentaire: String(r[pos[13]] || '').trim()
+    });
+  });
+  if (lots.length) appelSupabase_('visites', 'post', lots);
+}
+
+function syncLignesPlanningsVersSupabase_(ent, data) {
+  var pos = CHAMPS_PLAN.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var lots = [];
+  data.forEach(function (r) {
+    var code = String(r[pos[7]] || '').trim();
+    var dateStr = r[pos[1]] instanceof Date ? Utilities.formatDate(r[pos[1]], 'GMT', 'yyyy-MM-dd') : (r[pos[1]] ? String(r[pos[1]]).slice(0, 10) : null);
+    if (!code || !dateStr) return;
+    lots.push({
+      delegue: String(r[pos[0]] || 'Délégué').trim(),
+      date: dateStr,
+      heure: String(r[pos[2]] || '').trim(),
+      creneau: String(r[pos[3]] || '').trim(),
+      debut: parseInt(r[pos[4]]) || null,
+      fin: parseInt(r[pos[5]]) || null,
+      id_presence: r[pos[6]] ? String(r[pos[6]]) : null,
+      code: code,
+      nom: String(r[pos[8]] || '').trim(),
+      specialite: String(r[pos[9]] || '').trim(),
+      note: Math.max(1, Math.min(3, parseInt(r[pos[10]]) || 2)),
+      quartier: String(r[pos[11]] || '').trim(),
+      commune: String(r[pos[12]] || '').trim(),
+      lieu: String(r[pos[13]] || '').trim(),
+      statut: String(r[pos[14]] || 'À faire').trim(),
+      etat: String(r[pos[15]] || 'planifie').trim(),
+      programme: String(r[pos[16]] || 'Proposition').trim()
+    });
+  });
+  if (lots.length) appelSupabase_('plannings', 'post', lots);
+}
+
+function syncLignesRapportsVersSupabase_(ent, data) {
+  var pos = CHAMPS_RAPPORTS.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var lots = [];
+  data.forEach(function (r) {
+    var del = String(r[pos[0]] || '').trim();
+    var dateStr = r[pos[1]] instanceof Date ? Utilities.formatDate(r[pos[1]], 'GMT', 'yyyy-MM-dd') : (r[pos[1]] ? String(r[pos[1]]).slice(0, 10) : null);
+    if (!del || !dateStr) return;
+    lots.push({
+      delegue: del,
+      date: dateStr,
+      prevues: parseInt(r[pos[3]]) || 0,
+      faites: parseInt(r[pos[4]]) || 0,
+      non_faites: parseInt(r[pos[5]]) || 0,
+      sans_cr: parseInt(r[pos[6]]) || 0,
+      synthese: String(r[pos[7]] || '').trim(),
+      faits: String(r[pos[8]] || '').trim(),
+      concurrence: String(r[pos[9]] || '').trim(),
+      besoins: String(r[pos[10]] || '').trim(),
+      km: parseFloat(r[pos[11]]) || 0
+    });
+  });
+  if (lots.length) appelSupabase_('rapports', 'post', lots);
+}
+
+// =============================================================================
+// GESTION DU DÉCLENCHEUR INSTALLABLE (MENU DU CLASSEUR)
+// =============================================================================
+
+function installerSyncAutomatiqueSupabase() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = SpreadsheetApp.getActive();
+  var cfg = obtenirConfigSupabase_();
+
+  if (!cfg.url || !cfg.key) {
+    dialogConfigSupabase();
+    cfg = obtenirConfigSupabase_();
+    if (!cfg.url || !cfg.key) return;
+  }
+
+  // Nettoyer les anciens triggers syncOnEditInstallable pour éviter les doublons
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'syncOnEditInstallable') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  // Créer le déclencheur installable relié aux modifications du classeur
+  ScriptApp.newTrigger('syncOnEditInstallable')
+    .forSpreadsheet(ss)
+    .onEdit()
+    .create();
+
+  ui.alert('Synchronisation Activée ! ⚡',
+    'La synchronisation automatique en temps réel est activée avec succès !\n\n' +
+    'Désormais, toute modification saisie directement dans Google Sheets\n' +
+    '(Praticiens, Présences, Pharmacies, Établissements, etc.)\n' +
+    'sera immédiatement répercutée dans votre base Supabase.',
+    ui.ButtonSet.OK);
+}
+
+function desactiverSyncAutomatiqueSupabase() {
+  var ui = SpreadsheetApp.getUi();
+  var triggers = ScriptApp.getProjectTriggers();
+  var suppr = 0;
+
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'syncOnEditInstallable') {
+      ScriptApp.deleteTrigger(triggers[i]);
+      suppr++;
+    }
+  }
+
+  ui.alert('Synchronisation Désactivée',
+    suppr > 0 ? 'La synchronisation automatique Google Sheets -> Supabase a été désactivée.'
+              : 'Aucun déclencheur automatique n\'était actif.',
+    ui.ButtonSet.OK);
+}
