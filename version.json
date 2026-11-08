@@ -1,7 +1,7 @@
 {
-  "version": "3.28.17",
+  "version": "3.28.18",
   "date": "2026-11-08",
   "notes": [
-    "Planifier : seuls les médecins des communes choisies apparaissent"
+    "Planifier : punaise, croix et visites hors zone"
   ]
 }

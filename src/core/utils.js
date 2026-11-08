@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.17';
+  var APP_VERSION = '3.28.18';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.18', [
+      'Planifier : une visite dont vous décochez la punaise peut revenir dans les tirages suivants ; une visite retirée avec la croix ne revient plus tant que les critères et les filtres restent les mêmes (tout changement de filtre la libère)',
+      'Planifier : avant de recalculer, l\'application vous prévient des visites déjà prévues hors des communes choisies et vous demande si vous voulez les garder'
+    ]],
     ['3.28.17', [
       'Planifier : seuls les médecins des communes choisies pour le jour sont proposés, même ceux qui exercent aussi ailleurs ; une visite d\'une autre commune n\'est gardée que si elle est faite, renseignée ou ajoutée à la main (RDV, prioritaire)'
     ]],

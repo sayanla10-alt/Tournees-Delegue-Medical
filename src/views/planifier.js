@@ -248,8 +248,9 @@
   // 3.26.94 : praticiens retirés à la main d'une liste proposée : ils ne reviennent plus dans les propositions (recalcul,
   // nouveau tirage, complément) tant que les critères de planification restent les mêmes ; un changement de critère les libère
   function signatureCriteres() {
-    var p = S.params || {};
-    return JSON.stringify([p.communes || [], p.parJour ? p.communesJour || {} : {}, (p.specialites || []).slice().sort(), (p.potentiels || []).slice().sort(), p.typeCibles || '', +p.delai || 0, +p.maxJour || 0, p.eviterCollegues !== false]);
+    // 3.28.18 : tous les filtres comptent, ceux de Planifier comme ceux du Répertoire (communes, spécialités)
+    var p = S.params || {}, f = S.ui.filtres || {}, tri = function (l) { return (l || []).slice().sort(); };
+    return JSON.stringify([tri(p.communes), tri(f.communes), p.parJour ? p.communesJour || {} : {}, tri(p.specialites), tri(f.specialites), tri(p.potentiels), p.typeCibles || '', +p.delai || 0, +p.maxJour || 0, p.eviterCollegues !== false]);
   }
   function refusesActuels() {
     var r = LS.get('refuses', null), s = signatureCriteres();

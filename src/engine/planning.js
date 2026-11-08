@@ -55,7 +55,8 @@
     return Promise.race([rafraichirEquipe(), new Promise(function (r) { setTimeout(r, 8000); })]);
   }
 
-  function lancerTirage(portee, force) {
+  // horsZone : réponse à la question sur les visites déjà prévues hors des communes choisies ('garder' | 'retirer')
+  function lancerTirage(portee, force, horsZone) {
     var p = S.params;
     if (p.mode === 'jour' && jourSemaineIndex(p.dateRef) > 4) { toast('Choisissez un jour de semaine.'); return; }
     if (p.mode === 'jour' && estFerie(p.dateRef)) { toast('Ce jour est férié. Choisissez un autre jour.'); return; }
@@ -67,9 +68,23 @@
         'Continuer', function () { lancerTirage(portee, true); });
       return;
     }
-    avantTirage().then(function () {
+    (horsZone ? Promise.resolve() : avantTirage()).then(function () {
       var periode = datesPeriode();
       var cible = portee === 'jour' ? [S.ui.jour] : periode;
+      // 3.28.18 : visites déjà prévues hors des communes choisies pour leur jour : on demande avant de les garder
+      if (!horsZone) {
+        var dejaPrevues = portee === 'nouveau'
+          ? cible.reduce(function (l, d) { return l.concat(donneesJour(d)); }, [])
+          : S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && (a.etat === 'valide' || a.corrige || a.garde); });
+        var hors = dejaPrevues.filter(function (a) { return !(a.etat === 'valide' || a.corrige || a.statut) && !dansCommunesDu(a, a.date); });
+        if (hors.length) {
+          var noms = hors.slice(0, 6).map(function (a) { return a.nom + ' (' + (a.commune || a.lieu || '?') + ', ' + dateCourte(a.date) + ')'; }).join(', ') + (hors.length > 6 ? ' et ' + (hors.length - 6) + ' autre' + (hors.length > 7 ? 's' : '') : '');
+          confirmerPuis('Visites hors des communes choisies',
+            hors.length + ' visite' + (hors.length > 1 ? 's' : '') + ' déjà prévue' + (hors.length > 1 ? 's sont' : ' est') + ' hors des communes choisies : ' + noms + '. Les garder quand même dans la tournée ?',
+            'Les garder', function () { lancerTirage(portee, true, 'garder'); }, function () { lancerTirage(portee, true, 'retirer'); });
+          return;
+        }
+      }
       if (portee === 'jour') {
         var dTir = S.ui.jour;
         if (!S.ui.avantTirage || S.ui.avantTirage.date !== dTir || S.ui.aAccepter !== dTir) {
@@ -83,8 +98,9 @@
       } else {
         S.ui.avantTirage = null;
       }
-      if (portee === 'nouveau') S.rejetes = {};
-      // Médecins écartés au nouveau tirage : ceux qui étaient proposés et non conservés
+      // 3.28.18 : punaise décochée = simple proposition : écartée du tirage qui suit seulement (pour varier la liste),
+      // elle peut revenir ensuite. La croix (refuser) l'écarte tant que les critères et filtres restent les mêmes.
+      S.rejetes = {};
       if (portee === 'jour' || portee === 'semaine') {
         S.plan.forEach(function (a) {
           if (cible.indexOf(a.date) >= 0 && !a.garde && !a.impose && a.etat !== 'valide' && !a.corrige) S.rejetes[a.code] = true;
@@ -98,8 +114,8 @@
         cible.forEach(function (d) { conserves = conserves.concat(donneesJour(d)); });
         conserves.forEach(function (a) { heuresGardees[a.uid] = a.heure; });
       }
-      // 3.28.17 : une visite hors des communes choisies pour son jour n'est gardée que si elle est faite, renseignée ou imposée (RDV, prioritaire)
-      conserves = conserves.filter(function (a) { return a.etat === 'valide' || a.corrige || a.statut || a.impose || dansCommunesDu(a, a.date); });
+      // 3.28.18 : une visite hors des communes choisies pour son jour : gardée si elle est faite ou renseignée, sinon selon votre réponse
+      if (horsZone === 'retirer') conserves = conserves.filter(function (a) { return a.etat === 'valide' || a.corrige || a.statut || dansCommunesDu(a, a.date); });
       // agenda : les autres jours restent ; un praticien déjà prévu à quelques jours d'écart n'est pas repris
       var horsCible = S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
@@ -312,6 +328,8 @@
     }
     var a = Moteur.arretDepuisCreneau(c, date);
     a.etat = 'ajoute'; a.garde = true;
+    // 3.28.18 : ajouté à la main : la croix d'avant est levée
+    var rf = refusesActuels(); if (rf.codes[c.code]) { delete rf.codes[c.code]; LS.set('refuses', rf); }
     S.plan.push(a);
     reordonner(date);
     if (S.ui.tab === 'semaine') mettreBrouillon([date]);
