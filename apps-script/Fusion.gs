@@ -456,8 +456,9 @@ var FUS_MOTS_VIDES = { pharmacie: 1, pharma: 1, officine: 1, depot: 1, pharmaceu
   les: 1, des: 1, del: 1, dela: 1, aux: 1, sur: 1, abidjan: 1, cote: 1, ivoire: 1, groupe: 1, espace: 1, the: 1, and: 1 };
 function fusMots_(s, vides) {
   var t = sansAccents(String(s || '').replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/æ/g, 'ae')).toLowerCase().replace(/[^a-z0-9]+/g, ' ');
-  var vus = {};
-  return t.split(' ').filter(function (w) { if (w.length < 3 || vides[w] || FUS_MOTS_VIDES[w] || vus[w]) return false; vus[w] = 1; return true; });
+  var vus = {}, nombres = { un: '1', une: '1', deux: '2', trois: '3', quatre: '4', cinq: '5', six: '6', sept: '7', huit: '8', neuf: '9', dix: '10' };
+  return t.split(' ').map(function (w) { w = nombres[w] || w; return /^\d+(e|eme|ieme|er|ere)?$/.test(w) ? w.replace(/\D+$/, '') : w; })
+    .filter(function (w) { if ((w.length < 3 && !/^\d+$/.test(w)) || vides[w] || FUS_MOTS_VIDES[w] || vus[w]) return false; vus[w] = 1; return true; });
 }
 // Ressemblance de deux noms : '' (aucune), ou la raison
 function fusRessemblance_(na, nb, d, vides, rayonInclus, rayonProche) {
@@ -549,7 +550,7 @@ function detecterDoublons() {
         var a = L[i], b = L[j];
         if (R.distincts[a.code + '|' + b.code]) continue;
         var d = fusDist_(a, b), raison = fusRessemblance_(a.nom, b.nom, d, vides, 500, 200);
-        if (!raison && a.tels.some(function (t) { return freq[t] === 2 && b.tels.indexOf(t) >= 0; }) && (d === null || d <= 1500)) raison = 'Même téléphone' + (d !== null ? ' (' + d + ' m)' : '');
+        if (!raison && a.tels.some(function (t) { return freq[t] === 2 && b.tels.indexOf(t) >= 0; }) && d !== null && d <= 150) raison = 'Même téléphone' + (d !== null ? ' (' + d + ' m)' : '');
         if (raison) paires.push(['Pharmacie', a, b, d, raison]);
       }
     });
