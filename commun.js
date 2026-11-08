@@ -1405,10 +1405,10 @@ var ZONES_GRANDES_COMMUNES = {
     { nom: 'Yopougon – Sud & Gesco', lib: 'Yopougon – Sud & Gesco (Port-Bouët 2, Kouté, Zone Industrielle, Sable)', mots: ['port-bouet 2', 'port bouet 2', 'koute', 'gesco', 'industrielle', 'sable', 'millionnaire', 'nouveau quartier', 'acadie'] }
   ],
   'Abobo': [
-    { nom: 'Abobo – Nord & PK18', lib: 'Abobo – Nord & PK18 (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville, Biabou)', mots: ['pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi', 'agneby'] },
-    { nom: 'Abobo – Centre & Mairie', lib: 'Abobo – Centre & Mairie (Samaké, Gare, Derrière rails, Mairie, Habitat)', mots: ['samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha', 'rail', 'rails', 'derriere rail', 'derriere rails'] },
+    { nom: 'Abobo – Nord & PK18', lib: 'Abobo – Nord & PK18 (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville, Biabou)', mots: ['nord', 'abobo nord', 'pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi', 'agneby'] },
+    { nom: 'Abobo – Centre & Mairie', lib: 'Abobo – Centre & Mairie (Samaké, Gare, Derrière rails, Mairie, Habitat)', mots: ['centre', 'abobo centre', 'samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha', 'rail', 'rails', 'derriere rail', 'derriere rails'] },
     { nom: 'Abobo – Baoulé & Avocatier', lib: 'Abobo – Baoulé & Avocatier (Abobo Baoulé, Avocatier, Clouetcha, Dépôt SOTRA, Abobo-Té)', mots: ['baoule', 'avocatier', 'clouetcha', 'sotra', 'abobo te', 'abobote'] },
-    { nom: 'Abobo – Sud & Plaque', lib: 'Abobo – Sud & Plaque (Sagbé, Plaque 1 & 2, Anador, Houphouët-Boigny, Dokui)', mots: ['sagbe', 'plaque', 'anador', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
+    { nom: 'Abobo – Sud & Plaque', lib: 'Abobo – Sud & Plaque (Sagbé, Plaque 1 & 2, Anador, Houphouët-Boigny, Dokui)', mots: ['sud', 'abobo sud', 'sagbe', 'plaque', 'anador', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
   ]
 };
 

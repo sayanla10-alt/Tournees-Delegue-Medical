@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.23';
+  var APP_VERSION = '3.28.24';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.24', [
+      'Abobo : les quartiers « Abobo Nord », « Abobo Sud » et « Abobo Centre » sont rangés dans leur secteur (Nord & PK18, Sud & Plaque, Centre & Mairie)'
+    ]],
     ['3.28.23', [
       'Planifier : un titre par secteur (« Abobo – Nord & PK18 », « Abobo – Sud & Plaque »… ou la commune) avec tous les médecins proposés dans ce secteur ; les médecins d\'un même hôpital se suivent',
       'Les quartiers gardent leur nom tel qu\'il est écrit (« Abobo-Té 2 »)',
