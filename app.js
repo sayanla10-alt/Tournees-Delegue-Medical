@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.7';
+  var APP_VERSION = '3.28.8';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.8', [
+      'Ergonomie de défilement au pouce : le bouton principal de validation (Continuer, Valider, Enregistrer) est toujours calé directement à hauteur naturelle de pouce (~70% de l\'écran)',
+      'Centrage des choix : s\'il y a des options ou cases à cocher, elles sont parfaitement centrées à l\'écran au-dessus du bouton de validation',
+      'Fin du forçage de l\'en-tête : suppression du calage systématique en haut de l\'écran pour une navigation plus fluide et naturelle'
+    ]],
     ['3.28.6', [
       'Mises a jour : fin des notifications intempestives et activation fluide du nouveau Service Worker sans re-notification en boucle',
       'Planning : suppression de journee par appui long epure avec vibration et confirmation immediate (suppression de l\'animation circulaire HUD)',
@@ -9836,13 +9841,26 @@
 
   function horodatageCourt() { var d = new Date(); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
   // Programme validé puis modifié : il reste validé pour l'équipe, avec la date de modification
-  // 3.27.9 : défilement sous le pouce : les prochaines options sont placées là où l'écran a été touché en dernier
+  // 3.28.8 : Défilement automatique ergonomique :
+  // - Plus d'exception d'en-tête en haut : le titre n'est plus forcé en haut de l'écran.
+  // - Le principal bouton de validation (Continuer, Valider, Enregistrer) est TOUJOURS calé à hauteur de pouce (~70% de l'écran).
+  // - S'il y a des options / cases à cocher, elles sont centrées au milieu de l'écran (ou au-dessus du bouton de validation).
   function centrerCarte(uid, pouceY) { centrerQuestion(uid, pouceY); }
   function centrerElement(c, forceQuestion, pouceY) {
     if (!c) return;
-    var card = (c.closest && c.closest('.arret.ouvert')) || (document.querySelector && document.querySelector('.arret.ouvert')) || null;
-    var cibleEl = (forceQuestion !== false && c.querySelector) ? (c.querySelector('.cr-question') || c.querySelector('.actions-cr') || c.querySelector('.rangee-actions-cr-valide') || c) : c;
+    var card = (c.closest && c.closest('.arret.ouvert')) ||
+               (document.querySelector && document.querySelector('.arret.ouvert')) ||
+               (document.querySelector && document.querySelector('.rapport-jour')) ||
+               null;
+    var cibleEl = (forceQuestion !== false && c.querySelector) ? (
+      c.querySelector('.cr-question') ||
+      c.querySelector('.actions-cr') ||
+      c.querySelector('.rangee-actions-cr-valide') ||
+      c.querySelector('.cr-express-bloc') ||
+      c
+    ) : c;
     if (!cibleEl) cibleEl = c;
+
     requestAnimationFrame(function () {
       setTimeout(function () {
         var ent = (document.querySelector('.entete') || { offsetHeight: 0 }).offsetHeight;
@@ -9850,43 +9868,70 @@
         var dispo = window.innerHeight - ent - nav;
         if (dispo <= 0) return;
 
-        // 1. Identification de l'intitulé / titre pour garantir sa visibilité permanente
-        var titreEl = (card && card.querySelector('.etape-titre')) ||
-                      (cibleEl.querySelector && cibleEl.querySelector('.etape-titre')) ||
-                      (card && card.querySelector('.arret-carte .arret-nom')) ||
-                      (card && card.querySelector('.tete-cr')) ||
-                      cibleEl;
-        var rTitre = titreEl.getBoundingClientRect();
+        // 1. Détection du bouton principal de validation (Continuer, Valider, Enregistrer)
+        var btnValider = (card && card.querySelector(
+          'button[data-a="validerUn"], button[data-a="crOk"], button[data-a="rapValider"], button[data-a="crValider"], button[data-a="crRemplacer"], .actions-cr .bouton-plein, .rangee-actions-cr-valide .bouton-plein, .actions-cr button:not([disabled])'
+        )) || (cibleEl && cibleEl.querySelector && cibleEl.querySelector(
+          'button[data-a="validerUn"], button[data-a="crOk"], button[data-a="rapValider"], button[data-a="crValider"], button[data-a="crRemplacer"], .actions-cr .bouton-plein, .rangee-actions-cr-valide .bouton-plein, .actions-cr button:not([disabled])'
+        ));
 
-        // 2. Identification des options / boutons à amener sous le pouce
-        var optionsEl = (cibleEl.querySelector && (
-          cibleEl.querySelector('.cr-boutons') ||
-          cibleEl.querySelector('.puces') ||
-          cibleEl.querySelector('.actions-cr') ||
-          cibleEl.querySelector('.rangee-actions-cr-valide') ||
-          cibleEl.querySelector('.tuiles-choix') ||
-          cibleEl.querySelector('.rangee-actions') ||
-          cibleEl.querySelector('.bouton-plein')
-        )) || cibleEl;
-        var rOpt = optionsEl.getBoundingClientRect();
-
-        // 3. Hauteur du pouce cible (mémorisée lors du clic)
-        var yPouce = (typeof pouceY === 'number' && pouceY > 0) ? pouceY : S.ui.dernierClicY;
-        if (!yPouce || yPouce < ent + 20 || yPouce > window.innerHeight - nav - 20) {
-          yPouce = ent + Math.max(30, dispo * 0.55);
+        // Recherche par libellé si nécessaire
+        if (!btnValider && card) {
+          var btns = card.querySelectorAll('button:not([disabled])');
+          for (var ib = 0; ib < btns.length; ib++) {
+            var txt = (btns[ib].textContent || '').trim().toLowerCase();
+            if (/^(continuer|valider|enregistrer|terminer|suivant)/i.test(txt)) {
+              btnValider = btns[ib];
+              break;
+            }
+          }
         }
 
-        // 4. Calcul du déplacement souhaité pour aligner les options sous le pouce
-        var cibleOptY = yPouce - Math.min(25, rOpt.height * 0.45);
-        var delta = rOpt.top - cibleOptY;
+        // 2. Détection des éléments à cocher / options (puces, boutons choix, tuiles)
+        var optionsEl = (card && card.querySelector('.cr-boutons, .puces, .tuiles-choix, .segment, .grille-choix, .cases-a-cocher, .selecteur-cr')) ||
+                        (cibleEl && cibleEl.querySelector && cibleEl.querySelector('.cr-boutons, .puces, .tuiles-choix, .segment, .grille-choix, .cases-a-cocher, .selecteur-cr')) ||
+                        null;
 
-        // 5. 3.27.9 : plus d'exception pour l'intitulé : les options vont toujours sous le dernier point touché
+        // 3. Hauteur de pouce ergonomique fixe (~70% de la hauteur visible entre entête et barre de navigation)
+        var yPouce = ent + Math.round(dispo * 0.70);
 
-        // 6. GARDE-FOU BAS : Ne pas pousser les options sous la barre de navigation basse
-        var maxOptBottom = window.innerHeight - nav - 8;
-        var minDelta = rOpt.bottom - maxOptBottom;
-        if (delta < minDelta) {
-          delta = minDelta;
+        var delta = 0;
+
+        if (btnValider) {
+          // RÈGLE : Le bouton principal de validation TOUJOURS à hauteur de pouce
+          var rBtn = btnValider.getBoundingClientRect();
+          var cibleBtnY = yPouce - Math.round(rBtn.height * 0.5);
+          delta = rBtn.top - cibleBtnY;
+
+          // Si options / cases à cocher au-dessus, s'assurer que leur haut reste lisible (garde-fou haut)
+          if (optionsEl) {
+            var rOpt = optionsEl.getBoundingClientRect();
+            if (rOpt.top - delta < ent + 12) {
+              delta = rOpt.top - (ent + 12);
+            }
+          }
+        } else if (optionsEl) {
+          // RÈGLE : S'il y a des choses à cocher (sans bouton de validation séparé), tout centrer au milieu de l'écran
+          var rOpt = optionsEl.getBoundingClientRect();
+          var yCentre = ent + Math.round(dispo * 0.50);
+          var cibleOptY = yCentre - Math.round(rOpt.height * 0.5);
+          delta = rOpt.top - cibleOptY;
+        } else {
+          // Par défaut : centrer l'élément actif au milieu de la hauteur visible
+          var rCible = cibleEl.getBoundingClientRect();
+          var yCentre = ent + Math.round(dispo * 0.50);
+          delta = rCible.top - (yCentre - Math.round(rCible.height * 0.5));
+        }
+
+        // 4. Garde-fou bas : Ne jamais masquer le bas sous la barre de navigation
+        var elConteneur = btnValider || optionsEl || cibleEl;
+        if (elConteneur && elConteneur.getBoundingClientRect) {
+          var rBas = elConteneur.getBoundingClientRect();
+          var maxBas = window.innerHeight - nav - 8;
+          var minDelta = rBas.bottom - maxBas;
+          if (delta < minDelta) {
+            delta = minDelta;
+          }
         }
 
         var cibleScrollY = Math.max(0, Math.round(window.scrollY + delta));

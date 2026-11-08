@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.7';
+  var APP_VERSION = '3.28.8';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.8', [
+      'Ergonomie de défilement au pouce : le bouton principal de validation (Continuer, Valider, Enregistrer) est toujours calé directement à hauteur naturelle de pouce (~70% de l\'écran)',
+      'Centrage des choix : s\'il y a des options ou cases à cocher, elles sont parfaitement centrées à l\'écran au-dessus du bouton de validation',
+      'Fin du forçage de l\'en-tête : suppression du calage systématique en haut de l\'écran pour une navigation plus fluide et naturelle'
+    ]],
     ['3.28.6', [
       'Mises a jour : fin des notifications intempestives et activation fluide du nouveau Service Worker sans re-notification en boucle',
       'Planning : suppression de journee par appui long epure avec vibration et confirmation immediate (suppression de l\'animation circulaire HUD)',
