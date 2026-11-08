@@ -335,11 +335,17 @@
           date: r.date ? String(r.date).slice(0, 10) : '',
           delegue: r.delegue || '',
           valideLe: r.valide_le || r.created_at || '',
-          prevues: +r.prevues || 0, faites: +r.faites || 0, nonFaites: +r.non_faites || 0, sansCr: +r.sans_cr || 0,
+          prevues: +r.prevues || 0, faites: +r.faites || 0, nonFaites: r.non_faites || '', sansCr: +r.sans_cr || 0,
           synthese: r.synthese || '', faits: r.faits || '', concurrence: r.concurrence || '', besoins: r.besoins || '',
           km: +r.km || 0, maj: r.maj || ''
         };
       });
+
+      // comme la lecture du Sheet : fiches et produits inactifs écartés
+      var inactifs = {};
+      fiches.forEach(function (f) { if (!f.actif) inactifs[normaliser(f.produit)] = true; });
+      fiches = fiches.filter(function (f) { return f.produit && f.actif; });
+      produits = produits.filter(function (p) { return !inactifs[normaliser(p)]; });
 
       var sig = 'SB-' + praticiens.length + '-' + presences.length + '-' + fiches.length + '-' + Date.now();
 

@@ -1,7 +1,7 @@
 -- =============================================================================
 -- jumelage_bidirectionnel.sql (3.28.12) : Supabase principale, Google Sheets en appoint
 -- Toute modification faite directement dans Supabase (Table Editor, SQL, autre outil) est marquée
--- maj_source = 'supabase' et reportée dans le Sheet par le serveur (Jumelage.gs).
+-- maj_source = 'supabase' (Table Editor, éditeur SQL) et reportée dans le Sheet par le serveur (Jumelage.gs).
 -- Le serveur écrit avec l'en-tête x-mediplanner: sheets, ses écritures ne sont donc pas renvoyées.
 -- =============================================================================
 
@@ -21,7 +21,8 @@ DECLARE h text;
 BEGIN
   h := current_setting('request.headers', true);
   IF h IS NULL OR h = '' THEN RETURN 'supabase'; END IF;
-  RETURN coalesce(h::json->>'x-mediplanner', 'supabase');
+  -- appel d'API sans l'en-tête du serveur (ancienne version de l'appli) : 'api', écrasé par le Sheet
+  RETURN coalesce(h::json->>'x-mediplanner', 'api');
 END $$;
 
 CREATE OR REPLACE FUNCTION public.jumelage_marquer() RETURNS trigger LANGUAGE plpgsql AS $$

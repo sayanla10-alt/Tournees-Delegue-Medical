@@ -178,7 +178,7 @@
         S.ui.conflits = r.conflits || [];
       });
     }).then(function () {
-      var source = (S.config && S.config.bddSource) || 'sheets';
+      var source = (S.config && S.config.bddSource) || 'supabase';
       if (source === 'sheets') {
         return chargerDepuisSheets_(force).catch(function (errSheets) {
           if (typeof chargerToutSupabase === 'function' && !force) {

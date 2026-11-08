@@ -26,19 +26,19 @@
         return '<button type="button" data-a="theme" data-v="' + x[0] + '" aria-pressed="' + (th === x[0]) + '">' + x[1] + '</button>';
       }).join('') + '</div><p class="discret" style="margin:8px 0 0">Auto suit le réglage du téléphone.</p></section>';
 
-    // Base de données : Google Sheets par défaut, Supabase en miroir temps réel
-    var bddSrc = (S.config && S.config.bddSource) || 'sheets';
+    // 3.28.12 : Supabase base principale, Google Sheets en appoint, synchronisés dans les deux sens
+    var bddSrc = (S.config && S.config.bddSource) || 'supabase';
     h += '<section class="bloc"><h3 style="margin-top:0">Base de données</h3>' +
-      '<p class="discret" style="margin:0 0 10px">Google Sheets est la base principale par défaut. Vos visites, fiches et plannings sont également répliqués en continu vers Supabase (double écriture temps réel).</p>' +
+      '<p class="discret" style="margin:0 0 10px">Supabase est la base principale. Chaque enregistrement est écrit dans Supabase et dans Google Sheets à la même seconde ; une modification faite directement dans l\'une des deux bases est reportée dans l\'autre en 5 minutes au plus.</p>' +
       '<div class="segment" role="group" aria-label="Base de données" style="margin:0 0 10px">' +
-      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets (Défaut)</button>' +
-      '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Rapide)</button>' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets (appoint)</button>' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Défaut)</button>' +
       '</div>' +
       '<div style="font-size:12.5px;color:var(--texte-discret);margin-bottom:10px">' +
       (bddSrc === 'sheets' ?
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> Base de données principale.' :
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> Chargement ultra-rapide (~300 ms).') +
-      '<br><span style="display:inline-block;margin-top:4px">Bases jumelles : tout ce qui est enregistré dans Google Sheets (application, saisie à la main, corrections) est recopié dans Supabase toutes les 5 minutes.</span></div>' +
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> lecture de secours (la base est identique).' :
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> base principale, chargement rapide.') +
+      '</div>' +
       etatJumelageHtml() +
       '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Vérifier la synchronisation</button></section>';
 

@@ -197,10 +197,11 @@
   var ancienPlan = plan.length && !plan[0].cle;   // tournée d'une version précédente (ancienne base)
   if (ancienPlan) plan = [];
 
-  var cfgInit = LS.get('config', { url: '', token: '', demo: false, delegue: '', whatsapp: '', waWeb: false, depart: '', bddSource: 'sheets' });
-  if (cfgInit.bddSourceReset3285 !== true) {
-    cfgInit.bddSource = 'sheets';
-    cfgInit.bddSourceReset3285 = true;
+  var cfgInit = LS.get('config', { url: '', token: '', demo: false, delegue: '', whatsapp: '', waWeb: false, depart: '', bddSource: 'supabase' });
+  // 3.28.12 : Supabase devient la base principale de lecture sur tous les téléphones (Sheets en appoint, synchronisé)
+  if (cfgInit.bddSourceReset32812 !== true) {
+    cfgInit.bddSource = 'supabase';
+    cfgInit.bddSourceReset32812 = true;
     LS.set('config', cfgInit);
   }
 

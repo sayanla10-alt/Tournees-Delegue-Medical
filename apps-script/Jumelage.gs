@@ -76,12 +76,12 @@ function jumFeuille_(nom) {
     }
   };
 }
-function jumTxt_(v) { if (v === null || v === undefined) return ''; if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd'); return String(v).trim(); }
+function jumTxt_(v) { if (v === null || v === undefined) return ''; if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd'); return String(v); }   // texte tel quel, comme la lecture du Sheet
 function jumNum_(v) { var n = parseFloat(String(v === null || v === undefined ? '' : v).replace(',', '.')); return isFinite(n) ? n : null; }
 function jumInt_(v, def) { var n = parseInt(v, 10); return isFinite(n) ? n : (def === undefined ? null : def); }
 function jumNote_(v) { var n = jumInt_(v, 2); return Math.max(1, Math.min(3, n)); }
 function jumOui_(v) { return estConventionne(v); }
-function jumActif_(v) { return normaliser(v) !== 'non'; }
+function jumActif_(v) { return ['non', 'false', 'faux', '0'].indexOf(normaliser(v)) < 0; }
 function jumDate_(v) {
   if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   var s = String(v || '').trim(), m;
@@ -184,7 +184,7 @@ function jumLignes_(table) {
         sy: f.col(['Synthèse']), fm: f.col(['Faits marquants']), cc: f.col(['Concurrence']), be: f.col(['Besoins']), km: f.col(['Kilomètres']), vl: f.col(['Validé le']), maj: f.col(['Mise à jour']) };
       f.lignes.forEach(function (l) {
         var del = jumTxt_(get(l, c.del)), date = jumDate_(get(l, c.date)); if (!del || !date) return;
-        out.push({ delegue: del, date: date, prevues: jumInt_(get(l, c.pv), 0), faites: jumInt_(get(l, c.fa), 0), non_faites: jumInt_(get(l, c.nf), 0), sans_cr: jumInt_(get(l, c.sc), 0),
+        out.push({ delegue: del, date: date, prevues: jumInt_(get(l, c.pv), 0), faites: jumInt_(get(l, c.fa), 0), non_faites: jumTxt_(get(l, c.nf)), sans_cr: jumInt_(get(l, c.sc), 0),
           synthese: jumTxt_(get(l, c.sy)), faits: jumTxt_(get(l, c.fm)), concurrence: jumTxt_(get(l, c.cc)), besoins: jumTxt_(get(l, c.be)), km: jumNum_(get(l, c.km)) || 0,
           valide_le: jumHoro_(get(l, c.vl)) || jumTxt_(get(l, c.vl)), maj: jumHoro_(get(l, c.maj)) || jumTxt_(get(l, c.maj)) });
       });
@@ -300,7 +300,10 @@ function synchroniserSupabase(force) {
         // sécurité : un onglet de base vide ne vide jamais Supabase
         if (!rows.length && ['praticiens', 'presences', 'pharmacies', 'etablissements'].indexOf(table) >= 0) { etat.tables[table] = { sheets: 0, erreur: 'onglet vide (non recopié par sécurité)' }; return; }
         var h = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(rows), Utilities.Charset.UTF_8));
-        if (force !== true && emp[table] === h) return;
+        // une écriture d'API hors serveur (ancienne version de l'appli) a pu modifier Supabase : la table est recopiée depuis le Sheet
+        var horsServeur = false;
+        try { var rq = jumReq_('get', table + '?select=' + (JUM_TABLES[table].pk || 'id') + '&maj_source=eq.api&limit=1'); horsServeur = rq.code === 200 && JSON.parse(rq.texte).length > 0; } catch (eA) {}
+        if (force !== true && emp[table] === h && !horsServeur) return;
         var n = jumSyncTable_(table, rows);
         emp[table] = h;
         jumMemoriserLignes_(table, rows);
@@ -397,7 +400,7 @@ var JUM_RETOUR = {
     ['specialite', ['Spécialité']], ['note', ['Note'], 'n'], ['commune', ['Commune']], ['quartier', ['Quartier']], ['lieu', ['Lieu/Etablissement']], ['creneau', ['Créneau']], ['statut', ['Statut']],
     ['type_echange', ['Activité']], ['produits_presentes', ['Produits']], ['echantillons', ['Échantillons']], ['prochaine_etape', ['ProchaineEtape']], ['commentaire', ['Commentaire']],
     ['interlocuteur', ['Interlocuteur']], ['reactions', ['Réactions']], ['stocks', ['Stocks']], ['commande', ['Commande']], ['complements', ['Compléments']], ['suite', ['Suite']]] },
-  rapports: { feuille: 'rapports', cle: [['delegue', ['Délégué']], ['date', ['Date'], 'd']], cols: [['prevues', ['Visites prévues'], 'n'], ['faites', ['Visites faites'], 'n'], ['non_faites', ['Non faites'], 'n'],
+  rapports: { feuille: 'rapports', cle: [['delegue', ['Délégué']], ['date', ['Date'], 'd']], cols: [['prevues', ['Visites prévues'], 'n'], ['faites', ['Visites faites'], 'n'], ['non_faites', ['Non faites']],
     ['sans_cr', ['Sans compte rendu'], 'n'], ['synthese', ['Synthèse']], ['faits', ['Faits marquants']], ['concurrence', ['Concurrence']], ['besoins', ['Besoins']], ['km', ['Kilomètres'], 'n']] },
   quartiers: { feuille: 'quartiers', cle: [['commune', ['Commune']], ['quartier', ['Quartier']]], cols: [['zone', ['Zone']], ['lat', ['Latitude', 'Lat'], 'n'], ['lon', ['Longitude', 'Lon'], 'n'], ['secteur', ['Secteur']]] },
   fiches_produits: { feuille: 'fiches', cle: [['produit', ['Produit']]], cols: [['gamme', ['Gamme']], ['aire', ['Aire thérapeutique']], ['dci', ['DCI et dosage']], ['classe', ['Classe']], ['indications', ['Indications']],

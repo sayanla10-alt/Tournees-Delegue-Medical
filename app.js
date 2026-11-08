@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.11';
+  var APP_VERSION = '3.28.12';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.12', [
+      'Supabase devient la base principale : l\'application lit Supabase, Google Sheets reste en appoint',
+      'Chaque enregistrement est écrit dans Supabase et Google Sheets à la même seconde ; une modification faite à la main dans l\'une des deux bases est reportée dans l\'autre'
+    ]],
     ['3.28.11', [
       'Bases jumelles complètes : Supabase reçoit toutes les colonnes du Sheet (comptes rendus détaillés, OrigineGPS, secteurs, repères, absences, prochaine étape)',
       'Secours Supabase : lecture complète au-delà de 1 000 lignes'
@@ -979,10 +983,11 @@
   var ancienPlan = plan.length && !plan[0].cle;   // tournée d'une version précédente (ancienne base)
   if (ancienPlan) plan = [];
 
-  var cfgInit = LS.get('config', { url: '', token: '', demo: false, delegue: '', whatsapp: '', waWeb: false, depart: '', bddSource: 'sheets' });
-  if (cfgInit.bddSourceReset3285 !== true) {
-    cfgInit.bddSource = 'sheets';
-    cfgInit.bddSourceReset3285 = true;
+  var cfgInit = LS.get('config', { url: '', token: '', demo: false, delegue: '', whatsapp: '', waWeb: false, depart: '', bddSource: 'supabase' });
+  // 3.28.12 : Supabase devient la base principale de lecture sur tous les téléphones (Sheets en appoint, synchronisé)
+  if (cfgInit.bddSourceReset32812 !== true) {
+    cfgInit.bddSource = 'supabase';
+    cfgInit.bddSourceReset32812 = true;
     LS.set('config', cfgInit);
   }
 
@@ -2479,11 +2484,17 @@
           date: r.date ? String(r.date).slice(0, 10) : '',
           delegue: r.delegue || '',
           valideLe: r.valide_le || r.created_at || '',
-          prevues: +r.prevues || 0, faites: +r.faites || 0, nonFaites: +r.non_faites || 0, sansCr: +r.sans_cr || 0,
+          prevues: +r.prevues || 0, faites: +r.faites || 0, nonFaites: r.non_faites || '', sansCr: +r.sans_cr || 0,
           synthese: r.synthese || '', faits: r.faits || '', concurrence: r.concurrence || '', besoins: r.besoins || '',
           km: +r.km || 0, maj: r.maj || ''
         };
       });
+
+      // comme la lecture du Sheet : fiches et produits inactifs écartés
+      var inactifs = {};
+      fiches.forEach(function (f) { if (!f.actif) inactifs[normaliser(f.produit)] = true; });
+      fiches = fiches.filter(function (f) { return f.produit && f.actif; });
+      produits = produits.filter(function (p) { return !inactifs[normaliser(p)]; });
 
       var sig = 'SB-' + praticiens.length + '-' + presences.length + '-' + fiches.length + '-' + Date.now();
 
@@ -2825,7 +2836,7 @@
         S.ui.conflits = r.conflits || [];
       });
     }).then(function () {
-      var source = (S.config && S.config.bddSource) || 'sheets';
+      var source = (S.config && S.config.bddSource) || 'supabase';
       if (source === 'sheets') {
         return chargerDepuisSheets_(force).catch(function (errSheets) {
           if (typeof chargerToutSupabase === 'function' && !force) {
@@ -7848,19 +7859,19 @@
         return '<button type="button" data-a="theme" data-v="' + x[0] + '" aria-pressed="' + (th === x[0]) + '">' + x[1] + '</button>';
       }).join('') + '</div><p class="discret" style="margin:8px 0 0">Auto suit le réglage du téléphone.</p></section>';
 
-    // Base de données : Google Sheets par défaut, Supabase en miroir temps réel
-    var bddSrc = (S.config && S.config.bddSource) || 'sheets';
+    // 3.28.12 : Supabase base principale, Google Sheets en appoint, synchronisés dans les deux sens
+    var bddSrc = (S.config && S.config.bddSource) || 'supabase';
     h += '<section class="bloc"><h3 style="margin-top:0">Base de données</h3>' +
-      '<p class="discret" style="margin:0 0 10px">Google Sheets est la base principale par défaut. Vos visites, fiches et plannings sont également répliqués en continu vers Supabase (double écriture temps réel).</p>' +
+      '<p class="discret" style="margin:0 0 10px">Supabase est la base principale. Chaque enregistrement est écrit dans Supabase et dans Google Sheets à la même seconde ; une modification faite directement dans l\'une des deux bases est reportée dans l\'autre en 5 minutes au plus.</p>' +
       '<div class="segment" role="group" aria-label="Base de données" style="margin:0 0 10px">' +
-      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets (Défaut)</button>' +
-      '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Rapide)</button>' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets (appoint)</button>' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Défaut)</button>' +
       '</div>' +
       '<div style="font-size:12.5px;color:var(--texte-discret);margin-bottom:10px">' +
       (bddSrc === 'sheets' ?
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> Base de données principale.' :
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> Chargement ultra-rapide (~300 ms).') +
-      '<br><span style="display:inline-block;margin-top:4px">Bases jumelles : tout ce qui est enregistré dans Google Sheets (application, saisie à la main, corrections) est recopié dans Supabase toutes les 5 minutes.</span></div>' +
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> lecture de secours (la base est identique).' :
+        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> base principale, chargement rapide.') +
+      '</div>' +
       etatJumelageHtml() +
       '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Vérifier la synchronisation</button></section>';
 

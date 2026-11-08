@@ -59,8 +59,9 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 - Lecture seule permise sur la vraie base (appel `action=data`) ; toute écriture de test est interdite.
 - Après tout test, vérifier qu'aucune ligne de test ne reste dans la base et effacer les données locales du navigateur utilisé.
 
-## 11. DEUX BASES JUMELLES : GOOGLE SHEETS (PRINCIPALE) ET SUPABASE (COPIE)
-- L'application lit et écrit dans Google Sheets. Supabase est une copie exacte, tenue à jour par le serveur : `apps-script/Jumelage.gs`, déclencheur `jumelageAuto` toutes les 5 minutes (ajouts, modifications et suppressions, onglet par onglet, empreinte MD5).
-- Ne jamais faire écrire le téléphone directement dans Supabase (`MIROIR_CLIENT = false` dans app.js) : le Sheet reste la seule source.
-- Recopie complète à la demande : `synchroniserSupabaseComplet()` dans l'éditeur. État : action `jumelage` du serveur, affichée dans Réglages.
-- Une nouvelle colonne ou un nouvel onglet à copier : l'ajouter dans `jumLignes_` et `JUM_TABLES`, et créer la colonne côté Supabase.
+## 11. DEUX BASES JUMELLES : SUPABASE (PRINCIPALE) ET GOOGLE SHEETS (APPOINT)
+- L'application lit Supabase (`bddSource = 'supabase'`), et Google Sheets en secours. Toute écriture passe par le serveur Apps Script (règles métier : codes, fusions, compteurs, géocodage), qui écrit le Sheet puis Supabase avant de répondre (`jumPousserApresEcriture_` dans doPost).
+- `apps-script/Jumelage.gs` : déclencheur `jumelageAuto` toutes les 5 minutes (1. modifications faites directement dans Supabase, `maj_source = 'supabase'`, reportées dans le Sheet, suppressions comprises via `jumelage_suppressions` ; 2. Sheet vers Supabase, ajouts, modifications, suppressions) et déclencheur installable `jumSurEdition` (saisie à la main dans le Sheet envoyée tout de suite).
+- Le serveur écrit dans Supabase avec l'en-tête `x-mediplanner: sheets`. Une écriture d'API sans cet en-tête est marquée `api` et écrasée par le Sheet. Ne jamais faire écrire le téléphone directement dans Supabase (`MIROIR_CLIENT = false`).
+- Déclencheurs SQL : `supabase/jumelage_bidirectionnel.sql`. Colonnes : `supabase/jumelage_colonnes.sql`.
+- Nouvelle colonne ou nouvel onglet : l'ajouter dans `jumLignes_`, `JUM_TABLES`, `JUM_RETOUR`, créer la colonne dans Supabase et la lire dans `chargerToutSupabase`.

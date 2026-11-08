@@ -1,8 +1,8 @@
 {
-  "version": "3.28.11",
+  "version": "3.28.12",
   "date": "2026-11-08",
   "notes": [
-    "Supabase reçoit toutes les colonnes du Sheet",
-    "Lecture Supabase complète"
+    "Supabase base principale, Sheets en appoint",
+    "Synchronisation dans les deux sens"
   ]
 }
