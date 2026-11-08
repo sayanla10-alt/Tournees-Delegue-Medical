@@ -680,18 +680,20 @@ function ouvrirDossierSauvegardes() {
 
 function ouvrirBddSupabase() {
   var url = 'https://supabase.com/dashboard/project/nldyinokqgshnzvdsxgr/editor/18012?schema=public';
-  try {
-    var html = '<div style="font-family:sans-serif;padding:8px">' +
-      '<p style="margin:0 0 12px 0;font-size:13px;color:#333">Ouverture de votre base de données Supabase...</p>' +
-      '<a href="' + url + '" target="_blank" style="display:inline-block;padding:8px 14px;background:#0B4F6C;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13px">Accéder à la BDD Supabase ↗</a>' +
-      '<script>window.open("' + url + '", "_blank");setTimeout(function(){ google.script.host.close(); }, 800);</script>' +
-      '</div>';
-    SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(380).setHeight(120), 'BDD Supabase');
-  } catch (err) {
-    var ss = SpreadsheetApp.getActive();
-    var sh = ss.getSheetByName('BDD Supabase');
-    if (sh) ss.setActiveSheet(sh);
-    SpreadsheetApp.getUi().alert('BDD Supabase', 'Lien direct vers la base cloud :\n' + url + '\n\n(L\'onglet "BDD Supabase" vient d\'être affiché dans votre classeur)', SpreadsheetApp.getUi().ButtonSet.OK);
-  }
+  var html = '<!DOCTYPE html><html><head><base target="_blank">' +
+    '<style>' +
+    'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; padding: 20px 10px; margin: 0; }' +
+    'p { color: #333; font-size: 14px; margin-bottom: 16px; }' +
+    '.btn { display: inline-block; background-color: #0B4F6C; color: white !important; padding: 10px 20px; font-weight: bold; border-radius: 6px; text-decoration: none; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }' +
+    '</style>' +
+    '</head><body>' +
+    '<p>Ouverture de votre base Supabase dans un nouvel onglet...</p>' +
+    '<a id="lienSupabase" class="btn" href="' + url + '">Ouvrir Supabase ↗</a>' +
+    '<script>' +
+    '  window.open("' + url + '", "_blank");' +
+    '  setTimeout(function() { google.script.host.close(); }, 1200);' +
+    '</script>' +
+    '</body></html>';
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(400).setHeight(150), 'BDD Supabase');
 }
 
