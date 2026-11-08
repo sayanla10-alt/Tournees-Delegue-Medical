@@ -1,8 +1,7 @@
 {
-  "version": "3.28.12",
+  "version": "3.28.13",
   "date": "2026-11-08",
   "notes": [
-    "Supabase base principale, Sheets en appoint",
-    "Synchronisation dans les deux sens"
+    "Changements des autres délégués visibles en 15 s environ"
   ]
 }

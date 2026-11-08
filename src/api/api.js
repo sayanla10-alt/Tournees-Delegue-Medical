@@ -188,7 +188,10 @@
           throw errSheets;
         });
       } else if (source === 'supabase' && typeof chargerToutSupabase === 'function' && !force) {
-        return chargerToutSupabase().catch(function (errSb) {
+        return marqueurSupabase_().then(function (m) {
+          if (S.data && S.data.marqueurSb === m && (S.data.praticiens || []).length) return Object.assign({}, S.data, { inchange: true, source: 'supabase' });
+          return chargerToutSupabase().then(function (dS) { dS.marqueurSb = m; return dS; });
+        }).catch(function (errSb) {
           console.warn('Supabase indisponible, bascule transparente sur Google Sheets:', errSb);
           return chargerDepuisSheets_(force);
         });
@@ -235,7 +238,7 @@
       S.data = { version: d.version || ancien.version, sig: d.sig || ancien.sig, praticiens: praticiens, presences: presences, quartiers: base.quartiers || ancien.quartiers || [],
                  statuts: base.statuts || ancien.statuts || [], etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || ancien.delegues || [], feries: base.feries || ancien.feries || [], activites: base.activites || ancien.activites || [], activitesPharmacie: base.activitesPharmacie || ancien.activitesPharmacie || [], produits: base.produits || ancien.produits || [], fiches: base.fiches || ancien.fiches || [],
                  historique: hist, plannings: d.plannings || ancien.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
-                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '' };
+                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '', marqueurSb: d.marqueurSb || '' };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });

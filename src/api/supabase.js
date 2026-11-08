@@ -24,6 +24,18 @@
     return h;
   }
 
+  // 3.28.13 : empreinte légère de Supabase (nombre de lignes et dernière modification de chaque table).
+  // Toutes les 15 s, le téléphone la compare : la base n'est rechargée que si un délégué (ou le Sheet) a changé quelque chose.
+  var MARQUEUR_TABLES = ['praticiens', 'presences', 'pharmacies', 'etablissements', 'visites', 'plannings', 'rapports', 'quartiers', 'fiches_produits', 'listes_reference'];
+  function marqueurSupabase_() {
+    return Promise.all(MARQUEUR_TABLES.map(function (t) {
+      var h = supabaseHeaders_(false); h.Prefer = 'count=exact';
+      return fetch(SUPABASE_CONFIG.url + '/rest/v1/' + t + '?select=updated_at&order=updated_at.desc&limit=1', { headers: h, cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('Supabase HTTP ' + r.status);
+        return r.json().then(function (j) { return String((r.headers.get('content-range') || '').split('/')[1] || '') + '@' + ((j && j[0] && j[0].updated_at) || ''); });
+      });
+    })).then(function (l) { return l.join('|'); });
+  }
   function supabaseGet_(endpoint) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, SUPABASE_CONFIG.delaiMs) : null;

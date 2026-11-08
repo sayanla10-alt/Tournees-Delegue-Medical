@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.12';
+  var APP_VERSION = '3.28.13';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.13', [
+      'Ce qu\'un délégué ajoute ou corrige apparaît chez tous les autres en 15 secondes environ (vérification légère de Supabase, rechargement seulement si quelque chose a changé)'
+    ]],
     ['3.28.12', [
       'Supabase devient la base principale : l\'application lit Supabase, Google Sheets reste en appoint',
       'Chaque enregistrement est écrit dans Supabase et Google Sheets à la même seconde ; une modification faite à la main dans l\'une des deux bases est reportée dans l\'autre'
@@ -2173,6 +2176,18 @@
     return h;
   }
 
+  // 3.28.13 : empreinte légère de Supabase (nombre de lignes et dernière modification de chaque table).
+  // Toutes les 15 s, le téléphone la compare : la base n'est rechargée que si un délégué (ou le Sheet) a changé quelque chose.
+  var MARQUEUR_TABLES = ['praticiens', 'presences', 'pharmacies', 'etablissements', 'visites', 'plannings', 'rapports', 'quartiers', 'fiches_produits', 'listes_reference'];
+  function marqueurSupabase_() {
+    return Promise.all(MARQUEUR_TABLES.map(function (t) {
+      var h = supabaseHeaders_(false); h.Prefer = 'count=exact';
+      return fetch(SUPABASE_CONFIG.url + '/rest/v1/' + t + '?select=updated_at&order=updated_at.desc&limit=1', { headers: h, cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error('Supabase HTTP ' + r.status);
+        return r.json().then(function (j) { return String((r.headers.get('content-range') || '').split('/')[1] || '') + '@' + ((j && j[0] && j[0].updated_at) || ''); });
+      });
+    })).then(function (l) { return l.join('|'); });
+  }
   function supabaseGet_(endpoint) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, SUPABASE_CONFIG.delaiMs) : null;
@@ -2846,7 +2861,10 @@
           throw errSheets;
         });
       } else if (source === 'supabase' && typeof chargerToutSupabase === 'function' && !force) {
-        return chargerToutSupabase().catch(function (errSb) {
+        return marqueurSupabase_().then(function (m) {
+          if (S.data && S.data.marqueurSb === m && (S.data.praticiens || []).length) return Object.assign({}, S.data, { inchange: true, source: 'supabase' });
+          return chargerToutSupabase().then(function (dS) { dS.marqueurSb = m; return dS; });
+        }).catch(function (errSb) {
           console.warn('Supabase indisponible, bascule transparente sur Google Sheets:', errSb);
           return chargerDepuisSheets_(force);
         });
@@ -2893,7 +2911,7 @@
       S.data = { version: d.version || ancien.version, sig: d.sig || ancien.sig, praticiens: praticiens, presences: presences, quartiers: base.quartiers || ancien.quartiers || [],
                  statuts: base.statuts || ancien.statuts || [], etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || ancien.delegues || [], feries: base.feries || ancien.feries || [], activites: base.activites || ancien.activites || [], activitesPharmacie: base.activitesPharmacie || ancien.activitesPharmacie || [], produits: base.produits || ancien.produits || [], fiches: base.fiches || ancien.fiches || [],
                  historique: hist, plannings: d.plannings || ancien.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
-                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '' };
+                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '', marqueurSb: d.marqueurSb || '' };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
@@ -12752,6 +12770,13 @@
     // 3.27.10 : chaque minute, envoi de ce qui attend et vérification de la base (corrections faites dans le Google Sheet)
     synchroniser(true, true);
   }, 60000);
+
+  // 3.28.13 : base Supabase vérifiée toutes les 15 s (empreinte légère) : un ajout ou une correction d'un délégué apparaît chez tous les autres
+  setInterval(function () {
+    if (document.visibilityState !== 'visible') return;
+    if (((S.config && S.config.bddSource) || 'supabase') !== 'supabase') return;
+    synchroniser(true, true);
+  }, 15000);
 
   // ------------------------------------------------------------------ Thème
   function appliquerTheme(t) {

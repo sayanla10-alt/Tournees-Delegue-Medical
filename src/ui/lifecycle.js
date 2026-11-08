@@ -125,6 +125,13 @@
     synchroniser(true, true);
   }, 60000);
 
+  // 3.28.13 : base Supabase vérifiée toutes les 15 s (empreinte légère) : un ajout ou une correction d'un délégué apparaît chez tous les autres
+  setInterval(function () {
+    if (document.visibilityState !== 'visible') return;
+    if (((S.config && S.config.bddSource) || 'supabase') !== 'supabase') return;
+    synchroniser(true, true);
+  }, 15000);
+
   // ------------------------------------------------------------------ Thème
   function appliquerTheme(t) {
     LS.set('theme', t);

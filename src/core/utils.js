@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.12';
+  var APP_VERSION = '3.28.13';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.13', [
+      'Ce qu\'un délégué ajoute ou corrige apparaît chez tous les autres en 15 secondes environ (vérification légère de Supabase, rechargement seulement si quelque chose a changé)'
+    ]],
     ['3.28.12', [
       'Supabase devient la base principale : l\'application lit Supabase, Google Sheets reste en appoint',
       'Chaque enregistrement est écrit dans Supabase et Google Sheets à la même seconde ; une modification faite à la main dans l\'une des deux bases est reportée dans l\'autre'
