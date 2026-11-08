@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.15';
+  var APP_VERSION = '3.28.17';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.17', [
+      'Planifier : seuls les médecins des communes choisies pour le jour sont proposés, même ceux qui exercent aussi ailleurs ; une visite d\'une autre commune n\'est gardée que si elle est faite, renseignée ou ajoutée à la main (RDV, prioritaire)'
+    ]],
     ['3.28.15', [
       'Téléphones : deux numéros saisis ensemble restent deux numéros lisibles (« +225 … / +225 … ») au lieu d\'être collés'
     ]],

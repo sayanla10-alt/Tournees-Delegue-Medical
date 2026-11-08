@@ -129,6 +129,10 @@
     var fCom = (S.ui.filtres && Array.isArray(S.ui.filtres.communes) && S.ui.filtres.communes.length) ? S.ui.filtres.communes : p.communes;
     return fCom && fCom.length ? fCom : null;
   }
+  function dansCommunesDu(a, d) {
+    var l = communesPour(d);
+    return !l || !l.length || communeCorrespondante(a, ensemble(l));
+  }
   function departCoord() {
     var q = quartiers().filter(function (x) { return x.quartier === S.config.depart; })[0];
     return q ? { lat: q.lat, lon: q.lon } : null;

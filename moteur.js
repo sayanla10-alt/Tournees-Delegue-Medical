@@ -319,21 +319,32 @@ var Moteur = (function () {
       if (fixes[a.date]) fixes[a.date].push(a);
     });
 
+    // 3.28.17 : un lieu hors des communes choisies pour ce jour n'est pris que pour un RDV ou prioritaire choisi à la main
+    function dansCommunes(c, d) {
+      var l = p.communesPour ? p.communesPour(d) : null;
+      if (!l || !l.length) return true;
+      var dans = {}; l.forEach(function (x) { dans[x] = true; });
+      return typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans) : !!dans[c.commune];
+    }
     (p.imposes || []).forEach(function (im) {
       if (utilises[im.code]) return;
-      var rdv = heureVersMinutes(im.rdv), options = [];
+      var rdv = heureVersMinutes(im.rdv), options = [], horsZone = 0;
       p.dates.forEach(function (d) {
         var j = jourSemaineIndex(d);
         if (j > 4 || (im.date && im.date !== d) || (im.apres && d < im.apres) || (ctx.feries && ctx.feries[d])) return;
         (ctx.parCode[im.code] || []).forEach(function (c) {
-          if (c.jourIdx === j && (!im.cle || im.cle === c.cle)) options.push({ d: d, c: c });
+          if (c.jourIdx !== j || (im.cle && im.cle !== c.cle)) return;
+          var ok = dansCommunes(c, d);
+          if (!ok) horsZone++;
+          // RDV repris de l'historique (étape) : jamais hors des communes du jour
+          if (ok || !im.etape) options.push({ d: d, c: c, hors: ok ? 0 : 1 });
         });
       });
-      if (!options.length) { nonPlaces.push(im); return; }
+      if (!options.length) { if (horsZone) im.horsCommunes = true; nonPlaces.push(im); return; }
       options.sort(function (x, y) {
         var cx = rdv !== null && x.c.debut <= rdv && rdv <= x.c.fin ? 0 : 1;
         var cy = rdv !== null && y.c.debut <= rdv && rdv <= y.c.fin ? 0 : 1;
-        return cx - cy || fixes[x.d].length - fixes[y.d].length || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0) || x.c.debut - y.c.debut;
+        return x.hors - y.hors || cx - cy || fixes[x.d].length - fixes[y.d].length || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0) || x.c.debut - y.c.debut;
       });
       var o = options[0], a = arretDepuisCreneau(o.c, o.d);
       a.impose = true; a.garde = true; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres || ''; a.rdvPrisLe = im.prisLe || ''; }

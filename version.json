@@ -1,7 +1,7 @@
 {
-  "version": "3.28.15",
+  "version": "3.28.17",
   "date": "2026-11-08",
   "notes": [
-    "Téléphones à deux numéros mis en forme correctement"
+    "Planifier : seuls les médecins des communes choisies apparaissent"
   ]
 }

@@ -96,8 +96,10 @@
         // jours déjà planifiés : leurs visites restent (à leur heure), seuls les créneaux libres sont complétés
         conserves = [];
         cible.forEach(function (d) { conserves = conserves.concat(donneesJour(d)); });
-        conserves.forEach(function (a) { a.garde = true; heuresGardees[a.uid] = a.heure; });
+        conserves.forEach(function (a) { heuresGardees[a.uid] = a.heure; });
       }
+      // 3.28.17 : une visite hors des communes choisies pour son jour n'est gardée que si elle est faite, renseignée ou imposée (RDV, prioritaire)
+      conserves = conserves.filter(function (a) { return a.etat === 'valide' || a.corrige || a.statut || a.impose || dansCommunesDu(a, a.date); });
       // agenda : les autres jours restent ; un praticien déjà prévu à quelques jours d'écart n'est pas repris
       var horsCible = S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
@@ -124,6 +126,8 @@
       var msg = r.arrets.length ? (nG ? (!nN ? 'Aucun créneau libre : les ' + nG + ' visites déjà prévues sont conservées.' : nN + ' visite' + (nN > 1 ? 's' : '') + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' déjà prévue' + (nG > 1 ? 's' : '') + ' conservée' + (nG > 1 ? 's' : '') + '.') : r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.') : 'Aucun praticien ne correspond à ces critères.';
       var np = r.nonPlaces.filter(function (x) { return !x.etape; });
       if (np.length) msg += ' ' + np.length + ' médecin(s) prioritaire(s) absent(s) sur la période.';
+      var hz = r.nonPlaces.filter(function (x) { return x.etape && x.horsCommunes; });
+      if (hz.length) msg += ' ' + hz.length + ' RDV hors des communes choisies, non placé' + (hz.length > 1 ? 's' : '') + ' : ' + hz.map(function (x) { var pr = praticien(x.code); return pr ? pr.nom : x.code; }).join(', ') + '.';
       var attendu = (+p.maxJour || 8) * cible.filter(function (d) { return jourSemaineIndex(d) < 5; }).length;
       if (r.arrets.length && r.arrets.length < attendu * 0.75) {
         msg += ' Moins de visites que prévu : les praticiens présents sont déjà ciblés par l\'équipe, vus récemment ou hors des critères choisis. Élargissez les communes ou les spécialités.';
