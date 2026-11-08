@@ -169,7 +169,7 @@
       tentePub = true;
       var planPayload = chargePlan();
       // Double écriture de la tournée vers Supabase
-      if (typeof supabaseMiroirPlanning === 'function') {
+      if (MIROIR_CLIENT && typeof supabaseMiroirPlanning === 'function') {
         supabaseMiroirPlanning(planPayload).catch(function (eSb) { console.warn('Miroir Supabase planning:', eSb); });
       }
       return apiPost('planning', planPayload).then(function (r) {
@@ -279,7 +279,7 @@
     var f = S.fiches[0];
     if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
     // Double écriture : miroir Supabase en parallèle
-    if (typeof supabaseMiroirFiche === 'function') {
+    if (MIROIR_CLIENT && typeof supabaseMiroirFiche === 'function') {
       supabaseMiroirFiche(f.praticien, f.presences).catch(function (eSb) { console.warn('Miroir Supabase fiche:', eSb); });
     }
     return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences, auteur: moi() }).then(function (r) {
@@ -325,7 +325,7 @@
     });
 
     // Double écriture : miroir Supabase en parallèle
-    if (typeof supabaseMiroirVisites === 'function') {
+    if (MIROIR_CLIENT && typeof supabaseMiroirVisites === 'function') {
       supabaseMiroirVisites(S.queue).catch(function (eSb) { console.warn('Miroir Supabase visites:', eSb); });
     }
 
@@ -345,7 +345,7 @@
     var v = S.queue[index];
 
     // Double écriture unitaire Supabase
-    if (typeof supabaseMiroirVisites === 'function') {
+    if (MIROIR_CLIENT && typeof supabaseMiroirVisites === 'function') {
       supabaseMiroirVisites([v]).catch(function (eSb) { console.warn('Miroir Supabase visite unitaire:', eSb); });
     }
 

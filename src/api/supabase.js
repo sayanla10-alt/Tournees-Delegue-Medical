@@ -5,6 +5,9 @@
    - Repli transparent sur Google Sheets si hors-ligne ou erreur
    ============================================================================= */
 
+  // 3.28.10 : Supabase est tenu à jour par le serveur (Jumelage.gs, toutes les 5 min, ajouts, modifications et suppressions).
+  // Le téléphone n'écrit plus directement dans Supabase (évitait les fiches TMP orphelines et les écritures perdues).
+  var MIROIR_CLIENT = false;
   var SUPABASE_CONFIG = {
     url: 'https://nldyinokqgshnzvdsxgr.supabase.co',
     key: 'sb_publishable_WOPLZ8hA_zrUwtK1iqgQQA_kIntbRyL',
@@ -65,6 +68,23 @@
     return supabaseGet_('praticiens?select=code&limit=1');
   }
 
+  // 3.28.10 : état de la synchronisation Sheets -> Supabase (renvoyé par le serveur, action « jumelage »)
+  var NOMS_TABLES = { praticiens: 'Médecins', pharmacies: 'Pharmacies', presences: 'Présences', etablissements: 'Hôpitaux', visites: 'Visites', plannings: 'Tournées', rapports: 'Rapports du jour', quartiers: 'Quartiers', fiches_produits: 'Fiches produits', listes_reference: 'Listes' };
+  function etatJumelageHtml() {
+    var e = S.ui.etatJumelage;
+    if (!e) return '<p class="discret" style="margin:0 0 10px">Touchez « Vérifier la synchronisation » pour voir la date de la dernière recopie et le nombre de lignes de chaque base.</p>';
+    if (e.erreur) return '<p class="discret" style="margin:0 0 10px">' + esc(e.erreur) + '</p>';
+    var t = e.tables || {}, d = e.derniere ? new Date(e.derniere) : null;
+    var h = '<p style="margin:0 0 6px;font-size:13px"><b>Dernière synchronisation :</b> ' + (d ? esc(d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })) : 'jamais') +
+      (e.ok === false ? ' · <b>à reprendre</b>' : (d ? ' · à jour' : '')) + '</p>';
+    h += '<table class="tableau-jumelage" style="width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 10px"><thead><tr><th style="text-align:left;padding:4px 0">Table</th><th style="text-align:right">Sheets</th><th style="text-align:right">Supabase</th></tr></thead><tbody>' +
+      Object.keys(NOMS_TABLES).map(function (k) {
+        var x = t[k] || {}, egal = x.sheets !== undefined && x.sheets === x.supabase;
+        return '<tr style="border-top:1px solid var(--trait)"><td style="padding:4px 0">' + NOMS_TABLES[k] + '</td><td style="text-align:right">' + (x.sheets !== undefined ? x.sheets : '–') + '</td><td style="text-align:right' + (x.erreur ? '' : (egal ? ';color:var(--vert)' : '')) + '">' +
+          (x.erreur ? esc(x.erreur.slice(0, 40)) : (x.supabase !== undefined ? x.supabase : '–')) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    return h;
+  }
   function chargerToutSupabase() {
     return Promise.all([
       supabaseGet_('praticiens?select=*&order=nom'),

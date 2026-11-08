@@ -38,8 +38,9 @@
       (bddSrc === 'sheets' ?
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> Base de données principale.' :
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> Chargement ultra-rapide (~300 ms).') +
-      '<br><span style="display:inline-block;margin-top:4px">Double écriture active : chaque visite, fiche ou planning est enregistré simultanément sur Google Sheets et Supabase.</span></div>' +
-      '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Tester la connexion Supabase</button></section>';
+      '<br><span style="display:inline-block;margin-top:4px">Bases jumelles : tout ce qui est enregistré dans Google Sheets (application, saisie à la main, corrections) est recopié dans Supabase toutes les 5 minutes.</span></div>' +
+      etatJumelageHtml() +
+      '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Vérifier la synchronisation</button></section>';
 
     if (connecte()) {
       h += '<section class="bloc"><h3 style="margin-top:0">Partager avec un collègue</h3>' +

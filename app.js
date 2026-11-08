@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.9';
+  var APP_VERSION = '3.28.10';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.10', [
+      'Bases jumelles : tout ce qui est enregistré dans Google Sheets (application, saisie à la main, corrections) est recopié dans Supabase toutes les 5 minutes, suppressions comprises',
+      'Réglages : date de la dernière synchronisation et nombre de lignes de chaque base (Sheets et Supabase)'
+    ]],
     ['3.28.9', [
       'Médecins engagés : nom en ambre partout, y compris dans la fiche hôpital, les doublons et le Suivi',
       'Hôpitaux : bulle sarcelle « Aujourd\'hui » pour les médecins présents et « présents aujourd\'hui » sur la carte',
@@ -2141,6 +2145,9 @@
    - Repli transparent sur Google Sheets si hors-ligne ou erreur
    ============================================================================= */
 
+  // 3.28.10 : Supabase est tenu à jour par le serveur (Jumelage.gs, toutes les 5 min, ajouts, modifications et suppressions).
+  // Le téléphone n'écrit plus directement dans Supabase (évitait les fiches TMP orphelines et les écritures perdues).
+  var MIROIR_CLIENT = false;
   var SUPABASE_CONFIG = {
     url: 'https://nldyinokqgshnzvdsxgr.supabase.co',
     key: 'sb_publishable_WOPLZ8hA_zrUwtK1iqgQQA_kIntbRyL',
@@ -2201,6 +2208,23 @@
     return supabaseGet_('praticiens?select=code&limit=1');
   }
 
+  // 3.28.10 : état de la synchronisation Sheets -> Supabase (renvoyé par le serveur, action « jumelage »)
+  var NOMS_TABLES = { praticiens: 'Médecins', pharmacies: 'Pharmacies', presences: 'Présences', etablissements: 'Hôpitaux', visites: 'Visites', plannings: 'Tournées', rapports: 'Rapports du jour', quartiers: 'Quartiers', fiches_produits: 'Fiches produits', listes_reference: 'Listes' };
+  function etatJumelageHtml() {
+    var e = S.ui.etatJumelage;
+    if (!e) return '<p class="discret" style="margin:0 0 10px">Touchez « Vérifier la synchronisation » pour voir la date de la dernière recopie et le nombre de lignes de chaque base.</p>';
+    if (e.erreur) return '<p class="discret" style="margin:0 0 10px">' + esc(e.erreur) + '</p>';
+    var t = e.tables || {}, d = e.derniere ? new Date(e.derniere) : null;
+    var h = '<p style="margin:0 0 6px;font-size:13px"><b>Dernière synchronisation :</b> ' + (d ? esc(d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })) : 'jamais') +
+      (e.ok === false ? ' · <b>à reprendre</b>' : (d ? ' · à jour' : '')) + '</p>';
+    h += '<table class="tableau-jumelage" style="width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 10px"><thead><tr><th style="text-align:left;padding:4px 0">Table</th><th style="text-align:right">Sheets</th><th style="text-align:right">Supabase</th></tr></thead><tbody>' +
+      Object.keys(NOMS_TABLES).map(function (k) {
+        var x = t[k] || {}, egal = x.sheets !== undefined && x.sheets === x.supabase;
+        return '<tr style="border-top:1px solid var(--trait)"><td style="padding:4px 0">' + NOMS_TABLES[k] + '</td><td style="text-align:right">' + (x.sheets !== undefined ? x.sheets : '–') + '</td><td style="text-align:right' + (x.erreur ? '' : (egal ? ';color:var(--vert)' : '')) + '">' +
+          (x.erreur ? esc(x.erreur.slice(0, 40)) : (x.supabase !== undefined ? x.supabase : '–')) + '</td></tr>';
+      }).join('') + '</tbody></table>';
+    return h;
+  }
   function chargerToutSupabase() {
     return Promise.all([
       supabaseGet_('praticiens?select=*&order=nom'),
@@ -2774,7 +2798,7 @@
       tentePub = true;
       var planPayload = chargePlan();
       // Double écriture de la tournée vers Supabase
-      if (typeof supabaseMiroirPlanning === 'function') {
+      if (MIROIR_CLIENT && typeof supabaseMiroirPlanning === 'function') {
         supabaseMiroirPlanning(planPayload).catch(function (eSb) { console.warn('Miroir Supabase planning:', eSb); });
       }
       return apiPost('planning', planPayload).then(function (r) {
@@ -2884,7 +2908,7 @@
     var f = S.fiches[0];
     if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
     // Double écriture : miroir Supabase en parallèle
-    if (typeof supabaseMiroirFiche === 'function') {
+    if (MIROIR_CLIENT && typeof supabaseMiroirFiche === 'function') {
       supabaseMiroirFiche(f.praticien, f.presences).catch(function (eSb) { console.warn('Miroir Supabase fiche:', eSb); });
     }
     return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences, auteur: moi() }).then(function (r) {
@@ -2930,7 +2954,7 @@
     });
 
     // Double écriture : miroir Supabase en parallèle
-    if (typeof supabaseMiroirVisites === 'function') {
+    if (MIROIR_CLIENT && typeof supabaseMiroirVisites === 'function') {
       supabaseMiroirVisites(S.queue).catch(function (eSb) { console.warn('Miroir Supabase visites:', eSb); });
     }
 
@@ -2950,7 +2974,7 @@
     var v = S.queue[index];
 
     // Double écriture unitaire Supabase
-    if (typeof supabaseMiroirVisites === 'function') {
+    if (MIROIR_CLIENT && typeof supabaseMiroirVisites === 'function') {
       supabaseMiroirVisites([v]).catch(function (eSb) { console.warn('Miroir Supabase visite unitaire:', eSb); });
     }
 
@@ -4249,7 +4273,7 @@
       nonFaites: s.nonFaites.map(function (a) { return a.nom + ' (' + statutLibelle(a) + ')'; }).join(', '), sansCr: s.sansCr.length,
       synthese: lignesSynthese(s).map(function (x) { return x[0] + ' : ' + x[1]; }).join('\n'), faits: R.faits || '', concurrence: R.concurrence || '',
       besoins: (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []).join(', '), km: R.km || (Math.round(s.km * 10) / 10) };
-    if (typeof supabaseMiroirRapport === 'function') { supabaseMiroirRapport(payload).catch(function (eSb) { console.warn('Miroir Supabase rapport:', eSb); }); }
+    if (MIROIR_CLIENT && typeof supabaseMiroirRapport === 'function') { supabaseMiroirRapport(payload).catch(function (eSb) { console.warn('Miroir Supabase rapport:', eSb); }); }
     return apiPost('rapport', { rapport: payload }).then(function () { R.envoye = true; sauverRapports(); });
   }
   function envoyerRapportsEnAttente() {
@@ -7818,8 +7842,9 @@
       (bddSrc === 'sheets' ?
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> Base de données principale.' :
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> Chargement ultra-rapide (~300 ms).') +
-      '<br><span style="display:inline-block;margin-top:4px">Double écriture active : chaque visite, fiche ou planning est enregistré simultanément sur Google Sheets et Supabase.</span></div>' +
-      '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Tester la connexion Supabase</button></section>';
+      '<br><span style="display:inline-block;margin-top:4px">Bases jumelles : tout ce qui est enregistré dans Google Sheets (application, saisie à la main, corrections) est recopié dans Supabase toutes les 5 minutes.</span></div>' +
+      etatJumelageHtml() +
+      '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Vérifier la synchronisation</button></section>';
 
     if (connecte()) {
       h += '<section class="bloc"><h3 style="margin-top:0">Partager avec un collègue</h3>' +
@@ -11417,7 +11442,11 @@
       synchroniser(false);
     },
     testerSupabase: function () {
-      toast('Test de la connexion Supabase…');
+      toast('Vérification de la synchronisation…');
+      if (connecte() && !S.config.demo) {
+        apiGet('jumelage').then(function (r) { S.ui.etatJumelage = r.etat || { erreur: 'Pas encore de synchronisation.' }; rendre(); },
+          function (e) { S.ui.etatJumelage = { erreur: 'Serveur injoignable : ' + e.message }; rendre(); });
+      }
       if (typeof supabasePing_ !== 'function') {
         toast('Connecteur Supabase non disponible.');
         return;

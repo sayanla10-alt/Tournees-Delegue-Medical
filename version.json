@@ -1,9 +1,8 @@
 {
-  "version": "3.28.9",
+  "version": "3.28.10",
   "date": "2026-11-08",
   "notes": [
-    "Médecins engagés en ambre partout (fiche hôpital comprise)",
-    "Bulle « Aujourd'hui » sarcelle dans les hôpitaux",
-    "Positions relevées au téléphone marquées « Terrain »"
+    "Bases jumelles Sheets et Supabase (recopie toutes les 5 min)",
+    "Réglages : état de la synchronisation"
   ]
 }

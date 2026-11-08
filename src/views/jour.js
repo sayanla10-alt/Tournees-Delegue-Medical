@@ -342,7 +342,7 @@
       nonFaites: s.nonFaites.map(function (a) { return a.nom + ' (' + statutLibelle(a) + ')'; }).join(', '), sansCr: s.sansCr.length,
       synthese: lignesSynthese(s).map(function (x) { return x[0] + ' : ' + x[1]; }).join('\n'), faits: R.faits || '', concurrence: R.concurrence || '',
       besoins: (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []).join(', '), km: R.km || (Math.round(s.km * 10) / 10) };
-    if (typeof supabaseMiroirRapport === 'function') { supabaseMiroirRapport(payload).catch(function (eSb) { console.warn('Miroir Supabase rapport:', eSb); }); }
+    if (MIROIR_CLIENT && typeof supabaseMiroirRapport === 'function') { supabaseMiroirRapport(payload).catch(function (eSb) { console.warn('Miroir Supabase rapport:', eSb); }); }
     return apiPost('rapport', { rapport: payload }).then(function () { R.envoye = true; sauverRapports(); });
   }
   function envoyerRapportsEnAttente() {

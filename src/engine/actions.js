@@ -846,7 +846,11 @@
       synchroniser(false);
     },
     testerSupabase: function () {
-      toast('Test de la connexion Supabase…');
+      toast('Vérification de la synchronisation…');
+      if (connecte() && !S.config.demo) {
+        apiGet('jumelage').then(function (r) { S.ui.etatJumelage = r.etat || { erreur: 'Pas encore de synchronisation.' }; rendre(); },
+          function (e) { S.ui.etatJumelage = { erreur: 'Serveur injoignable : ' + e.message }; rendre(); });
+      }
       if (typeof supabasePing_ !== 'function') {
         toast('Connecteur Supabase non disponible.');
         return;

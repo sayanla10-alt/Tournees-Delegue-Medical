@@ -51,6 +51,7 @@ function doGet(e) {
   var p = (e && e.parameter) || {};
   try {
     if (!jetonValide(p.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
+    if (p.action === 'jumelage') return json({ ok: true, etat: typeof lireEtatJumelage_ === 'function' ? lireEtatJumelage_() : null });
     if (p.action === 'ping') return json({ ok: true, classeur: SpreadsheetApp.getActive().getName(), version: VERSION_DONNEES, serveur: VERSION_SERVEUR,
       sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' });
 
