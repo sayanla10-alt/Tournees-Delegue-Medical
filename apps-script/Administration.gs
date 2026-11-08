@@ -680,11 +680,18 @@ function ouvrirDossierSauvegardes() {
 
 function ouvrirBddSupabase() {
   var url = 'https://supabase.com/dashboard/project/nldyinokqgshnzvdsxgr/editor/18012?schema=public';
-  var html = '<div style="font-family:sans-serif;padding:8px">' +
-    '<p style="margin:0 0 12px 0;font-size:13px;color:#333">Ouverture de votre base de données Supabase...</p>' +
-    '<a href="' + url + '" target="_blank" style="display:inline-block;padding:8px 14px;background:#0B4F6C;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13px">Accéder à la BDD Supabase ↗</a>' +
-    '<script>window.open("' + url + '", "_blank");setTimeout(function(){ google.script.host.close(); }, 800);</script>' +
-    '</div>';
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(380).setHeight(120), 'BDD Supabase');
+  try {
+    var html = '<div style="font-family:sans-serif;padding:8px">' +
+      '<p style="margin:0 0 12px 0;font-size:13px;color:#333">Ouverture de votre base de données Supabase...</p>' +
+      '<a href="' + url + '" target="_blank" style="display:inline-block;padding:8px 14px;background:#0B4F6C;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13px">Accéder à la BDD Supabase ↗</a>' +
+      '<script>window.open("' + url + '", "_blank");setTimeout(function(){ google.script.host.close(); }, 800);</script>' +
+      '</div>';
+    SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(380).setHeight(120), 'BDD Supabase');
+  } catch (err) {
+    var ss = SpreadsheetApp.getActive();
+    var sh = ss.getSheetByName('BDD Supabase');
+    if (sh) ss.setActiveSheet(sh);
+    SpreadsheetApp.getUi().alert('BDD Supabase', 'Lien direct vers la base cloud :\n' + url + '\n\n(L\'onglet "BDD Supabase" vient d\'être affiché dans votre classeur)', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
 }
 
