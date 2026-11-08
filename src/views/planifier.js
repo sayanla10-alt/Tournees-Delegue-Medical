@@ -50,7 +50,7 @@
       (comJour.length ? ' · <span class="bj-communes">' + esc(comJour.join(', ')) + '</span>' : '') + '</div>' +
       '<div class="discret details-plan">' + details + '</div></div>' +
       '<div class="tete-jour-droite">' + etat + '</div></div>';
-    h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
+    h += '<ul class="plan-jour">' + rendreGroupesPlan(duJour) + '</ul>';
     var actionsPlan = '';
     if (enAttente) {
       actionsPlan = '<section class="bandeau-prog accepter"><div><b>Nouvelle sélection</b><span>Conserver ce tirage ?</span></div>' +
@@ -432,8 +432,31 @@
     return base;
   }
 
+  // 3.28.20 : liste regroupée : un titre par quartier (si la journée en compte plusieurs), puis par hôpital (si plusieurs visites s'y suivent)
+  function rendreGroupesPlan(l) {
+    var cleL = function (a) { return normaliser(a.lieu || '') ? normaliser(a.lieu) + '|' + normaliser(a.commune || '') : 'u|' + a.uid; };
+    var cleQ = function (a) { return normaliser(a.quartier || '') ? normaliser(a.quartier) + '|' + normaliser(a.commune || '') : cleL(a); };
+    var blocs = [];
+    l.forEach(function (a) { var k = cleQ(a), d = blocs[blocs.length - 1]; if (d && d.k === k) d.l.push(a); else blocs.push({ k: k, l: [a] }); });
+    var titresQ = blocs.length > 1;
+    return blocs.map(function (bq) {
+      var a0 = bq.l[0], h = '';
+      if (titresQ) {
+        var sect = nomSecteur(a0.quartier || '', a0.commune || '', a0.coord || null) || [a0.quartier, a0.commune].filter(Boolean).join(', ');
+        h += '<li class="lp-groupe lp-groupe-q" aria-hidden="true">' + icone('localisation') + '<span>' + esc(sect || 'Autre secteur') + '</span><small>' + bq.l.length + ' visite' + (bq.l.length > 1 ? 's' : '') + '</small></li>';
+      }
+      var gl = [];
+      bq.l.forEach(function (a) { var k = cleL(a), d = gl[gl.length - 1]; if (d && d.k === k) d.l.push(a); else gl.push({ k: k, l: [a] }); });
+      gl.forEach(function (g) {
+        if (g.l.length > 1) h += '<li class="lp-groupe lp-groupe-l" aria-hidden="true"><span>' + esc(abregerHopital(g.l[0].lieu)) + '</span><small>' + g.l.length + ' ' + (g.l.every(estPharmacie) ? 'visites' : 'médecins') + '</small></li>';
+        h += g.l.map(function (a) { return rendreLignePlan(a, g.l.length > 1); }).join('');
+      });
+      return h;
+    }).join('');
+  }
+
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
-  function rendreLignePlan(a) {
+  function rendreLignePlan(a, dansGroupe) {
     var verrou = a.etat === 'valide', e = '';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
@@ -447,7 +470,7 @@
       ? infosPharmaciePlan(a)
       : infosMedecinPlan(a);
 
-    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
+    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + (dansGroupe ? ' dans-groupe' : '') + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
         '<span class="lp-pastille-col">' + pastilleType(a) + '</span>' +
         '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +

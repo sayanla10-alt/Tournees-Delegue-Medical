@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.19';
+  var APP_VERSION = '3.28.20';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.20', [
+      'Planifier : la liste est regroupée, les médecins d\'un même hôpital se suivent et les hôpitaux d\'un même quartier aussi, avec un titre par quartier et par hôpital',
+      'La version s\'affiche en petit à la suite du nom MediPlanner'
+    ]],
     ['3.28.19', [
       'Partout où un médecin ou une pharmacie apparaît (Journée, Planifier, Suivi, hôpitaux, listes de choix), toucher son nom ouvre sa fiche ; toucher le reste de la carte ouvre toujours ses options'
     ]],

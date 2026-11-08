@@ -2,6 +2,7 @@
   function icone(n) {
     var d = {
       relancer: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+      localisation: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
       plus: '<path d="M12 5v14M5 12h14"/>',
       pieton: '<circle cx="13" cy="4" r="1.8"/><path d="M10 21l2-6 3 3v3M9 11l3-3.5 3 2 2.5 3M12 7.5l-1.3 5.3 3.3 2.2"/><path d="M8.5 12.5 7 15"/>',
       voiture: '<path d="M5 16V12l1.8-4.2A2 2 0 0 1 8.6 6.5h6.8a2 2 0 0 1 1.8 1.3L19 12v4"/><path d="M4 16h16v2.5H4z"/><path d="M5 12h14"/><circle cx="7.5" cy="18.5" r="1.4"/><circle cx="16.5" cy="18.5" r="1.4"/>',

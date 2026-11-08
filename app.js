@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.19';
+  var APP_VERSION = '3.28.20';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.20', [
+      'Planifier : la liste est regroupée, les médecins d\'un même hôpital se suivent et les hôpitaux d\'un même quartier aussi, avec un titre par quartier et par hôpital',
+      'La version s\'affiche en petit à la suite du nom MediPlanner'
+    ]],
     ['3.28.19', [
       'Partout où un médecin ou une pharmacie apparaît (Journée, Planifier, Suivi, hôpitaux, listes de choix), toucher son nom ouvre sa fiche ; toucher le reste de la carte ouvre toujours ses options'
     ]],
@@ -4429,7 +4433,7 @@
       (comJour.length ? ' · <span class="bj-communes">' + esc(comJour.join(', ')) + '</span>' : '') + '</div>' +
       '<div class="discret details-plan">' + details + '</div></div>' +
       '<div class="tete-jour-droite">' + etat + '</div></div>';
-    h += '<ul class="plan-jour">' + duJour.map(rendreLignePlan).join('') + '</ul>';
+    h += '<ul class="plan-jour">' + rendreGroupesPlan(duJour) + '</ul>';
     var actionsPlan = '';
     if (enAttente) {
       actionsPlan = '<section class="bandeau-prog accepter"><div><b>Nouvelle sélection</b><span>Conserver ce tirage ?</span></div>' +
@@ -4811,8 +4815,31 @@
     return base;
   }
 
+  // 3.28.20 : liste regroupée : un titre par quartier (si la journée en compte plusieurs), puis par hôpital (si plusieurs visites s'y suivent)
+  function rendreGroupesPlan(l) {
+    var cleL = function (a) { return normaliser(a.lieu || '') ? normaliser(a.lieu) + '|' + normaliser(a.commune || '') : 'u|' + a.uid; };
+    var cleQ = function (a) { return normaliser(a.quartier || '') ? normaliser(a.quartier) + '|' + normaliser(a.commune || '') : cleL(a); };
+    var blocs = [];
+    l.forEach(function (a) { var k = cleQ(a), d = blocs[blocs.length - 1]; if (d && d.k === k) d.l.push(a); else blocs.push({ k: k, l: [a] }); });
+    var titresQ = blocs.length > 1;
+    return blocs.map(function (bq) {
+      var a0 = bq.l[0], h = '';
+      if (titresQ) {
+        var sect = nomSecteur(a0.quartier || '', a0.commune || '', a0.coord || null) || [a0.quartier, a0.commune].filter(Boolean).join(', ');
+        h += '<li class="lp-groupe lp-groupe-q" aria-hidden="true">' + icone('localisation') + '<span>' + esc(sect || 'Autre secteur') + '</span><small>' + bq.l.length + ' visite' + (bq.l.length > 1 ? 's' : '') + '</small></li>';
+      }
+      var gl = [];
+      bq.l.forEach(function (a) { var k = cleL(a), d = gl[gl.length - 1]; if (d && d.k === k) d.l.push(a); else gl.push({ k: k, l: [a] }); });
+      gl.forEach(function (g) {
+        if (g.l.length > 1) h += '<li class="lp-groupe lp-groupe-l" aria-hidden="true"><span>' + esc(abregerHopital(g.l[0].lieu)) + '</span><small>' + g.l.length + ' ' + (g.l.every(estPharmacie) ? 'visites' : 'médecins') + '</small></li>';
+        h += g.l.map(function (a) { return rendreLignePlan(a, g.l.length > 1); }).join('');
+      });
+      return h;
+    }).join('');
+  }
+
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
-  function rendreLignePlan(a) {
+  function rendreLignePlan(a, dansGroupe) {
     var verrou = a.etat === 'valide', e = '';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
@@ -4826,7 +4853,7 @@
       ? infosPharmaciePlan(a)
       : infosMedecinPlan(a);
 
-    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
+    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + (dansGroupe ? ' dans-groupe' : '') + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
         '<span class="lp-pastille-col">' + pastilleType(a) + '</span>' +
         '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
@@ -12714,6 +12741,7 @@
   function icone(n) {
     var d = {
       relancer: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+      localisation: '<path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
       plus: '<path d="M12 5v14M5 12h14"/>',
       pieton: '<circle cx="13" cy="4" r="1.8"/><path d="M10 21l2-6 3 3v3M9 11l3-3.5 3 2 2.5 3M12 7.5l-1.3 5.3 3.3 2.2"/><path d="M8.5 12.5 7 15"/>',
       voiture: '<path d="M5 16V12l1.8-4.2A2 2 0 0 1 8.6 6.5h6.8a2 2 0 0 1 1.8 1.3L19 12v4"/><path d="M4 16h16v2.5H4z"/><path d="M5 12h14"/><circle cx="7.5" cy="18.5" r="1.4"/><circle cx="16.5" cy="18.5" r="1.4"/>',

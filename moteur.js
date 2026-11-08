@@ -241,7 +241,47 @@ var Moteur = (function () {
     return finaliser(meilleurOrdre(route, dep));
   }
 
+  // 3.28.20 : regroupement : les médecins d'un même hôpital se suivent, et les hôpitaux d'un même quartier aussi,
+  // tant que cela ne crée aucun retard et ne finit pas la journée plus de 20 min plus tard
+  function cleNorm(x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ''); }
+  function cleLieu(it) { var a = it.a; return cleNorm(a.lieu) ? cleNorm(a.lieu) + '|' + cleNorm(a.commune) : 'u|' + (a.uid || a.code); }
+  function cleQuartier(it) { var a = it.a; return cleNorm(a.quartier) ? cleNorm(a.quartier) + '|' + cleNorm(a.commune) : cleLieu(it); }
+  function regrouper(route) {
+    if (route.length < 3 || route.some(function (it) { return it.fixe; })) return route;   // visites déjà faites : ordre réel gardé
+    var ref = simuler(route), finRef = ref.debuts.length ? Math.max.apply(null, ref.debuts) : 0;
+    function acceptable(r) {
+      var s = simuler(r);
+      return s.nbRetards <= ref.nbRetards && (s.debuts.length ? Math.max.apply(null, s.debuts) : 0) <= finRef + 20;
+    }
+    function grouperPar(r, cle) {   // ordre des groupes = ordre de leur première visite
+      var ordre = [], par = {};
+      r.forEach(function (it) { var k = cle(it); if (!par[k]) { par[k] = []; ordre.push(k); } par[k].push(it); });
+      return ordre.reduce(function (l, k) { return l.concat(par[k]); }, []);
+    }
+    // 1. d'un coup, si possible
+    var r1 = grouperPar(route, cleLieu), r2 = grouperPar(r1, cleQuartier);
+    if (acceptable(r2)) return r2;
+    var r = acceptable(r1) ? r1 : route.slice();
+    // 2. sinon, visite par visite : rapprochée de la dernière visite du même hôpital (puis du même quartier) si l'horaire le permet
+    [cleLieu, cleQuartier].forEach(function (cle) {
+      for (var passe = 0; passe < 2; passe++) {
+        for (var i = 1; i < r.length; i++) {
+          var k = cle(r[i]);
+          if (cle(r[i - 1]) === k) continue;
+          var j = -1;
+          for (var x = i - 2; x >= 0; x--) if (cle(r[x]) === k) { j = x; break; }
+          if (j < 0) continue;
+          var essai = r.slice(0, i).concat(r.slice(i + 1));
+          essai.splice(j + 1, 0, r[i]);
+          if (acceptable(essai)) r = essai;
+        }
+      }
+    });
+    return r;
+  }
+
   function finaliser(route) {
+    route = regrouper(route);
     var s = simuler(route);
     return route.map(function (it, i) {
       var a = it.a;
