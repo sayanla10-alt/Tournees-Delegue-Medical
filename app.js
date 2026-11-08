@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.14';
+  var APP_VERSION = '3.28.15';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.15', [
+      'Téléphones : deux numéros saisis ensemble restent deux numéros lisibles (« +225 … / +225 … ») au lieu d\'être collés'
+    ]],
     ['3.28.14', [
       'Réglages, « Recharger toute la base » : relit Supabase en entier (base principale)'
     ]],

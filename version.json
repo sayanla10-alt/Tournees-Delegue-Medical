@@ -1,7 +1,7 @@
 {
-  "version": "3.28.14",
+  "version": "3.28.15",
   "date": "2026-11-08",
   "notes": [
-    "Recharger toute la base relit Supabase"
+    "Téléphones à deux numéros mis en forme correctement"
   ]
 }
