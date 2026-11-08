@@ -80,7 +80,11 @@ function doPost(e) {
     if (!actions[body.action]) return json({ ok: false, erreur: 'Action inconnue.' });
     // 3.27.52 : toute écriture invalide le cache de lecture (avant et après, pour qu'aucune lecture en cours ne fige l'ancien état)
     marquerModif();
-    try { return json(actions[body.action]()); } finally { marquerModif(); }
+    var resultat;
+    try { resultat = actions[body.action](); } finally { marquerModif(); }
+    // 3.28.12 : Supabase (base principale de lecture) mis à jour avant la réponse au téléphone
+    if (resultat && resultat.ok !== false) { try { if (typeof jumPousserApresEcriture_ === 'function') jumPousserApresEcriture_(body.action); } catch (eJ) { console.warn('Jumelage : ' + eJ); } }
+    return json(resultat);
   } catch (err) {
     var m = String(err.message || err);
     return json({ ok: false, erreur: m, reessai: /occupé|timed out|Service|Lock|délai/i.test(m) });

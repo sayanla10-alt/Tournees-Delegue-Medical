@@ -15,7 +15,12 @@ function installerJumelage() {
   ScriptApp.getProjectTriggers().forEach(function (tr) {
     if (tr.getHandlerFunction() === 'jumelageAuto') ScriptApp.deleteTrigger(tr);
   });
+  ScriptApp.getProjectTriggers().forEach(function (tr) {
+    if (tr.getHandlerFunction() === 'jumSurEdition') ScriptApp.deleteTrigger(tr);
+  });
   ScriptApp.newTrigger('jumelageAuto').timeBased().everyMinutes(JUMELAGE_MINUTES).create();
+  // saisie à la main dans le Sheet : envoyée à Supabase dans les secondes qui suivent
+  ScriptApp.newTrigger('jumSurEdition').forSpreadsheet(SpreadsheetApp.getActive()).onEdit().create();
   return synchroniserSupabase(true);
 }
 
@@ -31,7 +36,7 @@ function jumCfg_() {
 
 function jumReq_(methode, chemin, payload, prefer) {
   var c = jumCfg_();
-  var o = { method: methode, muteHttpExceptions: true, headers: { apikey: c.key, Authorization: 'Bearer ' + c.key } };
+  var o = { method: methode, muteHttpExceptions: true, headers: { apikey: c.key, Authorization: 'Bearer ' + c.key, 'x-mediplanner': 'sheets' } };
   if (prefer) o.headers.Prefer = prefer;
   if (payload !== undefined) { o.contentType = 'application/json; charset=utf-8'; o.payload = JSON.stringify(payload); }
   var r = UrlFetchApp.fetch(c.url + '/rest/v1/' + chemin, o);
@@ -275,13 +280,16 @@ function jumSyncTable_(table, rows) {
 
 // Synchronisation : force = true recopie toutes les tables, sinon seulement celles dont l'empreinte a changé
 function synchroniserSupabase(force) {
-  var verrou = LockService.getScriptLock();
+  var verrou = LockService.getDocumentLock();
   if (!verrou.tryLock(2000)) return { ok: false, erreur: 'Synchronisation déjà en cours.' };
   var t0 = Date.now(), props = PropertiesService.getScriptProperties();
   var emp = JSON.parse(props.getProperty('SUPA_EMPREINTES') || '{}');
   var etat = JSON.parse(props.getProperty('SUPA_ETAT') || '{}'); etat.tables = etat.tables || {};
   var erreurs = 0, codesMed = null;
   try {
+    // 1) d'abord ce qui a été modifié directement dans Supabase (Table Editor, SQL) : reporté dans le Sheet
+    try { etat.retour = jumAppliquerSupabase_(); } catch (eR) { erreurs++; etat.retour = { erreur: String(eR.message || eR).slice(0, 300) }; }
+    // 2) puis le Sheet vers Supabase
     Object.keys(JUM_TABLES).forEach(function (table) {
       try {
         var rows = jumLignes_(table), ignorees = 0;
@@ -295,6 +303,7 @@ function synchroniserSupabase(force) {
         if (force !== true && emp[table] === h) return;
         var n = jumSyncTable_(table, rows);
         emp[table] = h;
+        jumMemoriserLignes_(table, rows);
         etat.tables[table] = { sheets: rows.length + ignorees, supabase: n.total, supprimees: n.supprimees, le: new Date().toISOString() };
         if (ignorees) etat.tables[table].ignorees = ignorees;
       } catch (e) {
@@ -318,6 +327,152 @@ function synchroniserSupabase(force) {
 // Déclencheur toutes les 5 minutes
 function jumelageAuto() { synchroniserSupabase(false); }
 function synchroniserSupabaseComplet() { return synchroniserSupabase(true); }
+
+// ---------------------------------------------------------------- Envoi immédiat après une écriture de l'application
+// Empreinte courte de chaque ligne envoyée (cache 6 h) : seules les lignes modifiées repartent.
+function jumEmpLigne_(r) { return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(r), Utilities.Charset.UTF_8)).slice(0, 10); }
+function jumMemoriserLignes_(table, rows) {
+  var t = JUM_TABLES[table]; if (!t.pk) return;
+  var m = {}; rows.forEach(function (r) { m[String(r[t.pk])] = jumEmpLigne_(r); });
+  var txt = JSON.stringify(m);
+  if (txt.length < 95000) CacheService.getScriptCache().put('JRH_' + table, txt, 21600);
+}
+var JUM_APRES_ACTION = {
+  valider: ['visites', 'praticiens', 'pharmacies'], fiche: ['praticiens', 'presences', 'pharmacies'], planning: ['plannings'],
+  rapport: ['rapports'], delegue: ['listes_reference'], etablissement: ['etablissements', 'presences']
+};
+// Appelée par doPost juste après l'écriture dans le Sheet : Supabase est à jour quand le téléphone reçoit la réponse
+function jumPousserApresEcriture_(action) {
+  var tables = JUM_APRES_ACTION[action]; if (!tables) return;
+  var cache = CacheService.getScriptCache(), codesMed = null;
+  tables.forEach(function (table) {
+    try {
+      var t = JUM_TABLES[table], rows = jumLignes_(table); if (!rows || !rows.length) return;
+      if (table === 'presences') {
+        var pr = jumLignes_('praticiens') || []; codesMed = {}; pr.forEach(function (r) { codesMed[r.code] = 1; });
+        rows = rows.filter(function (r) { return codesMed[r.code]; });
+      }
+      var txt = t.pk ? cache.get('JRH_' + table) : null;
+      if (!txt) { jumSyncTable_(table, rows); jumMemoriserLignes_(table, rows); return; }
+      var m = JSON.parse(txt), aEnvoyer = [];
+      jumDedoublonner_(rows, [t.pk]).forEach(function (r) { var k = String(r[t.pk]), e = jumEmpLigne_(r); if (m[k] !== e) { aEnvoyer.push(r); m[k] = e; } });
+      jumParLots_(aEnvoyer, 400, function (lot) {
+        jumOk_(jumReq_('post', table + '?on_conflict=' + t.pk, lot, 'resolution=merge-duplicates,return=minimal'), 'Envoi ' + table);
+      });
+      txt = JSON.stringify(m); if (txt.length < 95000) cache.put('JRH_' + table, txt, 21600);
+    } catch (e) { console.warn('Jumelage immédiat ' + table + ' : ' + e); }   // rattrapé par le tour de 5 minutes
+  });
+}
+
+// Déclencheur installable onEdit : la table de l'onglet modifié part tout de suite vers Supabase
+function jumSurEdition(e) {
+  try {
+    var nom = e && e.range ? e.range.getSheet().getName() : '';
+    var parFeuille = {}; parFeuille[FEUILLES.praticiens] = 'praticiens'; parFeuille[FEUILLES.presences] = 'presences'; parFeuille[FEUILLES.pharmacies] = 'pharmacies';
+    parFeuille[FEUILLES.etablissements] = 'etablissements'; parFeuille[FEUILLES.hist] = 'visites'; parFeuille[FEUILLES.plannings] = 'plannings'; parFeuille[FEUILLES.rapports] = 'rapports';
+    parFeuille[FEUILLES.quartiers] = 'quartiers'; parFeuille[FEUILLES.fiches] = 'fiches_produits'; parFeuille[FEUILLES.listes] = 'listes_reference';
+    var table = parFeuille[nom]; if (!table) return;
+    JUM_APRES_ACTION['_edition'] = [table];
+    jumPousserApresEcriture_('_edition');
+  } catch (err) { console.warn('jumSurEdition : ' + err); }
+}
+
+// ---------------------------------------------------------------- Supabase -> Sheet (modifications faites directement dans Supabase)
+// Chaque ligne modifiée hors serveur porte maj_source = 'supabase' (déclencheur SQL) ; chaque suppression est notée dans jumelage_suppressions.
+// Colonnes : [colonne Supabase, libellés possibles de l'en-tête du Sheet, type]
+var JUM_RETOUR = {
+  praticiens: { feuille: 'praticiens', cle: [['code', ['CodeContact']]], cols: [['type', ['Type']], ['nom', ['Nom']], ['specialite', ['Spécialité']], ['note', ['Note'], 'n'], ['conventionne', ['Engagé'], 'b'],
+    ['telephone', ['Téléphone']], ['derniere', ['DateDerniereVisite'], 'd'], ['statut', ['DernierStatut']], ['commentaire', ['DernierCommentaire']], ['nb_visites', ['NbVisites'], 'n'], ['actif', ['Actif'], 'b'],
+    ['prochaine', ['ProchaineEtape']], ['absent_du', ['AbsentDu'], 'd'], ['absent_au', ['AbsentAu'], 'd']] },
+  presences: { feuille: 'presences', cle: [['id', ['IdPresence']]], cols: [['code', ['CodeContact']], ['nom', ['Nom']], ['lieu', ['Lieu/Etablissement']], ['quartier', ['Quartier']], ['commune', ['Commune']], ['zone', ['Zone']],
+    ['lundi', ['Lundi']], ['mardi', ['Mardi']], ['mercredi', ['Mercredi']], ['jeudi', ['Jeudi']], ['vendredi', ['Vendredi']], ['horaire_matin', ['HoraireMatin']], ['horaire_soir', ['HoraireSoir']],
+    ['lat', ['Latitude'], 'n'], ['lon', ['Longitude'], 'n'], ['secteur', ['Secteur']], ['reperes', ['Repères']], ['origine_gps', ['OrigineGPS']]] },
+  pharmacies: { feuille: 'pharmacies', cle: [['code', ['CodeContact']]], cols: [['nom', ['Nom']], ['titulaire', ['Titulaire']], ['quartier', ['Quartier']], ['commune', ['Commune']], ['zone', ['Zone']],
+    ['lat', ['Latitude'], 'n'], ['lon', ['Longitude'], 'n'], ['telephone', ['Téléphone']], ['horaire_matin', ['HoraireMatin']], ['horaire_soir', ['HoraireSoir']], ['note', ['Note'], 'n'], ['conventionne', ['Engagé'], 'b'],
+    ['derniere', ['DateDerniereVisite'], 'd'], ['statut', ['DernierStatut']], ['commentaire', ['DernierCommentaire']], ['nb_visites', ['NbVisites'], 'n'], ['actif', ['Actif'], 'b'], ['reperes', ['Repères']],
+    ['prochaine', ['ProchaineEtape']], ['source', ['Source']], ['origine_gps', ['OrigineGPS']]] },
+  etablissements: { feuille: 'etablissements', cle: [['code', ['CodeEtab']]], cols: [['nom', ['Nom']], ['categorie', ['Categorie']], ['commune', ['Commune']], ['quartier', ['Quartier']], ['zone', ['Zone']],
+    ['lat', ['Latitude'], 'n'], ['lon', ['Longitude'], 'n'], ['telephone', ['Telephone', 'Téléphone']], ['reperes', ['Reperes', 'Repères']], ['position', ['Position']], ['origine_gps', ['OrigineGPS']]] },
+  visites: { feuille: 'hist', cle: [['uid', ['IdSync']]], cols: [['date', ['DateVisite'], 'd'], ['delegue', ['Délégué']], ['code', ['CodeContact']], ['id_presence', ['IdPresence']], ['nom', ['Nom']], ['type', ['Type']],
+    ['specialite', ['Spécialité']], ['note', ['Note'], 'n'], ['commune', ['Commune']], ['quartier', ['Quartier']], ['lieu', ['Lieu/Etablissement']], ['creneau', ['Créneau']], ['statut', ['Statut']],
+    ['type_echange', ['Activité']], ['produits_presentes', ['Produits']], ['echantillons', ['Échantillons']], ['prochaine_etape', ['ProchaineEtape']], ['commentaire', ['Commentaire']],
+    ['interlocuteur', ['Interlocuteur']], ['reactions', ['Réactions']], ['stocks', ['Stocks']], ['commande', ['Commande']], ['complements', ['Compléments']], ['suite', ['Suite']]] },
+  rapports: { feuille: 'rapports', cle: [['delegue', ['Délégué']], ['date', ['Date'], 'd']], cols: [['prevues', ['Visites prévues'], 'n'], ['faites', ['Visites faites'], 'n'], ['non_faites', ['Non faites'], 'n'],
+    ['sans_cr', ['Sans compte rendu'], 'n'], ['synthese', ['Synthèse']], ['faits', ['Faits marquants']], ['concurrence', ['Concurrence']], ['besoins', ['Besoins']], ['km', ['Kilomètres'], 'n']] },
+  quartiers: { feuille: 'quartiers', cle: [['commune', ['Commune']], ['quartier', ['Quartier']]], cols: [['zone', ['Zone']], ['lat', ['Latitude', 'Lat'], 'n'], ['lon', ['Longitude', 'Lon'], 'n'], ['secteur', ['Secteur']]] },
+  fiches_produits: { feuille: 'fiches', cle: [['produit', ['Produit']]], cols: [['gamme', ['Gamme']], ['aire', ['Aire thérapeutique']], ['dci', ['DCI et dosage']], ['classe', ['Classe']], ['indications', ['Indications']],
+    ['contre_indications', ['Contre-indications']], ['posologie', ['Posologie']], ['precautions', ['Précautions et interactions']], ['effets', ['Effets indésirables']], ['arguments', ['Arguments clés']],
+    ['laboratoire', ['Laboratoire']], ['sources', ['Sources']], ['actif', ['Actif'], 'b']] }
+};
+function jumVersSheet_(v, type) {
+  if (v === null || v === undefined) return '';
+  if (type === 'b') return v === true || v === 'true' ? 'Oui' : 'Non';
+  if (type === 'n') { var n = Number(v); return isFinite(n) ? n : ''; }
+  if (type === 'd') { var m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : ''; }
+  return String(v);
+}
+function jumCleSheet_(v, type) { return type === 'd' ? (jumDate_(v) || '') : jumTxt_(v); }
+
+function jumAppliquerSupabase_() {
+  var ss = SpreadsheetApp.getActive(), bilan = { modifiees: 0, ajoutees: 0, supprimees: 0, erreurs: 0 };
+  Object.keys(JUM_RETOUR).forEach(function (table) {
+    var R = JUM_RETOUR[table];
+    var res = jumReq_('get', table + '?select=*&maj_source=eq.supabase&limit=1000');
+    jumOk_(res, 'Lecture des modifications ' + table);
+    var lignes = JSON.parse(res.texte); if (!lignes.length) return;
+    var sh = ss.getSheetByName(FEUILLES[R.feuille]); if (!sh) return;
+    var nc = sh.getLastColumn(), ent = sh.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
+    var colDe = function (noms) { for (var i = 0; i < noms.length; i++) { var k = ent.indexOf(normaliser(noms[i])); if (k >= 0) return k; } return -1; };
+    var kCle = R.cle.map(function (c) { return colDe(c[1]); });
+    if (kCle.some(function (k) { return k < 0; })) return;
+    var data = sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, nc).getValues() : [];
+    var kDate = table === 'visites' ? colDe(['DateVisite']) : -1, kCode = table === 'visites' ? colDe(['CodeContact']) : -1;
+    var cleLigne = function (l) {
+      var k = R.cle.map(function (c, j) { return jumCleSheet_(l[kCle[j]], c[2]); }).join('|');
+      if (!k && table === 'visites') k = 'H-' + (jumDate_(l[kDate]) || '') + '-' + jumTxt_(l[kCode]);   // même identifiant que jumLignes_
+      return k;
+    };
+    var index = {}; data.forEach(function (l, i) { index[cleLigne(l)] = i; });
+    var faites = [];
+    lignes.forEach(function (o) {
+      try {
+        var cle = R.cle.map(function (c) { return jumCleSheet_(o[c[0]], c[2]); }).join('|');
+        var i = index[cle], ligne = i !== undefined ? data[i].slice() : ent.map(function () { return ''; });
+        if (i === undefined) R.cle.forEach(function (c, j) { ligne[kCle[j]] = jumVersSheet_(o[c[0]], c[2]); });
+        R.cols.forEach(function (c) { var k = colDe(c[1]); if (k >= 0 && o.hasOwnProperty(c[0])) ligne[k] = jumVersSheet_(o[c[0]], c[2]); });
+        if (i !== undefined) { sh.getRange(i + 2, 1, 1, nc).setValues([ligne]); data[i] = ligne; bilan.modifiees++; }
+        else { sh.getRange(sh.getLastRow() + 1, 1, 1, nc).setValues([ligne]); data.push(ligne); index[cle] = data.length - 1; bilan.ajoutees++; }
+        faites.push(o);
+      } catch (e) { bilan.erreurs++; console.warn('Retour ' + table + ' : ' + e); }
+    });
+    // les lignes reportées repassent en maj_source = 'sheets'
+    var pk = JUM_TABLES[table].pk || 'id';
+    jumParLots_(faites.map(function (o) { return o[pk]; }), 80, function (lot) {
+      jumOk_(jumReq_('patch', table + '?' + pk + '=' + encodeURIComponent(jumIn_(lot)), { maj_source: 'sheets' }, 'return=minimal'), 'Marquage ' + table);
+    });
+  });
+  // suppressions faites dans Supabase
+  var rs = jumReq_('get', 'jumelage_suppressions?select=*&order=id&limit=500');
+  jumOk_(rs, 'Lecture des suppressions');
+  var sup = JSON.parse(rs.texte), traitees = [];
+  sup.forEach(function (x) {
+    var R = JUM_RETOUR[x.table_name], o = x.cle || {};
+    traitees.push(x.id);
+    if (!R) return;
+    var sh = ss.getSheetByName(FEUILLES[R.feuille]); if (!sh || sh.getLastRow() < 2) return;
+    var nc = sh.getLastColumn(), ent = sh.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
+    var kCle = R.cle.map(function (c) { for (var i = 0; i < c[1].length; i++) { var k = ent.indexOf(normaliser(c[1][i])); if (k >= 0) return k; } return -1; });
+    if (kCle.some(function (k) { return k < 0; })) return;
+    var cle = R.cle.map(function (c) { return jumCleSheet_(o[c[0]], c[2]); }).join('|');
+    var data = sh.getRange(2, 1, sh.getLastRow() - 1, nc).getValues();
+    for (var i = data.length - 1; i >= 0; i--) {
+      if (R.cle.map(function (c, j) { return jumCleSheet_(data[i][kCle[j]], c[2]); }).join('|') === cle) { sh.deleteRow(i + 2); bilan.supprimees++; }
+    }
+  });
+  jumParLots_(traitees, 80, function (lot) { jumOk_(jumReq_('delete', 'jumelage_suppressions?id=in.(' + lot.join(',') + ')'), 'Purge des suppressions'); });
+  if (bilan.modifiees || bilan.ajoutees || bilan.supprimees) { try { marquerModif(); } catch (e) {} }
+  return bilan;
+}
 
 function lireEtatJumelage_() {
   var etat = JSON.parse(PropertiesService.getScriptProperties().getProperty('SUPA_ETAT') || '{}');
