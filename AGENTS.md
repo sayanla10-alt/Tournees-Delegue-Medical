@@ -58,3 +58,9 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 - Tester l'application sur le serveur simulé (mock-gas) ou en mode Démo, jamais connecté à la vraie base avec un faux délégué (ex. « Diagnostic ») : l'application publie seule la tournée et les comptes rendus dans les onglets Plannings, Historique et Rapports du jour.
 - Lecture seule permise sur la vraie base (appel `action=data`) ; toute écriture de test est interdite.
 - Après tout test, vérifier qu'aucune ligne de test ne reste dans la base et effacer les données locales du navigateur utilisé.
+
+## 11. DEUX BASES JUMELLES : GOOGLE SHEETS (PRINCIPALE) ET SUPABASE (COPIE)
+- L'application lit et écrit dans Google Sheets. Supabase est une copie exacte, tenue à jour par le serveur : `apps-script/Jumelage.gs`, déclencheur `jumelageAuto` toutes les 5 minutes (ajouts, modifications et suppressions, onglet par onglet, empreinte MD5).
+- Ne jamais faire écrire le téléphone directement dans Supabase (`MIROIR_CLIENT = false` dans app.js) : le Sheet reste la seule source.
+- Recopie complète à la demande : `synchroniserSupabaseComplet()` dans l'éditeur. État : action `jumelage` du serveur, affichée dans Réglages.
+- Une nouvelle colonne ou un nouvel onglet à copier : l'ajouter dans `jumLignes_` et `JUM_TABLES`, et créer la colonne côté Supabase.
