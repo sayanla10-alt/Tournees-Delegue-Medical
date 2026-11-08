@@ -58,3 +58,18 @@ END $$;
 
 -- les lignes déjà présentes (maj_source vide) viennent du Sheet : rien à reporter
 NOTIFY pgrst, 'reload schema';
+
+-- 3.28.15 : journal d'audit du Sheet (Audit_Logs) recopié lui aussi
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  horodatage text, auteur text, action text, entite text, code text, details text,
+  autres jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now(), maj_source text
+);
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Acces complet audit_logs" ON public.audit_logs;
+CREATE POLICY "Acces complet audit_logs" ON public.audit_logs FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+DROP TRIGGER IF EXISTS jumelage_marquer ON public.audit_logs;
+CREATE TRIGGER jumelage_marquer BEFORE INSERT OR UPDATE ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.jumelage_marquer();
+DROP TRIGGER IF EXISTS jumelage_suppression ON public.audit_logs;
+CREATE TRIGGER jumelage_suppression AFTER DELETE ON public.audit_logs FOR EACH ROW EXECUTE FUNCTION public.jumelage_suppression();
+NOTIFY pgrst, 'reload schema';

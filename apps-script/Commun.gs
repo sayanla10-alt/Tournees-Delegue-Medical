@@ -1358,6 +1358,9 @@ function formaterTelephoneCI(n) {
   if (!n) return '';
   var s = String(n).trim();
   if (!s) return '';
+  // 3.28.15 : plusieurs numéros (« a / b », « a ; b », « a, b ») : chacun mis en forme, l'ordre est conservé
+  var parts = s.split(/\s*[\/;,|]\s*|\s+(?:ou|et)\s+/i).filter(function (x) { return /\d/.test(x); });
+  if (parts.length > 1) return parts.map(formaterTelephoneCI).join(' / ');
   var d = s.replace(/\D/g, '');
   if (d.indexOf('00') === 0) d = d.slice(2);
   if (d.indexOf('225') === 0) d = d.slice(3);
@@ -1368,8 +1371,7 @@ function formaterTelephoneCI(n) {
   if (d.length === 8) {
     return '+225 ' + d.slice(0, 2) + ' ' + d.slice(2, 4) + ' ' + d.slice(4, 6) + ' ' + d.slice(6, 8);
   }
-  if (s.indexOf('+') === 0) return '+' + d;
-  return s;
+  return s;   // format inconnu (numéro étranger, extension…) : laissé tel que saisi
 }
 
 if (typeof module !== 'undefined' && module.exports) {

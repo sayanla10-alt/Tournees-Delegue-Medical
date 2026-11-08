@@ -220,6 +220,14 @@ function jumLignes_(table) {
           sources: jumTxt_(get(l, c.sources)), actif: jumActif_(get(l, c.actif)) });
       });
       return out;
+    case 'audit_logs':   // journal d'audit (Ecriture.gs, enregistrerAudit) : validations, corrections, lieux supprimés
+      f = jumFeuille_(FEUILLES.audit || 'Audit_Logs'); if (!f) return null;
+      c = { h: f.col(['Horodatage']), a: f.col(['Auteur']), ac: f.col(['Action']), e: f.col(['Entite']), co: f.col(['Code']), d: f.col(['Details']) };
+      f.lignes.forEach(function (l) {
+        var h = get(l, c.h); if (h === '' || h === null) return;
+        pousser(l, { horodatage: jumHoro_(h) || jumTxt_(h), auteur: jumTxt_(get(l, c.a)), action: jumTxt_(get(l, c.ac)), entite: jumTxt_(get(l, c.e)), code: jumTxt_(get(l, c.co)), details: jumTxt_(get(l, c.d)) });
+      });
+      return out;
     case 'listes_reference':
       f = jumFeuille_(FEUILLES.listes); if (!f) return null;
       var cats = [['delegue', ['Délégués']], ['ferie', ['JoursFériés']], ['activite', ['Activités']], ['activite_pharmacie', ['ActivitésPharmacie']], ['produit', ['Produits']]];
@@ -246,7 +254,8 @@ function jumLignes_(table) {
 var JUM_TABLES = {
   praticiens: { pk: 'code' }, presences: { pk: 'id' }, pharmacies: { pk: 'code' }, etablissements: { pk: 'code' }, visites: { pk: 'uid' },
   plannings: { cle: ['delegue', 'date', 'heure', 'code', 'id_presence'] }, rapports: { cle: ['delegue', 'date'] },
-  quartiers: { cle: ['commune', 'quartier'] }, fiches_produits: { cle: ['produit'] }, listes_reference: { cle: ['categorie', 'valeur'] }
+  quartiers: { cle: ['commune', 'quartier'] }, fiches_produits: { cle: ['produit'] }, listes_reference: { cle: ['categorie', 'valeur'] },
+  audit_logs: { cle: ['horodatage', 'auteur', 'action', 'code', 'details'] }
 };
 
 function jumCle_(o, cols) { return cols.map(function (k) { return o[k] === null || o[k] === undefined ? '' : String(o[k]); }).join('|'); }
@@ -360,7 +369,7 @@ function jumMemoriserLignes_(table, rows) {
   if (txt.length < 95000) CacheService.getScriptCache().put('JRH_' + table, txt, 21600);
 }
 var JUM_APRES_ACTION = {
-  valider: ['visites', 'praticiens', 'pharmacies'], fiche: ['praticiens', 'presences', 'pharmacies'], planning: ['plannings'],
+  valider: ['visites', 'praticiens', 'pharmacies', 'audit_logs'], fiche: ['praticiens', 'presences', 'pharmacies', 'audit_logs'], planning: ['plannings'],
   rapport: ['rapports'], delegue: ['listes_reference'], etablissement: ['etablissements', 'presences']
 };
 // Appelée par doPost juste après l'écriture dans le Sheet : Supabase est à jour quand le téléphone reçoit la réponse
@@ -530,7 +539,7 @@ function jumVerifierCouverture() {
     return s;
   };
   var feuilles = { praticiens: 'praticiens', presences: 'presences', pharmacies: 'pharmacies', etablissements: 'etablissements', visites: 'hist', plannings: 'plannings',
-    rapports: 'rapports', quartiers: 'quartiers', fiches_produits: 'fiches' };
+    rapports: 'rapports', quartiers: 'quartiers', fiches_produits: 'fiches', audit_logs: 'audit' };
   var bilan = {};
   Object.keys(feuilles).forEach(function (table) {
     var f = jumFeuille_(FEUILLES[feuilles[table]]); if (!f) return;

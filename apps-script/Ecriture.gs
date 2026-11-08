@@ -13,7 +13,6 @@ function enregistrerRapport(r) {
     });
     if (rang > 0) sh.getRange(rang, 1, 1, ligne.length).setValues([ligne]);
     else sh.getRange(sh.getLastRow() + 1, 1, 1, ligne.length).setValues([ligne]);
-    try { if (typeof miroirSupabaseRapport_ === 'function') miroirSupabaseRapport_(r); } catch (eMir) { console.warn('Miroir Supabase rapport:', eMir); }
     return { ok: true, date: r.date };
   } finally { lock.releaseLock(); }
 }
@@ -93,7 +92,6 @@ function enregistrerVisites(visites) {
     if (nouvelles.length) shH.getRange(shH.getLastRow() + 1, 1, nouvelles.length, ordreH.length).setValues(nouvelles);
     corrections.forEach(function (x) { shH.getRange(x.ligne, 1, 1, ordreH.length).setValues([x.valeurs]); });
     marquerArretsValides(ss, visites);
-    try { if (typeof miroirSupabaseVisites_ === 'function') miroirSupabaseVisites_(visites); } catch (eMir) { console.warn('Miroir Supabase visites:', eMir); }
     return { ok: true, recus: recus, ajoutes: nouvelles.length, corriges: corrections.length };
   } finally {
     lock.releaseLock();
@@ -176,7 +174,6 @@ function publierPlanning(b) {
     var tout = garde.concat(nouvelles);
     if (n) sh.getRange(2, 1, n, nbCol).clearContent();
     if (tout.length) sh.getRange(2, 1, tout.length, nbCol).setNumberFormat('@').setValues(tout);
-    try { if (typeof miroirSupabasePlanning_ === 'function') miroirSupabasePlanning_(b); } catch (eMir) { console.warn('Miroir Supabase planning:', eMir); }
     return { ok: true, publies: nouvelles.length, conflits: conflits };
   } finally {
     lock.releaseLock();
@@ -268,7 +265,6 @@ function enregistrerFiche(b) {
     CHAMPS_PRATICIENS.forEach(function (c, k) { if (posP[k] >= 0 && modif[c[0]] !== undefined && !(rattache && (modif[c[0]] === '' || c[0] === 'note' || c[0] === 'conventionne') && valeurs[posP[k]] !== '')) valeurs[posP[k]] = modif[c[0]]; });
     if (ligne >= 0) shP.getRange(ligne + 2, 1, 1, entP.length).setValues([valeurs]);
     else shP.getRange(shP.getLastRow() + 1, 1, 1, entP.length).setValues([valeurs]);
-    try { journaliserModif('praticien', code); } catch (eJ) {}
 
     // --- Presences : lieux du praticien remplacés (mêmes lignes réutilisées, identifiants conservés)
     var refQ = {};
@@ -340,15 +336,14 @@ function enregistrerFiche(b) {
     var libres = mesLignes.filter(function (i) { return !utilisees[i]; });
     while (nouveaux.length && libres.length) { var li = libres.shift(); utilisees[li] = true; shR.getRange(li + 2, 1, 1, entR.length).setValues([nouveaux.shift()]); }
     if (nouveaux.length) shR.getRange(shR.getLastRow() + 1, 1, nouveaux.length, entR.length).setValues(nouveaux);
-    // 3.27.47 : Pas de suppression sèche des présences d'un confrère. Les présences déjà en base sont conservées.
-    if (libres.length && b.supprimerLieux) {
+    // Lieux retirés de la fiche par le délégué : supprimés (comme avant 3.27.47), et notés dans le journal d'audit
+    if (libres.length) {
       libres.sort(function (a, b) { return b - a; }).forEach(function (i) {
         var ancLieu = dataR[i] ? dataR[i][posR[indexChamp(CHAMPS_PRESENCES, 'lieu')]] : 'Lieu';
         enregistrerAudit(ss, auteur, 'SUPPRESSION_PRESENCE', 'Presence', code, 'Suppression lieu: ' + ancLieu);
         shR.deleteRow(i + 2);
       });
     }
-    try { if (typeof miroirSupabasePraticien_ === 'function') miroirSupabasePraticien_(modif, lieux, ids); } catch (eMir) { console.warn('Miroir Supabase praticien:', eMir); }
     return { ok: true, code: code, ancien: String(p.code || ''), ids: ids, coords: coords };
   } finally {
     lock.releaseLock();
@@ -398,9 +393,7 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   if (ligne < 0) { modif.nbVisites = 0; modif.source = 'Application'; }
   CHAMPS_PHARMACIES.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
   if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]); else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
-  try { journaliserModif('pharmacie', code); } catch (eJ) {}
   var ids = {}; if (lieu.id) ids[lieu.id] = 'P-' + code;
-  try { if (typeof miroirSupabasePharmacie_ === 'function') miroirSupabasePharmacie_(modif, lieu); } catch (eMir) { console.warn('Miroir Supabase pharmacie:', eMir); }
   return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
 }
 
@@ -448,7 +441,6 @@ function enregistrerEtablissement(b) {
     CHAMPS_ETABLISSEMENTS.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
     if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]);
     else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
-    try { journaliserModif('etablissement', code); } catch (eJ) {}
 
     // Cascade GPS et quartier vers la feuille Presences si lat/lon modifiés
     var cascades = 0;
@@ -480,7 +472,6 @@ function enregistrerEtablissement(b) {
       }
     }
 
-    try { if (typeof miroirSupabaseEtablissement_ === 'function') miroirSupabaseEtablissement_(modif); } catch (eMir) { console.warn('Miroir Supabase etablissement:', eMir); }
     return { ok: true, code: code, nom: nom, lat: modif.lat, lon: modif.lon, cascades: cascades };
   } finally {
     try { lock.releaseLock(); } catch (e) {}
