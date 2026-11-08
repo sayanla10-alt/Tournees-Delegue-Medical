@@ -66,12 +66,22 @@ function jumFeuille_(nom) {
   var sh = SpreadsheetApp.getActive().getSheetByName(nom);
   if (!sh || sh.getLastColumn() < 1) return null;
   var nc = sh.getLastColumn();
-  var ent = sh.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
+  var brut = sh.getRange(1, 1, 1, nc).getValues()[0], ent = brut.map(normaliser), utilisees = {};
   var vals = sh.getLastRow() >= 2 ? sh.getRange(2, 1, sh.getLastRow() - 1, nc).getValues() : [];
   return {
     lignes: vals,
+    // 3.28.12 : toute colonne du Sheet sans colonne Supabase dédiée part dans « autres » (jsonb) : aucune information perdue
+    autres: function (l) {
+      var o = null;
+      for (var j = 0; j < nc; j++) {
+        if (utilisees[j] || !String(brut[j] || '').trim()) continue;
+        var v = l[j]; if (v === '' || v === null || v === undefined) continue;
+        (o = o || {})[String(brut[j]).trim()] = v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm') : v;
+      }
+      return o;
+    },
     col: function (noms) {   // index de la première en-tête trouvée parmi plusieurs libellés
-      for (var i = 0; i < noms.length; i++) { var k = ent.indexOf(normaliser(noms[i])); if (k >= 0) return k; }
+      for (var i = 0; i < noms.length; i++) { var k = ent.indexOf(normaliser(noms[i])); if (k >= 0) { utilisees[k] = 1; return k; } }
       return -1;
     }
   };
@@ -98,6 +108,7 @@ function jumVide_(v) { var s = jumTxt_(v); return s === '' ? null : s; }
 function jumLignes_(table) {
   var f, c, out = [];
   var get = function (l, k) { return k >= 0 ? l[k] : ''; };
+  var pousser = function (l, o) { o.autres = f.autres(l); out.push(o); };
   switch (table) {
     case 'praticiens':
       f = jumFeuille_(FEUILLES.praticiens); if (!f) return null;
@@ -106,7 +117,7 @@ function jumLignes_(table) {
         pro: f.col(['ProchaineEtape']), adu: f.col(['AbsentDu']), aau: f.col(['AbsentAu']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
-        out.push({ prochaine: jumTxt_(get(l, c.pro)), absent_du: jumDate_(get(l, c.adu)), absent_au: jumDate_(get(l, c.aau)), code: code, type: jumTxt_(get(l, c.type)) || 'Médecin', nom: nom, specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
+        pousser(l, { prochaine: jumTxt_(get(l, c.pro)), absent_du: jumDate_(get(l, c.adu)), absent_au: jumDate_(get(l, c.aau)), code: code, type: jumTxt_(get(l, c.type)) || 'Médecin', nom: nom, specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
           conventionne: jumOui_(get(l, c.conv)), telephone: jumTel_(get(l, c.tel)), derniere: jumDate_(get(l, c.der)), statut: jumVide_(get(l, c.st)),
           commentaire: jumVide_(get(l, c.com)), nb_visites: jumInt_(get(l, c.nb), 0), actif: jumActif_(get(l, c.act)) });
       });
@@ -120,7 +131,7 @@ function jumLignes_(table) {
         var o = { id: id, code: code, nom: jumTxt_(get(l, c.nom)), lieu: jumTxt_(get(l, c.lieu)), quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), zone: jumTxt_(get(l, c.z)),
           horaire_matin: jumTxt_(get(l, c.hm)), horaire_soir: jumTxt_(get(l, c.hs)), lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), reperes: jumTxt_(get(l, c.rep)), secteur: jumTxt_(get(l, c.se)), origine_gps: jumTxt_(get(l, c.og)) };
         JOURS_CLES.forEach(function (j, k) { o[j] = jumTxt_(get(l, c.j[k])); });
-        out.push(o);
+        o.autres = f.autres(l); out.push(o);
       });
       return out;
     case 'pharmacies':
@@ -131,7 +142,7 @@ function jumLignes_(table) {
         rep: f.col(['Repères']), pro: f.col(['ProchaineEtape']), src: f.col(['Source']), og: f.col(['OrigineGPS']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
-        out.push({ reperes: jumTxt_(get(l, c.rep)), prochaine: jumTxt_(get(l, c.pro)), source: jumTxt_(get(l, c.src)), origine_gps: jumTxt_(get(l, c.og)), code: code, nom: nom, titulaire: jumTxt_(get(l, c.tit)), quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), zone: jumTxt_(get(l, c.z)),
+        pousser(l, { reperes: jumTxt_(get(l, c.rep)), prochaine: jumTxt_(get(l, c.pro)), source: jumTxt_(get(l, c.src)), origine_gps: jumTxt_(get(l, c.og)), code: code, nom: nom, titulaire: jumTxt_(get(l, c.tit)), quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), zone: jumTxt_(get(l, c.z)),
           lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel)), horaire_matin: jumTxt_(get(l, c.hm)), horaire_soir: jumTxt_(get(l, c.hs)),
           note: jumNote_(get(l, c.note)), conventionne: jumOui_(get(l, c.conv)), derniere: jumDate_(get(l, c.der)), statut: jumVide_(get(l, c.st)), commentaire: jumVide_(get(l, c.com)),
           nb_visites: jumInt_(get(l, c.nb), 0), actif: jumActif_(get(l, c.act)) });
@@ -143,7 +154,7 @@ function jumLignes_(table) {
         tel: f.col(['Telephone', 'Téléphone']), rep: f.col(['Reperes', 'Repères']), pos: f.col(['Position']), og: f.col(['OrigineGPS']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
-        out.push({ code: code, nom: nom, categorie: jumTxt_(get(l, c.cat)), commune: jumTxt_(get(l, c.co)), quartier: jumTxt_(get(l, c.q)), zone: jumTxt_(get(l, c.z)),
+        pousser(l, { code: code, nom: nom, categorie: jumTxt_(get(l, c.cat)), commune: jumTxt_(get(l, c.co)), quartier: jumTxt_(get(l, c.q)), zone: jumTxt_(get(l, c.z)),
           lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel)), reperes: jumTxt_(get(l, c.rep)), position: jumTxt_(get(l, c.pos)), origine_gps: jumTxt_(get(l, c.og)) });
       });
       return out;
@@ -156,7 +167,7 @@ function jumLignes_(table) {
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), date = jumDate_(get(l, c.date)); if (!code || !date) return;
         var uid = jumTxt_(get(l, c.uid)) || ('H-' + date + '-' + code);
-        out.push({ uid: uid, date: date, horodatage: jumHoro_(get(l, c.horo)), delegue: jumTxt_(get(l, c.del)), code: code, id_presence: jumVide_(get(l, c.idp)),
+        pousser(l, { uid: uid, date: date, horodatage: jumHoro_(get(l, c.horo)), delegue: jumTxt_(get(l, c.del)), code: code, id_presence: jumVide_(get(l, c.idp)),
           nom: jumTxt_(get(l, c.nom)), type: jumTxt_(get(l, c.type)) || 'Médecin', specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
           commune: jumTxt_(get(l, c.co)), quartier: jumTxt_(get(l, c.q)), lieu: jumTxt_(get(l, c.lieu)), creneau: jumTxt_(get(l, c.cr)), statut: jumTxt_(get(l, c.st)) || 'Visite faite',
           type_echange: jumTxt_(get(l, c.act)), produits_presentes: jumVide_(get(l, c.prod)), echantillons: jumVide_(get(l, c.ech)),
@@ -172,7 +183,7 @@ function jumLignes_(table) {
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), date = jumDate_(get(l, c.date)); if (!code || !date) return;
         var hv = get(l, c.h), heure = hv instanceof Date ? Utilities.formatDate(hv, Session.getScriptTimeZone(), 'HH:mm') : jumTxt_(hv);
-        out.push({ delegue: jumTxt_(get(l, c.del)), date: date, heure: heure, creneau: jumTxt_(get(l, c.cr)), debut: jumInt_(get(l, c.d)), fin: jumInt_(get(l, c.fi)),
+        pousser(l, { delegue: jumTxt_(get(l, c.del)), date: date, heure: heure, creneau: jumTxt_(get(l, c.cr)), debut: jumInt_(get(l, c.d)), fin: jumInt_(get(l, c.fi)),
           id_presence: jumVide_(get(l, c.idp)), code: code, nom: jumTxt_(get(l, c.nom)), specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
           quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), lieu: jumTxt_(get(l, c.lieu)), statut: jumTxt_(get(l, c.st)), etat: jumTxt_(get(l, c.et)) || 'planifie', programme: jumTxt_(get(l, c.pr)),
           maj: jumHoro_(get(l, c.maj)) || jumTxt_(get(l, c.maj)), id_arret: jumTxt_(get(l, c.ida)), cible_depuis: jumTxt_(get(l, c.dep)) });
@@ -184,7 +195,7 @@ function jumLignes_(table) {
         sy: f.col(['Synthèse']), fm: f.col(['Faits marquants']), cc: f.col(['Concurrence']), be: f.col(['Besoins']), km: f.col(['Kilomètres']), vl: f.col(['Validé le']), maj: f.col(['Mise à jour']) };
       f.lignes.forEach(function (l) {
         var del = jumTxt_(get(l, c.del)), date = jumDate_(get(l, c.date)); if (!del || !date) return;
-        out.push({ delegue: del, date: date, prevues: jumInt_(get(l, c.pv), 0), faites: jumInt_(get(l, c.fa), 0), non_faites: jumTxt_(get(l, c.nf)), sans_cr: jumInt_(get(l, c.sc), 0),
+        pousser(l, { delegue: del, date: date, prevues: jumInt_(get(l, c.pv), 0), faites: jumInt_(get(l, c.fa), 0), non_faites: jumTxt_(get(l, c.nf)), sans_cr: jumInt_(get(l, c.sc), 0),
           synthese: jumTxt_(get(l, c.sy)), faits: jumTxt_(get(l, c.fm)), concurrence: jumTxt_(get(l, c.cc)), besoins: jumTxt_(get(l, c.be)), km: jumNum_(get(l, c.km)) || 0,
           valide_le: jumHoro_(get(l, c.vl)) || jumTxt_(get(l, c.vl)), maj: jumHoro_(get(l, c.maj)) || jumTxt_(get(l, c.maj)) });
       });
@@ -194,7 +205,7 @@ function jumLignes_(table) {
       c = { co: f.col(['Commune']), q: f.col(['Quartier']), z: f.col(['Zone']), la: f.col(['Latitude', 'Lat']), lo: f.col(['Longitude', 'Lon']), se: f.col(['Secteur']) };
       f.lignes.forEach(function (l) {
         var q = jumTxt_(get(l, c.q)); if (!q) return;
-        out.push({ commune: jumTxt_(get(l, c.co)), quartier: q, zone: jumTxt_(get(l, c.z)), lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), secteur: jumTxt_(get(l, c.se)) });
+        pousser(l, { commune: jumTxt_(get(l, c.co)), quartier: q, zone: jumTxt_(get(l, c.z)), lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), secteur: jumTxt_(get(l, c.se)) });
       });
       return out;
     case 'fiches_produits':
@@ -202,7 +213,7 @@ function jumLignes_(table) {
       c = {}; CHAMPS_FICHES.forEach(function (x) { c[x[0]] = f.col([x[1]]); });
       f.lignes.forEach(function (l) {
         var p = jumTxt_(get(l, c.produit)); if (!p) return;
-        out.push({ produit: p, gamme: jumTxt_(get(l, c.gamme)), aire: jumTxt_(get(l, c.aire)), dci: jumTxt_(get(l, c.dci)), classe: jumTxt_(get(l, c.classe)),
+        pousser(l, { produit: p, gamme: jumTxt_(get(l, c.gamme)), aire: jumTxt_(get(l, c.aire)), dci: jumTxt_(get(l, c.dci)), classe: jumTxt_(get(l, c.classe)),
           indications: jumTxt_(get(l, c.indications)), contre_indications: jumTxt_(get(l, c.contreIndications)), posologie: jumTxt_(get(l, c.posologie)),
           precautions: jumTxt_(get(l, c.precautions)), effets: jumTxt_(get(l, c.effets)), arguments: jumTxt_(get(l, c.arguments)), laboratoire: jumTxt_(get(l, c.laboratoire)),
           sources: jumTxt_(get(l, c.sources)), actif: jumActif_(get(l, c.actif)) });
@@ -443,6 +454,7 @@ function jumAppliquerSupabase_() {
         var i = index[cle], ligne = i !== undefined ? data[i].slice() : ent.map(function () { return ''; });
         if (i === undefined) R.cle.forEach(function (c, j) { ligne[kCle[j]] = jumVersSheet_(o[c[0]], c[2]); });
         R.cols.forEach(function (c) { var k = colDe(c[1]); if (k >= 0 && o.hasOwnProperty(c[0])) ligne[k] = jumVersSheet_(o[c[0]], c[2]); });
+        if (o.autres && typeof o.autres === 'object') Object.keys(o.autres).forEach(function (h) { var k = colDe([h]); if (k >= 0) ligne[k] = o.autres[h]; });
         if (i !== undefined) { sh.getRange(i + 2, 1, 1, nc).setValues([ligne]); data[i] = ligne; bilan.modifiees++; }
         else { sh.getRange(sh.getLastRow() + 1, 1, 1, nc).setValues([ligne]); data.push(ligne); index[cle] = data.length - 1; bilan.ajoutees++; }
         faites.push(o);
@@ -481,4 +493,41 @@ function lireEtatJumelage_() {
   var etat = JSON.parse(PropertiesService.getScriptProperties().getProperty('SUPA_ETAT') || '{}');
   etat.frequenceMinutes = JUMELAGE_MINUTES;
   return etat;
+}
+
+// ---------------------------------------------------------------- Contrôle : aucune information du Sheet absente de Supabase
+// Lecture seule. Pour chaque onglet : lignes écartées (sans identifiant) et cellules dont la valeur ne se retrouve pas dans les lignes envoyées.
+function jumVerifierCouverture() {
+  var nv = function (v) {
+    if (v === null || v === undefined) return '';
+    if (v instanceof Date) return v.getHours() || v.getMinutes() ? v.toISOString() : Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    if (typeof v === 'boolean') return String(v);
+    var s = String(v).trim(), t = normaliser(s);
+    if (t === 'oui' || t === 'true') return 'true';
+    if (t === 'non' || t === 'false') return 'false';
+    var n = parseFloat(s.replace(',', '.'));
+    if (isFinite(n) && /^-?[\d\s.,]+$/.test(s)) return String(n);
+    return s;
+  };
+  var feuilles = { praticiens: 'praticiens', presences: 'presences', pharmacies: 'pharmacies', etablissements: 'etablissements', visites: 'hist', plannings: 'plannings',
+    rapports: 'rapports', quartiers: 'quartiers', fiches_produits: 'fiches' };
+  var bilan = {};
+  Object.keys(feuilles).forEach(function (table) {
+    var f = jumFeuille_(FEUILLES[feuilles[table]]); if (!f) return;
+    var rows = jumLignes_(table) || [], vus = {};
+    var ajouter = function (v) { if (v && typeof v === 'object') { Object.keys(v).forEach(function (k) { ajouter(v[k]); }); return; } vus[nv(v)] = 1; if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) vus[v.slice(0, 10)] = 1; };
+    rows.forEach(function (r) { Object.keys(r).forEach(function (k) { ajouter(r[k]); }); });
+    var manque = 0, ex = [];
+    f.lignes.forEach(function (l) {
+      l.forEach(function (v) {
+        var x = nv(v); if (x === '' || vus[x]) return;
+        if (v instanceof Date && vus[Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd')]) return;
+        manque++; if (ex.length < 5) ex.push(String(v).slice(0, 40));
+      });
+    });
+    var nonVides = f.lignes.filter(function (l) { return l.some(function (v) { return v !== '' && v !== null; }); }).length;
+    bilan[table] = { lignesSheet: nonVides, lignesEnvoyees: rows.length, cellulesNonRetrouvees: manque, exemples: ex };
+  });
+  Logger.log('COUVERTURE ' + JSON.stringify(bilan));
+  return bilan;
 }

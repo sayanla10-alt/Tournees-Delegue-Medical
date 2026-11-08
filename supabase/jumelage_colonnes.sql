@@ -35,3 +35,17 @@ ALTER TABLE public.rapports ALTER COLUMN valide_le TYPE text USING valide_le::te
 
 -- 4. Rafraîchir le cache de l'API
 NOTIFY pgrst, 'reload schema';
+
+-- 3.28.12 : aucune information perdue
+-- « autres » reçoit toute colonne du Sheet sans colonne dédiée (ex. Praticiens > Conventionné)
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['praticiens','presences','pharmacies','etablissements','visites','plannings','rapports','quartiers','fiches_produits'] LOOP
+    EXECUTE format('ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS autres jsonb', t);
+  END LOOP;
+END $$;
+-- « Non faites » contient les noms des visites non faites (texte), pas un nombre
+ALTER TABLE public.rapports ALTER COLUMN non_faites DROP DEFAULT;
+ALTER TABLE public.rapports ALTER COLUMN non_faites TYPE text USING non_faites::text;
+NOTIFY pgrst, 'reload schema';
