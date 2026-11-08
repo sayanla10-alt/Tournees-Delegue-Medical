@@ -23,6 +23,11 @@ function onOpen() {
       .addItem('Ouvrir le dossier des sauvegardes', 'ouvrirDossierSauvegardes'))
     .addSeparator()
     // 3.28.15 : Supabase est la base principale ; Jumelage.gs garde les deux bases identiques
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('Doublons (hôpitaux, pharmacies)')
+      .addItem('Détecter les doublons probables', 'menuDetecterDoublons')
+      .addItem('Appliquer les décisions', 'menuAppliquerDecisions')
+      .addItem('Fusionner les deux lignes sélectionnées', 'menuFusionnerSelection')
+      .addItem('Annuler une fusion', 'menuAnnulerFusion'))
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Supabase (base principale)')
       .addItem('Synchroniser maintenant (recopie complète)', 'synchroniserSupabaseComplet')
       .addItem('Installer ou réparer la synchronisation automatique', 'installerJumelage')

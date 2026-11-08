@@ -19,6 +19,7 @@ function enregistrerRapport(r) {
 
 // ---------------------------------------------------------------- Visites validées
 function enregistrerVisites(visites) {
+  (visites || []).forEach(fusRediriger_);   // 3.28.16 : référence d'une fiche fusionnée -> fiche gardée
   var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
@@ -115,6 +116,7 @@ function suiviFeuille(sh) {
 function publierPlanning(b) {
   var delegue = nomDelegue(b.delegue);
   if (!delegue) return { ok: false, erreur: 'Indiquez votre nom dans les réglages de l\'application.' };
+  (b.arrets || []).forEach(fusRediriger_);
   var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
@@ -223,7 +225,7 @@ function enregistrerAudit(ss, auteur, action, entite, code, details) {
 }
 
 function enregistrerFiche(b) {
-  var p = b.praticien || {}, lieux = b.presences || [];
+  var p = b.praticien || {}, lieux = fusRedirigerFiche_(b.praticien || {}, b.presences || []);
   var auteur = String(b.auteur || p.auteur || 'Délégué');
   var nom = String(p.nom || '').trim();
   if (nom.length < 3) return { ok: false, erreur: 'Nom du praticien manquant.' };
@@ -399,7 +401,9 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
 
 // Établissement (hôpital, clinique, FSU COM, dispensaire...) créé ou modifié depuis l'application
 function enregistrerEtablissement(b) {
-  var nom = String(b.nom || '').trim();
+  var R = fusRedirections_();
+  if (b.code) b.code = fusSuivre_(R.codes, b.code);
+  var nom = fusNomLieu_(R, String(b.nom || '').trim(), b.commune);
   if (nom.length < 2) return { ok: false, erreur: 'Nom de l\'établissement manquant.' };
   var lock = verrouiller();
   try {

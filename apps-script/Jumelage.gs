@@ -370,7 +370,8 @@ function jumMemoriserLignes_(table, rows) {
 }
 var JUM_APRES_ACTION = {
   valider: ['visites', 'praticiens', 'pharmacies', 'audit_logs'], fiche: ['praticiens', 'presences', 'pharmacies', 'audit_logs'], planning: ['plannings'],
-  rapport: ['rapports'], delegue: ['listes_reference'], etablissement: ['etablissements', 'presences']
+  rapport: ['rapports'], delegue: ['listes_reference'], etablissement: ['etablissements', 'presences'],
+  fusion: ['etablissements', 'pharmacies', 'presences', 'visites', 'plannings', 'audit_logs']
 };
 // Appelée par doPost juste après l'écriture dans le Sheet : Supabase est à jour quand le téléphone reçoit la réponse
 function jumPousserApresEcriture_(action) {

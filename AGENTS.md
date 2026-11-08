@@ -67,3 +67,11 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 - Le dossier `apps-script/` est la copie exacte du serveur en ligne : toute modification passe par le dépôt, puis l'éditeur Apps Script (fichiers remplacés en entier), puis un déploiement. Plus de `SupabaseSync.gs` (remplacé par `Jumelage.gs`).
 - Déclencheurs SQL : `supabase/jumelage_bidirectionnel.sql`. Colonnes : `supabase/jumelage_colonnes.sql`.
 - Nouvelle colonne ou nouvel onglet : l'ajouter dans `jumLignes_`, `JUM_TABLES`, `JUM_RETOUR`, créer la colonne dans Supabase et la lire dans `chargerToutSupabase`.
+
+## 12. DOUBLONS : FUSION SANS PERTE (`apps-script/Fusion.gs`)
+- Menu MediPlanner > Doublons : « Détecter les doublons probables » (onglet `Doublons à fusionner`, colonne Décision : Garder A, Garder B, Différents), « Appliquer les décisions », « Fusionner les deux lignes sélectionnées », « Annuler une fusion ».
+- Jamais de fusion automatique ni entre deux communes différentes (même nom = lieux distincts) sans confirmation.
+- Fiche gardée complétée (champs vides, téléphones et repères cumulés, suivi de visites cumulé pour les pharmacies, relevé terrain prioritaire), ancien nom dans la colonne `Alias`. Lieux d'exercice, visites et tournées suivent ; un médecin présent dans les deux lieux est réuni sur une ligne (jours cumulés).
+- Chaque cellule changée et chaque ligne retirée est notée dans `Fusions_Journal` (masqué) : toute fusion s'annule, sans écraser ce qui a été modifié depuis.
+- L'onglet `Fusions` garde les redirections : `fusRediriger_` / `fusRedirigerFiche_` rattachent à la fiche gardée une visite, une tournée ou une fiche envoyée plus tard avec l'ancien code, l'ancien identifiant de lieu ou l'ancien nom. Ne pas supprimer cet onglet.
+- Supabase suit aussitôt (`JUM_APRES_ACTION.fusion`). Tests : `test-fusion.js` (simulation complète puis annulation, retour à l'état initial vérifié).
