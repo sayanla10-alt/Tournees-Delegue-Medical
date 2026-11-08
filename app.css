@@ -3772,3 +3772,9 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
   transform: scale(0.975);
   transition: transform 0.12s var(--ease-unslop, cubic-bezier(0.22, 1, 0.36, 1));
 }
+
+/* 3.28.19 : nom cliquable = ouvre la fiche du médecin ou de la pharmacie */
+.nom-lien { cursor: pointer; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); border-radius: 4px; }
+.nom-lien:hover, .nom-lien:focus-visible { text-decoration-color: currentColor; }
+.nom-lien:focus-visible { outline: 2px solid var(--accent, #0A6C74); outline-offset: 2px; }
+.fiche-contact { margin: 0; padding: 0; list-style: none; }

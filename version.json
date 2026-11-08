@@ -1,7 +1,7 @@
 {
-  "version": "3.28.18",
+  "version": "3.28.19",
   "date": "2026-11-08",
   "notes": [
-    "Planifier : punaise, croix et visites hors zone"
+    "Le nom d'un médecin ou d'une pharmacie ouvre sa fiche"
   ]
 }

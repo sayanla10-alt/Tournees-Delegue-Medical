@@ -135,7 +135,7 @@
       if (!res.length) return h + '<p class="discret">Aucun praticien trouvé.</p>';
       return h + '<ul class="liste">' + res.map(function (p) {
         return '<li><button type="button" class="element carte-bouton" data-a="choisirImpose" data-v="' + esc(p.code) + '">' +
-          '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span><span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + ', ' +
+          '<span class="element-titre">' + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span><span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + ', ' +
           esc(Array.from(new Set((c.presencesParCode[p.code] || []).map(function (x) { return x.commune; }))).join(', ')) + '</span></button></li>';
       }).join('') + '</ul>';
     }
@@ -146,7 +146,7 @@
       (c.parCode[f.code] || []).forEach(function (cr) { if (cr.jourIdx === j) options.push({ d: d, c: cr }); });
     });
     var defAuj = f.cle === '__aujourdhui' || !f.cle;
-    h += '<p><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + '</span></p>';
+    h += '<p>' + lienFiche(p.code, '<b>' + esc(p.nom) + '</b>') + ' ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + '</span></p>';
     h += '<p class="discret">Quand planifier cette visite ?</p>';
     h += '<div class="choix-creneaux">' +
       '<label class="choix choix-aujourdhui"><input type="radio" name="impCle" value="__aujourdhui"' + (defAuj ? ' checked' : '') + '><span><b>Ajouter à aujourd\'hui (' + dateCourte(tAuj) + ')</b><small>Forcer dans la journée d\'aujourd\'hui, en dépit du programme</small></span></label>' +
@@ -186,6 +186,11 @@
     };
   };
 
+  FEUILLES.contactFiche = function (f) {
+    var p = praticien(f.code);
+    if (!p) return '<p class="discret">Fiche introuvable.</p>';
+    return '<ul class="liste fiche-contact">' + cartePraticienHtml(p, ctx(), aujourdhui(), true) + '</ul>';
+  };
   FEUILLES.anciens = function (f) {
     if (f.source) {
       var sem = f.source.type === 'semaine', c = f.cible, existants = S.plan.filter(function (a) { return sem ? lundiDe(a.date) === lundiDe(c) : a.date === c; });
@@ -220,7 +225,7 @@
     if (!a) return '<p class="discret">Visite introuvable.</p>';
     var sousTitre = estPharmacie(a) ? infosPharmaciePlan(a) : infosMedecinPlan(a);
     return '<div class="fiche-entete" style="margin-bottom:12px">' +
-      '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + nomPrat(a) + ' ' + etoiles(a.note) + '</span>' +
+      '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + lienFiche(a.code, nomPrat(a)) + ' ' + etoiles(a.note) + '</span>' +
       (sousTitre ? '<p class="discret" style="margin:4px 0 8px">' + specGras(a, sousTitre) + '</p>' : '') +
       '<p style="margin:0"><b>' + majuscule(dateLongue(a.date)) + '</b> · Passage vers <b>' + esc(a.heure || '--:--') + '</b> (' + esc(a.creneau || '') + ')</p>' +
       '</div>' +
@@ -251,7 +256,7 @@
     return '<ul class="liste">' + l.map(function (x) {
       var p = x.cr.prat, ph = estPharmacie(p);
       return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '" data-dist="' + (x.dist !== undefined ? x.dist : '') + '" data-memelieu="' + (x.memeLieu ? '1' : '0') + '">' +
-        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + (ph ? '' : ' ' + etoiles(p.note)) + '</span>' +
+        '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + (ph ? '' : ' ' + etoiles(p.note)) + '</span>' +
         '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [ph ? '' : p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
         '<span class="discret bloc-texte">' + x.cr.creneau + ' ' + minutesVersHeure(x.cr.debut) + '-' + minutesVersHeure(x.cr.fin) + ' · passage vers ' + esc(x.heure) +
           (x.dist < 99 ? ' · ' + km(x.dist) + ' du lieu remplacé' : '') + '</span>' +
@@ -302,7 +307,7 @@
     h += '    <span class="rc-badge-statut">' + esc(statutInit) + '</span>';
     h += '  </div>';
     h += '  <div class="rc-prat-ligne">';
-    h += '    ' + pastilleType(a) + ' <strong class="rc-prat-nom">' + esc(a.nom) + '</strong>' + (!phA ? ' ' + etoiles(a.note) : '');
+    h += '    ' + pastilleType(a) + ' <strong class="rc-prat-nom">' + lienFiche(a.code, esc(a.nom)) + '</strong>' + (!phA ? ' ' + etoiles(a.note) : '');
     h += '  </div>';
     if (specInit) {
       h += '  <div class="rc-spec-ligne"><span class="rc-spec-texte">' + esc(specInit) + '</span></div>';
@@ -448,7 +453,7 @@
         st = m.join(' · ');
       }
       return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
-        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+        '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
         (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
         '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button></li>';
     }).join('') + '</ul>';
@@ -532,7 +537,7 @@
           st = m.join(' · ');
         }
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
-          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
           '<span class="discret bloc-texte">' + details + '</span></button></li>';
       }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : précisez la recherche.</p>' : '');
@@ -649,7 +654,7 @@
         }
 
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterToutPrat" data-code="' + esc(p.code) + '">' +
-          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
           '<span class="discret bloc-texte">' + details + '</span></button></li>';
       }).join('') + '</ul>' +
@@ -729,7 +734,7 @@
         var etiqPlus = (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la tournée du jour</span>' : '') + etiquetteCollegues(p.code, d);
         var loc = esc([cr.quartier, cr.commune].filter(Boolean).join(', ')) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
         return '<li class="element' + classeType(p) + (deja ? ' deja-tournee' : '') + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
-          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + loc + '</span>' +
           '<span class="discret bloc-texte">' + esc(plages) + dist + etat + '</span>' +
           '<span class="etiquettes"><span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span>' + etiqPlus + '</span></button></li>';
@@ -774,7 +779,7 @@
         var etiqPlus = (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la tournée du jour</span>' : '') + etiquetteCollegues(p.code, d);
         var ligne1 = '<b>' + esc(abrSpec(p.specialite)) + '</b> · ' + esc(x.lieu) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
         return '<li class="element' + classeType(p) + (deja ? ' deja-tournee' : '') + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
-          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + ligne1 + '</span>' +
           '<span class="discret bloc-texte">' + esc(plages) + dist + etat + '</span>' +
           '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span>' + etiqPlus + '</span></button></li>';

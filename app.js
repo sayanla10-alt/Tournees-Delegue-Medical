@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.18';
+  var APP_VERSION = '3.28.19';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.19', [
+      'Partout où un médecin ou une pharmacie apparaît (Journée, Planifier, Suivi, hôpitaux, listes de choix), toucher son nom ouvre sa fiche ; toucher le reste de la carte ouvre toujours ses options'
+    ]],
     ['3.28.18', [
       'Planifier : une visite dont vous décochez la punaise peut revenir dans les tirages suivants ; une visite retirée avec la croix ne revient plus tant que les critères et les filtres restent les mêmes (tout changement de filtre la libère)',
       'Planifier : avant de recalculer, l\'application vous prévient des visites déjà prévues hors des communes choisies et vous demande si vous voulez les garder'
@@ -4830,7 +4833,7 @@
       '</div>' +
       '<div class="lp-droite">' +
         '<button type="button" class="lp-corps lp-nom-btn" data-a="voirVisite" data-uid="' + a.uid + '">' +
-          '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
+          lienFiche(a.code, '<b>' + esc(a.nom) + '</b>') + ' ' + etoiles(a.note) +
         '</button>' +
         '<div class="lp-bas">' +
           '<button type="button" class="lp-details-btn" data-a="voirVisite" data-uid="' + a.uid + '">' +
@@ -5870,7 +5873,7 @@
       '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
       '<div><div class="arret-carte' + classeType(a) + '">' +
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
-          '<span class="arret-nom">' + pastilleType(a) + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
+          '<span class="arret-nom">' + pastilleType(a) + lienFiche(a.code, esc(a.nom)) + ' ' + etoiles(a.note) + '</span>' +
           (ouvert ? (lieuEtSpec(a) ? '<span class="arret-lieu">' + specGras(a, lieuEtSpec(a)) + '</span>' : '') +
             '<span class="arret-lieu">' + esc([a.quartier, reperesDe(a), a.commune].filter(Boolean).join(', ')) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + specGras(a, lieuQuartier(a)) + '</span>' : '') + ligneEtat(a)) +
@@ -6437,6 +6440,11 @@
     var m = Math.max(10, Math.round(km * 100) * 10);
     return m <= 30 ? 'sur place (< 30 m)' : m + ' mètres';
   }
+  // 3.28.19 : le nom d'un médecin ou d'une pharmacie ouvre sa fiche ; le reste de la carte garde ses options
+  function lienFiche(code, html) {
+    if (!code) return html;
+    return '<span class="nom-lien" data-a="voirContact" data-v="' + esc(code) + '" role="link" tabindex="0" title="Ouvrir la fiche">' + html + '</span>';
+  }
   // 3.28.9 : nom d'un médecin engagé en ambre, partout où un nom est affiché
   function nomPrat(p) {
     var eng = p && !estPharmacie(p) && estConventionne(p.conventionne !== undefined ? p.conventionne : ((praticien(p.code) || {}).conventionne));
@@ -6453,7 +6461,7 @@
     var c = x.c, p = c.prat;
     var deja = S.plan.some(function (a) { return a.date === date && a.code === p.code; });
     return '<li class="element' + classeType(p) + '"><div class="element-tete"><div>' +
-      '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+      '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, c.lieu])) + '</span>' +
       '<span class="discret bloc-texte">' + esc(c.quartier) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</span>' +
       '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, date)) + '</span>' +
@@ -6585,7 +6593,7 @@
         h += '<li class="arret' + (x.statut ? (ko ? ' absent' : ' fait') : '') + '" data-p="' + (+x.note === 3 ? 1 : 3) + '">' +
           '<div class="arret-heure"><b>' + esc(x.heure || '--:--') + '</b><small>' + esc(x.debut || '') + (x.fin ? '-' + esc(x.fin) : '') + '</small></div>' +
           '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
-          '<div><div class="arret-carte"><span class="arret-nom">' + esc(x.nom) + ' ' + etoiles(x.note) + '</span>' +
+          '<div><div class="arret-carte"><span class="arret-nom">' + lienFiche(x.code, esc(x.nom)) + ' ' + etoiles(x.note) + '</span>' +
           '<span class="arret-lieu">' + esc(x.specialite || '') + (x.lieu ? ', ' + esc(x.lieu) : '') + '</span>' +
           '<span class="arret-lieu">' + esc(x.quartier || '') + (x.commune ? ', ' + esc(x.commune) : '') + '</span>' +
           '<span class="etiquettes">' + e + '</span>' +
@@ -6983,7 +6991,7 @@
           var p = c.prat[x.code];
           var jours = JOURS_CLES.map(function (j, i) { var v = lireDispo(x[j]); return v.matin || v.soir ? JOURS[i].slice(0, 3) + ' ' + (v.matin && v.soir ? 'M+S' : (v.matin ? 'M' : 'S')) : ''; }).filter(Boolean).join(' · ');
           var auj = ordre(x) === 0;
-          return '<li><button type="button" class="hop-med" data-a="hopVoirMedecin" data-v="' + esc(p.code) + '">' + nomPrat(p) + ' ' + etoiles(p.note) + (auj ? ' <span class="etiquette auj">Aujourd\'hui</span>' : '') +
+          return '<li><button type="button" class="hop-med" data-a="voirContact" data-v="' + esc(p.code) + '">' + nomPrat(p) + ' ' + etoiles(p.note) + (auj ? ' <span class="etiquette auj">Aujourd\'hui</span>' : '') +
             '<small>' + (p.specialite ? '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>' + (jours ? ' · ' : '') : '') + esc(jours) + '</small></button>' +
             '<button type="button" class="bouton petit" data-a="planifierProchaines" data-v="' + esc(p.code) + '">Planifier</button></li>';
         }).join('') + '</ul>';
@@ -7011,6 +7019,52 @@
     return '<span class="etiquette ko" title="Actuellement hors créneau de consultation">Absent</span>';
   }
 
+  // 3.28.19 : carte (fiche) d'un contact, hors de la vue pour être aussi ouverte en fenêtre depuis tout l'écran
+  function cartePraticienHtml(p, c, t, ouvert) {
+    if (!p) return '';
+    c = c || ctx();
+    t = t || aujourdhui();
+    if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
+    var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
+    var h = '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
+      '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+      '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
+        (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
+          var ok = function (x) { return aF && communeCorrespondante(x, coF); };
+          var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
+          return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
+            .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
+      '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
+        (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
+          return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
+      (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
+      (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
+      etiquetteCollegues(p.code, t) + '</span></button>';
+    if (ouvert) {
+      var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
+      h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
+                            lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
+      if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
+      if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
+      if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
+      if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
+      h += grillePresences(p.code);
+      var impose = S.imposes.some(function (im) { return im.code === p.code; });
+      var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === t; });
+
+      h += '<div class="bloc-actions-contact">' +
+        '<div class="rangee rangee-actions-contact">' +
+          (dejaAuj
+            ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
+            : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
+                icone('eclair') + '<span>Ajouter au jour</span></button>') +
+          '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
+          '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
+        '</div></div>';
+    }
+    h += '</li>';
+    return h;
+  }
   VUES.praticiens = function () {
     var f = S.ui.filtres, t = aujourdhui(), c = ctx();
     var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
@@ -7057,52 +7111,6 @@
       '</div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
   // 3.27.47 : Rendu unitaire d'une carte praticien pour Infinite Scroll et affichage progressif sans DOM bloat
-  function cartePraticienHtml(p, c, t, ouvert) {
-    if (!p) return '';
-    c = c || ctx();
-    t = t || aujourdhui();
-    if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
-    var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
-    var h = '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
-      '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
-      '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
-        (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
-          var ok = function (x) { return aF && communeCorrespondante(x, coF); };
-          var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
-          return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
-            .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
-      '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
-        (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
-          return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
-      (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
-      (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
-      etiquetteCollegues(p.code, t) + '</span></button>';
-    if (ouvert) {
-      var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
-      h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
-                            lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
-      if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
-      if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
-      if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
-      if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
-      h += grillePresences(p.code);
-      var impose = S.imposes.some(function (im) { return im.code === p.code; });
-      var dejaAuj = S.plan.some(function (a) { return a.code === p.code && a.date === t; });
-
-      h += '<div class="bloc-actions-contact">' +
-        '<div class="rangee rangee-actions-contact">' +
-          (dejaAuj
-            ? '<span class="badge-deja-prevu">' + icone('valider') + 'Prévu ce jour</span>'
-            : '<button class="bouton bouton-inopinee" type="button" data-a="visiteInopineeDirect" data-v="' + esc(p.code) + '" title="Ajouter immédiatement à la tournée d\'aujourd\'hui">' +
-                icone('eclair') + '<span>Ajouter au jour</span></button>') +
-          '<button class="bouton" type="button" data-a="imposerDirect" data-v="' + esc(p.code) + '">' + icone('calendrier') + '<span>' + (impose ? 'Re-planifier' : 'Planifier') + '</span></button>' +
-          '<button class="bouton" type="button" data-a="modifierFiche" data-v="' + esc(p.code) + '">' + icone('crayon') + '<span>Modifier</span></button>' +
-        '</div></div>';
-    }
-    h += '</li>';
-    return h;
-  }
-
   function chargerSuitePraticiens() {
     var ul = document.getElementById('listePraticiens');
     if (!ul || !S.ui._pratListe) return;
@@ -7854,7 +7862,7 @@
     if (!liste.length) return h + '<div class="vide"><strong>Aucune visite sur cette période</strong>Changez de période ou de délégués.</div>';
     return h + '<ul class="liste">' + liste.slice(0, 150).map(function (v) {
       return '<li class="element' + classeType(v) + '"><div class="element-tete"><div>' +
-        '<span class="element-titre">' + pastilleType(v) + esc(v.nom) + '</span>' +
+        '<span class="element-titre">' + pastilleType(v) + lienFiche(v.code, esc(v.nom)) + '</span>' +
         '<span class="discret bloc-texte">' + esc(v.lieu) + ', ' + esc(v.quartier) + '</span>' +
         (v.activite ? '<span class="bloc-texte discret" style="margin-top:4px">' + esc(v.activite) + '</span>' : '') +
         (v.produits ? '<span class="bloc-texte discret" style="margin-top:4px">Produits : ' + esc(v.produits) + '</span>' : '') +
@@ -8094,7 +8102,7 @@
       if (!res.length) return h + '<p class="discret">Aucun praticien trouvé.</p>';
       return h + '<ul class="liste">' + res.map(function (p) {
         return '<li><button type="button" class="element carte-bouton" data-a="choisirImpose" data-v="' + esc(p.code) + '">' +
-          '<span class="element-titre">' + esc(p.nom) + ' ' + etoiles(p.note) + '</span><span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + ', ' +
+          '<span class="element-titre">' + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span><span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + ', ' +
           esc(Array.from(new Set((c.presencesParCode[p.code] || []).map(function (x) { return x.commune; }))).join(', ')) + '</span></button></li>';
       }).join('') + '</ul>';
     }
@@ -8105,7 +8113,7 @@
       (c.parCode[f.code] || []).forEach(function (cr) { if (cr.jourIdx === j) options.push({ d: d, c: cr }); });
     });
     var defAuj = f.cle === '__aujourdhui' || !f.cle;
-    h += '<p><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + '</span></p>';
+    h += '<p>' + lienFiche(p.code, '<b>' + esc(p.nom) + '</b>') + ' ' + etoiles(p.note) + '<span class="discret bloc-texte">' + esc(abrSpec(p.specialite)) + '</span></p>';
     h += '<p class="discret">Quand planifier cette visite ?</p>';
     h += '<div class="choix-creneaux">' +
       '<label class="choix choix-aujourdhui"><input type="radio" name="impCle" value="__aujourdhui"' + (defAuj ? ' checked' : '') + '><span><b>Ajouter à aujourd\'hui (' + dateCourte(tAuj) + ')</b><small>Forcer dans la journée d\'aujourd\'hui, en dépit du programme</small></span></label>' +
@@ -8145,6 +8153,11 @@
     };
   };
 
+  FEUILLES.contactFiche = function (f) {
+    var p = praticien(f.code);
+    if (!p) return '<p class="discret">Fiche introuvable.</p>';
+    return '<ul class="liste fiche-contact">' + cartePraticienHtml(p, ctx(), aujourdhui(), true) + '</ul>';
+  };
   FEUILLES.anciens = function (f) {
     if (f.source) {
       var sem = f.source.type === 'semaine', c = f.cible, existants = S.plan.filter(function (a) { return sem ? lundiDe(a.date) === lundiDe(c) : a.date === c; });
@@ -8179,7 +8192,7 @@
     if (!a) return '<p class="discret">Visite introuvable.</p>';
     var sousTitre = estPharmacie(a) ? infosPharmaciePlan(a) : infosMedecinPlan(a);
     return '<div class="fiche-entete" style="margin-bottom:12px">' +
-      '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + nomPrat(a) + ' ' + etoiles(a.note) + '</span>' +
+      '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + lienFiche(a.code, nomPrat(a)) + ' ' + etoiles(a.note) + '</span>' +
       (sousTitre ? '<p class="discret" style="margin:4px 0 8px">' + specGras(a, sousTitre) + '</p>' : '') +
       '<p style="margin:0"><b>' + majuscule(dateLongue(a.date)) + '</b> · Passage vers <b>' + esc(a.heure || '--:--') + '</b> (' + esc(a.creneau || '') + ')</p>' +
       '</div>' +
@@ -8210,7 +8223,7 @@
     return '<ul class="liste">' + l.map(function (x) {
       var p = x.cr.prat, ph = estPharmacie(p);
       return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '" data-dist="' + (x.dist !== undefined ? x.dist : '') + '" data-memelieu="' + (x.memeLieu ? '1' : '0') + '">' +
-        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + (ph ? '' : ' ' + etoiles(p.note)) + '</span>' +
+        '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + (ph ? '' : ' ' + etoiles(p.note)) + '</span>' +
         '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [ph ? '' : p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
         '<span class="discret bloc-texte">' + x.cr.creneau + ' ' + minutesVersHeure(x.cr.debut) + '-' + minutesVersHeure(x.cr.fin) + ' · passage vers ' + esc(x.heure) +
           (x.dist < 99 ? ' · ' + km(x.dist) + ' du lieu remplacé' : '') + '</span>' +
@@ -8261,7 +8274,7 @@
     h += '    <span class="rc-badge-statut">' + esc(statutInit) + '</span>';
     h += '  </div>';
     h += '  <div class="rc-prat-ligne">';
-    h += '    ' + pastilleType(a) + ' <strong class="rc-prat-nom">' + esc(a.nom) + '</strong>' + (!phA ? ' ' + etoiles(a.note) : '');
+    h += '    ' + pastilleType(a) + ' <strong class="rc-prat-nom">' + lienFiche(a.code, esc(a.nom)) + '</strong>' + (!phA ? ' ' + etoiles(a.note) : '');
     h += '  </div>';
     if (specInit) {
       h += '  <div class="rc-spec-ligne"><span class="rc-spec-texte">' + esc(specInit) + '</span></div>';
@@ -8407,7 +8420,7 @@
         st = m.join(' · ');
       }
       return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
-        '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+        '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
         (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
         '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button></li>';
     }).join('') + '</ul>';
@@ -8491,7 +8504,7 @@
           st = m.join(' · ');
         }
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
-          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
           '<span class="discret bloc-texte">' + details + '</span></button></li>';
       }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : précisez la recherche.</p>' : '');
@@ -8608,7 +8621,7 @@
         }
 
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterToutPrat" data-code="' + esc(p.code) + '">' +
-          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
           '<span class="discret bloc-texte">' + details + '</span></button></li>';
       }).join('') + '</ul>' +
@@ -8688,7 +8701,7 @@
         var etiqPlus = (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la tournée du jour</span>' : '') + etiquetteCollegues(p.code, d);
         var loc = esc([cr.quartier, cr.commune].filter(Boolean).join(', ')) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
         return '<li class="element' + classeType(p) + (deja ? ' deja-tournee' : '') + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
-          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + loc + '</span>' +
           '<span class="discret bloc-texte">' + esc(plages) + dist + etat + '</span>' +
           '<span class="etiquettes"><span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span>' + etiqPlus + '</span></button></li>';
@@ -8733,7 +8746,7 @@
         var etiqPlus = (deja ? '<span class="etiquette ok">' + icone('valider') + 'Dans la tournée du jour</span>' : '') + etiquetteCollegues(p.code, d);
         var ligne1 = '<b>' + esc(abrSpec(p.specialite)) + '</b> · ' + esc(x.lieu) + (p.telephone ? ' · <span style="white-space:nowrap">Tél : ' + esc(p.telephone) + '</span>' : '');
         return '<li class="element' + classeType(p) + (deja ? ' deja-tournee' : '') + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '"' + (deja ? ' disabled' : '') + '>' +
-          '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           '<span class="discret bloc-texte">' + ligne1 + '</span>' +
           '<span class="discret bloc-texte">' + esc(plages) + dist + etat + '</span>' +
           '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, d)) + '</span>' + etiqPlus + '</span></button></li>';
@@ -11182,6 +11195,7 @@
         return;
       }
       if (f && f.type === 'listeChoix') { S.ui.feuille = f.retour || null; if (f.dom) rendreFeuille(); else rendre(); return; }
+      if (f && f.type === 'contactFiche') { S.ui.feuille = f.retour || null; rendre(); return; }
       S.ui.feuille = null; rendre();
     },
     couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; LS.set('couvPortee', S.ui.couvPortee); rendre(); },
@@ -11363,6 +11377,7 @@
     contact: function (el) {
       // 3.25.34 : au clic dans le Répertoire, centrage et défilement fluide sur le praticien
       var code = el.dataset.v;
+      if (S.ui.feuille && S.ui.feuille.type === 'contactFiche') return;   // 3.28.19 : dans la fenêtre « fiche », la carte reste ouverte
       S.ui.contactEnTete = null;
       var ouvrant = S.ui.contactOuvert !== code;
       S.ui.contactOuvert = ouvrant ? code : null;
@@ -11394,6 +11409,13 @@
       var h = hopitauxRepertoire().filter(function (x) { return x.cle === k; })[0];
       if (!h) { toast('Établissement introuvable.'); return; }
       majGpsPourHopital(h);
+    },
+    voirContact: function (el) {
+      var p = praticien(el.dataset.v); if (!p) return;
+      var f0 = S.ui.feuille;
+      // une fiche ouverte depuis une fenêtre y revient en la fermant
+      S.ui.feuille = { type: 'contactFiche', code: p.code, titre: estPharmacie(p) ? 'Fiche de la pharmacie' : 'Fiche du médecin', pleine: true, retour: f0 && f0.type !== 'contactFiche' ? f0 : (f0 && f0.retour) || null };
+      rendre();
     },
     hopVoirMedecin: function (el) {
       var code = el.dataset.v, f = filtresCour();
@@ -12629,6 +12651,8 @@
     }
   });
   document.addEventListener('keydown', function (e) {
+    // 3.28.19 : nom cliquable au clavier (Entrée ou Espace)
+    if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.classList && e.target.classList.contains('nom-lien')) { e.preventDefault(); e.stopPropagation(); ACTIONS.voirContact(e.target); return; }
     if (e.key !== 'Escape') return;
     if (S.ui.feuille) { S.ui.feuille = null; rendre(); }
     else if (S.ui.lancement) { S.ui.lancement = false; S.ui.lancementAuto = false; rendre(); }

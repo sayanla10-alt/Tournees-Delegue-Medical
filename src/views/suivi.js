@@ -379,7 +379,7 @@
     if (!liste.length) return h + '<div class="vide"><strong>Aucune visite sur cette période</strong>Changez de période ou de délégués.</div>';
     return h + '<ul class="liste">' + liste.slice(0, 150).map(function (v) {
       return '<li class="element' + classeType(v) + '"><div class="element-tete"><div>' +
-        '<span class="element-titre">' + pastilleType(v) + esc(v.nom) + '</span>' +
+        '<span class="element-titre">' + pastilleType(v) + lienFiche(v.code, esc(v.nom)) + '</span>' +
         '<span class="discret bloc-texte">' + esc(v.lieu) + ', ' + esc(v.quartier) + '</span>' +
         (v.activite ? '<span class="bloc-texte discret" style="margin-top:4px">' + esc(v.activite) + '</span>' : '') +
         (v.produits ? '<span class="bloc-texte discret" style="margin-top:4px">Produits : ' + esc(v.produits) + '</span>' : '') +

@@ -454,7 +454,7 @@
       '</div>' +
       '<div class="lp-droite">' +
         '<button type="button" class="lp-corps lp-nom-btn" data-a="voirVisite" data-uid="' + a.uid + '">' +
-          '<b>' + esc(a.nom) + '</b> ' + etoiles(a.note) +
+          lienFiche(a.code, '<b>' + esc(a.nom) + '</b>') + ' ' + etoiles(a.note) +
         '</button>' +
         '<div class="lp-bas">' +
           '<button type="button" class="lp-details-btn" data-a="voirVisite" data-uid="' + a.uid + '">' +
@@ -1494,7 +1494,7 @@
       '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
       '<div><div class="arret-carte' + classeType(a) + '">' +
         '<button type="button" class="carte-bouton" data-a="ouvrir" data-uid="' + a.uid + '" aria-expanded="' + ouvert + '">' +
-          '<span class="arret-nom">' + pastilleType(a) + esc(a.nom) + ' ' + etoiles(a.note) + '</span>' +
+          '<span class="arret-nom">' + pastilleType(a) + lienFiche(a.code, esc(a.nom)) + ' ' + etoiles(a.note) + '</span>' +
           (ouvert ? (lieuEtSpec(a) ? '<span class="arret-lieu">' + specGras(a, lieuEtSpec(a)) + '</span>' : '') +
             '<span class="arret-lieu">' + esc([a.quartier, reperesDe(a), a.commune].filter(Boolean).join(', ')) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + specGras(a, lieuQuartier(a)) + '</span>' : '') + ligneEtat(a)) +

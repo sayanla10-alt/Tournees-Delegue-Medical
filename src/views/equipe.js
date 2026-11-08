@@ -76,7 +76,7 @@
         h += '<li class="arret' + (x.statut ? (ko ? ' absent' : ' fait') : '') + '" data-p="' + (+x.note === 3 ? 1 : 3) + '">' +
           '<div class="arret-heure"><b>' + esc(x.heure || '--:--') + '</b><small>' + esc(x.debut || '') + (x.fin ? '-' + esc(x.fin) : '') + '</small></div>' +
           '<div class="arret-rail"><span class="arret-noeud"></span></div>' +
-          '<div><div class="arret-carte"><span class="arret-nom">' + esc(x.nom) + ' ' + etoiles(x.note) + '</span>' +
+          '<div><div class="arret-carte"><span class="arret-nom">' + lienFiche(x.code, esc(x.nom)) + ' ' + etoiles(x.note) + '</span>' +
           '<span class="arret-lieu">' + esc(x.specialite || '') + (x.lieu ? ', ' + esc(x.lieu) : '') + '</span>' +
           '<span class="arret-lieu">' + esc(x.quartier || '') + (x.commune ? ', ' + esc(x.commune) : '') + '</span>' +
           '<span class="etiquettes">' + e + '</span>' +
@@ -474,7 +474,7 @@
           var p = c.prat[x.code];
           var jours = JOURS_CLES.map(function (j, i) { var v = lireDispo(x[j]); return v.matin || v.soir ? JOURS[i].slice(0, 3) + ' ' + (v.matin && v.soir ? 'M+S' : (v.matin ? 'M' : 'S')) : ''; }).filter(Boolean).join(' · ');
           var auj = ordre(x) === 0;
-          return '<li><button type="button" class="hop-med" data-a="hopVoirMedecin" data-v="' + esc(p.code) + '">' + nomPrat(p) + ' ' + etoiles(p.note) + (auj ? ' <span class="etiquette auj">Aujourd\'hui</span>' : '') +
+          return '<li><button type="button" class="hop-med" data-a="voirContact" data-v="' + esc(p.code) + '">' + nomPrat(p) + ' ' + etoiles(p.note) + (auj ? ' <span class="etiquette auj">Aujourd\'hui</span>' : '') +
             '<small>' + (p.specialite ? '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>' + (jours ? ' · ' : '') : '') + esc(jours) + '</small></button>' +
             '<button type="button" class="bouton petit" data-a="planifierProchaines" data-v="' + esc(p.code) + '">Planifier</button></li>';
         }).join('') + '</ul>';

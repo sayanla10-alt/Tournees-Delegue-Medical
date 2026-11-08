@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.18';
+  var APP_VERSION = '3.28.19';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.19', [
+      'Partout où un médecin ou une pharmacie apparaît (Journée, Planifier, Suivi, hôpitaux, listes de choix), toucher son nom ouvre sa fiche ; toucher le reste de la carte ouvre toujours ses options'
+    ]],
     ['3.28.18', [
       'Planifier : une visite dont vous décochez la punaise peut revenir dans les tirages suivants ; une visite retirée avec la croix ne revient plus tant que les critères et les filtres restent les mêmes (tout changement de filtre la libère)',
       'Planifier : avant de recalculer, l\'application vous prévient des visites déjà prévues hors des communes choisies et vous demande si vous voulez les garder'

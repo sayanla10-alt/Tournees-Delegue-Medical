@@ -497,6 +497,7 @@
         return;
       }
       if (f && f.type === 'listeChoix') { S.ui.feuille = f.retour || null; if (f.dom) rendreFeuille(); else rendre(); return; }
+      if (f && f.type === 'contactFiche') { S.ui.feuille = f.retour || null; rendre(); return; }
       S.ui.feuille = null; rendre();
     },
     couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; LS.set('couvPortee', S.ui.couvPortee); rendre(); },
@@ -678,6 +679,7 @@
     contact: function (el) {
       // 3.25.34 : au clic dans le Répertoire, centrage et défilement fluide sur le praticien
       var code = el.dataset.v;
+      if (S.ui.feuille && S.ui.feuille.type === 'contactFiche') return;   // 3.28.19 : dans la fenêtre « fiche », la carte reste ouverte
       S.ui.contactEnTete = null;
       var ouvrant = S.ui.contactOuvert !== code;
       S.ui.contactOuvert = ouvrant ? code : null;
@@ -709,6 +711,13 @@
       var h = hopitauxRepertoire().filter(function (x) { return x.cle === k; })[0];
       if (!h) { toast('Établissement introuvable.'); return; }
       majGpsPourHopital(h);
+    },
+    voirContact: function (el) {
+      var p = praticien(el.dataset.v); if (!p) return;
+      var f0 = S.ui.feuille;
+      // une fiche ouverte depuis une fenêtre y revient en la fermant
+      S.ui.feuille = { type: 'contactFiche', code: p.code, titre: estPharmacie(p) ? 'Fiche de la pharmacie' : 'Fiche du médecin', pleine: true, retour: f0 && f0.type !== 'contactFiche' ? f0 : (f0 && f0.retour) || null };
+      rendre();
     },
     hopVoirMedecin: function (el) {
       var code = el.dataset.v, f = filtresCour();
@@ -1944,6 +1953,8 @@
     }
   });
   document.addEventListener('keydown', function (e) {
+    // 3.28.19 : nom cliquable au clavier (Entrée ou Espace)
+    if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.classList && e.target.classList.contains('nom-lien')) { e.preventDefault(); e.stopPropagation(); ACTIONS.voirContact(e.target); return; }
     if (e.key !== 'Escape') return;
     if (S.ui.feuille) { S.ui.feuille = null; rendre(); }
     else if (S.ui.lancement) { S.ui.lancement = false; S.ui.lancementAuto = false; rendre(); }

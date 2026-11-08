@@ -203,6 +203,11 @@
     var m = Math.max(10, Math.round(km * 100) * 10);
     return m <= 30 ? 'sur place (< 30 m)' : m + ' mètres';
   }
+  // 3.28.19 : le nom d'un médecin ou d'une pharmacie ouvre sa fiche ; le reste de la carte garde ses options
+  function lienFiche(code, html) {
+    if (!code) return html;
+    return '<span class="nom-lien" data-a="voirContact" data-v="' + esc(code) + '" role="link" tabindex="0" title="Ouvrir la fiche">' + html + '</span>';
+  }
   // 3.28.9 : nom d'un médecin engagé en ambre, partout où un nom est affiché
   function nomPrat(p) {
     var eng = p && !estPharmacie(p) && estConventionne(p.conventionne !== undefined ? p.conventionne : ((praticien(p.code) || {}).conventionne));
@@ -219,7 +224,7 @@
     var c = x.c, p = c.prat;
     var deja = S.plan.some(function (a) { return a.date === date && a.code === p.code; });
     return '<li class="element' + classeType(p) + '"><div class="element-tete"><div>' +
-      '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+      '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, c.lieu])) + '</span>' +
       '<span class="discret bloc-texte">' + esc(c.quartier) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</span>' +
       '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, date)) + '</span>' +
