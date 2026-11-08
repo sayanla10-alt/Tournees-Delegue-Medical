@@ -10,6 +10,15 @@
    Mise en route : exécuter une fois installerJumelage() depuis l'éditeur.
    ============================================================================= */
 
+// À lancer une fois depuis l'éditeur : installe le déclencheur et fait la première recopie complète
+function installerJumelage() {
+  ScriptApp.getProjectTriggers().forEach(function (tr) {
+    if (tr.getHandlerFunction() === 'jumelageAuto') ScriptApp.deleteTrigger(tr);
+  });
+  ScriptApp.newTrigger('jumelageAuto').timeBased().everyMinutes(JUMELAGE_MINUTES).create();
+  return synchroniserSupabase(true);
+}
+
 var JUMELAGE_MINUTES = 5;
 
 function jumCfg_() {
@@ -76,6 +85,8 @@ function jumDate_(v) {
   return null;
 }
 function jumHoro_(v) { if (v instanceof Date) return v.toISOString(); var s = String(v || '').trim(); return /^\d{4}-\d{2}-\d{2}T/.test(s) ? s : null; }
+// téléphone : la colonne Supabase est limitée à 32 caractères ; deux numéros sont alors écrits sans espaces
+function jumTel_(v) { var s = jumTxt_(v); return s.length > 32 ? s.replace(/\s+/g, '').slice(0, 32) : s; }
 function jumVide_(v) { var s = jumTxt_(v); return s === '' ? null : s; }
 
 // Chaque table : lignes du Sheet converties au format Supabase
@@ -90,7 +101,7 @@ function jumLignes_(table) {
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
         out.push({ code: code, type: jumTxt_(get(l, c.type)) || 'Médecin', nom: nom, specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
-          conventionne: jumOui_(get(l, c.conv)), telephone: jumTxt_(get(l, c.tel)), derniere: jumDate_(get(l, c.der)), statut: jumVide_(get(l, c.st)),
+          conventionne: jumOui_(get(l, c.conv)), telephone: jumTel_(get(l, c.tel)), derniere: jumDate_(get(l, c.der)), statut: jumVide_(get(l, c.st)),
           commentaire: jumVide_(get(l, c.com)), nb_visites: jumInt_(get(l, c.nb), 0), actif: jumActif_(get(l, c.act)) });
       });
       return out;
@@ -114,7 +125,7 @@ function jumLignes_(table) {
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
         out.push({ code: code, nom: nom, titulaire: jumTxt_(get(l, c.tit)), quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), zone: jumTxt_(get(l, c.z)),
-          lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTxt_(get(l, c.tel)), horaire_matin: jumTxt_(get(l, c.hm)), horaire_soir: jumTxt_(get(l, c.hs)),
+          lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel)), horaire_matin: jumTxt_(get(l, c.hm)), horaire_soir: jumTxt_(get(l, c.hs)),
           note: jumNote_(get(l, c.note)), conventionne: jumOui_(get(l, c.conv)), derniere: jumDate_(get(l, c.der)), statut: jumVide_(get(l, c.st)), commentaire: jumVide_(get(l, c.com)),
           nb_visites: jumInt_(get(l, c.nb), 0), actif: jumActif_(get(l, c.act)) });
       });
@@ -126,7 +137,7 @@ function jumLignes_(table) {
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), nom = jumTxt_(get(l, c.nom)); if (!code || !nom) return;
         out.push({ code: code, nom: nom, categorie: jumTxt_(get(l, c.cat)), commune: jumTxt_(get(l, c.co)), quartier: jumTxt_(get(l, c.q)), zone: jumTxt_(get(l, c.z)),
-          lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTxt_(get(l, c.tel)), reperes: jumTxt_(get(l, c.rep)) });
+          lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel)), reperes: jumTxt_(get(l, c.rep)) });
       });
       return out;
     case 'visites':
@@ -262,11 +273,14 @@ function synchroniserSupabase(force) {
   var t0 = Date.now(), props = PropertiesService.getScriptProperties();
   var emp = JSON.parse(props.getProperty('SUPA_EMPREINTES') || '{}');
   var etat = JSON.parse(props.getProperty('SUPA_ETAT') || '{}'); etat.tables = etat.tables || {};
-  var erreurs = 0;
+  var erreurs = 0, codesMed = null;
   try {
     Object.keys(JUM_TABLES).forEach(function (table) {
       try {
-        var rows = jumLignes_(table);
+        var rows = jumLignes_(table), ignorees = 0;
+        // une présence dont le médecin n'existe pas dans Praticiens est refusée par Supabase (clé étrangère) : écartée et comptée
+        if (table === 'praticiens' && rows) { codesMed = {}; rows.forEach(function (r) { codesMed[r.code] = 1; }); }
+        if (table === 'presences' && rows && codesMed) { var av = rows.length; rows = rows.filter(function (r) { return codesMed[r.code]; }); ignorees = av - rows.length; }
         if (rows === null) { etat.tables[table] = { sheets: 0, erreur: 'onglet absent (non recopié)' }; return; }
         // sécurité : un onglet de base vide ne vide jamais Supabase
         if (!rows.length && ['praticiens', 'presences', 'pharmacies', 'etablissements'].indexOf(table) >= 0) { etat.tables[table] = { sheets: 0, erreur: 'onglet vide (non recopié par sécurité)' }; return; }
@@ -274,7 +288,8 @@ function synchroniserSupabase(force) {
         if (force !== true && emp[table] === h) return;
         var n = jumSyncTable_(table, rows);
         emp[table] = h;
-        etat.tables[table] = { sheets: rows.length, supabase: n.total, supprimees: n.supprimees, le: new Date().toISOString() };
+        etat.tables[table] = { sheets: rows.length + ignorees, supabase: n.total, supprimees: n.supprimees, le: new Date().toISOString() };
+        if (ignorees) etat.tables[table].ignorees = ignorees;
       } catch (e) {
         erreurs++;
         delete emp[table];   // retenté au prochain tour
@@ -296,15 +311,6 @@ function synchroniserSupabase(force) {
 // Déclencheur toutes les 5 minutes
 function jumelageAuto() { synchroniserSupabase(false); }
 function synchroniserSupabaseComplet() { return synchroniserSupabase(true); }
-
-// À lancer une fois depuis l'éditeur : installe le déclencheur et fait la première recopie complète
-function installerJumelage() {
-  ScriptApp.getProjectTriggers().forEach(function (tr) {
-    if (tr.getHandlerFunction() === 'jumelageAuto') ScriptApp.deleteTrigger(tr);
-  });
-  ScriptApp.newTrigger('jumelageAuto').timeBased().everyMinutes(JUMELAGE_MINUTES).create();
-  return synchroniserSupabase(true);
-}
 
 function lireEtatJumelage_() {
   var etat = JSON.parse(PropertiesService.getScriptProperties().getProperty('SUPA_ETAT') || '{}');
