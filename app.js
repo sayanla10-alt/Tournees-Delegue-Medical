@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.10';
+  var APP_VERSION = '3.28.11';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.11', [
+      'Bases jumelles complètes : Supabase reçoit toutes les colonnes du Sheet (comptes rendus détaillés, OrigineGPS, secteurs, repères, absences, prochaine étape)',
+      'Secours Supabase : lecture complète au-delà de 1 000 lignes'
+    ]],
     ['3.28.10', [
       'Bases jumelles : tout ce qui est enregistré dans Google Sheets (application, saisie à la main, corrections) est recopié dans Supabase toutes les 5 minutes, suppressions comprises',
       'Réglages : date de la dernière synchronisation et nombre de lignes de chaque base (Sheets et Supabase)'

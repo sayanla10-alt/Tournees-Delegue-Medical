@@ -31,5 +31,7 @@ ALTER TABLE public.rapports       ADD COLUMN IF NOT EXISTS valide_le text, ADD C
 ALTER TABLE public.visites ALTER COLUMN produits_presentes TYPE text USING produits_presentes::text;
 ALTER TABLE public.visites ALTER COLUMN echantillons TYPE text USING echantillons::text;
 
+ALTER TABLE public.rapports ALTER COLUMN valide_le TYPE text USING valide_le::text;
+
 -- 4. Rafraîchir le cache de l'API
 NOTIFY pgrst, 'reload schema';
