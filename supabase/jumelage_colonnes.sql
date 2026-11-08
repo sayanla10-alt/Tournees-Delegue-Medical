@@ -49,3 +49,7 @@ END $$;
 ALTER TABLE public.rapports ALTER COLUMN non_faites DROP DEFAULT;
 ALTER TABLE public.rapports ALTER COLUMN non_faites TYPE text USING non_faites::text;
 NOTIFY pgrst, 'reload schema';
+-- Plannings : Debut / Fin sont des heures (« 11:30 ») dans le Sheet
+ALTER TABLE public.plannings ALTER COLUMN debut TYPE text USING debut::text;
+ALTER TABLE public.plannings ALTER COLUMN fin TYPE text USING fin::text;
+NOTIFY pgrst, 'reload schema';

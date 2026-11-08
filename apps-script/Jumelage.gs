@@ -86,7 +86,8 @@ function jumFeuille_(nom) {
     }
   };
 }
-function jumTxt_(v) { if (v === null || v === undefined) return ''; if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd'); return String(v); }   // texte tel quel, comme la lecture du Sheet
+function jumTxt_(v) { if (v === null || v === undefined) return ''; if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), v.getFullYear() < 1901 ? 'HH:mm' : 'yyyy-MM-dd');   // heure seule (Sheets : 30/12/1899)
+ return String(v); }   // texte tel quel, comme la lecture du Sheet
 function jumNum_(v) { var n = parseFloat(String(v === null || v === undefined ? '' : v).replace(',', '.')); return isFinite(n) ? n : null; }
 function jumInt_(v, def) { var n = parseInt(v, 10); return isFinite(n) ? n : (def === undefined ? null : def); }
 function jumNote_(v) { var n = jumInt_(v, 2); return Math.max(1, Math.min(3, n)); }
@@ -183,7 +184,7 @@ function jumLignes_(table) {
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code)), date = jumDate_(get(l, c.date)); if (!code || !date) return;
         var hv = get(l, c.h), heure = hv instanceof Date ? Utilities.formatDate(hv, Session.getScriptTimeZone(), 'HH:mm') : jumTxt_(hv);
-        pousser(l, { delegue: jumTxt_(get(l, c.del)), date: date, heure: heure, creneau: jumTxt_(get(l, c.cr)), debut: jumInt_(get(l, c.d)), fin: jumInt_(get(l, c.fi)),
+        pousser(l, { delegue: jumTxt_(get(l, c.del)), date: date, heure: heure, creneau: jumTxt_(get(l, c.cr)), debut: jumTxt_(get(l, c.d)), fin: jumTxt_(get(l, c.fi)),
           id_presence: jumVide_(get(l, c.idp)), code: code, nom: jumTxt_(get(l, c.nom)), specialite: jumTxt_(get(l, c.spec)), note: jumNote_(get(l, c.note)),
           quartier: jumTxt_(get(l, c.q)), commune: jumTxt_(get(l, c.co)), lieu: jumTxt_(get(l, c.lieu)), statut: jumTxt_(get(l, c.st)), etat: jumTxt_(get(l, c.et)) || 'planifie', programme: jumTxt_(get(l, c.pr)),
           maj: jumHoro_(get(l, c.maj)) || jumTxt_(get(l, c.maj)), id_arret: jumTxt_(get(l, c.ida)), cible_depuis: jumTxt_(get(l, c.dep)) });
@@ -500,7 +501,7 @@ function lireEtatJumelage_() {
 function jumVerifierCouverture() {
   var nv = function (v) {
     if (v === null || v === undefined) return '';
-    if (v instanceof Date) return v.getHours() || v.getMinutes() ? v.toISOString() : Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    if (v instanceof Date) return v.getFullYear() < 1901 ? jumTxt_(v) : (v.getHours() || v.getMinutes() ? v.toISOString() : Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd'));
     if (typeof v === 'boolean') return String(v);
     var s = String(v).trim(), t = normaliser(s);
     if (t === 'oui' || t === 'true') return 'true';
