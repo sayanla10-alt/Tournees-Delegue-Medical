@@ -1,7 +1,7 @@
 {
-  "version": "3.28.21",
+  "version": "3.28.22",
   "date": "2026-11-08",
   "notes": [
-    "Planifier : titres par quartier seulement"
+    "Quartiers regroupés et affichés en entier"
   ]
 }

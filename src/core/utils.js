@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.21';
+  var APP_VERSION = '3.28.22';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.22', [
+      'Planifier : les visites d\'un même quartier sont regroupées même quand le quartier est écrit de plusieurs façons (Anador, Abobo Anador, Anador Sogefiha)',
+      'Le nom du quartier s\'affiche en entier : « Aboboté » et non plus « té »'
+    ]],
     ['3.28.21', [
       'Planifier : la liste garde un titre par quartier ; les médecins d\'un même hôpital se suivent, sans titre d\'hôpital'
     ]],

@@ -435,14 +435,16 @@
   // 3.28.21 : liste regroupée par quartier (un titre si la journée en compte plusieurs) ; les médecins d'un même hôpital se suivent, sans titre
   function rendreGroupesPlan(l) {
     var cleL = function (a) { return normaliser(a.lieu || '') ? normaliser(a.lieu) + '|' + normaliser(a.commune || '') : 'u|' + a.uid; };
-    var cleQ = function (a) { return normaliser(a.quartier || '') ? normaliser(a.quartier) + '|' + normaliser(a.commune || '') : cleL(a); };
+    var cleQ = function (a) { var k = Moteur.cleSecteur(a.quartier, a.commune); return k ? k + '|' + normaliser(a.commune || '') : cleL(a); };
     var blocs = [];
     l.forEach(function (a) { var k = cleQ(a), d = blocs[blocs.length - 1]; if (d && d.k === k) d.l.push(a); else blocs.push({ k: k, l: [a] }); });
     var titresQ = blocs.length > 1;
     return blocs.map(function (bq) {
       var a0 = bq.l[0], h = '';
       if (titresQ) {
-        var sect = nomSecteur(a0.quartier || '', a0.commune || '', a0.coord || null) || [a0.quartier, a0.commune].filter(Boolean).join(', ');
+        // nom le plus court du groupe (« Anador » plutôt que « Anador Sogefiha »)
+        var sect = bq.l.map(function (a) { return nomSecteur(a.quartier || '', a.commune || '', a.coord || null); }).filter(Boolean)
+          .sort(function (x, y) { return x.length - y.length; })[0] || [a0.quartier, a0.commune].filter(Boolean).join(', ');
         h += '<li class="lp-groupe lp-groupe-q" aria-hidden="true">' + icone('localisation') + '<span>' + esc(sect || 'Autre secteur') + '</span><small>' + bq.l.length + ' visite' + (bq.l.length > 1 ? 's' : '') + '</small></li>';
       }
       // les médecins d'un même hôpital se suivent déjà (ordre de la tournée) : pas de titre par hôpital

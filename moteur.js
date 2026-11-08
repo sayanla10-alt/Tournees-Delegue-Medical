@@ -245,7 +245,17 @@ var Moteur = (function () {
   // tant que cela ne crée aucun retard et ne finit pas la journée plus de 20 min plus tard
   function cleNorm(x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ''); }
   function cleLieu(it) { var a = it.a; return cleNorm(a.lieu) ? cleNorm(a.lieu) + '|' + cleNorm(a.commune) : 'u|' + (a.uid || a.code); }
-  function cleQuartier(it) { var a = it.a; return cleNorm(a.quartier) ? cleNorm(a.quartier) + '|' + cleNorm(a.commune) : cleLieu(it); }
+  // 3.28.22 : quartier ramené à son nom principal : « Anador », « Abobo Anador » et « Anador Sogefiha » vont ensemble ;
+  // le nom de la commune n'est retiré que s'il est un mot séparé (« Aboboté » reste « Aboboté »)
+  function cleSecteur(quartier, commune) {
+    var mots = String(quartier || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(Boolean);
+    var com = String(commune || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(Boolean);
+    var vides = { de: 1, du: 1, des: 1, la: 1, le: 1, les: 1, quartier: 1, cite: 1, zone: 1, sous: 1, prefecture: 1 };
+    var reste = mots.filter(function (w) { return com.indexOf(w) < 0 && !vides[w] && w.length >= 3; });
+    if (!reste.length) return mots.join('');   // « Cocody Centre », « Plateau » : le nom entier
+    return reste[0] === 'centre' ? mots.join('') : reste[0];
+  }
+  function cleQuartier(it) { var a = it.a, k = cleSecteur(a.quartier, a.commune); return k ? k + '|' + cleNorm(a.commune) : cleLieu(it); }
   function regrouper(route) {
     if (route.length < 3 || route.some(function (it) { return it.fixe; })) return route;   // visites déjà faites : ordre réel gardé
     var ref = simuler(route), finRef = ref.debuts.length ? Math.max.apply(null, ref.debuts) : 0;
@@ -496,7 +506,7 @@ var Moteur = (function () {
   return {
     preparer: preparer, creneauParCle: creneauParCle, arretDepuisCreneau: arretDepuisCreneau, scoreDe: scoreDe,
     simuler: simuler, ordonnerJour: ordonnerJour, planifierJour: planifierJour, genererPlanning: genererPlanning,
-    autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture,
+    autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur,
     estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid
   };
 })();

@@ -422,8 +422,9 @@
   }
   function nomSecteur(q, com, coord) {
     var s = (q && q !== 'NL' && q !== 'Non localisé') ? String(q).trim() : '';
-    if (com && s.toLowerCase().indexOf(com.toLowerCase()) === 0) {
-      var rNom = s.slice(com.length).replace(/^[\s\-_/]+/, '').trim();
+    // 3.28.22 : le nom de la commune n'est retiré que s'il est suivi d'un séparateur (« Aboboté » reste entier)
+    if (com && s.toLowerCase().indexOf(com.toLowerCase()) === 0 && /^[\s\-_/–,]/.test(s.slice(com.length))) {
+      var rNom = s.slice(com.length).replace(/^[\s\-_/–,]+/, '').trim();
       if (rNom) s = rNom;
     }
     // Exception Cocody Centre : ne jamais réduire à simple "Centre"
