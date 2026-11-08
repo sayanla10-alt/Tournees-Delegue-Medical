@@ -255,14 +255,17 @@ function jumParLots_(l, n, fn) { for (var i = 0; i < l.length; i += n) fn(l.slic
 function jumIn_(vals) { return 'in.(' + vals.map(function (v) { return '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"'; }).join(',') + ')'; }
 
 // Recopie d'une table : ajouts et modifications, puis suppression de ce qui n'existe plus dans le Sheet
-function jumSyncTable_(table, rows) {
+function jumSyncTable_(table, rows, tout) {   // tout = true : toutes les lignes renvoyées (recopie forcée, écriture hors serveur détectée)
   var t = JUM_TABLES[table], n = { envoyees: 0, supprimees: 0 };
   if (t.pk) {
     rows = jumDedoublonner_(rows, [t.pk]);
-    jumParLots_(rows, 400, function (lot) {
+    // lignes inchangées depuis le dernier envoi (empreinte par ligne en cache) : pas renvoyées, Supabase garde leur date de modification
+    var connues = null; if (!tout) try { var tx = CacheService.getScriptCache().get('JRH_' + table); connues = tx ? JSON.parse(tx) : null; } catch (eC) {}
+    var aEnvoyer = connues ? rows.filter(function (r) { return connues[String(r[t.pk])] !== jumEmpLigne_(r); }) : rows;
+    jumParLots_(aEnvoyer, 400, function (lot) {
       jumOk_(jumReq_('post', table + '?on_conflict=' + t.pk, lot, 'resolution=merge-duplicates,return=minimal'), 'Envoi ' + table);
     });
-    n.envoyees = rows.length;
+    n.envoyees = aEnvoyer.length;
     var garder = {}; rows.forEach(function (r) { garder[String(r[t.pk])] = 1; });
     var exist = jumLireSupabase_(table, t.pk);
     var aSuppr = exist.map(function (e) { return String(e[t.pk]); }).filter(function (k) { return !garder[k]; });
@@ -291,6 +294,10 @@ function jumSyncTable_(table, rows) {
 }
 
 // Synchronisation : force = true recopie toutes les tables, sinon seulement celles dont l'empreinte a changé
+function jumEmpTable_(rows) { return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(rows), Utilities.Charset.UTF_8)); }
+function jumNoterEmpreinte_(table, rows) {
+  try { var p = PropertiesService.getScriptProperties(), e = JSON.parse(p.getProperty('SUPA_EMPREINTES') || '{}'); e[table] = jumEmpTable_(rows); p.setProperty('SUPA_EMPREINTES', JSON.stringify(e)); } catch (x) {}
+}
 function synchroniserSupabase(force) {
   var verrou = LockService.getDocumentLock();
   if (!verrou.tryLock(2000)) return { ok: false, erreur: 'Synchronisation déjà en cours.' };
@@ -311,12 +318,12 @@ function synchroniserSupabase(force) {
         if (rows === null) { etat.tables[table] = { sheets: 0, erreur: 'onglet absent (non recopié)' }; return; }
         // sécurité : un onglet de base vide ne vide jamais Supabase
         if (!rows.length && ['praticiens', 'presences', 'pharmacies', 'etablissements'].indexOf(table) >= 0) { etat.tables[table] = { sheets: 0, erreur: 'onglet vide (non recopié par sécurité)' }; return; }
-        var h = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(rows), Utilities.Charset.UTF_8));
+        var h = jumEmpTable_(rows);
         // une écriture d'API hors serveur (ancienne version de l'appli) a pu modifier Supabase : la table est recopiée depuis le Sheet
         var horsServeur = false;
         try { var rq = jumReq_('get', table + '?select=' + (JUM_TABLES[table].pk || 'id') + '&maj_source=eq.api&limit=1'); horsServeur = rq.code === 200 && JSON.parse(rq.texte).length > 0; } catch (eA) {}
         if (force !== true && emp[table] === h && !horsServeur) return;
-        var n = jumSyncTable_(table, rows);
+        var n = jumSyncTable_(table, rows, force === true || horsServeur);
         emp[table] = h;
         jumMemoriserLignes_(table, rows);
         etat.tables[table] = { sheets: rows.length + ignorees, supabase: n.total, supprimees: n.supprimees, le: new Date().toISOString() };
@@ -368,13 +375,18 @@ function jumPousserApresEcriture_(action) {
         rows = rows.filter(function (r) { return codesMed[r.code]; });
       }
       var txt = t.pk ? cache.get('JRH_' + table) : null;
-      if (!txt) { jumSyncTable_(table, rows); jumMemoriserLignes_(table, rows); return; }
-      var m = JSON.parse(txt), aEnvoyer = [];
-      jumDedoublonner_(rows, [t.pk]).forEach(function (r) { var k = String(r[t.pk]), e = jumEmpLigne_(r); if (m[k] !== e) { aEnvoyer.push(r); m[k] = e; } });
+      if (!txt) { jumSyncTable_(table, rows); jumMemoriserLignes_(table, rows); jumNoterEmpreinte_(table, rows); return; }
+      var m = JSON.parse(txt), aEnvoyer = [], presents = {};
+      jumDedoublonner_(rows, [t.pk]).forEach(function (r) { var k = String(r[t.pk]), e = jumEmpLigne_(r); presents[k] = 1; if (m[k] !== e) { aEnvoyer.push(r); m[k] = e; } });
       jumParLots_(aEnvoyer, 400, function (lot) {
         jumOk_(jumReq_('post', table + '?on_conflict=' + t.pk, lot, 'resolution=merge-duplicates,return=minimal'), 'Envoi ' + table);
       });
+      // lignes retirées du Sheet (ex. un lieu supprimé d'une fiche) : retirées de Supabase
+      var retirees = Object.keys(m).filter(function (k) { return !presents[k]; });
+      jumParLots_(retirees, 80, function (lot) { jumOk_(jumReq_('delete', table + '?' + t.pk + '=' + encodeURIComponent(jumIn_(lot))), 'Suppression ' + table); });
+      retirees.forEach(function (k) { delete m[k]; });
       txt = JSON.stringify(m); if (txt.length < 95000) cache.put('JRH_' + table, txt, 21600);
+      jumNoterEmpreinte_(table, rows);
     } catch (e) { console.warn('Jumelage immédiat ' + table + ' : ' + e); }   // rattrapé par le tour de 5 minutes
   });
 }
@@ -429,6 +441,11 @@ function jumVersSheet_(v, type) {
 function jumCleSheet_(v, type) { return type === 'd' ? (jumDate_(v) || '') : jumTxt_(v); }
 
 function jumAppliquerSupabase_() {
+  // le verrou des écritures de l'application n'est pris que s'il y a vraiment quelque chose à reporter
+  var verrouApp = null, prendre = function () { if (!verrouApp) { verrouApp = LockService.getScriptLock(); verrouApp.waitLock(20000); } };
+  try { return jumAppliquerSupabaseSousVerrou_(prendre); } finally { if (verrouApp) verrouApp.releaseLock(); }
+}
+function jumAppliquerSupabaseSousVerrou_(prendre) {
   var ss = SpreadsheetApp.getActive(), bilan = { modifiees: 0, ajoutees: 0, supprimees: 0, erreurs: 0 };
   Object.keys(JUM_RETOUR).forEach(function (table) {
     var R = JUM_RETOUR[table];
@@ -436,6 +453,7 @@ function jumAppliquerSupabase_() {
     jumOk_(res, 'Lecture des modifications ' + table);
     var lignes = JSON.parse(res.texte); if (!lignes.length) return;
     var sh = ss.getSheetByName(FEUILLES[R.feuille]); if (!sh) return;
+    prendre();
     var nc = sh.getLastColumn(), ent = sh.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
     var colDe = function (noms) { for (var i = 0; i < noms.length; i++) { var k = ent.indexOf(normaliser(noms[i])); if (k >= 0) return k; } return -1; };
     var kCle = R.cle.map(function (c) { return colDe(c[1]); });
@@ -471,6 +489,7 @@ function jumAppliquerSupabase_() {
   var rs = jumReq_('get', 'jumelage_suppressions?select=*&order=id&limit=500');
   jumOk_(rs, 'Lecture des suppressions');
   var sup = JSON.parse(rs.texte), traitees = [];
+  if (sup.length) prendre();
   sup.forEach(function (x) {
     var R = JUM_RETOUR[x.table_name], o = x.cle || {};
     traitees.push(x.id);
