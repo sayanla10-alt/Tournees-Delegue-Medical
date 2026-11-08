@@ -1407,7 +1407,7 @@ var ZONES_GRANDES_COMMUNES = {
   'Abobo': [
     { nom: 'Abobo – Nord & PK18', lib: 'Abobo – Nord & PK18 (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville, Biabou)', mots: ['pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi', 'agneby'] },
     { nom: 'Abobo – Centre & Mairie', lib: 'Abobo – Centre & Mairie (Samaké, Gare, Derrière rails, Mairie, Habitat)', mots: ['samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha', 'rail', 'rails', 'derriere rail', 'derriere rails'] },
-    { nom: 'Abobo – Baoulé & Avocatier', lib: 'Abobo – Baoulé & Avocatier (Abobo Baoulé, Avocatier, Clouetcha, Dépôt SOTRA, Abobo-Té)', mots: ['baoule', 'avocatier', 'clouetcha', 'sotra', 'te', 'abobo te', 'abobo-te'] },
+    { nom: 'Abobo – Baoulé & Avocatier', lib: 'Abobo – Baoulé & Avocatier (Abobo Baoulé, Avocatier, Clouetcha, Dépôt SOTRA, Abobo-Té)', mots: ['baoule', 'avocatier', 'clouetcha', 'sotra', 'abobo te', 'abobote'] },
     { nom: 'Abobo – Sud & Plaque', lib: 'Abobo – Sud & Plaque (Sagbé, Plaque 1 & 2, Anador, Houphouët-Boigny, Dokui)', mots: ['sagbe', 'plaque', 'anador', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
   ]
 };
@@ -1416,12 +1416,21 @@ function zoneDeQuartier(commune, quartier, lieu) {
   var comNorm = normaliser(commune || '');
   var comCle = (comNorm.indexOf('cocody') >= 0 ? 'Cocody' : (comNorm.indexOf('yopougon') >= 0 ? 'Yopougon' : (comNorm.indexOf('abobo') >= 0 ? 'Abobo' : '')));
   if (!comCle || !ZONES_GRANDES_COMMUNES[comCle]) return '';
-  var texte = normaliser((quartier || '') + ' ' + (lieu || ''));
+  // 3.28.23 : mots entiers, le quartier d'abord, puis le nom du lieu (« Pharmacie » ne contient plus « cie »,
+  // « Plateau Dokui » ne passe plus pour Abobo-Té à cause de « te »)
   var zones = ZONES_GRANDES_COMMUNES[comCle];
-  for (var i = 0; i < zones.length; i++) {
-    var z = zones[i];
-    for (var j = 0; j < z.mots.length; j++) {
-      if (texte.indexOf(normaliser(z.mots[j])) >= 0) return z.nom;
+  var mots = function (x) { return ' ' + String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' '; };
+  var colle = function (x) { return mots(x).replace(/ /g, ''); };
+  var essais = [[mots(quartier), false], [mots(lieu), false], [colle(quartier), true], [colle(lieu), true]];
+  for (var e = 0; e < essais.length; e++) {
+    var texte = essais[e][0], partiel = essais[e][1];
+    if (!texte.trim()) continue;
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      for (var j = 0; j < z.mots.length; j++) {
+        var m = mots(z.mots[j]);
+        if (!partiel ? texte.indexOf(m) >= 0 : (m.replace(/ /g, '').length >= 5 && texte.indexOf(m.replace(/ /g, '')) >= 0)) return z.nom;
+      }
     }
   }
   return zones[zones.length - 1].nom;

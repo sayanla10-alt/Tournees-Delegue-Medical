@@ -1,7 +1,7 @@
 {
-  "version": "3.28.22",
+  "version": "3.28.23",
   "date": "2026-11-08",
   "notes": [
-    "Quartiers regroupés et affichés en entier"
+    "Planifier : regroupement par secteur"
   ]
 }

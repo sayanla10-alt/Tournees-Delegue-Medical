@@ -256,6 +256,12 @@ var Moteur = (function () {
     return reste[0] === 'centre' ? mots.join('') : reste[0];
   }
   function cleQuartier(it) { var a = it.a, k = cleSecteur(a.quartier, a.commune); return k ? k + '|' + cleNorm(a.commune) : cleLieu(it); }
+  // 3.28.23 : secteur de la tournée : sous-secteur des grandes communes (« Abobo – Nord & PK18 »), sinon la commune
+  function nomSecteurTournee(a) {
+    var z = typeof zoneDeQuartier === 'function' ? zoneDeQuartier(a.commune, a.quartier, a.lieu) : '';
+    return z || a.commune || a.quartier || '';
+  }
+  function cleSecteurTournee(it) { var k = cleNorm(nomSecteurTournee(it.a)); return k || cleQuartier(it); }
   function regrouper(route) {
     if (route.length < 3 || route.some(function (it) { return it.fixe; })) return route;   // visites déjà faites : ordre réel gardé
     var ref = simuler(route), finRef = ref.debuts.length ? Math.max.apply(null, ref.debuts) : 0;
@@ -269,11 +275,11 @@ var Moteur = (function () {
       return ordre.reduce(function (l, k) { return l.concat(par[k]); }, []);
     }
     // 1. d'un coup, si possible
-    var r1 = grouperPar(route, cleLieu), r2 = grouperPar(r1, cleQuartier);
-    if (acceptable(r2)) return r2;
-    var r = acceptable(r1) ? r1 : route.slice();
+    var r1 = grouperPar(route, cleLieu), r2 = grouperPar(r1, cleQuartier), r3 = grouperPar(r2, cleSecteurTournee);
+    if (acceptable(r3)) return r3;
+    var r = acceptable(r2) ? r2 : (acceptable(r1) ? r1 : route.slice());
     // 2. sinon, visite par visite : rapprochée de la dernière visite du même hôpital (puis du même quartier) si l'horaire le permet
-    [cleLieu, cleQuartier].forEach(function (cle) {
+    [cleLieu, cleQuartier, cleSecteurTournee].forEach(function (cle) {
       for (var passe = 0; passe < 2; passe++) {
         for (var i = 1; i < r.length; i++) {
           var k = cle(r[i]);
@@ -506,7 +512,7 @@ var Moteur = (function () {
   return {
     preparer: preparer, creneauParCle: creneauParCle, arretDepuisCreneau: arretDepuisCreneau, scoreDe: scoreDe,
     simuler: simuler, ordonnerJour: ordonnerJour, planifierJour: planifierJour, genererPlanning: genererPlanning,
-    autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur,
+    autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur, nomSecteurTournee: nomSecteurTournee,
     estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid
   };
 })();

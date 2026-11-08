@@ -432,23 +432,19 @@
     return base;
   }
 
-  // 3.28.21 : liste regroupée par quartier (un titre si la journée en compte plusieurs) ; les médecins d'un même hôpital se suivent, sans titre
+  // 3.28.23 : liste regroupée par secteur (« Abobo – Nord & PK18 », ou la commune) : tous les médecins proposés dans un secteur
+  // sont sous le même titre, dans l'ordre de leur heure ; les médecins d'un même hôpital se suivent, sans titre
   function rendreGroupesPlan(l) {
-    var cleL = function (a) { return normaliser(a.lieu || '') ? normaliser(a.lieu) + '|' + normaliser(a.commune || '') : 'u|' + a.uid; };
-    var cleQ = function (a) { var k = Moteur.cleSecteur(a.quartier, a.commune); return k ? k + '|' + normaliser(a.commune || '') : cleL(a); };
-    var blocs = [];
-    l.forEach(function (a) { var k = cleQ(a), d = blocs[blocs.length - 1]; if (d && d.k === k) d.l.push(a); else blocs.push({ k: k, l: [a] }); });
-    var titresQ = blocs.length > 1;
-    return blocs.map(function (bq) {
-      var a0 = bq.l[0], h = '';
-      if (titresQ) {
-        // nom le plus court du groupe (« Anador » plutôt que « Anador Sogefiha »)
-        var sect = bq.l.map(function (a) { return nomSecteur(a.quartier || '', a.commune || '', a.coord || null); }).filter(Boolean)
-          .sort(function (x, y) { return x.length - y.length; })[0] || [a0.quartier, a0.commune].filter(Boolean).join(', ');
-        h += '<li class="lp-groupe lp-groupe-q" aria-hidden="true">' + icone('localisation') + '<span>' + esc(sect || 'Autre secteur') + '</span><small>' + bq.l.length + ' visite' + (bq.l.length > 1 ? 's' : '') + '</small></li>';
-      }
-      // les médecins d'un même hôpital se suivent déjà (ordre de la tournée) : pas de titre par hôpital
-      return h + bq.l.map(function (a) { return rendreLignePlan(a); }).join('');
+    var blocs = [], par = {};
+    l.forEach(function (a) {
+      var nom = Moteur.nomSecteurTournee(a), k = normaliser(nom) || ('u|' + a.uid);
+      if (!par[k]) { par[k] = { nom: nom, l: [] }; blocs.push(par[k]); }
+      par[k].l.push(a);
+    });
+    var titres = blocs.length > 1;
+    return blocs.map(function (b) {
+      return (titres ? '<li class="lp-groupe lp-groupe-q" aria-hidden="true">' + icone('localisation') + '<span>' + esc(b.nom || 'Autre secteur') + '</span><small>' + b.l.length + ' visite' + (b.l.length > 1 ? 's' : '') + '</small></li>' : '') +
+        b.l.map(function (a) { return rendreLignePlan(a); }).join('');
     }).join('');
   }
 

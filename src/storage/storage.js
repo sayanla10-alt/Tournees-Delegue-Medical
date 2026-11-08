@@ -422,11 +422,7 @@
   }
   function nomSecteur(q, com, coord) {
     var s = (q && q !== 'NL' && q !== 'Non localisé') ? String(q).trim() : '';
-    // 3.28.22 : le nom de la commune n'est retiré que s'il est suivi d'un séparateur (« Aboboté » reste entier)
-    if (com && s.toLowerCase().indexOf(com.toLowerCase()) === 0 && /^[\s\-_/–,]/.test(s.slice(com.length))) {
-      var rNom = s.slice(com.length).replace(/^[\s\-_/–,]+/, '').trim();
-      if (rNom) s = rNom;
-    }
+    // 3.28.23 : le quartier garde son nom tel qu'il est écrit (« Abobo-Té 2 », « Aboboté »)
     // Exception Cocody Centre : ne jamais réduire à simple "Centre"
     if ((/cocody/i.test(com) || /cocody/i.test(q) || /cocody/i.test(s)) && s.toLowerCase() === 'centre') {
       s = 'Cocody Centre';
