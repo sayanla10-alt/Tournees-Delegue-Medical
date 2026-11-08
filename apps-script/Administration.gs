@@ -27,7 +27,11 @@ function onOpen() {
       .addItem('⏸️ Désactiver la synchro automatique', 'desactiverSyncAutomatiqueSupabase')
       .addSeparator()
       .addItem('Cloner Google Sheets vers Supabase (Copie miroir complète)', 'exporterToutVersSupabase')
-      .addItem('Configurer les identifiants Supabase', 'dialogConfigSupabase'))
+      .addItem('Configurer les identifiants Supabase', 'dialogConfigSupabase')
+      .addSeparator()
+      .addItem('🌐 Ouvrir la console Supabase', 'ouvrirBddSupabase'))
+    .addSeparator()
+    .addItem('BDD Supabase', 'ouvrirBddSupabase')
     .addSeparator()
     .addItem('Afficher le jeton d\'accès', 'afficherJeton')
     .addItem('Changer le jeton d\'accès', 'changerJeton')
@@ -672,5 +676,15 @@ function sauvegarderMaintenant() {
 function ouvrirDossierSauvegardes() {
   var url = dossierSauvegardes().getUrl();
   SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput('<p style="font-family:sans-serif">Dossier des sauvegardes : <a href="' + url + '" target="_blank">ouvrir dans Drive</a></p>').setWidth(360).setHeight(90), 'Sauvegardes');
+}
+
+function ouvrirBddSupabase() {
+  var url = 'https://supabase.com/dashboard/project/nldyinokqgshnzvdsxgr/editor/18012?schema=public';
+  var html = '<div style="font-family:sans-serif;padding:8px">' +
+    '<p style="margin:0 0 12px 0;font-size:13px;color:#333">Ouverture de votre base de données Supabase...</p>' +
+    '<a href="' + url + '" target="_blank" style="display:inline-block;padding:8px 14px;background:#0B4F6C;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;font-size:13px">Accéder à la BDD Supabase ↗</a>' +
+    '<script>window.open("' + url + '", "_blank");setTimeout(function(){ google.script.host.close(); }, 800);</script>' +
+    '</div>';
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html).setWidth(380).setHeight(120), 'BDD Supabase');
 }
 
