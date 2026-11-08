@@ -33,7 +33,7 @@ function lireTout(sig, hdepuis) {
       conventionne: ph.conventionne, telephone: ph.telephone, derniere: ph.derniere, statut: ph.statut, commentaire: ph.commentaire,
       nbVisites: +ph.nbVisites || 0, actif: ph.actif, prochaine: ph.prochaine, titulaire: ph.titulaire });
     var pr = { id: 'P-' + ph.code, code: ph.code, nom: ph.nom, lieu: ph.nom, quartier: ph.quartier, commune: ph.commune, zone: ph.zone,
-      horaireMatin: ph.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: ph.horaireSoir || HORAIRES_PHARMACIE[1], lat: ph.lat, lon: ph.lon };
+      horaireMatin: ph.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: ph.horaireSoir || HORAIRES_PHARMACIE[1], lat: ph.lat, lon: ph.lon, origineGps: ph.origineGps || '' };
     JOURS_CLES.forEach(function (j) { pr[j] = 'Matin et soir'; });
     presences.push(pr);
   });

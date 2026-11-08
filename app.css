@@ -2536,9 +2536,13 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .arret-carte.med-engage .arret-nom,
 .ligne-plan.med-engage .lp-corps b,
 .ligne-plan.med-engage .lp-nom-btn b,
-.bandeau-proche.med-engage p b:nth-of-type(2) {
+.bandeau-proche.med-engage p b:nth-of-type(2),
+.nom-engage {
   color: #B45309;
 }
+/* 3.28.9 : bulle « Aujourd'hui » / présents aujourd'hui (sarcelle, distincte de l'ambre des engagés) */
+.etiquette.auj { background: var(--primaire-pale); color: var(--primaire); border-color: var(--primaire); font-weight: 700; }
+.hop-medecins .etiquette.auj { margin-left: 4px; vertical-align: middle; }
 
 /* Types de visite organisés (Communs + Spécifiques Médecin / Pharmacie) */
 .types-cr { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }

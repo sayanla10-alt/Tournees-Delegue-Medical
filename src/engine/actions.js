@@ -660,7 +660,7 @@
       confirmerPuis('Position du lieu', 'Enregistrer votre position actuelle (± ' + g.prec + ' m) comme position de <b>' + esc(c.prat.nom) + '</b>, ' + esc(c.lieu || c.quartier) + ' ?', 'Enregistrer', function () {
         var d = brouillonFiche(c.code), l = d.lieux.filter(function (x) { return String(x.id) === String(c.idPresence); })[0];
         if (!l) { toast('Lieu introuvable.'); return; }
-        l.lat = +g.lat.toFixed(6); l.lon = +g.lon.toFixed(6);
+        l.lat = +g.lat.toFixed(6); l.lon = +g.lon.toFixed(6); l.origineGps = origineTerrain(g.prec);
         enregistrerFiche(d); rendre(); toast('Position enregistrée' + (S.config.demo ? '.' : ', envoi au Google Sheet…'));
         if (!S.config.demo) synchroniser(true);
       });
@@ -1625,7 +1625,7 @@
         var distanceKmEcart = refGeo && isFinite(refGeo.lat) ? distanceVol(pCapt, refGeo) : 0;
 
         function appliquerGps() {
-          l.lat = pCapt.lat; l.lon = pCapt.lon; l.prec = pCapt.prec;
+          l.lat = pCapt.lat; l.lon = pCapt.lon; l.prec = pCapt.prec; l.origineGps = origineTerrain(pCapt.prec);
           var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
           if (r && r.quartier) {
             l.quartier = r.quartier.quartier;
@@ -1647,7 +1647,7 @@
             function () {
               S.ui.feuille = fSauve;
               var lSauve = S.ui.feuille.d.lieux[idx];
-              lSauve.lat = pCapt.lat; lSauve.lon = pCapt.lon; lSauve.prec = pCapt.prec;
+              lSauve.lat = pCapt.lat; lSauve.lon = pCapt.lon; lSauve.prec = pCapt.prec; lSauve.origineGps = origineTerrain(pCapt.prec);
               var r = Moteur.quartierLePlusProche(lSauve.lat, lSauve.lon, quartiers());
               if (r && r.quartier) {
                 lSauve.quartier = r.quartier.quartier;
@@ -1669,7 +1669,7 @@
         appliquerGps();
       }, function () { toast('Position indisponible. Autorisez la localisation.'); });
     },
-    ficheGpsEffacer: function (el) { var l = S.ui.feuille.d.lieux[+el.dataset.i]; l.lat = ''; l.lon = ''; rendre(); },
+    ficheGpsEffacer: function (el) { var l = S.ui.feuille.d.lieux[+el.dataset.i]; l.lat = ''; l.lon = ''; l.origineGps = ''; rendre(); },
     ficheAller: function (el) {
       var f = S.ui.feuille, cible = +el.dataset.v;
       f.err = {};

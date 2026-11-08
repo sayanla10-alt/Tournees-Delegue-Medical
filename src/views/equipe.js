@@ -458,7 +458,7 @@
       var badgeGps = '<span class="etiquette etiquette-gps etiquette-gps-cliquable ' + clGps + '" data-a="capterGpsHopital" data-v="' + esc(e.cle) + '" role="button" tabindex="0" title="' + (aGpsHop ? 'GPS enregistré : toucher pour actualiser' : 'Pas de GPS : toucher pour enregistrer la position') + '" aria-label="' + (aGpsHop ? 'GPS enregistré pour ' : 'Enregistrer le GPS de ') + esc(e.nom) + '">' + icone('carte') + 'GPS</span>';
       var nTot = e.pres.length;
       var txtPres = ici + '/' + nTot + ' médecin' + (nTot > 1 ? 's' : '') + ' présent' + (ici > 1 ? 's' : '') + ' aujourd\'hui';
-      var clPres = ici > 0 ? 'etiquette p1' : 'etiquette';
+      var clPres = ici > 0 ? 'etiquette auj' : 'etiquette';
       h += '<li class="element element-hopital"><div class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '" role="button" tabindex="0">' +
         '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + '</span>' +
         '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d) : '') + '</span>' +
@@ -474,7 +474,7 @@
           var p = c.prat[x.code];
           var jours = JOURS_CLES.map(function (j, i) { var v = lireDispo(x[j]); return v.matin || v.soir ? JOURS[i].slice(0, 3) + ' ' + (v.matin && v.soir ? 'M+S' : (v.matin ? 'M' : 'S')) : ''; }).filter(Boolean).join(' · ');
           var auj = ordre(x) === 0;
-          return '<li><button type="button" class="hop-med" data-a="hopVoirMedecin" data-v="' + esc(p.code) + '"><b>' + esc(p.nom) + '</b> ' + etoiles(p.note) + (auj ? ' <span class="etiquette p1" style="font-size:11px;padding:1px 6px;margin-left:4px;vertical-align:middle">Aujourd\'hui</span>' : '') +
+          return '<li><button type="button" class="hop-med" data-a="hopVoirMedecin" data-v="' + esc(p.code) + '">' + nomPrat(p) + ' ' + etoiles(p.note) + (auj ? ' <span class="etiquette auj">Aujourd\'hui</span>' : '') +
             '<small>' + (p.specialite ? '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>' + (jours ? ' · ' : '') : '') + esc(jours) + '</small></button>' +
             '<button type="button" class="bouton petit" data-a="planifierProchaines" data-v="' + esc(p.code) + '">Planifier</button></li>';
         }).join('') + '</ul>';

@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.8';
+  var APP_VERSION = '3.28.9';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.9', [
+      'Médecins engagés : nom en ambre partout, y compris dans la fiche hôpital, les doublons et le Suivi',
+      'Hôpitaux : bulle sarcelle « Aujourd\'hui » pour les médecins présents et « présents aujourd\'hui » sur la carte',
+      'Position relevée avec le téléphone : marquée « Terrain » (précision et date) dans la base ; GPS affiché à 6 décimales'
+    ]],
     ['3.28.8', [
       'Ergonomie de défilement au pouce : le bouton principal de validation (Continuer, Valider, Enregistrer) est toujours calé directement à hauteur naturelle de pouce (~70% de l\'écran)',
       'Centrage des choix : s\'il y a des options ou cases à cocher, elles sont parfaitement centrées à l\'écran au-dessus du bouton de validation',

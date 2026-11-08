@@ -296,7 +296,7 @@ function enregistrerFiche(b) {
         if (!e) return;
         e._pris = true; x.id = e.id;
         JOURS_CLES.forEach(function (j) { x[j] = fusionDispo(e[j], x[j]); });
-        ['quartier', 'reperes', 'lat', 'lon', 'horaireMatin', 'horaireSoir'].forEach(function (k) { if ((x[k] === undefined || x[k] === '') && e[k] !== '') x[k] = e[k]; });
+        ['quartier', 'reperes', 'lat', 'lon', 'origineGps', 'horaireMatin', 'horaireSoir'].forEach(function (k) { if ((x[k] === undefined || x[k] === '') && e[k] !== '') x[k] = e[k]; });
       });
       exist.forEach(function (o) { if (!o._pris) lieux.push(o); });
     }
@@ -315,9 +315,15 @@ function enregistrerFiche(b) {
       var o = { id: id, code: code, nom: nom, lieu: String(x.lieu || ''), quartier: String(x.quartier || ''),
                 commune: q[0] || String(x.commune || ''), zone: q[2] || String(x.zone || ''),
                 horaireMatin: String(x.horaireMatin || ''), horaireSoir: String(x.horaireSoir || ''),
-                lat: x.lat === undefined ? '' : x.lat, lon: x.lon === undefined ? '' : x.lon, reperes: String(x.reperes || '') };
+                lat: x.lat === undefined ? '' : x.lat, lon: x.lon === undefined ? '' : x.lon, reperes: String(x.reperes || ''), origineGps: String(x.origineGps || '') };
       // 3.9.0 : pas de position prise sur place ? on cherche l'établissement sur Google Maps (Abidjan)
-      if (o.lat === '' || o.lon === '') { var g = geocoderLieu(o.lieu, o.quartier, o.commune); if (g) { o.lat = g.lat; o.lon = g.lon; coords[id] = g; } }
+      if (o.lat === '' || o.lon === '') { var g = geocoderLieu(o.lieu, o.quartier, o.commune); if (g) { o.lat = g.lat; o.lon = g.lon; o.origineGps = 'Google Maps'; coords[id] = g; } }
+      // 3.27.33 : positions à 6 décimales ; origine conservée si la position n'a pas bougé
+      if (o.lat !== '' && isFinite(nombre6(o.lat))) { o.lat = nombre6(o.lat); o.lon = nombre6(o.lon); }
+      var iEx = ligneParId[String(id)], kO = posR[indexChamp(CHAMPS_PRESENCES, 'origineGps')];
+      if (!o.origineGps && iEx !== undefined && kO >= 0 && o.lat !== '' &&
+          Math.abs(nombre6(dataR[iEx][posR[indexChamp(CHAMPS_PRESENCES, 'lat')]]) - o.lat) < 0.00001 &&
+          Math.abs(nombre6(dataR[iEx][posR[indexChamp(CHAMPS_PRESENCES, 'lon')]]) - o.lon) < 0.00001) o.origineGps = String(dataR[iEx][kO] || '');
       JOURS_CLES.forEach(function (j) { o[j] = String(x[j] || ''); });
       var v = entR.map(function () { return ''; });
       CHAMPS_PRESENCES.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
@@ -349,6 +355,9 @@ function enregistrerFiche(b) {
   }
 }
 
+// 3.27.33 : nombre (virgule ou point) arrondi à 6 décimales ; NaN si vide
+function nombre6(x) { var n = parseFloat(String(x === undefined || x === null ? '' : x).replace(',', '.')); return isFinite(n) ? Math.round(n * 1e6) / 1e6 : NaN; }
+
 // Pharmacie créée ou modifiée depuis l'application (feuille Pharmacies)
 function enregistrerPharmacie(ss, p, lieu, auteur) {
   var sh = ss.getSheetByName(FEUILLES.pharmacies), tz = ss.getSpreadsheetTimeZone();
@@ -372,11 +381,17 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   var modif = { code: code, nom: String(p.nom || '').trim(), quartier: lieu.quartier || '', commune: q.commune || lieu.commune || '', zone: q.zone || lieu.zone || '',
     telephone: formaterTelephoneCI(p.telephone || ''), note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
     actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui', horaireMatin: lieu.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: lieu.horaireSoir || HORAIRES_PHARMACIE[1] };
-  if (lieu.lat && lieu.lon && lieu.lat !== 'NL' && lieu.lon !== 'NL') { modif.lat = +lieu.lat; modif.lon = +lieu.lon; }
+  var kOP = pos[indexChamp(CHAMPS_PHARMACIES, 'origineGps')], kLaP = pos[indexChamp(CHAMPS_PHARMACIES, 'lat')], kLoP = pos[indexChamp(CHAMPS_PHARMACIES, 'lon')];
+  if (lieu.lat && lieu.lon && lieu.lat !== 'NL' && lieu.lon !== 'NL') {
+    modif.lat = nombre6(lieu.lat); modif.lon = nombre6(lieu.lon);
+    // 3.27.33 : relevé terrain transmis tel quel ; position inchangée = origine conservée ; sinon origine effacée
+    var bouge = !(Math.abs(nombre6(v[kLaP]) - modif.lat) < 0.00001 && Math.abs(nombre6(v[kLoP]) - modif.lon) < 0.00001);
+    if (lieu.origineGps) modif.origineGps = String(lieu.origineGps); else if (bouge) modif.origineGps = '';
+  }
   else {
     var g = geocoderLieu(p.nom, lieu.quartier, modif.commune, p.telephone, p.titulaire);
     if (g) {
-      modif.lat = g.lat; modif.lon = g.lon;
+      modif.lat = nombre6(g.lat); modif.lon = nombre6(g.lon); modif.origineGps = 'Google Maps';
       if ((!modif.quartier || modif.quartier === 'NL') && g.quartier) modif.quartier = g.quartier;
     }
   }

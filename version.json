@@ -1,9 +1,9 @@
 {
-  "version": "3.28.7",
+  "version": "3.28.9",
   "date": "2026-11-08",
   "notes": [
-    "Compte Rendu Médecin : si aucun produit n'est présenté, l'étape des échantillons est automatiquement omise",
-    "Compte Rendu : ajout du bouton Enregistrer sans remplacer lorsque le remplacement est proposé",
-    "Arbre de décision vérifié et fluidifié"
+    "Médecins engagés en ambre partout (fiche hôpital comprise)",
+    "Bulle « Aujourd'hui » sarcelle dans les hôpitaux",
+    "Positions relevées au téléphone marquées « Terrain »"
   ]
 }

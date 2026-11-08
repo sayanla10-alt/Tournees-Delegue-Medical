@@ -712,7 +712,7 @@
       function sauverDirect() {
         S.ui.posGps = { lat: pCapt.lat, lon: pCapt.lon, t: Date.now(), prec: p.prec };
         LS.set('derniereGps', S.ui.posGps);
-        l.lat = pCapt.lat; l.lon = pCapt.lon;
+        l.lat = pCapt.lat; l.lon = pCapt.lon; l.origineGps = origineTerrain(p.prec);
         var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
         if (r && r.quartier) {
           l.quartier = r.quartier.quartier;

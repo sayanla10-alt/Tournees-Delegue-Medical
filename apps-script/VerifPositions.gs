@@ -22,8 +22,13 @@ function verifierPositions() {
   });
   var aChercher = items.filter(function (it) { return !/^terrain/i.test(it.origine); });
   var LOT = 50;
+  var t0lot = 0;
   for (var i = 0; i < aChercher.length; i += LOT) {
     var lot = aChercher.slice(i, i + LOT);
+    // Quota Google : 600 recherches par minute. 50 toutes les 5,5 s maximum.
+    var attente = 5500 - (Date.now() - t0lot);
+    if (t0lot && attente > 0) Utilities.sleep(attente);
+    t0lot = Date.now();
     var reqs = lot.map(function (it) {
       var corps = { textQuery: [it.nom, it.commune, 'Côte d\'Ivoire'].filter(Boolean).join(', '), languageCode: 'fr', regionCode: 'ci', maxResultCount: 3 };
       if (it.lat !== null && it.lon !== null) corps.locationBias = { circle: { center: { latitude: it.lat, longitude: it.lon }, radius: 5000 } };
@@ -71,4 +76,79 @@ function verifierPositions() {
   sh.setFrozenRows(1);
   var stats = {}; lignes.forEach(function (l) { var k = String(l[15]).replace(/ :.*/, ''); stats[k] = (stats[k] || 0) + 1; });
   Logger.log('VERIF ' + items.length + ' lignes en ' + Math.round((Date.now() - t0) / 1000) + ' s ' + JSON.stringify(stats));
+}
+
+// Applique le rapport "Vérification positions" :
+// - remplace par Google si même nom (100 %) et écart < 2 km (ou aucune position) ;
+// - les autres remplacements passent en "À vérifier (écart important)" ;
+// - arrondit toutes les positions à 6 décimales (Pharmacies, Etablissements, Presences) ;
+// - les présences d'un établissement corrigé suivent sa nouvelle position ;
+// - remplit la colonne OrigineGPS (Google Maps / Google Maps (vérifié)) sans toucher aux relevés Terrain.
+function appliquerPositions() {
+  var t0 = Date.now(), ss = SpreadsheetApp.getActive();
+  var num = function (v) { var x = parseFloat(String(v === undefined || v === null ? '' : v).replace(',', '.')); return isFinite(x) ? x : null; };
+  var r6 = function (x) { return x === null ? '' : Math.round(x * 1e6) / 1e6; };
+  var rap = ss.getSheetByName('Vérification positions');
+  var R = rap.getRange(2, 1, rap.getLastRow() - 1, 17).getValues();
+  var maj = { Pharmacies: {}, Etablissements: {} }, stats = { remplacees: 0, verifiees: 0, aVerifier: 0, presences: 0 };
+  R.forEach(function (l) {
+    var dec = String(l[15]), ecart = num(l[13]), sim = String(l[14]), sansPos = num(l[5]) === null;
+    if (dec === 'Remplacer par Google') {
+      if ((sim === '100 %' && ecart !== null && ecart < 2000) || (sansPos && num(l[11]) !== null)) {
+        maj[l[0]][l[1]] = { lat: num(l[11]), lon: num(l[12]), origine: 'Google Maps', ancLat: num(l[5]), ancLon: num(l[6]), nom: l[3], commune: l[4] };
+        l[15] = 'Remplacée par Google'; stats.remplacees++;
+      } else { l[15] = 'À vérifier (écart important)'; stats.aVerifier++; }
+    } else if (/^OK/.test(dec)) { maj[l[0]][l[1]] = { origine: 'Google Maps (vérifié)' }; stats.verifiees++; }
+  });
+  rap.getRange(2, 1, R.length, 17).setValues(R);
+
+  var colonnes = function (sh) { return sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser); };
+  var assurerOrigine = function (sh) {
+    var ent = colonnes(sh), i = ent.indexOf('originegps');
+    if (i < 0) { i = ent.length; sh.getRange(1, i + 1).setValue('OrigineGPS').setFontWeight('bold'); }
+    return i;
+  };
+  var etabsCorriges = [];
+  ['Pharmacies', 'Etablissements'].forEach(function (nomF) {
+    var sh = ss.getSheetByName(nomF), io = assurerOrigine(sh), ent = colonnes(sh);
+    var ila = ent.indexOf('latitude'), ilo = ent.indexOf('longitude'), ipo = ent.indexOf('position');
+    var n = sh.getLastRow() - 1;
+    var LL = sh.getRange(2, ila + 1, n, 2).getValues(), OO = sh.getRange(2, io + 1, n, 1).getValues();
+    var PO = ipo >= 0 ? sh.getRange(2, ipo + 1, n, 1).getValues() : null;
+    for (var k = 0; k < n; k++) {
+      var m = maj[nomF][k + 2], terrain = /^terrain/i.test(String(OO[k][0]));
+      var la = num(LL[k][0]), lo = num(LL[k][1]);
+      if (m && !terrain) {
+        if (m.lat !== undefined) { la = m.lat; lo = m.lon; if (nomF === 'Etablissements') etabsCorriges.push(m); }
+        OO[k][0] = m.origine;
+      }
+      LL[k] = [r6(la), r6(lo)];
+      if (PO && la !== null && lo !== null) PO[k][0] = r6(la).toFixed(6) + ', ' + r6(lo).toFixed(6);
+    }
+    sh.getRange(2, ila + 1, n, 2).setValues(LL);
+    sh.getRange(2, io + 1, n, 1).setValues(OO);
+    if (PO) sh.getRange(2, ipo + 1, n, 1).setValues(PO);
+  });
+
+  var sh = ss.getSheetByName('Presences'), io = assurerOrigine(sh), ent = colonnes(sh);
+  var ila = ent.indexOf('latitude'), ilo = ent.indexOf('longitude'), ili = ent.indexOf('lieu/etablissement'), ico = ent.indexOf('commune');
+  var n = sh.getLastRow() - 1, D = sh.getRange(2, 1, n, ent.length).getValues();
+  var LL = [], OO = [];
+  D.forEach(function (l) {
+    var la = num(l[ila]), lo = num(l[ilo]), orig = String(l[io] || '');
+    if (!/^terrain/i.test(orig)) {
+      var lieu = normaliser(l[ili]), com = normaliser(l[ico]);
+      for (var e = 0; e < etabsCorriges.length; e++) {
+        var m = etabsCorriges[e];
+        var memeNom = lieu && lieu === normaliser(m.nom);
+        var memePos = la !== null && m.ancLat !== null && Math.abs(la - m.ancLat) < 0.00005 && Math.abs(lo - m.ancLon) < 0.00005 && com === normaliser(m.commune);
+        if (memeNom || memePos) { la = m.lat; lo = m.lon; orig = 'Google Maps'; stats.presences++; break; }
+      }
+    }
+    LL.push([r6(la), r6(lo)]); OO.push([orig]);
+  });
+  sh.getRange(2, ila + 1, n, 2).setValues(LL);
+  sh.getRange(2, io + 1, n, 1).setValues(OO);
+  marquerModif();
+  Logger.log('APPLIQUE en ' + Math.round((Date.now() - t0) / 1000) + ' s ' + JSON.stringify(stats));
 }

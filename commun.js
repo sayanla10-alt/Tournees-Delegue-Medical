@@ -47,7 +47,7 @@ var CHAMPS_PRESENCES = [
   ['id', 'IdPresence'], ['code', 'CodeContact'], ['nom', 'Nom'], ['lieu', 'Lieu/Etablissement'],
   ['quartier', 'Quartier'], ['commune', 'Commune'], ['zone', 'Zone'],
   ['lundi', 'Lundi'], ['mardi', 'Mardi'], ['mercredi', 'Mercredi'], ['jeudi', 'Jeudi'], ['vendredi', 'Vendredi'],
-  ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['reperes', 'Repères']
+  ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS']
 ];
 
 // 3.26.54 : règle unique de position d'un lieu. Latitude / longitude lues avec virgule ou point ;
@@ -80,7 +80,7 @@ var CHAMPS_PHARMACIES = [
   ['zone', 'Zone'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['horaireMatin', 'HoraireMatin'],
   ['horaireSoir', 'HoraireSoir'], ['note', 'Note'], ['conventionne', 'Engagé'], ['derniere', 'DateDerniereVisite'],
   ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'], ['nbVisites', 'NbVisites'], ['actif', 'Actif'],
-  ['prochaine', 'ProchaineEtape'], ['source', 'Source']
+  ['prochaine', 'ProchaineEtape'], ['source', 'Source'], ['origineGps', 'OrigineGPS']
 ];
 
 // Répertoire des hôpitaux et établissements de santé (CHU, Cliniques, FSU COM, Centres Médicaux, etc.)

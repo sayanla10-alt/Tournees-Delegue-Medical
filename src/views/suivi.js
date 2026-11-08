@@ -155,7 +155,7 @@
         h += '<li style="background:var(--papier,#fff);border:1px solid var(--trait,#e2e8f0);border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px">' +
           '<div style="flex:1;min-width:0">' +
             '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
-              '<b>' + esc(p.nom) + '</b>' +
+              nomPrat(p) +
               '<span class="etiquette ' + (estPh ? '' : 'ok') + '" style="font-size:0.75rem">' + (estPh ? 'Pharmacie' : esc(abrSpec(p.specialite) || 'Médecin')) + '</span>' +
             '</div>' +
             '<div class="discret" style="font-size:0.8rem;margin-top:2px">' + esc(nomLieu) + (quartierNom ? ' · ' + esc(quartierNom) : '') + (communeNom ? ' (' + esc(communeNom) + ')' : '') + '</div>' +

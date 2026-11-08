@@ -203,6 +203,11 @@
     var m = Math.max(10, Math.round(km * 100) * 10);
     return m <= 30 ? 'sur place (< 30 m)' : m + ' mètres';
   }
+  // 3.28.9 : nom d'un médecin engagé en ambre, partout où un nom est affiché
+  function nomPrat(p) {
+    var eng = p && !estPharmacie(p) && estConventionne(p.conventionne !== undefined ? p.conventionne : ((praticien(p.code) || {}).conventionne));
+    return '<b' + (eng ? ' class="nom-engage"' : '') + '>' + esc(p ? p.nom : '') + '</b>';
+  }
   function classeType(o) {
     var c = estPharmacie(o) ? ' t-pharma' : ' t-med';
     if (!o) return c;
