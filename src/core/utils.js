@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.24';
+  var APP_VERSION = '3.28.25';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.25', [
+      'Les filtres et critères choisis (communes, spécialités, potentiel, type, réglages de Planifier) sont gardés d\'une ouverture à l\'autre ; ils ne reviennent à zéro que si vous les réinitialisez'
+    ]],
     ['3.28.24', [
       'Abobo : les quartiers « Abobo Nord », « Abobo Sud » et « Abobo Centre » sont rangés dans leur secteur (Nord & PK18, Sud & Plaque, Centre & Mairie)'
     ]],

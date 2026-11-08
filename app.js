@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.24';
+  var APP_VERSION = '3.28.25';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.25', [
+      'Les filtres et critères choisis (communes, spécialités, potentiel, type, réglages de Planifier) sont gardés d\'une ouverture à l\'autre ; ils ne reviennent à zéro que si vous les réinitialisez'
+    ]],
     ['3.28.24', [
       'Abobo : les quartiers « Abobo Nord », « Abobo Sud » et « Abobo Centre » sont rangés dans leur secteur (Nord & PK18, Sud & Plaque, Centre & Mairie)'
     ]],
@@ -953,7 +956,7 @@
                 var val = JSON.parse(brut);
                 IDB.set(k, val);
                 if (LS._mem[k] === undefined) LS._mem[k] = val;
-                if (!CLES_LEGERES[k]) localStorage.removeItem(cleLs);
+                if (CLES_LOURDES[k]) localStorage.removeItem(cleLs);
               } catch (eP) {}
             }
           }
@@ -966,6 +969,10 @@
   var CLES_LEGERES = { config: true, token: true, theme: true, onglet: true };
   var CLES_LOURDES = { data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true };
 
+  // 3.28.25 : réglages et filtres gardés aussi dans localStorage (lus dès le démarrage) ; tant que la base du téléphone
+  // n'est pas relue, un réglage introuvable au démarrage n'y est pas écrasé par sa valeur par défaut
+  var A_SAUVER = { params: true, filtres: true, filtresAutour: true };
+  var absentsAuDemarrage = {}, idbRelue = false;
   var LS = {
     _mem: {},
     get: function (k, d) {
@@ -978,20 +985,21 @@
           return obj;
         }
       } catch (e) {}
+      if (!idbRelue && A_SAUVER[k]) absentsAuDemarrage[k] = true;
       return d;
     },
     set: function (k, v) {
       LS._mem[k] = v;
-      IDB.set(k, v);
+      if (idbRelue || !absentsAuDemarrage[k]) IDB.set(k, v);
       if (k === 'plan' && typeof S !== 'undefined' && S && S.horsPlan) {
         IDB.set('horsPlan', S.horsPlan);
       }
-      if (CLES_LEGERES[k]) {
+      if (!CLES_LOURDES[k] && (idbRelue || !absentsAuDemarrage[k])) {
         try {
           var str = JSON.stringify(v);
           if (str.length < 50000) localStorage.setItem(PREFIXE + k, str);
         } catch (e) {}
-      } else {
+      } else if (CLES_LOURDES[k]) {
         try { localStorage.removeItem(PREFIXE + k); } catch (e) {}
       }
     },
@@ -12806,7 +12814,20 @@
       S.plan = LS._mem.plan;
     }
     if (LS._mem.programme) S.programme = LS._mem.programme;
-    if (LS._mem.params) S.params = LS._mem.params;
+    // 3.28.25 : réglages et filtres absents au démarrage : ceux de la base du téléphone sont repris, puis gardés aussi dans localStorage
+    idbRelue = true;
+    Object.keys(absentsAuDemarrage).forEach(function (k) {
+      if (tous[k] === undefined) { IDB.set(k, LS._mem[k]); return; }
+      LS._mem[k] = tous[k];
+      try { localStorage.setItem(PREFIXE + k, JSON.stringify(tous[k])); } catch (e) {}
+    });
+    if (absentsAuDemarrage.filtres && tous.filtres) S.ui.filtres = Object.assign({}, FILTRES_VIDES, tous.filtres);
+    if (absentsAuDemarrage.filtresAutour && tous.filtresAutour) S.ui.filtresAutour = Object.assign({}, FILTRES_VIDES, tous.filtresAutour);
+    absentsAuDemarrage = {};
+    if (LS._mem.params) {
+      S.params = Object.assign({}, defautParams, LS._mem.params);
+      if (!S.params.dateRef || S.params.dateRef <= aujourdhui()) S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+    }
     if (LS._mem.imposes) S.imposes = LS._mem.imposes;
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
     if (LS._mem.queue) S.queue = LS._mem.queue;

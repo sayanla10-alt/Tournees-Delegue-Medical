@@ -62,7 +62,20 @@
       S.plan = LS._mem.plan;
     }
     if (LS._mem.programme) S.programme = LS._mem.programme;
-    if (LS._mem.params) S.params = LS._mem.params;
+    // 3.28.25 : réglages et filtres absents au démarrage : ceux de la base du téléphone sont repris, puis gardés aussi dans localStorage
+    idbRelue = true;
+    Object.keys(absentsAuDemarrage).forEach(function (k) {
+      if (tous[k] === undefined) { IDB.set(k, LS._mem[k]); return; }
+      LS._mem[k] = tous[k];
+      try { localStorage.setItem(PREFIXE + k, JSON.stringify(tous[k])); } catch (e) {}
+    });
+    if (absentsAuDemarrage.filtres && tous.filtres) S.ui.filtres = Object.assign({}, FILTRES_VIDES, tous.filtres);
+    if (absentsAuDemarrage.filtresAutour && tous.filtresAutour) S.ui.filtresAutour = Object.assign({}, FILTRES_VIDES, tous.filtresAutour);
+    absentsAuDemarrage = {};
+    if (LS._mem.params) {
+      S.params = Object.assign({}, defautParams, LS._mem.params);
+      if (!S.params.dateRef || S.params.dateRef <= aujourdhui()) S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+    }
     if (LS._mem.imposes) S.imposes = LS._mem.imposes;
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
     if (LS._mem.queue) S.queue = LS._mem.queue;

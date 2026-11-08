@@ -129,7 +129,7 @@
                 var val = JSON.parse(brut);
                 IDB.set(k, val);
                 if (LS._mem[k] === undefined) LS._mem[k] = val;
-                if (!CLES_LEGERES[k]) localStorage.removeItem(cleLs);
+                if (CLES_LOURDES[k]) localStorage.removeItem(cleLs);
               } catch (eP) {}
             }
           }
@@ -142,6 +142,10 @@
   var CLES_LEGERES = { config: true, token: true, theme: true, onglet: true };
   var CLES_LOURDES = { data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true };
 
+  // 3.28.25 : réglages et filtres gardés aussi dans localStorage (lus dès le démarrage) ; tant que la base du téléphone
+  // n'est pas relue, un réglage introuvable au démarrage n'y est pas écrasé par sa valeur par défaut
+  var A_SAUVER = { params: true, filtres: true, filtresAutour: true };
+  var absentsAuDemarrage = {}, idbRelue = false;
   var LS = {
     _mem: {},
     get: function (k, d) {
@@ -154,20 +158,21 @@
           return obj;
         }
       } catch (e) {}
+      if (!idbRelue && A_SAUVER[k]) absentsAuDemarrage[k] = true;
       return d;
     },
     set: function (k, v) {
       LS._mem[k] = v;
-      IDB.set(k, v);
+      if (idbRelue || !absentsAuDemarrage[k]) IDB.set(k, v);
       if (k === 'plan' && typeof S !== 'undefined' && S && S.horsPlan) {
         IDB.set('horsPlan', S.horsPlan);
       }
-      if (CLES_LEGERES[k]) {
+      if (!CLES_LOURDES[k] && (idbRelue || !absentsAuDemarrage[k])) {
         try {
           var str = JSON.stringify(v);
           if (str.length < 50000) localStorage.setItem(PREFIXE + k, str);
         } catch (e) {}
-      } else {
+      } else if (CLES_LOURDES[k]) {
         try { localStorage.removeItem(PREFIXE + k); } catch (e) {}
       }
     },
