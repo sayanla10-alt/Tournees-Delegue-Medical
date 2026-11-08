@@ -731,7 +731,7 @@
         var pres = c.presentes === 'oui' || im.presentes ? produitsPresentes(c) : [];
         r.produits = pres.join(', ');
         r.reactions = pres.filter(function (p) { return c.reactions[p]; }).map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(' ; ');
-        if (c.echant === 'oui' || im.echant) r.echantillons = listeQ(c.echQ);
+        if ((c.presentes === 'oui' || im.presentes) && (c.echant === 'oui' || im.echant)) r.echantillons = listeQ(c.echQ);
         r.commentaire = c.bilan || '';
       } else {
         r.interlocuteur = c.interlocuteur || '';
@@ -1085,10 +1085,13 @@
             return '<div class="champ champ-reaction-produit"><div class="etiquette-med-cr"><b>' + esc(p) + '</b></div><div class="grille-reactions-cr">' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div></div>';
           }).join('') + '</div>';
         }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
+        if (!im.echant && !c.echant) c.echant = 'non';
+        if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
+        if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
+      } else {
+        c.echant = 'non';
+        c.echQ = {};
       }
-      if (!im.echant && !c.echant) c.echant = 'non';   // 3.27.23 : Non par défaut
-      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
-      if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
       e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
       etapesSuite(a, c, SUITES.medecin, e);
       return l;
@@ -1265,8 +1268,12 @@
     for (var i = 0; i < etapes.length; i++) {
       var s = etapes[i];
       if (s.fin === 'remplacer') {
-        return h + '<div class="actions-cr"><button class="bouton bouton-plein" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' +
-          icone('cible') + 'Remplacer</button></div></div>';
+        return h + '<div class="actions-cr" style="display:flex;flex-direction:column;gap:8px">' +
+          '<button class="bouton bouton-plein" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' +
+          icone('cible') + 'Remplacer dans la tournée</button>' +
+          '<button class="bouton" type="button" data-a="validerUn" data-uid="' + a.uid + '">' +
+          icone('valider') + 'Enregistrer sans remplacer</button>' +
+          '</div></div>';
       }
       if (ok[s.id]) {
         h += '<button type="button" class="cr-fait" data-a="crEditer" data-uid="' + a.uid + '" data-v="' + s.id + '"><span>' + esc(titreCourt(s.titre)) + '</span><b>' + esc(s.resume()) + '</b>' + icone('crayon') + '</button>';
@@ -1373,6 +1380,7 @@
     if (multi) { var l = Array.isArray(o[k]) ? o[k] : [], j = l.indexOf(valeur); if (j >= 0) l.splice(j, 1); else l.push(valeur); o[k] = l; }
     else o[k] = valeur;
     if (cle === 'faite' && valeur === 'oui') { c.motif = ''; c.remplacant = ''; }
+    if (cle === 'presentes' && valeur === 'non') { c.produits = []; c.reactions = {}; c.echant = 'non'; c.echQ = {}; }
     if (cle === 'suite' && valeur === 'aucune') { c.suiteType = ''; c.date = ''; }
     if (cle === 'types') memoriserDerniersTypesCr(estPharmacie(a), c.types);
     if (cle === 'produits' && !estPharmacie(a)) memoriserDerniersProduitsCr(c.produits);

@@ -1,9 +1,9 @@
 {
-  "version": "3.28.6",
-  "date": "2026-11-07",
+  "version": "3.28.7",
+  "date": "2026-11-08",
   "notes": [
-    "Mises a jour : fin des notifications intempestives et activation fluide du Service Worker sans re-notification en boucle",
-    "Planning : suppression de journee par appui long epure et confirmation immediate (suppression de l'animation circulaire HUD)",
-    "Navigation & Ergonomie : retour haptique direct et fluidite accrue sur les dates"
+    "Compte Rendu Médecin : si aucun produit n'est présenté, l'étape des échantillons est automatiquement omise",
+    "Compte Rendu : ajout du bouton Enregistrer sans remplacer lorsque le remplacement est proposé",
+    "Arbre de décision vérifié et fluidifié"
   ]
 }
