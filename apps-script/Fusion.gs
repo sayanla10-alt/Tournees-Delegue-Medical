@@ -449,12 +449,30 @@ function annulerFusion_(idF, auteur) {
 }
 
 // ---------------------------------------------------------------- Détection des doublons probables
+// Nom réduit à ses mots distinctifs : sans accents, sans mots génériques (clinique, pharmacie, centre…)
+// et sans noms de communes (sinon « INSP Adjamé » et « CAT Adjamé » se ressembleraient)
+var FUS_MOTS_VIDES = { pharmacie: 1, pharma: 1, officine: 1, depot: 1, pharmaceutique: 1, clinique: 1, polyclinique: 1, centre: 1, medical: 1, medicale: 1, medicaux: 1,
+  cabinet: 1, hopital: 1, sante: 1, service: 1, consultation: 1, nouvelle: 1, nouveau: 1, grande: 1, petite: 1, saint: 1, sainte: 1,
+  les: 1, des: 1, del: 1, dela: 1, aux: 1, sur: 1, abidjan: 1, cote: 1, ivoire: 1, groupe: 1, espace: 1, the: 1, and: 1 };
 function fusMots_(s, vides) {
-  return sansAccents(String(s || '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ').filter(function (w) { return w.length >= 3 && !vides[w]; });
+  var t = sansAccents(String(s || '').replace(/œ/g, 'oe').replace(/Œ/g, 'OE').replace(/æ/g, 'ae')).toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+  var vus = {};
+  return t.split(' ').filter(function (w) { if (w.length < 3 || vides[w] || FUS_MOTS_VIDES[w] || vus[w]) return false; vus[w] = 1; return true; });
 }
-var FUS_MOTS_VIDES = { pharmacie: 1, pharma: 1, clinique: 1, polyclinique: 1, centre: 1, medical: 1, medicale: 1, cabinet: 1, hopital: 1, sante: 1,
-  les: 1, des: 1, del: 1, dela: 1, aux: 1, sur: 1, abidjan: 1, cote: 1, ivoire: 1, groupe: 1, espace: 1, nouvelle: 1, nouveau: 1, grande: 1, saint: 1, sainte: 1 };
-function fusPharmaCle_(s) { return sansAccents(String(s || '')).toLowerCase().replace(/\b(pharmacie|pharma|officine|de|du|des|la|le|les|l|d)\b/g, ' ').replace(/[^a-z0-9]/g, ''); }
+// Ressemblance de deux noms : '' (aucune), ou la raison
+function fusRessemblance_(na, nb, d, vides, rayonInclus, rayonProche) {
+  var wa = fusMots_(na, vides), wb = fusMots_(nb, vides);
+  if (!wa.length || !wb.length) return '';
+  var ka = wa.slice().sort().join(' '), kb = wb.slice().sort().join(' ');
+  if (ka === kb) return 'Mêmes mots distinctifs';
+  var communs = wa.filter(function (w) { return wb.indexOf(w) >= 0; });
+  var petit = wa.length <= wb.length ? wa : wb;
+  var proche = function (r) { return d === null || d <= r; };
+  if (communs.length === petit.length && petit.some(function (w) { return w.length >= 4; }) && proche(rayonInclus)) return 'Nom inclus dans l\'autre' + (d !== null ? ' (' + d + ' m)' : '');
+  var jac = communs.length / (wa.length + wb.length - communs.length);
+  if (jac >= 0.6 && communs.some(function (w) { return w.length >= 4; }) && proche(rayonProche)) return 'Noms proches' + (d !== null ? ' (' + d + ' m)' : '');
+  return '';
+}
 function fusDist_(a, b) {
   var la = nombre6(a.lat), lo = nombre6(a.lon), lb = nombre6(b.lat), lob = nombre6(b.lon);
   if (!isFinite(la) || !isFinite(lo) || !isFinite(lb) || !isFinite(lob) || !la || !lb) return null;
@@ -465,12 +483,18 @@ function fusDist_(a, b) {
 // Liste les doublons probables dans l'onglet « Doublons à fusionner » ; la colonne Décision dit quoi faire
 function detecterDoublons() {
   var ss = SpreadsheetApp.getActive(), R = fusRedirections_(), paires = [];
-  // usage : lieux d'exercice et visites par nom de lieu (établissements) ou par code (pharmacies)
+  // mots des noms de communes et de quartiers : jamais distinctifs
+  var vides = {};
+  var ajouterVides = function (v) { fusMots_(v, {}).forEach(function (w) { vides[w] = 1; }); };
+  var tQ = fusTable_(ss, FEUILLES.quartiers);
+  if (tQ) tQ.data.forEach(function (l) { ajouterVides(l[0]); });
+  // usage : lieux d'exercice par nom de lieu (établissements), visites par code (pharmacies)
   var usageLieu = {}, usageCode = {}, lieuxPres = {};
   var tP = fusTable_(ss, FEUILLES.presences);
   if (tP) {
     var pl = tP.col('Lieu/Etablissement'), pc = tP.col('Commune'), pla = tP.col('Latitude'), plo = tP.col('Longitude');
     tP.data.forEach(function (l) {
+      ajouterVides(l[pc]);
       var k = normaliser(l[pl]); if (!k) return;
       usageLieu[k] = (usageLieu[k] || 0) + 1;
       var kc = k + '|' + normaliser(l[pc]);
@@ -485,6 +509,7 @@ function detecterDoublons() {
   var tE = fusTable_(ss, FEUILLES.etablissements), etabs = [];
   if (tE) {
     var e = { code: tE.col('CodeEtab'), nom: tE.col('Nom'), com: tE.col('Commune'), lat: tE.col('Latitude'), lon: tE.col('Longitude'), alias: tE.col('Alias') };
+    tE.data.forEach(function (l) { ajouterVides(l[e.com]); });
     tE.data.forEach(function (l) {
       var x = { code: fusTxt_(l[e.code]), nom: fusTxt_(l[e.nom]), commune: fusTxt_(l[e.com]), lat: l[e.lat], lon: l[e.lon], usage: usageLieu[normaliser(l[e.nom])] || 0 };
       if (!x.nom) return;
@@ -497,14 +522,9 @@ function detecterDoublons() {
     for (var i = 0; i < etabs.length; i++) for (var j = i + 1; j < etabs.length; j++) {
       var a = etabs[i], b = etabs[j];
       if (!a.code && !b.code) continue;                                   // deux noms sans fiche : rattachés chacun à une fiche
-      if (normaliser(a.commune) !== normaliser(b.commune) && a.commune && b.commune) continue;   // même nom, autre commune : lieux distincts
+      if (normaliser(a.commune) !== normaliser(b.commune)) continue;      // autre commune (ou commune inconnue) : jamais proposé
       if (R.distincts[(a.code || a.nom) + '|' + (b.code || b.nom)]) continue;
-      var d = fusDist_(a, b), raison = '';
-      if (memeEtablissement(a.nom, b.nom)) raison = 'Noms équivalents';
-      else if (d !== null && d <= 150) {
-        var wa = fusMots_(a.nom, FUS_MOTS_VIDES), wb = fusMots_(b.nom, FUS_MOTS_VIDES);
-        if (wa.some(function (w) { return wb.indexOf(w) >= 0; })) raison = 'Même endroit (' + d + ' m), nom proche';
-      }
+      var d = fusDist_(a, b), raison = fusRessemblance_(a.nom, b.nom, d, vides, 1000, 300);
       if (raison) paires.push(['Établissement', a, b, d, raison]);
     }
   }
@@ -513,25 +533,23 @@ function detecterDoublons() {
   var tF = fusTable_(ss, FEUILLES.pharmacies);
   if (tF) {
     var f = { code: tF.col('CodeContact'), nom: tF.col('Nom'), com: tF.col('Commune'), lat: tF.col('Latitude'), lon: tF.col('Longitude'), tel: tF.col('Téléphone', 'Telephone') };
+    tF.data.forEach(function (l) { ajouterVides(l[f.com]); });
     var phs = tF.data.map(function (l) {
       return { code: fusTxt_(l[f.code]), nom: fusTxt_(l[f.nom]), commune: fusTxt_(l[f.com]), lat: l[f.lat], lon: l[f.lon], usage: usageCode[fusTxt_(l[f.code])] || 0,
-               cle: fusPharmaCle_(l[f.nom]), tels: (formaterTelephoneCI(fusTxt_(l[f.tel])) || '').split(/\s*\/\s*/).map(function (t) { return t.replace(/\D/g, '').slice(-8); }).filter(function (t) { return t.length === 8; }) };
+               tels: (formaterTelephoneCI(fusTxt_(l[f.tel])) || '').split(/\s*\/\s*/).map(function (t) { return t.replace(/\D/g, '').slice(-8); }).filter(function (t) { return t.length === 8; }) };
     }).filter(function (x) { return x.code && x.nom; });
+    // un numéro partagé par plus de deux pharmacies (standard, ordre…) ne prouve rien
+    var freq = {};
+    phs.forEach(function (x) { x.tels.forEach(function (t) { freq[t] = (freq[t] || 0) + 1; }); });
     var parCommune = {};
-    phs.forEach(function (x) { var k = normaliser(x.commune); (parCommune[k] = parCommune[k] || []).push(x); });
+    phs.forEach(function (x) { var k = normaliser(x.commune); if (k) (parCommune[k] = parCommune[k] || []).push(x); });
     Object.keys(parCommune).forEach(function (k) {
       var L = parCommune[k];
       for (var i = 0; i < L.length; i++) for (var j = i + 1; j < L.length; j++) {
         var a = L[i], b = L[j];
         if (R.distincts[a.code + '|' + b.code]) continue;
-        var d = fusDist_(a, b), raison = '';
-        if (a.cle && a.cle === b.cle) raison = 'Même nom';
-        else if (a.cle.length >= 5 && b.cle.length >= 5 && (a.cle.indexOf(b.cle) >= 0 || b.cle.indexOf(a.cle) >= 0)) raison = 'Nom inclus dans l\'autre';
-        else if (a.tels.some(function (t) { return b.tels.indexOf(t) >= 0; })) raison = 'Même téléphone';
-        else if (d !== null && d <= 60) {
-          var wa = fusMots_(a.nom, FUS_MOTS_VIDES), wb = fusMots_(b.nom, FUS_MOTS_VIDES);
-          if (wa.some(function (w) { return wb.indexOf(w) >= 0; })) raison = 'Même endroit (' + d + ' m), nom proche';
-        }
+        var d = fusDist_(a, b), raison = fusRessemblance_(a.nom, b.nom, d, vides, 500, 200);
+        if (!raison && a.tels.some(function (t) { return freq[t] === 2 && b.tels.indexOf(t) >= 0; }) && (d === null || d <= 1500)) raison = 'Même téléphone' + (d !== null ? ' (' + d + ' m)' : '');
         if (raison) paires.push(['Pharmacie', a, b, d, raison]);
       }
     });
