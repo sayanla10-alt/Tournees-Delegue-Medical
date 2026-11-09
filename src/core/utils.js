@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.49';
+  var APP_VERSION = '3.28.50';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.50', [
+      'Bilan du Jour, visites sans compte rendu : plus de pastille vide ni de flèche disgracieuses entre l\'heure et le nom ; simple mention « sans CR » en petit'
+    ]],
     ['3.28.49', [
       'Bilan du Jour dans la charte de l\'application : volets comme dans Réglages (titres sans majuscules), icônes de l\'application, caducée ou croix devant chaque nom, petits boutons centrés, page plus compacte',
       'Journée sans CR validé : un seul bandeau « CR non validé · 1 visite sans CR »'

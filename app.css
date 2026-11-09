@@ -3846,8 +3846,8 @@ details.bil-visite:first-of-type { border-top: 0; padding-top: 0; }
 details.bil-visite > summary { list-style: none; cursor: pointer; display: flex; gap: 8px; align-items: flex-start; }
 details.bil-visite > summary::-webkit-details-marker { display: none; }
 .bil-h { flex: none; width: 38px; font-size: 12.5px; font-weight: 600; color: var(--gris); padding-top: 2px; }
-.bil-pt { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
-.bil-pt.ok { background: var(--vert); } .bil-pt.ko { background: var(--ambre); } .bil-pt.vide { border: 1.5px solid var(--gris-2); }
+.bil-pt { flex: 0 0 8px; width: 8px; height: 8px; min-width: 8px; max-width: 8px; box-sizing: border-box; border-radius: 50%; margin-top: 6px; padding: 0; }
+.bil-pt.ok { background: var(--vert); } .bil-pt.ko { background: var(--ambre); } .bil-pt.vide { background: transparent; }   /* 3.28.50 : sans CR, pas de pastille (la mention « sans compte rendu » suffit) */
 .bil-nom { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; white-space: normal; }
 .bil-nom small { display: block; color: var(--gris); font-size: 12.5px; font-weight: 400; }
 .bil-sans { color: var(--ambre); font-weight: 600; }
@@ -3860,3 +3860,4 @@ details.bil-visite > summary::-webkit-details-marker { display: none; }
 .bil-volet .bil-actions { margin-top: 0; }
 details.bil-volet details.bil-visite > summary { flex-direction: row !important; align-items: flex-start; gap: 8px; }
 details.bil-volet .bil-apercu { white-space: pre-wrap; font-size: 12.5px; }
+details.bil-volet details.bil-visite > summary b::after { content: none; }

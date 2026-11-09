@@ -1,8 +1,8 @@
 {
-  "version": "3.28.49",
+  "version": "3.28.50",
   "date": "2026-11-09",
   "notes": [
-    "Bilan du Jour dans la charte de l'application, plus compact",
-    "Nouveau : Bilan du Jour, pour se souvenir de chaque journée"
+    "Bilan du Jour : visites sans CR plus propres",
+    "Bilan du Jour dans la charte de l'application"
   ]
 }

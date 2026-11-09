@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.49';
+  var APP_VERSION = '3.28.50';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.50', [
+      'Bilan du Jour, visites sans compte rendu : plus de pastille vide ni de flèche disgracieuses entre l\'heure et le nom ; simple mention « sans CR » en petit'
+    ]],
     ['3.28.49', [
       'Bilan du Jour dans la charte de l\'application : volets comme dans Réglages (titres sans majuscules), icônes de l\'application, caducée ou croix devant chaque nom, petits boutons centrés, page plus compacte',
       'Journée sans CR validé : un seul bandeau « CR non validé · 1 visite sans CR »'
@@ -4304,7 +4307,7 @@
       var sous = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier]) : infosSansDoublon(a, [abrSpec(a.specialite), abregerHopital(a.lieu || '')]);
       if (ko) sous = String(statutLibelle(a)) + (sous ? ' · ' + sous : '');
       return '<details class="bil-visite"' + (suivi ? ' open' : '') + '><summary><span class="bil-h">' + esc(String(heureVisite(a) || '').slice(0, 5)) + '</span>' +
-        '<span class="bil-pt ' + (!a.statut ? 'vide' : (ko ? 'ko' : 'ok')) + '"></span><span class="bil-nom">' + pastilleType(a) + lienFiche(a.code, esc(a.nom)) + '<small>' + esc(sous) + (!a.statut ? ' · <b class="bil-sans">sans compte rendu</b>' : '') + '</small></span></summary>' +
+        '<span class="bil-pt ' + (!a.statut ? 'vide' : (ko ? 'ko' : 'ok')) + '" aria-hidden="true"></span><span class="bil-nom">' + pastilleType(a) + lienFiche(a.code, esc(a.nom)) + '<small>' + esc(sous) + (!a.statut ? ' · <span class="bil-sans">sans CR</span>' : '') + '</small></span></summary>' +
         '<div class="bil-detail">' + det.map(function (x) { return '<div><i>' + esc(x[0]) + '</i><span' + (/rupture/i.test(x[1]) ? ' class="bil-rup"' : '') + '>' + esc(x[1]) + '</span></div>'; }).join('') + '</div></details>';
     }).join('');
     h += voletBilan('visites', 'Visites', n + ' · ' + nF + ' faite' + (nF > 1 ? 's' : '') + (s.nonFaites.length ? ', ' + s.nonFaites.length + ' non faite' + (s.nonFaites.length > 1 ? 's' : '') : '') + (s.sansCr.length ? ', ' + s.sansCr.length + ' sans CR' : ''), vis || '<p class="bil-ras">Aucune visite</p>', false);
