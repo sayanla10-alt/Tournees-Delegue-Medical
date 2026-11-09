@@ -323,8 +323,10 @@
   // 3.28.26 : au démarrage, critères de Planifier et filtres du Répertoire restent chacun tels qu'ils ont été laissés
   // 3.25.0 : la période proposée commence demain (J+1), y compris après rafraîchissement
   // 3.28.27 : aujourd'hui reste planifiable ; seule une date passée (ou une semaine finie) est avancée
-  function dateRefPassee(p) { return !p.dateRef || (p.mode === 'jour' ? p.dateRef < aujourdhui() : joursOuvres(lundiDe(p.dateRef))[4] < aujourdhui()); }
-  if (dateRefPassee(S.params)) { S.params.dateRef = prochainJourOuvre(aujourdhui()); LS.set('params', S.params); }
+  // 3.28.58 : comme avant la 3.28.27 : à chaque ouverture de l'application, Planifier part de J+1 (aujourd'hui ou une date passée
+  // deviennent demain) ; aujourd'hui reste planifiable en le touchant dans la frise, et le reste jusqu'à la prochaine ouverture
+  function dateRefPassee(p) { return !p.dateRef || (p.mode === 'jour' ? p.dateRef < prochainJourOuvre(ajouterJours(aujourdhui(), 1)) : joursOuvres(lundiDe(p.dateRef))[4] < aujourdhui()); }
+  if (dateRefPassee(S.params)) { S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); LS.set('params', S.params); }
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);
 
   // 3.22.0 : copie de secours du téléphone, une par jour sur 7 jours (comptes rendus et fiches non envoyés, agenda,

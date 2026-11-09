@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.57';
+  var APP_VERSION = '3.28.58';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.58', [
+      'Planifier s\'ouvre de nouveau sur J+1 : la frise choisit demain (sa tournée, ou demain en blanc prêt à planifier) et la date des critères repart de demain à chaque ouverture de l\'application ; aujourd\'hui reste planifiable en le touchant dans la frise, jusqu\'à la prochaine ouverture'
+    ]],
     ['3.28.57', [
       'Suppression d\'une journée par appui long : toutes les visites que Journée affiche pour ce jour sont comptées (tournée du téléphone, tournée publiée, archive, visites saisies) ; plus de « Journée vide » à tort',
       'La confirmation dit combien de visites à faire seront supprimées et combien de visites déjà renseignées restent ; si toutes sont déjà renseignées, un message l\'explique (rien n\'est supprimé)'

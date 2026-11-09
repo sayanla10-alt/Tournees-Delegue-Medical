@@ -74,7 +74,7 @@
     absentsAuDemarrage = {};
     if (LS._mem.params) {
       S.params = Object.assign({}, defautParams, LS._mem.params);
-      if (dateRefPassee(S.params)) S.params.dateRef = prochainJourOuvre(aujourdhui());
+      if (dateRefPassee(S.params)) S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
     }
     if (LS._mem.imposes) S.imposes = LS._mem.imposes;
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;

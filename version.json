@@ -1,8 +1,8 @@
 {
-  "version": "3.28.57",
+  "version": "3.28.58",
   "date": "2026-11-09",
   "notes": [
-    "Suppression d'une journée : plus de « Journée vide » à tort",
-    "Planifier : frise comme celle de Journée"
+    "Planifier s'ouvre de nouveau sur J+1, aujourd'hui reste planifiable",
+    "Suppression d'une journée : plus de « Journée vide » à tort"
   ]
 }

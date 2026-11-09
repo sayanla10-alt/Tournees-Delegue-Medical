@@ -11,6 +11,14 @@
     var datesF = datesPlanAvenir();
     // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
     // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
+    // 3.28.58 : à l'entrée dans Planifier, la frise s'ouvre sur J+1 : sa tournée s'il en a une, sinon J+1 en blanc, prêt à planifier
+    if (!S.ui.planInit) {
+      S.ui.planInit = true;
+      var j1 = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+      if (S.plan.some(function (a) { return a.date === j1; })) { S.ui.jour = j1; S.ui.planVide = null; }
+      else { S.ui.planVide = j1; S.ui.jourSupprime = null; }
+      if (dateRefPassee(S.params)) { S.params.dateRef = j1; LS.set('params', S.params); }
+    }
     var jSup = S.ui.jourSupprime, jVide = S.ui.planVide;
     if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
     if (jVide && (jVide < aujourdhui() || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
@@ -27,7 +35,6 @@
     }
     var dates = datesF;
     // 3.25.0 : à l'ouverture (et après rafraîchissement), demain est sélectionné par défaut
-    if (!S.ui.planInit) { S.ui.planInit = true; var j1 = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); S.ui.jour = dates.filter(function (x) { return x >= j1; })[0] || dates[dates.length - 1]; }
     choisirJour(dates);
     var d = S.ui.jour, enAttente = S.ui.aAccepter === d;
     if (S.ui.annulReprise) {

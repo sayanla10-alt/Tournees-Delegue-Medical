@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.57';
+  var APP_VERSION = '3.28.58';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.58', [
+      'Planifier s\'ouvre de nouveau sur J+1 : la frise choisit demain (sa tournée, ou demain en blanc prêt à planifier) et la date des critères repart de demain à chaque ouverture de l\'application ; aujourd\'hui reste planifiable en le touchant dans la frise, jusqu\'à la prochaine ouverture'
+    ]],
     ['3.28.57', [
       'Suppression d\'une journée par appui long : toutes les visites que Journée affiche pour ce jour sont comptées (tournée du téléphone, tournée publiée, archive, visites saisies) ; plus de « Journée vide » à tort',
       'La confirmation dit combien de visites à faire seront supprimées et combien de visites déjà renseignées restent ; si toutes sont déjà renseignées, un message l\'explique (rien n\'est supprimé)'
@@ -1263,8 +1266,10 @@
   // 3.28.26 : au démarrage, critères de Planifier et filtres du Répertoire restent chacun tels qu'ils ont été laissés
   // 3.25.0 : la période proposée commence demain (J+1), y compris après rafraîchissement
   // 3.28.27 : aujourd'hui reste planifiable ; seule une date passée (ou une semaine finie) est avancée
-  function dateRefPassee(p) { return !p.dateRef || (p.mode === 'jour' ? p.dateRef < aujourdhui() : joursOuvres(lundiDe(p.dateRef))[4] < aujourdhui()); }
-  if (dateRefPassee(S.params)) { S.params.dateRef = prochainJourOuvre(aujourdhui()); LS.set('params', S.params); }
+  // 3.28.58 : comme avant la 3.28.27 : à chaque ouverture de l'application, Planifier part de J+1 (aujourd'hui ou une date passée
+  // deviennent demain) ; aujourd'hui reste planifiable en le touchant dans la frise, et le reste jusqu'à la prochaine ouverture
+  function dateRefPassee(p) { return !p.dateRef || (p.mode === 'jour' ? p.dateRef < prochainJourOuvre(ajouterJours(aujourdhui(), 1)) : joursOuvres(lundiDe(p.dateRef))[4] < aujourdhui()); }
+  if (dateRefPassee(S.params)) { S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); LS.set('params', S.params); }
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);
 
   // 3.22.0 : copie de secours du téléphone, une par jour sur 7 jours (comptes rendus et fiches non envoyés, agenda,
@@ -4680,6 +4685,14 @@
     var datesF = datesPlanAvenir();
     // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
     // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
+    // 3.28.58 : à l'entrée dans Planifier, la frise s'ouvre sur J+1 : sa tournée s'il en a une, sinon J+1 en blanc, prêt à planifier
+    if (!S.ui.planInit) {
+      S.ui.planInit = true;
+      var j1 = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+      if (S.plan.some(function (a) { return a.date === j1; })) { S.ui.jour = j1; S.ui.planVide = null; }
+      else { S.ui.planVide = j1; S.ui.jourSupprime = null; }
+      if (dateRefPassee(S.params)) { S.params.dateRef = j1; LS.set('params', S.params); }
+    }
     var jSup = S.ui.jourSupprime, jVide = S.ui.planVide;
     if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
     if (jVide && (jVide < aujourdhui() || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
@@ -4699,7 +4712,6 @@
     }
     var dates = datesF;
     // 3.25.0 : à l'ouverture (et après rafraîchissement), demain est sélectionné par défaut
-    if (!S.ui.planInit) { S.ui.planInit = true; var j1 = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); S.ui.jour = dates.filter(function (x) { return x >= j1; })[0] || dates[dates.length - 1]; }
     choisirJour(dates);
     var d = S.ui.jour, enAttente = S.ui.aAccepter === d;
     if (S.ui.annulReprise) {
@@ -13342,7 +13354,7 @@
     absentsAuDemarrage = {};
     if (LS._mem.params) {
       S.params = Object.assign({}, defautParams, LS._mem.params);
-      if (dateRefPassee(S.params)) S.params.dateRef = prochainJourOuvre(aujourdhui());
+      if (dateRefPassee(S.params)) S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
     }
     if (LS._mem.imposes) S.imposes = LS._mem.imposes;
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
