@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.50';
+  var APP_VERSION = '3.28.51';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.51', [
+      'Bilan du Jour : toutes les visites sont repliées par défaut, y compris les non faites (motif visible en touchant la visite)'
+    ]],
     ['3.28.50', [
       'Bilan du Jour, visites sans compte rendu : plus de pastille vide ni de flèche disgracieuses entre l\'heure et le nom ; simple mention « sans CR » en petit'
     ]],

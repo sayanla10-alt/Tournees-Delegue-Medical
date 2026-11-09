@@ -164,7 +164,7 @@
       var det = detailBilan(a), ko = estKo(a.statut), suivi = (a.prochaine && a.prochaine > a.date) || ko || det.some(function (x) { return x[0] === 'Commande' || (x[0] === 'Stocks' && /rupture/i.test(x[1])); });
       var sous = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier]) : infosSansDoublon(a, [abrSpec(a.specialite), abregerHopital(a.lieu || '')]);
       if (ko) sous = String(statutLibelle(a)) + (sous ? ' · ' + sous : '');
-      return '<details class="bil-visite"' + (suivi ? ' open' : '') + '><summary><span class="bil-h">' + esc(String(heureVisite(a) || '').slice(0, 5)) + '</span>' +
+      return '<details class="bil-visite"><summary><span class="bil-h">' + esc(String(heureVisite(a) || '').slice(0, 5)) + '</span>' +
         '<span class="bil-pt ' + (!a.statut ? 'vide' : (ko ? 'ko' : 'ok')) + '" aria-hidden="true"></span><span class="bil-nom">' + pastilleType(a) + lienFiche(a.code, esc(a.nom)) + '<small>' + esc(sous) + (!a.statut ? ' · <span class="bil-sans">sans CR</span>' : '') + '</small></span></summary>' +
         '<div class="bil-detail">' + det.map(function (x) { return '<div><i>' + esc(x[0]) + '</i><span' + (/rupture/i.test(x[1]) ? ' class="bil-rup"' : '') + '>' + esc(x[1]) + '</span></div>'; }).join('') + '</div></details>';
     }).join('');

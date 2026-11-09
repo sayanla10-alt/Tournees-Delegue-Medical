@@ -1,8 +1,8 @@
 {
-  "version": "3.28.50",
+  "version": "3.28.51",
   "date": "2026-11-09",
   "notes": [
-    "Bilan du Jour : visites sans CR plus propres",
+    "Bilan du Jour : visites repliées par défaut",
     "Bilan du Jour dans la charte de l'application"
   ]
 }

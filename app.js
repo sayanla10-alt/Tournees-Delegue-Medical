@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.50';
+  var APP_VERSION = '3.28.51';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.51', [
+      'Bilan du Jour : toutes les visites sont repliées par défaut, y compris les non faites (motif visible en touchant la visite)'
+    ]],
     ['3.28.50', [
       'Bilan du Jour, visites sans compte rendu : plus de pastille vide ni de flèche disgracieuses entre l\'heure et le nom ; simple mention « sans CR » en petit'
     ]],
@@ -4306,7 +4309,7 @@
       var det = detailBilan(a), ko = estKo(a.statut), suivi = (a.prochaine && a.prochaine > a.date) || ko || det.some(function (x) { return x[0] === 'Commande' || (x[0] === 'Stocks' && /rupture/i.test(x[1])); });
       var sous = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier]) : infosSansDoublon(a, [abrSpec(a.specialite), abregerHopital(a.lieu || '')]);
       if (ko) sous = String(statutLibelle(a)) + (sous ? ' · ' + sous : '');
-      return '<details class="bil-visite"' + (suivi ? ' open' : '') + '><summary><span class="bil-h">' + esc(String(heureVisite(a) || '').slice(0, 5)) + '</span>' +
+      return '<details class="bil-visite"><summary><span class="bil-h">' + esc(String(heureVisite(a) || '').slice(0, 5)) + '</span>' +
         '<span class="bil-pt ' + (!a.statut ? 'vide' : (ko ? 'ko' : 'ok')) + '" aria-hidden="true"></span><span class="bil-nom">' + pastilleType(a) + lienFiche(a.code, esc(a.nom)) + '<small>' + esc(sous) + (!a.statut ? ' · <span class="bil-sans">sans CR</span>' : '') + '</small></span></summary>' +
         '<div class="bil-detail">' + det.map(function (x) { return '<div><i>' + esc(x[0]) + '</i><span' + (/rupture/i.test(x[1]) ? ' class="bil-rup"' : '') + '>' + esc(x[1]) + '</span></div>'; }).join('') + '</div></details>';
     }).join('');
