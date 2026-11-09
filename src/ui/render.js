@@ -234,7 +234,9 @@
           } catch (err) {}
 
           // 3.28.28 : une journée venue du serveur (ancienne tournée publiée) compte aussi
-          var nb = Math.max(S.plan.filter(function (a) { return a.date === date; }).length, donneesJour(date, true).filter(function (a) { return !a.statut; }).length);
+          var nb = Math.max(S.plan.filter(function (a) { return a.date === date; }).length,
+            donneesJour(date, true).filter(function (a) { return !a.statut; }).length,
+            arretsHorsJour(date).filter(function (a) { return !a.statut; }).length);   // 3.28.29 : ce que Journée affiche pour ce jour
           if (nb > 0 || (S.jours && S.jours[date]) || (typeof datesPlan === 'function' && datesPlan().indexOf(date) >= 0)) {
             demanderSuppressionJour(date, nb);
           } else {

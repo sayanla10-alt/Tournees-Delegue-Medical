@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.28';
+  var APP_VERSION = '3.28.29';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.29', [
+      'Journée : un jour affiché hors tournée (ancienne tournée publiée) se supprime aussi par appui long sur la frise, après confirmation ; l\'écran reste sur ce jour, vide, avec « Planifier le … » pour le refaire'
+    ]],
     ['3.28.28', [
       'Journée : un appui long sur un jour de la frise propose de supprimer la journée, même quand elle vient d\'une ancienne tournée publiée ; après confirmation elle ne revient plus, les visites déjà faites et leurs comptes rendus restent'
     ]],
@@ -3355,7 +3358,9 @@
           } catch (err) {}
 
           // 3.28.28 : une journée venue du serveur (ancienne tournée publiée) compte aussi
-          var nb = Math.max(S.plan.filter(function (a) { return a.date === date; }).length, donneesJour(date, true).filter(function (a) { return !a.statut; }).length);
+          var nb = Math.max(S.plan.filter(function (a) { return a.date === date; }).length,
+            donneesJour(date, true).filter(function (a) { return !a.statut; }).length,
+            arretsHorsJour(date).filter(function (a) { return !a.statut; }).length);   // 3.28.29 : ce que Journée affiche pour ce jour
           if (nb > 0 || (S.jours && S.jours[date]) || (typeof datesPlan === 'function' && datesPlan().indexOf(date) >= 0)) {
             demanderSuppressionJour(date, nb);
           } else {
@@ -3942,8 +3947,9 @@
   }
   // toutes les visites d'un jour hors tournée : prévues (archive ou tournée publiée) et réalisées (Historique)
   function arretsHorsJour(d) {
-    var sup = (LS.get('visitesSupprimees', {}) || {})[d] || {};
-    var prevus = programmeDuJour(d).filter(function (x) { return !sup[x.code]; }), faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && !sup[v.code]; });
+    var sup = (LS.get('visitesSupprimees', {}) || {})[d] || {}, retire = !!LS.get('joursRetires', {})[d];
+    // 3.28.29 : journée supprimée : l'ancienne tournée n'est plus montrée (les visites faites restent)
+    var prevus = programmeDuJour(d).filter(function (x) { return !sup[x.code] && (!retire || vraiStatut(x.statut)); }), faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && !sup[v.code]; });
     var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
     var l = prevus.map(function (x) { return parCode[x.code] ? arretDeVisite(parCode[x.code], x, d) : arretHors(x, d); });
     faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) { var a = arretDeVisite(v, null, d); a.horsTournee = true; l.push(a); } });
@@ -4673,10 +4679,10 @@
     LS.set('joursRetires', rt);
     S.imposes = S.imposes.filter(function (im) { return im.date !== date; });
     var restantes = datesPlanAvenir();
-    if (S.ui.jour === date) {
-      S.ui.jour = restantes[0] || prochainJourOuvre(ajouterJours(aujourdhui(), 1));
-      S.ui.jourVue = null;
-    }
+    if (S.ui.jour === date) S.ui.jour = restantes[0] || prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+    // 3.28.29 : l'écran reste sur la journée supprimée (vide, avec « Planifier le … » pour la refaire)
+    if (S.ui.tab === 'jour' && date >= aujourdhui() && !resteFaites) S.ui.jourVue = date;
+    else if (S.ui.jourVue === date) S.ui.jourVue = null;
     S.ui.ouvert = null;
     marquerModifie();
     sauver();

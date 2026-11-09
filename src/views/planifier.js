@@ -283,10 +283,10 @@
     LS.set('joursRetires', rt);
     S.imposes = S.imposes.filter(function (im) { return im.date !== date; });
     var restantes = datesPlanAvenir();
-    if (S.ui.jour === date) {
-      S.ui.jour = restantes[0] || prochainJourOuvre(ajouterJours(aujourdhui(), 1));
-      S.ui.jourVue = null;
-    }
+    if (S.ui.jour === date) S.ui.jour = restantes[0] || prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+    // 3.28.29 : l'écran reste sur la journée supprimée (vide, avec « Planifier le … » pour la refaire)
+    if (S.ui.tab === 'jour' && date >= aujourdhui() && !resteFaites) S.ui.jourVue = date;
+    else if (S.ui.jourVue === date) S.ui.jourVue = null;
     S.ui.ouvert = null;
     marquerModifie();
     sauver();

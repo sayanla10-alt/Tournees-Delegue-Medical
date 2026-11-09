@@ -376,8 +376,9 @@
   }
   // toutes les visites d'un jour hors tournée : prévues (archive ou tournée publiée) et réalisées (Historique)
   function arretsHorsJour(d) {
-    var sup = (LS.get('visitesSupprimees', {}) || {})[d] || {};
-    var prevus = programmeDuJour(d).filter(function (x) { return !sup[x.code]; }), faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && !sup[v.code]; });
+    var sup = (LS.get('visitesSupprimees', {}) || {})[d] || {}, retire = !!LS.get('joursRetires', {})[d];
+    // 3.28.29 : journée supprimée : l'ancienne tournée n'est plus montrée (les visites faites restent)
+    var prevus = programmeDuJour(d).filter(function (x) { return !sup[x.code] && (!retire || vraiStatut(x.statut)); }), faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && !sup[v.code]; });
     var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
     var l = prevus.map(function (x) { return parCode[x.code] ? arretDeVisite(parCode[x.code], x, d) : arretHors(x, d); });
     faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) { var a = arretDeVisite(v, null, d); a.horsTournee = true; l.push(a); } });
