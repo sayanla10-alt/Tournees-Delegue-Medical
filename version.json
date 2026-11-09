@@ -1,8 +1,8 @@
 {
-  "version": "3.28.54",
+  "version": "3.28.55",
   "date": "2026-11-09",
   "notes": [
-    "Répertoire : fiche sans « Modifier le planning hebdomadaire », boutons remontés",
-    "Planifier : fiche visite sur une ligne"
+    "Planifier : 5 prochains jours dans la frise, même sans planification",
+    "Répertoire : fiche sans « Modifier le planning hebdomadaire »"
   ]
 }

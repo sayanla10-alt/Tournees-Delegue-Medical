@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.54';
+  var APP_VERSION = '3.28.55';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.55', [
+      'Planifier : sans aucun jour à venir planifié, la frise montre quand même les 5 prochains jours ouvrés, en cartes blanches (sans marque ni nombre) ; en toucher un le choisit comme date à planifier. Les jours déjà planifiés, eux, s\'affichent comme avant'
+    ]],
     ['3.28.54', [
       'Répertoire, fiche d\'un médecin ou d\'une pharmacie : « Modifier le planning hebdomadaire » (ou « Modifier les horaires ») retiré, « Modifier » le fait déjà avec plus d\'options ; les trois boutons (Ajouter au jour, Planifier, Modifier) prennent sa place, sans vide, à la même hauteur'
     ]],
