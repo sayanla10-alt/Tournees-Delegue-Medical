@@ -3787,3 +3787,11 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .lp-groupe-q svg { width: 16px; height: 16px; flex: none; }
 .plan-jour > .lp-groupe:first-child { border-top: 0; }
 .lp-groupe + .ligne-plan { border-top: 0; }
+/* 3.28.36 : accueil d'un collègue invité par le lien de partage */
+.accueil.identite { text-align: left; }
+.accueil.identite h1, .accueil.identite > p, .accueil.identite > img { text-align: center; display: block; margin-left: auto; margin-right: auto; }
+.accueil.identite .champ { margin-top: 12px; }
+.ident-etat { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; color: var(--gris); margin: 0 0 6px; }
+.ident-etat.ok { color: var(--primaire); }
+.ident-etat .icone { width: 14px; height: 14px; }
+.accueil.identite h1 { font-size: 26px; }

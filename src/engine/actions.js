@@ -829,11 +829,22 @@
       synchroniser(false);
     },
     enregistrerNom: function () {
-      var n = lireNom('nomDelegue');
-      if (n.length < 2) { toast('Indiquez votre nom.'); return; }
-      S.config.delegue = n; S.config.whatsapp = normaliserNumero($('numWhatsapp').value) || '';
+      var n = lireNom('nomDelegue').replace(/\s+/g, ' ');
+      if (n.length < 2 || n.indexOf(' ') < 0) { toast('Indiquez votre prénom et votre nom.'); var e1 = $('nomDelegue'); if (e1) e1.focus(); return; }
+      // même orthographe qu'un nom déjà connu de l'équipe ; sinon chaque mot avec une majuscule
+      var connu = ((S.data && S.data.delegues) || []).filter(function (x) { return normaliser(x) === normaliser(n); })[0];
+      n = connu || n.split(' ').map(function (m) { return m === m.toLowerCase() || m === m.toUpperCase() ? m.toLowerCase().replace(/(^|[-'’])(\S)/g, function (x, sep, c) { return sep + c.toUpperCase(); }) : m; }).join(' ');
+      var w = (($('numWhatsapp') || {}).value || '').trim(), wr = (($('cfgWaResp') || {}).value || '').trim();
+      if (w && !normaliserNumero(w)) { toast('Numéro WhatsApp non reconnu. Exemple : 07 07 07 07 07.'); return; }
+      if (wr && !normaliserNumero(wr)) { toast('Numéro du superviseur non reconnu. Exemple : 07 07 07 07 07.'); return; }
+      var dep = ($('cfgDepart') || {}).value || (S.ui.identBrouillon || {}).depart || '';
+      S.config.delegue = n; S.config.whatsapp = normaliserNumero(w) || ''; S.config.waResp = normaliserNumero(wr) || '';
+      if (dep) S.config.depart = dep;
+      S.ui.identBrouillon = null;
       LS.set('config', S.config); S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); publierPlan();
       toast('Bienvenue ' + n + '.'); inscrireDelegue(n);
+      // 3.28.36 : pas encore installée : on la propose tout de suite (un bouton sur Android, le geste sur iPhone)
+      if (!estInstallee()) setTimeout(function () { if (!S.ui.feuille) { S.ui.feuille = { type: 'installer', titre: 'Installer l\'application', bienvenue: true }; rendre(); } }, 600);
     },
     enregistrerMoi: function () {
       var n = lireNom('cfgNom'), w = ($('cfgWhatsapp').value || '').trim();
@@ -900,6 +911,7 @@
       setTimeout(function () { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
       toast('Sauvegarde exportée : gardez le fichier en lieu sûr (Drive, e-mail).');
     },
+    installerBienvenue: function () { S.ui.feuille = null; rendre(); ACTIONS.installer(); },
     installer: function () {
       var evt = S.ui.installEvt;
       if (evt) { evt.prompt(); evt.userChoice.then(function () { S.ui.installEvt = null; rendre(); }); return; }
@@ -1795,6 +1807,7 @@
   window.addEventListener('touchstart', memoriserPouceY, { passive: true, capture: true });
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
+    if (f === 'ident') { (S.ui.identBrouillon = S.ui.identBrouillon || {})[el.dataset.k] = el.value; return; }
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
     if (f === 'cr') { var ac = arret(el.dataset.uid); if (ac) majCr(ac, el.dataset.k, el.value); }
     if (f === 'fiche') {

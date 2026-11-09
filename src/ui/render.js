@@ -46,8 +46,9 @@
     // jour affiché mémorisé : un rafraîchissement ne ramène plus au lundi (valable jusqu'à minuit)
     if (S.ui.jour || S.ui.jourVue) LS.set('jourVu', { j: S.ui.jour, v: S.ui.jourVue || null, le: aujourdhui() });
     LS.set('proches', S.ui.pharmaciesProches || false);
-    if (!pret() && tab !== 'reglages') tab = connecte() ? 'chargement' : 'accueil';   // 3.26.73 : téléphone relié mais base pas encore reçue
-    else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
+    // 3.28.36 : premier lancement par le lien d'un collègue : le profil se remplit pendant que la base se télécharge
+    if (connecte() && !moi() && tab !== 'reglages' && !S.ui.restauration) tab = 'identite';
+    else if (!pret() && tab !== 'reglages') tab = connecte() ? 'chargement' : 'accueil';   // 3.26.73 : téléphone relié mais base pas encore reçue
     cacherInfobulle();
     cartesAFaire = [];
     // 3.24.14 : un rafraîchissement du même écran (synchronisation, minuterie) ne rejoue aucune animation

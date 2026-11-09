@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.35';
+  var APP_VERSION = '3.28.36';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.36', [
+      'Partage à un collègue : le lien règle tout seul la connexion, la base utilisée et le WhatsApp du superviseur ; à l\'ouverture, le collègue voit directement « Bienvenue », avec le nom de qui l\'a invité',
+      'Accueil simplifié : prénom et nom (noms de l\'équipe proposés, majuscules corrigées), numéro WhatsApp, quartier et superviseur facultatifs, à remplir pendant que la base se télécharge (rien n\'est perdu) ; puis l\'installation sur l\'écran d\'accueil est proposée aussitôt'
+    ]],
     ['3.28.35', [
       'Planifier le jour même : si Journée contient déjà une tournée pour aujourd\'hui, l\'application demande juste après « Accepter » (avant WhatsApp) s\'il faut la remplacer. Oui : seule la nouvelle sélection reste (les médecins de l\'ancienne qui y étaient restés sont remplacés par d\'autres), l\'ancienne tournée publiée ne revient plus. Non : la journée déjà prévue est gardée telle quelle et la nouvelle sélection est abandonnée. Les visites déjà faites restent toujours'
     ]],
@@ -3192,8 +3196,9 @@
     // jour affiché mémorisé : un rafraîchissement ne ramène plus au lundi (valable jusqu'à minuit)
     if (S.ui.jour || S.ui.jourVue) LS.set('jourVu', { j: S.ui.jour, v: S.ui.jourVue || null, le: aujourdhui() });
     LS.set('proches', S.ui.pharmaciesProches || false);
-    if (!pret() && tab !== 'reglages') tab = connecte() ? 'chargement' : 'accueil';   // 3.26.73 : téléphone relié mais base pas encore reçue
-    else if (pret() && connecte() && !moi() && tab !== 'reglages') tab = 'identite';
+    // 3.28.36 : premier lancement par le lien d'un collègue : le profil se remplit pendant que la base se télécharge
+    if (connecte() && !moi() && tab !== 'reglages' && !S.ui.restauration) tab = 'identite';
+    else if (!pret() && tab !== 'reglages') tab = connecte() ? 'chargement' : 'accueil';   // 3.26.73 : téléphone relié mais base pas encore reçue
     cacherInfobulle();
     cartesAFaire = [];
     // 3.24.14 : un rafraîchissement du même écran (synchronisation, minuterie) ne rejoue aucune animation
@@ -3628,11 +3633,30 @@
       '<button class="bouton" data-a="demo" type="button">Essayer avec des données de démonstration</button></section>';
   };
   VUES.identite = function () {
-    return '<section class="accueil"><h1>Qui êtes-vous ?</h1>' +
-      '<p>Votre nom apparaît auprès de vos collègues, sur votre tournée et vos visites. Il permet à chacun de savoir quels praticiens sont déjà ciblés.</p>' +
-      champNom('nomDelegue', moi(), 'Votre nom') +
-      '<label class="champ"><span>Votre numéro WhatsApp (facultatif)</span><input type="tel" id="numWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07"></label>' +
-      '<button class="bouton bouton-plein" data-a="enregistrerNom" type="button">Continuer</button></section>';
+    // 3.28.36 : accueil d'un collègue invité : 3 informations, le reste est déjà réglé par le lien
+    var c = S.config, br = S.ui.identBrouillon || (S.ui.identBrouillon = { nom: moi() || '', wa: c.whatsapp || '', depart: c.depart || '', wr: c.waResp || '' });
+    var ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua), installee = estInstallee();
+    var l = (S.data && S.data.delegues) || [];
+    var enc = S.ui.sync === 'encours', base = pret() ? '<span class="ident-etat ok">' + icone('valider') + 'Base reçue : ' + S.data.praticiens.length + ' praticiens</span>' :
+      '<span class="ident-etat">' + (enc ? 'Téléchargement de la base en cours…' : (navigator.onLine ? 'Préparation de la base…' : 'Pas de réseau : la base se téléchargera dès le retour du réseau')) + '</span>';
+    var h = '<section class="accueil identite">' +
+      '<img src="icon-192.png" alt="" width="56" height="56" style="border-radius:14px;margin:4px auto 12px">' +
+      '<h1>Bienvenue sur MediPlanner</h1>' +
+      '<p>' + (c.invitePar ? esc(c.invitePar) + ' vous a invité. ' : '') + 'La connexion à la base est déjà faite. Il ne reste qu\'à vous présenter.</p>' + base;
+    if (ios && !installee) h += '<div class="bandeau info" style="text-align:left">' + icone('telecharger') + '<p><b>Sur iPhone, installez d\'abord</b><br>Dans Safari : ' + icone('partager') + ' Partager, puis « Sur l\'écran d\'accueil ». Ouvrez ensuite MediPlanner depuis son icône et remplissez ces informations là-bas.</p></div>';
+    h += '<label class="champ"><span>Votre prénom et nom</span><input type="text" id="nomDelegue" data-f="ident" data-k="nom" autocomplete="name" autocapitalize="words" enterkeyhint="next" placeholder="Ex. Koffi Yao" list="listeDelegues" value="' + esc(br.nom) + '">' +
+        '<span class="aide-champ">Visible par vos collègues, sur votre tournée et vos visites.</span></label>' +
+      (l.length ? '<datalist id="listeDelegues">' + l.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' : '') +
+      '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="numWhatsapp" data-f="ident" data-k="wa" inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="Ex. 07 07 07 07 07" value="' + esc(br.wa) + '">' +
+        '<span class="aide-champ">Pour envoyer votre tournée et vos comptes rendus en un geste.</span></label>' +
+      '<div class="champ"><span>Votre quartier (facultatif)</span>' + (pret() ? selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: br.depart || null, vide: 'Choisir un quartier…', sections: sectionsQuartiers(),
+          appliquer: function (v) { (S.ui.identBrouillon || {}).depart = v; } }) :
+        '<p class="discret" style="margin:4px 0 0">Disponible dès que la base est reçue ; vous pourrez aussi le choisir plus tard dans Réglages.</p>') +
+        '<span class="aide-champ">Point de départ de vos tournées.</span></div>' +
+      '<label class="champ"><span>WhatsApp de votre superviseur (facultatif)</span><input type="tel" id="cfgWaResp" data-f="ident" data-k="wr" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(br.wr) + '">' +
+        (c.waResp && br.wr === c.waResp && c.invitePar ? '<span class="aide-champ">Repris de l\'invitation de ' + esc(c.invitePar) + '.</span>' : '') + '</label>' +
+      '<button class="bouton bouton-plein bouton-large" data-a="enregistrerNom" type="button">Commencer</button></section>';
+    return h;
   };
 
   // ------------------------------------------------------------------ Période et paramètres
@@ -8938,7 +8962,12 @@
   }
   // 3.26.50 : instructions selon le navigateur ; un lien ouvert dans WhatsApp, Facebook ou Instagram s'ouvre dans un
   // navigateur intégré qui ne peut pas installer l'application (et n'a pas la même mémoire) : il faut l'ouvrir dans Chrome / Safari
-  FEUILLES.installer = function () {
+  FEUILLES.installer = function (f) {
+    // 3.28.36 : juste après l'accueil d'un collègue : un bouton quand le téléphone le permet (Android), sinon le geste
+    if (f && f.bienvenue && S.ui.installEvt) return {
+      corps: '<p style="margin-top:0"><b>Dernière étape :</b> installez MediPlanner sur votre écran d\'accueil pour l\'ouvrir comme une application, même sans réseau.</p>',
+      pied: '<button class="bouton" type="button" data-a="fermerFeuille">Plus tard</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="installerBienvenue">' + icone('telecharger') + 'Installer</button>' };
     var ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua), integre = /FBAN|FBAV|Instagram|WhatsApp|; wv\)|Line\//i.test(ua);
     var samsung = /SamsungBrowser/i.test(ua), firefox = /Firefox|FxiOS/i.test(ua), iosAutre = ios && /CriOS|FxiOS|EdgiOS/i.test(ua);
     var t;
@@ -8948,7 +8977,9 @@
     else if (samsung) t = 'Dans Samsung Internet : menu ≡, puis « Ajouter page à » › « Écran d\'accueil ».';
     else if (firefox) t = 'Dans Firefox : menu ⋮, puis « Installer ». Si l\'option manque, ouvrez le lien dans Chrome.';
     else t = 'Dans Chrome : menu ⋮, puis « Installer l\'application » (ou « Ajouter à l\'écran d\'accueil »). Si rien n\'apparaît, attendez quelques secondes sur la page puis réessayez.';
-    return '<p style="margin-top:0">' + t + '</p><p class="discret">Votre accès est conservé : l\'application installée garde la connexion à la base.</p>';
+    var corps = (f && f.bienvenue ? '<p style="margin-top:0"><b>Dernière étape :</b> installez MediPlanner sur votre écran d\'accueil.</p>' : '') +
+      '<p style="margin-top:0">' + t + '</p><p class="discret">Votre accès est conservé : l\'application installée garde la connexion à la base.</p>';
+    return f && f.bienvenue ? { corps: corps, pied: '<button class="bouton bouton-plein bouton-large" type="button" data-a="fermerFeuille">Compris</button>' } : corps;
   };
   function estInstallee() {
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
@@ -11749,11 +11780,22 @@
       synchroniser(false);
     },
     enregistrerNom: function () {
-      var n = lireNom('nomDelegue');
-      if (n.length < 2) { toast('Indiquez votre nom.'); return; }
-      S.config.delegue = n; S.config.whatsapp = normaliserNumero($('numWhatsapp').value) || '';
+      var n = lireNom('nomDelegue').replace(/\s+/g, ' ');
+      if (n.length < 2 || n.indexOf(' ') < 0) { toast('Indiquez votre prénom et votre nom.'); var e1 = $('nomDelegue'); if (e1) e1.focus(); return; }
+      // même orthographe qu'un nom déjà connu de l'équipe ; sinon chaque mot avec une majuscule
+      var connu = ((S.data && S.data.delegues) || []).filter(function (x) { return normaliser(x) === normaliser(n); })[0];
+      n = connu || n.split(' ').map(function (m) { return m === m.toLowerCase() || m === m.toUpperCase() ? m.toLowerCase().replace(/(^|[-'’])(\S)/g, function (x, sep, c) { return sep + c.toUpperCase(); }) : m; }).join(' ');
+      var w = (($('numWhatsapp') || {}).value || '').trim(), wr = (($('cfgWaResp') || {}).value || '').trim();
+      if (w && !normaliserNumero(w)) { toast('Numéro WhatsApp non reconnu. Exemple : 07 07 07 07 07.'); return; }
+      if (wr && !normaliserNumero(wr)) { toast('Numéro du superviseur non reconnu. Exemple : 07 07 07 07 07.'); return; }
+      var dep = ($('cfgDepart') || {}).value || (S.ui.identBrouillon || {}).depart || '';
+      S.config.delegue = n; S.config.whatsapp = normaliserNumero(w) || ''; S.config.waResp = normaliserNumero(wr) || '';
+      if (dep) S.config.depart = dep;
+      S.ui.identBrouillon = null;
       LS.set('config', S.config); S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); publierPlan();
       toast('Bienvenue ' + n + '.'); inscrireDelegue(n);
+      // 3.28.36 : pas encore installée : on la propose tout de suite (un bouton sur Android, le geste sur iPhone)
+      if (!estInstallee()) setTimeout(function () { if (!S.ui.feuille) { S.ui.feuille = { type: 'installer', titre: 'Installer l\'application', bienvenue: true }; rendre(); } }, 600);
     },
     enregistrerMoi: function () {
       var n = lireNom('cfgNom'), w = ($('cfgWhatsapp').value || '').trim();
@@ -11820,6 +11862,7 @@
       setTimeout(function () { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
       toast('Sauvegarde exportée : gardez le fichier en lieu sûr (Drive, e-mail).');
     },
+    installerBienvenue: function () { S.ui.feuille = null; rendre(); ACTIONS.installer(); },
     installer: function () {
       var evt = S.ui.installEvt;
       if (evt) { evt.prompt(); evt.userChoice.then(function () { S.ui.installEvt = null; rendre(); }); return; }
@@ -12715,6 +12758,7 @@
   window.addEventListener('touchstart', memoriserPouceY, { passive: true, capture: true });
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
+    if (f === 'ident') { (S.ui.identBrouillon = S.ui.identBrouillon || {})[el.dataset.k] = el.value; return; }
     if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
     if (f === 'cr') { var ac = arret(el.dataset.uid); if (ac) majCr(ac, el.dataset.k, el.value); }
     if (f === 'fiche') {
@@ -13254,6 +13298,9 @@
         S.plan = []; S.jours = {}; S.queue = S.config.url === cfg.url ? S.queue : []; S.data = null; S.imposes = []; S.rejetes = {};
       }
       S.config.url = cfg.url; S.config.token = cfg.token; S.config.demo = false;
+      if (cfg.bdd) S.config.bddSource = cfg.bdd;
+      if (cfg.wr && !S.config.waResp) S.config.waResp = cfg.wr;
+      if (cfg.de) S.config.invitePar = cfg.de;
       sauver();
       // 3.26.50 : tant que l'application n'est pas installée, le lien de configuration reste dans l'adresse :
       // « Sur l'écran d'accueil » (iPhone) l'enregistre, et l'application installée (mémoire séparée) se connecte seule
@@ -13263,7 +13310,8 @@
     } catch (e) { return false; }
   }
   function lienInstallation() {
-    var json = JSON.stringify({ url: S.config.url, token: S.config.token });
+    // 3.28.36 : le lien emporte aussi ce qui se règle seul chez le collègue : base utilisée, WhatsApp du superviseur, nom de qui invite
+    var json = JSON.stringify({ url: S.config.url, token: S.config.token, bdd: S.config.bddSource || '', wr: S.config.waResp || '', de: moi() || '' });
     var b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return location.origin + location.pathname + '#config=' + b64;
   }
@@ -13289,6 +13337,8 @@
   chargerFeriesCalendrier();
   try { if (!sessionStorage.getItem('mediplanner.lancement')) { S.ui.lancement = true; sessionStorage.setItem('mediplanner.lancement', '1'); } }
   catch (e) { S.ui.lancement = true; }
+  // 3.28.36 : collègue qui arrive par le lien de partage : directement l'accueil « Bienvenue », sans l'écran de lancement
+  if (connecte() && !moi()) S.ui.lancement = false;
   // Nouveautés : celles des versions publiées depuis la dernière ouverture, affichées une seule fois
   (function () {
     var vue = LS.get('versionVue', '');

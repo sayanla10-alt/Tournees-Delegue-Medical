@@ -24,11 +24,30 @@
       '<button class="bouton" data-a="demo" type="button">Essayer avec des données de démonstration</button></section>';
   };
   VUES.identite = function () {
-    return '<section class="accueil"><h1>Qui êtes-vous ?</h1>' +
-      '<p>Votre nom apparaît auprès de vos collègues, sur votre tournée et vos visites. Il permet à chacun de savoir quels praticiens sont déjà ciblés.</p>' +
-      champNom('nomDelegue', moi(), 'Votre nom') +
-      '<label class="champ"><span>Votre numéro WhatsApp (facultatif)</span><input type="tel" id="numWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07"></label>' +
-      '<button class="bouton bouton-plein" data-a="enregistrerNom" type="button">Continuer</button></section>';
+    // 3.28.36 : accueil d'un collègue invité : 3 informations, le reste est déjà réglé par le lien
+    var c = S.config, br = S.ui.identBrouillon || (S.ui.identBrouillon = { nom: moi() || '', wa: c.whatsapp || '', depart: c.depart || '', wr: c.waResp || '' });
+    var ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua), installee = estInstallee();
+    var l = (S.data && S.data.delegues) || [];
+    var enc = S.ui.sync === 'encours', base = pret() ? '<span class="ident-etat ok">' + icone('valider') + 'Base reçue : ' + S.data.praticiens.length + ' praticiens</span>' :
+      '<span class="ident-etat">' + (enc ? 'Téléchargement de la base en cours…' : (navigator.onLine ? 'Préparation de la base…' : 'Pas de réseau : la base se téléchargera dès le retour du réseau')) + '</span>';
+    var h = '<section class="accueil identite">' +
+      '<img src="icon-192.png" alt="" width="56" height="56" style="border-radius:14px;margin:4px auto 12px">' +
+      '<h1>Bienvenue sur MediPlanner</h1>' +
+      '<p>' + (c.invitePar ? esc(c.invitePar) + ' vous a invité. ' : '') + 'La connexion à la base est déjà faite. Il ne reste qu\'à vous présenter.</p>' + base;
+    if (ios && !installee) h += '<div class="bandeau info" style="text-align:left">' + icone('telecharger') + '<p><b>Sur iPhone, installez d\'abord</b><br>Dans Safari : ' + icone('partager') + ' Partager, puis « Sur l\'écran d\'accueil ». Ouvrez ensuite MediPlanner depuis son icône et remplissez ces informations là-bas.</p></div>';
+    h += '<label class="champ"><span>Votre prénom et nom</span><input type="text" id="nomDelegue" data-f="ident" data-k="nom" autocomplete="name" autocapitalize="words" enterkeyhint="next" placeholder="Ex. Koffi Yao" list="listeDelegues" value="' + esc(br.nom) + '">' +
+        '<span class="aide-champ">Visible par vos collègues, sur votre tournée et vos visites.</span></label>' +
+      (l.length ? '<datalist id="listeDelegues">' + l.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' : '') +
+      '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="numWhatsapp" data-f="ident" data-k="wa" inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="Ex. 07 07 07 07 07" value="' + esc(br.wa) + '">' +
+        '<span class="aide-champ">Pour envoyer votre tournée et vos comptes rendus en un geste.</span></label>' +
+      '<div class="champ"><span>Votre quartier (facultatif)</span>' + (pret() ? selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: br.depart || null, vide: 'Choisir un quartier…', sections: sectionsQuartiers(),
+          appliquer: function (v) { (S.ui.identBrouillon || {}).depart = v; } }) :
+        '<p class="discret" style="margin:4px 0 0">Disponible dès que la base est reçue ; vous pourrez aussi le choisir plus tard dans Réglages.</p>') +
+        '<span class="aide-champ">Point de départ de vos tournées.</span></div>' +
+      '<label class="champ"><span>WhatsApp de votre superviseur (facultatif)</span><input type="tel" id="cfgWaResp" data-f="ident" data-k="wr" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(br.wr) + '">' +
+        (c.waResp && br.wr === c.waResp && c.invitePar ? '<span class="aide-champ">Repris de l\'invitation de ' + esc(c.invitePar) + '.</span>' : '') + '</label>' +
+      '<button class="bouton bouton-plein bouton-large" data-a="enregistrerNom" type="button">Commencer</button></section>';
+    return h;
   };
 
   // ------------------------------------------------------------------ Période et paramètres

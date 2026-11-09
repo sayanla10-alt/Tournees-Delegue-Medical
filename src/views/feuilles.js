@@ -787,7 +787,12 @@
   }
   // 3.26.50 : instructions selon le navigateur ; un lien ouvert dans WhatsApp, Facebook ou Instagram s'ouvre dans un
   // navigateur intégré qui ne peut pas installer l'application (et n'a pas la même mémoire) : il faut l'ouvrir dans Chrome / Safari
-  FEUILLES.installer = function () {
+  FEUILLES.installer = function (f) {
+    // 3.28.36 : juste après l'accueil d'un collègue : un bouton quand le téléphone le permet (Android), sinon le geste
+    if (f && f.bienvenue && S.ui.installEvt) return {
+      corps: '<p style="margin-top:0"><b>Dernière étape :</b> installez MediPlanner sur votre écran d\'accueil pour l\'ouvrir comme une application, même sans réseau.</p>',
+      pied: '<button class="bouton" type="button" data-a="fermerFeuille">Plus tard</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="installerBienvenue">' + icone('telecharger') + 'Installer</button>' };
     var ua = navigator.userAgent, ios = /iphone|ipad|ipod/i.test(ua), integre = /FBAN|FBAV|Instagram|WhatsApp|; wv\)|Line\//i.test(ua);
     var samsung = /SamsungBrowser/i.test(ua), firefox = /Firefox|FxiOS/i.test(ua), iosAutre = ios && /CriOS|FxiOS|EdgiOS/i.test(ua);
     var t;
@@ -797,7 +802,9 @@
     else if (samsung) t = 'Dans Samsung Internet : menu ≡, puis « Ajouter page à » › « Écran d\'accueil ».';
     else if (firefox) t = 'Dans Firefox : menu ⋮, puis « Installer ». Si l\'option manque, ouvrez le lien dans Chrome.';
     else t = 'Dans Chrome : menu ⋮, puis « Installer l\'application » (ou « Ajouter à l\'écran d\'accueil »). Si rien n\'apparaît, attendez quelques secondes sur la page puis réessayez.';
-    return '<p style="margin-top:0">' + t + '</p><p class="discret">Votre accès est conservé : l\'application installée garde la connexion à la base.</p>';
+    var corps = (f && f.bienvenue ? '<p style="margin-top:0"><b>Dernière étape :</b> installez MediPlanner sur votre écran d\'accueil.</p>' : '') +
+      '<p style="margin-top:0">' + t + '</p><p class="discret">Votre accès est conservé : l\'application installée garde la connexion à la base.</p>';
+    return f && f.bienvenue ? { corps: corps, pied: '<button class="bouton bouton-plein bouton-large" type="button" data-a="fermerFeuille">Compris</button>' } : corps;
   };
   function estInstallee() {
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;

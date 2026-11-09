@@ -322,6 +322,9 @@
         S.plan = []; S.jours = {}; S.queue = S.config.url === cfg.url ? S.queue : []; S.data = null; S.imposes = []; S.rejetes = {};
       }
       S.config.url = cfg.url; S.config.token = cfg.token; S.config.demo = false;
+      if (cfg.bdd) S.config.bddSource = cfg.bdd;
+      if (cfg.wr && !S.config.waResp) S.config.waResp = cfg.wr;
+      if (cfg.de) S.config.invitePar = cfg.de;
       sauver();
       // 3.26.50 : tant que l'application n'est pas installée, le lien de configuration reste dans l'adresse :
       // « Sur l'écran d'accueil » (iPhone) l'enregistre, et l'application installée (mémoire séparée) se connecte seule
@@ -331,7 +334,8 @@
     } catch (e) { return false; }
   }
   function lienInstallation() {
-    var json = JSON.stringify({ url: S.config.url, token: S.config.token });
+    // 3.28.36 : le lien emporte aussi ce qui se règle seul chez le collègue : base utilisée, WhatsApp du superviseur, nom de qui invite
+    var json = JSON.stringify({ url: S.config.url, token: S.config.token, bdd: S.config.bddSource || '', wr: S.config.waResp || '', de: moi() || '' });
     var b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return location.origin + location.pathname + '#config=' + b64;
   }
@@ -357,6 +361,8 @@
   chargerFeriesCalendrier();
   try { if (!sessionStorage.getItem('mediplanner.lancement')) { S.ui.lancement = true; sessionStorage.setItem('mediplanner.lancement', '1'); } }
   catch (e) { S.ui.lancement = true; }
+  // 3.28.36 : collègue qui arrive par le lien de partage : directement l'accueil « Bienvenue », sans l'écran de lancement
+  if (connecte() && !moi()) S.ui.lancement = false;
   // Nouveautés : celles des versions publiées depuis la dernière ouverture, affichées une seule fois
   (function () {
     var vue = LS.get('versionVue', '');

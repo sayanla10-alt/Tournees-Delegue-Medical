@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.35';
+  var APP_VERSION = '3.28.36';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.36', [
+      'Partage à un collègue : le lien règle tout seul la connexion, la base utilisée et le WhatsApp du superviseur ; à l\'ouverture, le collègue voit directement « Bienvenue », avec le nom de qui l\'a invité',
+      'Accueil simplifié : prénom et nom (noms de l\'équipe proposés, majuscules corrigées), numéro WhatsApp, quartier et superviseur facultatifs, à remplir pendant que la base se télécharge (rien n\'est perdu) ; puis l\'installation sur l\'écran d\'accueil est proposée aussitôt'
+    ]],
     ['3.28.35', [
       'Planifier le jour même : si Journée contient déjà une tournée pour aujourd\'hui, l\'application demande juste après « Accepter » (avant WhatsApp) s\'il faut la remplacer. Oui : seule la nouvelle sélection reste (les médecins de l\'ancienne qui y étaient restés sont remplacés par d\'autres), l\'ancienne tournée publiée ne revient plus. Non : la journée déjà prévue est gardée telle quelle et la nouvelle sélection est abandonnée. Les visites déjà faites restent toujours'
     ]],

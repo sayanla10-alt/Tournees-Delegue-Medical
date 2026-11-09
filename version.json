@@ -1,8 +1,8 @@
 {
-  "version": "3.28.35",
+  "version": "3.28.36",
   "date": "2026-11-09",
   "notes": [
-    "Planifier le jour même : remplacer ou garder la journée déjà prévue",
-    "Planifier : médecins d'un même hôpital toujours à la suite"
+    "Partage à un collègue : tout se règle seul, accueil en 3 informations",
+    "Planifier le jour même : remplacer ou garder la journée déjà prévue"
   ]
 }
