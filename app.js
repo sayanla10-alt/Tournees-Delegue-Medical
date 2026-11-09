@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.32';
+  var APP_VERSION = '3.28.33';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.33', [
+      'Planifier : après des retraits par la croix, « Recalculer » complète la liste jusqu\'au nombre demandé (les médecins restés sont repris si les nouveaux ne suffisent pas) ; les médecins retirés ne reviennent pas tant que les critères ne changent pas',
+      'S\'il manque vraiment des médecins, le message dit pourquoi (présents ce jour dans vos critères, retirés, déjà prévus un autre jour ou par un collègue, vus récemment)',
+      'Message vert « Tournée confirmée » affiché 2 secondes de plus'
+    ]],
     ['3.28.32', [
       'Réglages rangés : Mon profil ; Préférences (apparence, compte rendu express, notifications) ; MediPlanner (mises à jour, installation, partage) ; tout ce qui touche à la base et aux données du téléphone (saisie avancée, base de données, connexion, synchronisation, sauvegarde, effacement) dans « Avancé »'
     ]],
@@ -4765,7 +4770,7 @@
     S.ui.flashTexte = dates.length === 1 ? majuscule(dateLongue(dates[0])) + ' confirmé' : dates.length + ' jours confirmés';
     sauver(); publierPlan(true);
     S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée ✓', dates: dates, avantJours: avantJours, avantAAccepter: avantAAccepter, depuisChoix: !!depuisChoix, retourAction: 'annulerConfirmation' };
-    S.ui.flashValide = Date.now() + 4000; setTimeout(function () { S.ui.flashValide = 0; rendreSiPossible(); }, 4100);
+    S.ui.flashValide = Date.now() + 6000; setTimeout(function () { S.ui.flashValide = 0; rendreSiPossible(); }, 6100);   // 3.28.33 : 2 s de plus pour lire
     rendre();
   }
   // 3.19.0 : toute question se pose en trois boutons : Oui (appliquer), Non (refuser ; action propre à la question,
@@ -9959,6 +9964,21 @@
   }
 
   // horsZone : réponse à la question sur les visites déjà prévues hors des communes choisies ('garder' | 'retirer')
+  // 3.28.33 : moins de visites que demandé : on dit précisément pourquoi (praticiens présents ce jour dans les critères)
+  function raisonsManque(d, n, maxJ, exclus) {
+    var acc = filtreCibles(), ref = refusesActuels().codes, delai = +S.params.delai || 0, vus = {}, nb = { tous: 0, ref: 0, autres: 0, delai: 0 };
+    (ctx().parJour[jourSemaineIndex(d)] || []).forEach(function (c) {
+      if (vus[c.code] || !dansCommunesDu(c, d) || (acc && !acc(c.prat))) return;
+      vus[c.code] = true; nb.tous++;
+      if (ref[c.code]) nb.ref++;
+      else if (exclus[c.code]) nb.autres++;
+      else if (delai && joursEcoules(c.prat.derniere, d) < delai) nb.delai++;
+    });
+    var libre = nb.tous - nb.ref - nb.autres - nb.delai;
+    var l = [nb.ref ? nb.ref + ' retiré' + (nb.ref > 1 ? 's' : '') + ' par la croix' : '', nb.autres ? nb.autres + ' déjà prévu' + (nb.autres > 1 ? 's' : '') + ' un autre jour ou par un collègue' : '', nb.delai ? nb.delai + ' vu' + (nb.delai > 1 ? 's' : '') + ' il y a moins de ' + delai + ' jours' : ''].filter(Boolean);
+    return n + ' sur ' + maxJ + ' : ' + nb.tous + ' praticien' + (nb.tous > 1 ? 's' : '') + ' présent' + (nb.tous > 1 ? 's' : '') + ' ce jour dans vos critères' + (l.length ? ', dont ' + l.join(', ') : '') +
+      (libre > n ? ' ; les autres ont des heures de présence qui ne s\'enchaînent pas sans retard.' : '.') + ' Élargissez les communes ou les spécialités pour en avoir ' + maxJ + '.';
+  }
   function lancerTirage(portee, force, horsZone) {
     var p = S.params;
     if (p.mode === 'jour' && jourSemaineIndex(p.dateRef) > 4) { toast('Choisissez un jour de semaine.'); return; }
@@ -10037,6 +10057,16 @@
       if (Object.keys(S.rejetes).length && manque(r)) {
         var r2 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {} }));
         if (r2.arrets.length > r.arrets.length) r = r2;
+        // 3.28.33 : sinon, on garde les médecins restés dans la liste (à leur heure) et on comble les places libérées
+        if (manque(r) && (portee === 'jour' || portee === 'semaine')) {
+          var restes = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && conserves.indexOf(a) < 0 && !refusesActuels().codes[a.code]; })
+            .map(function (a) { var x = JSON.parse(JSON.stringify(a)); x.garde = true; return x; });
+          if (restes.length) {
+            var r3 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {}, conserves: conserves.concat(restes) }));
+            r3.arrets.forEach(function (a) { var o = restes.filter(function (x) { return x.uid === a.uid; })[0]; if (o) { var src = S.plan.filter(function (y) { return y.uid === o.uid; })[0]; a.garde = !!(src && src.garde); } });
+            if (r3.arrets.length > r.arrets.length) r = r3;
+          }
+        }
       }
       r.arrets.forEach(function (a) { if (heuresGardees[a.uid]) a.heure = heuresGardees[a.uid]; });
       S.plan = horsCible.concat(r.arrets);
@@ -10053,16 +10083,16 @@
       if (portee === 'jour') setTimeout(function () { centrerElement(document.querySelector('.bandeau-prog.accepter')); }, 60);
       var nG = Object.keys(heuresGardees).length, nN = r.arrets.length - nG;
       var msg = r.arrets.length ? (nG ? (!nN ? 'Aucun créneau libre : les ' + nG + ' visites déjà prévues sont conservées.' : nN + ' visite' + (nN > 1 ? 's' : '') + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' déjà prévue' + (nG > 1 ? 's' : '') + ' conservée' + (nG > 1 ? 's' : '') + '.') : r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.') : 'Aucun praticien ne correspond à ces critères.';
-      if (portee === 'jour' && r.arrets.length && r.arrets.length < maxJ) msg += ' Pas d\'autre médecin disponible ce jour avec ces critères (sans retard sur les heures de présence) : ' + r.arrets.length + ' sur ' + maxJ + '.';
+      if (portee === 'jour' && r.arrets.length < maxJ) msg += ' ' + raisonsManque(cible[0], r.arrets.length, maxJ, exclus);
       var np = r.nonPlaces.filter(function (x) { return !x.etape; });
       if (np.length) msg += ' ' + np.length + ' médecin(s) prioritaire(s) absent(s) sur la période.';
       var hz = r.nonPlaces.filter(function (x) { return x.etape && x.horsCommunes; });
       if (hz.length) msg += ' ' + hz.length + ' RDV hors des communes choisies, non placé' + (hz.length > 1 ? 's' : '') + ' : ' + hz.map(function (x) { var pr = praticien(x.code); return pr ? pr.nom : x.code; }).join(', ') + '.';
       var attendu = (+p.maxJour || 8) * cible.filter(function (d) { return jourSemaineIndex(d) < 5; }).length;
-      if (r.arrets.length && r.arrets.length < attendu * 0.75) {
+      if (portee !== 'jour' && r.arrets.length && r.arrets.length < attendu * 0.75) {
         msg += ' Moins de visites que prévu : les praticiens présents sont déjà ciblés par l\'équipe, vus récemment ou hors des critères choisis. Élargissez les communes ou les spécialités.';
       }
-      toast(msg, 4500);
+      toast(msg, portee === 'jour' && r.arrets.length < maxJ ? 9000 : 4500);
     });
   }
 

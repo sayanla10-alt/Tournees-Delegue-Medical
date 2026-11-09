@@ -1739,8 +1739,8 @@ details.avance h3 { margin-top: 18px; }
 
 /* 3.19.0 : questions Oui / Non / Sortir */
 .feuille-pied .sortir-question { margin-right: auto; color: var(--gris); font-weight: 600; padding: 10px 6px; }
-.bandeau-prog.flash { animation: flash-fondu 4s ease forwards; }
-@keyframes flash-fondu { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+.bandeau-prog.flash { animation: flash-fondu 6s ease forwards; }
+@keyframes flash-fondu { 0%, 87% { opacity: 1; } 100% { opacity: 0; } }
 
 /* 3.19.0 : Produits, sections repliables par aire */
 .aire-bascule { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; text-align: left; cursor: pointer; }

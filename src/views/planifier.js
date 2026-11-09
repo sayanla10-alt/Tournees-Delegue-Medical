@@ -347,7 +347,7 @@
     S.ui.flashTexte = dates.length === 1 ? majuscule(dateLongue(dates[0])) + ' confirmé' : dates.length + ' jours confirmés';
     sauver(); publierPlan(true);
     S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée ✓', dates: dates, avantJours: avantJours, avantAAccepter: avantAAccepter, depuisChoix: !!depuisChoix, retourAction: 'annulerConfirmation' };
-    S.ui.flashValide = Date.now() + 4000; setTimeout(function () { S.ui.flashValide = 0; rendreSiPossible(); }, 4100);
+    S.ui.flashValide = Date.now() + 6000; setTimeout(function () { S.ui.flashValide = 0; rendreSiPossible(); }, 6100);   // 3.28.33 : 2 s de plus pour lire
     rendre();
   }
   // 3.19.0 : toute question se pose en trois boutons : Oui (appliquer), Non (refuser ; action propre à la question,

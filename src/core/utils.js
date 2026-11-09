@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.32';
+  var APP_VERSION = '3.28.33';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.33', [
+      'Planifier : après des retraits par la croix, « Recalculer » complète la liste jusqu\'au nombre demandé (les médecins restés sont repris si les nouveaux ne suffisent pas) ; les médecins retirés ne reviennent pas tant que les critères ne changent pas',
+      'S\'il manque vraiment des médecins, le message dit pourquoi (présents ce jour dans vos critères, retirés, déjà prévus un autre jour ou par un collègue, vus récemment)',
+      'Message vert « Tournée confirmée » affiché 2 secondes de plus'
+    ]],
     ['3.28.32', [
       'Réglages rangés : Mon profil ; Préférences (apparence, compte rendu express, notifications) ; MediPlanner (mises à jour, installation, partage) ; tout ce qui touche à la base et aux données du téléphone (saisie avancée, base de données, connexion, synchronisation, sauvegarde, effacement) dans « Avancé »'
     ]],
