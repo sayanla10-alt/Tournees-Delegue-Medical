@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.45';
+  var APP_VERSION = '3.28.46';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.46', [
+      'Compte rendu au superviseur : rubriques fixes, toujours présentes et dans le même ordre : Produits présentés (toute la gamme, une seule fois), Commandes, Faits marquants, Concurrence, Besoins ; puis ruptures, échantillons, RDV et rappels s\'il y en a ; puis les visites faites et non faites',
+      'Rubrique vide : « R.A.S » (aussi dans le compte rendu de la journée)'
+    ]],
     ['3.28.45', [
       'Compte rendu de visite (médecin) : plus de question « Produits présentés », ni de choix des produits, ni de réaction par produit : tous les produits sont présentés à chaque visite ; seuls les échantillons remis se renseignent',
       'Visite non faite : plus jamais de produits, d\'échantillons ni de réactions enregistrés. Formulaire express : le statut choisi (Absent, Indisponible, Reporté…) est bien enregistré comme visite non faite avec son motif',
@@ -4362,11 +4366,11 @@
   function etapesRapport(R, s) {
     var resumeTxt = function (v, vide) { return String(v || '').trim() || vide; };
     return [
-      { id: 'faits', titre: 'Faits marquants', resume: function () { return resumeTxt(R.faits, 'Rien à signaler'); },
+      { id: 'faits', titre: 'Faits marquants', resume: function () { return resumeTxt(R.faits, 'R.A.S'); },
         rendu: function () { return '<textarea data-f="rapport" data-k="faits" placeholder="Ex. le Dr X demande une étude sur Rozukaa ; nouvelle pharmacie ouverte à Angré">' + esc(R.faits || '') + '</textarea>'; } },
-      { id: 'concurrence', titre: 'Concurrence observée', resume: function () { return resumeTxt(R.concurrence, 'Rien observé'); },
+      { id: 'concurrence', titre: 'Concurrence observée', resume: function () { return resumeTxt(R.concurrence, 'R.A.S'); },
         rendu: function () { return '<textarea data-f="rapport" data-k="concurrence" placeholder="Produit, prix, action du concurrent…">' + esc(R.concurrence || '') + '</textarea>'; } },
-      { id: 'besoins', titre: 'Besoins', resume: function () { var b = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []); return b.length ? b.join(', ') : 'Aucun'; },
+      { id: 'besoins', titre: 'Besoins', resume: function () { var b = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []); return b.length ? b.join(', ') : 'R.A.S'; },
         rendu: function () {
           var tousB = (R.besoins || []).length === BESOINS_JOUR.length;
           return '<div class="grille-besoins-cr"><button type="button" class="puce puce-tous" data-a="rapBesoin" data-v="__tous" aria-pressed="' + tousB + '">Tous les besoins</button>' +
@@ -4426,7 +4430,7 @@
   }
   function heureVisite(a) { return (a.statut && a.valideA) || a.heure || ''; }
   // 3.26.70 : message WhatsApp aéré et lisible : pas d'heures ni de pastilles de position
-  // 3.28.44 : compte rendu au superviseur, pensé pour être lu en 10 secondes :
+  // 3.28.44 : compte rendu au superviseur, pensé pour être lu en 10 secondes (rubriques fixes depuis la 3.28.46) :
   // 1. en-tête et bilan chiffré sur deux lignes ; 2. « À retenir » (ce qui demande une suite : besoins, ruptures, commandes,
   // RDV, faits marquants, concurrence) ; 3. les visites, une ligne chacune avec l'heure ; 4. les visites non faites et leur motif
   function texteRapport(d) {
@@ -4439,20 +4443,23 @@
     var l = ['*CR du ' + dateCourteCr + '* · ' + (moi() || 'Délégué'),
       '✅ *' + nF + '/' + s.prevues + ' visites*' + (taux ? ' (' + taux + ')' : '') + (pot ? ' · ' + pot : '') + (kmJ ? ' · ' + kmJ : '') + (comm.length ? ' · ' + comm.join(', ') : '')];
     if (s.sansCr.length) l.push('⚠️ ' + s.sansCr.length + ' visite' + (s.sansCr.length > 1 ? 's' : '') + ' sans compte rendu : ' + s.sansCr.map(function (a) { return a.nom; }).join(', '));
-    // À retenir : seulement ce qui existe
+    // 3.28.46 : rubriques fixes, toujours présentes (vides : « R.A.S »), dans l'ordre où le superviseur les lit
     var nettoie = function (t) { return String(t || '').split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean); };
     var besoins = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []);
-    var retenir = [];
-    if (besoins.length) retenir.push('Besoins : ' + besoins.join(', '));
-    s.ruptures.forEach(function (x) { retenir.push('Rupture : ' + x); });
-    s.commandes.forEach(function (x) { retenir.push('Commande : ' + x); });
+    // produits présentés : toute la gamme, une seule fois (tous les produits sont présentés à chaque visite)
+    var gammes = []; if (nF) produitsRef().forEach(function (p) { var g = String(p).split(/\s+/)[0]; if (g && gammes.indexOf(g) < 0) gammes.push(g); });
+    var rdv = [];
     s.faites.concat(s.nonFaites).forEach(function (a) {
-      if (a.prochaine && a.prochaine > a.date) retenir.push((a.rdvConfirme ? 'RDV ' : 'Rappel ') + JOURS_COURTS[jourSemaineIndex(a.prochaine)] + ' ' + a.prochaine.slice(8) + '/' + a.prochaine.slice(5, 7) + ' : ' + a.nom);
+      if (a.prochaine && a.prochaine > a.date) rdv.push((a.rdvConfirme ? 'RDV ' : 'Rappel ') + JOURS_COURTS[jourSemaineIndex(a.prochaine)] + ' ' + a.prochaine.slice(8) + '/' + a.prochaine.slice(5, 7) + ' : ' + a.nom);
     });
-    nettoie(R.faits).forEach(function (x) { retenir.push(x); });
-    nettoie(R.concurrence).forEach(function (x) { retenir.push('Concurrence : ' + x); });
-    s.echantillons.forEach(function (x) { retenir.push('Échantillons : ' + x); });
-    l = retenir.length ? l.concat(sectionWa('À retenir', retenir)) : l.concat(['', '_Rien à signaler : ni besoin, ni rupture, ni fait marquant._']);
+    l = l.concat(sectionWa('Produits présentés', nF ? ['Toute la gamme' + (gammes.length ? ' : ' + gammes.join(', ') : '')] : [], 'R.A.S'));
+    l = l.concat(sectionWa('Commandes', s.commandes, 'R.A.S'));
+    l = l.concat(sectionWa('Faits marquants', nettoie(R.faits), 'R.A.S'));
+    l = l.concat(sectionWa('Concurrence', nettoie(R.concurrence), 'R.A.S'));
+    l = l.concat(sectionWa('Besoins', besoins, 'R.A.S'));
+    l = l.concat(sectionWa('Ruptures signalées', s.ruptures));
+    l = l.concat(sectionWa('Échantillons remis', s.echantillons));
+    l = l.concat(sectionWa('RDV et rappels', rdv));
     // visites faites, dans l'ordre de la journée ; pas les produits présentés (tous sont présentés), pas de nom répété
     var faites = s.faites.slice().sort(function (a, b) { return String(heureVisite(a)).localeCompare(String(heureVisite(b))); });
     l = l.concat(sectionWa('Visites faites', faites.map(function (a) {

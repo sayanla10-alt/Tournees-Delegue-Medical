@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.45';
+  var APP_VERSION = '3.28.46';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.46', [
+      'Compte rendu au superviseur : rubriques fixes, toujours présentes et dans le même ordre : Produits présentés (toute la gamme, une seule fois), Commandes, Faits marquants, Concurrence, Besoins ; puis ruptures, échantillons, RDV et rappels s\'il y en a ; puis les visites faites et non faites',
+      'Rubrique vide : « R.A.S » (aussi dans le compte rendu de la journée)'
+    ]],
     ['3.28.45', [
       'Compte rendu de visite (médecin) : plus de question « Produits présentés », ni de choix des produits, ni de réaction par produit : tous les produits sont présentés à chaque visite ; seuls les échantillons remis se renseignent',
       'Visite non faite : plus jamais de produits, d\'échantillons ni de réactions enregistrés. Formulaire express : le statut choisi (Absent, Indisponible, Reporté…) est bien enregistré comme visite non faite avec son motif',

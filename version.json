@@ -1,9 +1,8 @@
 {
-  "version": "3.28.45",
+  "version": "3.28.46",
   "date": "2026-11-09",
   "notes": [
-    "Compte rendu de visite : plus de produits présentés",
-    "Visite non faite : ni produits ni échantillons",
-    "Formulaire express : statut bien enregistré"
+    "Compte rendu au superviseur : rubriques fixes, R.A.S si vide",
+    "Compte rendu de visite : plus de produits présentés"
   ]
 }

@@ -239,11 +239,11 @@
   function etapesRapport(R, s) {
     var resumeTxt = function (v, vide) { return String(v || '').trim() || vide; };
     return [
-      { id: 'faits', titre: 'Faits marquants', resume: function () { return resumeTxt(R.faits, 'Rien à signaler'); },
+      { id: 'faits', titre: 'Faits marquants', resume: function () { return resumeTxt(R.faits, 'R.A.S'); },
         rendu: function () { return '<textarea data-f="rapport" data-k="faits" placeholder="Ex. le Dr X demande une étude sur Rozukaa ; nouvelle pharmacie ouverte à Angré">' + esc(R.faits || '') + '</textarea>'; } },
-      { id: 'concurrence', titre: 'Concurrence observée', resume: function () { return resumeTxt(R.concurrence, 'Rien observé'); },
+      { id: 'concurrence', titre: 'Concurrence observée', resume: function () { return resumeTxt(R.concurrence, 'R.A.S'); },
         rendu: function () { return '<textarea data-f="rapport" data-k="concurrence" placeholder="Produit, prix, action du concurrent…">' + esc(R.concurrence || '') + '</textarea>'; } },
-      { id: 'besoins', titre: 'Besoins', resume: function () { var b = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []); return b.length ? b.join(', ') : 'Aucun'; },
+      { id: 'besoins', titre: 'Besoins', resume: function () { var b = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []); return b.length ? b.join(', ') : 'R.A.S'; },
         rendu: function () {
           var tousB = (R.besoins || []).length === BESOINS_JOUR.length;
           return '<div class="grille-besoins-cr"><button type="button" class="puce puce-tous" data-a="rapBesoin" data-v="__tous" aria-pressed="' + tousB + '">Tous les besoins</button>' +
@@ -303,34 +303,44 @@
   }
   function heureVisite(a) { return (a.statut && a.valideA) || a.heure || ''; }
   // 3.26.70 : message WhatsApp aéré et lisible : pas d'heures ni de pastilles de position
+  // 3.28.44 : compte rendu au superviseur, pensé pour être lu en 10 secondes (rubriques fixes depuis la 3.28.46) :
+  // 1. en-tête et bilan chiffré sur deux lignes ; 2. « À retenir » (ce qui demande une suite : besoins, ruptures, commandes,
+  // RDV, faits marquants, concurrence) ; 3. les visites, une ligne chacune avec l'heure ; 4. les visites non faites et leur motif
   function texteRapport(d) {
     var R = rapportDe(d) || {}, duJour = visitesDuJourRapport(d), s = syntheseJour(duJour);
     var dateCourteCr = majuscule(JOURS_COURTS[jourSemaineIndex(d)]) + ' ' + d.slice(8) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4);
-    var pot = [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return s.pot[x[0]] + ' ' + x[1]; }).join(', ');
-    var faites = s.faites.slice().sort(function (a, b) { return String(heureVisite(a)).localeCompare(String(heureVisite(b))); });
-    var l = ['*CR du ' + dateCourteCr + '*', moi() || 'Délégué', '',
-      '*Bilan*',
-      'Visites faites : *' + s.faites.length + ' / ' + s.prevues + '*' + (s.sansCr.length ? ' (' + s.sansCr.length + ' sans CR)' : '')];
-    if (pot) l.push('Potentiel vu : ' + pot);
-    var kmJ = R.km ? R.km + ' km' : (s.km ? km(s.km) + ' estimés' : '');
-    if (kmJ) l.push('Trajet : ' + kmJ);
-    if (s.communes.length) l.push('Communes : ' + s.communes.join(', '));
-    // 3.28.43 : compte rendu plus court : une ligne par visite, sans les produits présentés (tous sont présentés) ;
-    // pharmacie : le quartier plutôt que le nom de l'officine, déjà dans le nom
-    var lignesFaites = faites.map(function (a) {
-      var det = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier]) : infosSansDoublon(a, [abrSpec(a.specialite), abregerHopital(a.lieu || '')]);
-      return '*' + a.nom + '*' + (det ? '\n   ' + det : '') + (a.produits ? '\n   Produits : ' + a.produits : '');
+    var nF = s.faites.length, taux = s.prevues ? (Math.round(nF / s.prevues * 1000) / 10).toString().replace('.', ',') + ' %' : '';
+    var pot = [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return x[1] + ' ' + s.pot[x[0]]; }).join(', ');
+    var kmJ = R.km ? R.km + ' km' : (s.km ? km(s.km) : '');
+    var comm = []; s.communes.forEach(function (c) { var p = communeParente(c) || c; if (comm.indexOf(p) < 0) comm.push(p); });
+    var l = ['*CR du ' + dateCourteCr + '* · ' + (moi() || 'Délégué'),
+      '✅ *' + nF + '/' + s.prevues + ' visites*' + (taux ? ' (' + taux + ')' : '') + (pot ? ' · ' + pot : '') + (kmJ ? ' · ' + kmJ : '') + (comm.length ? ' · ' + comm.join(', ') : '')];
+    if (s.sansCr.length) l.push('⚠️ ' + s.sansCr.length + ' visite' + (s.sansCr.length > 1 ? 's' : '') + ' sans compte rendu : ' + s.sansCr.map(function (a) { return a.nom; }).join(', '));
+    // 3.28.46 : rubriques fixes, toujours présentes (vides : « R.A.S »), dans l'ordre où le superviseur les lit
+    var nettoie = function (t) { return String(t || '').split(/\n+/).map(function (x) { return x.trim(); }).filter(Boolean); };
+    var besoins = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []);
+    // produits présentés : toute la gamme, une seule fois (tous les produits sont présentés à chaque visite)
+    var gammes = []; if (nF) produitsRef().forEach(function (p) { var g = String(p).split(/\s+/)[0]; if (g && gammes.indexOf(g) < 0) gammes.push(g); });
+    var rdv = [];
+    s.faites.concat(s.nonFaites).forEach(function (a) {
+      if (a.prochaine && a.prochaine > a.date) rdv.push((a.rdvConfirme ? 'RDV ' : 'Rappel ') + JOURS_COURTS[jourSemaineIndex(a.prochaine)] + ' ' + a.prochaine.slice(8) + '/' + a.prochaine.slice(5, 7) + ' : ' + a.nom);
     });
-    l = l.concat(sectionWa('Visites faites', lignesFaites));
-    l = l.concat(sectionWa('Visites non faites', s.nonFaites.map(function (a) { return a.nom + ' : ' + String(statutLibelle(a) || '').toLowerCase(); })));
-    l = l.concat(sectionWa('Échantillons remis', s.echantillons));
-    l = l.concat(sectionWa('Commandes', s.commandes));
+    l = l.concat(sectionWa('Produits présentés', nF ? ['Toute la gamme' + (gammes.length ? ' : ' + gammes.join(', ') : '')] : [], 'R.A.S'));
+    l = l.concat(sectionWa('Commandes', s.commandes, 'R.A.S'));
+    l = l.concat(sectionWa('Faits marquants', nettoie(R.faits), 'R.A.S'));
+    l = l.concat(sectionWa('Concurrence', nettoie(R.concurrence), 'R.A.S'));
+    l = l.concat(sectionWa('Besoins', besoins, 'R.A.S'));
     l = l.concat(sectionWa('Ruptures signalées', s.ruptures));
-    l = l.concat(sectionWa('RDV et rappels', s.suites));
-    var faitsL = String(R.faits || '').split(/\n+/), concL = String(R.concurrence || '').split(/\n+/), besL = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []);
-    l = l.concat(sectionWa('Faits marquants', faitsL)).concat(sectionWa('Concurrence', concL)).concat(sectionWa('Besoins', besL));
-    var vides = [[faitsL, 'faits marquants'], [concL, 'concurrence'], [besL, 'besoins']].filter(function (x) { return !x[0].some(function (y) { return String(y || '').trim(); }); }).map(function (x) { return x[1]; });
-    if (vides.length) l.push('', '_' + majuscule(vides.join(', ')) + ' : rien à signaler_');
+    l = l.concat(sectionWa('Échantillons remis', s.echantillons));
+    l = l.concat(sectionWa('RDV et rappels', rdv));
+    // visites faites, dans l'ordre de la journée ; pas les produits présentés (tous sont présentés), pas de nom répété
+    var faites = s.faites.slice().sort(function (a, b) { return String(heureVisite(a)).localeCompare(String(heureVisite(b))); });
+    l = l.concat(sectionWa('Visites faites', faites.map(function (a) {
+      var det = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier]) : infosSansDoublon(a, [abrSpec(a.specialite), abregerHopital(a.lieu || '')]);
+      var h = String(heureVisite(a) || '').slice(0, 5);
+      return (h ? h + ' ' : '') + '*' + a.nom + '*' + (det ? ' (' + det + ')' : '');
+    })));
+    l = l.concat(sectionWa('Non faites', s.nonFaites.map(function (a) { return a.nom + ' : ' + String(statutLibelle(a) || '').toLowerCase(); })));
     return l.join('\n');
   }
   function empreinteRapport(R) { return JSON.stringify([R.faits || '', R.concurrence || '', R.besoins || [], R.besoinsTexte || '', R.km || '']); }
