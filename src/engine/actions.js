@@ -852,7 +852,7 @@
       var wr = (($('cfgWaResp') || {}).value || '').trim();
       if (wr && !normaliserNumero(wr)) { toast('Numéro du responsable non reconnu. Exemple : 07 07 07 07 07.'); return; }
       var ancien = moi(), avant = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '', S.config.waResp || '']);
-      S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); S.config.waWeb = $('cfgWaWeb').checked; S.config.depart = $('cfgDepart').value; S.config.waResp = normaliserNumero(wr);
+      S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); if ($('cfgWaWeb')) S.config.waWeb = $('cfgWaWeb').checked; S.config.depart = $('cfgDepart').value; S.config.waResp = normaliserNumero(wr);
       var apres = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '', S.config.waResp || '']);
       LS.set('config', S.config); rendre(); toast(avant === apres ? 'Aucune modification : vos réglages sont inchangés.' : 'Réglages enregistrés.');
       inscrireDelegue(n);
@@ -910,6 +910,13 @@
       lien.download = 'mediplanner-sauvegarde-' + aujourdhui() + '.json'; document.body.appendChild(lien); lien.click();
       setTimeout(function () { URL.revokeObjectURL(lien.href); lien.remove(); }, 1000);
       toast('Sauvegarde exportée : gardez le fichier en lieu sûr (Drive, e-mail).');
+    },
+    nomAutre: function (el) {
+      var id = el.dataset.v, h = $(id), b = $(id + 'Bloc');
+      if (h) h.value = '__autre';
+      var bt = $(id + 'Btn'); if (bt) { var sp = bt.querySelector('span'); if (sp) sp.textContent = 'Mon nom n\'est pas dans la liste'; }
+      if (b) { b.hidden = false; var i = $(id + 'Autre'); if (i) i.focus(); }
+      el.hidden = true;
     },
     installerBienvenue: function () { S.ui.feuille = null; rendre(); ACTIONS.installer(); },
     installer: function () {
@@ -1805,6 +1812,11 @@
   });
   window.addEventListener('pointerdown', memoriserPouceY, { passive: true, capture: true });
   window.addEventListener('touchstart', memoriserPouceY, { passive: true, capture: true });
+  // 3.28.39 : Réglages, volets ouverts ou fermés gardés pendant la session
+  document.addEventListener('toggle', function (e) {
+    var d = e.target; if (!d || !d.dataset || !d.dataset.reg) return;
+    (S.ui.regOuverts = S.ui.regOuverts || {})[d.dataset.reg] = d.open;
+  }, true);
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'ident') { (S.ui.identBrouillon = S.ui.identBrouillon || {})[el.dataset.k] = el.value; return; }
@@ -1948,6 +1960,7 @@
     if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
     if (f === 'importSecours' && el.files && el.files[0]) { importerSecours(el.files[0]); el.value = ''; }
     if (f === 'saisieAvancee') { S.config.modifPasse = S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie avancée activée : jours passés et à venir modifiables.' : 'Saisie avancée désactivée : seul le jour même se saisit.'); rendre(); }
+    if (f === 'waWeb') { S.config.waWeb = el.checked; LS.set('config', S.config); toast(el.checked ? 'WhatsApp Web sera toujours ouvert.' : 'WhatsApp s\'ouvrira dans l\'application du téléphone.'); }
     if (f === 'crExpress') { S.config.crExpress = el.checked; LS.set('config', S.config); toast(el.checked ? 'Compte rendu express activé : saisie rapide en 1 écran.' : 'Compte rendu express désactivé : saisie complète par étapes.'); rendre(); }
     if (f === 'saisieFutur') { S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie des jours à venir activée.' : 'Jours à venir en aperçu seul.'); }
     if (f === 'modifPasse') { S.config.modifPasse = el.checked; LS.set('config', S.config); toast(el.checked ? 'Modification des jours passés activée.' : 'Jours passés en lecture seule.'); }

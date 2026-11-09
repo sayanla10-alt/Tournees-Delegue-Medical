@@ -713,10 +713,11 @@
     if (!l.length) return '<label class="champ"><span>' + libelle + '</span><input type="text" id="' + id + '" autocomplete="name" placeholder="Ex. Koffi Yao" value="' + esc(valeur) + '"></label>';
     var autre = valeur && l.indexOf(valeur) < 0;
     return '<div class="champ"><span>' + libelle + '</span>' + selecteurListe(id, { titre: 'Votre nom', dom: true, valeur: autre ? '__autre' : valeur, vide: 'Choisir mon nom…',
-        options: l.map(function (n) { return [n, n]; }).concat([['__autre', 'Mon nom n\'est pas dans la liste']]),
+        options: [['__autre', '+ Mon nom n\'est pas dans la liste : l\'ajouter']].concat(l.slice().sort(function (x, y) { return x.localeCompare(y, 'fr'); }).map(function (n) { return [n, n]; })),
         appliquer: function (v) { var b = $(id + 'Bloc'); if (b) b.hidden = v !== '__autre'; } }) + '</div>' +
       '<label class="champ" id="' + id + 'Bloc"' + (autre ? '' : ' hidden') + '><span>Nom complet</span><input type="text" id="' + id + 'Autre" autocomplete="name" value="' + esc(autre ? valeur : '') + '">' +
-      '<span class="aide-champ">Votre prénom et nom seront ajoutés à la liste des délégués.</span></label>';
+      '<span class="aide-champ">Votre prénom et nom seront ajoutés à la liste des délégués.</span></label>' +
+      (autre ? '' : '<button type="button" class="bouton-texte" data-a="nomAutre" data-v="' + id + '" style="margin:-4px 0 8px">+ Mon nom n\'est pas dans la liste</button>');
   }
   // 3.22.0 : un nom absent de la liste des délégués y est ajouté dans la base
   function inscrireDelegue(n) {

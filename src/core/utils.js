@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.38';
+  var APP_VERSION = '3.28.39';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.39', [
+      'Réglages en quatre volets repliables : Mon profil (ouvert par défaut), Préférences, Application, Avancé ; chaque volet ouvert reste ouvert pendant la session',
+      'Préférences : apparence, comptes rendus (express, saisie avancée), WhatsApp Web, notifications, appliqués tout de suite ; Avancé : synchronisation, sauvegarde, base de données, connexion, effacement',
+      'Mon profil : « + Mon nom n\'est pas dans la liste » en tête de la liste des noms et sous le champ, pour ajouter son nom'
+    ]],
     ['3.28.38', [
       'Planifier, + Ajouter : liste complète par ordre alphabétique (sans tenir compte de Dr, Pr, Pharmacie)',
       'Listes d\'ajout : chaque pharmacie affiche son quartier, puis sa commune, même quand le quartier figure dans son nom'
