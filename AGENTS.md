@@ -13,7 +13,8 @@ Ce document consigne les directives fermes et les interdictions absolues établi
 
 ## 2. INTERDICTION DES BOUTONS POUBELLE / CORBEILLE
 * **Aucune icône poubelle** : Ne jamais ajouter de bouton corbeille ou poubelle (`btn-suppr-jour`, icône poubelle) sur l'écran ou dans la barre de titre de planification.
-* **Suppression de date** : La suppression d'une date planifiée s'opère **exclusivement par appui long tactile (~650 ms)** sur la date dans la frise ou sur le bandeau titre du jour, suivi de la boîte de dialogue modale de confirmation.
+* **Suppression de date** : La suppression d'une date planifiée s'opère **exclusivement par appui long tactile (1,5 s)** sur la date dans la frise ou sur le bandeau titre du jour, suivi de la boîte de dialogue modale de confirmation.
+* **Confirmation de toute suppression** (supprimer, effacer, retirer, remplacer) : « Non » à droite, en bouton principal et choisi par défaut ; « Oui » à gauche, en bouton discret.
 
 ---
 

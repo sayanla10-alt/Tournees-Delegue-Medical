@@ -413,6 +413,7 @@
   function confirmerPuis(titre, message, libelleOui, action, siNon, ouiClasse) {
     S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action, non: siNon || null, ouiClasse: ouiClasse || null };
     rendre();
+    setTimeout(function () { var b = document.querySelector('#feuille [data-defaut]'); if (b) try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); } }, 60);
   }
   function piedQuestion(ouiAttrs, ouiLib, nonAction, ouiClasse) {
     return '<button class="bouton-texte sortir-question" type="button" data-a="sortirQuestion">Sortir</button>' +

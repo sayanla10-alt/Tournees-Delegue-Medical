@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.41';
+  var APP_VERSION = '3.28.42';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.42', [
+      'Toute suppression (supprimer une journée ou une visite, retirer de la tournée, effacer, remplacer) : « Non » est à droite, en bouton principal et choisi par défaut ; « Oui » est à gauche, discret, pour ne rien supprimer par réflexe',
+      'Suppression d\'une journée par appui long sur la date : 1,5 seconde au lieu de 0,55 (l\'effet de pression dure le même temps)'
+    ]],
     ['3.28.41', [
       'Journée : une visite faite (« Visite faite ») s\'affiche de nouveau en vert. Depuis le passage à Supabase, la liste des statuts était lue sous une mauvaise forme : « Visite faite » ne comptait plus comme visite (rouge, et absente des compteurs de visites)'
     ]],

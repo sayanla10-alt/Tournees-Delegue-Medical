@@ -199,9 +199,10 @@
     var dernierAppuiLongFired = 0;
     var dernierTouchTime = 0;
     var DUREE_APPUI_LONG = 550;
+    var DUREE_SUPPR_JOUR = 1500;   // 3.28.42 : suppression d'une journée : appui plus long, par sécurité
     function annulerAppuiLong() {
       if (timer) { clearTimeout(timer); timer = null; }
-      if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
+      if (cibleEl) { cibleEl.classList.remove('appui-long-actif', 'appui-suppr-jour'); cibleEl = null; }
       cibleDate = null;
       longPressFired = false;
     }
@@ -220,14 +221,14 @@
         startY = pt.clientY;
         cibleDate = date;
         cibleEl = bjBtn || (tetePlan.querySelector('.bilan-jour') || tetePlan);
-        if (cibleEl) cibleEl.classList.add('appui-long-actif');
+        if (cibleEl) cibleEl.classList.add('appui-long-actif', 'appui-suppr-jour');
 
         timer = setTimeout(function () {
           timer = null;
           longPressFired = true;
           dernierAppuiLongFired = Date.now();
           if (cibleEl) {
-            cibleEl.classList.remove('appui-long-actif');
+            cibleEl.classList.remove('appui-long-actif', 'appui-suppr-jour');
             cibleEl = null;
           }
           try {
@@ -241,9 +242,9 @@
           if (nb > 0 || (S.jours && S.jours[date]) || (typeof datesPlan === 'function' && datesPlan().indexOf(date) >= 0)) {
             demanderSuppressionJour(date, nb);
           } else {
-            toast('Journee vide (' + majuscule(dateLongue(date)) + ') : aucune visite a supprimer');
+            toast('Journée vide (' + majuscule(dateLongue(date)) + ') : aucune visite à supprimer');
           }
-        }, DUREE_APPUI_LONG);
+        }, DUREE_SUPPR_JOUR);
         return;
       }
 

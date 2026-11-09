@@ -818,8 +818,11 @@
   function estInstallee() {
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
   }
+  // 3.28.42 : toute suppression (supprimer, effacer, retirer, remplacer, abandonner) : « Non » à droite, en bouton principal et choisi par défaut ;
+  // « Oui » à gauche, discret, pour ne pas supprimer par réflexe
+  function estSuppression(f) { return f.destructif || /supprim|effac|retir|remplac|abandon|vider|quitter/i.test((f.oui || '') + ' ' + (f.titre || '')); }
   FEUILLES.confirmer = function (f) {
-    return { corps: '<p style="margin-top:0">' + f.message + '</p>',
+    if (estSuppression(f)) return { corps: '<p style="margin-top:0">' + f.message + '</p>',
       pied: piedQuestion('data-a="confirmerOui"', esc(f.oui), 'confirmerNon', f.ouiClasse) };
   };
 
@@ -1483,7 +1486,8 @@
     var a = arret(f.uid) || {};
     return { corps: '<p style="margin-top:0">Compte rendu de <b>' + esc(a.nom || '') + '</b> : que voulez-vous faire ?</p>',
       pied: '<button class="bouton" type="button" data-a="effacerVisiteChoix" data-v="refaire">Remettre « à faire »</button>' +
-        '<button class="bouton bouton-plein" type="button" data-a="effacerVisiteChoix" data-v="supprimer">Supprimer la visite</button>' };
+        '<button class="bouton" type="button" data-a="effacerVisiteChoix" data-v="supprimer">Supprimer</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="fermerFeuille" data-defaut="1">Non</button>' };   // 3.28.42 : Non à droite, par défaut
   };
   // 3.27.1 : fiche repensée. Ajout : on cherche d'abord la personne rencontrée (doublons), puis
   // 1. Où et quand (semaine type : tous les lieux sur une seule semaine) et 2. Qui (carte de visite).

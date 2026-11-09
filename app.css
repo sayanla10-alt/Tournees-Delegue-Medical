@@ -3799,3 +3799,7 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 details.reg-volet { margin-bottom: 10px; }
 details.reg-volet summary span.discret { font-size: 12.5px; }
 details.reg-volet[open] summary { margin-bottom: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--trait, rgba(0,0,0,.08)); }
+/* 3.28.42 : suppression d'une journée par appui long : 1,5 s, l'effet de pression suit cette durée */
+.bj-jour.appui-long-actif.appui-suppr-jour, .appui-long-actif.appui-suppr-jour {
+  transition: transform 1.5s cubic-bezier(.2, .8, .2, 1), border-color 1.5s ease, box-shadow 1.5s ease, opacity 1.5s ease, background-color 1.5s ease !important;
+}

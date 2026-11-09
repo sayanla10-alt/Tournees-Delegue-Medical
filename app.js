@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.41';
+  var APP_VERSION = '3.28.42';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.42', [
+      'Toute suppression (supprimer une journée ou une visite, retirer de la tournée, effacer, remplacer) : « Non » est à droite, en bouton principal et choisi par défaut ; « Oui » est à gauche, discret, pour ne rien supprimer par réflexe',
+      'Suppression d\'une journée par appui long sur la date : 1,5 seconde au lieu de 0,55 (l\'effet de pression dure le même temps)'
+    ]],
     ['3.28.41', [
       'Journée : une visite faite (« Visite faite ») s\'affiche de nouveau en vert. Depuis le passage à Supabase, la liste des statuts était lue sous une mauvaise forme : « Visite faite » ne comptait plus comme visite (rouge, et absente des compteurs de visites)'
     ]],
@@ -3383,9 +3387,10 @@
     var dernierAppuiLongFired = 0;
     var dernierTouchTime = 0;
     var DUREE_APPUI_LONG = 550;
+    var DUREE_SUPPR_JOUR = 1500;   // 3.28.42 : suppression d'une journée : appui plus long, par sécurité
     function annulerAppuiLong() {
       if (timer) { clearTimeout(timer); timer = null; }
-      if (cibleEl) { cibleEl.classList.remove('appui-long-actif'); cibleEl = null; }
+      if (cibleEl) { cibleEl.classList.remove('appui-long-actif', 'appui-suppr-jour'); cibleEl = null; }
       cibleDate = null;
       longPressFired = false;
     }
@@ -3404,14 +3409,14 @@
         startY = pt.clientY;
         cibleDate = date;
         cibleEl = bjBtn || (tetePlan.querySelector('.bilan-jour') || tetePlan);
-        if (cibleEl) cibleEl.classList.add('appui-long-actif');
+        if (cibleEl) cibleEl.classList.add('appui-long-actif', 'appui-suppr-jour');
 
         timer = setTimeout(function () {
           timer = null;
           longPressFired = true;
           dernierAppuiLongFired = Date.now();
           if (cibleEl) {
-            cibleEl.classList.remove('appui-long-actif');
+            cibleEl.classList.remove('appui-long-actif', 'appui-suppr-jour');
             cibleEl = null;
           }
           try {
@@ -3425,9 +3430,9 @@
           if (nb > 0 || (S.jours && S.jours[date]) || (typeof datesPlan === 'function' && datesPlan().indexOf(date) >= 0)) {
             demanderSuppressionJour(date, nb);
           } else {
-            toast('Journee vide (' + majuscule(dateLongue(date)) + ') : aucune visite a supprimer');
+            toast('Journée vide (' + majuscule(dateLongue(date)) + ') : aucune visite à supprimer');
           }
-        }, DUREE_APPUI_LONG);
+        }, DUREE_SUPPR_JOUR);
         return;
       }
 
@@ -4926,6 +4931,7 @@
   function confirmerPuis(titre, message, libelleOui, action, siNon, ouiClasse) {
     S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action, non: siNon || null, ouiClasse: ouiClasse || null };
     rendre();
+    setTimeout(function () { var b = document.querySelector('#feuille [data-defaut]'); if (b) try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); } }, 60);
   }
   function piedQuestion(ouiAttrs, ouiLib, nonAction, ouiClasse) {
     return '<button class="bouton-texte sortir-question" type="button" data-a="sortirQuestion">Sortir</button>' +
@@ -9042,7 +9048,14 @@
   function estInstallee() {
     return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
   }
+  // 3.28.42 : toute suppression (supprimer, effacer, retirer, remplacer, abandonner) : « Non » à droite, en bouton principal et choisi par défaut ;
+  // « Oui » à gauche, discret, pour ne pas supprimer par réflexe
+  function estSuppression(f) { return f.destructif || /supprim|effac|retir|remplac|abandon|vider|quitter/i.test((f.oui || '') + ' ' + (f.titre || '')); }
   FEUILLES.confirmer = function (f) {
+    if (estSuppression(f)) return { corps: '<p style="margin-top:0">' + f.message + '</p>',
+      pied: '<button class="bouton-texte sortir-question" type="button" data-a="sortirQuestion">Sortir</button>' +
+        '<button class="bouton" type="button" data-a="confirmerOui">' + esc(f.oui) + '</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="confirmerNon" data-defaut="1" autofocus>Non</button>' };
     return { corps: '<p style="margin-top:0">' + f.message + '</p>',
       pied: piedQuestion('data-a="confirmerOui"', esc(f.oui), 'confirmerNon', f.ouiClasse) };
   };
@@ -9707,7 +9720,8 @@
     var a = arret(f.uid) || {};
     return { corps: '<p style="margin-top:0">Compte rendu de <b>' + esc(a.nom || '') + '</b> : que voulez-vous faire ?</p>',
       pied: '<button class="bouton" type="button" data-a="effacerVisiteChoix" data-v="refaire">Remettre « à faire »</button>' +
-        '<button class="bouton bouton-plein" type="button" data-a="effacerVisiteChoix" data-v="supprimer">Supprimer la visite</button>' };
+        '<button class="bouton" type="button" data-a="effacerVisiteChoix" data-v="supprimer">Supprimer</button>' +
+        '<button class="bouton bouton-plein" type="button" data-a="fermerFeuille" data-defaut="1">Non</button>' };   // 3.28.42 : Non à droite, par défaut
   };
   // 3.27.1 : fiche repensée. Ajout : on cherche d'abord la personne rencontrée (doublons), puis
   // 1. Où et quand (semaine type : tous les lieux sur une seule semaine) et 2. Qui (carte de visite).

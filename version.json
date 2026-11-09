@@ -1,8 +1,8 @@
 {
-  "version": "3.28.41",
+  "version": "3.28.42",
   "date": "2026-11-09",
   "notes": [
-    "Journée : visite faite de nouveau en vert",
-    "Messages : « envoyé à la BDD »"
+    "Suppressions : « Non » à droite et par défaut",
+    "Suppression d'une journée : appui long de 1,5 s"
   ]
 }
