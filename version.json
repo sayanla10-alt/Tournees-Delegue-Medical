@@ -1,9 +1,9 @@
 {
-  "version": "3.28.33",
+  "version": "3.28.34",
   "date": "2026-11-09",
   "notes": [
+    "Planifier : médecins d'un même hôpital toujours à la suite",
     "Recalculer complète la liste jusqu'au nombre demandé",
-    "Message « Tournée confirmée » affiché plus longtemps",
-    "Réglages rangés, options sensibles dans « Avancé »"
+    "Message « Tournée confirmée » affiché plus longtemps"
   ]
 }

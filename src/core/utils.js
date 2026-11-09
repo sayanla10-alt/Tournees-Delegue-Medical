@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.33';
+  var APP_VERSION = '3.28.34';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.34', [
+      'Planifier : dans chaque secteur, les médecins d\'un même hôpital sont toujours à la suite dans la liste, et une même spécialité à la suite dans un même hôpital (y compris après un recalcul ou pour une tournée reprise du serveur)'
+    ]],
     ['3.28.33', [
       'Planifier : après des retraits par la croix, « Recalculer » complète la liste jusqu\'au nombre demandé (les médecins restés sont repris si les nouveaux ne suffisent pas) ; les médecins retirés ne reviennent pas tant que les critères ne changent pas',
       'S\'il manque vraiment des médecins, le message dit pourquoi (présents ce jour dans vos critères, retirés, déjà prévus un autre jour ou par un collègue, vus récemment)',

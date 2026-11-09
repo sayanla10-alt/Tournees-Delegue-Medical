@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.33';
+  var APP_VERSION = '3.28.34';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.34', [
+      'Planifier : dans chaque secteur, les médecins d\'un même hôpital sont toujours à la suite dans la liste, et une même spécialité à la suite dans un même hôpital (y compris après un recalcul ou pour une tournée reprise du serveur)'
+    ]],
     ['3.28.33', [
       'Planifier : après des retraits par la croix, « Recalculer » complète la liste jusqu\'au nombre demandé (les médecins restés sont repris si les nouveaux ne suffisent pas) ; les médecins retirés ne reviennent pas tant que les critères ne changent pas',
       'S\'il manque vraiment des médecins, le message dit pourquoi (présents ce jour dans vos critères, retirés, déjà prévus un autre jour ou par un collègue, vus récemment)',
@@ -4884,6 +4887,19 @@
       par[k].l.push(a);
     });
     var titres = blocs.length > 1;
+    // 3.28.34 : dans chaque secteur, les médecins d'un même hôpital à la suite (dans l'ordre où l'hôpital apparaît),
+    // et dans un même hôpital, une même spécialité à la suite ; rien n'est déplacé dans la journée, seul l'ordre de la liste change
+    blocs.forEach(function (b) {
+      var rangLieu = {}, rangSpec = {};
+      b.l.forEach(function (a, i) {
+        var kl = normaliser(a.lieu || '') || ('u|' + a.uid), ks = kl + '|' + normaliser(a.specialite || '');
+        if (rangLieu[kl] === undefined) rangLieu[kl] = i;
+        if (rangSpec[ks] === undefined) rangSpec[ks] = i;
+        a.__tri = [rangLieu[kl], rangSpec[ks], i];
+      });
+      b.l.sort(function (x, y) { return x.__tri[0] - y.__tri[0] || x.__tri[1] - y.__tri[1] || x.__tri[2] - y.__tri[2]; });
+      b.l.forEach(function (a) { delete a.__tri; });
+    });
     return blocs.map(function (b) {
       return (titres ? '<li class="lp-groupe lp-groupe-q" aria-hidden="true">' + icone('localisation') + '<span>' + esc(b.nom || 'Autre secteur') + '</span><small>' + b.l.length + ' visite' + (b.l.length > 1 ? 's' : '') + '</small></li>' : '') +
         b.l.map(function (a) { return rendreLignePlan(a); }).join('');
