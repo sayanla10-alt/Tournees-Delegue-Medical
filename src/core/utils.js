@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.47';
+  var APP_VERSION = '3.28.48';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.48', [
+      'Bilan du Jour : « La journée » (visites, potentiel, km, heures, communes) en tête de la page et ouverte par défaut, avec « À ne pas oublier » et « Le terrain »'
+    ]],
     ['3.28.47', [
       'Bilan du Jour : une fois le compte rendu de la journée validé, ou pour un jour passé, l\'encart « Compte Rendu » de Journée devient « Bilan du Jour » et s\'ouvre de la même façon',
       'Cinq volets : À ne pas oublier (RDV et rappels avec leur suite : à venir, fait, non fait ; notes de visite, commandes, ruptures, besoins) et Le terrain (faits marquants, concurrence, produits, échantillons) ouverts ; La journée (chiffres), Visites (détail complet de chaque compte rendu, déplié quand il y a une suite) et Au superviseur (message envoyé, Renvoyer) repliés',

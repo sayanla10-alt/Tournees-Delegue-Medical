@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.47';
+  var APP_VERSION = '3.28.48';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.48', [
+      'Bilan du Jour : « La journée » (visites, potentiel, km, heures, communes) en tête de la page et ouverte par défaut, avec « À ne pas oublier » et « Le terrain »'
+    ]],
     ['3.28.47', [
       'Bilan du Jour : une fois le compte rendu de la journée validé, ou pour un jour passé, l\'encart « Compte Rendu » de Journée devient « Bilan du Jour » et s\'ouvre de la même façon',
       'Cinq volets : À ne pas oublier (RDV et rappels avec leur suite : à venir, fait, non fait ; notes de visite, commandes, ruptures, besoins) et Le terrain (faits marquants, concurrence, produits, échantillons) ouverts ; La journée (chiffres), Visites (détail complet de chaque compte rendu, déplié quand il y a une suite) et Au superviseur (message envoyé, Renvoyer) repliés',
@@ -4260,6 +4263,13 @@
     if (!valide) h += '<div class="bandeau bil-bandeau"><p><b>Cette journée n\'a pas de compte rendu validé.</b>' +
       (s.sansCr.length ? ' ' + s.sansCr.length + ' visite' + (s.sansCr.length > 1 ? 's' : '') + ' sans compte rendu ;' : '') + ' faits marquants, concurrence et besoins non renseignés.</p>' +
       (futurVerrouille(d) || passeVerrouille(d) ? '<p class="discret" style="margin:0">Pour le faire après coup : activez « Saisie avancée » (Réglages › Préférences).</p>' : '<button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('crayon') + 'Faire le CR</button>') + '</div>';
+    // 1. La journée (3.28.48 : en tête, ouverte par défaut)
+    h += voletBilan('journee', 'La journée', nF + '/' + n + ' visites' + (kmJ ? ' · ' + esc(kmJ) : ''),
+      '<div class="bil-chiffres"><div><b>' + nF + '/' + n + '</b><small>visites faites</small></div>' +
+      '<div><b>' + ([[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return x[1] + ' ' + s.pot[x[0]]; })[0] || '-') + '</b><small>potentiel vu</small></div>' +
+      '<div><b>' + (kmJ ? esc(kmJ) : '-') + '</b><small>trajet</small></div></div>' +
+      '<div class="bil-barre"><i style="width:' + (n ? Math.round(nF / n * 100) : 0) + '%"></i></div>' +
+      '<div class="bil-meta"><span>' + pct + ' réalisé</span><span>' + (heures.length ? heures[0] + ' → ' + heures[heures.length - 1] : '') + (comm.length ? ' · ' + esc(comm.join(', ')) : '') + '</span></div>', true);
     // 1. À ne pas oublier
     var ret = [], ligneR = function (ic, cls, titre, txt, tag) {
       ret.push('<div class="bil-ligne"><span class="bil-ic ' + cls + '">' + ic + '</span><div><b>' + titre + '</b>' + (txt ? '<span>' + txt + '</span>' : '') + '</div>' + (tag ? '<span class="bil-tag ' + tag[1] + '">' + tag[0] + '</span>' : '') + '</div>');
@@ -4285,13 +4295,6 @@
       '<div class="bil-sec">Concurrence</div>' + txt(R && R.concurrence) +
       '<div class="bil-sec">Produits présentés</div><p class="bil-txt">' + (nF ? 'Toute la gamme, à chaque visite faite.' : '<span class="bil-ras">R.A.S</span>') + '</p>' +
       (s.echantillons.length ? '<div class="bil-sec">Échantillons remis</div><p class="bil-txt">' + s.echantillons.map(esc).join('<br>') + '</p>' : ''), true);
-    // 3. La journée
-    h += voletBilan('journee', 'La journée', nF + '/' + n + ' visites' + (kmJ ? ' · ' + esc(kmJ) : ''),
-      '<div class="bil-chiffres"><div><b>' + nF + '/' + n + '</b><small>visites faites</small></div>' +
-      '<div><b>' + ([[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return x[1] + ' ' + s.pot[x[0]]; })[0] || '-') + '</b><small>potentiel vu</small></div>' +
-      '<div><b>' + (kmJ ? esc(kmJ) : '-') + '</b><small>trajet</small></div></div>' +
-      '<div class="bil-barre"><i style="width:' + (n ? Math.round(nF / n * 100) : 0) + '%"></i></div>' +
-      '<div class="bil-meta"><span>' + pct + ' réalisé</span><span>' + (heures.length ? heures[0] + ' → ' + heures[heures.length - 1] : '') + (comm.length ? ' · ' + esc(comm.join(', ')) : '') + '</span></div>', false);
     // 4. Visites
     var vis = ordre.map(function (a) {
       var det = detailBilan(a), ko = estKo(a.statut), suivi = (a.prochaine && a.prochaine > a.date) || ko || det.some(function (x) { return x[0] === 'Commande' || (x[0] === 'Stocks' && /rupture/i.test(x[1])); });

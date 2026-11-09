@@ -1,8 +1,8 @@
 {
-  "version": "3.28.47",
+  "version": "3.28.48",
   "date": "2026-11-09",
   "notes": [
     "Nouveau : Bilan du Jour, pour se souvenir de chaque journée",
-    "Compte rendu au superviseur : rubriques fixes, R.A.S si vide"
+    "Bilan du Jour : la journée en tête, ouverte"
   ]
 }
