@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.27';
+  var APP_VERSION = '3.28.28';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.28', [
+      'Journée : un appui long sur un jour de la frise propose de supprimer la journée, même quand elle vient d\'une ancienne tournée publiée ; après confirmation elle ne revient plus, les visites déjà faites et leurs comptes rendus restent'
+    ]],
     ['3.28.27', [
       'Planifier : aujourd\'hui reste choisi d\'une ouverture à l\'autre (la date n\'est plus repoussée au lendemain) ; une journée acceptée passe aussitôt dans Journée'
     ]],

@@ -86,8 +86,9 @@
   function donneesJour(d, tout) {
     var dansPlan = S.plan.filter(function (a) { return a.date === d; });
     if (dansPlan.length) return dansPlan.filter(function (a) { return tout || jourConfirme(d) || a.statut || a.etat === 'valide' || a.garde || a.impose || a.corrige; });
+    var retire = !!LS.get('joursRetires', {})[d];   // 3.28.28 : journée supprimée : l'ancienne tournée ne revient plus
     var prevus = programmeDuJour(d).filter(function (x) {
-      return tout || vraiStatut(x.statut) || (x.prog ? x.prog === 'valide' : x.programme !== 'Proposition');
+      return vraiStatut(x.statut) || (!retire && (tout || (x.prog ? x.prog === 'valide' : x.programme !== 'Proposition')));
     });
     var faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && v.code; });
     var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
@@ -238,8 +239,10 @@
       }
     });
     var datesTraitees = ensemble(Object.keys(srvParDate).concat(datesPlan().filter(function (d) { return d >= t; })));
+    var retiresSrv = LS.get('joursRetires', {});
     Object.keys(datesTraitees).forEach(function (d) {
       if (jourSemaineIndex(d) > 4) return;
+      if (retiresSrv[d] && !S.plan.some(function (a) { return a.date === d; })) return;   // 3.28.28 : journée supprimée par vous
       var visitesJour = S.plan.filter(function (a) { return a.date === d; });
       var aValide = visitesJour.some(function (a) { return a.statut || a.etat === 'valide'; });
       if (aValide) return;

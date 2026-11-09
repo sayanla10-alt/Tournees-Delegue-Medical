@@ -233,7 +233,8 @@
             if (navigator.vibrate) navigator.vibrate(50);
           } catch (err) {}
 
-          var nb = S.plan.filter(function (a) { return a.date === date; }).length;
+          // 3.28.28 : une journée venue du serveur (ancienne tournée publiée) compte aussi
+          var nb = Math.max(S.plan.filter(function (a) { return a.date === date; }).length, donneesJour(date, true).filter(function (a) { return !a.statut; }).length);
           if (nb > 0 || (S.jours && S.jours[date]) || (typeof datesPlan === 'function' && datesPlan().indexOf(date) >= 0)) {
             demanderSuppressionJour(date, nb);
           } else {

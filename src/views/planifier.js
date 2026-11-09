@@ -271,9 +271,13 @@
   }
   // 3.26.31 : suppression d'une journée planifiée après confirmation (appui très long sur la date)
   function supprimerJourPlanifie(date) {
-    var nb = S.plan.filter(function (x) { return x.date === date; }).length;
-    S.plan = S.plan.filter(function (x) { return x.date !== date; });
-    delete S.jours[date];
+    // 3.28.28 : les visites déjà faites (compte rendu) restent ; tout le reste de la journée est effacé,
+    // y compris l'ancienne tournée gardée du serveur, qui ne revient plus
+    S.plan = S.plan.filter(function (x) { return x.date !== date || x.statut; });
+    if (S.data && S.data.plannings) S.data.plannings = S.data.plannings.filter(function (x) { return !(x.date === date && x.delegue && estMoi(x.delegue) && !vraiStatut(x.statut)); });
+    var arch = LS.get('archives', {}); if (arch[date]) { delete arch[date]; LS.set('archives', arch); }
+    var resteFaites = S.plan.some(function (x) { return x.date === date; });
+    if (!resteFaites) delete S.jours[date];
     var rt = LS.get('joursRetires', {});
     rt[date] = true;
     LS.set('joursRetires', rt);
@@ -312,7 +316,7 @@
     var nStr = nb > 0 ? (nb + ' visite' + (nb > 1 ? 's' : '')) : 'aucune visite';
     confirmerPuis(
       'Supprimer la journée',
-      'Voulez-vous supprimer ' + (nb > 0 ? 'toutes les visites prévues le ' : 'la journée du ') + '<b>' + dLong + '</b> (' + nStr + ') ?<br><span class="discret">Cette journée sera retirée de votre planning.</span>',
+      'Voulez-vous supprimer ' + (nb > 0 ? 'toutes les visites prévues le ' : 'la journée du ') + '<b>' + dLong + '</b> (' + nStr + ') ?<br><span class="discret">Cette journée sera retirée de votre planning ; les visites déjà faites et leurs comptes rendus restent. Vous pourrez la replanifier dans Planifier.</span>',
       'Supprimer la journée',
       function () { supprimerJourPlanifie(date); }
     );
