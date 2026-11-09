@@ -3868,3 +3868,6 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .vp-etat { font-weight: 600; }
 .vp-etat.ok { color: var(--vert); }
 .vp-etat.ko { color: var(--ambre); }
+/* 3.28.54 : fiche du Répertoire : les trois boutons prennent la place de « Modifier le planning hebdomadaire », même hauteur (36 px) */
+.bloc-actions-contact { margin-top: 8px !important; }
+.rangee-actions-contact .bouton, .rangee-actions-contact .badge-deja-prevu { min-height: 36px !important; height: 36px !important; }

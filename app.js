@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.53';
+  var APP_VERSION = '3.28.54';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.54', [
+      'Répertoire, fiche d\'un médecin ou d\'une pharmacie : « Modifier le planning hebdomadaire » (ou « Modifier les horaires ») retiré, « Modifier » le fait déjà avec plus d\'options ; les trois boutons (Ajouter au jour, Planifier, Modifier) prennent sa place, sans vide, à la même hauteur'
+    ]],
     ['3.28.53', [
       'Planifier, fiche d\'une visite : date, heure et état sur une seule ligne (« Lundi 9 Nov · Vers 12:50 · Non faite · Absent », « … · Faite à 09:10 ») au lieu de deux'
     ]],
@@ -7665,11 +7668,7 @@
       return '<li>' + (estPh ? '' : '<span class="sr-pt" style="background:' + couleurLieu(pr) + '"></span>') + '<div>' +
         (estPh ? '' : '<b class="lieu-nom-plein">' + esc(abregerHopital(pr.lieu || 'Établissement')) + '</b>') +
         (adr ? '<small>' + esc(adr) + '</small>' : '') + (estPh ? '' : '<small>' + esc(hor(pr)) + '</small>') + '</div></li>';
-    }).join('') + '</ul></div>' +
-      '<div class="pres-actions">' +
-        '<button type="button" class="bouton petit bouton-planning" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
-        icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +
-      '</div>';
+    }).join('') + '</ul></div>';   // 3.28.54 : plus de « Modifier le planning hebdomadaire » : « Modifier » (en dessous) le fait déjà, avec plus d'options
     return h;
   }
 

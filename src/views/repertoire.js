@@ -241,11 +241,7 @@
       return '<li>' + (estPh ? '' : '<span class="sr-pt" style="background:' + couleurLieu(pr) + '"></span>') + '<div>' +
         (estPh ? '' : '<b class="lieu-nom-plein">' + esc(abregerHopital(pr.lieu || 'Établissement')) + '</b>') +
         (adr ? '<small>' + esc(adr) + '</small>' : '') + (estPh ? '' : '<small>' + esc(hor(pr)) + '</small>') + '</div></li>';
-    }).join('') + '</ul></div>' +
-      '<div class="pres-actions">' +
-        '<button type="button" class="bouton petit bouton-planning" data-a="modifierPlanning" data-v="' + esc(code) + '">' +
-        icone('crayon') + (estPh ? ' Modifier les horaires' : ' Modifier le planning hebdomadaire') + '</button>' +
-      '</div>';
+    }).join('') + '</ul></div>';   // 3.28.54 : plus de « Modifier le planning hebdomadaire » : « Modifier » (en dessous) le fait déjà, avec plus d'options
     return h;
   }
 

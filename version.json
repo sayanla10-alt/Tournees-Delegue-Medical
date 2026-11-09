@@ -1,8 +1,8 @@
 {
-  "version": "3.28.53",
+  "version": "3.28.54",
   "date": "2026-11-09",
   "notes": [
-    "Planifier : fiche visite, date, heure et état sur une ligne",
-    "Planifier : options grisées pour une visite déjà renseignée"
+    "Répertoire : fiche sans « Modifier le planning hebdomadaire », boutons remontés",
+    "Planifier : fiche visite sur une ligne"
   ]
 }

@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.53';
+  var APP_VERSION = '3.28.54';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.54', [
+      'Répertoire, fiche d\'un médecin ou d\'une pharmacie : « Modifier le planning hebdomadaire » (ou « Modifier les horaires ») retiré, « Modifier » le fait déjà avec plus d\'options ; les trois boutons (Ajouter au jour, Planifier, Modifier) prennent sa place, sans vide, à la même hauteur'
+    ]],
     ['3.28.53', [
       'Planifier, fiche d\'une visite : date, heure et état sur une seule ligne (« Lundi 9 Nov · Vers 12:50 · Non faite · Absent », « … · Faite à 09:10 ») au lieu de deux'
     ]],
