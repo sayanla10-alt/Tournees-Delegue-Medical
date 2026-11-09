@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.30';
+  var APP_VERSION = '3.28.31';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.31', [
+      'Planifier : après la suppression d\'un jour par appui long, l\'écran reste sur ce jour, vide, avec « Proposer pour ce jour » (il ne saute plus sur le jour suivant, qui laissait croire que le programme supprimé était encore là) ; la date des critères reste sur ce jour',
+      'Planifier : après un retrait par la croix, « Recalculer » propose de nouveau le nombre de visites demandé (les médecins de la liste précédente complètent si besoin, jamais celui retiré)',
+      'Journée et Planifier : le jour choisi est centré exactement sur la largeur de l\'écran dans la frise'
+    ]],
     ['3.28.30', [
       'Mises à jour : l\'application vérifie toutes les 5 minutes et à chaque retour sur l\'écran (au lieu d\'une fois par heure)'
     ]],
@@ -3496,14 +3501,25 @@
   function centrerBandeJours() {
     var b = document.querySelector('.bj-jours'), s = b && b.querySelector('.bj-jour[aria-pressed="true"]');
     if (!s) { S.ui.bjDepart = null; S.ui.bjAvantDate = null; return; }
-    var cible = s.offsetLeft - (b.clientWidth - s.offsetWidth) / 2;
+    // 3.28.31 : centré sur la largeur de l'écran (et non de la bande, raccourcie par le bouton calendrier)
+    var bR = b.getBoundingClientRect(), posS = s.getBoundingClientRect().left - bR.left + b.scrollLeft;
+    var milieu = (window.innerWidth || document.documentElement.clientWidth) / 2 - bR.left;
+    // marges pour que chaque jour, même le premier ou le dernier, puisse venir au centre de l'écran,
+    // et repère d'aimantation (scroll-snap) placé au centre de l'écran
+    var demi = s.offsetWidth / 2;
+    b.style.paddingLeft = Math.max(2, milieu - demi) + 'px';
+    b.style.paddingRight = Math.max(2, bR.width - milieu - demi) + 'px';
+    b.style.scrollPaddingLeft = Math.max(0, 2 * milieu - bR.width) + 'px';
+    b.style.scrollPaddingRight = Math.max(0, bR.width - 2 * milieu) + 'px';
+    posS = s.getBoundingClientRect().left - bR.left + b.scrollLeft;
+    var cible = posS + s.offsetWidth / 2 - milieu;
     if (S.ui.bjDepart !== undefined && S.ui.bjDepart !== null) {
-      var dep = s.offsetLeft - S.ui.bjDepart;
+      var dep = posS - S.ui.bjDepart;
       S.ui.bjDepart = null; S.ui.bjAvantDate = null;
       glisserHorizontal(b, dep, cible, 360);
     } else if (S.ui.bjAvantDate && S.ui.bjAvantDate !== s.dataset.v) {
       var ancien = b.querySelector('.bj-jour[data-v="' + S.ui.bjAvantDate + '"]');
-      var dep2 = ancien ? ancien.offsetLeft - (S.ui.bjAvantLeft || (b.clientWidth - ancien.offsetWidth) / 2) : b.scrollLeft;
+      var dep2 = ancien ? (ancien.getBoundingClientRect().left - bR.left + b.scrollLeft) - (S.ui.bjAvantLeft || milieu - ancien.offsetWidth / 2) : b.scrollLeft;
       S.ui.bjAvantDate = null;
       glisserHorizontal(b, dep2, cible, 380);
     } else {
@@ -4408,6 +4424,16 @@
       '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
       barreCriteresPlanifier();
     var datesF = datesPlanAvenir();
+    // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
+    // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
+    var jSup = S.ui.jourSupprime;
+    if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
+    if (jSup) {
+      return h + (datesF.length ? frisePlanifier(datesF, null) : '') +
+        '<div class="vide"><strong>' + majuscule(dateLongue(jSup)) + ' supprimé</strong>Plus aucune visite prévue ce jour. Proposez une nouvelle tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>' +
+        '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="planifierJourSupprime" data-v="' + jSup + '">' + icone('relancer') + 'Proposer pour le ' + dateCourte(jSup) + '</button></div>' +
+        boutonAnciens('margin-top:10px');
+    }
     if (!datesF.length) {
       return h + '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Proposer ma tournée » ou ajustez vos critères ci-dessus.</div>' +
         '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="generer">' + icone('relancer') + 'Proposer ma tournée</button></div>' +
@@ -4686,6 +4712,11 @@
     // 3.28.29 : l'écran reste sur la journée supprimée (vide, avec « Planifier le … » pour la refaire)
     if (S.ui.tab === 'jour' && date >= aujourdhui() && !resteFaites) S.ui.jourVue = date;
     else if (S.ui.jourVue === date) S.ui.jourVue = null;
+    // 3.28.31 : dans Planifier, l'écran reste sur le jour supprimé (vide) et la date des critères aussi
+    if (S.ui.tab === 'semaine' && date >= aujourdhui() && !resteFaites) {
+      S.ui.jourSupprime = date;
+      if (S.params.mode === 'jour') { S.params.dateRef = date; LS.set('params', S.params); }
+    }
     S.ui.ouvert = null;
     marquerModifie();
     sauver();
@@ -9989,10 +10020,19 @@
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
       horsCible.forEach(function (a) { if (cible.some(function (d) { return Math.abs(joursEcoules(a.date, d)) < ecart; })) exclus[a.code] = true; });
       Object.keys(refusesActuels().codes).forEach(function (c) { exclus[c] = true; });   // 3.26.94 : retirés à la main : jamais reproposés
-      var r = Moteur.genererPlanning(ctx(), {
+      var optsTirage = {
         dates: cible, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0,
         exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles()
-      });
+      };
+      var r = Moteur.genererPlanning(ctx(), optsTirage);
+      // 3.28.31 : un recalcul ne propose jamais moins de visites que demandé quand c'est possible :
+      // si les nouveaux venus ne laissent pas la place, on refait le tirage en reprenant aussi
+      // les médecins de la liste précédente (jamais ceux retirés par la croix)
+      var maxJ = +p.maxJour || 8, manque = function (res) { return cible.some(function (d) { return res.arrets.filter(function (a) { return a.date === d; }).length < maxJ; }); };
+      if (Object.keys(S.rejetes).length && manque(r)) {
+        var r2 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {} }));
+        if (r2.arrets.length > r.arrets.length) r = r2;
+      }
       r.arrets.forEach(function (a) { if (heuresGardees[a.uid]) a.heure = heuresGardees[a.uid]; });
       S.plan = horsCible.concat(r.arrets);
       trierPlan();
@@ -10008,6 +10048,7 @@
       if (portee === 'jour') setTimeout(function () { centrerElement(document.querySelector('.bandeau-prog.accepter')); }, 60);
       var nG = Object.keys(heuresGardees).length, nN = r.arrets.length - nG;
       var msg = r.arrets.length ? (nG ? (!nN ? 'Aucun créneau libre : les ' + nG + ' visites déjà prévues sont conservées.' : nN + ' visite' + (nN > 1 ? 's' : '') + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' déjà prévue' + (nG > 1 ? 's' : '') + ' conservée' + (nG > 1 ? 's' : '') + '.') : r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.') : 'Aucun praticien ne correspond à ces critères.';
+      if (portee === 'jour' && r.arrets.length && r.arrets.length < maxJ) msg += ' Pas d\'autre médecin disponible ce jour avec ces critères (sans retard sur les heures de présence) : ' + r.arrets.length + ' sur ' + maxJ + '.';
       var np = r.nonPlaces.filter(function (x) { return !x.etape; });
       if (np.length) msg += ' ' + np.length + ' médecin(s) prioritaire(s) absent(s) sur la période.';
       var hz = r.nonPlaces.filter(function (x) { return x.etape && x.horsCommunes; });
@@ -10889,8 +10930,9 @@
     jour: function (el) {
       if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
-      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; rendre();
+      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; rendre();
     },
+    planifierJourSupprime: function (el) { S.ui.jourSupprime = null; S.ui.jour = el.dataset.v; lancerTirage('jour'); },
     supprimerJour: function (el) {
       var d = el.dataset.v || S.ui.jour;
       demanderSuppressionJour(d);

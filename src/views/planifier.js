@@ -9,6 +9,16 @@
       '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
       barreCriteresPlanifier();
     var datesF = datesPlanAvenir();
+    // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
+    // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
+    var jSup = S.ui.jourSupprime;
+    if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
+    if (jSup) {
+      return h + (datesF.length ? frisePlanifier(datesF, null) : '') +
+        '<div class="vide"><strong>' + majuscule(dateLongue(jSup)) + ' supprimé</strong>Plus aucune visite prévue ce jour. Proposez une nouvelle tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>' +
+        '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="planifierJourSupprime" data-v="' + jSup + '">' + icone('relancer') + 'Proposer pour le ' + dateCourte(jSup) + '</button></div>' +
+        boutonAnciens('margin-top:10px');
+    }
     if (!datesF.length) {
       return h + '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Proposer ma tournée » ou ajustez vos critères ci-dessus.</div>' +
         '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="generer">' + icone('relancer') + 'Proposer ma tournée</button></div>' +
@@ -287,6 +297,11 @@
     // 3.28.29 : l'écran reste sur la journée supprimée (vide, avec « Planifier le … » pour la refaire)
     if (S.ui.tab === 'jour' && date >= aujourdhui() && !resteFaites) S.ui.jourVue = date;
     else if (S.ui.jourVue === date) S.ui.jourVue = null;
+    // 3.28.31 : dans Planifier, l'écran reste sur le jour supprimé (vide) et la date des critères aussi
+    if (S.ui.tab === 'semaine' && date >= aujourdhui() && !resteFaites) {
+      S.ui.jourSupprime = date;
+      if (S.params.mode === 'jour') { S.params.dateRef = date; LS.set('params', S.params); }
+    }
     S.ui.ouvert = null;
     marquerModifie();
     sauver();

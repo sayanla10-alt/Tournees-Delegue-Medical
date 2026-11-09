@@ -369,14 +369,25 @@
   function centrerBandeJours() {
     var b = document.querySelector('.bj-jours'), s = b && b.querySelector('.bj-jour[aria-pressed="true"]');
     if (!s) { S.ui.bjDepart = null; S.ui.bjAvantDate = null; return; }
-    var cible = s.offsetLeft - (b.clientWidth - s.offsetWidth) / 2;
+    // 3.28.31 : centré sur la largeur de l'écran (et non de la bande, raccourcie par le bouton calendrier)
+    var bR = b.getBoundingClientRect(), posS = s.getBoundingClientRect().left - bR.left + b.scrollLeft;
+    var milieu = (window.innerWidth || document.documentElement.clientWidth) / 2 - bR.left;
+    // marges pour que chaque jour, même le premier ou le dernier, puisse venir au centre de l'écran,
+    // et repère d'aimantation (scroll-snap) placé au centre de l'écran
+    var demi = s.offsetWidth / 2;
+    b.style.paddingLeft = Math.max(2, milieu - demi) + 'px';
+    b.style.paddingRight = Math.max(2, bR.width - milieu - demi) + 'px';
+    b.style.scrollPaddingLeft = Math.max(0, 2 * milieu - bR.width) + 'px';
+    b.style.scrollPaddingRight = Math.max(0, bR.width - 2 * milieu) + 'px';
+    posS = s.getBoundingClientRect().left - bR.left + b.scrollLeft;
+    var cible = posS + s.offsetWidth / 2 - milieu;
     if (S.ui.bjDepart !== undefined && S.ui.bjDepart !== null) {
-      var dep = s.offsetLeft - S.ui.bjDepart;
+      var dep = posS - S.ui.bjDepart;
       S.ui.bjDepart = null; S.ui.bjAvantDate = null;
       glisserHorizontal(b, dep, cible, 360);
     } else if (S.ui.bjAvantDate && S.ui.bjAvantDate !== s.dataset.v) {
       var ancien = b.querySelector('.bj-jour[data-v="' + S.ui.bjAvantDate + '"]');
-      var dep2 = ancien ? ancien.offsetLeft - (S.ui.bjAvantLeft || (b.clientWidth - ancien.offsetWidth) / 2) : b.scrollLeft;
+      var dep2 = ancien ? (ancien.getBoundingClientRect().left - bR.left + b.scrollLeft) - (S.ui.bjAvantLeft || milieu - ancien.offsetWidth / 2) : b.scrollLeft;
       S.ui.bjAvantDate = null;
       glisserHorizontal(b, dep2, cible, 380);
     } else {

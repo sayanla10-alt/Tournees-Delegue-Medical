@@ -151,8 +151,9 @@
     jour: function (el) {
       if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
-      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; rendre();
+      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; rendre();
     },
+    planifierJourSupprime: function (el) { S.ui.jourSupprime = null; S.ui.jour = el.dataset.v; lancerTirage('jour'); },
     supprimerJour: function (el) {
       var d = el.dataset.v || S.ui.jour;
       demanderSuppressionJour(d);

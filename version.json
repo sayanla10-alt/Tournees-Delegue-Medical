@@ -1,8 +1,9 @@
 {
-  "version": "3.28.30",
+  "version": "3.28.31",
   "date": "2026-11-09",
   "notes": [
-    "Journée : suppression d'un jour par appui long",
-    "Mises à jour reçues plus vite"
+    "Planifier : un jour supprimé reste affiché, vide, avec « Proposer pour ce jour »",
+    "Recalculer garde le nombre de visites demandé après un retrait",
+    "Jour choisi centré dans la frise"
   ]
 }

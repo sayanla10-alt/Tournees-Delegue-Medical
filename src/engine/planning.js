@@ -121,10 +121,19 @@
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
       horsCible.forEach(function (a) { if (cible.some(function (d) { return Math.abs(joursEcoules(a.date, d)) < ecart; })) exclus[a.code] = true; });
       Object.keys(refusesActuels().codes).forEach(function (c) { exclus[c] = true; });   // 3.26.94 : retirés à la main : jamais reproposés
-      var r = Moteur.genererPlanning(ctx(), {
+      var optsTirage = {
         dates: cible, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0,
         exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles()
-      });
+      };
+      var r = Moteur.genererPlanning(ctx(), optsTirage);
+      // 3.28.31 : un recalcul ne propose jamais moins de visites que demandé quand c'est possible :
+      // si les nouveaux venus ne laissent pas la place, on refait le tirage en reprenant aussi
+      // les médecins de la liste précédente (jamais ceux retirés par la croix)
+      var maxJ = +p.maxJour || 8, manque = function (res) { return cible.some(function (d) { return res.arrets.filter(function (a) { return a.date === d; }).length < maxJ; }); };
+      if (Object.keys(S.rejetes).length && manque(r)) {
+        var r2 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {} }));
+        if (r2.arrets.length > r.arrets.length) r = r2;
+      }
       r.arrets.forEach(function (a) { if (heuresGardees[a.uid]) a.heure = heuresGardees[a.uid]; });
       S.plan = horsCible.concat(r.arrets);
       trierPlan();
@@ -140,6 +149,7 @@
       if (portee === 'jour') setTimeout(function () { centrerElement(document.querySelector('.bandeau-prog.accepter')); }, 60);
       var nG = Object.keys(heuresGardees).length, nN = r.arrets.length - nG;
       var msg = r.arrets.length ? (nG ? (!nN ? 'Aucun créneau libre : les ' + nG + ' visites déjà prévues sont conservées.' : nN + ' visite' + (nN > 1 ? 's' : '') + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' déjà prévue' + (nG > 1 ? 's' : '') + ' conservée' + (nG > 1 ? 's' : '') + '.') : r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.') : 'Aucun praticien ne correspond à ces critères.';
+      if (portee === 'jour' && r.arrets.length && r.arrets.length < maxJ) msg += ' Pas d\'autre médecin disponible ce jour avec ces critères (sans retard sur les heures de présence) : ' + r.arrets.length + ' sur ' + maxJ + '.';
       var np = r.nonPlaces.filter(function (x) { return !x.etape; });
       if (np.length) msg += ' ' + np.length + ' médecin(s) prioritaire(s) absent(s) sur la période.';
       var hz = r.nonPlaces.filter(function (x) { return x.etape && x.horsCommunes; });

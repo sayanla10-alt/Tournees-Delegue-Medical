@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.30';
+  var APP_VERSION = '3.28.31';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.31', [
+      'Planifier : après la suppression d\'un jour par appui long, l\'écran reste sur ce jour, vide, avec « Proposer pour ce jour » (il ne saute plus sur le jour suivant, qui laissait croire que le programme supprimé était encore là) ; la date des critères reste sur ce jour',
+      'Planifier : après un retrait par la croix, « Recalculer » propose de nouveau le nombre de visites demandé (les médecins de la liste précédente complètent si besoin, jamais celui retiré)',
+      'Journée et Planifier : le jour choisi est centré exactement sur la largeur de l\'écran dans la frise'
+    ]],
     ['3.28.30', [
       'Mises à jour : l\'application vérifie toutes les 5 minutes et à chaque retour sur l\'écran (au lieu d\'une fois par heure)'
     ]],
