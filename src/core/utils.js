@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.37';
+  var APP_VERSION = '3.28.38';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.38', [
+      'Planifier, + Ajouter : liste complète par ordre alphabétique (sans tenir compte de Dr, Pr, Pharmacie)',
+      'Listes d\'ajout : chaque pharmacie affiche son quartier, puis sa commune, même quand le quartier figure dans son nom'
+    ]],
     ['3.28.37', [
       'Journée, + Médecin et + Pharmacie, « Selon mes filtres » : mêmes critères que la journée planifiée (communes choisies dans Planifier pour ce jour, plus celles des visites gardées hors zone ; spécialités et potentiels pour les médecins), et non plus les filtres du Répertoire'
     ]],

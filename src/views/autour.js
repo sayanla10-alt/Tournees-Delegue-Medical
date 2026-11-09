@@ -160,6 +160,14 @@
     return !l || l === n || n.indexOf(l) >= 0 || l.indexOf(n) >= 0 ? '' : a.lieu;
   }
   // sous-titre sans redite : pas de spécialité pour une pharmacie, rien de ce que le nom dit déjà
+  // 3.28.38 : pharmacie dans les listes d'ajout : quartier toujours affiché (même s'il figure dans le nom), puis la commune
+  function lieuPharmacieListe(p, cr) {
+    cr = cr || {};
+    var l0 = (p.lieux && p.lieux[0]) || {}, q = cr.quartier || p.quartier || l0.quartier || '', c = cr.commune || p.commune || l0.commune || '';
+    var lieu = infosSansDoublon(p, [cr.lieu]), l = [], vus = {};
+    [lieu, q, q && normaliser(q).indexOf(normaliser(c)) >= 0 ? '' : c].forEach(function (x) { var k = normaliser(x || ''); if (k && !vus[k]) { vus[k] = true; l.push(x); } });
+    return l.join(', ');
+  }
   function infosSansDoublon(o, l) {
     var n = normaliser(nomSansType(o.nom)), ph = estPharmacie(o), vus = {};
     return l.filter(function (x, i) {

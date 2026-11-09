@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.37';
+  var APP_VERSION = '3.28.38';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.38', [
+      'Planifier, + Ajouter : liste complète par ordre alphabétique (sans tenir compte de Dr, Pr, Pharmacie)',
+      'Listes d\'ajout : chaque pharmacie affiche son quartier, puis sa commune, même quand le quartier figure dans son nom'
+    ]],
     ['3.28.37', [
       'Journée, + Médecin et + Pharmacie, « Selon mes filtres » : mêmes critères que la journée planifiée (communes choisies dans Planifier pour ce jour, plus celles des visites gardées hors zone ; spécialités et potentiels pour les médecins), et non plus les filtres du Répertoire'
     ]],
@@ -6614,6 +6618,14 @@
     return !l || l === n || n.indexOf(l) >= 0 || l.indexOf(n) >= 0 ? '' : a.lieu;
   }
   // sous-titre sans redite : pas de spécialité pour une pharmacie, rien de ce que le nom dit déjà
+  // 3.28.38 : pharmacie dans les listes d'ajout : quartier toujours affiché (même s'il figure dans le nom), puis la commune
+  function lieuPharmacieListe(p, cr) {
+    cr = cr || {};
+    var l0 = (p.lieux && p.lieux[0]) || {}, q = cr.quartier || p.quartier || l0.quartier || '', c = cr.commune || p.commune || l0.commune || '';
+    var lieu = infosSansDoublon(p, [cr.lieu]), l = [], vus = {};
+    [lieu, q, q && normaliser(q).indexOf(normaliser(c)) >= 0 ? '' : c].forEach(function (x) { var k = normaliser(x || ''); if (k && !vus[k]) { vus[k] = true; l.push(x); } });
+    return l.join(', ');
+  }
   function infosSansDoublon(o, l) {
     var n = normaliser(nomSansType(o.nom)), ph = estPharmacie(o), vus = {};
     return l.filter(function (x, i) {
@@ -8443,7 +8455,7 @@
       var p = x.cr.prat, ph = estPharmacie(p);
       return '<li><button type="button" class="element carte-bouton" data-a="remplacerChoisir" data-v="' + esc(x.cr.cle) + '" data-h="' + esc(x.heure) + '" data-dist="' + (x.dist !== undefined ? x.dist : '') + '" data-memelieu="' + (x.memeLieu ? '1' : '0') + '">' +
         '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + (ph ? '' : ' ' + etoiles(p.note)) + '</span>' +
-        '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [ph ? '' : p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
+        '<span class="discret bloc-texte">' + esc(ph ? lieuPharmacieListe(p, x.cr) : infosSansDoublon(p, [p.specialite, x.cr.lieu, x.cr.quartier])) + '</span>' +
         '<span class="discret bloc-texte">' + x.cr.creneau + ' ' + minutesVersHeure(x.cr.debut) + '-' + minutesVersHeure(x.cr.fin) + ' · passage vers ' + esc(x.heure) +
           (x.dist < 99 ? ' · ' + km(x.dist) + ' du lieu remplacé' : '') + '</span>' +
         '<span class="etiquettes">' + (x.memeLieu ? '<span class="etiquette ok">Même établissement</span>' : '') + (ph ? '' : badgeConv(p.conventionne)) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, (a ? a.date : ''))) + '</span>' +
@@ -8628,7 +8640,7 @@
     return '<ul class="liste">' + l.map(function (x) {
       var cr = x.cr, p = cr.prat, st = '';
       if (p.type === 'Pharmacie') {
-        st = infosSansDoublon(p, [cr.lieu, cr.quartier, cr.commune]);
+        st = lieuPharmacieListe(p, cr);
       } else {
         var hopital = abregerHopital(cr.lieu || (p.lieux && p.lieux[0] && p.lieux[0].lieu) || '');
         var secteur = cr.commune || p.commune || '';
@@ -8714,15 +8726,18 @@
     // 3.25.8 : position connue (GPS récent ou Autour de moi) : du plus proche au plus loin
     var pos = positionActuelle();
     Object.keys(vus).forEach(function (k) { vus[k].dist = pos && vus[k].cr.coord ? distanceVol(pos, vus[k].cr.coord) : null; vus[k].approx = !!(vus[k].cr.coord && vus[k].cr.coord.approx); });
+    // 3.28.38 : depuis Planifier (+ Ajouter), liste complète par ordre alphabétique ; dans Journée, du plus proche au plus loin
+    var alpha = S.ui.tab === 'semaine', nomTri = function (x) { return sansAccents(nomSansType(x.cr.prat.nom || '')).toLowerCase().replace(/^(dr|pr|ide|sage[- ]femme|mme|mlle|m)\.?\s+/, ''); };
     var tous = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) {
+      if (alpha) return nomTri(x).localeCompare(nomTri(y), 'fr');
       return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score;
-    }), l = tous.slice(0, mots.length ? 60 : 30);
+    }), l = tous.slice(0, alpha ? 400 : (mots.length ? 60 : 30));
     if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là' + (Object.keys(com).length ? ' dans ' + esc(libelleCommunes(Object.keys(com))) : '') + ', selon vos critères.') + '</p>';
     return (mots.length ? '<p class="discret">' + tous.length + ' résultat' + (tous.length > 1 ? 's' : '') + '.</p>' : '') +
       '<ul class="liste">' + l.map(function (x) {
         var cr = x.cr, p = cr.prat, st = '', details = cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d));
         if (p.type === 'Pharmacie') {
-          st = infosSansDoublon(p, [cr.lieu, cr.quartier]);
+          st = lieuPharmacieListe(p, cr);
           if (x.dist !== null && x.dist !== undefined) {
             details += ' · <b>' + distMoi(x.dist, x.approx) + '</b>' + (x.approx ? ' <small>(position du quartier)</small>' : '');
           }
