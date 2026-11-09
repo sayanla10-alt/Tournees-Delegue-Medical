@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.26';
+  var APP_VERSION = '3.28.27';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.27', [
+      'Planifier : aujourd\'hui reste choisi d\'une ouverture à l\'autre (la date n\'est plus repoussée au lendemain) ; une journée acceptée passe aussitôt dans Journée'
+    ]],
     ['3.28.26', [
       'Planifier garde ses critères (journée ou semaine, communes, spécialités, potentiel) jusqu\'à ce que vous les changiez ou les réinitialisiez : les filtres du Répertoire ne les modifient plus',
       'Dans un même hôpital, les médecins d\'une même spécialité se suivent (cardiologues ensemble, généralistes ensemble…)'
@@ -1153,7 +1156,9 @@
   if (!Array.isArray(S.params.potentiels)) S.params.potentiels = [];
   // 3.28.26 : au démarrage, critères de Planifier et filtres du Répertoire restent chacun tels qu'ils ont été laissés
   // 3.25.0 : la période proposée commence demain (J+1), y compris après rafraîchissement
-  if (!S.params.dateRef || S.params.dateRef <= aujourdhui()) { S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); LS.set('params', S.params); }
+  // 3.28.27 : aujourd'hui reste planifiable ; seule une date passée (ou une semaine finie) est avancée
+  function dateRefPassee(p) { return !p.dateRef || (p.mode === 'jour' ? p.dateRef < aujourdhui() : joursOuvres(lundiDe(p.dateRef))[4] < aujourdhui()); }
+  if (dateRefPassee(S.params)) { S.params.dateRef = prochainJourOuvre(aujourdhui()); LS.set('params', S.params); }
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);
 
   // 3.22.0 : copie de secours du téléphone, une par jour sur 7 jours (comptes rendus et fiches non envoyés, agenda,
@@ -12798,7 +12803,7 @@
     absentsAuDemarrage = {};
     if (LS._mem.params) {
       S.params = Object.assign({}, defautParams, LS._mem.params);
-      if (!S.params.dateRef || S.params.dateRef <= aujourdhui()) S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+      if (dateRefPassee(S.params)) S.params.dateRef = prochainJourOuvre(aujourdhui());
     }
     if (LS._mem.imposes) S.imposes = LS._mem.imposes;
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
