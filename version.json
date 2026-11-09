@@ -1,8 +1,9 @@
 {
-  "version": "3.28.44",
+  "version": "3.28.45",
   "date": "2026-11-09",
   "notes": [
-    "Compte rendu au superviseur repensé : bilan, À retenir, visites avec l'heure",
-    "Suppressions : « Non » à droite et par défaut"
+    "Compte rendu de visite : plus de produits présentés",
+    "Visite non faite : ni produits ni échantillons",
+    "Formulaire express : statut bien enregistré"
   ]
 }

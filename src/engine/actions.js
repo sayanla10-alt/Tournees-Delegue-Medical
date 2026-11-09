@@ -54,7 +54,7 @@
       if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
-      c.statut = el.dataset.v;
+      c.statut = el.dataset.v; appliquerStatutExpress(c);
       syncCr(a);
       LS.set('plan', S.plan);
       rendre();
@@ -71,7 +71,7 @@
     basculerModeComplet: function (el, e) {
       if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
-      a.modeComplet = true;
+      a.modeComplet = true; delete crDe(a).statut;
       rendre();
       centrerQuestion(a.uid, S.ui.dernierClicY);
     },
@@ -1947,7 +1947,7 @@
     if (f === 'autour') { S.ui.autour[el.dataset.k] = el.value; LS.set('autour', S.ui.autour); rendre(); }
     if (f === 'crSelect') {
       var as = arret(el.dataset.uid);
-      if (as) { majCr(as, el.dataset.k, el.value); if (el.dataset.k === 'date' && el.value) validerEtape(as, 'date'); rendre(); }
+      if (as) { majCr(as, el.dataset.k, el.value); if (el.dataset.k === 'statut') { appliquerStatutExpress(crDe(as)); syncCr(as); } if (el.dataset.k === 'date' && el.value) validerEtape(as, 'date'); rendre(); }
     }
     if (f === 'cr' && /^(autres)$/.test(el.dataset.k)) rendre();
     if (f === 'repriseCible' && el.value && S.ui.feuille) {

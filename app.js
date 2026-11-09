@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.44';
+  var APP_VERSION = '3.28.45';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.45', [
+      'Compte rendu de visite (médecin) : plus de question « Produits présentés », ni de choix des produits, ni de réaction par produit : tous les produits sont présentés à chaque visite ; seuls les échantillons remis se renseignent',
+      'Visite non faite : plus jamais de produits, d\'échantillons ni de réactions enregistrés. Formulaire express : le statut choisi (Absent, Indisponible, Reporté…) est bien enregistré comme visite non faite avec son motif',
+      'Synthèse de la journée (superviseur) : sans produits présentés ; communes regroupées'
+    ]],
     ['3.28.44', [
       'Compte rendu au superviseur repensé, lisible en quelques secondes : en-tête et bilan sur deux lignes (visites faites, taux, potentiel, km, communes), puis « À retenir » (besoins, ruptures, commandes, RDV, faits marquants, concurrence, échantillons), puis les visites faites avec l\'heure, puis les non faites et leur motif ; visites sans compte rendu signalées par nom'
     ]],
@@ -4344,16 +4349,14 @@
     return s;
   }
   function lignesSynthese(s) {
-    var prod = Object.keys(s.produits).sort(function (a, b) { return s.produits[b] - s.produits[a]; }).map(function (x) { return x + (s.produits[x] > 1 ? ' (' + s.produits[x] + ')' : ''); });
     var l = [['Visites', s.faites.length + ' faite' + (s.faites.length > 1 ? 's' : '') + ' sur ' + s.prevues + (s.sansCr.length ? ' · ' + s.sansCr.length + ' sans compte rendu' : '')]];
     if (s.faites.length) l.push(['Potentiel vu', [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return s.pot[x[0]] + ' ' + x[1]; }).join(' · ')]);
     if (s.nonFaites.length) l.push(['Non faites', s.nonFaites.map(function (a) { return a.nom + ' (' + statutLibelle(a).toLowerCase() + ')'; }).join(', ')]);
-    if (prod.length) l.push(['Produits présentés', prod.join(', ')]);
     if (s.echantillons.length) l.push(['Échantillons', s.echantillons.join(' ; ')]);
     if (s.commandes.length) l.push(['Commandes', s.commandes.join(' ; ')]);
     if (s.ruptures.length) l.push(['Ruptures', s.ruptures.join(', ')]);
     if (s.suites.length) l.push(['RDV et rappels', s.suites.join(' ; ')]);
-    l.push(['Trajet', km(s.km) + (s.est ? ' (' + minutesVersHeure(s.est.debut) + '–' + minutesVersHeure(s.est.fin) + ')' : '') + (s.communes.length ? ' · ' + s.communes.join(', ') : '')]);
+    l.push(['Trajet', km(s.km) + (s.est ? ' (' + minutesVersHeure(s.est.debut) + '–' + minutesVersHeure(s.est.fin) + ')' : '') + (s.communes.length ? ' · ' + s.communes.map(function (c) { return communeParente(c) || c; }).filter(function (c, i, t) { return t.indexOf(c) === i; }).join(', ') : '')]);
     return l;
   }
   function etapesRapport(R, s) {
@@ -5361,6 +5364,13 @@
       : { presentes: (t.indexOf('Présentation') >= 0 || t.indexOf('Présentation produit') >= 0), echant: t.indexOf('Échantillons') >= 0 };
   }
   function produitsPresentes(c) { return (c.produits || []).concat(listeProduits(c.autres)); }
+  // 3.28.45 : formulaire express : le statut choisi règle « visite faite » et le motif ; une visite non faite n'a ni produits, ni échantillons, ni réactions
+  function appliquerStatutExpress(c) {
+    if (!c || !c.statut) return;
+    if (Moteur.estVisite(c.statut, statuts())) { c.faite = 'oui'; c.motif = ''; }
+    else { c.faite = 'non'; c.motif = c.statut; viderVisiteFaite(c); }
+  }
+  function viderVisiteFaite(c) { c.produits = []; c.autres = ''; c.reactions = {}; c.echant = 'non'; c.echQ = {}; c.types = []; }
   function listeQ(o) { return Object.keys(o || {}).filter(function (p) { return +o[p] > 0; }).map(function (p) { return p + ' × ' + (+o[p]); }).join(' ; '); }
   // champs envoyés à l'historique (colonnes de la feuille Historique)
   function champsCr(a) {
@@ -5368,10 +5378,8 @@
     if (c.faite === 'oui') {
       r.statut = statutFaite(); r.activite = (c.types || []).join(' ; ');
       if (!ph) {
-        var pres = c.presentes === 'oui' || im.presentes ? produitsPresentes(c) : [];
-        r.produits = pres.join(', ');
-        r.reactions = pres.filter(function (p) { return c.reactions[p]; }).map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(' ; ');
-        if ((c.presentes === 'oui' || im.presentes) && (c.echant === 'oui' || im.echant)) r.echantillons = listeQ(c.echQ);
+        r.produits = ''; r.reactions = '';   // 3.28.45 : tous les produits sont présentés, rien à noter
+        if (c.echant === 'oui' || im.echant) r.echantillons = listeQ(c.echQ);
         r.commentaire = c.bilan || '';
       } else {
         r.interlocuteur = c.interlocuteur || '';
@@ -5712,26 +5720,12 @@
     if (!ph) {
       e('types', 'Type(s) de visite médicale', 'continuer', function () { return rendreChoixTypesCr(a, c.types); }, function () { return (c.types || []).join(', '); },
         function () { return (c.types || []).length ? '' : 'choisissez au moins un type de visite médicale'; });
-      if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes || 'oui'); }, function () { return oui(c.presentes); });
-      if (c.presentes === 'oui' || im.presentes) {
-        e('produits', 'Produits présentés', 'continuer', function () {
-          return rendreChoixProduitsCr(a, 'produits', c.produits);
-        }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
-        e('reactions', 'Réaction du médecin', 'continuer', function () {
-          // 3.26.88 : réaction par défaut : la dernière donnée pour ce produit, sinon « Intéressé »
-          var memR = LS.get('dernieresReactionsCr', {}); c.reactions = c.reactions || {};
-          produitsPresentes(c).forEach(function (p) { if (!c.reactions[p]) c.reactions[p] = memR[p] || 'Intéressé'; });
-          return '<div class="champs-cr">' + produitsPresentes(c).map(function (p) {
-            return '<div class="champ champ-reaction-produit"><div class="etiquette-med-cr"><b>' + esc(p) + '</b></div><div class="grille-reactions-cr">' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div></div>';
-          }).join('') + '</div>';
-        }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
-        if (!im.echant && !c.echant) c.echant = 'non';
-        if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
-        if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
-      } else {
-        c.echant = 'non';
-        c.echQ = {};
-      }
+      // 3.28.45 : tous les produits sont présentés à chaque visite : ni question, ni choix, ni réaction par produit ;
+      // seuls les échantillons remis se renseignent (quantités parmi tous les produits)
+      c.presentes = ''; c.produits = []; c.reactions = {};
+      if (!im.echant && !c.echant) c.echant = 'non';
+      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
+      if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', cat, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
       e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
       etapesSuite(a, c, SUITES.medecin, e);
       return l;
@@ -5817,7 +5811,8 @@
   // 3.25.43 : Formulaire Express en un seul écran pour les visites rapides
   function rendreCompteRenduExpress(a) {
     var c = crDe(a);
-    if (!c.statut) { c.statut = 'Visite faite'; syncCr(a); }
+    if (!c.statut) c.statut = c.faite === 'non' && c.motif ? c.motif : 'Visite faite';
+    appliquerStatutExpress(c); syncCr(a);
     var estFait = Moteur.estVisite(c.statut, statuts());
     var ph = estPharmacie(a);
 
@@ -5856,11 +5851,7 @@
       rendreChoixTypesCr(a, c.types) +
       '</div>';
 
-    // 3. Produits présentés
-    h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
-      '<div class="gamme-cr-titre" style="margin-bottom:6px"><span><b>Produits présentés</b></span></div>' +
-      rendreChoixProduitsCr(a, 'produits', c.produits) +
-      '</div>';
+    // 3.28.45 : plus de choix des produits présentés : tous les produits sont présentés à chaque visite
 
     // 4. Prochaine étape
     var optProchaine = [
@@ -11091,7 +11082,7 @@
       if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
-      c.statut = el.dataset.v;
+      c.statut = el.dataset.v; appliquerStatutExpress(c);
       syncCr(a);
       LS.set('plan', S.plan);
       rendre();
@@ -11108,7 +11099,7 @@
     basculerModeComplet: function (el, e) {
       if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
       var a = arret(el.dataset.uid); if (!a) return;
-      a.modeComplet = true;
+      a.modeComplet = true; delete crDe(a).statut;
       rendre();
       centrerQuestion(a.uid, S.ui.dernierClicY);
     },
@@ -12984,7 +12975,7 @@
     if (f === 'autour') { S.ui.autour[el.dataset.k] = el.value; LS.set('autour', S.ui.autour); rendre(); }
     if (f === 'crSelect') {
       var as = arret(el.dataset.uid);
-      if (as) { majCr(as, el.dataset.k, el.value); if (el.dataset.k === 'date' && el.value) validerEtape(as, 'date'); rendre(); }
+      if (as) { majCr(as, el.dataset.k, el.value); if (el.dataset.k === 'statut') { appliquerStatutExpress(crDe(as)); syncCr(as); } if (el.dataset.k === 'date' && el.value) validerEtape(as, 'date'); rendre(); }
     }
     if (f === 'cr' && /^(autres)$/.test(el.dataset.k)) rendre();
     if (f === 'repriseCible' && el.value && S.ui.feuille) {

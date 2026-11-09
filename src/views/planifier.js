@@ -829,6 +829,13 @@
       : { presentes: (t.indexOf('Présentation') >= 0 || t.indexOf('Présentation produit') >= 0), echant: t.indexOf('Échantillons') >= 0 };
   }
   function produitsPresentes(c) { return (c.produits || []).concat(listeProduits(c.autres)); }
+  // 3.28.45 : formulaire express : le statut choisi règle « visite faite » et le motif ; une visite non faite n'a ni produits, ni échantillons, ni réactions
+  function appliquerStatutExpress(c) {
+    if (!c || !c.statut) return;
+    if (Moteur.estVisite(c.statut, statuts())) { c.faite = 'oui'; c.motif = ''; }
+    else { c.faite = 'non'; c.motif = c.statut; viderVisiteFaite(c); }
+  }
+  function viderVisiteFaite(c) { c.produits = []; c.autres = ''; c.reactions = {}; c.echant = 'non'; c.echQ = {}; c.types = []; }
   function listeQ(o) { return Object.keys(o || {}).filter(function (p) { return +o[p] > 0; }).map(function (p) { return p + ' × ' + (+o[p]); }).join(' ; '); }
   // champs envoyés à l'historique (colonnes de la feuille Historique)
   function champsCr(a) {
@@ -836,10 +843,8 @@
     if (c.faite === 'oui') {
       r.statut = statutFaite(); r.activite = (c.types || []).join(' ; ');
       if (!ph) {
-        var pres = c.presentes === 'oui' || im.presentes ? produitsPresentes(c) : [];
-        r.produits = pres.join(', ');
-        r.reactions = pres.filter(function (p) { return c.reactions[p]; }).map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(' ; ');
-        if ((c.presentes === 'oui' || im.presentes) && (c.echant === 'oui' || im.echant)) r.echantillons = listeQ(c.echQ);
+        r.produits = ''; r.reactions = '';   // 3.28.45 : tous les produits sont présentés, rien à noter
+        if (c.echant === 'oui' || im.echant) r.echantillons = listeQ(c.echQ);
         r.commentaire = c.bilan || '';
       } else {
         r.interlocuteur = c.interlocuteur || '';
@@ -1180,26 +1185,12 @@
     if (!ph) {
       e('types', 'Type(s) de visite médicale', 'continuer', function () { return rendreChoixTypesCr(a, c.types); }, function () { return (c.types || []).join(', '); },
         function () { return (c.types || []).length ? '' : 'choisissez au moins un type de visite médicale'; });
-      if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes || 'oui'); }, function () { return oui(c.presentes); });
-      if (c.presentes === 'oui' || im.presentes) {
-        e('produits', 'Produits présentés', 'continuer', function () {
-          return rendreChoixProduitsCr(a, 'produits', c.produits);
-        }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
-        e('reactions', 'Réaction du médecin', 'continuer', function () {
-          // 3.26.88 : réaction par défaut : la dernière donnée pour ce produit, sinon « Intéressé »
-          var memR = LS.get('dernieresReactionsCr', {}); c.reactions = c.reactions || {};
-          produitsPresentes(c).forEach(function (p) { if (!c.reactions[p]) c.reactions[p] = memR[p] || 'Intéressé'; });
-          return '<div class="champs-cr">' + produitsPresentes(c).map(function (p) {
-            return '<div class="champ champ-reaction-produit"><div class="etiquette-med-cr"><b>' + esc(p) + '</b></div><div class="grille-reactions-cr">' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div></div>';
-          }).join('') + '</div>';
-        }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
-        if (!im.echant && !c.echant) c.echant = 'non';
-        if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
-        if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
-      } else {
-        c.echant = 'non';
-        c.echQ = {};
-      }
+      // 3.28.45 : tous les produits sont présentés à chaque visite : ni question, ni choix, ni réaction par produit ;
+      // seuls les échantillons remis se renseignent (quantités parmi tous les produits)
+      c.presentes = ''; c.produits = []; c.reactions = {};
+      if (!im.echant && !c.echant) c.echant = 'non';
+      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
+      if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', cat, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
       e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
       etapesSuite(a, c, SUITES.medecin, e);
       return l;
@@ -1285,7 +1276,8 @@
   // 3.25.43 : Formulaire Express en un seul écran pour les visites rapides
   function rendreCompteRenduExpress(a) {
     var c = crDe(a);
-    if (!c.statut) { c.statut = 'Visite faite'; syncCr(a); }
+    if (!c.statut) c.statut = c.faite === 'non' && c.motif ? c.motif : 'Visite faite';
+    appliquerStatutExpress(c); syncCr(a);
     var estFait = Moteur.estVisite(c.statut, statuts());
     var ph = estPharmacie(a);
 
@@ -1324,11 +1316,7 @@
       rendreChoixTypesCr(a, c.types) +
       '</div>';
 
-    // 3. Produits présentés
-    h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
-      '<div class="gamme-cr-titre" style="margin-bottom:6px"><span><b>Produits présentés</b></span></div>' +
-      rendreChoixProduitsCr(a, 'produits', c.produits) +
-      '</div>';
+    // 3.28.45 : plus de choix des produits présentés : tous les produits sont présentés à chaque visite
 
     // 4. Prochaine étape
     var optProchaine = [

@@ -226,16 +226,14 @@
     return s;
   }
   function lignesSynthese(s) {
-    var prod = Object.keys(s.produits).sort(function (a, b) { return s.produits[b] - s.produits[a]; }).map(function (x) { return x + (s.produits[x] > 1 ? ' (' + s.produits[x] + ')' : ''); });
     var l = [['Visites', s.faites.length + ' faite' + (s.faites.length > 1 ? 's' : '') + ' sur ' + s.prevues + (s.sansCr.length ? ' · ' + s.sansCr.length + ' sans compte rendu' : '')]];
     if (s.faites.length) l.push(['Potentiel vu', [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return s.pot[x[0]] + ' ' + x[1]; }).join(' · ')]);
     if (s.nonFaites.length) l.push(['Non faites', s.nonFaites.map(function (a) { return a.nom + ' (' + statutLibelle(a).toLowerCase() + ')'; }).join(', ')]);
-    if (prod.length) l.push(['Produits présentés', prod.join(', ')]);
     if (s.echantillons.length) l.push(['Échantillons', s.echantillons.join(' ; ')]);
     if (s.commandes.length) l.push(['Commandes', s.commandes.join(' ; ')]);
     if (s.ruptures.length) l.push(['Ruptures', s.ruptures.join(', ')]);
     if (s.suites.length) l.push(['RDV et rappels', s.suites.join(' ; ')]);
-    l.push(['Trajet', km(s.km) + (s.est ? ' (' + minutesVersHeure(s.est.debut) + '–' + minutesVersHeure(s.est.fin) + ')' : '') + (s.communes.length ? ' · ' + s.communes.join(', ') : '')]);
+    l.push(['Trajet', km(s.km) + (s.est ? ' (' + minutesVersHeure(s.est.debut) + '–' + minutesVersHeure(s.est.fin) + ')' : '') + (s.communes.length ? ' · ' + s.communes.map(function (c) { return communeParente(c) || c; }).filter(function (c, i, t) { return t.indexOf(c) === i; }).join(', ') : '')]);
     return l;
   }
   function etapesRapport(R, s) {
