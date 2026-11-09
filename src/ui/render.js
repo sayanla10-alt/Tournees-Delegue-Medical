@@ -235,12 +235,15 @@
             if (navigator.vibrate) navigator.vibrate(50);
           } catch (err) {}
 
-          // 3.28.28 : une journée venue du serveur (ancienne tournée publiée) compte aussi
-          var nb = Math.max(S.plan.filter(function (a) { return a.date === date; }).length,
-            donneesJour(date, true).filter(function (a) { return !a.statut; }).length,
-            arretsHorsJour(date).filter(function (a) { return !a.statut; }).length);   // 3.28.29 : ce que Journée affiche pour ce jour
-          if (nb > 0 || (S.jours && S.jours[date]) || (typeof datesPlan === 'function' && datesPlan().indexOf(date) >= 0)) {
-            demanderSuppressionJour(date, nb);
+          // 3.28.57 : on compte tout ce que Journée affiche pour ce jour (tournée du téléphone, tournée publiée, archive,
+          // visites saisies), une fois par praticien ; les visites déjà renseignées restent toujours
+          var cpt = comptesJour(date);
+          if (cpt.aFaire > 0) {
+            demanderSuppressionJour(date, cpt.aFaire, cpt.faites);
+          } else if (cpt.faites > 0) {
+            toast('Toutes les visites du ' + dateLongue(date) + ' (' + cpt.faites + ') sont déjà renseignées : elles restent. Pour en retirer une, ouvrez son compte rendu dans Journée.', 6000);
+          } else if ((S.jours && S.jours[date]) || (typeof datesPlan === 'function' && datesPlan().indexOf(date) >= 0)) {
+            demanderSuppressionJour(date, 0, 0);
           } else {
             toast('Journée vide (' + majuscule(dateLongue(date)) + ') : aucune visite à supprimer');
           }

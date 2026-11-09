@@ -1,8 +1,8 @@
 {
-  "version": "3.28.56",
+  "version": "3.28.57",
   "date": "2026-11-09",
   "notes": [
-    "Planifier : frise comme celle de Journée, jours non planifiés en blanc",
-    "Répertoire : fiche sans « Modifier le planning hebdomadaire »"
+    "Suppression d'une journée : plus de « Journée vide » à tort",
+    "Planifier : frise comme celle de Journée"
   ]
 }

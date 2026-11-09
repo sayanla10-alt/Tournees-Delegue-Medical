@@ -331,13 +331,26 @@
     S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
     sauver(); rendre(); toast('Compte rendu effacé.');
   }
-  function demanderSuppressionJour(date, nb) {
-    nb = (nb !== undefined && nb !== null) ? nb : S.plan.filter(function (a) { return a.date === date; }).length;
+  // 3.28.57 : visites d'un jour telles que Journée les montre : à faire (supprimables) et déjà renseignées (gardées)
+  function comptesJour(date) {
+    var vus = {}, aFaire = 0, faites = 0;
+    S.plan.filter(function (a) { return a.date === date; }).concat(donneesJour(date, true), arretsHorsJour(date), programmeDuJour(date)).forEach(function (a) {
+      var k = a.code || a.uid; if (!k) return;
+      var f = !!(vraiStatut(a.statut) || a.etat === 'valide' || a.corrige);
+      if (vus[k] === undefined) { vus[k] = f; if (f) faites++; else aFaire++; }
+      else if (f && !vus[k]) { vus[k] = true; aFaire--; faites++; }
+    });
+    return { aFaire: aFaire, faites: faites };
+  }
+  function demanderSuppressionJour(date, nb, nbFaites) {
+    if (nb === undefined || nb === null) { var cj = comptesJour(date); nb = cj.aFaire; nbFaites = cj.faites; }
     var dLong = majuscule(dateLongue(date));
     var nStr = nb > 0 ? (nb + ' visite' + (nb > 1 ? 's' : '')) : 'aucune visite';
     confirmerPuis(
       'Supprimer la journée',
-      'Voulez-vous supprimer ' + (nb > 0 ? 'toutes les visites prévues le ' : 'la journée du ') + '<b>' + dLong + '</b> (' + nStr + ') ?<br><span class="discret">Cette journée sera retirée de votre planning ; les visites déjà faites et leurs comptes rendus restent. Vous pourrez la replanifier dans Planifier.</span>',
+      'Voulez-vous supprimer ' + (nb > 0 ? 'les visites à faire du ' : 'la journée du ') + '<b>' + dLong + '</b> (' + nStr + ') ?<br><span class="discret">' +
+        (nbFaites ? nbFaites + ' visite' + (nbFaites > 1 ? 's' : '') + ' déjà renseignée' + (nbFaites > 1 ? 's restent' : ' reste') + ', avec ' + (nbFaites > 1 ? 'leurs comptes rendus' : 'son compte rendu') + '. ' : 'Les visites déjà faites et leurs comptes rendus restent. ') +
+        'Vous pourrez replanifier ce jour dans Planifier.</span>',
       'Supprimer la journée',
       function () { supprimerJourPlanifie(date); }
     );
