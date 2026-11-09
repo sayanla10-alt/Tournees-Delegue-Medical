@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.36';
+  var APP_VERSION = '3.28.37';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.37', [
+      'Journée, + Médecin et + Pharmacie, « Selon mes filtres » : mêmes critères que la journée planifiée (communes choisies dans Planifier pour ce jour, plus celles des visites gardées hors zone ; spécialités et potentiels pour les médecins), et non plus les filtres du Répertoire'
+    ]],
     ['3.28.36', [
       'Partage à un collègue : le lien règle tout seul la connexion, la base utilisée et le WhatsApp du superviseur ; à l\'ouverture, le collègue voit directement « Bienvenue », avec le nom de qui l\'a invité',
       'Accueil simplifié : prénom et nom (noms de l\'équipe proposés, majuscules corrigées), numéro WhatsApp, quartier et superviseur facultatifs, à remplir pendant que la base se télécharge (rien n\'est perdu) ; puis l\'installation sur l\'écran d\'accueil est proposée aussitôt'
@@ -1497,10 +1500,18 @@
   // Filtre du tirage : types de praticiens, spécialités et potentiels ciblés
   // 3.25.15 : + Médecin / + Pharmacie (Journée) : toujours les filtres de l'onglet Recherche, type imposé
   function filtresRechercheType(type) { return Object.assign(JSON.parse(JSON.stringify(S.ui.filtres)), { type: type }); }
+  // 3.28.37 : + Médecin / + Pharmacie dans Journée : mêmes critères que la journée planifiée (Planifier) :
+  // spécialités et potentiels pour les médecins, potentiels pour les pharmacies ; les communes sont celles du jour
   function filtreAjout() {
-    var f = S.ui.typeAjout ? filtresRechercheType(S.ui.typeAjout) : S.ui.filtres;
-    var ok = ensemble(filtrerPraticiens(f, '').map(function (p) { return p.code; }));
-    return function (p) { return !!ok[p.code]; };
+    var p = S.params || {}, sp = ensemble(p.specialites || []), po = ensemble(p.potentiels || []);
+    var avecSpec = (p.specialites || []).length > 0, avecPot = (p.potentiels || []).length > 0;
+    if (!avecSpec && !avecPot) return null;
+    return function (pr) {
+      var pharma = pr.type === 'Pharmacie';
+      if (avecSpec && !pharma && !sp[pr.specialite]) return false;
+      if (avecPot && !po[lettrePotentiel(pr.note)]) return false;
+      return true;
+    };
   }
   function filtreCibles() {
     var p = S.params, t = p.typeCibles || 'tous', sp = {}, po = {};
@@ -8636,7 +8647,7 @@
   FEUILLES.ajouterTournee = function (f) {
     var rech = '';   // 3.25.3 : la recherche se fait dans la liste « Selon mes filtres »
     var t = S.ui.typeAjout, qui = t === 'Médecin' ? 'Médecins' : t === 'Pharmacie' ? 'Pharmacies' : 'Praticiens';
-    var filtres = libelleFiltresRecherche(t);
+    var filtres = libelleFiltresJour(t, S.ui.dateAjout || S.ui.jour);
     // 3.26.86 : 3e choix : médecins présents dans les hôpitaux choisis, à un moment de la journée
     var hS = LS.get('rechHop', null), resHop = hS && hS.lieux && hS.lieux.length ? hS.lieux.length + ' hôpita' + (hS.lieux.length > 1 ? 'ux' : 'l') + (hS.specs && hS.specs.length ? ' · ' + hS.specs.map(abrSpec).join(', ') : '') : 'Médecins présents dans un ou plusieurs hôpitaux, à un moment donné';
     var tuiles = [['position', 'cible', 'Par ma position', qui + ' présents près de vous'], ['communes', 'filtre', 'Selon mes filtres', filtres]];
@@ -8658,11 +8669,24 @@
     var l = ['type', 'communes', 'specialites', 'potentiels', 'visite', 'conv', 'equipe'].filter(function (k) { return g[k]; }).map(function (k) { return libelleListe(g[k], ''); });
     return l.length ? l.join(' · ') : 'Aucun filtre dans Répertoire : tous';
   }
-  function communesAjout(d) { return (S.ui.filtres.communes || []).slice(); }
+  function communesAjout(d) { return communesDuJour(d).slice(); }
+  function libelleFiltresJour(t, d) {
+    var p = S.params || {}, l = [], com = communesDuJour(d);
+    l.push(com.length ? libelleCommunes(com) : 'toutes les communes');
+    if (t !== 'Pharmacie' && (p.specialites || []).length) l.push(libelleListe(p.specialites, ''));
+    if ((p.potentiels || []).length) l.push('potentiel ' + p.potentiels.join(', '));
+    return 'Critères de la journée : ' + l.join(' · ');
+  }
   // communes du jour : celles de la planification (par jour si réglé), sinon celles des visites déjà prévues
+  // 3.28.37 : communes choisies dans Planifier pour ce jour, plus celles des visites de la journée qui n'y sont pas
+  // (visite gardée hors zone, tournée reprise du serveur) ; sans critère, celles des visites de la journée
   function communesDuJour(d) {
-    var l = communesPour(d) || [];
-    if (!l.length) l = Array.from(new Set(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.commune; }).filter(Boolean)));
+    var crit = (communesPour(d) || []).slice(), ens = ensemble(crit), l = crit.slice();
+    donneesJour(d, true).concat(arretsHorsJour(d)).forEach(function (a) {
+      if (!a.commune || l.indexOf(a.commune) >= 0) return;
+      if (crit.length && communeCorrespondante(a, ens)) return;
+      l.push(a.commune);
+    });
     return l;
   }
   // 3.25.2 : champ de recherche en tête, pour chercher parmi les praticiens déjà filtrés (communes du jour, critères)

@@ -200,8 +200,10 @@
   // Filtre du tirage : types de praticiens, spécialités et potentiels ciblés
   // 3.25.15 : + Médecin / + Pharmacie (Journée) : toujours les filtres de l'onglet Recherche, type imposé
   function filtresRechercheType(type) { return Object.assign(JSON.parse(JSON.stringify(S.ui.filtres)), { type: type }); }
+  // 3.28.37 : + Médecin / + Pharmacie dans Journée : mêmes critères que la journée planifiée (Planifier) :
+  // spécialités et potentiels pour les médecins, potentiels pour les pharmacies ; les communes sont celles du jour
   function filtreAjout() {
-    var f = S.ui.typeAjout ? filtresRechercheType(S.ui.typeAjout) : S.ui.filtres;
+    var p = S.params || {}, sp = ensemble(p.specialites || []), po = ensemble(p.potentiels || []);
     var ok = ensemble(filtrerPraticiens(f, '').map(function (p) { return p.code; }));
     return function (p) { return !!ok[p.code]; };
   }

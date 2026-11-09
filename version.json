@@ -1,8 +1,8 @@
 {
-  "version": "3.28.36",
+  "version": "3.28.37",
   "date": "2026-11-09",
   "notes": [
-    "Partage à un collègue : tout se règle seul, accueil en 3 informations",
-    "Planifier le jour même : remplacer ou garder la journée déjà prévue"
+    "Journée : + Médecin et + Pharmacie suivent les critères de la journée planifiée",
+    "Partage à un collègue : tout se règle seul, accueil en 3 informations"
   ]
 }

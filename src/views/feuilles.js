@@ -461,7 +461,7 @@
   FEUILLES.ajouterTournee = function (f) {
     var rech = '';   // 3.25.3 : la recherche se fait dans la liste « Selon mes filtres »
     var t = S.ui.typeAjout, qui = t === 'Médecin' ? 'Médecins' : t === 'Pharmacie' ? 'Pharmacies' : 'Praticiens';
-    var filtres = libelleFiltresRecherche(t);
+    var filtres = libelleFiltresJour(t, S.ui.dateAjout || S.ui.jour);
     // 3.26.86 : 3e choix : médecins présents dans les hôpitaux choisis, à un moment de la journée
     var hS = LS.get('rechHop', null), resHop = hS && hS.lieux && hS.lieux.length ? hS.lieux.length + ' hôpita' + (hS.lieux.length > 1 ? 'ux' : 'l') + (hS.specs && hS.specs.length ? ' · ' + hS.specs.map(abrSpec).join(', ') : '') : 'Médecins présents dans un ou plusieurs hôpitaux, à un moment donné';
     var tuiles = [['position', 'cible', 'Par ma position', qui + ' présents près de vous'], ['communes', 'filtre', 'Selon mes filtres', filtres]];
@@ -483,9 +483,16 @@
     var l = ['type', 'communes', 'specialites', 'potentiels', 'visite', 'conv', 'equipe'].filter(function (k) { return g[k]; }).map(function (k) { return libelleListe(g[k], ''); });
     return l.length ? l.join(' · ') : 'Aucun filtre dans Répertoire : tous';
   }
-  function communesAjout(d) { return (S.ui.filtres.communes || []).slice(); }
+  function communesAjout(d) { return communesDuJour(d).slice(); }
+  function libelleFiltresJour(t, d) {
+    var p = S.params || {}, l = [], com = communesDuJour(d);
+    l.push(com.length ? libelleCommunes(com) : 'toutes les communes');
+    if (t !== 'Pharmacie' && (p.specialites || []).length) l.push(libelleListe(p.specialites, ''));
+    if ((p.potentiels || []).length) l.push('potentiel ' + p.potentiels.join(', '));
+    return 'Critères de la journée : ' + l.join(' · ');
+  }
   // communes du jour : celles de la planification (par jour si réglé), sinon celles des visites déjà prévues
-  function communesDuJour(d) {
+  // 3.28.37 : communes choisies dans Planifier pour ce jour, plus celles des visites de la journée qui n'y sont pas
     var l = communesPour(d) || [];
     if (!l.length) l = Array.from(new Set(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.commune; }).filter(Boolean)));
     return l;
