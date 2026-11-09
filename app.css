@@ -3803,62 +3803,60 @@ details.reg-volet[open] summary { margin-bottom: 6px; padding-bottom: 8px; borde
 .bj-jour.appui-long-actif.appui-suppr-jour, .appui-long-actif.appui-suppr-jour {
   transition: transform 1.5s cubic-bezier(.2, .8, .2, 1), border-color 1.5s ease, box-shadow 1.5s ease, opacity 1.5s ease, background-color 1.5s ease !important;
 }
-/* 3.28.47 : Bilan du Jour */
+/* 3.28.47 / 3.28.49 : Bilan du Jour, dans la charte (volets comme Réglages, petits boutons, icônes de l'application) */
 .acces-bilan b { color: var(--primaire); }
-.bil-etat { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 4px; }
-.bil-etat .icone { width: 13px; height: 13px; }
-.bil-bandeau { background: var(--ambre-pale); border-color: var(--ambre-trait); display: block; }
-.bil-bandeau p { margin: 0 0 8px; }
-.bil-bandeau p b { color: var(--ambre); }
-details.bil-volet { margin-top: 10px; padding-top: 10px; padding-bottom: 10px; }
-details.bil-volet > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-details.bil-volet > summary::-webkit-details-marker { display: none; }
-details.bil-volet > summary b { font: 700 15px/1.2 var(--titre); letter-spacing: .3px; text-transform: uppercase; color: var(--primaire); }
-details.bil-volet > summary b::after { content: " ▾"; color: var(--gris); }
-details.bil-volet[open] > summary b::after { content: " ▴"; }
-details.bil-volet[open] > summary { margin-bottom: 8px; }
-.bil-resume { font-size: 12px; color: var(--gris); text-align: right; }
-.bil-ligne { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid var(--trait); align-items: flex-start; }
-.bil-ligne:first-child { border-top: 0; padding-top: 0; }
-.bil-ligne > div { flex: 1; min-width: 0; }
-.bil-ligne b { display: block; font-size: 13.5px; }
-.bil-ligne span { color: var(--gris); font-size: 12.5px; }
-.bil-ic { flex: none; width: 30px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.bil-etat { display: inline-block; margin: 0 0 2px; }
+.bil-bandeau { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--ambre-pale); border: 1px solid var(--ambre-trait); border-radius: 12px; padding: 6px 6px 6px 12px; font-size: 13.5px; margin: 2px 0 0; }
+.bil-bandeau b { color: var(--ambre); }
+details.bil-volet { margin-top: 8px; padding-top: 10px; padding-bottom: 10px; }
+details.bil-volet > summary { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 8px; }
+details.bil-volet > summary b { font-size: 16px; }
+details.bil-volet > summary .discret { font-size: 12.5px; text-align: right; }
+details.bil-volet[open] > summary { margin-bottom: 6px; }
+.bil-ligne { display: flex; gap: 8px; padding: 6px 0; border-top: 1px solid var(--trait); align-items: flex-start; }
+.bil-ligne:first-of-type { border-top: 0; padding-top: 0; }
+.bil-ligne > div { flex: 1; min-width: 0; font-size: 13.5px; }
+.bil-ligne > div > b { font-weight: 600; }
+.bil-ligne > div > span { display: block; color: var(--gris); font-size: 12.5px; }
+.bil-ic { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; }
+.bil-ic .icone { width: 15px; height: 15px; }
 .bil-ic.rdv { background: var(--primaire-pale); color: var(--primaire); }
 .bil-ic.rap { background: var(--bleu-pale); color: var(--bleu); }
 .bil-ic.eng { background: var(--violet-pale); color: var(--violet); }
 .bil-ic.cmd { background: var(--vert-pale); color: var(--vert); }
 .bil-ic.rup { background: var(--ambre-pale); color: var(--ambre); }
-.bil-ic.bes { background: var(--papier-2, #EEF3F5); color: var(--gris); }
-.bil-tag { flex: none; align-self: center; font-size: 11px !important; font-weight: 700; border-radius: 12px; padding: 2px 8px; }
-.bil-tag.av { background: var(--primaire-pale); color: var(--primaire) !important; }
-.bil-tag.ok { background: var(--vert-pale); color: var(--vert) !important; }
-.bil-tag.af { background: var(--ambre-pale); color: var(--ambre) !important; }
-.bil-sec { font-size: 11.5px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .4px; margin: 10px 0 3px; }
+.bil-ic.bes { background: var(--papier-2); color: var(--gris); }
+.bil-tag { flex: none; align-self: center; }
+.bil-tag.av { background: var(--primaire-pale); color: var(--primaire); border-color: transparent; }
+.bil-tag.ok { background: var(--vert-pale); color: var(--vert); border-color: transparent; }
+.bil-tag.af { background: var(--ambre-pale); color: var(--ambre); border-color: transparent; }
+.bil-sec { font-size: 12.5px; font-weight: 600; color: var(--gris); margin: 8px 0 1px; }
 .bil-sec:first-child { margin-top: 0; }
 .bil-txt { margin: 0; font-size: 13.5px; }
-.bil-ras { margin: 0; color: var(--gris-2); font-style: italic; font-size: 13px; }
-.bil-chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.bil-chiffres > div { background: var(--papier-2, #EEF3F5); border-radius: 10px; padding: 8px; text-align: center; }
-.bil-chiffres b { display: block; font: 700 19px var(--titre); }
+.bil-ras { margin: 0; color: var(--gris-2); font-size: 13px; }
+.bil-chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bil-chiffres > div { background: var(--papier-2); border-radius: 10px; padding: 5px 4px; text-align: center; }
+.bil-chiffres b { display: block; font-size: 16px; font-weight: 700; }
 .bil-chiffres small { color: var(--gris); font-size: 11.5px; }
-.bil-barre { height: 6px; background: var(--d-piste, #DCE7EA); border-radius: 4px; margin: 10px 0 4px; overflow: hidden; }
+.bil-barre { height: 5px; background: var(--d-piste, #DCE7EA); border-radius: 4px; margin: 8px 0 3px; overflow: hidden; }
 .bil-barre i { display: block; height: 100%; background: var(--primaire); }
 .bil-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--gris); flex-wrap: wrap; }
-details.bil-visite { border-top: 1px solid var(--trait); padding: 8px 0; }
-details.bil-visite:first-child { border-top: 0; padding-top: 0; }
-details.bil-visite > summary { list-style: none; cursor: pointer; display: flex; gap: 10px; align-items: flex-start; }
+details.bil-visite { border-top: 1px solid var(--trait); padding: 6px 0; }
+details.bil-visite:first-of-type { border-top: 0; padding-top: 0; }
+details.bil-visite > summary { list-style: none; cursor: pointer; display: flex; gap: 8px; align-items: flex-start; }
 details.bil-visite > summary::-webkit-details-marker { display: none; }
-.bil-h { flex: none; width: 40px; font: 600 13px var(--titre); color: var(--gris); padding-top: 1px; }
-.bil-pt { flex: none; width: 9px; height: 9px; border-radius: 50%; margin-top: 5px; }
+.bil-h { flex: none; width: 38px; font-size: 12.5px; font-weight: 600; color: var(--gris); padding-top: 2px; }
+.bil-pt { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; }
 .bil-pt.ok { background: var(--vert); } .bil-pt.ko { background: var(--ambre); } .bil-pt.vide { border: 1.5px solid var(--gris-2); }
 .bil-nom { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; white-space: normal; }
 .bil-nom small { display: block; color: var(--gris); font-size: 12.5px; font-weight: 400; }
 .bil-sans { color: var(--ambre); font-weight: 600; }
-.bil-detail { margin: 6px 0 0 59px; background: var(--papier-2, #EEF3F5); border-radius: 10px; padding: 7px 10px; font-size: 12.5px; }
-.bil-detail div { display: flex; gap: 6px; padding: 2px 0; }
-.bil-detail i { font-style: normal; color: var(--gris); flex: none; width: 84px; }
+.bil-detail { margin: 4px 0 0 54px; background: var(--papier-2); border-radius: 10px; padding: 5px 9px; font-size: 12.5px; }
+.bil-detail div { display: flex; gap: 6px; padding: 1px 0; }
+.bil-detail i { font-style: normal; color: var(--gris); flex: none; width: 80px; }
 .bil-rup { color: var(--ambre); font-weight: 600; }
-.bil-apercu { max-height: 260px; overflow: auto; }
-.bil-actions { margin-top: 14px; }
-.bil-bandeau .bouton-plein .icone, .bil-actions .bouton-plein .icone { color: #fff; stroke: currentColor; }
+.bil-apercu { max-height: 240px; overflow: auto; margin: 0 0 8px; }
+.bil-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.bil-volet .bil-actions { margin-top: 0; }
+details.bil-volet details.bil-visite > summary { flex-direction: row !important; align-items: flex-start; gap: 8px; }
+details.bil-volet .bil-apercu { white-space: pre-wrap; font-size: 12.5px; }

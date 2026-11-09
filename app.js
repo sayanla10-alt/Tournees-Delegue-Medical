@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.48';
+  var APP_VERSION = '3.28.49';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.49', [
+      'Bilan du Jour dans la charte de l\'application : volets comme dans Réglages (titres sans majuscules), icônes de l\'application, caducée ou croix devant chaque nom, petits boutons centrés, page plus compacte',
+      'Journée sans CR validé : un seul bandeau « CR non validé · 1 visite sans CR »'
+    ]],
     ['3.28.48', [
       'Bilan du Jour : « La journée » (visites, potentiel, km, heures, communes) en tête de la page et ouverte par défaut, avec « À ne pas oublier » et « Le terrain »'
     ]],
@@ -4244,7 +4248,7 @@
   }
   function voletBilan(id, titre, resume, corps, parDefaut) {
     var o = S.ui.bilOuverts || (S.ui.bilOuverts = {}), ouvert = o[id] === undefined ? parDefaut : o[id];
-    return '<details class="bloc bil-volet" data-bil="' + id + '"' + (ouvert ? ' open' : '') + '><summary><b>' + titre + '</b>' + (resume ? '<span class="bil-resume">' + resume + '</span>' : '') + '</summary>' + corps + '</details>';
+    return '<details class="bloc avance bil-volet" data-bil="' + id + '"' + (ouvert ? ' open' : '') + '><summary><b>' + titre + '</b>' + (resume ? '<span class="discret">' + resume + '</span>' : '') + '</summary>' + corps + '</details>';
   }
   VUES.bilanjour = function () {
     var d = jourAffiche(), t = aujourdhui(), R = rapportDe(d), valide = !!(R && R.valideLe);
@@ -4259,10 +4263,9 @@
     var pct = n ? (Math.round(nF / n * 1000) / 10).toString().replace('.', ',') + ' %' : '0 %';
     var h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
       '<h2 class="titre-vue">Bilan du Jour</h2><p class="sous-titre">' + majuscule(dateLongue(d)) + (moi() ? ' · ' + esc(moi()) : '') + '</p>' +
-      (valide ? '<span class="etiquette ok bil-etat">' + icone('valider') + 'CR validé le ' + esc(R.valideLe) + '</span>' : '<span class="etiquette p1 bil-etat">CR de la journée non fait</span>');
-    if (!valide) h += '<div class="bandeau bil-bandeau"><p><b>Cette journée n\'a pas de compte rendu validé.</b>' +
-      (s.sansCr.length ? ' ' + s.sansCr.length + ' visite' + (s.sansCr.length > 1 ? 's' : '') + ' sans compte rendu ;' : '') + ' faits marquants, concurrence et besoins non renseignés.</p>' +
-      (futurVerrouille(d) || passeVerrouille(d) ? '<p class="discret" style="margin:0">Pour le faire après coup : activez « Saisie avancée » (Réglages › Préférences).</p>' : '<button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('crayon') + 'Faire le CR</button>') + '</div>';
+      (valide ? '<span class="etiquette ok bil-etat">CR validé le ' + esc(R.valideLe) + '</span>' :
+        '<div class="bil-bandeau"><span><b>CR non validé</b>' + (s.sansCr.length ? ' · ' + s.sansCr.length + ' visite' + (s.sansCr.length > 1 ? 's' : '') + ' sans CR' : '') + '</span>' +
+        (futurVerrouille(d) || passeVerrouille(d) ? '' : '<button class="bouton petit bouton-plein" type="button" data-a="ouvrirRapport">Faire le CR</button>') + '</div>');
     // 1. La journée (3.28.48 : en tête, ouverte par défaut)
     h += voletBilan('journee', 'La journée', nF + '/' + n + ' visites' + (kmJ ? ' · ' + esc(kmJ) : ''),
       '<div class="bil-chiffres"><div><b>' + nF + '/' + n + '</b><small>visites faites</small></div>' +
@@ -4272,21 +4275,21 @@
       '<div class="bil-meta"><span>' + pct + ' réalisé</span><span>' + (heures.length ? heures[0] + ' → ' + heures[heures.length - 1] : '') + (comm.length ? ' · ' + esc(comm.join(', ')) : '') + '</span></div>', true);
     // 1. À ne pas oublier
     var ret = [], ligneR = function (ic, cls, titre, txt, tag) {
-      ret.push('<div class="bil-ligne"><span class="bil-ic ' + cls + '">' + ic + '</span><div><b>' + titre + '</b>' + (txt ? '<span>' + txt + '</span>' : '') + '</div>' + (tag ? '<span class="bil-tag ' + tag[1] + '">' + tag[0] + '</span>' : '') + '</div>');
+      ret.push('<div class="bil-ligne"><span class="bil-ic ' + cls + '">' + icone(ic) + '</span><div><b>' + titre + '</b>' + (txt ? '<span>' + txt + '</span>' : '') + '</div>' + (tag ? '<span class="etiquette bil-tag ' + tag[1] + '">' + tag[0] + '</span>' : '') + '</div>');
     };
     ordre.slice().sort(function (x, y) { return String(x.prochaine || '').localeCompare(String(y.prochaine || '')); }).forEach(function (a) {
-      if (a.prochaine && a.prochaine > a.date) ligneR(a.rdvConfirme ? 'RDV' : '☎', a.rdvConfirme ? 'rdv' : 'rap', esc(majuscule(dateCourte(a.prochaine))) + ' · ' + lienFiche(a.code, esc(a.nom)),
+      if (a.prochaine && a.prochaine > a.date) ligneR(a.rdvConfirme ? 'calendrier' : 'tel', a.rdvConfirme ? 'rdv' : 'rap', (a.rdvConfirme ? 'RDV ' : 'Rappel ') + esc(dateCourte(a.prochaine)) + ' · ' + pastilleType(a) + lienFiche(a.code, esc(a.nom)),
         esc([estPharmacie(a) ? a.quartier : abrSpec(a.specialite), abregerHopital(a.lieu || '')].filter(Boolean).join(', ')) + (estKo(a.statut) ? ' · ' + esc(String(statutLibelle(a)).toLowerCase()) + ' ce jour-là' : ''), etatSuite(a));
     });
-    s.commandes.forEach(function (x) { ligneR('🛒', 'cmd', 'Commande', esc(x)); });
-    s.ruptures.forEach(function (x) { ligneR('!', 'rup', 'Rupture', esc(x), ['à suivre', 'af']); });
+    s.commandes.forEach(function (x) { ligneR('valider', 'cmd', 'Commande', esc(x)); });
+    s.ruptures.forEach(function (x) { ligneR('eclair', 'rup', 'Rupture', esc(x), ['à suivre', 'af']); });
     ordre.forEach(function (a) {
       if (!a.statut || estKo(a.statut)) return;
       var r = a.cr ? champsCr(a) : (histoVisite(d, a.code) || {}), note = r.commentaire || a.commentaire;
-      if (note) ligneR('✎', 'eng', lienFiche(a.code, esc(a.nom)), esc(note));
+      if (note) ligneR('crayon', 'eng', pastilleType(a) + lienFiche(a.code, esc(a.nom)), esc(note));
     });
     var bes = R ? (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []) : [];
-    if (bes.length) ligneR('+', 'bes', 'Besoins', esc(bes.join(', ')));
+    if (bes.length) ligneR('plus', 'bes', 'Besoins', esc(bes.join(', ')));
     h += voletBilan('retenir', 'À ne pas oublier', ret.length ? String(ret.length) : 'R.A.S', ret.length ? ret.join('') : '<p class="bil-ras">R.A.S</p>', true);
     // 2. Le terrain
     var txt = function (v) { v = String(v || '').trim(); return v ? '<p class="bil-txt">' + parLigne(v) + '</p>' : '<p class="bil-ras">' + (valide ? 'R.A.S' : 'Non renseigné') + '</p>'; };
@@ -4301,17 +4304,16 @@
       var sous = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier]) : infosSansDoublon(a, [abrSpec(a.specialite), abregerHopital(a.lieu || '')]);
       if (ko) sous = String(statutLibelle(a)) + (sous ? ' · ' + sous : '');
       return '<details class="bil-visite"' + (suivi ? ' open' : '') + '><summary><span class="bil-h">' + esc(String(heureVisite(a) || '').slice(0, 5)) + '</span>' +
-        '<span class="bil-pt ' + (!a.statut ? 'vide' : (ko ? 'ko' : 'ok')) + '"></span><span class="bil-nom">' + lienFiche(a.code, esc(a.nom)) + '<small>' + esc(sous) + (!a.statut ? ' · <b class="bil-sans">sans compte rendu</b>' : '') + '</small></span></summary>' +
+        '<span class="bil-pt ' + (!a.statut ? 'vide' : (ko ? 'ko' : 'ok')) + '"></span><span class="bil-nom">' + pastilleType(a) + lienFiche(a.code, esc(a.nom)) + '<small>' + esc(sous) + (!a.statut ? ' · <b class="bil-sans">sans compte rendu</b>' : '') + '</small></span></summary>' +
         '<div class="bil-detail">' + det.map(function (x) { return '<div><i>' + esc(x[0]) + '</i><span' + (/rupture/i.test(x[1]) ? ' class="bil-rup"' : '') + '>' + esc(x[1]) + '</span></div>'; }).join('') + '</div></details>';
     }).join('');
     h += voletBilan('visites', 'Visites', n + ' · ' + nF + ' faite' + (nF > 1 ? 's' : '') + (s.nonFaites.length ? ', ' + s.nonFaites.length + ' non faite' + (s.nonFaites.length > 1 ? 's' : '') : '') + (s.sansCr.length ? ', ' + s.sansCr.length + ' sans CR' : ''), vis || '<p class="bil-ras">Aucune visite</p>', false);
     // 5. Envoyé au superviseur
     h += voletBilan('envoi', 'Au superviseur', R && R.waLe ? 'envoyé le ' + esc(R.waLe) : 'non envoyé',
-      '<pre class="apercu bil-apercu">' + esc(texteRapport(d)) + '</pre>' +
-      '<div class="rangee"><button class="bouton" type="button" data-a="rapCopier" data-v="' + d + '">Copier</button>' +
-      '<button class="bouton bouton-plein wa" type="button" data-a="rapWhatsapp" data-v="' + d + '">' + icone('whatsapp') + (R && R.waLe ? 'Renvoyer' : 'Envoyer') + '</button></div>', false);
-    h += '<div class="rangee bil-actions"><button class="bouton" type="button" data-a="rapCopier" data-v="' + d + '">Copier</button>' +
-      (futurVerrouille(d) || passeVerrouille(d) ? '' : '<button class="bouton bouton-plein" type="button" data-a="bilanModifier" data-v="' + d + '">' + icone('crayon') + 'Modifier CR</button>') + '</div>';
+      '<div class="apercu bil-apercu">' + texteRapport(d).split('\n').map(function (x) { return x ? esc(x) : '&nbsp;'; }).join('<br>') + '</div>' +
+      '<div class="bil-actions"><button class="bouton petit" type="button" data-a="rapCopier" data-v="' + d + '">Copier</button>' +
+      '<button class="bouton petit wa" type="button" data-a="rapWhatsapp" data-v="' + d + '">' + icone('whatsapp') + (R && R.waLe ? 'Renvoyer' : 'Envoyer') + '</button></div>', false);
+    if (!futurVerrouille(d) && !passeVerrouille(d) && valide) h += '<div class="bil-actions"><button class="bouton petit bouton-plein" type="button" data-a="bilanModifier" data-v="' + d + '">' + icone('crayon') + 'Modifier CR</button></div>';
     return h;
   };
 

@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.48';
+  var APP_VERSION = '3.28.49';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.49', [
+      'Bilan du Jour dans la charte de l\'application : volets comme dans Réglages (titres sans majuscules), icônes de l\'application, caducée ou croix devant chaque nom, petits boutons centrés, page plus compacte',
+      'Journée sans CR validé : un seul bandeau « CR non validé · 1 visite sans CR »'
+    ]],
     ['3.28.48', [
       'Bilan du Jour : « La journée » (visites, potentiel, km, heures, communes) en tête de la page et ouverte par défaut, avec « À ne pas oublier » et « Le terrain »'
     ]],
