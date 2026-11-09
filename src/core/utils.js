@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.43';
+  var APP_VERSION = '3.28.44';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.44', [
+      'Compte rendu au superviseur repensé, lisible en quelques secondes : en-tête et bilan sur deux lignes (visites faites, taux, potentiel, km, communes), puis « À retenir » (besoins, ruptures, commandes, RDV, faits marquants, concurrence, échantillons), puis les visites faites avec l\'heure, puis les non faites et leur motif ; visites sans compte rendu signalées par nom'
+    ]],
     ['3.28.43', [
       'Compte rendu WhatsApp au superviseur plus court : une ligne par visite, sans les produits présentés (tous sont présentés) ; le nom de la pharmacie ou du cabinet n\'est plus répété (quartier à la place) ; faits marquants, concurrence et besoins vides réunis sur une ligne'
     ]],
