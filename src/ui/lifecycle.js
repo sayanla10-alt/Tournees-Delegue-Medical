@@ -345,7 +345,7 @@
   var ecranSession = null;
   try { ecranSession = JSON.parse(sessionStorage.getItem(UI_SESSION) || 'null'); } catch (e) {}
   if (ecranSession && Date.now() - (ecranSession.t || 0) < 6 * 3600000) {
-    if (['jour', 'semaine', 'autour', 'rapport', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(ecranSession.tab) >= 0) S.ui.tab = ecranSession.tab;
+    if (['jour', 'semaine', 'autour', 'rapport', 'bilanjour', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(ecranSession.tab) >= 0) S.ui.tab = ecranSession.tab;
     S.ui.ouvert = ecranSession.ouvert || null; S.ui.contactOuvert = ecranSession.contact || null; S.ui.hopOuvert = ecranSession.hop || null;
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     var yRestaurer = ecranSession.y || 0;

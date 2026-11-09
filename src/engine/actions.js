@@ -182,6 +182,8 @@
     },
     allerRapport: function () { S.ui.tab = 'rapport'; rendre(); centrerQuestionRapport(); },
     ouvrirRapport: function () { S.ui.tab = 'rapport'; rendre(); centrerQuestionRapport(); },
+    ouvrirBilan: function () { S.ui.tab = 'bilanjour'; rendre(); window.scrollTo(0, 0); },
+    bilanModifier: function (el) { var R = rapportOuCree(el.dataset.v); R.edition = true; R.ok = {}; sauverRapports(); S.ui.tab = 'rapport'; rendre(); centrerQuestionRapport(); },
     rapOk: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = true; sauverRapports(); rendre(); centrerQuestionRapport(); },
     rapPrec: function (el) { var R = rapportOuCree(jourAffiche()); R.ok[el.dataset.v] = false; sauverRapports(); rendre(); centrerQuestionRapport(); },
     rapPasser: function (el) {
@@ -242,7 +244,7 @@
       });
     },
     rapModifier: function (el) { var R = rapportOuCree(el.dataset.v); R.edition = true; R.ok = {}; sauverRapports(); rendre(); },
-    rapWhatsapp: function (el) { ouvrirWhatsapp(texteRapport(el.dataset.v), S.config.waResp); },
+    rapWhatsapp: function (el) { var Rw = rapportDe(el.dataset.v); if (Rw) { Rw.waLe = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' à '); sauverRapports(); } ouvrirWhatsapp(texteRapport(el.dataset.v), S.config.waResp); },
     rapCopier: function (el) { copier(texteRapport(el.dataset.v)); },
     jourReprendre: function (el) {
       var d = el.dataset.v;
@@ -1816,6 +1818,10 @@
   document.addEventListener('toggle', function (e) {
     var d = e.target; if (!d || !d.dataset || !d.dataset.reg) return;
     (S.ui.regOuverts = S.ui.regOuverts || {})[d.dataset.reg] = d.open;
+  }, true);
+  document.addEventListener('toggle', function (e) {
+    var d = e.target; if (!d || !d.dataset || !d.dataset.bil) return;
+    (S.ui.bilOuverts = S.ui.bilOuverts || {})[d.dataset.bil] = d.open;
   }, true);
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;

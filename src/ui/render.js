@@ -28,7 +28,7 @@
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
-      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'suivi' ? (S.ui.suiviVue || 'bilan') : (S.ui.tab === 'audit' ? 'bilan' : S.ui.tab)));
+      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' || S.ui.tab === 'bilanjour' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'suivi' ? (S.ui.suiviVue || 'bilan') : (S.ui.tab === 'audit' ? 'bilan' : S.ui.tab)));
       if (b.dataset.tab === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }

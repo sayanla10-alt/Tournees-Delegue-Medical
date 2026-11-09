@@ -226,7 +226,7 @@
         // 3.0.0 : nouveaux onglets du parcours (anciens noms convertis)
         var t = LS.get('onglet', 'jour'), anciens = { tournee: 'jour', contacts: 'praticiens', recherche: 'praticiens', stats: 'bilan', historique: 'bilan' };
         t = anciens[t] || t;
-        return ['jour', 'semaine', 'autour', 'rapport', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
+        return ['jour', 'semaine', 'autour', 'rapport', 'bilanjour', 'praticiens', 'produits', 'bilan', 'equipe', 'reglages'].indexOf(t) >= 0 ? t : 'jour';
       })(), jour: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.j : null; })(),
       jourVue: (function () { var j = LS.get('jourVu', null); return j && j.le === aujourdhui() ? j.v || null : null; })(), ouvert: null, voirParams: false, feuille: null,
       recherche: '', filtre: 'tous', contactOuvert: null, limite: 40,

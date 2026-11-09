@@ -2,7 +2,7 @@
     var d = jourAffiche(), t = aujourdhui(), h = enteteJour(d);
     if (S.ui.jourVue) {
       h += d === t ? rendreRappels() : '';
-      if (!futurVerrouille(d)) { var lh = arretsHorsJour(d); if (lh.length && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, lh); }
+      if (!futurVerrouille(d)) { var lh = arretsHorsJour(d); if (lh.length && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, lh); }
       h += rendreJourHors(d);
       return h;
     }
@@ -19,7 +19,7 @@
         (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' +
       barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length, duJour.filter(function (a) { return a.statut; }).length) +
       '</section>';
-    if (!futurVerrouille(d) && (rapportDe(d) || !passeVerrouille(d))) h += tuileRapport(d, duJour);
+    if (!futurVerrouille(d) && duJour.length && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
     // 3.24.23 : les visites renseignées passent en bas (« Effectuées », dans l'ordre des heures) ;
     // en haut restent les visites à faire, les plus proches d'abord
@@ -53,6 +53,13 @@
   // accès au compte rendu (page à part, dans le même onglet)
   function tuileRapport(d, liste) {
     var R = rapportDe(d), n = liste.length, r = liste.filter(function (a) { return a.statut; }).length;
+    // 3.28.47 : compte rendu validé, ou jour passé : l'encart devient « Bilan du Jour » (même place, même geste)
+    if ((R && R.valideLe && !R.edition) || d < aujourdhui()) {
+      var fa = liste.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
+      return '<button type="button" class="acces-rapport acces-bilan" data-a="ouvrirBilan"><span>' + icone('valider') + '<b>Bilan du Jour</b><small>' + fa + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' faite' + (fa > 1 ? 's' : '') +
+        ' · RDV, faits marquants, détail des visites</small></span>' +
+        (R && R.valideLe ? '<span class="etiquette ok">CR validé</span>' : '<span class="etiquette p1">CR non fait</span>') + icone('chevron') + '</button>';
+    }
     var etat = R && R.valideLe ? '<span class="etiquette ok">Validé</span>' : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>');
     return '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte Rendu</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
       ' · faits marquants, concurrence, besoins</small></span>' + etat + icone('chevron') + '</button>';
@@ -63,6 +70,114 @@
     return '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
       '<h2 class="titre-vue">Compte Rendu</h2><p class="sous-titre">' + majuscule(dateLongue(d)) + ' : rempli à partir de vos visites, à compléter puis à valider.</p>' +
       (futurVerrouille(d) ? '<div class="vide"><strong>Journée à venir</strong>Le compte rendu se fait le jour même ou après (ou activez « Saisie avancée » dans Réglages › Avancé).</div>' : rendreRapportJour(d, liste, passeVerrouille(d), true));
+  };
+
+  // ------------------------------------------------------------------ 3.28.47 : Bilan du Jour
+  // Pour se souvenir d'une journée : ce qu'il ne faut pas oublier et le terrain d'abord (ouverts), puis la journée en chiffres,
+  // le détail de chaque visite et le message envoyé au superviseur (repliés). Lecture seule ; « Modifier CR » rouvre le compte rendu.
+  function histoVisite(d, code) {
+    return ((S.data && S.data.historique) || []).filter(function (v) { return String(v.date).slice(0, 10) === d && v.code === code && (!v.delegue || estMoi(v.delegue)); })[0] || null;
+  }
+  // détail d'une visite : compte rendu du téléphone s'il existe, sinon celui enregistré dans la BDD
+  function detailBilan(a) {
+    var r = a.cr ? champsCr(a) : (histoVisite(a.date, a.code) || {}), ph = estPharmacie(a), ko = estKo(a.statut), l = [];
+    var c = a.cr ? crDe(a) : {};
+    if (!a.statut) return [['Compte rendu', 'non saisi']];
+    if (ko) {
+      l.push(['Motif', statutLibelle(a)]);
+      if (c.precision || (!a.cr && r.commentaire)) l.push(['Précision', c.precision || r.commentaire]);
+    } else {
+      if (ph && r.interlocuteur) l.push(['Interlocuteur', r.interlocuteur]);
+      if (r.activite || a.activite) l.push([ph ? 'Activités' : 'Type', listeActivites(r.activite || a.activite).join(', ')]);
+      if (r.stocks) l.push(['Stocks', r.stocks]);
+      if (r.commande) l.push(['Commande', r.commande]);
+      if (r.echantillons) l.push(['Échantillons', r.echantillons]);
+      if (r.complements) l.push(['Compléments', r.complements]);
+      if (r.commentaire || a.commentaire) l.push([ph ? 'Observation' : 'Bilan', r.commentaire || a.commentaire]);
+    }
+    if (a.prochaine && a.prochaine > a.date) l.push(['Suite', (a.rdvConfirme ? 'RDV confirmé ' : 'Rappel ') + dateCourte(a.prochaine)]);
+    return l;
+  }
+  // suite d'un RDV ou rappel : à venir, fait, ou pas encore fait
+  function etatSuite(a) {
+    var t = aujourdhui();
+    if (a.prochaine >= t) return ['à venir', 'av'];
+    var fait = S.plan.concat((S.data && S.data.historique) || []).some(function (v) {
+      return v.code === a.code && String(v.date).slice(0, 10) >= a.prochaine && vraiStatut(v.statut) && !estKo(v.statut) && (!v.delegue || estMoi(v.delegue));
+    });
+    return fait ? ['fait', 'ok'] : ['non fait', 'af'];
+  }
+  function voletBilan(id, titre, resume, corps, parDefaut) {
+    var o = S.ui.bilOuverts || (S.ui.bilOuverts = {}), ouvert = o[id] === undefined ? parDefaut : o[id];
+    return '<details class="bloc bil-volet" data-bil="' + id + '"' + (ouvert ? ' open' : '') + '><summary><b>' + titre + '</b>' + (resume ? '<span class="bil-resume">' + resume + '</span>' : '') + '</summary>' + corps + '</details>';
+  }
+  VUES.bilanjour = function () {
+    var d = jourAffiche(), t = aujourdhui(), R = rapportDe(d), valide = !!(R && R.valideLe);
+    var duJour = visitesDuJourRapport(d);
+    if (!duJour.length) duJour = ((S.data && S.data.historique) || []).filter(function (v) { return String(v.date).slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)); })
+      .map(function (v) { return versPlan(null, v, d); });
+    var s = syntheseJour(duJour), nF = s.faites.length, n = s.prevues;
+    var ordre = duJour.slice().sort(function (x, y) { return String(heureVisite(x)).localeCompare(String(heureVisite(y))); });
+    var comm = []; s.communes.forEach(function (c) { var p = communeParente(c) || c; if (comm.indexOf(p) < 0) comm.push(p); });
+    var heures = ordre.filter(function (a) { return a.statut; }).map(function (a) { return String(heureVisite(a)).slice(0, 5); }).filter(Boolean);
+    var kmJ = R && R.km ? R.km + ' km' : (s.km ? km(s.km) : '');
+    var pct = n ? (Math.round(nF / n * 1000) / 10).toString().replace('.', ',') + ' %' : '0 %';
+    var h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
+      '<h2 class="titre-vue">Bilan du Jour</h2><p class="sous-titre">' + majuscule(dateLongue(d)) + (moi() ? ' · ' + esc(moi()) : '') + '</p>' +
+      (valide ? '<span class="etiquette ok bil-etat">' + icone('valider') + 'CR validé le ' + esc(R.valideLe) + '</span>' : '<span class="etiquette p1 bil-etat">CR de la journée non fait</span>');
+    if (!valide) h += '<div class="bandeau bil-bandeau"><p><b>Cette journée n\'a pas de compte rendu validé.</b>' +
+      (s.sansCr.length ? ' ' + s.sansCr.length + ' visite' + (s.sansCr.length > 1 ? 's' : '') + ' sans compte rendu ;' : '') + ' faits marquants, concurrence et besoins non renseignés.</p>' +
+      (futurVerrouille(d) || passeVerrouille(d) ? '<p class="discret" style="margin:0">Pour le faire après coup : activez « Saisie avancée » (Réglages › Préférences).</p>' : '<button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('crayon') + 'Faire le CR</button>') + '</div>';
+    // 1. À ne pas oublier
+    var ret = [], ligneR = function (ic, cls, titre, txt, tag) {
+      ret.push('<div class="bil-ligne"><span class="bil-ic ' + cls + '">' + ic + '</span><div><b>' + titre + '</b>' + (txt ? '<span>' + txt + '</span>' : '') + '</div>' + (tag ? '<span class="bil-tag ' + tag[1] + '">' + tag[0] + '</span>' : '') + '</div>');
+    };
+    ordre.slice().sort(function (x, y) { return String(x.prochaine || '').localeCompare(String(y.prochaine || '')); }).forEach(function (a) {
+      if (a.prochaine && a.prochaine > a.date) ligneR(a.rdvConfirme ? 'RDV' : '☎', a.rdvConfirme ? 'rdv' : 'rap', esc(majuscule(dateCourte(a.prochaine))) + ' · ' + lienFiche(a.code, esc(a.nom)),
+        esc([estPharmacie(a) ? a.quartier : abrSpec(a.specialite), abregerHopital(a.lieu || '')].filter(Boolean).join(', ')) + (estKo(a.statut) ? ' · ' + esc(String(statutLibelle(a)).toLowerCase()) + ' ce jour-là' : ''), etatSuite(a));
+    });
+    s.commandes.forEach(function (x) { ligneR('🛒', 'cmd', 'Commande', esc(x)); });
+    s.ruptures.forEach(function (x) { ligneR('!', 'rup', 'Rupture', esc(x), ['à suivre', 'af']); });
+    ordre.forEach(function (a) {
+      if (!a.statut || estKo(a.statut)) return;
+      var r = a.cr ? champsCr(a) : (histoVisite(d, a.code) || {}), note = r.commentaire || a.commentaire;
+      if (note) ligneR('✎', 'eng', lienFiche(a.code, esc(a.nom)), esc(note));
+    });
+    var bes = R ? (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []) : [];
+    if (bes.length) ligneR('+', 'bes', 'Besoins', esc(bes.join(', ')));
+    h += voletBilan('retenir', 'À ne pas oublier', ret.length ? String(ret.length) : 'R.A.S', ret.length ? ret.join('') : '<p class="bil-ras">R.A.S</p>', true);
+    // 2. Le terrain
+    var txt = function (v) { v = String(v || '').trim(); return v ? '<p class="bil-txt">' + parLigne(v) + '</p>' : '<p class="bil-ras">' + (valide ? 'R.A.S' : 'Non renseigné') + '</p>'; };
+    h += voletBilan('terrain', 'Le terrain', '',
+      '<div class="bil-sec">Faits marquants</div>' + txt(R && R.faits) +
+      '<div class="bil-sec">Concurrence</div>' + txt(R && R.concurrence) +
+      '<div class="bil-sec">Produits présentés</div><p class="bil-txt">' + (nF ? 'Toute la gamme, à chaque visite faite.' : '<span class="bil-ras">R.A.S</span>') + '</p>' +
+      (s.echantillons.length ? '<div class="bil-sec">Échantillons remis</div><p class="bil-txt">' + s.echantillons.map(esc).join('<br>') + '</p>' : ''), true);
+    // 3. La journée
+    h += voletBilan('journee', 'La journée', nF + '/' + n + ' visites' + (kmJ ? ' · ' + esc(kmJ) : ''),
+      '<div class="bil-chiffres"><div><b>' + nF + '/' + n + '</b><small>visites faites</small></div>' +
+      '<div><b>' + ([[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return x[1] + ' ' + s.pot[x[0]]; })[0] || '-') + '</b><small>potentiel vu</small></div>' +
+      '<div><b>' + (kmJ ? esc(kmJ) : '-') + '</b><small>trajet</small></div></div>' +
+      '<div class="bil-barre"><i style="width:' + (n ? Math.round(nF / n * 100) : 0) + '%"></i></div>' +
+      '<div class="bil-meta"><span>' + pct + ' réalisé</span><span>' + (heures.length ? heures[0] + ' → ' + heures[heures.length - 1] : '') + (comm.length ? ' · ' + esc(comm.join(', ')) : '') + '</span></div>', false);
+    // 4. Visites
+    var vis = ordre.map(function (a) {
+      var det = detailBilan(a), ko = estKo(a.statut), suivi = (a.prochaine && a.prochaine > a.date) || ko || det.some(function (x) { return x[0] === 'Commande' || (x[0] === 'Stocks' && /rupture/i.test(x[1])); });
+      var sous = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier]) : infosSansDoublon(a, [abrSpec(a.specialite), abregerHopital(a.lieu || '')]);
+      if (ko) sous = String(statutLibelle(a)) + (sous ? ' · ' + sous : '');
+      return '<details class="bil-visite"' + (suivi ? ' open' : '') + '><summary><span class="bil-h">' + esc(String(heureVisite(a) || '').slice(0, 5)) + '</span>' +
+        '<span class="bil-pt ' + (!a.statut ? 'vide' : (ko ? 'ko' : 'ok')) + '"></span><span class="bil-nom">' + lienFiche(a.code, esc(a.nom)) + '<small>' + esc(sous) + (!a.statut ? ' · <b class="bil-sans">sans compte rendu</b>' : '') + '</small></span></summary>' +
+        '<div class="bil-detail">' + det.map(function (x) { return '<div><i>' + esc(x[0]) + '</i><span' + (/rupture/i.test(x[1]) ? ' class="bil-rup"' : '') + '>' + esc(x[1]) + '</span></div>'; }).join('') + '</div></details>';
+    }).join('');
+    h += voletBilan('visites', 'Visites', n + ' · ' + nF + ' faite' + (nF > 1 ? 's' : '') + (s.nonFaites.length ? ', ' + s.nonFaites.length + ' non faite' + (s.nonFaites.length > 1 ? 's' : '') : '') + (s.sansCr.length ? ', ' + s.sansCr.length + ' sans CR' : ''), vis || '<p class="bil-ras">Aucune visite</p>', false);
+    // 5. Envoyé au superviseur
+    h += voletBilan('envoi', 'Au superviseur', R && R.waLe ? 'envoyé le ' + esc(R.waLe) : 'non envoyé',
+      '<pre class="apercu bil-apercu">' + esc(texteRapport(d)) + '</pre>' +
+      '<div class="rangee"><button class="bouton" type="button" data-a="rapCopier" data-v="' + d + '">Copier</button>' +
+      '<button class="bouton bouton-plein wa" type="button" data-a="rapWhatsapp" data-v="' + d + '">' + icone('whatsapp') + (R && R.waLe ? 'Renvoyer' : 'Envoyer') + '</button></div>', false);
+    h += '<div class="rangee bil-actions"><button class="bouton" type="button" data-a="rapCopier" data-v="' + d + '">Copier</button>' +
+      (futurVerrouille(d) || passeVerrouille(d) ? '' : '<button class="bouton bouton-plein" type="button" data-a="bilanModifier" data-v="' + d + '">' + icone('crayon') + 'Modifier CR</button>') + '</div>';
+    return h;
   };
 
   // « Maintenant » : ce qu'il y a à faire tout de suite, selon l'heure

@@ -1,8 +1,8 @@
 {
-  "version": "3.28.46",
+  "version": "3.28.47",
   "date": "2026-11-09",
   "notes": [
-    "Compte rendu au superviseur : rubriques fixes, R.A.S si vide",
-    "Compte rendu de visite : plus de produits présentés"
+    "Nouveau : Bilan du Jour, pour se souvenir de chaque journée",
+    "Compte rendu au superviseur : rubriques fixes, R.A.S si vide"
   ]
 }

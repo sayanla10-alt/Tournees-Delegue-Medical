@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.46';
+  var APP_VERSION = '3.28.47';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.47', [
+      'Bilan du Jour : une fois le compte rendu de la journée validé, ou pour un jour passé, l\'encart « Compte Rendu » de Journée devient « Bilan du Jour » et s\'ouvre de la même façon',
+      'Cinq volets : À ne pas oublier (RDV et rappels avec leur suite : à venir, fait, non fait ; notes de visite, commandes, ruptures, besoins) et Le terrain (faits marquants, concurrence, produits, échantillons) ouverts ; La journée (chiffres), Visites (détail complet de chaque compte rendu, déplié quand il y a une suite) et Au superviseur (message envoyé, Renvoyer) repliés',
+      'Journée sans compte rendu validé : le Bilan du Jour l\'indique, avec « Faire le CR » ; boutons Copier et Modifier CR'
+    ]],
     ['3.28.46', [
       'Compte rendu au superviseur : rubriques fixes, toujours présentes et dans le même ordre : Produits présentés (toute la gamme, une seule fois), Commandes, Faits marquants, Concurrence, Besoins ; puis ruptures, échantillons, RDV et rappels s\'il y en a ; puis les visites faites et non faites',
       'Rubrique vide : « R.A.S » (aussi dans le compte rendu de la journée)'
