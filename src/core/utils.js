@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.31';
+  var APP_VERSION = '3.28.32';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.32', [
+      'Réglages rangés : Mon profil ; Préférences (apparence, compte rendu express, notifications) ; MediPlanner (mises à jour, installation, partage) ; tout ce qui touche à la base et aux données du téléphone (saisie avancée, base de données, connexion, synchronisation, sauvegarde, effacement) dans « Avancé »'
+    ]],
     ['3.28.31', [
       'Planifier : après la suppression d\'un jour par appui long, l\'écran reste sur ce jour, vide, avec « Proposer pour ce jour » (il ne saute plus sur le jour suivant, qui laissait croire que le programme supprimé était encore là) ; la date des critères reste sur ce jour',
       'Planifier : après un retrait par la croix, « Recalculer » propose de nouveau le nombre de visites demandé (les médecins de la liste précédente complètent si besoin, jamais celui retiré)',

@@ -1,8 +1,9 @@
 {
-  "version": "3.28.31",
+  "version": "3.28.32",
   "date": "2026-11-09",
   "notes": [
-    "Planifier : un jour supprimé reste affiché, vide, avec « Proposer pour ce jour »",
+    "Réglages rangés, options sensibles dans « Avancé »",
+    "Planifier : un jour supprimé reste affiché, vide",
     "Recalculer garde le nombre de visites demandé après un retrait",
     "Jour choisi centré dans la frise"
   ]
