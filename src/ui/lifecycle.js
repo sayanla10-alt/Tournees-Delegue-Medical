@@ -295,17 +295,19 @@
         var w = reg.installing; if (!w) return;
         w.addEventListener('statechange', function () { if (w.state === 'installed' && navigator.serviceWorker.controller) proposerMaj(); });
       });
-      setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
-      var dernierUpdateSw = 0;
-      document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'visible') {
-          var now = Date.now();
-          if (now - dernierUpdateSw > 60 * 60 * 1000) {
-            dernierUpdateSw = now;
-            reg.update().catch(function () {});
-          }
-        }
-      });
+      // 3.28.30 : recherche de mise à jour toutes les 5 min et à chaque retour sur l'application (au plus une fois par minute)
+      setInterval(function () { reg.update().catch(function () {}); }, 5 * 60 * 1000);
+      var dernierUpdateSw = Date.now();
+      var verifierRetour = function () {
+        if (document.visibilityState !== 'visible') return;
+        var now = Date.now();
+        if (now - dernierUpdateSw < 60 * 1000) return;
+        dernierUpdateSw = now;
+        reg.update().catch(function () {});
+      };
+      document.addEventListener('visibilitychange', verifierRetour);
+      window.addEventListener('focus', verifierRetour);
+      window.addEventListener('pageshow', verifierRetour);
     }).catch(function () {});
   }
 

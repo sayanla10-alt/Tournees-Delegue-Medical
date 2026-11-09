@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.29';
+  var APP_VERSION = '3.28.30';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.30', [
+      'Mises à jour : l\'application vérifie toutes les 5 minutes et à chaque retour sur l\'écran (au lieu d\'une fois par heure)'
+    ]],
     ['3.28.29', [
       'Journée : un jour affiché hors tournée (ancienne tournée publiée) se supprime aussi par appui long sur la frise, après confirmation ; l\'écran reste sur ce jour, vide, avec « Planifier le … » pour le refaire'
     ]],
@@ -13041,17 +13044,19 @@
         var w = reg.installing; if (!w) return;
         w.addEventListener('statechange', function () { if (w.state === 'installed' && navigator.serviceWorker.controller) proposerMaj(); });
       });
-      setInterval(function () { reg.update().catch(function () {}); }, 30 * 60 * 1000);
-      var dernierUpdateSw = 0;
-      document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'visible') {
-          var now = Date.now();
-          if (now - dernierUpdateSw > 60 * 60 * 1000) {
-            dernierUpdateSw = now;
-            reg.update().catch(function () {});
-          }
-        }
-      });
+      // 3.28.30 : recherche de mise à jour toutes les 5 min et à chaque retour sur l'application (au plus une fois par minute)
+      setInterval(function () { reg.update().catch(function () {}); }, 5 * 60 * 1000);
+      var dernierUpdateSw = Date.now();
+      var verifierRetour = function () {
+        if (document.visibilityState !== 'visible') return;
+        var now = Date.now();
+        if (now - dernierUpdateSw < 60 * 1000) return;
+        dernierUpdateSw = now;
+        reg.update().catch(function () {});
+      };
+      document.addEventListener('visibilitychange', verifierRetour);
+      window.addEventListener('focus', verifierRetour);
+      window.addEventListener('pageshow', verifierRetour);
     }).catch(function () {});
   }
 

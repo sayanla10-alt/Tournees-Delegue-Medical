@@ -1,7 +1,8 @@
 {
-  "version": "3.28.29",
+  "version": "3.28.30",
   "date": "2026-11-09",
   "notes": [
-    "Journée : suppression d'un jour par appui long"
+    "Journée : suppression d'un jour par appui long",
+    "Mises à jour reçues plus vite"
   ]
 }

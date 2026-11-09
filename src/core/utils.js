@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.29';
+  var APP_VERSION = '3.28.30';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.30', [
+      'Mises à jour : l\'application vérifie toutes les 5 minutes et à chaque retour sur l\'écran (au lieu d\'une fois par heure)'
+    ]],
     ['3.28.29', [
       'Journée : un jour affiché hors tournée (ancienne tournée publiée) se supprime aussi par appui long sur la frise, après confirmation ; l\'écran reste sur ce jour, vide, avec « Planifier le … » pour le refaire'
     ]],
