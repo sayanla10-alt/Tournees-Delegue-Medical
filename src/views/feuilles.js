@@ -235,8 +235,9 @@
     return '<div class="fiche-entete" style="margin-bottom:12px">' +
       '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + lienFiche(a.code, nomPrat(a)) + ' ' + etoiles(a.note) + '</span>' +
       (sousTitre ? '<p class="discret" style="margin:4px 0 8px">' + specGras(a, sousTitre) + '</p>' : '') +
-      '<p style="margin:0"><b>' + majuscule(dateLongue(a.date)) + '</b> · Passage vers <b>' + esc(a.heure || '--:--') + '</b> (' + esc(a.creneau || '') + ')</p>' +
-      (st ? '<span class="etiquette ' + (ko ? 'p1' : 'ok') + '" style="margin-top:6px;display:inline-block">' + (ko ? 'Non faite : ' + esc(String(statutLibelle(a)).toLowerCase()) : 'Faite' + (hFaite ? ' à ' + esc(hFaite) : '')) + '</span>' : '') +
+      // 3.28.53 : une seule ligne : « Lundi 9 Nov · Vers 12:50 · Non faite · Absent »
+      '<p class="vp-ligne"><b>' + esc(majuscule(dateLongue(a.date)).split(' ').slice(0, 2).join(' ') + ' ' + MOIS_COURTS_CAP[+a.date.slice(5, 7) - 1].replace('.', '')) + '</b> · Vers <b>' + esc(a.heure || '--:--') + '</b>' +
+        (st ? ' · <span class="vp-etat ' + (ko ? 'ko' : 'ok') + '">' + (ko ? 'Non faite · ' + esc(statutLibelle(a)) : 'Faite' + (hFaite ? ' à ' + esc(hFaite) : '')) + '</span>' : '') + '</p>' +
       '</div>' +
       '<div class="choix-ajout">' +
         tuile('planChangerJour', 'calendrier', 'Changer de jour', 'Déplacer vers un autre jour ouvré', !!st) +

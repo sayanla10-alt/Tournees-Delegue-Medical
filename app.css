@@ -3863,3 +3863,8 @@ details.bil-volet .bil-apercu { white-space: pre-wrap; font-size: 12.5px; }
 details.bil-volet details.bil-visite > summary b::after { content: none; }
 /* 3.28.52 : options grisées d'une visite déjà renseignée (Planifier) */
 .tuile.tuile-grisee, .tuile[disabled] { opacity: .45; cursor: default; pointer-events: none; filter: grayscale(1); }
+/* 3.28.53 : fiche visite (Planifier) : date, heure et état sur une ligne */
+.vp-ligne { margin: 0; font-size: 14px; }
+.vp-etat { font-weight: 600; }
+.vp-etat.ok { color: var(--vert); }
+.vp-etat.ko { color: var(--ambre); }

@@ -1,8 +1,8 @@
 {
-  "version": "3.28.52",
+  "version": "3.28.53",
   "date": "2026-11-09",
   "notes": [
-    "Planifier : options grisées pour une visite déjà renseignée",
-    "Bilan du Jour : visites repliées par défaut"
+    "Planifier : fiche visite, date, heure et état sur une ligne",
+    "Planifier : options grisées pour une visite déjà renseignée"
   ]
 }
