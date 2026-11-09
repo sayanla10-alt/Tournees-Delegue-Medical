@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.55';
+  var APP_VERSION = '3.28.56';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.56', [
+      'Planifier : la frise fonctionne comme celle de Journée : tous les jours, à faire défiler ; jours planifiés avec leur marque (✓ confirmé, • brouillon) et leur nombre de visites ; jours à venir non planifiés en blanc, à toucher pour les planifier (« Proposer pour le … ») ; jours passés, week-ends et fériés grisés'
+    ]],
     ['3.28.55', [
       'Planifier : sans aucun jour à venir planifié, la frise montre quand même les 5 prochains jours ouvrés, en cartes blanches (sans marque ni nombre) ; en toucher un le choisit comme date à planifier. Les jours déjà planifiés, eux, s\'affichent comme avant'
     ]],

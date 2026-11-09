@@ -152,9 +152,9 @@
     jour: function (el) {
       if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
-      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; rendre();
+      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; S.ui.planVide = null; rendre();
     },
-    planVierge: function (el) { S.params.dateRef = el.dataset.v; LS.set('params', S.params); S.ui.jourSupprime = null; rendre(); toast('Date choisie : ' + dateLongue(el.dataset.v) + '. Touchez « Proposer ma tournée ».'); },
+    planVierge: function (el) {
     planifierJourSupprime: function (el) { S.ui.jourSupprime = null; S.ui.jour = el.dataset.v; lancerTirage('jour'); },
     supprimerJour: function (el) {
       var d = el.dataset.v || S.ui.jour;

@@ -1,8 +1,8 @@
 {
-  "version": "3.28.55",
+  "version": "3.28.56",
   "date": "2026-11-09",
   "notes": [
-    "Planifier : 5 prochains jours dans la frise, même sans planification",
+    "Planifier : frise comme celle de Journée, jours non planifiés en blanc",
     "Répertoire : fiche sans « Modifier le planning hebdomadaire »"
   ]
 }

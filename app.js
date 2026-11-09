@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.55';
+  var APP_VERSION = '3.28.56';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.56', [
+      'Planifier : la frise fonctionne comme celle de Journée : tous les jours, à faire défiler ; jours planifiés avec leur marque (✓ confirmé, • brouillon) et leur nombre de visites ; jours à venir non planifiés en blanc, à toucher pour les planifier (« Proposer pour le … ») ; jours passés, week-ends et fériés grisés'
+    ]],
     ['3.28.55', [
       'Planifier : sans aucun jour à venir planifié, la frise montre quand même les 5 prochains jours ouvrés, en cartes blanches (sans marque ni nombre) ; en toucher un le choisit comme date à planifier. Les jours déjà planifiés, eux, s\'affichent comme avant'
     ]],
@@ -4670,16 +4673,19 @@
     var datesF = datesPlanAvenir();
     // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
     // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
-    var jSup = S.ui.jourSupprime;
+    var jSup = S.ui.jourSupprime, jVide = S.ui.planVide;
     if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
-    if (jSup) {
-      return h + (datesF.length ? frisePlanifier(datesF, null) : friseVierge()) +
-        '<div class="vide"><strong>' + majuscule(dateLongue(jSup)) + ' supprimé</strong>Plus aucune visite prévue ce jour. Proposez une nouvelle tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>' +
-        '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="planifierJourSupprime" data-v="' + jSup + '">' + icone('relancer') + 'Proposer pour le ' + dateCourte(jSup) + '</button></div>' +
+    if (jVide && (jVide < aujourdhui() || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
+    if (jSup || jVide) {
+      var jx = jSup || jVide;
+      return h + frisePlanifier(datesF, null) +
+        (jSup ? '<div class="vide"><strong>' + majuscule(dateLongue(jSup)) + ' supprimé</strong>Plus aucune visite prévue ce jour. Proposez une nouvelle tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>'
+          : '<div class="vide"><strong>' + majuscule(dateLongue(jVide)) + '</strong>Rien de planifié ce jour. Proposez une tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>') +
+        '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="planifierJourSupprime" data-v="' + jx + '">' + icone('relancer') + 'Proposer pour le ' + dateCourte(jx) + '</button></div>' +
         boutonAnciens('margin-top:10px');
     }
     if (!datesF.length) {
-      return h + friseVierge() + '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Proposer ma tournée » ou ajustez vos critères ci-dessus.</div>' +
+      return h + frisePlanifier([], null) + '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Proposer ma tournée » ou ajustez vos critères ci-dessus.</div>' +
         '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="generer">' + icone('relancer') + 'Proposer ma tournée</button></div>' +
         '<button class="bouton bouton-large" type="button" data-a="voirParams" style="margin-top:8px">' + icone('filtre') + 'Choisir mes critères pas à pas</button>' +
         boutonAnciens('margin-top:10px');
@@ -4695,7 +4701,7 @@
         '<button class="bouton bouton-plein" type="button" data-a="repriseConserver">' + icone('valider') + 'Conserver</button>' +
         '<button class="bouton" type="button" data-a="repriseAnnuler">Revenir à l\'ancienne</button></div></section>';
     } else if (!enAttente) h += rendreProgramme();
-    h += frisePlanifier(datesPlan().filter(function (x) { return x < aujourdhui(); }).slice(-5).concat(dates), d);
+    h += frisePlanifier(dates, d);
     var duJour = S.plan.filter(function (a) { return a.date === d; });
     var n3 = duJour.filter(function (a) { return +a.note === 3; }).length;
     var nMatin = duJour.filter(function (a) { return a.creneau === 'Matin'; }).length;
@@ -4742,36 +4748,21 @@
     return h;
   };
   // frise de l'agenda : tous les jours qui ont au moins une visite, dans l'ordre ; le jour choisi au centre
-  // 3.28.55 : aucun jour à venir planifié : la frise montre quand même les 5 prochains jours ouvrés, en cartes blanches
-  // (sans marque ni nombre) ; en toucher un le choisit comme date à planifier
-  function cinqProchainsJours() {
-    var l = [], x = prochainJourOuvre(aujourdhui());
-    while (l.length < 5) { l.push(x); x = prochainJourOuvre(ajouterJours(x, 1)); }
-    return l;
-  }
-  function friseVierge() {
-    var t = aujourdhui(), passes = datesPlan().filter(function (x) { return x < t; }).slice(-5), vierges = cinqProchainsJours();
-    var choisi = vierges.indexOf(S.params.dateRef) >= 0 ? S.params.dateRef : null;
-    var carte = function (x, vierge) {
-      return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (vierge ? ' bj-vierge' : ' passe grise') + '"' +
-        (vierge ? ' data-a="planVierge" data-v="' + x + '" aria-pressed="' + (x === choisi) + '"' : ' disabled aria-disabled="true" title="Jour passé"') + '>' +
-        '<small>' + JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em>' +
-        (vierge ? '' : '<i class="etat-jour ' + (jourConfirme(x) ? 'ok' : 'brouillon') + '">' + (jourConfirme(x) ? '✓ ' : '• ') + S.plan.filter(function (a) { return a.date === x; }).length + '</i>') + '</button>';
-    };
-    return '<div class="bande-jours frise-plan"><div class="bj-jours" role="group" aria-label="Prochains jours">' +
-      passes.map(function (x) { return carte(x, false); }).join('') + vierges.map(function (x) { return carte(x, true); }).join('') + '</div>' +
-      '<button type="button" class="bj-cal" data-a="calOuvrir" data-ctx="plan" aria-label="Choisir une date à planifier">' + icone('calendrier') + '</button></div>';
-  }
+  // 3.28.56 : frise de Planifier comme celle de Journée : tous les jours, 6 semaines avant et après le jour choisi ;
+  // jours planifiés avec leur marque (✓ confirmé, • brouillon) et leur nombre de visites ; jours à venir non planifiés en blanc,
+  // à toucher pour les planifier ; jours passés, week-ends et fériés grisés
   function frisePlanifier(dates, d) {
-    var t = aujourdhui();
-    return '<div class="bande-jours frise-plan"><div class="bj-jours" role="group" aria-label="Jours planifiés">' + dates.map(function (x, i) {
+    var t = aujourdhui(), centre = d || S.ui.planVide || S.ui.jourSupprime || t, sel = d || S.ui.planVide || S.ui.jourSupprime;
+    var jours = []; for (var k = -42; k <= 42; k++) jours.push(ajouterJours(centre, k));
+    return '<div class="bande-jours frise-plan"><div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
       var n = S.plan.filter(function (a) { return a.date === x; }).length, ok = jourConfirme(x);
-      var saut = i > 0 && joursEcoules(dates[i - 1], x) > 3;
-      return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (x < t ? ' passe grise' : '') + (saut ? ' lundi' : '') + '"' + (x < t ? ' disabled aria-disabled="true" title="Jour passé"' : ' data-a="jour" data-v="' + x + '"') + ' aria-pressed="' + (x === d) + '"><small>' +
-        JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em>' +
-        '<i class="etat-jour ' + (ok ? 'ok' : 'brouillon') + '">' + (ok ? '✓ ' : '• ') + n + '</i></button>';
+      var nonOuvre = jourSemaineIndex(x) > 4 || estFerie(x), passe = x < t, actif = !passe && !nonOuvre;
+      var marque = n ? '<i class="etat-jour ' + (ok ? 'ok' : 'brouillon') + '">' + (ok ? '✓ ' : '• ') + n + '</i>' : '<i></i>';
+      return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (jourSemaineIndex(x) === 0 ? ' lundi' : '') +
+        (nonOuvre ? ' non-ouvre grise' : (passe ? ' passe grise' : '')) + (!n && actif ? ' bj-vierge' : '') + '"' +
+        (actif ? ' data-a="' + (n ? 'jour' : 'planVierge') + '" data-v="' + x + '" aria-pressed="' + (x === sel) + '"' : ' disabled aria-disabled="true"' + (x === sel ? ' aria-pressed="true"' : '')) + '><small>' +
+        JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em>' + marque + '</button>';
     }).join('') + '</div>' +
-      // 3.26.50 : même petit calendrier que dans Journée, pour choisir ou planifier une date
       '<button type="button" class="bj-cal" data-a="calOuvrir" data-ctx="plan" aria-label="Choisir une date à planifier">' + icone('calendrier') + '</button></div>';
   }
 
@@ -11356,10 +11347,16 @@
     jour: function (el) {
       if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
-      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; rendre();
+      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; S.ui.planVide = null; rendre();
     },
-    planVierge: function (el) { S.params.dateRef = el.dataset.v; LS.set('params', S.params); S.ui.jourSupprime = null; rendre(); toast('Date choisie : ' + dateLongue(el.dataset.v) + '. Touchez « Proposer ma tournée ».'); },
-    planifierJourSupprime: function (el) { S.ui.jourSupprime = null; S.ui.jour = el.dataset.v; lancerTirage('jour'); },
+    planVierge: function (el) {
+      if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
+      var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
+      S.ui.planVide = el.dataset.v; S.ui.jourSupprime = null; S.ui.ouvert = null;
+      if (S.params.mode === 'jour') { S.params.dateRef = el.dataset.v; LS.set('params', S.params); }
+      rendre();
+    },
+    planifierJourSupprime: function (el) { S.ui.jourSupprime = null; S.ui.planVide = null; S.ui.jour = el.dataset.v; lancerTirage('jour'); },
     supprimerJour: function (el) {
       var d = el.dataset.v || S.ui.jour;
       demanderSuppressionJour(d);
