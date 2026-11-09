@@ -299,7 +299,7 @@
   function sectionWa(titre, items, vide) {
     var l = (items || []).filter(function (x) { return String(x || '').trim(); });
     if (!l.length && vide === undefined) return [];
-    return ['', '', '*' + titre.toUpperCase() + '*' + (l.length > 1 ? ' (' + l.length + ')' : '')].concat(l.length ? l.map(function (x) {
+    return ['', '*' + titre.toUpperCase() + '*' + (l.length > 1 ? ' (' + l.length + ')' : '')].concat(l.length ? l.map(function (x) {
       return (x.indexOf('• ') === 0 ? x : '• ' + x);
     }) : ['_' + vide + '_']);
   }
@@ -309,7 +309,6 @@
     var R = rapportDe(d) || {}, duJour = visitesDuJourRapport(d), s = syntheseJour(duJour);
     var dateCourteCr = majuscule(JOURS_COURTS[jourSemaineIndex(d)]) + ' ' + d.slice(8) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4);
     var pot = [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return s.pot[x[0]] + ' ' + x[1]; }).join(', ');
-    var prod = Object.keys(s.produits).sort(function (a, b) { return s.produits[b] - s.produits[a]; }).map(function (x) { return x + (s.produits[x] > 1 ? ' (' + s.produits[x] + ')' : ''); });
     var faites = s.faites.slice().sort(function (a, b) { return String(heureVisite(a)).localeCompare(String(heureVisite(b))); });
     var l = ['*CR du ' + dateCourteCr + '*', moi() || 'Délégué', '',
       '*Bilan*',
@@ -318,20 +317,22 @@
     var kmJ = R.km ? R.km + ' km' : (s.km ? km(s.km) + ' estimés' : '');
     if (kmJ) l.push('Trajet : ' + kmJ);
     if (s.communes.length) l.push('Communes : ' + s.communes.join(', '));
+    // 3.28.43 : compte rendu plus court : une ligne par visite, sans les produits présentés (tous sont présentés) ;
+    // pharmacie : le quartier plutôt que le nom de l'officine, déjà dans le nom
     var lignesFaites = faites.map(function (a) {
-      var det = [estPharmacie(a) ? '' : abrSpec(a.specialite), abregerHopital(a.lieu || '')].filter(Boolean).join(', ');
+      var det = estPharmacie(a) ? infosSansDoublon(a, [a.lieu, a.quartier]) : infosSansDoublon(a, [abrSpec(a.specialite), abregerHopital(a.lieu || '')]);
       return '*' + a.nom + '*' + (det ? '\n   ' + det : '') + (a.produits ? '\n   Produits : ' + a.produits : '');
     });
     l = l.concat(sectionWa('Visites faites', lignesFaites));
     l = l.concat(sectionWa('Visites non faites', s.nonFaites.map(function (a) { return a.nom + ' : ' + String(statutLibelle(a) || '').toLowerCase(); })));
-    l = l.concat(sectionWa('Produits présentés', prod));
     l = l.concat(sectionWa('Échantillons remis', s.echantillons));
     l = l.concat(sectionWa('Commandes', s.commandes));
     l = l.concat(sectionWa('Ruptures signalées', s.ruptures));
     l = l.concat(sectionWa('RDV et rappels', s.suites));
-    l = l.concat(sectionWa('Faits marquants', String(R.faits || '').split(/\n+/), 'Rien à signaler'));
-    l = l.concat(sectionWa('Concurrence', String(R.concurrence || '').split(/\n+/), 'Rien observé'));
-    l = l.concat(sectionWa('Besoins', (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []), 'Aucun'));
+    var faitsL = String(R.faits || '').split(/\n+/), concL = String(R.concurrence || '').split(/\n+/), besL = (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []);
+    l = l.concat(sectionWa('Faits marquants', faitsL)).concat(sectionWa('Concurrence', concL)).concat(sectionWa('Besoins', besL));
+    var vides = [[faitsL, 'faits marquants'], [concL, 'concurrence'], [besL, 'besoins']].filter(function (x) { return !x[0].some(function (y) { return String(y || '').trim(); }); }).map(function (x) { return x[1]; });
+    if (vides.length) l.push('', '_' + majuscule(vides.join(', ')) + ' : rien à signaler_');
     return l.join('\n');
   }
   function empreinteRapport(R) { return JSON.stringify([R.faits || '', R.concurrence || '', R.besoins || [], R.besoinsTexte || '', R.km || '']); }

@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.42';
+  var APP_VERSION = '3.28.43';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.43', [
+      'Compte rendu WhatsApp au superviseur plus court : une ligne par visite, sans les produits présentés (tous sont présentés) ; le nom de la pharmacie ou du cabinet n\'est plus répété (quartier à la place) ; faits marquants, concurrence et besoins vides réunis sur une ligne'
+    ]],
     ['3.28.42', [
       'Toute suppression (supprimer une journée ou une visite, retirer de la tournée, effacer, remplacer) : « Non » est à droite, en bouton principal et choisi par défaut ; « Oui » est à gauche, discret, pour ne rien supprimer par réflexe',
       'Suppression d\'une journée par appui long sur la date : 1,5 seconde au lieu de 0,55 (l\'effet de pression dure le même temps)'
