@@ -3861,3 +3861,5 @@ details.bil-visite > summary::-webkit-details-marker { display: none; }
 details.bil-volet details.bil-visite > summary { flex-direction: row !important; align-items: flex-start; gap: 8px; }
 details.bil-volet .bil-apercu { white-space: pre-wrap; font-size: 12.5px; }
 details.bil-volet details.bil-visite > summary b::after { content: none; }
+/* 3.28.52 : options grisées d'une visite déjà renseignée (Planifier) */
+.tuile.tuile-grisee, .tuile[disabled] { opacity: .45; cursor: default; pointer-events: none; filter: grayscale(1); }

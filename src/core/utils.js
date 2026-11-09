@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.51';
+  var APP_VERSION = '3.28.52';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.52', [
+      'Planifier, fiche d\'une visite déjà renseignée (faite ou non faite) : Changer de jour, Remplacer, Épingler et Retirer sont grisés avec le motif (« Visite faite », « Visite non faite : absent ») ; Modifier la fiche et Voir dans Journée restent ; étiquette « Faite à 09:10 » ou « Non faite : absent » en tête'
+    ]],
     ['3.28.51', [
       'Bilan du Jour : toutes les visites sont repliées par défaut, y compris les non faites (motif visible en touchant la visite)'
     ]],

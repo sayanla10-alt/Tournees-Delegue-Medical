@@ -1,8 +1,8 @@
 {
-  "version": "3.28.51",
+  "version": "3.28.52",
   "date": "2026-11-09",
   "notes": [
-    "Bilan du Jour : visites repliées par défaut",
-    "Bilan du Jour dans la charte de l'application"
+    "Planifier : options grisées pour une visite déjà renseignée",
+    "Bilan du Jour : visites repliées par défaut"
   ]
 }

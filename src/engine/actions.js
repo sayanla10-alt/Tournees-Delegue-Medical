@@ -132,6 +132,7 @@
       S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' });
     },
     planChangerJour: function (el) {
+      var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; }   // 3.28.52
       var a = arret(el.dataset.uid); if (!a) return;
       var c = (ctx().parCode[a.code] || []).filter(function (cr) { return String(cr.idPresence) === String(a.idPresence); })[0] || (ctx().parCode[a.code] || [])[0];
       if (c) {
@@ -142,8 +143,8 @@
       }
       rendre();
     },
-    garderPlan: function (el) { ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
-    retirerPlan: function (el) { ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
+    garderPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
+    retirerPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
     voirDansJournee: function (el) { S.ui.feuille = null; S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); },
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true); },
     generer: function () { lancerTirage('nouveau'); },
@@ -1052,6 +1053,7 @@
       if (f && f.choix) appliquerRemplacement(f.uid, f.choix.cle, f.garder);
     },
     completerJour: function (el) {
+      var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; }   // 3.28.52
       var a = arret(el.dataset.uid); if (!a) return;
       S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true, lieuRef: a.lieu }; rendre();
     },

@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.51';
+  var APP_VERSION = '3.28.52';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.52', [
+      'Planifier, fiche d\'une visite déjà renseignée (faite ou non faite) : Changer de jour, Remplacer, Épingler et Retirer sont grisés avec le motif (« Visite faite », « Visite non faite : absent ») ; Modifier la fiche et Voir dans Journée restent ; étiquette « Faite à 09:10 » ou « Non faite : absent » en tête'
+    ]],
     ['3.28.51', [
       'Bilan du Jour : toutes les visites sont repliées par défaut, y compris les non faites (motif visible en touchant la visite)'
     ]],
@@ -8590,18 +8593,27 @@
     var a = arret(f.uid);
     if (!a) return '<p class="discret">Visite introuvable.</p>';
     var sousTitre = estPharmacie(a) ? infosPharmaciePlan(a) : infosMedecinPlan(a);
+    // 3.28.52 : visite déjà renseignée (faite ou non faite) : elle ne bouge plus dans la tournée ;
+    // Changer de jour, Remplacer, Épingler et Retirer sont grisés, avec le motif ; Modifier la fiche et Voir dans Journée restent
+    var st = vraiStatut(a.statut), ko = st && estKo(st), motif = st ? (ko ? 'Visite non faite : ' + String(statutLibelle(a)).toLowerCase() : 'Visite faite') : '';
+    var hFaite = (a.valideA || a.heure || '').slice(0, 5);
+    var tuile = function (action, ic, titre, sous, bloque) {
+      return bloque ? '<button type="button" class="tuile tuile-grisee" disabled aria-disabled="true"><b>' + icone(ic) + titre + '</b><small>' + esc(motif) + '</small></button>'
+        : '<button type="button" class="tuile" data-a="' + action + '" data-uid="' + a.uid + '"><b>' + icone(ic) + titre + '</b><small>' + sous + '</small></button>';
+    };
     return '<div class="fiche-entete" style="margin-bottom:12px">' +
       '<span class="element-titre" style="font-size:1.15rem;display:flex;align-items:center;gap:6px">' + pastilleType(a) + lienFiche(a.code, nomPrat(a)) + ' ' + etoiles(a.note) + '</span>' +
       (sousTitre ? '<p class="discret" style="margin:4px 0 8px">' + specGras(a, sousTitre) + '</p>' : '') +
       '<p style="margin:0"><b>' + majuscule(dateLongue(a.date)) + '</b> · Passage vers <b>' + esc(a.heure || '--:--') + '</b> (' + esc(a.creneau || '') + ')</p>' +
+      (st ? '<span class="etiquette ' + (ko ? 'p1' : 'ok') + '" style="margin-top:6px;display:inline-block">' + (ko ? 'Non faite : ' + esc(String(statutLibelle(a)).toLowerCase()) : 'Faite' + (hFaite ? ' à ' + esc(hFaite) : '')) + '</span>' : '') +
       '</div>' +
       '<div class="choix-ajout">' +
-        '<button type="button" class="tuile" data-a="planChangerJour" data-uid="' + a.uid + '"><b>' + icone('calendrier') + 'Changer de jour</b><small>Déplacer vers un autre jour ouvré</small></button>' +
-        '<button type="button" class="tuile" data-a="completerJour" data-uid="' + a.uid + '"><b>' + icone('relancer') + 'Remplacer</b><small>Choisir un autre praticien pour ce créneau</small></button>' +
-        '<button type="button" class="tuile" data-a="garderPlan" data-uid="' + a.uid + '"><b>' + icone('epingle') + (a.garde ? 'Ne plus garder' : 'Épingler / Garder') + '</b><small>' + (a.garde ? 'Actuellement protégé du recalcul' : 'Protéger ce praticien lors des recalculs') + '</small></button>' +
-        '<button type="button" class="tuile" data-a="retirerPlan" data-uid="' + a.uid + '"><b>' + icone('fermer') + 'Retirer</b><small>Enlever de la tournée du ' + dateCourte(a.date) + '</small></button>' +
+        tuile('planChangerJour', 'calendrier', 'Changer de jour', 'Déplacer vers un autre jour ouvré', !!st) +
+        tuile('completerJour', 'relancer', 'Remplacer', 'Choisir un autre praticien pour ce créneau', !!st) +
+        tuile('garderPlan', 'epingle', a.garde ? 'Ne plus garder' : 'Épingler / Garder', a.garde ? 'Actuellement protégé du recalcul' : 'Protéger cette visite du recalcul', !!st) +
+        tuile('retirerPlan', 'fermer', 'Retirer', 'Enlever de la tournée du ' + dateCourte(a.date), !!st) +
         '<button type="button" class="tuile" data-a="modifierFiche" data-v="' + esc(a.code) + '"><b>' + icone('crayon') + 'Modifier</b><small>Modifier la fiche de ' + (estPharmacie(a) ? 'la pharmacie' : 'ce médecin') + '</small></button>' +
-        '<button type="button" class="tuile" data-a="voirDansJournee" data-uid="' + a.uid + '"><b>' + icone('chevron') + 'Voir dans Journée</b><small>Basculer vers la vue détaillée du jour</small></button>' +
+        '<button type="button" class="tuile" data-a="voirDansJournee" data-uid="' + a.uid + '"><b>' + icone('chevron') + 'Voir dans Journée</b><small>' + (st ? 'Consulter ou corriger le compte rendu' : 'Basculer vers la vue détaillée du jour') + '</small></button>' +
       '</div>';
   };
 
@@ -11298,6 +11310,7 @@
       S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); var c = document.querySelector('.arret.ouvert'); if (c) c.scrollIntoView({ block: 'start' });
     },
     planChangerJour: function (el) {
+      var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; }   // 3.28.52
       var a = arret(el.dataset.uid); if (!a) return;
       var c = (ctx().parCode[a.code] || []).filter(function (cr) { return String(cr.idPresence) === String(a.idPresence); })[0] || (ctx().parCode[a.code] || [])[0];
       if (c) {
@@ -11308,8 +11321,8 @@
       }
       rendre();
     },
-    garderPlan: function (el) { ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
-    retirerPlan: function (el) { ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
+    garderPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
+    retirerPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
     voirDansJournee: function (el) { S.ui.feuille = null; S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); },
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true); },
     generer: function () { lancerTirage('nouveau'); },
@@ -12218,6 +12231,7 @@
       if (f && f.choix) appliquerRemplacement(f.uid, f.choix.cle, f.garder);
     },
     completerJour: function (el) {
+      var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; }   // 3.28.52
       var a = arret(el.dataset.uid); if (!a) return;
       S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true, lieuRef: a.lieu }; rendre();
     },
