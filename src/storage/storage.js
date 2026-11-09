@@ -384,7 +384,15 @@
   function rejetsEnAttente() { return (S.deadLetter && ((S.deadLetter.visites && S.deadLetter.visites.length) + (S.deadLetter.fiches && S.deadLetter.fiches.length))) || 0; }
 
   function pret() { return !!(S.data && S.data.praticiens && S.data.praticiens.length); }
-  function statuts() { return (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : STATUTS_DEFAUT; }
+  function statuts() {
+    var l = (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : STATUTS_DEFAUT;
+    // 3.28.41 : statuts gardés sur le téléphone sous l'ancienne forme Supabase ({ statut, compteCommeVisite }) : remis en forme
+    if (l[0] && l[0].nom === undefined && l[0].statut !== undefined) {
+      l = l.map(function (s) { return { nom: s.statut, visite: s.compteCommeVisite === 'Oui' || s.compteCommeVisite === true }; });
+      if (S.data) S.data.statuts = l;
+    }
+    return l;
+  }
   function quartiers() {
     var def = quartiersDefautObjets();
     if (!S.data || !S.data.quartiers || !S.data.quartiers.length) return def;

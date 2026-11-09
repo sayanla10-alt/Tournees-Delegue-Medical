@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.40';
+  var APP_VERSION = '3.28.41';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.41', [
+      'Journée : une visite faite (« Visite faite ») s\'affiche de nouveau en vert. Depuis le passage à Supabase, la liste des statuts était lue sous une mauvaise forme : « Visite faite » ne comptait plus comme visite (rouge, et absente des compteurs de visites)'
+    ]],
     ['3.28.40', [
       'Messages : « envoyé à la BDD » au lieu de « envoyé au Google Sheet » ou « Supabase » (comptes rendus, fiches, positions GPS, connexion)'
     ]],
@@ -1265,7 +1268,15 @@
   function rejetsEnAttente() { return (S.deadLetter && ((S.deadLetter.visites && S.deadLetter.visites.length) + (S.deadLetter.fiches && S.deadLetter.fiches.length))) || 0; }
 
   function pret() { return !!(S.data && S.data.praticiens && S.data.praticiens.length); }
-  function statuts() { return (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : STATUTS_DEFAUT; }
+  function statuts() {
+    var l = (S.data && S.data.statuts && S.data.statuts.length) ? S.data.statuts : STATUTS_DEFAUT;
+    // 3.28.41 : statuts gardés sur le téléphone sous l'ancienne forme Supabase ({ statut, compteCommeVisite }) : remis en forme
+    if (l[0] && l[0].nom === undefined && l[0].statut !== undefined) {
+      l = l.map(function (s) { return { nom: s.statut, visite: s.compteCommeVisite === 'Oui' || s.compteCommeVisite === true }; });
+      if (S.data) S.data.statuts = l;
+    }
+    return l;
+  }
   function quartiers() {
     var def = quartiersDefautObjets();
     if (!S.data || !S.data.quartiers || !S.data.quartiers.length) return def;
@@ -2510,10 +2521,9 @@
         else if (cat === 'activite') activites.push(val);
         else if (cat === 'activite_pharmacie') activitesPharmacie.push(val);
         else if (cat === 'statut') {
-          statuts.push({
-            statut: val,
-            compteCommeVisite: (item.metadata && item.metadata.compte_comme_visite) ? 'Oui' : 'Non'
-          });
+          // 3.28.41 : même forme que le Google Sheet ({ nom, visite }) : sinon « Visite faite » ne comptait pas comme visite (affichée en rouge)
+          var cv = item.metadata && item.metadata.compte_comme_visite;
+          statuts.push({ nom: val, visite: cv === true || /^(oui|true|1)$/i.test(String(cv || '')) });
         }
       });
 
@@ -2991,7 +3001,7 @@
                  historique: hist, plannings: d.plannings || ancien.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
                  sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '', marqueurSb: d.marqueurSb || '' };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
-      S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, S.data.statuts); });
+      S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, statuts()); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data); ctxCache.data = null;
       var nVis = 0; try { nVis = actualiserVisitesPlanifiees() || 0; } catch (eA) { console.warn(eA); }

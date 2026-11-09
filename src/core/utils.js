@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.40';
+  var APP_VERSION = '3.28.41';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.41', [
+      'Journée : une visite faite (« Visite faite ») s\'affiche de nouveau en vert. Depuis le passage à Supabase, la liste des statuts était lue sous une mauvaise forme : « Visite faite » ne comptait plus comme visite (rouge, et absente des compteurs de visites)'
+    ]],
     ['3.28.40', [
       'Messages : « envoyé à la BDD » au lieu de « envoyé au Google Sheet » ou « Supabase » (comptes rendus, fiches, positions GPS, connexion)'
     ]],

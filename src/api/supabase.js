@@ -281,10 +281,9 @@
         else if (cat === 'activite') activites.push(val);
         else if (cat === 'activite_pharmacie') activitesPharmacie.push(val);
         else if (cat === 'statut') {
-          statuts.push({
-            statut: val,
-            compteCommeVisite: (item.metadata && item.metadata.compte_comme_visite) ? 'Oui' : 'Non'
-          });
+          // 3.28.41 : même forme que le Google Sheet ({ nom, visite }) : sinon « Visite faite » ne comptait pas comme visite (affichée en rouge)
+          var cv = item.metadata && item.metadata.compte_comme_visite;
+          statuts.push({ nom: val, visite: cv === true || /^(oui|true|1)$/i.test(String(cv || '')) });
         }
       });
 
