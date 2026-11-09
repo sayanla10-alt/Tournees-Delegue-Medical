@@ -366,7 +366,7 @@
         trierPlan();
         if (av.jourEtat) S.jours[av.date] = av.jourEtat;
         if (av.rejetes) S.rejetes = av.rejetes;
-        S.ui.avantTirage = null;
+        S.ui.avantTirage = null; S.ui.avantJJ = null;
         sauver(); rendre(); publierPlan(true);
         toast('Liste précédente restaurée.');
         return;

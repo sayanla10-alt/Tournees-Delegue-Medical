@@ -86,6 +86,9 @@
     (horsZone ? Promise.resolve() : avantTirage()).then(function () {
       var periode = datesPeriode();
       var cible = portee === 'jour' ? [S.ui.jour] : periode;
+      // 3.28.35 : planification du jour même : on garde ce que Journée montrait avant, pour demander à l'acceptation
+      // s'il faut remplacer la journée déjà planifiée ou la garder
+      memoriserJourMeme(cible);
       // 3.28.18 : visites déjà prévues hors des communes choisies pour leur jour : on demande avant de les garder
       if (!horsZone) {
         var dejaPrevues = portee === 'nouveau'

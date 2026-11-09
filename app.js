@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.34';
+  var APP_VERSION = '3.28.35';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.35', [
+      'Planifier le jour même : si Journée contient déjà une tournée pour aujourd\'hui, l\'application demande juste après « Accepter » (avant WhatsApp) s\'il faut la remplacer. Oui : seule la nouvelle sélection reste (les médecins de l\'ancienne qui y étaient restés sont remplacés par d\'autres), l\'ancienne tournée publiée ne revient plus. Non : la journée déjà prévue est gardée telle quelle et la nouvelle sélection est abandonnée. Les visites déjà faites restent toujours'
+    ]],
     ['3.28.34', [
       'Planifier : dans chaque secteur, les médecins d\'un même hôpital sont toujours à la suite dans la liste, et une même spécialité à la suite dans un même hôpital (y compris après un recalcul ou pour une tournée reprise du serveur)'
     ]],
@@ -4718,6 +4721,7 @@
     rt[date] = true;
     LS.set('joursRetires', rt);
     S.imposes = S.imposes.filter(function (im) { return im.date !== date; });
+    if (S.ui.avantJJ && S.ui.avantJJ.date === date) S.ui.avantJJ = null;
     var restantes = datesPlanAvenir();
     if (S.ui.jour === date) S.ui.jour = restantes[0] || prochainJourOuvre(ajouterJours(aujourdhui(), 1));
     // 3.28.29 : l'écran reste sur la journée supprimée (vide, avec « Planifier le … » pour la refaire)
@@ -4764,8 +4768,91 @@
   }
   // Confirmation avant tout changement de la tournée
   // confirme les jours donnés (par défaut le jour affiché), puis propose l'envoi par WhatsApp (Oui / Non / Retour)
-  function confirmerProgramme(dates, depuisChoix) {
+  // ------------------------------------------------------------------ 3.28.35 : planifier le jour même
+  function estFaiteArret(a) { return !!(a && (vraiStatut(a.statut) || a.etat === 'valide' || a.corrige)); }
+  // visites prévues (pas encore faites) que Journée montre pour ce jour : tournée du téléphone et tournée publiée
+  function prevuesJournee(d) {
+    var vus = {}, l = [];
+    donneesJour(d, true).concat(arretsHorsJour(d)).forEach(function (a) {
+      if (!a || !a.code || estFaiteArret(a) || vus[a.code]) return;
+      vus[a.code] = true; l.push(a);
+    });
+    return l;
+  }
+  function memoriserJourMeme(cible) {
+    var t = aujourdhui();
+    if (cible.indexOf(t) < 0) return;
+    if (S.ui.avantJJ && S.ui.avantJJ.date === t) return;   // déjà mémorisé au premier tirage (les recalculs suivants ne comptent pas)
+    var l = prevuesJournee(t);
+    S.ui.avantJJ = l.length ? {
+      date: t,
+      arrets: JSON.parse(JSON.stringify(l)),
+      planJour: JSON.parse(JSON.stringify(S.plan.filter(function (a) { return a.date === t && !estFaiteArret(a); }))),
+      jourEtat: S.jours[t] ? JSON.parse(JSON.stringify(S.jours[t])) : null
+    } : null;
+  }
+  // Oui : la nouvelle sélection remplace la journée déjà planifiée (les visites faites restent)
+  function remplacerJourMeme(av) {
+    var t = av.date, anciens = {};
+    av.arrets.forEach(function (a) { anciens[a.code] = true; });
+    // l'ancienne tournée publiée ne revient plus dans Journée
+    if (S.data && S.data.plannings) S.data.plannings = S.data.plannings.filter(function (x) { return !(x.date === t && x.delegue && estMoi(x.delegue) && !vraiStatut(x.statut)); });
+    var duJour = S.plan.filter(function (a) { return a.date === t; });
+    var gardes = duJour.filter(function (a) { return estFaiteArret(a) || !anciens[a.code]; });
+    // des visites de l'ancienne journée étaient restées dans la sélection (Proposer complète les jours déjà planifiés) :
+    // on refait la journée sans elles, les nouvelles et les visites faites restent à leur heure
+    if (gardes.length < duJour.length) {
+      var p = S.params, horsCible = S.plan.filter(function (a) { return a.date !== t; });
+      var exclus = p.eviterCollegues !== false ? exclusCollegues([t]) : exclusValides([t]), ecart = Math.max(+p.delai || 0, 5);
+      horsCible.forEach(function (a) { if (Math.abs(joursEcoules(a.date, t)) < ecart) exclus[a.code] = true; });
+      Object.keys(refusesActuels().codes).forEach(function (c) { exclus[c] = true; });
+      var heures = {}; gardes.forEach(function (a) { heures[a.uid] = a.heure; });
+      var r = Moteur.genererPlanning(ctx(), {
+        dates: [t], communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0, exclus: exclus, rejetes: anciens,
+        conserves: gardes, imposes: S.imposes.filter(function (im) { return im.date === t; }).concat(rdvProchaines([t])), depart: departCoord(), accepte: filtreCibles()
+      });
+      r.arrets.forEach(function (a) { if (heures[a.uid]) a.heure = heures[a.uid]; });
+      S.plan = horsCible.concat(r.arrets); trierPlan();
+    }
+    var rt = LS.get('joursRetires', {}); if (rt[t]) { delete rt[t]; LS.set('joursRetires', rt); }
+  }
+  // Non : la journée déjà planifiée reste telle qu'elle était ; la nouvelle sélection est abandonnée
+  function garderJourMeme(av) {
+    var t = av.date;
+    S.plan = S.plan.filter(function (a) { return a.date !== t || estFaiteArret(a); });
+    var deja = {}; S.plan.forEach(function (a) { if (a.date === t) deja[a.code] = true; });
+    S.plan = S.plan.concat((av.planJour || []).filter(function (a) { return !deja[a.code]; }));
+    trierPlan();
+    if (av.jourEtat) S.jours[t] = av.jourEtat; else delete S.jours[t];
+  }
+  function confirmerProgramme(dates, depuisChoix, jjDecide) {
     dates = dates && dates.length ? dates : [S.ui.jour];
+    var t0 = aujourdhui(), av = S.ui.avantJJ;
+    if (av && (av.date !== t0 || dates.indexOf(t0) < 0)) { if (av.date !== t0) S.ui.avantJJ = av = null; else av = null; }
+    if (!jjDecide && av) {
+      var nouv = {}, anc = {}, diff = false;
+      S.plan.forEach(function (a) { if (a.date === t0 && !estFaiteArret(a)) nouv[a.code] = true; });
+      av.arrets.forEach(function (a) { anc[a.code] = true; if (!nouv[a.code]) diff = true; });
+      Object.keys(nouv).forEach(function (c) { if (!anc[c]) diff = true; });
+      if (av.arrets.length) {
+        var nA = av.arrets.length, nN = Object.keys(nouv).length, communs = av.arrets.filter(function (a) { return nouv[a.code]; }).length;
+        confirmerPuis('Journée d\'aujourd\'hui déjà planifiée',
+          'Une tournée était déjà prévue aujourd\'hui dans Journée (' + nA + ' visite' + (nA > 1 ? 's' : '') + ' : ' + esc(av.arrets.slice(0, 4).map(function (a) { return a.nom; }).join(', ') + (nA > 4 ? '…' : '')) + '). ' +
+          (diff ? '<b>Remplacer</b> par la nouvelle sélection (' + nN + ' visite' + (nN > 1 ? 's' : '') + (communs ? ', dont ' + communs + ' déjà prévue' + (communs > 1 ? 's' : '') + ' : elles seront remplacées par d\'autres médecins' : '') + ') ?' :
+            'La sélection reprend ces mêmes visites. <b>Refaire</b> entièrement la journée avec d\'autres médecins ?') + '<br><span class="discret">Oui : seule la nouvelle sélection reste. Non : la journée déjà prévue est gardée telle quelle et la nouvelle sélection est abandonnée. Les visites déjà faites restent dans les deux cas.</span>',
+          'Oui, remplacer',
+          function () { S.ui.feuille = null; remplacerJourMeme(av); S.ui.avantJJ = null; confirmerProgramme(dates, depuisChoix, true); },
+          function () {
+            S.ui.feuille = null; garderJourMeme(av); S.ui.avantJJ = null; S.ui.avantTirage = null;
+            var autres = dates.filter(function (d) { return d !== t0; });
+            if (autres.length) { confirmerProgramme(autres, depuisChoix, true); toast('Journée d\'aujourd\'hui gardée telle qu\'elle était.'); return; }
+            S.ui.aAccepter = null; S.ui.jour = t0; sauver(); publierPlan(true); rendre();
+            toast('Journée d\'aujourd\'hui gardée telle qu\'elle était ; la nouvelle sélection est abandonnée.');
+          });
+        return;
+      }
+    }
+    if (dates.indexOf(t0) >= 0) S.ui.avantJJ = null;
     var avantJours = {};
     dates.forEach(function (d) { avantJours[d] = S.jours[d] ? JSON.parse(JSON.stringify(S.jours[d])) : { etat: 'proposition', valideLe: '', modifieLe: '' }; });
     var avantAAccepter = S.ui.aAccepter;
@@ -10010,6 +10097,9 @@
     (horsZone ? Promise.resolve() : avantTirage()).then(function () {
       var periode = datesPeriode();
       var cible = portee === 'jour' ? [S.ui.jour] : periode;
+      // 3.28.35 : planification du jour même : on garde ce que Journée montrait avant, pour demander à l'acceptation
+      // s'il faut remplacer la journée déjà planifiée ou la garder
+      memoriserJourMeme(cible);
       // 3.28.18 : visites déjà prévues hors des communes choisies pour leur jour : on demande avant de les garder
       if (!horsZone) {
         var dejaPrevues = portee === 'nouveau'
@@ -11196,7 +11286,7 @@
         trierPlan();
         if (av.jourEtat) S.jours[av.date] = av.jourEtat;
         if (av.rejetes) S.rejetes = av.rejetes;
-        S.ui.avantTirage = null;
+        S.ui.avantTirage = null; S.ui.avantJJ = null;
         sauver(); rendre(); publierPlan(true);
         toast('Liste précédente restaurée.');
         return;

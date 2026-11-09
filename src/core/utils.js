@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.34';
+  var APP_VERSION = '3.28.35';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.35', [
+      'Planifier le jour même : si Journée contient déjà une tournée pour aujourd\'hui, l\'application demande juste après « Accepter » (avant WhatsApp) s\'il faut la remplacer. Oui : seule la nouvelle sélection reste (les médecins de l\'ancienne qui y étaient restés sont remplacés par d\'autres), l\'ancienne tournée publiée ne revient plus. Non : la journée déjà prévue est gardée telle quelle et la nouvelle sélection est abandonnée. Les visites déjà faites restent toujours'
+    ]],
     ['3.28.34', [
       'Planifier : dans chaque secteur, les médecins d\'un même hôpital sont toujours à la suite dans la liste, et une même spécialité à la suite dans un même hôpital (y compris après un recalcul ou pour une tournée reprise du serveur)'
     ]],
