@@ -1,8 +1,8 @@
 {
-  "version": "3.28.39",
+  "version": "3.28.40",
   "date": "2026-11-09",
   "notes": [
-    "Réglages en volets repliables, Mon profil ouvert par défaut",
-    "Mon profil : ajouter son nom s'il n'est pas dans la liste"
+    "Messages : « envoyé à la BDD »",
+    "Réglages en volets repliables, Mon profil ouvert par défaut"
   ]
 }

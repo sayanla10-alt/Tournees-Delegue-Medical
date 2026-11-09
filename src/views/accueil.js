@@ -20,7 +20,7 @@
       '<h1>Votre tournée, construite sur le planning de chaque médecin.</h1>' +
       '<p>L\'application choisit les praticiens selon leur potentiel et la date de votre dernière visite, vérifie qu\'ils sont ' +
       'présents au bon endroit et à la bonne heure, et évite ceux que vos collègues ont déjà ciblés. Elle fonctionne aussi sans réseau.</p>' +
-      '<button class="bouton bouton-plein" data-a="nav" data-tab="reglages" type="button">Connecter mon Google Sheet</button>' +
+      '<button class="bouton bouton-plein" data-a="nav" data-tab="reglages" type="button">Connecter la BDD</button>' +
       '<button class="bouton" data-a="demo" type="button">Essayer avec des données de démonstration</button></section>';
   };
   VUES.identite = function () {

@@ -253,7 +253,7 @@
       S.ui.conflits = []; setTimeout(notifierConflits, 1500);
       if (!silencieux) {
         if (d.source === 'supabase') {
-          toast('Données à jour via Supabase (' + S.data.praticiens.length + ' praticiens, 10 tables synchronisées).');
+          toast('Données à jour (' + S.data.praticiens.length + ' praticiens, 10 tables synchronisées).');
         } else if (d.delta && d.delta.praticiens && d.delta.praticiens.length) {
           toast('Données à jour (delta : ' + d.delta.praticiens.length + ' praticien(s) actualisé(s)).');
         } else if (d.inchange) {

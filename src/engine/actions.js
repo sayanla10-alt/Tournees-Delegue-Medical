@@ -234,10 +234,10 @@
     rapValider: function (el) {
       var d = el.dataset.v, R = rapportOuCree(d);
       if (R.valideLe && R.empreinte === empreinteRapport(R)) { R.edition = false; sauverRapports(); rendre(); toast('Aucune modification : le compte rendu est inchangé.'); return; }
-      confirmerPuis('Valider le compte rendu', 'Valider le compte rendu du <b>' + dateFr(d) + '</b> ? Il sera enregistré dans le Google Sheet.', 'Valider', function () {
+      confirmerPuis('Valider le compte rendu', 'Valider le compte rendu du <b>' + dateFr(d) + '</b> ? Il sera enregistré dans la BDD.', 'Valider', function () {
         var n = new Date(); R.valideLe = dateFr(d) === dateFr(aujourdhui()) ? pad2(n.getHours()) + ':' + pad2(n.getMinutes()) : dateFr(aujourdhui());
         R.edition = false; R.envoye = false; R.empreinte = empreinteRapport(R); sauverRapports(); rendre();
-        if (connecte()) envoyerRapport(d).then(function () { toast('Compte Rendu enregistré. Vous pouvez l\'envoyer sur WhatsApp.'); }, function () { toast('Enregistré sur le téléphone ; envoi au Google Sheet dès le retour du réseau.'); });
+        if (connecte()) envoyerRapport(d).then(function () { toast('Compte Rendu enregistré. Vous pouvez l\'envoyer sur WhatsApp.'); }, function () { toast('Enregistré sur le téléphone ; envoi à la BDD dès le retour du réseau.'); });
         else toast('Compte Rendu validé.');
       });
     },
@@ -663,7 +663,7 @@
         var d = brouillonFiche(c.code), l = d.lieux.filter(function (x) { return String(x.id) === String(c.idPresence); })[0];
         if (!l) { toast('Lieu introuvable.'); return; }
         l.lat = +g.lat.toFixed(6); l.lon = +g.lon.toFixed(6); l.origineGps = origineTerrain(g.prec);
-        enregistrerFiche(d); rendre(); toast('Position enregistrée' + (S.config.demo ? '.' : ', envoi au Google Sheet…'));
+        enregistrerFiche(d); rendre(); toast('Position enregistrée' + (S.config.demo ? '.' : ', envoi à la BDD…'));
         if (!S.config.demo) synchroniser(true);
       });
     },
@@ -863,7 +863,7 @@
       S.config.bddSource = source;
       LS.set('config', S.config);
       rendre();
-      toast('Base principale : ' + (source === 'supabase' ? 'Supabase (Rapide)' : 'Google Sheets') + '. Synchronisation…');
+      toast('BDD : ' + (source === 'supabase' ? 'base principale' : 'base de secours') + '. Synchronisation…');
       synchroniser(false);
     },
     testerSupabase: function () {
@@ -873,15 +873,15 @@
           function (e) { S.ui.etatJumelage = { erreur: 'Serveur injoignable : ' + e.message }; rendre(); });
       }
       if (typeof supabasePing_ !== 'function') {
-        toast('Connecteur Supabase non disponible.');
+        toast('Connexion à la BDD non disponible.');
         return;
       }
       var t0 = Date.now();
       supabasePing_().then(function () {
         var ms = Date.now() - t0;
-        toast('Supabase connecté avec succès (' + ms + ' ms).');
+        toast('BDD connectée (' + ms + ' ms).');
       }).catch(function (err) {
-        toast('Erreur connexion Supabase : ' + err.message, 5000);
+        toast('Erreur de connexion à la BDD : ' + err.message, 5000);
       });
     },
     tester: function () {
@@ -1746,7 +1746,7 @@
       if (f.initial && f.initial === JSON.stringify(f.d)) { S.ui.feuille = null; rendre(); toast('Aucune modification.'); return; }
       var nouveau = !f.d.code, code = enregistrerFiche(f.d);
       S.ui.feuille = null; S.ui.contactOuvert = code; S.ui.contactEnTete = code; S.ui.tab = 'praticiens'; S.ui.recherche = ''; rendre();
-      toast((nouveau ? 'Praticien ajouté' : 'Fiche mise à jour') + (S.config.demo ? '.' : (navigator.onLine ? ', envoi au Google Sheet…' : ', envoi dès le retour du réseau.')));
+      toast((nouveau ? 'Praticien ajouté' : 'Fiche mise à jour') + (S.config.demo ? '.' : (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.')));
       if (!S.config.demo) synchroniser(true);
     },
     // Statistiques

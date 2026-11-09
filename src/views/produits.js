@@ -32,7 +32,7 @@
           return '<button type="button" class="pastille-produit" data-a="produitOuvrir" data-v="' + esc(f.produit) + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
         }).join('') + '</div></div>';
     });
-    return h + '</div><p class="discret" style="margin-top:12px;font-size:12.5px">Résumé des notices officielles des molécules ; la notice de la boîte fait foi. Fiches modifiables dans l\'onglet « Fiches produits » du Google Sheet.</p>';
+    return h + '</div><p class="discret" style="margin-top:12px;font-size:12.5px">Résumé des notices officielles des molécules ; la notice de la boîte fait foi. Fiches modifiables dans l\'onglet « Fiches produits » de la BDD.</p>';
   };
   // champ de recherche libre, identique à celui de l'onglet Recherche (loupe, sans critère à choisir)
   function champRechercheLibre(f, q) {

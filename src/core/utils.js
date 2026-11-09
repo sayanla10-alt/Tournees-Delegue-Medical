@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.39';
+  var APP_VERSION = '3.28.40';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.40', [
+      'Messages : « envoyé à la BDD » au lieu de « envoyé au Google Sheet » ou « Supabase » (comptes rendus, fiches, positions GPS, connexion)'
+    ]],
     ['3.28.39', [
       'Réglages en quatre volets repliables : Mon profil (ouvert par défaut), Préférences, Application, Avancé ; chaque volet ouvert reste ouvert pendant la session',
       'Préférences : apparence, comptes rendus (express, saisie avancée), WhatsApp Web, notifications, appliqués tout de suite ; Avancé : synchronisation, sauvegarde, base de données, connexion, effacement',

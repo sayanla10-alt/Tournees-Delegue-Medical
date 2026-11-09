@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.39';
+  var APP_VERSION = '3.28.40';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.28.40', [
+      'Messages : « envoyé à la BDD » au lieu de « envoyé au Google Sheet » ou « Supabase » (comptes rendus, fiches, positions GPS, connexion)'
+    ]],
     ['3.28.39', [
       'Réglages en quatre volets repliables : Mon profil (ouvert par défaut), Préférences, Application, Avancé ; chaque volet ouvert reste ouvert pendant la session',
       'Préférences : apparence, comptes rendus (express, saisie avancée), WhatsApp Web, notifications, appliqués tout de suite ; Avancé : synchronisation, sauvegarde, base de données, connexion, effacement',
@@ -3000,7 +3003,7 @@
       S.ui.conflits = []; setTimeout(notifierConflits, 1500);
       if (!silencieux) {
         if (d.source === 'supabase') {
-          toast('Données à jour via Supabase (' + S.data.praticiens.length + ' praticiens, 10 tables synchronisées).');
+          toast('Données à jour (' + S.data.praticiens.length + ' praticiens, 10 tables synchronisées).');
         } else if (d.delta && d.delta.praticiens && d.delta.praticiens.length) {
           toast('Données à jour (delta : ' + d.delta.praticiens.length + ' praticien(s) actualisé(s)).');
         } else if (d.inchange) {
@@ -3650,7 +3653,7 @@
       '<h1>Votre tournée, construite sur le planning de chaque médecin.</h1>' +
       '<p>L\'application choisit les praticiens selon leur potentiel et la date de votre dernière visite, vérifie qu\'ils sont ' +
       'présents au bon endroit et à la bonne heure, et évite ceux que vos collègues ont déjà ciblés. Elle fonctionne aussi sans réseau.</p>' +
-      '<button class="bouton bouton-plein" data-a="nav" data-tab="reglages" type="button">Connecter mon Google Sheet</button>' +
+      '<button class="bouton bouton-plein" data-a="nav" data-tab="reglages" type="button">Connecter la BDD</button>' +
       '<button class="bouton" data-a="demo" type="button">Essayer avec des données de démonstration</button></section>';
   };
   VUES.identite = function () {
@@ -6425,7 +6428,7 @@
           return '<button type="button" class="pastille-produit" data-a="produitOuvrir" data-v="' + esc(f.produit) + '" aria-label="' + esc(f.produit) + '">' + esc(court) + '</button>';
         }).join('') + '</div></div>';
     });
-    return h + '</div><p class="discret" style="margin-top:12px;font-size:12.5px">Résumé des notices officielles des molécules ; la notice de la boîte fait foi. Fiches modifiables dans l\'onglet « Fiches produits » du Google Sheet.</p>';
+    return h + '</div><p class="discret" style="margin-top:12px;font-size:12.5px">Résumé des notices officielles des molécules ; la notice de la boîte fait foi. Fiches modifiables dans l\'onglet « Fiches produits » de la BDD.</p>';
   };
   // champ de recherche libre, identique à celui de l'onglet Recherche (loupe, sans critère à choisir)
   function champRechercheLibre(f, q) {
@@ -7729,7 +7732,7 @@
   VUES.audit = function (integre) {
     if (!S.data || !S.data.praticiens || !S.data.praticiens.length) {
       return (integre ? '' : '<div class="tete-vue"><h2 class="titre-vue">Audit Données & GPS</h2></div>') +
-        '<div class="vide"><strong>Aucune donnée</strong>Connectez un Google Sheet ou chargez les données de démonstration pour auditer la base.</div>';
+        '<div class="vide"><strong>Aucune donnée</strong>Connectez la BDD ou chargez les données de démonstration pour auditer la base.</div>';
     }
 
     var prats = S.data.praticiens, pres = S.data.presences || [], qList = quartiers();
@@ -8186,7 +8189,7 @@
         '<button class="bouton bouton-large" type="button" data-a="rechargerBase" style="margin-bottom:10px">Recharger toute la base</button>' : '') +
       '<button class="bouton bouton-large" type="button" data-a="demo" style="margin-bottom:10px">Charger les données de démonstration</button>' +
       '<h3>Sauvegarde</h3><p class="discret" style="margin-top:0">' +
-        (S.data && S.data.sauvegarde ? 'Base : dernière copie le ' + new Date(S.data.sauvegarde).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' (7 copies dans Drive).' : 'Base : sauvegarde quotidienne à installer dans le Google Sheet (menu MediPlanner › Sauvegardes).') +
+        (S.data && S.data.sauvegarde ? 'Base : dernière copie le ' + new Date(S.data.sauvegarde).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' (7 copies dans Drive).' : 'Base : sauvegarde quotidienne à installer dans la BDD (menu MediPlanner › Sauvegardes).') +
         ' Téléphone : ' + Object.keys(LS.get('secours', {})).length + ' copie(s) sur 7 jours.</p>' +
       '<div class="rangee" style="margin-bottom:10px"><button class="bouton" type="button" data-a="exporterSecours">' + icone('telecharger') + 'Exporter</button>' +
         '<label class="bouton" style="position:relative;overflow:hidden">' + icone('relancer') + 'Importer<input type="file" accept="application/json,.json" data-f="importSecours" style="position:absolute;inset:0;opacity:0"></label></div>' +
@@ -10868,7 +10871,7 @@
         }
         enregistrerFiche(d); rendre();
         var labelLieu = l.lieu || l.quartier || 'Lieu';
-        toast('GPS fixé pour ' + labelLieu + ' : ' + (l.quartier || 'coordonnées enregistrées') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
+        toast('GPS fixé pour ' + labelLieu + ' : ' + (l.quartier || 'coordonnées enregistrées') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé à la BDD.'));
         if (!S.config.demo) synchroniser(true);
       }
 
@@ -10974,7 +10977,7 @@
           console.warn('Erreur envoi etablissement:', err);
         });
 
-        toast('GPS fixé pour ' + nomEtab + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
+        toast('GPS fixé pour ' + nomEtab + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé à la BDD.'));
       }
 
       if (refGeo && distKm > 3) {
@@ -11230,10 +11233,10 @@
     rapValider: function (el) {
       var d = el.dataset.v, R = rapportOuCree(d);
       if (R.valideLe && R.empreinte === empreinteRapport(R)) { R.edition = false; sauverRapports(); rendre(); toast('Aucune modification : le compte rendu est inchangé.'); return; }
-      confirmerPuis('Valider le compte rendu', 'Valider le compte rendu du <b>' + dateFr(d) + '</b> ? Il sera enregistré dans le Google Sheet.', 'Valider', function () {
+      confirmerPuis('Valider le compte rendu', 'Valider le compte rendu du <b>' + dateFr(d) + '</b> ? Il sera enregistré dans la BDD.', 'Valider', function () {
         var n = new Date(); R.valideLe = dateFr(d) === dateFr(aujourdhui()) ? pad2(n.getHours()) + ':' + pad2(n.getMinutes()) : dateFr(aujourdhui());
         R.edition = false; R.envoye = false; R.empreinte = empreinteRapport(R); sauverRapports(); rendre();
-        if (connecte()) envoyerRapport(d).then(function () { toast('Compte Rendu enregistré. Vous pouvez l\'envoyer sur WhatsApp.'); }, function () { toast('Enregistré sur le téléphone ; envoi au Google Sheet dès le retour du réseau.'); });
+        if (connecte()) envoyerRapport(d).then(function () { toast('Compte Rendu enregistré. Vous pouvez l\'envoyer sur WhatsApp.'); }, function () { toast('Enregistré sur le téléphone ; envoi à la BDD dès le retour du réseau.'); });
         else toast('Compte Rendu validé.');
       });
     },
@@ -11659,7 +11662,7 @@
         var d = brouillonFiche(c.code), l = d.lieux.filter(function (x) { return String(x.id) === String(c.idPresence); })[0];
         if (!l) { toast('Lieu introuvable.'); return; }
         l.lat = +g.lat.toFixed(6); l.lon = +g.lon.toFixed(6); l.origineGps = origineTerrain(g.prec);
-        enregistrerFiche(d); rendre(); toast('Position enregistrée' + (S.config.demo ? '.' : ', envoi au Google Sheet…'));
+        enregistrerFiche(d); rendre(); toast('Position enregistrée' + (S.config.demo ? '.' : ', envoi à la BDD…'));
         if (!S.config.demo) synchroniser(true);
       });
     },
@@ -11859,7 +11862,7 @@
       S.config.bddSource = source;
       LS.set('config', S.config);
       rendre();
-      toast('Base principale : ' + (source === 'supabase' ? 'Supabase (Rapide)' : 'Google Sheets') + '. Synchronisation…');
+      toast('BDD : ' + (source === 'supabase' ? 'base principale' : 'base de secours') + '. Synchronisation…');
       synchroniser(false);
     },
     testerSupabase: function () {
@@ -11869,15 +11872,15 @@
           function (e) { S.ui.etatJumelage = { erreur: 'Serveur injoignable : ' + e.message }; rendre(); });
       }
       if (typeof supabasePing_ !== 'function') {
-        toast('Connecteur Supabase non disponible.');
+        toast('Connexion à la BDD non disponible.');
         return;
       }
       var t0 = Date.now();
       supabasePing_().then(function () {
         var ms = Date.now() - t0;
-        toast('Supabase connecté avec succès (' + ms + ' ms).');
+        toast('BDD connectée (' + ms + ' ms).');
       }).catch(function (err) {
-        toast('Erreur connexion Supabase : ' + err.message, 5000);
+        toast('Erreur de connexion à la BDD : ' + err.message, 5000);
       });
     },
     tester: function () {
@@ -12742,7 +12745,7 @@
       if (f.initial && f.initial === JSON.stringify(f.d)) { S.ui.feuille = null; rendre(); toast('Aucune modification.'); return; }
       var nouveau = !f.d.code, code = enregistrerFiche(f.d);
       S.ui.feuille = null; S.ui.contactOuvert = code; S.ui.contactEnTete = code; S.ui.tab = 'praticiens'; S.ui.recherche = ''; rendre();
-      toast((nouveau ? 'Praticien ajouté' : 'Fiche mise à jour') + (S.config.demo ? '.' : (navigator.onLine ? ', envoi au Google Sheet…' : ', envoi dès le retour du réseau.')));
+      toast((nouveau ? 'Praticien ajouté' : 'Fiche mise à jour') + (S.config.demo ? '.' : (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.')));
       if (!S.config.demo) synchroniser(true);
     },
     // Statistiques

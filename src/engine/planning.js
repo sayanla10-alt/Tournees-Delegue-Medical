@@ -780,7 +780,7 @@
         }
         enregistrerFiche(d); rendre();
         var labelLieu = l.lieu || l.quartier || 'Lieu';
-        toast('GPS fixé pour ' + labelLieu + ' : ' + (l.quartier || 'coordonnées enregistrées') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
+        toast('GPS fixé pour ' + labelLieu + ' : ' + (l.quartier || 'coordonnées enregistrées') + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé à la BDD.'));
         if (!S.config.demo) synchroniser(true);
       }
 
@@ -886,7 +886,7 @@
           console.warn('Erreur envoi etablissement:', err);
         });
 
-        toast('GPS fixé pour ' + nomEtab + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé au Google Sheet.'));
+        toast('GPS fixé pour ' + nomEtab + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé à la BDD.'));
       }
 
       if (refGeo && distKm > 3) {

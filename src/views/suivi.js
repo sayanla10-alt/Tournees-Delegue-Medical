@@ -11,7 +11,7 @@
   VUES.audit = function (integre) {
     if (!S.data || !S.data.praticiens || !S.data.praticiens.length) {
       return (integre ? '' : '<div class="tete-vue"><h2 class="titre-vue">Audit Données & GPS</h2></div>') +
-        '<div class="vide"><strong>Aucune donnée</strong>Connectez un Google Sheet ou chargez les données de démonstration pour auditer la base.</div>';
+        '<div class="vide"><strong>Aucune donnée</strong>Connectez la BDD ou chargez les données de démonstration pour auditer la base.</div>';
     }
 
     var prats = S.data.praticiens, pres = S.data.presences || [], qList = quartiers();
