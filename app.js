@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.2';
+  var APP_VERSION = '3.29.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.3', ['Planifier et Journée : une visite déjà renseignée, un RDV de suivi ou un ancien programme repris hors des communes choisies pour le jour s\'affiche sur fond ambre, avec l\'étiquette « Déjà renseignée, hors communes choisies »']],
     ['3.29.2', [
       'Répertoire : message plus court, « cœur de cible (6) », sur une seule ligne'
     ]],
@@ -3810,6 +3811,10 @@
     // 3.28.26 : les communes de Planifier (critères du dernier tirage), indépendantes des filtres du Répertoire
     return p.communes && p.communes.length ? p.communes : null;
   }
+  // 3.29.3 : visite reprise (compte rendu déjà saisi, RDV de suivi, ancien programme) hors des communes choisies pour son jour
+  function estReprise(a) {
+    return !!(a.statut || a.etape || a.etat === 'repris' || a.etat === 'valide' || a.corrige) && !dansCommunesDu(a, a.date);
+  }
   function dansCommunesDu(a, d) {
     var l = communesPour(d);
     return !l || !l.length || communeCorrespondante(a, ensemble(l));
@@ -5256,6 +5261,8 @@
     var verrou = a.etat === 'valide', e = '';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
+    var ancien = estReprise(a);
+    if (ancien) e += '<span class="etiquette ambre">Déjà ' + (a.statut ? 'renseignée' : 'prévue') + ', hors communes choisies</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici</span>';
     e += etiquetteCollegues(a.code, a.date);
@@ -5266,7 +5273,7 @@
       ? infosPharmaciePlan(a)
       : infosMedecinPlan(a);
 
-    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + '">' +
+    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + (ancien ? ' ancien' : '') + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
         '<span class="lp-pastille-col">' + pastilleType(a) + '</span>' +
         '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
@@ -6243,7 +6250,9 @@
   // Carte d'une visite (Aujourd'hui) : contact d'abord, puis compte rendu en deux temps
   function rendreArret(a) {
     var ouvert = S.ui.ouvert === a.uid, verrou = a.etat === 'valide';
-    var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') +
+    // 3.29.3 : visite reprise (compte rendu déjà saisi, RDV de suivi, ancien programme) hors des communes choisies : carte ambre
+    var ancien = estReprise(a);
+    var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') + (ancien ? ' ancien' : '') +
       (a.statut ? (estKo(a.statut) ? (verrou ? ' absent' : ' absent-attente') : (verrou ? ' fait' : ' fait-attente')) : '') +   // plein = enregistré, vide de couleur = à enregistrer
       (S.ui.flashOk && S.ui.flashOk[a.uid] ? ' vient-enregistrer' : '');
     var e = '';
@@ -6256,6 +6265,7 @@
     if (a.statut && !verrou) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + ', à enregistrer</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.etat === 'repris') e += '<span class="etiquette">Repris d\'un ancien programme</span>';
+    if (ancien) e += '<span class="etiquette ambre">Déjà ' + (a.statut ? 'renseignée' : 'prévue') + ', hors communes choisies</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">RDV prévu le ' + dateCourte(a.prochaine) + '</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';

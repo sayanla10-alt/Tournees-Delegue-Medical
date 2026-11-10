@@ -3875,3 +3875,10 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .rangee-actions-contact .bouton, .rangee-actions-contact .badge-deja-prevu { min-height: 36px !important; height: 36px !important; }
 /* 3.28.55 : frise de Planifier sans jour à venir planifié : 5 prochains jours en cartes blanches */
 .bj-jour.bj-vierge:not([aria-pressed="true"]) { background: var(--papier) !important; border-color: var(--trait) !important; color: var(--encre) !important; }
+
+/* 3.29.3 : visite reprise hors des communes choisies : carte ambre, prioritaire sur le vert des visites faites */
+.ligne-plan.ancien, .ligne-plan.ancien.gardee { background: var(--ambre-pale); opacity: 1; }
+:root .arret.ancien .arret-carte, :root .arret.ancien.fait .arret-carte, :root .arret.ancien.fait-attente .arret-carte,
+:root[data-theme] .arret.ancien.fait .arret-carte, :root[data-theme] .arret.ancien.fait-attente .arret-carte,
+:root:not([data-theme="clair"]) .arret.ancien.fait .arret-carte, :root:not([data-theme="clair"]) .arret.ancien.fait-attente .arret-carte { background: var(--ambre-pale); border-color: var(--ambre-trait); }
+.etiquette.ambre { color: var(--ambre); background: var(--papier); border-color: var(--ambre-trait); }
