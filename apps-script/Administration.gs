@@ -18,6 +18,7 @@ function onOpen() {
       .addItem('Tester le géocodage sur 5 fiches', 'testerGeocodage5Presences'))
     .addSeparator()
     .addItem('Lecture des fiches photographiées (clé Gemini)', 'configurerLectureFiches')
+    .addItem('Lecture des fiches photographiées (clé Claude, secours)', 'configurerLectureFichesClaude')
     .addSeparator()
     .addSubMenu(SpreadsheetApp.getUi().createMenu('Sauvegardes')
       .addItem('Installer la sauvegarde quotidienne', 'installerSauvegardeQuotidienne')

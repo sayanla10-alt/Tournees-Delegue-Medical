@@ -49,8 +49,9 @@ function schemaLectureFiche_() {
 
 // Action « lireFiche » : { image (base64 JPEG), mime, auteur, uid }
 function lireFichePhoto(body) {
-  var cle = PropertiesService.getScriptProperties().getProperty('CLE_GEMINI');
-  if (!cle) return { ok: false, refus: true, erreur: 'Lecture des fiches non configurée : ajoutez la clé Gemini (menu MediPlanner › Lecture des fiches photographiées).' };
+  // 3.30.2 : Gemini d'abord ; Claude (API Anthropic) en secours si Gemini manque ou échoue
+  var props = PropertiesService.getScriptProperties(), cle = props.getProperty('CLE_GEMINI'), cleClaude = props.getProperty('CLE_ANTHROPIC');
+  if (!cle && !cleClaude) return { ok: false, refus: true, erreur: 'Lecture des fiches non configurée : ajoutez une clé (menu MediPlanner › Lecture des fiches photographiées).' };
   var b64 = String(body.image || '').replace(/^data:[^,]+,/, '');
   if (!b64) return { ok: false, refus: true, erreur: 'Aucune photo reçue.' };
   var mime = /^image\/(jpeg|png|webp)$/.test(body.mime || '') ? body.mime : 'image/jpeg';
@@ -65,8 +66,15 @@ function lireFichePhoto(body) {
   var auteur = String(body.auteur || '').trim() || 'inconnu';
   var photo = rangerPhotoFiche_(octets, mime, auteur);
   var lecture, erreur = '';
-  try { lecture = appelerGemini_(cle, b64, mime); }
-  catch (e) { erreur = String(e.message || e); }
+  var moteurs = [];
+  if (cle) moteurs.push(['Gemini', function () { return appelerGemini_(cle, b64, mime); }]);
+  if (cleClaude) moteurs.push(['Claude', function () { return appelerClaude_(cleClaude, b64, mime); }]);
+  var erreurs = [];
+  for (var i = 0; i < moteurs.length && !lecture; i++) {
+    try { lecture = moteurs[i][1](); lecture.moteur = moteurs[i][0]; }
+    catch (e) { erreurs.push(moteurs[i][0] + ' : ' + String(e.message || e)); }
+  }
+  if (!lecture) erreur = erreurs.join(' ; ');
   journaliserFicheScannee_(auteur, photo, lecture, erreur);
   enregistrerAudit(SpreadsheetApp.getActive(), auteur, 'LECTURE_FICHE', 'Fiche', photo.id, erreur ? 'Erreur : ' + erreur : resumeLecture_(lecture));
   if (erreur) return { ok: false, erreur: 'Lecture impossible : ' + erreur, refus: /clé|key|API_KEY|PERMISSION|403|400/i.test(erreur), photo: photo };
@@ -115,6 +123,45 @@ function appelerGemini_(cle, b64, mime) {
   throw new Error(derniere || 'aucun modèle disponible');
 }
 
+// 3.30.2 : lecture par Claude (API Anthropic) : même consigne, sortie imposée par un outil au schéma JSON
+var MODELES_CLAUDE_DEFAUT = ['claude-sonnet-5-5', 'claude-haiku-5-5'];
+function schemaJson_(o) {
+  var r = {};
+  Object.keys(o).forEach(function (k) {
+    var v = o[k];
+    if (k === 'type') r.type = String(v).toLowerCase();
+    else if (k === 'properties') { r.properties = {}; Object.keys(v).forEach(function (p) { r.properties[p] = schemaJson_(v[p]); }); }
+    else if (k === 'items') r.items = schemaJson_(v);
+    else r[k] = v;
+  });
+  return r;
+}
+function appelerClaude_(cle, b64, mime) {
+  var prop = PropertiesService.getScriptProperties().getProperty('MODELE_CLAUDE');
+  var modeles = prop ? [prop] : MODELES_CLAUDE_DEFAUT, derniere = '';
+  for (var i = 0; i < modeles.length; i++) {
+    var corps = {
+      model: modeles[i], max_tokens: 4096, temperature: 0,
+      tools: [{ name: 'lecture_fiche', description: 'Enregistre ce qui est lu sur la fiche de visite.', input_schema: schemaJson_(schemaLectureFiche_()) }],
+      tool_choice: { type: 'tool', name: 'lecture_fiche' },
+      messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mime, data: b64 } }, { type: 'text', text: CONSIGNE_LECTURE_FICHE }] }]
+    };
+    var rep = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+      method: 'post', contentType: 'application/json', payload: JSON.stringify(corps), muteHttpExceptions: true,
+      headers: { 'x-api-key': cle, 'anthropic-version': '2023-06-01' } });
+    var code = rep.getResponseCode(), txt = rep.getContentText();
+    if (code === 404) { derniere = 'modèle ' + modeles[i] + ' indisponible'; continue; }
+    if (code !== 200) {
+      var msg = txt; try { msg = JSON.parse(txt).error.message; } catch (e) {}
+      throw new Error('Claude ' + code + ' : ' + String(msg).slice(0, 300));
+    }
+    var o = JSON.parse(txt), bloc = (o.content || []).filter(function (c) { return c.type === 'tool_use'; })[0];
+    if (!bloc || !bloc.input) throw new Error('réponse vide' + (o.stop_reason ? ' (' + o.stop_reason + ')' : ''));
+    return nettoyerLecture_(bloc.input);
+  }
+  throw new Error(derniere || 'aucun modèle disponible');
+}
+
 // Garde-fous sur ce que rend le modèle : types, longueurs, date au bon format, téléphones en chiffres
 function nettoyerLecture_(l) {
   var s = function (v, n) { return String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n || 120); };
@@ -148,7 +195,17 @@ function journaliserFicheScannee_(auteur, photo, lecture, erreur) {
                 lecture ? resumeLecture_(lecture) : '', lecture ? JSON.stringify(lecture).slice(0, 45000) : '', erreur || '']);
 }
 
-// Menu : enregistrer ou changer la clé Gemini (gardée dans les propriétés du script, jamais dans le code)
+// Menu : enregistrer ou changer les clés (gardées dans les propriétés du script, jamais dans le code)
+function configurerLectureFichesClaude() {
+  var ui = SpreadsheetApp.getUi(), props = PropertiesService.getScriptProperties();
+  var r = ui.prompt('Lecture des fiches photographiées (secours)', 'Collez la clé de l\'API Anthropic (console.anthropic.com › API Keys). Elle sert si Gemini manque ou échoue.' +
+    (props.getProperty('CLE_ANTHROPIC') ? '\nUne clé est déjà enregistrée : la nouvelle la remplacera.' : ''), ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  var cle = String(r.getResponseText() || '').trim();
+  if (!cle) { ui.alert('Aucune clé saisie : rien n\'a changé.'); return; }
+  props.setProperty('CLE_ANTHROPIC', cle);
+  ui.alert('Clé de secours enregistrée.');
+}
 function configurerLectureFiches() {
   var ui = SpreadsheetApp.getUi(), props = PropertiesService.getScriptProperties();
   var r = ui.prompt('Lecture des fiches photographiées', 'Collez la clé Gemini (aistudio.google.com › Get API key).' +
