@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.5';
+  var APP_VERSION = '3.29.6';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.6', ['Répertoire, Pharmacies : distance depuis votre position sur chaque carte, comme pour les hôpitaux']],
     ['3.29.5', ['Planifier, jour sans planification : + Médecin, + Pharmacie et Autour de moi sous « Reprendre un ancien programme », comme dans Journée']],
     ['3.29.4', ['Journée, jour sans planification : + Médecin, + Pharmacie et Autour de moi sous « Reprendre un ancien programme »']],
     ['3.29.3', ['Journée : écran allumé, la position GPS précise est suivie en continu ; les distances « de vous » se mettent à jour en marchant (suivi arrêté dès qu\'on quitte Journée ou l\'application)',
@@ -7459,6 +7460,13 @@
     return '<span class="etiquette" title="Actuellement hors créneau de consultation">Hors créneau</span>';
   }
 
+  // 3.29.6 : pharmacie du Répertoire : distance depuis ma position jusqu'à son lieu le plus proche, comme les cartes Hôpitaux
+  function distancePharmacie(p, lieux) {
+    var g = gpsFrais(); if (!g || !estPharmacie(p)) return '';
+    var d = null;
+    lieux.concat([p]).forEach(function (x) { var co = lireCoord(x); if (co) { var k = distanceVol(g, co); if (d === null || k < d) d = k; } });
+    return d !== null ? ' · ' + distMoi(d) : '';
+  }
   // 3.28.19 : carte (fiche) d'un contact, hors de la vue pour être aussi ouverte en fenêtre depuis tout l'écran
   function cartePraticienHtml(p, c, t, ouvert) {
     if (!p) return '';
@@ -7473,7 +7481,8 @@
           var ok = function (x) { return aF && communeCorrespondante(x, coF); };
           var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
           return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
-            .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() + '</span>' +
+            .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() +
+        distancePharmacie(p, lieux) + '</span>' +
       '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
         (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
           return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
