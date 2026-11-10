@@ -3890,3 +3890,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .scan-changes li { margin: 2px 0; }
 .case.petite { display: inline-flex; gap: 4px; font-size: 12px; margin-left: 6px; }
 .bandeau-scans { width: 100%; text-align: left; cursor: pointer; margin: 8px 0 0; }
+
+/* 3.31.0 : Ajouter : bouton Fiche sous le choix Médecin, Pharmacie, Hôpital, sur toute la largeur, même hauteur */
+.bouton.bouton-fiche-scan { display: flex; width: 100%; min-height: 38px; height: auto; padding: 4px 8px; margin: 6px 0 0; justify-content: center; align-items: center; gap: 6px; }
+.bouton.bouton-fiche-scan svg { width: 16px; height: 16px; }

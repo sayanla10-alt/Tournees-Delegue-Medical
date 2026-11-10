@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.30.2';
+  var APP_VERSION = '3.31.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.0', ['Répertoire › Ajouter : nouveau bouton Hôpital (à la place de Fiche) : on cherche d\'abord dans la base, puis on crée l\'établissement (nom officiel, catégorie, quartier, repères, téléphone, position prise devant)',
+               'Fiche (photo d\'une fiche de visite) : bouton sous Médecin, Pharmacie, Hôpital, sur toute la largeur',
+               'Hôpitaux : la recherche trouve aussi les établissements de la base qui n\'ont pas encore de médecin']],
     ['3.30.2', ['Planifier : toute proposition récupérée (compte rendu déjà saisi, RDV repris, ancien programme) s\'affiche sur fond ambre, quelles que soient les communes ; Journée garde ses trois couleurs (blanc à faire, vert faite, rouge non faite)']],
     ['3.30.1', ['Fiche photographiée : la visite est aussi enregistrée (compte rendu « Visite faite » du jour de la fiche, case cochée par défaut) ; la date de dernière visite se met à jour ; rien en double si le compte rendu existe déjà, rien pour une date à venir']],
     ['3.30.0', ['Répertoire › Ajouter › Fiche : photographiez une fiche de visite ; le serveur la range dans Drive et la lit (écriture manuscrite, texte imprimé, cachets)',
@@ -7396,7 +7399,7 @@
     return '<div class="selecteur-annuaire" role="group" aria-label="Annuaire">' + b('med', 'Médecins', nM) + b('ph', 'Pharmacies', nP) + b('hop', 'Hôpitaux', hopitauxRepertoire().length) + '</div>';
   }
   // établissements (onglet Etablissements) où au moins un médecin est présent, avec leurs médecins
-  function hopitauxRepertoire() {
+  function hopitauxRepertoire(avecVides) {   // 3.31.0 : avecVides : aussi les établissements de la base sans médecin (recherche)
     var c = ctx(), par = {}, l = [];
     ((S.data && S.data.etablissements) || []).forEach(function (e) {
       var nom = String(e.nom || '').trim(), k = normaliser(nom); if (!k || par[k]) return;
@@ -7418,14 +7421,14 @@
         var ref = trouverEtablissementRef(it.nom);
         if (ref && isFinite(ref.lat)) { it.lat = ref.lat; it.lon = ref.lon; }
       }
-      if (it.pres.length && !cabinet(it.nom)) l.push(it);
+      if ((it.pres.length || avecVides) && !cabinet(it.nom)) l.push(it);
     });
     return l;
   }
   function vueHopitaux(f) {
     var q = normaliser(S.ui.rechHop || ''), co = ensemble(f.communes || []), g = gpsFrais(), t = aujourdhui(), jA = jourSemaineIndex(t), c = ctx();
     var debutMois = t.slice(0, 8) + '01';
-    var l = hopitauxRepertoire().filter(function (e) {
+    var l = hopitauxRepertoire(!!q).filter(function (e) {
       if (f.communes && f.communes.length && !communeCorrespondante(e, co)) return false;
       return !q || normaliser(e.nom + ' ' + e.quartier + ' ' + e.commune).indexOf(q) >= 0;
     });
@@ -10300,6 +10303,74 @@
     return '<button type="button" class="bandeau info bandeau-scans" data-a="scanListe">' + icone('repertoire') + '<p><b>Fiches photographiées</b> : ' +
       [lues ? lues + ' à vérifier' : '', autres ? autres + ' en cours' : ''].filter(Boolean).join(', ') + '</p></button>';
   }
+  // ------------------------------------------------------------------ 3.31.0 : nouvel hôpital (Répertoire › Ajouter › Hôpital)
+  // Même modèle que le nouveau contact : on cherche d'abord dans la base (pas de doublon), puis on crée.
+  // Nom officiel (dictionnaire canonique), catégorie, quartier (commune déduite), repères, téléphone, position facultative
+  // (mesure précise, devant l'établissement). Envoi par l'action « etablissement » ; sans réseau, l'envoi attend (clé etabsEnAttente).
+  var CATEGORIES_ETAB = ['CHU', 'CHR', 'Hôpital Général', 'Hôpital Spécialisé', 'Clinique Privée', 'Polyclinique', 'Centre Médical', 'CSU / Dispensaire', 'FSU COM', 'Maternité / PMI', 'Institut Spécialisé', 'Cabinet Médical'];
+  function etabsBase() {
+    var vus = {}, l = [];
+    ((S.data && S.data.etablissements) || []).forEach(function (e) { var k = normaliser(e.nom || ''); if (k && !vus[k]) { vus[k] = 1; l.push({ nom: e.nom, quartier: e.quartier || '', commune: e.commune || '', code: e.code || '' }); } });
+    etablissementsConnus().forEach(function (e) { var k = normaliser(e.lieu || ''); if (k && !vus[k]) { vus[k] = 1; l.push({ nom: e.lieu, quartier: e.quartier || '', commune: e.commune || '', code: e.code || '' }); } });
+    return l;
+  }
+  function doublonsHopital(nom) {
+    var t = normaliser(nom || ''); if (t.length < 3) return [];
+    var mots = sansAccents(String(nom)).toLowerCase().split(/[^a-z0-9]+/).map(normaliser).filter(function (w) { return w.length >= 3 && ['chu', 'chr', 'hopital', 'clinique', 'centre', 'medical', 'general', 'sante', 'polyclinique', 'des', 'les'].indexOf(w) < 0; });
+    return etabsBase().filter(function (e) {
+      var n = normaliser(e.nom);
+      return n === t || memeEtablissement(e.nom, nom) || (mots.length && mots.every(function (w) { return n.indexOf(w) >= 0; }));
+    }).slice(0, 6);
+  }
+  function brouillonHopital(nom) {
+    var g = gpsFrais(), r = g ? Moteur.quartierLePlusProche(g.lat, g.lon, quartiers()) : null;
+    return { nom: nom || '', categorie: '', quartier: r && r.quartier ? r.quartier.quartier : '', commune: r && r.quartier ? r.quartier.commune : '', reperes: '', telephone: '', lat: '', lon: '', prec: '' };
+  }
+  function segmentAjout(actif) {
+    return '<div class="segment" role="group" aria-label="Type">' + [['Médecin', 'ficheVal'], ['Pharmacie', 'ficheVal'], ['Hôpital', 'ficheHopital']].map(function (x) {
+      return '<button type="button" data-a="' + x[1] + '" data-k="type" data-v="' + x[0] + '" aria-pressed="' + (actif === x[0]) + '">' + x[0] + '</button>';
+    }).join('') + '</div>' +
+      '<button type="button" class="bouton bouton-fiche-scan" data-a="ficheScanner">' + icone('photo') + '<span>Fiche</span></button>';
+  }
+  FEUILLES.hopitalNouveau = function (f) {
+    var e = f.e, h = '';
+    if (f.cherche) {
+      h += segmentAjout('Hôpital') + '<p class="fx-question">Quel établissement ?</p>' +
+        champFiche('hnom', 'Nom de l\'hôpital ou de la clinique', '<input type="text" class="fx-champ-g" data-f="hop" data-k="nom" autocomplete="off" value="' + esc(e.nom) + '" placeholder="Ex. Hôpital Général de Bingerville"' + attrInvalide(f, 'hnom') + '>', f, false) +
+        '<div id="doublonsHop">' + rendreDoublonsHopital(e.nom) + '</div>' +
+        '<button type="button" class="fx-creer" data-a="hopCreer"><span class="fx-plus">' + icone('plus') + '</span><span><b>Créer <span id="hopCreerNom">' + esc(String(e.nom || '').trim() || 'un établissement') + '</span></b><small>Catégorie, quartier et position ensuite</small></span></button>';
+      return { corps: h };
+    }
+    h += champFiche('hnom', 'Nom de l\'établissement *', '<input type="text" data-f="hop" data-k="nom" value="' + esc(e.nom) + '"' + attrInvalide(f, 'hnom') + '>', f, true) +
+      '<div class="champ"><span>Catégorie *</span><div class="puces">' + CATEGORIES_ETAB.map(function (c) {
+        return '<button type="button" class="puce" data-a="hopVal" data-k="categorie" data-v="' + esc(c) + '" aria-pressed="' + (e.categorie === c) + '">' + esc(c) + '</button>';
+      }).join('') + '</div><span class="erreur" id="err-hcat">' + esc(f.err.hcat || '') + '</span></div>' +
+      champFiche('hquartier', 'Quartier *', selecteurListe('hopQuartier', { titre: 'Quartier', valeur: e.quartier || null, vide: 'Choisir…', invalide: !!f.err.hquartier, sections: sectionsQuartiers(),
+        appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'hopitalNouveau') { var q = quartiers().filter(function (x) { return x.quartier === v; })[0]; fe.e.quartier = v; fe.e.commune = q ? q.commune : ''; delete fe.err.hquartier; } } }), f, true, e.commune ? 'Commune : ' + esc(e.commune) : '') +
+      champFiche('hrep', 'Repères', '<input type="text" data-f="hop" data-k="reperes" value="' + esc(e.reperes) + '" placeholder="Rue, carrefour, en face de…">', f, false) +
+      champFiche('htel', 'Téléphone', '<input type="tel" data-f="hop" data-k="telephone" value="' + esc(e.telephone) + '" placeholder="Standard ou accueil">', f, false) +
+      '<div class="fx-carte"><div class="fx-carte-t"><b>Position</b>' + (e.lat ? '<span class="fx-tag ok">' + icone('cible') + 'GPS' + (e.prec ? ' ± ' + e.prec + ' m' : '') + '</span>' : '<span class="fx-tag">Pas de GPS</span>') + '</div>' +
+        '<button type="button" class="bouton petit fx-gps" data-a="hopGps">' + icone('cible') + (e.lat ? 'Reprendre la position ici' : 'Je suis devant : prendre la position') + '</button></div>';
+    return { corps: h, pied: '<div class="rangee"><button class="bouton" type="button" data-a="fermerFeuille">Annuler</button><button class="bouton bouton-plein" type="button" data-a="hopEnregistrer">' + icone('valider') + 'Enregistrer</button></div>' };
+  };
+  function rendreDoublonsHopital(nom) {
+    var l = doublonsHopital(nom); if (!l.length) return '';
+    return '<p class="fx-sec">Déjà dans la base</p>' + l.map(function (e) {
+      return '<button type="button" class="fx-res" data-a="hopOuvrir" data-v="' + esc(e.nom) + '"><span><b>' + esc(e.nom) + '</b><small>' + esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + '</small></span><span class="fx-ouvrir">Ouvrir</span></button>';
+    }).join('');
+  }
+  function envoyerEtabsEnAttente() {
+    if (!connecte() || !navigator.onLine) return Promise.resolve();
+    var l = LS.get('etabsEnAttente', []); if (!l.length) return Promise.resolve();
+    var x = l[0];
+    return apiPost('etablissement', x).then(function (r) {
+      LS.set('etabsEnAttente', LS.get('etabsEnAttente', []).filter(function (y) { return y.uid !== x.uid; }));
+      if (r && r.code && S.data && S.data.etablissements) S.data.etablissements.forEach(function (e) { if (e.code === x.code) e.code = r.code; });
+      return envoyerEtabsEnAttente();
+    }).catch(function (err) {
+      if (err && err.refus) { LS.set('etabsEnAttente', LS.get('etabsEnAttente', []).filter(function (y) { return y.uid !== x.uid; })); signalerErreur('envoi établissement', err, { nom: x.nom }); toast('Établissement refusé par le serveur : ' + (err.message || '')); }
+    });
+  }
   FEUILLES.fiche = function (f) {
     var d = f.d, seulPlanning = !!f.planningSeul;
     synchroniserDefautsFiche(d);
@@ -10309,9 +10380,7 @@
 
     // ---- Ajout : chercher avant de créer
     if (f.cherche) {
-      h += '<div class="segment" role="group" aria-label="Type">' + ['Médecin', 'Pharmacie'].map(function (t) {
-        return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
-      }).join('') + '<button type="button" data-a="ficheScanner" aria-pressed="false" title="Photographier une fiche de visite">Fiche</button></div>';   // 3.30.0
+      h += segmentAjout(d.type);   // 3.31.0 : Médecin, Pharmacie, Hôpital ; Fiche dessous sur toute la largeur
       var g = gpsFrais();
       if (estPh && g) {
         var proches = pharmaciesConnuesProches(g, 0.5);
@@ -12998,6 +13067,53 @@
     },
     // 3.30.0 : fiches de visite photographiées
     ficheScanner: function () { choisirPhotoFiche(); },
+    // 3.31.0 : nouvel hôpital
+    ficheHopital: function () {
+      var nom = S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.type !== 'Pharmacie' ? '' : '';
+      S.ui.feuille = { type: 'hopitalNouveau', titre: 'Nouveau contact', pleine: true, cherche: true, e: brouillonHopital(nom), err: {} }; rendre();
+      setTimeout(function () { var i = document.querySelector('.fx-champ-g'); if (i) i.focus(); }, 250);
+    },
+    hopCreer: function () {
+      var f = S.ui.feuille; if (!f) return;
+      if (String(f.e.nom || '').trim().length < 3) { f.err = { hnom: 'Nom de l\'établissement manquant' }; rendre(); toast('Tapez le nom de l\'établissement.'); return; }
+      var can = canonicaliserEtablissement(f.e.nom, f.e.quartier, f.e.commune);
+      if (can) { f.e.nom = can.lieu; if (can.quartier) { f.e.quartier = can.quartier; f.e.commune = can.commune; } if (can.lat) { f.e.lat = can.lat; f.e.lon = can.lon; } }
+      f.cherche = false; f.titre = 'Nouvel établissement'; f.err = {}; rendre();
+    },
+    hopVal: function (el) { var f = S.ui.feuille; f.e[el.dataset.k] = el.dataset.v; delete f.err.hcat; rendre(); },
+    hopOuvrir: function (el) {
+      S.ui.feuille = null; S.ui.tab = 'praticiens'; S.ui.annuaire = 'hop'; S.ui.rechHop = el.dataset.v; S.ui.hopOuvert = normaliser(el.dataset.v); rendre(); window.scrollTo(0, 0);
+    },
+    hopGps: function () {
+      var f = S.ui.feuille; if (!f || !navigator.geolocation) { toast('Localisation indisponible.'); return; }
+      mesurePourLieu(function (p) {
+        var fe = S.ui.feuille && S.ui.feuille.type === 'hopitalNouveau' ? S.ui.feuille : f;
+        fe.e.lat = +p.lat.toFixed(6); fe.e.lon = +p.lon.toFixed(6); fe.e.prec = p.prec;
+        var r = Moteur.quartierLePlusProche(fe.e.lat, fe.e.lon, quartiers());
+        if (r && r.quartier) { fe.e.quartier = r.quartier.quartier; fe.e.commune = r.quartier.commune; delete fe.err.hquartier; }
+        S.ui.feuille = fe; rendre(); toast('Position prise (± ' + p.prec + ' m).');
+      }, function () { toast('Position indisponible. Autorisez la localisation.'); });
+    },
+    hopEnregistrer: function () {
+      var f = S.ui.feuille, e = f.e, err = {};
+      e.nom = String(e.nom || '').trim();
+      if (e.nom.length < 3) err.hnom = 'Nom de l\'établissement manquant';
+      if (!e.categorie) err.hcat = 'Choisissez la catégorie';
+      if (!e.quartier) err.hquartier = 'Choisissez le quartier';
+      var dbl = doublonsHopital(e.nom).filter(function (x) { return normaliser(x.nom) === normaliser(e.nom); })[0];
+      if (dbl) err.hnom = 'Déjà dans la base : ' + dbl.nom;
+      if (Object.keys(err).length) { f.err = err; rendre(); toast(dbl ? 'Cet établissement existe déjà.' : 'Complétez les champs signalés.'); return; }
+      var q = quartiers().filter(function (x) { return x.quartier === e.quartier; })[0] || {};
+      var x = { uid: 'E-' + Date.now().toString(36), code: 'TMP-ETAB-' + Date.now().toString(36).toUpperCase(), nom: e.nom, categorie: e.categorie, quartier: e.quartier,
+        commune: q.commune || e.commune || '', zone: q.zone || '', reperes: String(e.reperes || '').trim(), telephone: formaterTelephoneCI(e.telephone) || String(e.telephone || '').trim(),
+        lat: e.lat || '', lon: e.lon || '', originegps: e.lat ? origineTerrain(e.prec) : '', auteur: moi() };
+      S.data.etablissements = S.data.etablissements || [];
+      S.data.etablissements.push({ code: x.code, nom: x.nom, categorie: x.categorie, quartier: x.quartier, commune: x.commune, zone: x.zone, reperes: x.reperes, telephone: x.telephone, lat: x.lat, lon: x.lon });
+      ctxCache.data = null; sauver();
+      if (!S.config.demo) { LS.set('etabsEnAttente', LS.get('etabsEnAttente', []).concat([x])); envoyerEtabsEnAttente(); }
+      S.ui.feuille = null; rendre();
+      toast(x.nom + ' ajouté' + (S.config.demo ? '.' : (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.')) + ' Ajoutez-y ses médecins avec Ajouter › Médecin.', 6000);
+    },
     scanListe: function () { S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre(); relancerScansEnAttente(); },
     scanVerifier: function (el) { S.ui.feuille = { type: 'ficheScanValider', titre: 'Vérifier la fiche', pleine: true, id: el.dataset.v, retourAction: 'scanListe' }; rendre(); },
     scanRelancer: function (el) { var x = scan(el.dataset.v); if (!x) return; if (!x.image) { toast('Photo plus disponible sur ce téléphone : reprenez-la.'); return; } lireScan(x.id); rendre(); },
@@ -13125,6 +13241,10 @@
       majGpsPourLieu(code, isNaN(idx) ? 0 : idx);
     },
     ficheVal: function (el) {
+      if (S.ui.feuille && S.ui.feuille.type === 'hopitalNouveau') {   // 3.31.0 : de « Hôpital » vers Médecin ou Pharmacie
+        var nH = S.ui.feuille.e.nom; ACTIONS.nouvelleFiche(); S.ui.feuille.d.type = el.dataset.v; synchroniserDefautsFiche(S.ui.feuille.d);
+        if (el.dataset.v === 'Pharmacie' && nH) S.ui.feuille.d.nom = nH; rendre(); return;
+      }
       var d = S.ui.feuille.d, k = el.dataset.k;
       d[k] = k === 'note' ? +el.dataset.v : el.dataset.v;
       if (k === 'type') {
@@ -13420,6 +13540,13 @@
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'ident') { (S.ui.identBrouillon = S.ui.identBrouillon || {})[el.dataset.k] = el.value; return; }
     if (f === 'cr') { var ac = arret(el.dataset.uid); if (ac) majCr(ac, el.dataset.k, el.value); }
+    if (f === 'hop' && S.ui.feuille && S.ui.feuille.type === 'hopitalNouveau') {   // 3.31.0
+      S.ui.feuille.e[el.dataset.k] = el.value;
+      if (el.dataset.k === 'nom') {
+        var zH = document.getElementById('doublonsHop'); if (zH) zH.innerHTML = rendreDoublonsHopital(el.value);
+        var zN = document.getElementById('hopCreerNom'); if (zN) zN.textContent = el.value.trim() || 'un établissement';
+      }
+    }
     if (f === 'scan' && S.ui.feuille && el.type !== 'checkbox') {   // 3.30.0 : champs de vérification d'une fiche photographiée
       var fS = S.ui.feuille, kS = el.dataset.k, iS = el.dataset.i;
       majScan(fS.id, function (x) { if (iS === undefined) x.validation[kS] = el.value; else x.validation.entites[+iS][kS] = el.value; });
@@ -13671,13 +13798,15 @@
       calendrier: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
       crayon: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
       poubelle: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>',
-      eclair: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'
+      eclair: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+      photo: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'
     }[n] || '';
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>';
   }
 
   // ------------------------------------------------------------------ Démarrage
-  window.addEventListener('online', function () { synchroniser(true); setTimeout(relancerScansEnAttente, 3000); });
+  window.addEventListener('online', function () { synchroniser(true); setTimeout(relancerScansEnAttente, 3000); setTimeout(envoyerEtabsEnAttente, 2000); });
+  setTimeout(envoyerEtabsEnAttente, 6000);   // 3.31.0 : établissement créé hors réseau
   setTimeout(relancerScansEnAttente, 8000);   // 3.30.0 : photo restée en attente (coupure, fermeture) : relue à l'ouverture
   window.addEventListener('offline', function () { S.ui.sync = 'horsligne'; afficherEntete(); });
   // Chargement asynchrone des données flash IndexedDB
