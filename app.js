@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.30.0';
+  var APP_VERSION = '3.30.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.30.1', ['Fiche photographiée : la visite est aussi enregistrée (compte rendu « Visite faite » du jour de la fiche, case cochée par défaut) ; la date de dernière visite se met à jour ; rien en double si le compte rendu existe déjà, rien pour une date à venir']],
     ['3.30.0', ['Répertoire › Ajouter › Fiche : photographiez une fiche de visite ; le serveur la range dans Drive et la lit (écriture manuscrite, texte imprimé, cachets)',
                'Vérification avant enregistrement : date, médecins et pharmacies lus, fiche existante proposée ou nouveau contact ; un contact existant n\'est complété que sur ses champs vides (remplacement au choix)',
                'La fiche fait foi : le jour de la visite devient un jour de présence confirmé (matin et soir) sur le lieu lu ; une absence déclarée qui couvre ce jour s\'arrête la veille']],
@@ -10214,7 +10215,29 @@
     if (wd > 4) ch.push('Week-end : aucun créneau de présence enregistré');
     else if (wd >= 0 && L && creneaux) ch.push('Présence confirmée : ' + nomJour(v.date).toLowerCase() + ' ' + creneaux + (L.lieu ? ', ' + L.lieu : ''));
     var err = !String(ent.nom || '').trim() ? 'Nom manquant' : (!v.date ? 'Date de visite manquante' : (!ent.choix && !L.quartier ? 'Quartier à choisir' : (!ent.choix && !estPh && !L.lieu ? 'Établissement manquant' : '')));
-    return { d: d, changes: ch, erreur: err };
+    // 3.30.1 : compte rendu « Visite faite » du jour de la fiche (dernière visite à jour), sauf s'il existe déjà ou si la date est à venir
+    if (v.visite !== false && v.date && !err) {
+      var dejaCr = ent.choix && visiteDejaNotee(ent.choix, v.date);
+      if (dejaCr) ch.push('Compte rendu du ' + dateCourte(v.date) + ' déjà enregistré');
+      else if (v.date > aujourdhui() && !S.config.saisieFutur) ch.push('Date à venir : pas de compte rendu');
+      else ch.push('Compte rendu : visite faite le ' + dateCourte(v.date));
+    }
+    return { d: d, changes: ch, erreur: err, lieu: L };
+  }
+  function visiteDejaNotee(code, date) {
+    var dans = function (l) { return (l || []).some(function (x) { return x.code === code && String(x.date || '').slice(0, 10) === date && !estSuppressionPlanning(x); }); };
+    return dans(S.data && S.data.historique) || dans(S.queue);
+  }
+  function creerVisiteScan(code, ent, v, L, idScan) {
+    if (v.visite === false || !v.date || (v.date > aujourdhui() && !S.config.saisieFutur) || visiteDejaNotee(code, v.date)) return false;
+    var pr = praticien(code) || {};
+    var vis = { uid: 'F-' + v.date + '-' + code + '-' + idScan, date: v.date, idPresence: '', code: code, nom: pr.nom || ent.nom, type: ent.type,
+      specialite: ent.type === 'Pharmacie' ? 'Pharmacien' : (pr.specialite || ent.specialite || ''), note: pr.note, commune: (L && L.commune) || ent.commune || '', quartier: (L && L.quartier) || ent.quartier || '',
+      lieu: (L && L.lieu) || '', creneau: v.matin && !v.soir ? 'Matin' : (!v.matin && v.soir ? 'Soir' : ''), statut: statutFaite(),
+      commentaire: 'Fiche de visite photographiée' + (v.remarques ? ' : ' + v.remarques : ''), delegue: moi(), produits: '', prochaine: '', activite: '' };
+    Moteur.appliquerVisite(S.data.praticiens, vis, statuts());
+    S.queue.push(vis);
+    return true;
   }
 
   // ---- écrans
@@ -10241,7 +10264,8 @@
     h += (x.photo && x.photo.url ? '<p class="discret" style="margin:0 0 8px"><a href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">' + icone('carte') + 'Voir la photo (Drive)</a></p>' : '') +
       '<div class="grille-2 serre"><label class="champ"><span>Date de la visite' + (v.dateLue ? '' : ' (non lue)') + '</span><input type="date" data-f="scan" data-k="date" value="' + esc(v.date) + '"></label>' +
       '<div class="champ"><span>Présence ce jour</span><div class="segment" role="group">' +
-        '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button><button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button></div></div></div>';
+        '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button><button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button></div></div></div>' +
+      '<label class="case"><input type="checkbox" data-f="scan" data-k="visite"' + (v.visite !== false ? ' checked' : '') + '> Enregistrer aussi la visite (compte rendu « Visite faite »)</label>';
     if (!v.entites.length) h += '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, à plat et bien éclairée.</div>';
     v.entites.forEach(function (ent, i) {
       var pl = planScan(ent, v), estPh = ent.type === 'Pharmacie';
@@ -12986,16 +13010,18 @@
     scanCreneau: function (el) { var f = S.ui.feuille, k = el.dataset.v; majScan(f.id, function (x) { x.validation[k] = !x.validation[k]; if (!x.validation.matin && !x.validation.soir) x.validation[k === 'matin' ? 'soir' : 'matin'] = true; }); rendre(); },
     scanEnregistrer: function () {
       var f = S.ui.feuille, x = scan(f.id); if (!x || !x.validation) return;
-      var v = x.validation, codes = [], n = 0;
+      var v = x.validation, codes = [], n = 0, nCr = 0;
       v.entites.forEach(function (ent) {
         if (!ent.inclus) return;
         var pl = planScan(ent, v); if (pl.erreur) return;
-        codes.push(enregistrerFiche(pl.d)); n++;
+        var code = enregistrerFiche(pl.d); codes.push(code); n++;
+        if (creerVisiteScan(code, ent, v, pl.lieu, x.id)) nCr++;
       });
       if (!n) { toast('Rien à enregistrer.'); return; }
       majScan(f.id, function (y) { y.statut = 'enregistree'; y.codes = codes; });
       S.ui.feuille = null; S.ui.tab = 'praticiens'; rendre();
-      toast(n + ' fiche' + (n > 1 ? 's' : '') + ' enregistrée' + (n > 1 ? 's' : '') + (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.'), 4000);
+      sauver();
+      toast(n + ' fiche' + (n > 1 ? 's' : '') + ' enregistrée' + (n > 1 ? 's' : '') + (nCr ? ', ' + nCr + ' compte' + (nCr > 1 ? 's' : '') + ' rendu' + (nCr > 1 ? 's' : '') : '') + (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.'), 4000);
       synchroniser(true);
     },
     nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau contact', pleine: true, etape: 0, cherche: true, nouveau: true, d: brouillonFiche(''), err: {} }; rendre(); setTimeout(function () { var i = document.querySelector('.fx-champ-g'); if (i) i.focus(); }, 250); },
