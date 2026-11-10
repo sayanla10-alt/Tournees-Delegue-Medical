@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.8';
+  var APP_VERSION = '3.29.9';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.9', ['Compte rendu de visite (médecin) : étapes « Produits présentés ? », choix des produits présentés et « Réaction du médecin » rétablies ; échantillons parmi les produits présentés ; formulaire express : produits présentés rétablis ; synthèse : produits présentés rétablis']],
     ['3.29.8', ['Fiche : dans la liste des établissements proposés, c\'est bien celui touché qui est repris ; un nom qui correspond à plusieurs établissements (ex. « Bingerville ») n\'est plus remplacé automatiquement par le premier']],
     ['3.29.7', ['+ Médecin, + Pharmacie, Autour de moi : « Par ma position » mesure d\'abord votre position avec précision, puis affiche les résultats ; votre quartier s\'affiche dans « Ou choisir un quartier »']],
     ['3.29.6', ['Répertoire, Pharmacies : distance depuis votre position sur chaque carte, comme pour les hôpitaux']],
@@ -4515,9 +4516,11 @@
     return s;
   }
   function lignesSynthese(s) {
+    var prod = Object.keys(s.produits).sort(function (a, b) { return s.produits[b] - s.produits[a]; }).map(function (x) { return x + (s.produits[x] > 1 ? ' (' + s.produits[x] + ')' : ''); });
     var l = [['Visites', s.faites.length + ' faite' + (s.faites.length > 1 ? 's' : '') + ' sur ' + s.prevues + (s.sansCr.length ? ' · ' + s.sansCr.length + ' sans compte rendu' : '')]];
     if (s.faites.length) l.push(['Potentiel vu', [[3, '★★★'], [2, '★★'], [1, '★']].filter(function (x) { return s.pot[x[0]]; }).map(function (x) { return s.pot[x[0]] + ' ' + x[1]; }).join(' · ')]);
     if (s.nonFaites.length) l.push(['Non faites', s.nonFaites.map(function (a) { return a.nom + ' (' + statutLibelle(a).toLowerCase() + ')'; }).join(', ')]);
+    if (prod.length) l.push(['Produits présentés', prod.join(', ')]);
     if (s.echantillons.length) l.push(['Échantillons', s.echantillons.join(' ; ')]);
     if (s.commandes.length) l.push(['Commandes', s.commandes.join(' ; ')]);
     if (s.ruptures.length) l.push(['Ruptures', s.ruptures.join(', ')]);
@@ -5576,8 +5579,11 @@
     if (c.faite === 'oui') {
       r.statut = statutFaite(); r.activite = (c.types || []).join(' ; ');
       if (!ph) {
-        r.produits = ''; r.reactions = '';   // 3.28.45 : tous les produits sont présentés, rien à noter
-        if (c.echant === 'oui' || im.echant) r.echantillons = listeQ(c.echQ);
+        var aPres = c.presentes === 'oui' || im.presentes || (c.presentes !== 'non' && produitsPresentes(c).length > 0);   // formulaire express : produits cochés
+        var pres = aPres ? produitsPresentes(c) : [];
+        r.produits = pres.join(', ');
+        r.reactions = pres.filter(function (p) { return c.reactions[p]; }).map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(' ; ');
+        if (aPres && (c.echant === 'oui' || im.echant)) r.echantillons = listeQ(c.echQ);
         r.commentaire = c.bilan || '';
       } else {
         r.interlocuteur = c.interlocuteur || '';
@@ -5883,12 +5889,27 @@
     if (!ph) {
       e('types', 'Type(s) de visite médicale', 'continuer', function () { return rendreChoixTypesCr(a, c.types); }, function () { return (c.types || []).join(', '); },
         function () { return (c.types || []).length ? '' : 'choisissez au moins un type de visite médicale'; });
-      // 3.28.45 : tous les produits sont présentés à chaque visite : ni question, ni choix, ni réaction par produit ;
-      // seuls les échantillons remis se renseignent (quantités parmi tous les produits)
-      c.presentes = ''; c.produits = []; c.reactions = {};
-      if (!im.echant && !c.echant) c.echant = 'non';
-      if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
-      if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', cat, c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
+      // 3.29.9 : étapes « Produits présentés », choix des produits et « Réaction du médecin » rétablies (retirées par erreur en 3.28.45)
+      if (!im.presentes) e('presentes', 'Produits présentés ?', 'auto', function () { return choixCr(a, 'presentes', [['oui', 'Oui'], ['non', 'Non']], c.presentes || 'oui'); }, function () { return oui(c.presentes); });
+      if (c.presentes === 'oui' || im.presentes) {
+        e('produits', 'Produits présentés', 'continuer', function () {
+          return rendreChoixProduitsCr(a, 'produits', c.produits);
+        }, function () { return produitsPresentes(c).join(', '); }, function () { return produitsPresentes(c).length ? '' : 'choisissez au moins un produit'; });
+        e('reactions', 'Réaction du médecin', 'continuer', function () {
+          // 3.26.88 : réaction par défaut : la dernière donnée pour ce produit, sinon « Intéressé »
+          var memR = LS.get('dernieresReactionsCr', {}); c.reactions = c.reactions || {};
+          produitsPresentes(c).forEach(function (p) { if (!c.reactions[p]) c.reactions[p] = memR[p] || 'Intéressé'; });
+          return '<div class="champs-cr">' + produitsPresentes(c).map(function (p) {
+            return '<div class="champ champ-reaction-produit"><div class="etiquette-med-cr"><b>' + esc(p) + '</b></div><div class="grille-reactions-cr">' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div></div>';
+          }).join('') + '</div>';
+        }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
+        if (!im.echant && !c.echant) c.echant = 'non';
+        if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
+        if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
+      } else {
+        c.echant = 'non';
+        c.echQ = {};
+      }
       e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
       etapesSuite(a, c, SUITES.medecin, e);
       return l;
@@ -6014,7 +6035,11 @@
       rendreChoixTypesCr(a, c.types) +
       '</div>';
 
-    // 3.28.45 : plus de choix des produits présentés : tous les produits sont présentés à chaque visite
+    // 3. Produits présentés (3.29.9 : rétabli)
+    h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
+      '<div class="gamme-cr-titre" style="margin-bottom:6px"><span><b>Produits présentés</b></span></div>' +
+      rendreChoixProduitsCr(a, 'produits', c.produits) +
+      '</div>';
 
     // 4. Prochaine étape
     var optProchaine = [
