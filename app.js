@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.0';
+  var APP_VERSION = '3.31.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.1', ['Fiche photographiée : toutes les lignes de la fiche sont lues (jusqu\'à 15 et plus), avec pour chacune spécialité, établissement, téléphone et adresse du cachet ; le texte lu s\'affiche sous chaque contact à vérifier ; photo envoyée en meilleure définition']],
     ['3.31.0', ['Répertoire › Ajouter : nouveau bouton Hôpital (à la place de Fiche) : on cherche d\'abord dans la base, puis on crée l\'établissement (nom officiel, catégorie, quartier, repères, téléphone, position prise devant)',
                'Fiche (photo d\'une fiche de visite) : bouton sous Médecin, Pharmacie, Hôpital, sur toute la largeur',
                'Hôpitaux : la recherche trouve aussi les établissements de la base qui n\'ont pas encore de médecin']],
@@ -10079,15 +10080,15 @@
     });
     document.body.appendChild(inp); inp.click();
   }
-  // Photo réduite à 2000 px de côté (écriture manuscrite lisible) en JPEG 0,82 : quelques centaines de Ko
+  // Photo réduite à 3000 px de côté (3.31.1 : fiches de 12 lignes et cachets lisibles) en JPEG 0,85 : environ 1 Mo
   function compresserPhoto(fichier) {
     return new Promise(function (ok, ko) {
       var url = URL.createObjectURL(fichier), img = new Image();
       img.onload = function () {
-        var m = 2000, r = Math.min(1, m / Math.max(img.naturalWidth, img.naturalHeight));
+        var m = 3000, r = Math.min(1, m / Math.max(img.naturalWidth, img.naturalHeight));
         var c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * r); c.height = Math.round(img.naturalHeight * r);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
-        ok(c.toDataURL('image/jpeg', 0.82).split(',')[1]);
+        ok(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
       };
       img.onerror = function () { URL.revokeObjectURL(url); ko(new Error('Photo illisible.')); };
       img.src = url;
@@ -10149,7 +10150,7 @@
     var ent = { type: estPh ? 'Pharmacie' : 'Médecin', inclus: true, nom: nomScan(x, estPh), telephone: formaterTelephoneCI(x.telephone) || String(x.telephone || ''),
       specialite: estPh ? 'Pharmacien' : specialiteCanonique(x.specialite || ''), specLue: x.specialite || '', etablissement: estPh ? '' : String(x.etablissement || '').trim(),
       adresse: x.adresse || '', quartier: q ? q.quartier : '', quartierLu: x.quartier || L.quartier || '', commune: q ? q.commune : (x.commune || L.commune || ''),
-      confiance: x.confiance, source: x.source, remplacer: {} };
+      confiance: x.confiance, source: x.source, transcription: x.transcription || '', remplacer: {} };
     if (!estPh && ent.etablissement) {
       var can = trouverEtablissementBDD(ent.etablissement, ent.quartier, ent.commune);
       if (can) { ent.etablissement = can.lieu || ent.etablissement; if (!ent.quartier && can.quartier) { ent.quartier = can.quartier; ent.commune = can.commune || ent.commune; } ent.lat = can.lat || ''; ent.lon = can.lon || ''; }
@@ -10276,6 +10277,7 @@
       h += '<section class="bloc compact scan-ent' + (ent.inclus ? '' : ' scan-exclu') + '">' +
         '<label class="case"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="inclus"' + (ent.inclus ? ' checked' : '') + '> <b>' + (estPh ? 'Pharmacie' : 'Médecin') + '</b>' +
           (ent.confiance !== undefined && ent.confiance < 0.6 ? ' <span class="etiquette alerte">Lecture incertaine</span>' : '') + '</label>' +
+        (ent.transcription ? '<p class="discret scan-lu">Lu : ' + esc(ent.transcription) + '</p>' : '') +   // 3.31.1 : texte lu sur la ligne et le cachet
         '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(ent.nom) + '"></label>' +
         (estPh ? '' : '<div class="grille-2 serre"><label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"' + (ent.specLue && ent.specLue !== ent.specialite ? ' title="Lu : ' + esc(ent.specLue) + '"' : '') + '></label>' +
           '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label></div>' +

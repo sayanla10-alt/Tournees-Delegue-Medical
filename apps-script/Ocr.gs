@@ -20,12 +20,20 @@ var TAILLE_MAX_PHOTO = 8 * 1024 * 1024;   // octets, après décodage
 
 var CONSIGNE_LECTURE_FICHE = [
   'Tu lis la photo d\'une fiche de visite ou d\'un rapport journalier d\'un délégué médical à Abidjan (Côte d\'Ivoire).',
-  'La fiche peut mêler texte imprimé, écriture manuscrite et cachets (tampons) de médecins, de cliniques ou de pharmacies.',
-  'Extrais uniquement ce qui est réellement écrit ou tamponné. N\'invente rien : un champ illisible ou absent vaut "".',
-  'Pour chaque professionnel de santé visité (souvent identifié par son cachet) : titre (Dr, Pr, Prof, M., Mme), nom de famille, prénoms,',
-  'spécialité médicale telle qu\'écrite, établissement de rattachement (hôpital, clinique, cabinet, centre de santé), téléphone, adresse.',
+  'La fiche est le plus souvent un TABLEAU : une ligne par visite, souvent 5 à 15 lignes (médecins, sages-femmes, infirmiers, pharmacies),',
+  'chaque ligne portant un nom écrit à la main et/ou un cachet (tampon) et parfois une signature.',
+  'ÉTAPE 1 : compte toutes les lignes ou tous les cachets de visite présents sur la fiche, y compris ceux en bas de page, de travers, à moitié lisibles ou débordant sur une autre case. Mets ce nombre dans nb_lignes.',
+  'ÉTAPE 2 : rends EXACTEMENT une entrée par ligne comptée, dans l\'ordre de la fiche (numéro de ligne dans ligne). N\'en saute aucune et n\'arrête pas après la première :',
+  'une ligne dont seul le nom est lisible donne quand même une entrée (les autres champs à "") avec une confiance faible ; une ligne illisible donne une entrée avec le texte deviné et confiance 0.2.',
+  'Les médecins et autres soignants vont dans medecins, les officines dans pharmacies. Les lignes vides du tableau ne comptent pas.',
+  'Pour CHAQUE ligne, recopie d\'abord dans transcription absolument tout ce qui est écrit ou tamponné sur la ligne et dans son cachet (un cachet porte en général',
+  'le nom, la spécialité, l\'établissement, un ou deux téléphones, l\'adresse et un numéro d\'ordre), puis répartis ces informations dans les champs.',
+  'Ne laisse un champ vide que si l\'information est vraiment absente de la ligne et de son cachet. Ne mets pas de signature ni de mot illisible dans titre.',
+  'Extrais uniquement ce qui est écrit ou tamponné ; n\'invente rien. Un champ illisible ou absent vaut "".',
+  'Pour chaque soignant : titre (Dr, Pr, Prof, M., Mme, SF pour sage-femme, IDE pour infirmier) dans titre seulement, nom de famille, prénoms,',
+  'spécialité telle qu\'écrite, établissement de rattachement (hôpital, clinique, cabinet, centre de santé, souvent lisible sur le cachet), téléphone, adresse.',
   'Pour chaque pharmacie : nom de l\'officine, adresse ou quartier, téléphone.',
-  'Date de la visite au format AAAA-MM-JJ (les dates de la fiche sont écrites jour/mois/année). Ville, commune et quartier prospectés si indiqués.',
+  'Date de la visite au format AAAA-MM-JJ (les dates de la fiche sont écrites jour/mois/année). Ville, commune et quartier prospectés si indiqués (en-tête de la fiche).',
   'Téléphones ivoiriens : 10 chiffres (ex. 07 07 12 34 56) ; recopie les chiffres sans espaces ni indicatif.',
   'source = "cachet", "manuscrit" ou "imprime" selon d\'où vient surtout l\'information ; confiance entre 0 et 1.',
   'Mets dans remarques ce qui est utile mais ne rentre dans aucun champ (ex. commande, rupture, absence du médecin).'
@@ -33,18 +41,19 @@ var CONSIGNE_LECTURE_FICHE = [
 
 function schemaLectureFiche_() {
   var S = function (d) { return { type: 'STRING', description: d }; };
-  var pro = { type: 'OBJECT', properties: {
-    titre: S('Dr, Pr, Prof, M., Mme'), nom: S('Nom de famille'), prenoms: S('Prénoms'), specialite: S('Spécialité telle qu\'écrite'),
+  var pro = { type: 'OBJECT', propertyOrdering: ['ligne', 'transcription', 'titre', 'nom', 'prenoms', 'specialite', 'etablissement', 'telephone', 'adresse', 'quartier', 'commune', 'source', 'confiance'], properties: {
+    ligne: { type: 'INTEGER', description: 'Numéro de la ligne sur la fiche' }, transcription: S('Recopie intégrale de TOUT le texte de la ligne et de son cachet : nom, spécialité, établissement, téléphones, adresse, numéro d\'ordre, séparés par | '), titre: S('Dr, Pr, Prof, M., Mme, SF, IDE'), nom: S('Nom de famille'), prenoms: S('Prénoms'), specialite: S('Spécialité telle qu\'écrite'),
     etablissement: S('Hôpital, clinique, cabinet ou centre de santé'), telephone: S('10 chiffres'), adresse: S('Adresse ou repères'),
     quartier: S('Quartier'), commune: S('Commune'), source: S('cachet, manuscrit ou imprime'), confiance: { type: 'NUMBER' } },
-    required: ['nom'] };
-  var pha = { type: 'OBJECT', properties: {
-    nom: S('Nom de l\'officine'), adresse: S('Adresse ou repères'), quartier: S('Quartier'), commune: S('Commune'), telephone: S('10 chiffres'),
-    source: S('cachet, manuscrit ou imprime'), confiance: { type: 'NUMBER' } }, required: ['nom'] };
-  return { type: 'OBJECT', properties: {
+    required: ['ligne', 'transcription', 'titre', 'nom', 'prenoms', 'specialite', 'etablissement', 'telephone', 'adresse', 'quartier', 'commune', 'source', 'confiance'] };
+  var pha = { type: 'OBJECT', propertyOrdering: ['ligne', 'transcription', 'nom', 'adresse', 'quartier', 'commune', 'telephone', 'source', 'confiance'], properties: {
+    ligne: { type: 'INTEGER', description: 'Numéro de la ligne sur la fiche' }, transcription: S('Recopie intégrale de TOUT le texte de la ligne et de son cachet : nom, spécialité, établissement, téléphones, adresse, numéro d\'ordre, séparés par | '), nom: S('Nom de l\'officine'), adresse: S('Adresse ou repères'), quartier: S('Quartier'), commune: S('Commune'), telephone: S('10 chiffres'),
+    source: S('cachet, manuscrit ou imprime'), confiance: { type: 'NUMBER' } }, required: ['ligne', 'transcription', 'nom', 'adresse', 'quartier', 'commune', 'telephone', 'source', 'confiance'] };
+  return { type: 'OBJECT', propertyOrdering: ['nb_lignes', 'date_visite', 'ville', 'commune', 'quartier', 'medecins', 'pharmacies', 'remarques'], properties: {
+    nb_lignes: { type: 'INTEGER', description: 'Nombre de lignes ou de cachets de visite comptés sur la fiche' },
     date_visite: S('AAAA-MM-JJ'), ville: S('Ville'), commune: S('Commune prospectée'), quartier: S('Quartier prospecté'),
     medecins: { type: 'ARRAY', items: pro }, pharmacies: { type: 'ARRAY', items: pha }, remarques: S('Autres informations utiles') },
-    required: ['medecins', 'pharmacies'] };
+    required: ['nb_lignes', 'medecins', 'pharmacies'] };
 }
 
 // Action « lireFiche » : { image (base64 JPEG), mime, auteur, uid }
@@ -101,24 +110,40 @@ function rangerPhotoFiche_(octets, mime, auteur) {
 
 function appelerGemini_(cle, b64, mime) {
   var prop = PropertiesService.getScriptProperties().getProperty('MODELE_GEMINI');
-  var modeles = prop ? [prop] : MODELES_GEMINI_DEFAUT, derniere = '';
-  var corps = {
-    contents: [{ role: 'user', parts: [{ text: CONSIGNE_LECTURE_FICHE }, { inline_data: { mime_type: mime, data: b64 } }] }],
-    generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: schemaLectureFiche_() }
+  var modeles = prop ? [prop].concat(MODELES_GEMINI_DEFAUT.filter(function (m) { return m !== prop; })) : MODELES_GEMINI_DEFAUT, derniere = '';
+  var envoyer = function (modele, parts) {
+    return UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(modele) + ':generateContent', {
+      method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': cle }, muteHttpExceptions: true,
+      payload: JSON.stringify({ contents: [{ role: 'user', parts: parts }],
+        generationConfig: { temperature: 0, maxOutputTokens: 16384, responseMimeType: 'application/json', responseSchema: schemaLectureFiche_() } }) });
   };
-  for (var i = 0; i < modeles.length; i++) {
-    var rep = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(modeles[i]) + ':generateContent', {
-      method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': cle }, payload: JSON.stringify(corps), muteHttpExceptions: true });
-    var code = rep.getResponseCode(), txt = rep.getContentText();
-    if (code === 404) { derniere = 'modèle ' + modeles[i] + ' indisponible'; continue; }   // modèle retiré : on essaie le suivant
-    if (code !== 200) {
-      var msg = txt; try { msg = JSON.parse(txt).error.message; } catch (e) {}
-      throw new Error('Gemini ' + code + ' : ' + String(msg).slice(0, 300));
-    }
-    var o = JSON.parse(txt), cand = o.candidates && o.candidates[0];
+  var lire = function (rep) {
+    var o = JSON.parse(rep.getContentText()), cand = o.candidates && o.candidates[0];
     var t = cand && cand.content && cand.content.parts && cand.content.parts.map(function (p) { return p.text || ''; }).join('');
     if (!t) throw new Error('réponse vide' + (cand && cand.finishReason ? ' (' + cand.finishReason + ')' : ''));
-    return nettoyerLecture_(JSON.parse(t.replace(/^```(json)?\s*|\s*```$/g, '')));
+    return JSON.parse(t.replace(/^```(json)?\s*|\s*```$/g, ''));
+  };
+  var image = { inline_data: { mime_type: mime, data: b64 } };
+  for (var i = 0; i < modeles.length; i++) {
+    for (var essai = 0; essai < 2; essai++) {
+      var rep = envoyer(modeles[i], [{ text: CONSIGNE_LECTURE_FICHE }, image]), code = rep.getResponseCode();
+      if (code === 200) {
+        var l = lire(rep), n = ((l.medecins || []).length + (l.pharmacies || []).length);
+        // 3.31.1 : moins d'entrées que de lignes comptées : seconde lecture ciblée, on garde la plus complète
+        if (+l.nb_lignes > n) {
+          try {
+            var rep2 = envoyer(modeles[i], [{ text: CONSIGNE_LECTURE_FICHE + '\nATTENTION : tu as compté ' + l.nb_lignes + ' lignes mais rendu seulement ' + n + ' entrée(s). Relis toute la fiche ligne par ligne, de haut en bas, et rends une entrée pour CHACUNE des ' + l.nb_lignes + ' lignes.' }, image]);
+            if (rep2.getResponseCode() === 200) { var l2 = lire(rep2); if ((l2.medecins || []).length + (l2.pharmacies || []).length > n) l = l2; }
+          } catch (e2) {}
+        }
+        return nettoyerLecture_(l);
+      }
+      var txt = rep.getContentText(), msg = txt; try { msg = JSON.parse(txt).error.message; } catch (e) {}
+      derniere = 'Gemini ' + code + ' : ' + String(msg).slice(0, 300);
+      if (code === 404) break;                                                          // modèle retiré : suivant
+      if (code === 429 || code >= 500) { if (essai === 0) { Utilities.sleep(2500); continue; } break; }   // surcharge : on réessaie, puis modèle suivant
+      throw new Error(derniere);                                                        // clé, crédit, requête : inutile d'insister
+    }
   }
   throw new Error(derniere || 'aucun modèle disponible');
 }
@@ -132,6 +157,7 @@ function schemaJson_(o) {
     if (k === 'type') r.type = String(v).toLowerCase();
     else if (k === 'properties') { r.properties = {}; Object.keys(v).forEach(function (p) { r.properties[p] = schemaJson_(v[p]); }); }
     else if (k === 'items') r.items = schemaJson_(v);
+    else if (k === 'propertyOrdering') return;   // propre à Gemini
     else r[k] = v;
   });
   return r;
@@ -141,7 +167,7 @@ function appelerClaude_(cle, b64, mime) {
   var modeles = prop ? [prop] : MODELES_CLAUDE_DEFAUT, derniere = '';
   for (var i = 0; i < modeles.length; i++) {
     var corps = {
-      model: modeles[i], max_tokens: 4096, temperature: 0,
+      model: modeles[i], max_tokens: 8192, temperature: 0,
       tools: [{ name: 'lecture_fiche', description: 'Enregistre ce qui est lu sur la fiche de visite.', input_schema: schemaJson_(schemaLectureFiche_()) }],
       tool_choice: { type: 'tool', name: 'lecture_fiche' },
       messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mime, data: b64 } }, { type: 'text', text: CONSIGNE_LECTURE_FICHE }] }]
@@ -163,6 +189,28 @@ function appelerClaude_(cle, b64, mime) {
 }
 
 // Garde-fous sur ce que rend le modèle : types, longueurs, date au bon format, téléphones en chiffres
+// 3.31.1 : champs laissés vides par le modèle mais présents dans la transcription de la ligne : téléphone, spécialité, établissement
+var MOTS_ETAB_ = /\b(CHU|CHR|H[ôo]pital|HG|Clinique|Polyclinique|Centre|Cabinet|CSU|FSU|PMI|Maternit[ée]|Institut|Infirmerie|Dispensaire)\b[^|;\n]*/i;
+function completerDepuisTranscription_(x) {
+  var t = String(x.transcription || ''); if (!t) return x;
+  if (!x.telephone) { var m = t.replace(/[.\-]/g, ' ').match(/(?:\+?225\s*)?((?:0\d|\d{2})(?:\s?\d{2}){4})/); if (m) x.telephone = m[1].replace(/\s/g, ''); }
+  if (x.specialite === '' && x.nom !== undefined && x.prenoms !== undefined) {
+    var mots = sansAccents(t).toLowerCase().split(/[^a-z]+/).filter(Boolean), trouve = '';
+    for (var i = 0; i < mots.length && !trouve; i++) {
+      var deux = i + 1 < mots.length ? mots[i] + mots[i + 1] : '';
+      if (deux && (SPECIALITES_SYNONYMES[deux] || /^(medecinegenerale|medecingeneraliste)$/.test(deux))) trouve = specialiteCanonique(deux);
+      else if (SPECIALITES_SYNONYMES[mots[i]] && mots[i].length > 3) trouve = SPECIALITES_SYNONYMES[mots[i]];
+      else if (/^(generaliste|pediatre|cardiologue|neurologue|gynecologue|dermatologue|rhumatologue|ophtalmologue|urologue|psychiatre|chirurgien|interniste|pneumologue|nephrologue|endocrinologue|diabetologue|infectiologue)$/.test(mots[i])) trouve = specialiteCanonique(mots[i]);
+    }
+    if (trouve) x.specialite = trouve;
+  }
+  if (x.etablissement === '') { var e = t.match(MOTS_ETAB_); if (e) x.etablissement = e[0].replace(/\s+/g, ' ').trim().slice(0, 120); }
+  return x;
+}
+function titreCourt_(v) {
+  var k = sansAccents(String(v || '')).toLowerCase().replace(/[^a-z]/g, '');
+  return /^(dr|docteur)/.test(k) ? 'Dr' : /^(pr|prof|professeur)/.test(k) ? 'Pr' : /^(mme|madame)$/.test(k) ? 'Mme' : /^(m|mr|monsieur)$/.test(k) ? 'M.' : /^(sf|sagefemme)$/.test(k) ? 'SF' : /^(ide|infirmier|infirmiere)$/.test(k) ? 'IDE' : '';
+}
 function nettoyerLecture_(l) {
   var s = function (v, n) { return String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n || 120); };
   var tel = function (v) { var d = String(v || '').replace(/\D/g, ''); if (d.indexOf('225') === 0 && d.length === 13) d = d.slice(3); return d.length >= 8 && d.length <= 13 ? d : ''; };
@@ -173,13 +221,17 @@ function nettoyerLecture_(l) {
     date = m ? (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : '';
   }
   return {
+    nb_lignes: Math.max(0, Math.min(60, Math.round(+(l && l.nb_lignes) || 0))),
     date_visite: date, ville: s(l && l.ville, 60), commune: s(l && l.commune, 60), quartier: s(l && l.quartier, 80),
-    medecins: ((l && l.medecins) || []).slice(0, 30).map(function (x) {
-      return { titre: s(x.titre, 12), nom: s(x.nom, 80), prenoms: s(x.prenoms, 80), specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
+    medecins: ((l && l.medecins) || []).slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
+      x = completerDepuisTranscription_({ transcription: s(x.transcription, 600), titre: x.titre, nom: x.nom, prenoms: x.prenoms, specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
+        telephone: tel(x.telephone), adresse: x.adresse, quartier: x.quartier, commune: x.commune, source: x.source, confiance: x.confiance });
+      return { transcription: x.transcription, titre: titreCourt_(x.titre), nom: s(x.nom, 80), prenoms: s(x.prenoms, 80), specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
                telephone: tel(x.telephone), adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), source: s(x.source, 12), confiance: conf(x.confiance) };
     }).filter(function (x) { return x.nom; }),
-    pharmacies: ((l && l.pharmacies) || []).slice(0, 30).map(function (x) {
-      return { nom: s(x.nom, 120), adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), telephone: tel(x.telephone), source: s(x.source, 12), confiance: conf(x.confiance) };
+    pharmacies: ((l && l.pharmacies) || []).slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
+      var tP = completerDepuisTranscription_({ transcription: s(x.transcription, 600), telephone: tel(x.telephone) });
+      return { transcription: tP.transcription, nom: s(x.nom, 120), adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), telephone: tP.telephone, source: s(x.source, 12), confiance: conf(x.confiance) };
     }).filter(function (x) { return x.nom; }),
     remarques: s(l && l.remarques, 600)
   };
