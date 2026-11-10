@@ -13,7 +13,9 @@
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
-    ['3.29.3', ['Planifier et Journée : une visite déjà renseignée, un RDV de suivi ou un ancien programme repris hors des communes choisies pour le jour s\'affiche sur fond ambre, avec l\'étiquette « Déjà renseignée, hors communes choisies »']],
+    ['3.29.3', ['Journée : écran allumé, la position GPS précise est suivie en continu ; les distances « de vous » se mettent à jour en marchant (suivi arrêté dès qu\'on quitte Journée ou l\'application)',
+               'Fixer la position d\'un lieu : votre position est d\'abord remesurée avec précision (± 15 m visés, jusqu\'à 25 s) ; au-delà de ± 30 m, l\'application demande avant d\'enregistrer',
+               'Planifier et Journée : une visite déjà renseignée, un RDV de suivi ou un ancien programme repris hors des communes choisies pour le jour s\'affiche sur fond ambre, avec l\'étiquette « Déjà renseignée, hors communes choisies »']],
     ['3.29.2', [
       'Répertoire : message plus court, « cœur de cible (6) », sur une seule ligne'
     ]],
@@ -3229,6 +3231,7 @@
     if (connecte() && !moi() && tab !== 'reglages' && !S.ui.restauration) tab = 'identite';
     else if (!pret() && tab !== 'reglages') tab = connecte() ? 'chargement' : 'accueil';   // 3.26.73 : téléphone relié mais base pas encore reçue
     cacherInfobulle();
+    try { majSuiviGps(); } catch (eSuivi) {}
     cartesAFaire = [];
     // 3.24.14 : un rafraîchissement du même écran (synchronisation, minuterie) ne rejoue aucune animation
     // et garde la position de lecture : l'écran ne bouge plus
@@ -10978,7 +10981,8 @@
   // 3.25.36 : mesure GPS haute précision (arrêt immédiat <= 35 m, filtrage des faux relais > 500 m, sans cache obsolète)
   // 3.26.97 : mesure GPS haute précision : on écoute le GPS jusqu'à obtenir ± 20 m (au plus 25 s). Une mesure
   // grossière (Wi-Fi, antenne) n'est retenue qu'à défaut, et signalée comme imprécise.
-  function mesurePrecise(ok, ko) {
+  // 3.29.3 : strict (enregistrement de la position d'un lieu) : nouvelle mesure, visée ± 15 m, jusqu'à 25 s, sans arrêt anticipé à ± 50 m
+  function mesurePrecise(ok, ko, strict) {
     if (!navigator.geolocation) { if (ko) ko(); return; }
     var best = null, fini = false, id = null, t = null, t2 = null, debut = Date.now();
     function terminer() {
@@ -10991,14 +10995,47 @@
       if (fini) return;
       if (!best || precisionDe(p) < precisionDe(best)) best = p;
       var pr = precisionDe(best);
+      if (strict) { if (pr <= 15 || (pr <= 25 && Date.now() - debut > 12000)) terminer(); return; }
       if (pr <= 20) terminer();
       else if (pr <= 50 && Date.now() - debut > 8000) terminer();   // bonne précision et déjà 8 s d'écoute : suffisant
     }
     try { navigator.geolocation.getCurrentPosition(recevoir, function () {}, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }); } catch (e) {}
-    id = navigator.geolocation.watchPosition(recevoir, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-    t2 = setTimeout(function () { if (best && precisionDe(best) <= 50) terminer(); }, 4000);
-    t = setTimeout(terminer, 12000); // 3.27.47 : plafond à 12 s au lieu de 25 s
+    id = navigator.geolocation.watchPosition(recevoir, function (e) { if (e && e.code === 1) terminer(); }, { enableHighAccuracy: true, timeout: strict ? 25000 : 12000, maximumAge: 0 });
+    if (!strict) t2 = setTimeout(function () { if (best && precisionDe(best) <= 50) terminer(); }, 4000);
+    t = setTimeout(terminer, strict ? 25000 : 12000); // 3.27.47 : plafond à 12 s au lieu de 25 s (25 s pour fixer un lieu)
   }
+  // 3.29.3 : avant d'enregistrer la position d'un lieu, ma position est remesurée avec précision ; au-delà de ± 30 m, on demande
+  var PREC_LIEU_M = 30;
+  function mesurePourLieu(ok, ko) {
+    toast('Mesure précise de votre position (jusqu\'à 25 s)…', 25000);
+    mesurePrecise(function (p) {
+      if (p.prec <= PREC_LIEU_M) { ok(p); return; }
+      confirmerPuis('Position imprécise',
+        'Votre position n\'est connue qu\'à ± ' + p.prec + ' m. Sortez à découvert, loin des murs, puis réessayez. Enregistrer quand même ?',
+        'Enregistrer', function () { ok(p); }, function () { toast('Position non enregistrée.'); }, null, true);
+    }, ko, true);
+  }
+  // 3.29.3 : Journée ouverte, écran allumé : la position GPS précise est suivie en continu (arrêt dès qu'on quitte l'onglet ou l'application)
+  var suiviGps = { id: null, refuse: false, rendu: 0, posRendu: null };
+  function majSuiviGps() {
+    var actif = S.ui.tab === 'jour' && document.visibilityState === 'visible' && !!navigator.geolocation && !suiviGps.refuse && pret();
+    if (actif && suiviGps.id === null) {
+      try {
+        suiviGps.id = navigator.geolocation.watchPosition(function (pos) {
+          var p = { lat: pos.coords.latitude, lon: pos.coords.longitude, t: Date.now(), prec: Math.round(pos.coords.accuracy || 0) };
+          var g = S.ui.posGps;
+          // une mesure moins précise ne remplace une bonne position que si celle-ci date de plus de 15 s
+          if (g && g.prec && p.prec > g.prec + 10 && Date.now() - g.t < 15000) return;
+          S.ui.posGps = p; LS.set('derniereGps', p);
+          var dep = suiviGps.posRendu ? distanceKm(suiviGps.posRendu, p) / REGLAGES_MOTEUR.detourRoutier * 1000 : 9999;
+          if (S.ui.tab === 'jour' && !S.ui.feuille && (dep >= 10 || Math.abs((suiviGps.posRendu && suiviGps.posRendu.prec || 0) - p.prec) >= 20) && Date.now() - suiviGps.rendu > 5000) {
+            suiviGps.rendu = Date.now(); suiviGps.posRendu = p; rendreSiPossible();
+          }
+        }, function (e) { if (e && e.code === 1) { suiviGps.refuse = true; arreterSuiviGps(); } }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
+      } catch (e) { suiviGps.id = null; }
+    } else if (!actif && suiviGps.id !== null) arreterSuiviGps();
+  }
+  function arreterSuiviGps() { if (suiviGps.id !== null) { try { navigator.geolocation.clearWatch(suiviGps.id); } catch (e) {} } suiviGps.id = null; }
   function precisionDe(p) { var a = p && p.coords && p.coords.accuracy; return a === null || a === undefined || isNaN(a) ? 9999 : a; }
   function distanceCourte(k) {
     if (k <= 0.035) return 'Sur place';
@@ -11071,8 +11108,7 @@
     var l = (d.lieux && d.lieux[idxLieu]) || (d.lieux && d.lieux[0]);
     if (!l) return;
     if (!navigator.geolocation) { toast('Localisation indisponible.'); return; }
-    toast('Recherche de votre position précise…');
-    mesurePrecise(function (p) {
+    mesurePourLieu(function (p) {
       var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) };
       var qDecl = l.quartier ? quartiers().filter(function (q) { return q.quartier === l.quartier; })[0] : null;
       var refGeo = qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : lireCoord(l);
@@ -11114,8 +11150,7 @@
   // 3.27.34 : Actualisation GPS directe pour un établissement / hôpital depuis le Répertoire
   function majGpsPourHopital(e) {
     if (!navigator.geolocation) { toast('Localisation indisponible.'); return; }
-    toast('Recherche de votre position précise…');
-    mesurePrecise(function (p) {
+    mesurePourLieu(function (p) {
       var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) };
       var qDecl = e.quartier ? quartiers().filter(function (q) { return q.quartier === e.quartier; })[0] : null;
       var refGeo = (isFinite(e.lat) && isFinite(e.lon) && e.lat !== 0)
@@ -12840,7 +12875,7 @@
       if (!f || !f.d || !f.d.lieux || !f.d.lieux[idx]) return;
       var l = f.d.lieux[idx];
       if (!navigator.geolocation) { toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
-      toast('Recherche de votre position précise…');
+      toast('Mesure précise de votre position (jusqu\'à 25 s)…', 25000);
       mesurePrecise(function (p) {
         var avant = lireCoord(l);
         var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6), prec: p.prec };
@@ -12860,7 +12895,7 @@
             if (S.ui.feuille && S.ui.feuille.err) delete S.ui.feuille.err['quartier' + idx];
           }
           rendre();
-          toast('GPS capté : ' + (l.quartier ? l.quartier + ' (± ' + p.prec + ' m)' : '± ' + p.prec + ' m') + '.');
+          toast('GPS capté : ' + (l.quartier ? l.quartier + ' (± ' + p.prec + ' m)' : '± ' + p.prec + ' m') + '.' + (p.prec > PREC_LIEU_M ? ' Position imprécise : réessayez à découvert avant d\'enregistrer.' : ''), p.prec > PREC_LIEU_M ? 7000 : undefined);
         }
 
         if (refGeo && distanceKmEcart > 3) {
@@ -12894,7 +12929,7 @@
         }
 
         appliquerGps();
-      }, function () { toast('Position indisponible. Autorisez la localisation.'); });
+      }, function () { toast('Position indisponible. Autorisez la localisation.'); }, true);
     },
     ficheGpsEffacer: function (el) { var l = S.ui.feuille.d.lieux[+el.dataset.i]; l.lat = ''; l.lon = ''; l.origineGps = ''; rendre(); },
     ficheAller: function (el) {
@@ -13383,6 +13418,7 @@
   window.addEventListener('pageshow', function () { verifierChangementJour(); relocaliserSiBesoin('ouverture'); });
   window.addEventListener('focus', function () { verifierChangementJour(); relocaliserSiBesoin('ouverture'); });
   document.addEventListener('visibilitychange', function () {
+    majSuiviGps();   // 3.29.3 : suivi GPS de Journée coupé dès que l'application passe en arrière-plan
     if (document.visibilityState !== 'visible') return;
     verifierChangementJour();
     relocaliserSiBesoin('ouverture');
