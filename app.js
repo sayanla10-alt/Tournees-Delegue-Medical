@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.6';
+  var APP_VERSION = '3.29.7';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.7', ['+ Médecin, + Pharmacie, Autour de moi : « Par ma position » mesure d\'abord votre position avec précision, puis affiche les résultats ; votre quartier s\'affiche dans « Ou choisir un quartier »']],
     ['3.29.6', ['Répertoire, Pharmacies : distance depuis votre position sur chaque carte, comme pour les hôpitaux']],
     ['3.29.5', ['Planifier, jour sans planification : + Médecin, + Pharmacie et Autour de moi sous « Reprendre un ancien programme », comme dans Journée']],
     ['3.29.4', ['Journée, jour sans planification : + Médecin, + Pharmacie et Autour de moi sous « Reprendre un ancien programme »']],
@@ -6688,7 +6689,8 @@
 
     var estGps = A.src === 'gps' || A.src === 'gps_init';
     var txtGps = 'Utiliser ma position';
-    if (estGps && A.quartier) {
+    if (S.ui.attentePosition) txtGps = 'Recherche de votre position…';
+    else if (estGps && A.quartier) {
       txtGps = 'Ma position : ' + A.quartier + (A.prec ? ' (± ' + A.prec + ' m)' : '');
     } else if (S.ui.posGps) {
       var qGps = Moteur.quartierLePlusProche(S.ui.posGps.lat, S.ui.posGps.lon, quartiers());
@@ -6698,11 +6700,12 @@
     var blocBoutonGps = '<button class="bouton bouton-large' + (estGps ? ' actif' : '') + '" type="button" data-a="localiser" style="' + styleGps + '">' +
       icone('cible') + '<span>' + esc(txtGps) + '</span></button>';
 
-    var valQuartier = (A.src === 'quartier' && A.quartier) ? A.quartier : '';
-    var libelleQuartier = valQuartier || 'Choisir un autre quartier…';
+    // 3.29.7 : le quartier où je suis (position GPS) s'affiche aussi dans « Ou choisir un quartier »
+    var valQuartier = ((A.src === 'quartier' || estGps) && A.quartier && !S.ui.attentePosition) ? A.quartier : '';
+    var libelleQuartier = valQuartier || (S.ui.attentePosition ? 'Recherche de votre quartier…' : 'Choisir un autre quartier…');
     var blocSelecteurQuartier = '<div class="champ"><span>Ou choisir un quartier</span>' + selecteurListe('autourQuartier', {
       titre: 'Choisir un quartier',
-      valeur: valQuartier,
+      valeur: valQuartier || null,
       vide: libelleQuartier,
       sections: sectionsQuartiers(),
       appliquer: function (v) {
@@ -6742,7 +6745,7 @@
     h += barreFiltres(S.ui.filtres, '', true);
     }
 
-    if (S.ui.localisation && A.lat === null) return fin(h + '<div class="vide"><strong>Recherche de votre position…</strong>Les résultats s\'affichent dès qu\'elle est trouvée.</div>');
+    if ((S.ui.localisation && A.lat === null) || S.ui.attentePosition) return fin(h + '<div class="vide"><strong>Recherche de votre position…</strong>Les résultats s\'affichent dès qu\'elle est trouvée.</div>');
     if (A.lat === null) return fin(h + '<div class="vide"><strong>Où êtes-vous ?</strong>Utilisez votre position ou choisissez un quartier.</div>');
     var date, minute;
     if (A.moment === 'maintenant') { date = aujourdhui(); minute = minutesMaintenant(); }
@@ -10823,12 +10826,12 @@
   var DUREE_CACHE_GPS_MS = 180000; // 3.27.47 : 3 minutes de validité de cache GPS (anti-surchauffe / batterie)
   function localiser(discret, declencheur, forcerGps) {
     if (!navigator.geolocation) { if (!discret) toast('La localisation n\'est pas disponible sur cet appareil.'); return; }
-    if (S.ui.localisation) {
+    var estActionExplicite = !discret || declencheur === 'position' || declencheur === 'capter' || declencheur === 'ici' || forcerGps;
+    // 3.29.7 : « Par ma position » passe toujours : une mise à jour discrète en cours ne l'empêche plus
+    if (S.ui.localisation && !(declencheur === 'position' && S.ui.attentePosition && S.ui.localisation === 'discret')) {
       if (S.ui.localisationT && Date.now() - S.ui.localisationT > 10000) S.ui.localisation = false;
       else return;
     }
-
-    var estActionExplicite = !discret || declencheur === 'position' || declencheur === 'capter' || declencheur === 'ici' || forcerGps;
 
     // 3.27.47 : Régulation batterie : si tâche de fond passive et que le GPS en cache a moins de 3 minutes, réutilisation immédiate
     if (!estActionExplicite && S.ui.posGps && (Date.now() - S.ui.posGps.t < DUREE_CACHE_GPS_MS)) {
@@ -10849,7 +10852,7 @@
     if (!discret) { toast('Recherche de votre position…'); if (S.ui.tab === 'autour') rendre(); }
 
     function traiterResultatGps(p) {
-      S.ui.localisation = false;
+      S.ui.localisation = false; S.ui.attentePosition = false;
       var g0 = gpsFrais();
       if (g0 && g0.prec && p.prec > g0.prec) {
         var ecartM = distanceKm(g0, p) / REGLAGES_MOTEUR.detourRoutier * 1000;
@@ -10871,8 +10874,11 @@
     }
 
     function traiterErreurGps() {
-      S.ui.localisation = false; if (S.ui.tab === 'autour') rendreSiPossible();
-      if (!discret) toast('Position indisponible. Autorisez la localisation ou choisissez un quartier.');
+      var attendait = S.ui.attentePosition;
+      S.ui.localisation = false; S.ui.attentePosition = false;
+      if (attendait) { positionConnue(); toast('Position indisponible : dernière position connue utilisée. Autorisez la localisation ou choisissez un quartier.', 5000); }
+      if (S.ui.tab === 'autour') rendreSiPossible();
+      if (!discret && !attendait) toast('Position indisponible. Autorisez la localisation ou choisissez un quartier.');
     }
 
     if (!estActionExplicite) {
@@ -10888,6 +10894,14 @@
     } else {
       mesurePrecise(traiterResultatGps, traiterErreurGps);
     }
+  }
+  // 3.29.7 : « Par ma position » : ma position est d'abord remesurée avec précision ; les résultats et le quartier s'affichent ensuite
+  function chercherMaPosition() {
+    var A = S.ui.autour;
+    A.src = 'gps'; LS.set('autour', A);
+    if (!navigator.geolocation) { positionConnue(); return; }
+    S.ui.attentePosition = true;
+    localiser(true, 'position', true);
   }
   // « Par ma position » : la dernière position connue du téléphone sert tout de suite (résultats immédiats)
   function positionConnue() {
@@ -11408,7 +11422,7 @@
     garderPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
     retirerPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
     voirDansJournee: function (el) { S.ui.feuille = null; S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); },
-    ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true); },
+    ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; chercherMaPosition(); rendre(); window.scrollTo(0, 0); },
     generer: function () { lancerTirage('nouveau'); },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) {
@@ -11680,7 +11694,7 @@
         S.ui.filtresAutour = JSON.parse(JSON.stringify(S.ui.filtres));
         LS.set('filtresAutour', S.ui.filtresAutour);
         Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null }); LS.set('autour', S.ui.autour);
-        S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; positionConnue(); rendre(); window.scrollTo(0, 0); localiser(true, 'position', true);
+        S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; chercherMaPosition(); rendre(); window.scrollTo(0, 0);
         return;
       }
       if (el.dataset.v === 'zone') {
@@ -12342,8 +12356,7 @@
       S.ui.rechercheAutour = ''; S.ui.rechAutourLibre = '';
       Object.assign(S.ui.autour, j === aujourdhui() ? { moment: 'maintenant', ref: null } : { moment: 'choisir', date: j, heure: '', ref: null });
       LS.set('autour', S.ui.autour);
-      S.ui.tab = 'autour'; S.ui.pharmaciesProches = type; positionConnue(); rendre(); window.scrollTo(0, 0);
-      localiser(true, 'position', true);
+      S.ui.tab = 'autour'; S.ui.pharmaciesProches = type; chercherMaPosition(); rendre(); window.scrollTo(0, 0);
     },
     crMulti: function (el) { var a = arret(el.dataset.uid); if (!a) return; majCr(a, el.dataset.k, el.dataset.v, true); rendre(); centrerChoix(el); },
     crMultiTous: function (el) {
