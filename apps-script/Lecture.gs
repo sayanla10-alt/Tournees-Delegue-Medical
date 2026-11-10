@@ -26,7 +26,9 @@ function lireTout(sig, hdepuis) {
   var historique = [];
   var shH = ss.getSheetByName(FEUILLES.hist);
   if (shH && shH.getLastRow() > 1) {
-    historique = lireObjets(shH, CHAMPS_HIST, tz, Math.max(2, shH.getLastRow() - NB_HISTORIQUE_RENVOYE + 1)).reverse();
+    var limH = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -JOURS_HISTORIQUE_RENVOYE);
+    historique = lireObjets(shH, CHAMPS_HIST, tz, Math.max(2, shH.getLastRow() - NB_HISTORIQUE_RENVOYE + 1)).reverse()
+      .filter(function (v) { return !v.date || String(v.date).slice(0, 10) >= limH; });
   }
   lirePharmacies(ss, tz).forEach(function (ph) {
     praticiens.push({ code: ph.code, type: 'Pharmacie', nom: ph.nom, specialite: 'Pharmacien', note: lireNote(ph.note),
@@ -64,7 +66,7 @@ function lireTout(sig, hdepuis) {
     ref.produits = ref.produits.filter(function (p) { return !inactifs[normaliser(p)]; });
   }
   empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
-  var limiteR = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -JOURS_PLANNINGS_DATA);
+  var limiteR = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -JOURS_HISTORIQUE_RENVOYE);   // 3.29.0 : rapports sur 120 jours, comme les visites
   var rapports = lireObjets(ss.getSheetByName(FEUILLES.rapports), CHAMPS_RAPPORTS, tz).filter(function (x) { return x.delegue !== '' && x.date >= limiteR; });
   var r = { ok: true, version: VERSION_DONNEES, sig: empreinte, historique: historique, partiel: !!hdepuis, alias: aliasDelegues(), rapports: rapports,
             plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), serveur: new Date().toISOString(),

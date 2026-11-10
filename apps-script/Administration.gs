@@ -612,7 +612,7 @@ function onEdit(e) {
         if (sh.getRange(r, cNom).getValue() === '' || sh.getRange(r, cCode).getValue() !== '') continue;
         var pre = sh.getRange(r, cType).getValue() === 'Pharmacie' ? 'PHA' : 'MED';
         max[pre]++;
-        sh.getRange(r, cCode).setValue(pre + '-' + ('00' + max[pre]).slice(-3));
+        sh.getRange(r, cCode).setValue(pre + '-' + numeroCode(max[pre]));
         if (cActif && sh.getRange(r, cActif).getValue() === '') sh.getRange(r, cActif).setValue('Oui');
       }
     } else if (nom === FEUILLES.presences) {

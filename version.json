@@ -1,8 +1,9 @@
 {
-  "version": "3.28.58",
-  "date": "2026-11-09",
+  "version": "3.29.0",
+  "date": "2026-11-10",
   "notes": [
-    "Planifier s'ouvre de nouveau sur J+1, aujourd'hui reste planifiable",
-    "Suppression d'une journée : plus de « Journée vide » à tort"
+    "Comptes rendus : plus jamais mis de côté pour une coupure de réseau",
+    "Modifications du Sheet visibles en quelques secondes",
+    "Répertoire : tous les prescripteurs, spécialités sans doublon"
   ]
 }

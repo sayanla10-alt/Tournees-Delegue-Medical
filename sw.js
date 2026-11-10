@@ -12,22 +12,29 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.28.58';
+var VERSION = '3.29.0';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-700-normal.woff2'
 ];
+// 3.29.0 : les fichiers sont pré-chargés exactement sous l'adresse que la page demande (?v=version) et toujours depuis
+// le réseau (cache: 'reload'), jamais depuis le cache du navigateur : une nouvelle version ne peut plus enregistrer l'ancien fichier
 var FICHIERS = [
-  './', './index.html', './manifest.webmanifest', './app.css',
-  './commun.js', './moteur.js', './app.js',
+  './', './index.html', './manifest.webmanifest',
+  './app.css?v=' + VERSION, './commun.js?v=' + VERSION, './moteur.js?v=' + VERSION, './app.js?v=' + VERSION,
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(
     caches.open(CACHE).then(function (c) {
-      return c.addAll(FICHIERS).then(function () {
+      return Promise.all(FICHIERS.map(function (u) {
+        return fetch(new Request(u, { cache: 'reload' })).then(function (r) {
+          if (!r.ok) throw new Error('Pré-chargement impossible : ' + u + ' (' + r.status + ')');
+          return c.put(u, r);
+        });
+      })).then(function () {
         return c.addAll(POLICES).catch(function () {});
       });
     })
@@ -60,8 +67,11 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
+  // 3.29.0 : une page ouverte avec des paramètres (lien de partage) ou hors ligne retombe sur index.html
+  var navigation = e.request.mode === 'navigate';
   e.respondWith(
     caches.match(e.request).then(function (r) {
+      if (!r && navigation) return fetch(e.request).catch(function () { return caches.match('./index.html'); });
       return r || fetch(e.request).then(function (resp) {
         if (resp && resp.status === 200 && resp.type === 'basic') {
           var respClone = resp.clone();

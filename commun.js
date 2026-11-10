@@ -1,7 +1,8 @@
 ﻿/* =============================================================================
    commun.js : référentiel, modèle de données et fonctions partagées (version 3)
-   Ce fichier est IDENTIQUE dans l'application (commun.js) et dans Google Apps
-   Script (Commun.gs). Toute modification doit être reportée dans les deux.
+   Source unique : apps-script/Commun.gs en est la copie exacte, produite par
+   « node scripts/commun.js » (contrôle : « node scripts/commun.js --verifier »).
+   Ne jamais modifier Commun.gs à la main.
 
    Modèle de données
    - Praticiens : une ligne par médecin ou pharmacie (note de potentiel 1 à 3,
@@ -830,12 +831,29 @@ function sansAccents(s) {
   return String(s === undefined || s === null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 function normaliser(s) { return sansAccents(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+// 3.29.0 : numéro d'un code (MED-007, MED-1000) : 3 chiffres au moins, jamais tronqué au-delà de 999
+function numeroCode(n) { n = Math.max(0, Math.floor(+n || 0)); return n < 1000 ? ('00' + n).slice(-3) : String(n); }
 
 
 // 3.27.26 : spécialité canonique (« Médecine générale », « Médecin généraliste », « MG » -> « Généraliste »)
+// 3.29.0 : une seule écriture par spécialité : discipline (« Cardiologie »), abréviation (« Cardio ») ou autre casse ramenées
+// au nom du praticien de la liste de référence (« Cardiologue ») ; une spécialité inconnue est gardée telle quelle
+var SPECIALITES_SYNONYMES = {
+  cardio: 'Cardiologue', cardiologie: 'Cardiologue', neuro: 'Neurologue', neurologie: 'Neurologue', pneumo: 'Pneumologue', pneumologie: 'Pneumologue',
+  nephro: 'Néphrologue', nephrologie: 'Néphrologue', endocrino: 'Endocrinologue', endocrinologie: 'Endocrinologue', diabeto: 'Diabétologue', diabetologie: 'Diabétologue',
+  gyneco: 'Gynécologue', gynecologie: 'Gynécologue', gynecologueobstetricien: 'Gynécologue', dermato: 'Dermatologue', dermatologie: 'Dermatologue',
+  rhumato: 'Rhumatologue', rhumatologie: 'Rhumatologue', gastro: 'Gastro-entérologue', gastroenterologie: 'Gastro-entérologue', gastroenterologue: 'Gastro-entérologue',
+  infectio: 'Infectiologue', infectiologie: 'Infectiologue', ophtalmo: 'Ophtalmologue', ophtalmologie: 'Ophtalmologue', pedia: 'Pédiatre', pediatrie: 'Pédiatre',
+  medecineinterne: 'Interniste', interne: 'Interniste', psychiatrie: 'Psychiatre', urologie: 'Urologue', chirurgie: 'Chirurgien',
+  // 3.29.0 : infirmier ou sage-femme sans service précis : classé avec les généralistes (MG)
+  infirmier: 'Généraliste', infirmiere: 'Généraliste', ide: 'Généraliste', sagefemme: 'Généraliste'
+};
 function specialiteCanonique(s) {
-  var t = String(s || '').trim(), k = normaliser(t);
+  var t = String(s || '').trim().replace(/\s+/g, ' '), k = normaliser(t);
+  if (!k) return t;
   if (/^(medecinegenerale|medecingeneraliste|generaliste|mg|medecingeneral)$/.test(k)) return 'Généraliste';
+  if (SPECIALITES_SYNONYMES[k]) return SPECIALITES_SYNONYMES[k];
+  for (var i = 0; i < SPECIALITES_DEFAUT.length; i++) if (normaliser(SPECIALITES_DEFAUT[i]) === k) return SPECIALITES_DEFAUT[i];
   return t;
 }
 
@@ -1134,7 +1152,7 @@ function genererBaseFictive(dateRefIso, options) {
   var m, code, nom, spec;
   // Médecins
   for (m = 1; m <= nbMed; m++) {
-    code = 'MED-' + ('00' + m).slice(-3);
+    code = 'MED-' + numeroCode(m);
     nom = 'Dr ' + pioche(noms) + ' ' + pioche(prenoms);
     spec = pioche(specs);
     praticiens.push({ code: code, type: 'Médecin', nom: nom, specialite: spec,
@@ -1182,7 +1200,7 @@ function genererBaseFictive(dateRefIso, options) {
   }
   // Pharmacies : le titulaire est disponible certains jours, matin et/ou soir
   for (m = 1; m <= nbPha; m++) {
-    code = 'PHA-' + ('00' + m).slice(-3);
+    code = 'PHA-' + numeroCode(m);
     var qp = pool[Math.floor(rnd() * pool.length)];
     nom = 'Dr ' + pioche(noms) + ' ' + pioche(prenoms);
     praticiens.push({ code: code, type: 'Pharmacie', nom: nom, specialite: 'Pharmacien',

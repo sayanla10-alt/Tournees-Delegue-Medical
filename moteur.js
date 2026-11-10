@@ -232,6 +232,18 @@ var Moteur = (function () {
 
   // Ordonne une liste d'arrêts d'une même journée (après ajout, retrait, nouveau tirage)
   // 3.27.13 : apres (minutes) : aujourd'hui, aucune visite à faire n'est proposée avant l'heure actuelle
+  // 3.29.0 : évaluation rapide d'un ajout : l'ordre actuel de la journée est gardé, le nouvel arrêt est inséré à la meilleure place
+  // (sans recalculer tous les ordres possibles). Renvoie { heure, retards, km } : km = détour ajouté par l'arrêt
+  function evaluerInsertion(arrets, nouvel, depart) {
+    var route = arrets.slice().sort(function (x, y) { return (heureVersMinutes(x.heure) || 0) - (heureVersMinutes(y.heure) || 0); }).map(item);
+    var dep = depart ? { coord: depart } : null, it = item(nouvel), avant = simuler(route), best = null;
+    for (var i = 0; i <= route.length; i++) {
+      var essai = route.slice(0, i).concat([it], route.slice(i)), s = simuler(essai), d = delta(route, i, it, dep);
+      var cout = (s.nbRetards - avant.nbRetards) * 1000 + d;
+      if (!best || cout < best.cout) best = { cout: cout, heure: minutesVersHeure(s.debuts[i]), retards: s.nbRetards, base: avant.nbRetards, km: d };
+    }
+    return best;
+  }
   function ordonnerJour(arrets, depart, apres) {
     var its = arrets.map(item);
     if (apres) its.forEach(function (it) { if (!it.fixe && !it.a.rdv && !it.a.statut) it.tot = Math.max(it.tot, apres); });
@@ -515,7 +527,7 @@ var Moteur = (function () {
     preparer: preparer, creneauParCle: creneauParCle, arretDepuisCreneau: arretDepuisCreneau, scoreDe: scoreDe,
     simuler: simuler, ordonnerJour: ordonnerJour, planifierJour: planifierJour, genererPlanning: genererPlanning,
     autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur, nomSecteurTournee: nomSecteurTournee,
-    estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid
+    estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid, evaluerInsertion: evaluerInsertion
   };
 })();
 

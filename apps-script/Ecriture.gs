@@ -13,6 +13,7 @@ function enregistrerRapport(r) {
     });
     if (rang > 0) sh.getRange(rang, 1, 1, ligne.length).setValues([ligne]);
     else sh.getRange(sh.getLastRow() + 1, 1, 1, ligne.length).setValues([ligne]);
+    enregistrerAudit(ss, delegue, rang > 0 ? 'MODIFICATION_RAPPORT' : 'VALIDATION_RAPPORT', 'Rapport du jour', r.date, '');
     return { ok: true, date: r.date };
   } finally { lock.releaseLock(); }
 }
@@ -159,11 +160,13 @@ function publierPlanning(b) {
     var autres = {};
     garde.forEach(function (l) {
       if (String(l[iDel]).trim().toLowerCase() === moi) return;
+      if (l[iProg] === 'Supprimé') return;   // 3.29.0 : journée ou visite supprimée par un collègue : pas un conflit
       var k = l[iCode] + '|' + lundiDe(versIso(l[iDate], tz));
       (autres[k] = autres[k] || []).push({ delegue: l[iDel], date: versIso(l[iDate], tz), programme: l[iProg], depuis: l[iDepuis] || '' });
     });
     var conflits = [];
     (b.arrets || []).forEach(function (a) {
+      if (a.programme === 'Supprimé') return;
       // un programme validé l'emporte sur une proposition ; à statut égal, le premier arrivé garde le praticien
       var monV = a.programme === 'Validé';
       var l = (autres[a.code + '|' + lundiDe(a.date)] || []).filter(function (o) {
@@ -176,6 +179,8 @@ function publierPlanning(b) {
     var tout = garde.concat(nouvelles);
     if (n) sh.getRange(2, 1, n, nbCol).clearContent();
     if (tout.length) sh.getRange(2, 1, tout.length, nbCol).setNumberFormat('@').setValues(tout);
+    var nbJours = {}; (b.arrets || []).forEach(function (a) { if (a.programme !== 'Supprimé') nbJours[a.date] = 1; });
+    enregistrerAudit(ss, delegue, 'PUBLICATION_TOURNEE', 'Planning', b.debut + ' > ' + b.fin, nouvelles.length + ' visite(s) sur ' + Object.keys(nbJours).length + ' jour(s)' + (b.supprimes && b.supprimes.length ? ', jour(s) supprimé(s) : ' + b.supprimes.join(', ') : ''));
     return { ok: true, publies: nouvelles.length, conflits: conflits };
   } finally {
     lock.releaseLock();
@@ -202,26 +207,45 @@ function marquerArretsValides(ss, visites) {
 // b.presences : [{ id ('' ou 'TMP…' pour un nouveau lieu), lieu, quartier, lundi..vendredi, horaireMatin, horaireSoir, lat, lon }]
 // Les lieux du praticien absents de la liste sont supprimés. Renvoie le code définitif et les identifiants des lieux.
 // ---------------------------------------------------------------- Traçabilité (Audit Trail)
+// 3.29.0 : pendant un appel de l'application, les lignes d'audit sont regroupées et écrites en une fois à la fin (doPost)
+var AUDIT_TAMPON_ = null;
 function enregistrerAudit(ss, auteur, action, entite, code, details) {
+  var detailsStr = typeof details === 'object' ? JSON.stringify(details) : String(details || '');
+  var ligne = [new Date().toISOString(), String(auteur || 'Inconnu'), String(action || ''), String(entite || ''), String(code || ''), detailsStr.slice(0, 2000)];
+  if (AUDIT_TAMPON_) { AUDIT_TAMPON_.push(ligne); return; }
+  ecrireAudit_(ss, [ligne]);
+}
+function ecrireAudit_(ss, lignes) {
+  if (!lignes || !lignes.length) return;
   try {
     var nomF = (typeof FEUILLES !== 'undefined' && FEUILLES.audit) ? FEUILLES.audit : 'Audit_Logs';
     var sh = ss.getSheetByName(nomF);
     if (!sh) {
-      sh = preparerFeuille(ss, nomF, ['Horodatage', 'Auteur', 'Action', 'Entite', 'Code', 'Details']);
-      sh.setFrozenRows(1);
+      sh = ss.insertSheet(nomF);
+      sh.getRange(1, 1, 1, 6).setValues([['Horodatage', 'Auteur', 'Action', 'Entite', 'Code', 'Details']]).setFontWeight('bold');
+      sh.setFrozenRows(1); sh.hideSheet();
     }
-    var detailsStr = typeof details === 'object' ? JSON.stringify(details) : String(details || '');
-    sh.appendRow([
-      new Date().toISOString(),
-      String(auteur || 'Inconnu'),
-      String(action || ''),
-      String(entite || ''),
-      String(code || ''),
-      detailsStr
-    ]);
+    sh.getRange(sh.getLastRow() + 1, 1, lignes.length, 6).setNumberFormat('@').setValues(lignes);
   } catch (e) {
-    console.warn('Erreur enregistrement audit:', e);
+    console.warn('Erreur enregistrement audit: ' + e);
   }
+}
+function viderAudit_() {
+  var l = AUDIT_TAMPON_; AUDIT_TAMPON_ = null;
+  if (!l || !l.length) return;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) { console.warn('Audit non écrit (serveur occupé) : ' + l.length + ' ligne(s)'); return; }
+  try { ecrireAudit_(SpreadsheetApp.getActive(), l); } finally { lock.releaseLock(); }
+}
+// 3.29.0 : erreurs survenues sur les téléphones (version, écran, message), notées dans le journal d'audit (Action = ERREUR_APP)
+function enregistrerErreursApp(b) {
+  var auteur = nomDelegue(b.delegue) || String(b.delegue || 'Inconnu');
+  (b.erreurs || []).slice(0, 20).forEach(function (x) {
+    if (!x || !x.message) return;
+    enregistrerAudit(SpreadsheetApp.getActive(), auteur, 'ERREUR_APP', String(x.ecran || 'Application').slice(0, 60), String(x.version || ''),
+      { message: String(x.message).slice(0, 500), lieu: String(x.lieu || '').slice(0, 300), contexte: x.contexte || '', le: x.le || '', appareil: String(b.appareil || '').slice(0, 120) });
+  });
+  return { ok: true };
 }
 
 function enregistrerFiche(b) {
@@ -254,10 +278,10 @@ function enregistrerFiche(b) {
     var rattache = ligne >= 0 && (!p.code || /^TMP-/.test(String(p.code)));
     if (ligne < 0) {
       var pre = type === 'Pharmacie' ? 'PHA' : 'MED';
-      code = pre + '-' + ('00' + (max[pre] + 1)).slice(-3);
+      code = pre + '-' + numeroCode(max[pre] + 1);
     }
     var valeurs = ligne >= 0 ? dataP[ligne].slice() : entP.map(function () { return ''; });
-    var modif = { code: code, type: type, nom: nom, specialite: String(p.specialite || ''), note: lireNote(p.note),
+    var modif = { code: code, type: type, nom: nom, specialite: specialiteCanonique(String(p.specialite || '')), note: lireNote(p.note),
                   conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non', telephone: formaterTelephoneCI(p.telephone || ''),
                   actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui' };
     var tzF = ss.getSpreadsheetTimeZone();
@@ -346,6 +370,7 @@ function enregistrerFiche(b) {
         shR.deleteRow(i + 2);
       });
     }
+    enregistrerAudit(ss, auteur, ligne >= 0 ? (rattache ? 'RATTACHEMENT_FICHE' : 'MODIFICATION_FICHE') : 'CREATION_FICHE', type, code, nom + ' (' + lieux.length + ' lieu(x))');
     return { ok: true, code: code, ancien: String(p.code || ''), ids: ids, coords: coords };
   } finally {
     lock.releaseLock();
@@ -396,6 +421,7 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   CHAMPS_PHARMACIES.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
   if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]); else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
   var ids = {}; if (lieu.id) ids[lieu.id] = 'P-' + code;
+  enregistrerAudit(ss, auteur, ligne >= 0 ? 'MODIFICATION_FICHE' : 'CREATION_FICHE', 'Pharmacie', code, modif.nom);
   return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
 }
 
@@ -425,7 +451,7 @@ function enregistrerEtablissement(b) {
       }
     });
     if (ligne < 0 && (!code || /^TMP-/i.test(code))) {
-      code = 'ETAB-' + ('00' + (max + 1)).slice(-3);
+      code = 'ETAB-' + numeroCode(max + 1);
     }
     var v = ligne >= 0 ? data[ligne].slice() : ent.map(function () { return ''; });
     var modif = {
@@ -476,6 +502,8 @@ function enregistrerEtablissement(b) {
       }
     }
 
+    enregistrerAudit(ss, String(b.auteur || 'Délégué'), ligne >= 0 ? 'MODIFICATION_ETABLISSEMENT' : 'CREATION_ETABLISSEMENT', 'Etablissement', code,
+      nom + (isFinite(modif.lat) && modif.lat ? ' (GPS ' + modif.lat + ', ' + modif.lon + ', ' + cascades + ' lieu(x) mis à jour)' : ''));
     return { ok: true, code: code, nom: nom, lat: modif.lat, lon: modif.lon, cascades: cascades };
   } finally {
     try { lock.releaseLock(); } catch (e) {}
@@ -497,6 +525,7 @@ function ajouterDelegue(nom) {
     if (v.some(function (x) { return x.toLowerCase() === nom.toLowerCase(); })) return { ok: true, ajoute: false };
     var libre = v.indexOf(''); var ligne = libre >= 0 ? libre + 2 : v.length + 2;
     sh.getRange(ligne, c + 1).setValue(nom);
+    enregistrerAudit(ss, nom, 'AJOUT_DELEGUE', 'Délégué', '', nom);
     return { ok: true, ajoute: true };
   } finally {
     lock.releaseLock();

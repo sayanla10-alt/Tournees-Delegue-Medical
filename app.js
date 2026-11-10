@@ -9,10 +9,24 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.28.58';
+  var APP_VERSION = '3.29.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.0', [
+      'Comptes rendus et fiches : une coupure de réseau ne les met plus jamais de côté ; ils repartent seuls jusqu\'à leur arrivée. Ceux mis de côté par les versions précédentes repartent d\'eux-mêmes',
+      'Envois refusés par le serveur : comptés dans « en attente », listés dans Réglages › Avancé avec le motif, et renvoyables',
+      'Ouverture de l\'application : les saisies non envoyées du téléphone et celles faites pendant l\'ouverture sont réunies, plus jamais écrasées ; copie de secours si la mémoire du téléphone est pleine',
+      'Répertoire : « Médecins » montre tous les prescripteurs (infirmiers et sages-femmes compris) ; une spécialité n\'apparaît qu\'une fois (Cardiologie = Cardiologue, Neurologie = Neurologue…)',
+      'Une modification faite dans le Google Sheet ou par un collègue apparaît sur les téléphones ouverts dans les secondes qui suivent',
+      'Journées et visites supprimées gardées sur le serveur : elles ne reviennent plus sur un autre téléphone ni après réinstallation',
+      'Suivi et Bilan : visites et rapports des 120 derniers jours, sans plafond ; une période plus ancienne est signalée comme incomplète',
+      'Recherche plus fluide : seule la liste des résultats se redessine à chaque lettre ; dernière visite calculée une fois ; « Remplacer » et les prioritaires plus rapides',
+      'Confirmations : « Non » proposé par défaut pour tout ce qui écrase ou fait perdre une saisie (« Écraser la position », « seront perdus »…)',
+      'Répertoire : un médecin hors de ses heures est « Hors créneau » (et non plus « Absent », réservé aux absences déclarées)',
+      'Les erreurs du téléphone sont signalées au serveur (journal d\'audit) pour être corrigées sans attendre qu\'on les remarque',
+      'Mises à jour : chaque nouvelle version se télécharge en entier depuis le réseau, plus jamais à moitié depuis l\'ancienne'
+    ]],
     ['3.28.58', [
       'Planifier s\'ouvre de nouveau sur J+1 : la frise choisit demain (sa tournée, ou demain en blanc prêt à planifier) et la date des critères repart de demain à chaque ouverture de l\'application ; aujourd\'hui reste planifiable en le touchant dans la frise, jusqu\'à la prochaine ouverture'
     ]],
@@ -968,7 +982,8 @@
             IDB.db = e.target.result;
             IDB.ouvert = true;
             IDB.migrerDepuisLocalStorage();
-            IDB._viderFileAttente();
+            // 3.29.0 : les écritures demandées avant la relecture attendent : elles ne doivent pas écraser la copie du téléphone avant qu'elle soit lue
+            if (idbRelue) IDB._viderFileAttente();
             resolve(IDB.db);
           };
           req.onerror = function () { resolve(null); };
@@ -978,28 +993,36 @@
     },
     _viderFileAttente: function () {
       if (!IDB.db || !IDB._fileAttente.length) return;
-      var file = IDB._fileAttente.slice();
+      var file = IDB._fileAttente.slice(), vus = {};
       IDB._fileAttente = [];
+      // une seule écriture par clé (la plus récente)
+      file.reverse().forEach(function (item) { if (vus[item.k]) return; vus[item.k] = true; IDB._ecrire(item.k, item.val); });
+    },
+    // 3.29.0 : écriture vérifiée ; en cas d'échec (mémoire pleine, navigation privée), les saisies non envoyées gardent une copie de secours
+    _ecrire: function (k, val) {
       try {
         var tx = IDB.db.transaction([IDB.magasin], 'readwrite');
-        var store = tx.objectStore(IDB.magasin);
-        file.forEach(function (item) {
-          store.put({ cle: item.k, val: item.val, maj: Date.now() });
-        });
-      } catch (e) {}
+        tx.objectStore(IDB.magasin).put({ cle: k, val: val, maj: Date.now() });
+        tx.oncomplete = function () { if (CLES_PRECIEUSES[k]) { try { localStorage.removeItem(PREFIXE + 'urgence.' + k); } catch (e) {} } };
+        tx.onerror = tx.onabort = function () { IDB._echec(k, val); };
+      } catch (e) { IDB._echec(k, val); }
+    },
+    _echec: function (k, val) {
+      if (!CLES_PRECIEUSES[k]) return;
+      try { localStorage.setItem(PREFIXE + 'urgence.' + k, JSON.stringify(val)); } catch (e) {}
+      if (!IDB._alerte && typeof toast === 'function') {
+        IDB._alerte = true;
+        toast('Mémoire du téléphone presque pleine : vos saisies non envoyées sont gardées en secours. Libérez de la place.', 8000);
+      }
     },
     set: function (k, val) {
-      if (!IDB.db) {
+      if (!window.indexedDB) return;
+      if (!IDB.db || !idbRelue) {
         IDB._fileAttente.push({ k: k, val: val });
         IDB.init();
         return;
       }
-      try {
-        var tx = IDB.db.transaction([IDB.magasin], 'readwrite');
-        tx.objectStore(IDB.magasin).put({ cle: k, val: val, maj: Date.now() });
-      } catch (e) {
-        IDB._fileAttente.push({ k: k, val: val });
-      }
+      IDB._ecrire(k, val);
     },
     get: function (k) {
       return IDB.init().then(function (db) {
@@ -1084,6 +1107,8 @@
   var PREFIXE = 'tournees.';
   var CLES_LEGERES = { config: true, token: true, theme: true, onglet: true };
   var CLES_LOURDES = { data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true };
+  // 3.29.0 : saisies pas encore reçues par le serveur : fusionnées (jamais remplacées) à la relecture, copie de secours si l'écriture échoue
+  var CLES_PRECIEUSES = { queue: true, fiches: true, deadLetter: true };
 
   // 3.28.25 : réglages et filtres gardés aussi dans localStorage (lus dès le démarrage) ; tant que la base du téléphone
   // n'est pas relue, un réglage introuvable au démarrage n'y est pas écrasé par sa valeur par défaut
@@ -1195,6 +1220,22 @@
   }
   // 3.25.25 : cœur de cible dynamique (spécialités pré-sélectionnées par défaut, modifiables en 1 geste ; changer les spécialités met à jour le cœur de cible)
   var SPECS_DEFAUT_BASE = ['Cardiologue', 'Diabétologue', 'Endocrinologue', 'Généraliste'];
+  // 3.29.0 : spécialités gardées sur le téléphone (critères, filtres, cœur de cible) ramenées à leur nom unique, sans doublon
+  function harmoniserSpecs(l) {
+    var vus = {}, out = [];
+    (l || []).forEach(function (x) { var c = specialiteCanonique(x); if (c && !vus[c]) { vus[c] = true; out.push(c); } });
+    return out;
+  }
+  function harmoniserSpecialitesStockees() {
+    try {
+      var cc = LS.get('coeurDeCible', null);
+      if (Array.isArray(cc) && JSON.stringify(harmoniserSpecs(cc)) !== JSON.stringify(cc)) LS.set('coeurDeCible', harmoniserSpecs(cc));
+      if (S.params && Array.isArray(S.params.specialites)) { var ps = harmoniserSpecs(S.params.specialites); if (JSON.stringify(ps) !== JSON.stringify(S.params.specialites)) { S.params.specialites = ps; LS.set('params', S.params); } }
+      [['filtres', S.ui && S.ui.filtres], ['filtresAutour', S.ui && S.ui.filtresAutour]].forEach(function (x) {
+        if (x[1] && Array.isArray(x[1].specialites)) { var fs = harmoniserSpecs(x[1].specialites); if (JSON.stringify(fs) !== JSON.stringify(x[1].specialites)) { x[1].specialites = fs; LS.set(x[0], x[1]); } }
+      });
+    } catch (e) {}
+  }
   function coeurDeCible() {
     var l = LS.get('coeurDeCible', null);
     return Array.isArray(l) && l.length ? l.filter(function (x) { return x && x !== 'Pharmacien'; }) : SPECS_DEFAUT_BASE.slice();
@@ -1286,8 +1327,9 @@
       confirmerPuis('Reprendre une sauvegarde', 'Reprendre la sauvegarde du <b>' + dateFr(jours[jours.length - 1]) + '</b>' + (o.delegue ? ' (' + esc(o.delegue) + ')' : '') +
         ' ? Les comptes rendus et fiches non envoyés qui manquent seront ajoutés ; rien d\'existant n\'est remplacé.', 'Reprendre', function () {
         var uids = ensemble(S.queue.map(function (v) { return v.uid; }).concat(((S.data && S.data.historique) || []).map(function (v) { return v.uid; })));
-        var nq = (s.queue || []).filter(function (v) { return !uids[v.uid]; }); S.queue = S.queue.concat(nq);
-        var fu = ensemble(S.fiches.map(function (f) { return f.uid; })), nf = (s.fiches || []).filter(function (f) { return !fu[f.uid]; }); S.fiches = S.fiches.concat(nf);
+        var dl = s.deadLetter || {};
+        var nq = (s.queue || []).concat(dl.visites || []).filter(function (v) { return !uids[v.uid]; }); nq.forEach(function (v) { delete v.refus; delete v.tentatives; }); S.queue = S.queue.concat(nq);
+        var fu = ensemble(S.fiches.map(function (f) { return f.uid; })), nf = (s.fiches || []).concat(dl.fiches || []).filter(function (f) { return !fu[f.uid]; }); nf.forEach(function (f) { delete f.refus; delete f.tentatives; }); S.fiches = S.fiches.concat(nf);
         Object.keys(s.rapports || {}).forEach(function (d) { if (!S.rapports[d]) S.rapports[d] = s.rapports[d]; }); LS.set('rapports', S.rapports);
         var np = 0;
         if (!S.plan.length && (s.plan || []).length) { S.plan = s.plan; S.jours = s.jours || {}; np = datesPlan().length; }
@@ -1299,7 +1341,7 @@
   }
   function copieSecours() {
     var t = aujourdhui(), sec = LS.get('secours', {});
-    sec[t] = { le: new Date().toISOString(), delegue: moi(), queue: S.queue, fiches: S.fiches, plan: S.plan, jours: S.jours,
+    sec[t] = { le: new Date().toISOString(), delegue: moi(), queue: S.queue, fiches: S.fiches, deadLetter: S.deadLetter, plan: S.plan, jours: S.jours,
                horsPlan: S.horsPlan || [], rapports: S.rapports || {}, imposes: S.imposes };
     Object.keys(sec).sort().reverse().slice(7).forEach(function (d) { delete sec[d]; });
     LS.set('secours', sec);
@@ -1310,7 +1352,6 @@
     LS.set('params', S.params); LS.set('queue', S.queue); LS.set('imposes', S.imposes); LS.set('rejetes', S.rejetes);
     LS.set('fiches', S.fiches); LS.set('deadLetter', S.deadLetter);
     archiverPlan();
-    declencherBackgroundSync();
   }
   // Archive locale des tournées (par date, 70 jours) : permet de reprendre un ancien programme, même hors ligne
   function archiverPlan() {
@@ -1325,8 +1366,25 @@
     Object.keys(arch).forEach(function (d) { if (d < limite) delete arch[d]; });
     LS.set('archives', arch);
   }
-  function enAttente() { return S.queue.length + S.fiches.length; }
-  function rejetsEnAttente() { return (S.deadLetter && ((S.deadLetter.visites && S.deadLetter.visites.length) + (S.deadLetter.fiches && S.deadLetter.fiches.length))) || 0; }
+  // 3.29.0 : les envois refusés par le serveur comptent dans « x en attente » tant qu'ils ne sont pas réglés
+  function enAttente() { return S.queue.length + S.fiches.length + rejetsEnAttente(); }
+  function rejetsEnAttente() { var d = S.deadLetter || {}; return ((d.visites || []).length + (d.fiches || []).length) || 0; }
+  // 3.29.0 : seul un refus du serveur met de côté ; un envoi mis de côté pour une erreur de réseau (anciennes versions) repart
+  function recupererMisDeCote() {
+    var d = S.deadLetter = S.deadLetter || { visites: [], fiches: [] }, n = 0;
+    d.visites = (d.visites || []).filter(function (v) { if (v.refus) return true; delete v.tentatives; S.queue = fusionnerParUid(S.queue, [v]); n++; return false; });
+    d.fiches = (d.fiches || []).filter(function (f) { if (f.refus) return true; delete f.tentatives; S.fiches = fusionnerParUid(S.fiches, [f]); n++; return false; });
+    return n;
+  }
+  // Renvoi manuel (Réglages) : tout ce qui a été refusé repart, une fois corrigé côté serveur
+  function renvoyerMisDeCote() {
+    var d = S.deadLetter || {}, n = rejetsEnAttente();
+    (d.visites || []).forEach(function (v) { delete v.refus; delete v.tentatives; });
+    (d.fiches || []).forEach(function (f) { delete f.refus; delete f.tentatives; });
+    recupererMisDeCote();
+    LS.set('queue', S.queue); LS.set('fiches', S.fiches); LS.set('deadLetter', S.deadLetter);
+    return n;
+  }
 
   function pret() { return !!(S.data && S.data.praticiens && S.data.praticiens.length); }
   function statuts() {
@@ -1587,7 +1645,7 @@
   // 3.28.37 : + Médecin / + Pharmacie dans Journée : mêmes critères que la journée planifiée (Planifier) :
   // spécialités et potentiels pour les médecins, potentiels pour les pharmacies ; les communes sont celles du jour
   function filtreAjout() {
-    var p = S.params || {}, sp = ensemble(p.specialites || []), po = ensemble(p.potentiels || []);
+    var p = S.params || {}, sp = ensemble((p.specialites || []).map(specialiteCanonique)), po = ensemble(p.potentiels || []);
     var avecSpec = (p.specialites || []).length > 0, avecPot = (p.potentiels || []).length > 0;
     if (!avecSpec && !avecPot) return null;
     return function (pr) {
@@ -1599,7 +1657,7 @@
   }
   function filtreCibles() {
     var p = S.params, t = p.typeCibles || 'tous', sp = {}, po = {};
-    (p.specialites || []).forEach(function (x) { sp[x] = true; });
+    (p.specialites || []).forEach(function (x) { sp[specialiteCanonique(x)] = true; });
     (p.potentiels || []).forEach(function (x) { po[x] = true; });
     var avecSpec = t !== 'pharmacies' && p.specialites && p.specialites.length, avecPot = p.potentiels && p.potentiels.length;
     if (t === 'tous' && !avecSpec && !avecPot) return null;
@@ -1641,7 +1699,7 @@
   }
   function specialitesListe() {
     var n = {}, prat = ctx().prat;
-    Object.keys(prat).forEach(function (k) { var p = prat[k]; if (p.type !== 'Pharmacie' && p.specialite) n[p.specialite] = (n[p.specialite] || 0) + 1; });
+    Object.keys(prat).forEach(function (k) { var p = prat[k], sc = specialiteCanonique(p.specialite); if (p.type !== 'Pharmacie' && sc) n[sc] = (n[sc] || 0) + 1; });
     return Object.keys(n).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).map(function (k) { return { nom: k, n: n[k] }; });
   }
   // Détermine si toutes les spécialités cibles (ou toutes les spécialités médicales) sont sélectionnées
@@ -2302,13 +2360,12 @@
 /* =============================================================================
    supabase.js : Connecteur direct Supabase (PostgREST) pour MediPlanner
    - Lecture ultra-rapide (< 400 ms) des 10 tables en parallèle
-   - Double écriture miroir (Visites, Fiches, Plannings, Rapports)
+   - Aucune écriture : seul le serveur Apps Script écrit dans Supabase
    - Repli transparent sur Google Sheets si hors-ligne ou erreur
    ============================================================================= */
 
   // 3.28.10 : Supabase est tenu à jour par le serveur (Jumelage.gs, toutes les 5 min, ajouts, modifications et suppressions).
-  // Le téléphone n'écrit plus directement dans Supabase (évitait les fiches TMP orphelines et les écritures perdues).
-  var MIROIR_CLIENT = false;
+  // Le téléphone n'écrit jamais directement dans Supabase (évitait les fiches TMP orphelines et les écritures perdues).
   var SUPABASE_CONFIG = {
     url: 'https://nldyinokqgshnzvdsxgr.supabase.co',
     key: 'sb_publishable_WOPLZ8hA_zrUwtK1iqgQQA_kIntbRyL',
@@ -2356,26 +2413,6 @@
     });
   }
 
-  function supabaseUpsert_(table, payload, onConflict) {
-    if (!payload || (Array.isArray(payload) && !payload.length)) return Promise.resolve(true);
-    var url = SUPABASE_CONFIG.url + '/rest/v1/' + table +
-      (onConflict ? '?on_conflict=' + encodeURIComponent(onConflict) : '');
-    var headers = supabaseHeaders_(true);
-    headers['Prefer'] = 'resolution=merge-duplicates,return=minimal';
-
-    return fetch(url, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(payload)
-    }).then(function (r) {
-      if (!r.ok) {
-        return r.text().then(function (t) {
-          throw new Error('Supabase ' + table + ' ' + r.status + ': ' + t);
-        });
-      }
-      return true;
-    });
-  }
 
   function supabasePing_() {
     return supabaseGet_('praticiens?select=code&limit=1');
@@ -2409,18 +2446,28 @@
     }
     return page(0);
   }
+  // 3.29.0 : historique chargé par période (120 derniers jours, toutes les visites et tous les rapports de l'équipe), lu par pages :
+  // plus de coupure à 1 500 visites ni à 100 rapports ; les écrans qui remontent plus loin le signalent (avertissementHistorique)
+  var JOURS_HISTORIQUE = 120;
+  function debutHistorique() { return ajouterJours(aujourdhui(), -JOURS_HISTORIQUE); }
+  function avertissementHistorique(debut) {
+    var d = (S.data && S.data.histDepuis) || debutHistorique();
+    if (!debut || debut >= d || S.config.demo) return '';
+    return '<p class="discret" style="margin:0 0 10px">Visites chargées depuis le ' + esc(dateCourte(d)) + ' : avant cette date, les chiffres sont incomplets.</p>';
+  }
   function chargerToutSupabase() {
+    var depuis = debutHistorique();
     return Promise.all([
       supabaseGetTout_('praticiens?select=*&order=code'),
       supabaseGetTout_('presences?select=*&order=id'),
       supabaseGetTout_('pharmacies?select=*&order=code'),
-      supabaseGet_('etablissements?select=*&order=nom'),
-      supabaseGet_('fiches_produits?select=*&order=produit'),
+      supabaseGetTout_('etablissements?select=*&order=nom'),
+      supabaseGetTout_('fiches_produits?select=*&order=produit'),
       supabaseGetTout_('quartiers?select=*&order=quartier'),
-      supabaseGet_('listes_reference?select=*&order=ordre'),
+      supabaseGetTout_('listes_reference?select=*&order=ordre'),
       supabaseGetTout_('plannings?select=*&order=id'),
-      supabaseGet_('visites?select=*&order=date.desc&limit=1500'),
-      supabaseGet_('rapports?select=*&order=date.desc&limit=100')
+      supabaseGetTout_('visites?select=*&date=gte.' + depuis + '&order=date.desc,uid'),
+      supabaseGetTout_('rapports?select=*&date=gte.' + depuis + '&order=date.desc,delegue')
     ]).then(function (res) {
       var rawPrats = res[0] || [];
       var rawPres = res[1] || [];
@@ -2686,139 +2733,6 @@
     });
   }
 
-  // Double écriture : Visites
-  function supabaseMiroirVisites(visites) {
-    if (!visites || !visites.length) return Promise.resolve(true);
-    var lignes = visites.map(function (v) {
-      return {
-        uid: String(v.uid || ''),
-        date: String(v.date || '').slice(0, 10),
-        delegue: String(v.delegue || 'Délégué'),
-        code: String(v.code || ''),
-        id_presence: v.idPresence ? String(v.idPresence) : null,
-        nom: String(v.nom || ''),
-        type: String(v.type || 'Médecin'),
-        specialite: String(v.specialite || ''),
-        note: Math.max(1, Math.min(3, parseInt(v.note) || 2)),
-        commune: String(v.commune || ''),
-        quartier: String(v.quartier || ''),
-        lieu: String(v.lieu || ''),
-        creneau: String(v.creneau || ''),
-        statut: String(v.statut || 'Visite faite'),
-        type_echange: String(v.typeEchange || ''),
-        produits_presentes: v.produits || v.produitsPresentes || null,
-        echantillons: v.echantillons || null,
-        prochaine_visite: v.prochaine ? String(v.prochaine).slice(0, 10) : null,
-        commentaire: String(v.commentaire || '')
-      };
-    }).filter(function (r) { return r.uid && r.code; });
-
-    if (!lignes.length) return Promise.resolve(true);
-    return supabaseUpsert_('visites', lignes, 'uid');
-  }
-
-  // Double écriture : Fiche Praticien / Pharmacie + Présences
-  function supabaseMiroirFiche(praticien, presences) {
-    if (!praticien || !praticien.code) return Promise.resolve(true);
-    var table = praticien.type === 'Pharmacie' ? 'pharmacies' : 'praticiens';
-    var pRow;
-    if (table === 'pharmacies') {
-      pRow = {
-        code: praticien.code,
-        nom: praticien.nom,
-        titulaire: praticien.titulaire || '',
-        quartier: praticien.quartier || '',
-        commune: praticien.commune || 'Abidjan',
-        zone: praticien.zone || '',
-        telephone: praticien.telephone || '',
-        note: +praticien.note || 2,
-        conventionne: praticien.conventionne === 'Oui' || praticien.conventionne === true,
-        actif: praticien.actif !== 'Non' && praticien.actif !== false,
-        updated_at: new Date().toISOString()
-      };
-    } else {
-      pRow = {
-        code: praticien.code,
-        type: praticien.type || 'Médecin',
-        nom: praticien.nom,
-        specialite: praticien.specialite || 'Généraliste',
-        note: +praticien.note || 2,
-        conventionne: praticien.conventionne === 'Oui' || praticien.conventionne === true,
-        telephone: praticien.telephone || '',
-        actif: praticien.actif !== 'Non' && praticien.actif !== false,
-        updated_at: new Date().toISOString()
-      };
-    }
-
-    return supabaseUpsert_(table, [pRow], 'code').then(function () {
-      if (!presences || !presences.length) return true;
-      var presRows = presences.map(function (l, idx) {
-        return {
-          id: String(l.id || (praticien.code + '_' + idx)),
-          code: praticien.code,
-          nom: praticien.nom,
-          lieu: l.lieu,
-          quartier: l.quartier || '',
-          commune: l.commune || 'Abidjan',
-          zone: l.zone || '',
-          lundi: l.lundi || '',
-          mardi: l.mardi || '',
-          mercredi: l.mercredi || '',
-          jeudi: l.jeudi || '',
-          vendredi: l.vendredi || '',
-          horaire_matin: l.horaireMatin || '',
-          horaire_soir: l.horaireSoir || '',
-          lat: isFinite(l.lat) && l.lat !== null ? +l.lat : null,
-          lon: isFinite(l.lon) && l.lon !== null ? +l.lon : null,
-          reperes: l.reperes || ''
-        };
-      });
-      return supabaseUpsert_('presences', presRows, 'id');
-    });
-  }
-
-  // Double écriture : Planning Tournée
-  function supabaseMiroirPlanning(payload) {
-    if (!payload || !payload.arrets || !payload.arrets.length) return Promise.resolve(true);
-    var lignes = payload.arrets.map(function (a) {
-      return {
-        delegue: payload.delegue || 'Délégué',
-        date: String(a.date).slice(0, 10),
-        heure: a.heure || '',
-        debut: a.debut || null,
-        fin: a.fin || null,
-        creneau: a.creneau || '',
-        id_presence: a.idPresence ? String(a.idPresence) : null,
-        code: String(a.code || ''),
-        nom: String(a.nom || ''),
-        specialite: String(a.specialite || ''),
-        note: +a.note || 2,
-        quartier: a.quartier || '',
-        commune: a.commune || '',
-        lieu: a.lieu || '',
-        statut: a.statut || '',
-        etat: a.etat || 'planifie',
-        programme: a.programme || 'Proposition'
-      };
-    });
-    return supabaseUpsert_('plannings', lignes);
-  }
-
-  // Double écriture : Rapport
-  function supabaseMiroirRapport(payload) {
-    if (!payload || !payload.date || !payload.delegue) return Promise.resolve(true);
-    var rRow = {
-      delegue: payload.delegue,
-      date: String(payload.date).slice(0, 10),
-      valide_le: payload.valideLe || new Date().toISOString(),
-      prevues: +payload.medecins || 0,
-      faites: +payload.visites || 0,
-      non_faites: +payload.pharmacies || 0,
-      sans_cr: 0,
-      synthese: payload.commentaire || ''
-    };
-    return supabaseUpsert_('rapports', [rRow], 'delegue,date');
-  }
   // ------------------------------------------------------------------ Équipe
   function moi() { return String(S.config.delegue || '').trim(); }
   function estMoi(nom) { return String(nom || '').trim().toLowerCase() === moi().toLowerCase(); }
@@ -2919,12 +2833,28 @@
     if (ancien) { if (ancien.debut < p.debut) p.debut = ancien.debut; if (ancien.fin > p.fin) p.fin = ancien.fin; }
     // agenda importé : la base reflète exactement mes 7 derniers jours et tout l'à venir
     if (LS.get('agendaImporte', false)) { var lim = ajouterJours(aujourdhui(), -7); if (lim < p.debut) p.debut = lim; }
-    return { delegue: moi(), debut: p.debut, fin: p.fin, arrets: S.plan.map(function (a) {
+    // 3.29.0 : journées et visites supprimées publiées (lignes « Supprimé ») pour valoir sur tous les appareils
+    var lim7 = ajouterJours(aujourdhui(), -7), present = ensemble(datesPlan()), marques = [], jr = LS.get('joursRetires', {}), vs = LS.get('visitesSupprimees', {}) || {};
+    Object.keys(jr).forEach(function (d) {
+      if (d < lim7 || present[d] || !jr[d]) return;
+      marques.push({ date: d, code: CODE_JOUR_SUPPRIME, nom: 'Journée supprimée', programme: PROG_SUPPRIME, etat: 'supprime', statut: 'Supprimé' });
+    });
+    Object.keys(vs).forEach(function (d) {
+      if (d < lim7) return;
+      Object.keys(vs[d] || {}).forEach(function (code) {
+        if (S.plan.some(function (a) { return a.date === d && a.code === code; })) return;
+        var pr = praticien(code) || {};
+        marques.push({ date: d, code: code, nom: pr.nom || code, programme: PROG_SUPPRIME, etat: 'supprime', statut: 'Supprimé' });
+      });
+    });
+    marques.forEach(function (m) { if (m.date < p.debut) p.debut = m.date; if (m.date > p.fin) p.fin = m.date; });
+    var supprimes = marques.filter(function (m) { return m.code === CODE_JOUR_SUPPRIME; }).map(function (m) { return m.date; });
+    return { delegue: moi(), debut: p.debut, fin: p.fin, supprimes: supprimes, arrets: S.plan.map(function (a) {
       var prog = jourConfirme(a.date) ? 'Validé' : 'Proposition';
       return { date: a.date, heure: a.heure, creneau: a.creneau, debut: a.debut, fin: a.fin, idPresence: a.idPresence,
                code: a.code, nom: a.nom, specialite: a.specialite, note: a.note, quartier: a.quartier, commune: a.commune,
                lieu: a.lieu, statut: a.statut, etat: a.etat, programme: prog, uid: a.uid };
-    }) };
+    }).concat(marques) };
   }
   function publierPlan(sansModif) {
     marquerModifie(sansModif);
@@ -2985,14 +2915,10 @@
     }).then(function () {
       return traiterQueueVisites();
     });
-    return envoi.then(function () { return envoyerRapportsEnAttente(); }).then(function () {
+    return envoi.then(function () { return envoyerRapportsEnAttente(); }).then(function () { return envoyerErreursApp(); }).then(function () {
       if (!S.ui.aPublier || !moi()) return;
       tentePub = true;
       var planPayload = chargePlan();
-      // Double écriture de la tournée vers Supabase
-      if (MIROIR_CLIENT && typeof supabaseMiroirPlanning === 'function') {
-        supabaseMiroirPlanning(planPayload).catch(function (eSb) { console.warn('Miroir Supabase planning:', eSb); });
-      }
       return apiPost('planning', planPayload).then(function (r) {
         S.ui.aPublier = false; LS.set('aPublier', false);
         S.ui.portee = porteePlan(); LS.set('portee', S.ui.portee);
@@ -3027,39 +2953,24 @@
         var vus = {}; hist.forEach(function (v) { vus[v.uid] = true; });
         hist = hist.concat((ancien.historique || []).filter(function (v) { return !v.uid || !vus[v.uid]; }));
         hist.sort(function (a, b) { return String(b.horodatage || b.date) < String(a.horodatage || a.date) ? -1 : 1; });
-        hist = hist.slice(0, 1500);
+        var limH = debutHistorique(); hist = hist.filter(function (v) { return String(v.date || '').slice(0, 10) >= limH; });
       }
       var praticiens = ancien.praticiens || [];
       var presences = ancien.presences || [];
 
-      // 3.27.46 : Intégration de la synchronisation incrémentale Delta
-      if (d.delta) {
-        var modifsPrat = {};
-        (d.delta.praticiens || []).forEach(function (np) {
-          modifsPrat[np.code] = true;
-          var idx = -1;
-          for (var i = 0; i < praticiens.length; i++) {
-            if (praticiens[i].code === np.code) { idx = i; break; }
-          }
-          if (idx >= 0) praticiens[idx] = np;
-          else praticiens.push(np);
-        });
-        if (d.delta.presences && d.delta.presences.length) {
-          presences = presences.filter(function (pr) { return !modifsPrat[pr.code]; }).concat(d.delta.presences);
-        }
-      } else if (!d.inchange) {
+      if (!d.inchange) {
         praticiens = d.praticiens || [];
         presences = d.presences || [];
       }
 
-      var base = d.inchange ? ancien : (d.delta ? ancien : d);
+      var base = d.inchange ? ancien : d;
       // nom de délégué fusionné dans la base (ex. adresse e-mail saisie comme nom) : ce téléphone prend le bon nom
       if (d.alias && moi()) Object.keys(d.alias).forEach(function (k) {
         if (k.toLowerCase() === moi().toLowerCase()) { S.config.delegue = d.alias[k]; LS.set('config', S.config); S.ui.aPublier = true; LS.set('aPublier', true); }
       });
       S.data = { version: d.version || ancien.version, sig: d.sig || ancien.sig, praticiens: praticiens, presences: presences, quartiers: base.quartiers || ancien.quartiers || [],
                  statuts: base.statuts || ancien.statuts || [], etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || ancien.delegues || [], feries: base.feries || ancien.feries || [], activites: base.activites || ancien.activites || [], activitesPharmacie: base.activitesPharmacie || ancien.activitesPharmacie || [], produits: base.produits || ancien.produits || [], fiches: base.fiches || ancien.fiches || [],
-                 historique: hist, plannings: d.plannings || ancien.plannings || [], rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
+                 historique: hist, histDepuis: debutHistorique(), plannings: sansSuppressions(d.plannings || ancien.plannings || []), suppressions: suppressionsDe(d.plannings, ancien), rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
                  sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '', marqueurSb: d.marqueurSb || '' };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, statuts()); });
@@ -3067,16 +2978,14 @@
       LS.set('data', S.data); ctxCache.data = null;
       var nVis = 0; try { nVis = actualiserVisitesPlanifiees() || 0; } catch (eA) { console.warn(eA); }
       var planChange = false; try { planChange = actualiserPlanDepuisServeur(); } catch (eP) { console.warn(eP); }
-      aChange = !d.inchange || !!d.delta || nVis > 0 || planChange || hist.length !== (ancien.historique || []).length || JSON.stringify(d.plannings || []) !== JSON.stringify(ancien.plannings || []);
-      if (!d.inchange && !d.delta && d.doublons === undefined && d.source !== 'supabase') basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
+      aChange = !d.inchange || nVis > 0 || planChange || hist.length !== (ancien.historique || []).length || JSON.stringify(sansSuppressions(d.plannings || [])) !== JSON.stringify(ancien.plannings || []);
+      if (!d.inchange && d.doublons === undefined && d.source !== 'supabase') basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
       // 3.23.3 : plus d'alerte « prévus par un collègue » ; l'étiquette « Prévu par … » de chaque ligne de Planifier suffit
       S.ui.conflits = []; setTimeout(notifierConflits, 1500);
       if (!silencieux) {
         if (d.source === 'supabase') {
           toast('Données à jour (' + S.data.praticiens.length + ' praticiens, 10 tables synchronisées).');
-        } else if (d.delta && d.delta.praticiens && d.delta.praticiens.length) {
-          toast('Données à jour (delta : ' + d.delta.praticiens.length + ' praticien(s) actualisé(s)).');
         } else if (d.inchange) {
           toast('Données à jour (aucun changement).');
         } else {
@@ -3098,15 +3007,38 @@
     });
   }
 
+  // 3.29.0 : erreurs du téléphone remontées au serveur (journal d'audit, Action = ERREUR_APP) : une fois par message et par jour, 30 au plus en attente
+  function signalerErreur(contexte, err, extra) {
+    try {
+      var msg = String((err && (err.message || err.reason && err.reason.message)) || err || '').slice(0, 500);
+      if (!msg || /ResizeObserver|Script error\.?$/i.test(msg)) return;
+      var l = LS.get('erreursApp', []), cle = aujourdhui() + '|' + contexte + '|' + msg;
+      if (l.some(function (x) { return x.cle === cle; }) || (LS.get('erreursVues', {})[cle])) return;
+      l.push({ cle: cle, le: new Date().toISOString(), version: APP_VERSION, ecran: S && S.ui ? S.ui.tab : '', contexte: contexte,
+               message: msg, lieu: String((err && err.stack) || '').split('\n').slice(0, 3).join(' | ').slice(0, 300), extra: extra || '' });
+      LS.set('erreursApp', l.slice(-30));
+    } catch (e) {}
+  }
+  function envoyerErreursApp() {
+    var l = LS.get('erreursApp', []);
+    if (!l.length || !connecte() || S.ui.serveurSansErreurs) return Promise.resolve();
+    return apiPost('erreur', { delegue: moi(), appareil: navigator.userAgent, erreurs: l.map(function (x) {
+      return { le: x.le, version: x.version, ecran: x.ecran, message: x.message, lieu: x.lieu, contexte: x.contexte + (x.extra ? ' ' + JSON.stringify(x.extra) : '') };
+    }) }).then(function () {
+      var vues = LS.get('erreursVues', {}), j = aujourdhui();
+      l.forEach(function (x) { vues[x.cle] = 1; });
+      Object.keys(vues).forEach(function (k) { if (k.slice(0, 10) < j) delete vues[k]; });
+      LS.set('erreursVues', vues); LS.set('erreursApp', []);
+    }, function (e) { if (/Action inconnue/i.test(e.message)) S.ui.serveurSansErreurs = true; });
+  }
+  window.addEventListener('error', function (e) { signalerErreur('erreur', e.error || e.message); });
+  window.addEventListener('unhandledrejection', function (e) { signalerErreur('promesse', e.reason); });
+
   // 3.27.47 : Fiches praticiens envoyées avec traçabilité auteur et Dead-Letter Queue (anti-bloquant)
   function envoyerFiches() {
     if (!S.fiches.length) return Promise.resolve();
     var f = S.fiches[0];
     if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
-    // Double écriture : miroir Supabase en parallèle
-    if (MIROIR_CLIENT && typeof supabaseMiroirFiche === 'function') {
-      supabaseMiroirFiche(f.praticien, f.presences).catch(function (eSb) { console.warn('Miroir Supabase fiche:', eSb); });
-    }
     return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences, auteur: moi() }).then(function (r) {
       S.fiches.shift();
       if (r.ancien && r.code && r.ancien !== r.code) remplacerCode(r.ancien, r.code);
@@ -3120,15 +3052,17 @@
       f.derniereErreur = e.message || String(e);
       f.dernierEssai = new Date().toISOString();
 
-      if (e.refus || f.tentatives >= 3) {
+      // 3.29.0 : seul un refus du serveur met la fiche de côté ; une erreur de réseau la garde dans la file, sans limite d'essais
+      if (e.refus) {
         var rejete = S.fiches.shift();
+        rejete.refus = true;
         S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
         S.deadLetter.fiches = S.deadLetter.fiches || [];
         S.deadLetter.fiches.push(rejete);
         LS.set('fiches', S.fiches);
         LS.set('deadLetter', S.deadLetter);
-        console.warn('Fiche mise en Dead-Letter Queue après ' + f.tentatives + ' échecs:', rejete, e);
-        toast('Fiche « ' + (rejete.praticien && rejete.praticien.nom || '') + ' » mise de côté suite à des erreurs répétées. Les autres envois continuent.', 6000);
+        signalerErreur('envoi fiche refusé', e, { nom: rejete.praticien && rejete.praticien.nom });
+        toast('Fiche « ' + (rejete.praticien && rejete.praticien.nom || '') + ' » refusée par le serveur : voir Réglages, Envois refusés.', 6000);
         return envoyerFiches();
       }
 
@@ -3136,7 +3070,6 @@
         S.fiches.push(S.fiches.shift());
         LS.set('fiches', S.fiches);
       }
-      console.warn('Échec temporaire envoi fiche (tentative ' + f.tentatives + '/3):', e.message);
       return null;
     });
   }
@@ -3149,10 +3082,6 @@
       if (!v.uid) v.uid = 'V' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     });
 
-    // Double écriture : miroir Supabase en parallèle
-    if (MIROIR_CLIENT && typeof supabaseMiroirVisites === 'function') {
-      supabaseMiroirVisites(S.queue).catch(function (eSb) { console.warn('Miroir Supabase visites:', eSb); });
-    }
 
     return apiPost('valider', { visites: S.queue }).then(function (r) {
       var recus = {};
@@ -3169,10 +3098,6 @@
     if (!S.queue || index >= S.queue.length) return Promise.resolve();
     var v = S.queue[index];
 
-    // Double écriture unitaire Supabase
-    if (MIROIR_CLIENT && typeof supabaseMiroirVisites === 'function') {
-      supabaseMiroirVisites([v]).catch(function (eSb) { console.warn('Miroir Supabase visite unitaire:', eSb); });
-    }
 
     return apiPost('valider', { visites: [v] }).then(function (r) {
       if (r.recus && r.recus.indexOf(v.uid) >= 0) {
@@ -3186,18 +3111,18 @@
       v.tentatives = (v.tentatives || 0) + 1;
       v.derniereErreur = errU.message || String(errU);
       v.dernierEssai = new Date().toISOString();
-      if (v.tentatives >= 3) {
-        console.warn('Visite mise en Dead-Letter Queue après 3 échecs:', v);
-        S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
-        S.deadLetter.visites = S.deadLetter.visites || [];
-        S.deadLetter.visites.push(v);
-        S.queue.splice(index, 1);
-        LS.set('queue', S.queue);
-        LS.set('deadLetter', S.deadLetter);
-        toast('Un compte rendu a été mis de côté suite à des erreurs répétées (' + (v.nom || 'visite') + '). Les autres envois continuent.', 5000);
-        return viderQueueVisitesUnitaire(index);
-      }
-      return viderQueueVisitesUnitaire(index + 1);
+      // 3.29.0 : réseau absent ou lent : la visite reste dans la file et repart à la synchronisation suivante, sans limite
+      if (!errU.refus) return null;
+      v.refus = true;
+      S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
+      S.deadLetter.visites = S.deadLetter.visites || [];
+      S.deadLetter.visites.push(v);
+      S.queue.splice(index, 1);
+      LS.set('queue', S.queue);
+      LS.set('deadLetter', S.deadLetter);
+      signalerErreur('compte rendu refusé', errU, { nom: v.nom, date: v.date });
+      toast('Compte rendu de ' + (v.nom || 'la visite') + ' refusé par le serveur : voir Réglages, Envois refusés.', 6000);
+      return viderQueueVisitesUnitaire(index);
     });
   }
   function remplacerCode(ancien, code) {
@@ -3236,7 +3161,8 @@
     return apiGet('equipe').then(function (r) {
       // les tournées plus anciennes (statistiques du mois) sont conservées
       var depuis = r.depuis || ajouterJours(aujourdhui(), -14);
-      S.data.plannings = (S.data.plannings || []).filter(function (p) { return p.date < depuis; }).concat(r.plannings || []);
+      S.data.plannings = (S.data.plannings || []).filter(function (p) { return p.date < depuis; }).concat(sansSuppressions(r.plannings || []));
+      if (r.plannings) S.data.suppressions = (S.data.suppressions || []).filter(function (p) { return p.date < depuis; }).concat(r.plannings.filter(estSuppressionPlanning));
       // listes de la base (produits retirés ou ajoutés, activités, statuts, délégués) prises en compte sans attendre la synchronisation complète
       if (r.listes) ['produits', 'activites', 'activitesPharmacie', 'delegues', 'statuts'].forEach(function (k) { if (r.listes[k] && r.listes[k].length) S.data[k] = r.listes[k]; });
       LS.set('data', S.data); ctxCache.data = null;
@@ -3330,6 +3256,7 @@
       }
     } catch (errVue) {
       console.error('Erreur rendu vue ' + tab + ':', errVue);
+      signalerErreur('affichage ' + tab, errVue);
       S.ui.tab = 'jour';
       S.ui.rechOuverte = false;
       LS.set('rechOuverte', false);
@@ -3357,6 +3284,31 @@
     attacherInfiniteScroll();
   }
 
+  // 3.29.0 : rendu des résultats seuls autour d'un champ de recherche : le bloc du champ est gardé tel quel,
+  // tout le reste de la vue est remplacé ; si la vue ne contient plus ce champ, rendu complet
+  var minuteurRecherche = null;
+  function rendreAutourDuChampDiffere(champ) {
+    clearTimeout(minuteurRecherche);
+    minuteurRecherche = setTimeout(function () { rendreAutourDuChamp(champ); }, 120);
+  }
+  function rendreAutourDuChamp(champ) {
+    var vue = $('vue'), tab = S.ui.tab, garde = champ;
+    while (garde && garde.parentNode !== vue) garde = garde.parentNode;
+    if (!garde || !VUES[tab] || S.ui.feuille) { rendre(); return; }
+    var tmp = document.createElement('div');
+    cartesAFaire = [];
+    try { tmp.innerHTML = VUES[tab](); } catch (e) { rendre(); return; }
+    var neuf = tmp.querySelector('[data-f="' + champ.dataset.f + '"]');
+    if (!neuf) { rendre(); return; }
+    while (neuf.parentNode !== tmp) neuf = neuf.parentNode;
+    Array.prototype.slice.call(vue.childNodes).forEach(function (n) { if (n !== garde) vue.removeChild(n); });
+    var avant = true;
+    Array.prototype.slice.call(tmp.childNodes).forEach(function (n) {
+      if (n === neuf) { avant = false; return; }
+      if (avant) vue.insertBefore(n, garde); else vue.appendChild(n);
+    });
+    dessinerCartes(); afficherEntete(); afficherBarre(); datesEnFrancais(); initGlisseHorizontale(); attacherInfiniteScroll(); memoriserEcran();
+  }
   // 3.27.47 : Infinite Scroll fluide pour le Répertoire (anti DOM bloat)
   var repObserver = null;
   function attacherInfiniteScroll() {
@@ -3813,12 +3765,7 @@
   function donneesJour(d, tout) {
     var dansPlan = S.plan.filter(function (a) { return a.date === d; });
     if (dansPlan.length) return dansPlan.filter(function (a) { return tout || jourConfirme(d) || a.statut || a.etat === 'valide' || a.garde || a.impose || a.corrige; });
-    var retire = !!LS.get('joursRetires', {})[d];   // 3.28.28 : journée supprimée : l'ancienne tournée ne revient plus
-    var prevus = programmeDuJour(d).filter(function (x) {
-      return vraiStatut(x.statut) || (!retire && (tout || (x.prog ? x.prog === 'valide' : x.programme !== 'Proposition')));
-    });
-    var faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && v.code; });
-    var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
+    var sel = selectionJour(d, tout), prevus = sel.prevus, faites = sel.faites, parCode = sel.parCode;   // 3.29.0 : règle unique
     var l = prevus.map(function (x) { return versPlan(x, parCode[x.code], d); });
     faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) l.push(versPlan(null, v, d)); });
     var vus = {};
@@ -3899,6 +3846,9 @@
     Object.keys(S.jours).forEach(function (d) { if (!present[d]) delete S.jours[d]; });
     Object.keys(retires).forEach(function (d) { if (present[d] || d < lim) delete retires[d]; });
     LS.set('joursRetires', retires);
+    var vsup = LS.get('visitesSupprimees', {}) || {}, lim70 = ajouterJours(aujourdhui(), -70), vchg = false;
+    Object.keys(vsup).forEach(function (d) { if (d < lim70) { delete vsup[d]; vchg = true; } });
+    if (vchg) LS.set('visitesSupprimees', vsup);
     datesPlan().forEach(function (d) { if (!S.jours[d]) S.jours[d] = { etat: 'proposition', valideLe: '', modifieLe: '' }; });
   }
   // migration : les jours confirmés d'avant l'agenda (programme archivé ou publié, comptes rendus) rejoignent l'agenda
@@ -3932,7 +3882,7 @@
   function importerAgenda() {
     if (!pret()) return 0;
     actualiserLieux();
-    var t = aujourdhui(), n = 0, deja = ensemble(datesPlan()), retires = LS.get('joursRetires', {});
+    var t = aujourdhui(), n = 0, deja = ensemble(datesPlan()), retires = joursRetires();
     for (var k = -7; k <= 70; k++) {
       var d = ajouterJours(t, k);
       if (deja[d] || retires[d] || jourSemaineIndex(d) > 4) continue;
@@ -3966,7 +3916,7 @@
       }
     });
     var datesTraitees = ensemble(Object.keys(srvParDate).concat(datesPlan().filter(function (d) { return d >= t; })));
-    var retiresSrv = LS.get('joursRetires', {});
+    var retiresSrv = joursRetires();
     Object.keys(datesTraitees).forEach(function (d) {
       if (jourSemaineIndex(d) > 4) return;
       if (retiresSrv[d] && !S.plan.some(function (a) { return a.date === d; })) return;   // 3.28.28 : journée supprimée par vous
@@ -4053,13 +4003,43 @@
         }).join('') + '</div>' +
         '<button type="button" class="bj-cal" data-a="calOuvrir" aria-label="Choisir une date">' + icone('calendrier') + '</button></div>';
   }
+  // 3.29.0 : journées et visites supprimées publiées sur le serveur (lignes « Supprimé » de l'onglet Plannings) : elles valent sur
+  // tous les appareils du délégué (réinstallation, deuxième téléphone) et ne reviennent plus depuis une archive locale
+  var PROG_SUPPRIME = 'Supprimé', CODE_JOUR_SUPPRIME = '-';
+  function estSuppressionPlanning(p) { return !!p && p.programme === PROG_SUPPRIME; }
+  function sansSuppressions(l) { return (l || []).filter(function (p) { return !estSuppressionPlanning(p); }); }
+  function suppressionsDe(l, ancien) { return l ? l.filter(estSuppressionPlanning) : ((ancien && ancien.suppressions) || []); }
+  function suppressionsServeur() {
+    var jours = {}, visites = {};
+    ((S.data && S.data.suppressions) || []).forEach(function (p) {
+      if (!p.delegue || !estMoi(p.delegue)) return;
+      if (p.code === CODE_JOUR_SUPPRIME) jours[p.date] = true; else (visites[p.date] = visites[p.date] || {})[p.code] = true;
+    });
+    return { jours: jours, visites: visites };
+  }
+  function joursRetires() { return Object.assign({}, suppressionsServeur().jours, LS.get('joursRetires', {})); }
+  function visitesSupprimeesJour(d) { return Object.assign({}, suppressionsServeur().visites[d] || {}, (LS.get('visitesSupprimees', {}) || {})[d] || {}); }
   // 3.27.41 : programme d'un jour hors tournée en cours : feuille Plannings du serveur en priorité, sinon archive locale
   function programmeDuJour(d) {
     var srv = ((S.data && S.data.plannings) || []).filter(function (x) { return x.date === d && x.delegue && estMoi(x.delegue); });
     if (srv && srv.length) return srv;
+    if (suppressionsServeur().jours[d]) return [];   // 3.29.0 : journée supprimée (sur ce téléphone ou un autre) : l'archive locale ne la ressuscite pas
     var arch = LS.get('archives', {});
     if (arch[d] && arch[d].length) return arch[d];
     return [];
+  }
+  // 3.29.0 : source unique de la journée d'un délégué hors tournée en cours : visites prévues (serveur ou archive) et réalisées,
+  // moins les visites et la journée supprimées. Utilisée par Journée, Planifier, le Bilan du Jour et l'appui long.
+  // tout : aussi les propositions (brouillons) et pas seulement les tournées confirmées
+  function selectionJour(d, tout) {
+    var sup = visitesSupprimeesJour(d), retire = !!joursRetires()[d];
+    var prevus = programmeDuJour(d).filter(function (x) {
+      if (sup[x.code]) return false;
+      return vraiStatut(x.statut) || (!retire && (tout || (x.prog ? x.prog === 'valide' : x.programme !== 'Proposition')));
+    });
+    var faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && v.code && !sup[v.code]; });
+    var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
+    return { prevus: prevus, faites: faites, parCode: parCode };
   }
   // visite prévue un jour hors de la tournée en cours (passé ou aujourd'hui) : carte avec compte rendu, gardée à part
   S.horsPlan = LS.get('horsPlan', []).filter(function (a) { return a.date >= ajouterJours(aujourdhui(), -70); });
@@ -4103,10 +4083,8 @@
   }
   // toutes les visites d'un jour hors tournée : prévues (archive ou tournée publiée) et réalisées (Historique)
   function arretsHorsJour(d) {
-    var sup = (LS.get('visitesSupprimees', {}) || {})[d] || {}, retire = !!LS.get('joursRetires', {})[d];
-    // 3.28.29 : journée supprimée : l'ancienne tournée n'est plus montrée (les visites faites restent)
-    var prevus = programmeDuJour(d).filter(function (x) { return !sup[x.code] && (!retire || vraiStatut(x.statut)); }), faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && !sup[v.code]; });
-    var parCode = {}; faites.forEach(function (v) { parCode[v.code] = v; });
+    // 3.28.29 / 3.29.0 : même règle que donneesJour (selectionJour) ; journée supprimée : seules les visites faites restent
+    var sel = selectionJour(d, true), prevus = sel.prevus, faites = sel.faites, parCode = sel.parCode;
     var l = prevus.map(function (x) { return parCode[x.code] ? arretDeVisite(parCode[x.code], x, d) : arretHors(x, d); });
     faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) { var a = arretDeVisite(v, null, d); a.horsTournee = true; l.push(a); } });
     return l.sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
@@ -4636,7 +4614,6 @@
       nonFaites: s.nonFaites.map(function (a) { return a.nom + ' (' + statutLibelle(a) + ')'; }).join(', '), sansCr: s.sansCr.length,
       synthese: lignesSynthese(s).map(function (x) { return x[0] + ' : ' + x[1]; }).join('\n'), faits: R.faits || '', concurrence: R.concurrence || '',
       besoins: (R.besoins || []).concat(R.besoinsTexte ? [R.besoinsTexte] : []).join(', '), km: R.km || (Math.round(s.km * 10) / 10) };
-    if (MIROIR_CLIENT && typeof supabaseMiroirRapport === 'function') { supabaseMiroirRapport(payload).catch(function (eSb) { console.warn('Miroir Supabase rapport:', eSb); }); }
     return apiPost('rapport', { rapport: payload }).then(function () { R.envoye = true; sauverRapports(); });
   }
   function envoyerRapportsEnAttente() {
@@ -4916,12 +4893,11 @@
       if (y.memeLieu !== x.memeLieu) return y.memeLieu ? 1 : -1;
       return (y.score - 20 * y.dist) - (x.score - 20 * x.dist);
     });
-    var jour = S.plan.filter(function (x) { return x.date === d && x.uid !== a.uid; });
+    var jour = S.plan.filter(function (x) { return x.date === d && x.uid !== a.uid; }), dep = departCoord();
     return l.slice(0, 25).map(function (x) {
-      var n = Moteur.arretDepuisCreneau(x.cr, d);
-      var essai = Moteur.ordonnerJour(jour.map(function (y) { return Object.assign({}, y); }).concat([n]), departCoord());
-      var place = essai.filter(function (y) { return y.uid === n.uid; })[0];
-      x.heure = place ? place.heure : n.heure; x.ok = !essai.some(function (y) { return y.retard; });
+      // 3.29.0 : place estimée par insertion dans l'ordre actuel (rapide) ; l'ordre complet n'est recalculé qu'au choix du remplaçant
+      var n = Moteur.arretDepuisCreneau(x.cr, d), ev = Moteur.evaluerInsertion(jour, n, dep);
+      x.heure = ev.heure || n.heure; x.ok = ev.retards <= ev.base;
       if (d === aujourdhui() && heureVersMinutes(x.heure) !== null && heureVersMinutes(x.heure) < minutesMaintenant()) x.heure = minutesVersHeure(Math.ceil(minutesMaintenant() / 5) * 5);   // aujourd'hui : au plus tôt maintenant
       return x;
     }).sort(function (x, y) {
@@ -5138,8 +5114,9 @@
   }
   // 3.19.0 : toute question se pose en trois boutons : Oui (appliquer), Non (refuser ; action propre à la question,
   // sinon retour à l'écran), Sortir (fermer sans rien changer et quitter le parcours en cours)
-  function confirmerPuis(titre, message, libelleOui, action, siNon, ouiClasse) {
+  function confirmerPuis(titre, message, libelleOui, action, siNon, ouiClasse, destructif) {
     S.ui.feuille = { type: 'confirmer', titre: titre, message: message, oui: libelleOui || 'Oui', action: action, non: siNon || null, ouiClasse: ouiClasse || null };
+    if (destructif !== undefined) S.ui.feuille.destructif = !!destructif;
     rendre();
     setTimeout(function () { var b = document.querySelector('#feuille [data-defaut]'); if (b) try { b.focus({ preventScroll: true }); } catch (e) { b.focus(); } }, 60);
   }
@@ -5725,34 +5702,6 @@
       return (cA.length - cB.length) || String(a.produit || '').localeCompare(String(b.produit || ''), 'fr');
     });
   }
-  function harmoniserDeclinaisonsAncien(fiches, nomGamme) {
-    if (!fiches || fiches.length <= 2) return fiches || [];
-    var nom = String(nomGamme || '').replace(/\s*\(.*\)$/, '').trim();
-    var items = fiches.map(function (f) {
-      var c = libellePastilleCr(nom, f.produit, fiches.length);
-      var estBase = (f.produit === nom);
-      return { f: f, court: c, len: c.length, estBase: estBase };
-    });
-    // Pour 4 déclinaisons (ex: Zyltan : Zyltan, H, AM, Losartan AM)
-    if (items.length === 4) {
-      var baseIdx = -1;
-      for (var i = 0; i < items.length; i++) {
-        if (items[i].estBase) { baseIdx = i; break; }
-      }
-      if (baseIdx >= 0) {
-        var baseItem = items.splice(baseIdx, 1)[0];
-        items.sort(function (a, b) { return a.len - b.len; });
-        return [baseItem.f, items[0].f, items[1].f, items[2].f];
-      }
-      items.sort(function (a, b) { return a.len - b.len; });
-      return [items[0].f, items[1].f, items[2].f, items[3].f];
-    }
-    items.sort(function (a, b) {
-      if (a.estBase !== b.estBase) return a.estBase ? -1 : 1;
-      return a.len - b.len;
-    });
-    return items.map(function (x) { return x.f; });
-  }
 
   function rendreChoixProduitsCr(a, cle, vals) {
     var inactifs = {};
@@ -5862,9 +5811,6 @@
     return h;
   }
   function ouiNonCr(a, cle, val) { return choixCr(a, cle, [['oui', 'Oui'], ['non', 'Non']], val); }
-  function ouiNonCrAncien(a, cle, val) { return '<div class="statuts deux">' + [['oui', 'Oui'], ['non', 'Non']].map(function (o) {
-    return '<button type="button" class="statut' + (o[0] === 'non' ? ' ko' : '') + '" data-a="crChoix" data-uid="' + a.uid + '" data-k="' + cle + '" data-v="' + o[0] + '" aria-pressed="' + (val === o[0]) + '">' + o[1] + '</button>';
-  }).join('') + '</div>'; }
   function texteCr(a, cle, val, ph, zone) {
     return zone ? '<textarea data-f="cr" data-uid="' + a.uid + '" data-k="' + cle + '" placeholder="' + esc(ph) + '">' + esc(val || '') + '</textarea>'
       : '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="' + cle + '" value="' + esc(val || '') + '" placeholder="' + esc(ph) + '">';
@@ -5875,10 +5821,6 @@
     return '<div class="puces' + (classe ? ' ' + classe : '') + '">' + options.map(function (o) {
       return '<button type="button" class="puce" data-a="crVal" data-uid="' + a.uid + '" data-k="' + esc(cle) + '" data-v="' + esc(o) + '" aria-pressed="' + ((val || '') === o) + '">' + esc((libs && libs[o]) || o) + '</button>';
     }).join('') + '</div>';
-  }
-  function selectCr(a, cle, options, val, vide) {
-    return '<select data-f="crSelect" data-uid="' + a.uid + '" data-k="' + cle + '">' + (vide !== undefined ? '<option value="">' + esc(vide) + '</option>' : '') +
-      options.map(function (o) { return '<option' + (o === val ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
   }
   function etapeCr(titre, contenu, aide) { return '<div class="champ etape-cr-bloc"><span>' + titre + '</span>' + contenu + (aide ? '<span class="aide-champ">' + aide + '</span>' : '') + '</div>'; }
   function tableQ(a, prefixe, produits, valeurs) {
@@ -7076,11 +7018,30 @@
     if (p.prochaine && p.prochaine <= ajouterJours(aujourdhui(), 7)) return true;
     return !!p.statut && (estKo(p.statut) || /rappeler|interess|report/.test(normaliser(p.statut)));
   }
+  // 3.29.0 : table code -> date de la dernière visite (historique et comptes rendus en attente), recalculée seulement quand ils changent
+  var cacheDernieres = { hist: null, nh: -1, nq: -1, table: {} };
+  function tableDernieresVisites() {
+    var h = (S.data && S.data.historique) || [], q = S.queue || [];
+    if (cacheDernieres.hist === h && cacheDernieres.nh === h.length && cacheDernieres.nq === q.length) return cacheDernieres.table;
+    var tb = {};
+    h.concat(q).forEach(function (v) {
+      if (!v || !v.code || !v.date) return;
+      var d = String(v.date).slice(0, 10);
+      if (!tb[v.code] || d > tb[v.code]) tb[v.code] = d;
+    });
+    cacheDernieres = { hist: h, nh: h.length, nq: q.length, table: tb };
+    return tb;
+  }
+  function derniereVisiteDe(p) {
+    var d = p.derniere ? String(p.derniere).slice(0, 10) : '', x = tableDernieresVisites()[p.code] || '';
+    return x > d ? x : d;
+  }
   function filtrerPraticiens(f, texte) {
     var t = aujourdhui(), c = ctx(), q = normaliser(texte || '');
-    var sp = ensemble(f.specialites), co = ensemble(f.communes), po = ensemble(f.potentiels);
+    var sp = ensemble((f.specialites || []).map(specialiteCanonique)), co = ensemble(f.communes), po = ensemble(f.potentiels);
     return Object.keys(c.prat).map(function (k) { return c.prat[k]; }).filter(function (p) {
-      if (f.type !== 'tous' && p.type !== f.type) return false;
+      // 3.29.0 : « Médecins » = tous les prescripteurs hors officines (médecins, infirmiers, sages-femmes), comme le compteur de l'annuaire
+      if (f.type !== 'tous' && (f.type === 'Pharmacie') !== (p.type === 'Pharmacie')) return false;
       // spécialités médicales : appliquées aux médecins seulement, sans effet sur les pharmacies (conservées pour « Médecins »)
       if (f.specialites.length && p.type !== 'Pharmacie' && !sp[p.specialite]) return false;
       if (f.potentiels.length && !po[lettrePotentiel(p.note)]) return false;
@@ -7089,21 +7050,8 @@
       var lieux = c.presencesParCode[p.code] || [];
       if (f.communes.length && !lieux.some(function (x) { return typeof communeCorrespondante === 'function' ? communeCorrespondante(x, co) : co[x.commune]; })) return false;
       if (f.visite !== 'tous') {
-        var derDate = p.derniere;
-        if (!derDate && S.data && S.data.historique) {
-          S.data.historique.forEach(function (hv) {
-            if (hv.code === p.code && hv.date && (!derDate || hv.date > derDate)) {
-              derDate = String(hv.date).slice(0, 10);
-            }
-          });
-        }
-        if (typeof S !== 'undefined' && S.queue && S.queue.length) {
-          S.queue.forEach(function (qv) {
-            if (qv.code === p.code && qv.date && (!derDate || qv.date > derDate)) {
-              derDate = String(qv.date).slice(0, 10);
-            }
-          });
-        }
+        // 3.29.0 : date de dernière visite précalculée une fois par code (historique + file d'envoi), au lieu d'un parcours par praticien
+        var derDate = derniereVisiteDe(p);
         var j = derDate ? joursEcoules(derDate, t) : Infinity;
         if (f.visite === '30' && j <= 30) return false;
         if (f.visite === 'recent' && (!derDate || j > 30)) return false;
@@ -7468,7 +7416,9 @@
         }
       }
     }
-    return '<span class="etiquette ko" title="Actuellement hors créneau de consultation">Absent</span>';
+    // 3.29.0 : « Absent » est un statut de visite ; hors de ses heures, le médecin est « Hors créneau » (absence déclarée : « Absent »)
+    if (absentLe(p, t)) return '<span class="etiquette ko" title="Absence déclarée sur sa fiche">Absent</span>';
+    return '<span class="etiquette" title="Actuellement hors créneau de consultation">Hors créneau</span>';
   }
 
   // 3.28.19 : carte (fiche) d'un contact, hors de la vue pour être aussi ouverte en fenêtre depuis tout l'écran
@@ -8110,7 +8060,7 @@
       segment('Affichage', 'statsVue', [['tableau', 'Indicateurs'], ['historique', 'Historique']], vueH ? 'historique' : 'tableau') + barreQuiQuand('bilan');
     if (vueH) return tete + VUES.historique(true);
     var st = S.ui.stats, r = calculerStats(), b = r.bornes;
-    var h = tete;
+    var h = tete + avertissementHistorique(b[0]);
     h += '<p class="discret" style="margin:0 0 10px">' + (b[0] === b[1] ? majuscule(dateLongue(b[0])) : 'Du ' + dateCourte(b[0]) + ' au ' + dateCourte(b[1])) +
       (r.equipe ? ', ' + r.nbDel + ' délégué' + (r.nbDel > 1 ? 's' : '') : ', mes visites') + '.</p>';
 
@@ -8306,6 +8256,7 @@
       '<div class="chiffre"><b>' + (taux === null ? 'n.d.' : pct(taux)) + '</b><span>présence sur 30 jours</span></div></div>';
     if (S.queue.length) h += '<div class="bandeau"><p>' + S.queue.length + ' compte(s) rendu(s) en attente d\'envoi. Ils partiront dès que le réseau revient.</p></div>';
     var liste = hist.filter(function (v) { var d = String(v.date || '').slice(0, 10); return v.attente || (d >= bh[0] && d <= bh[1]); });
+    h += avertissementHistorique(bh[0]);
     h += '<p class="discret" style="margin:12px 0 8px">' + liste.length + ' visite' + (liste.length > 1 ? 's' : '') + ' · ' + esc(libelleQui()) + ' · ' + esc(libelleBornes(bh)) + '</p>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucune visite sur cette période</strong>Changez de période ou de délégués.</div>';
     return h + '<ul class="liste">' + liste.slice(0, 150).map(function (v) {
@@ -8326,7 +8277,7 @@
   // ------------------------------------------------------------------ Vue : réglages
   VUES.reglages = function () {
     // 3.28.39 : quatre volets repliables, seul « Mon profil » ouvert par défaut ; ce que l'on ouvre reste ouvert pendant la session
-    var c = S.config, ouv = S.ui.regOuverts || (S.ui.regOuverts = { profil: true, avance: (!c.url && !c.demo) || !!S.ui.erreur });
+    var c = S.config, ouv = S.ui.regOuverts || (S.ui.regOuverts = { profil: true, avance: (!c.url && !c.demo) || !!S.ui.erreur || rejetsEnAttente() > 0 });
     function volet(id, titre, resume, corps) {
       return '<details class="bloc avance reg-volet" data-reg="' + id + '"' + (ouv[id] ? ' open' : '') + '><summary><b>' + titre + '</b><span class="discret">' + resume + '</span></summary>' + corps + '</details>';
     }
@@ -8376,7 +8327,7 @@
     // 3.28.12 : Supabase base principale, Google Sheets en appoint, synchronisés dans les deux sens
     var bddSrc = (S.config && S.config.bddSource) || 'supabase';
     var hBdd = '<h3>Base de données</h3>' +
-      '<p class="discret" style="margin:0 0 10px">Supabase est la base principale. Chaque enregistrement est écrit dans Supabase et dans Google Sheets à la même seconde ; une modification faite directement dans l\'une des deux bases est reportée dans l\'autre en 5 minutes au plus.</p>' +
+      '<p class="discret" style="margin:0 0 10px">Supabase est la base principale. Chaque enregistrement est écrit dans Supabase et dans Google Sheets à la même seconde ; une modification faite à la main dans le Google Sheet apparaît sur les téléphones en quelques secondes, une modification faite directement dans Supabase est reportée dans le Sheet en 5 minutes au plus.</p>' +
       '<div class="segment" role="group" aria-label="Base de données" style="margin:0 0 10px">' +
       '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets (appoint)</button>' +
       '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Défaut)</button>' +
@@ -8395,6 +8346,7 @@
       (pret() ? ' ' + S.data.praticiens.length + ' praticiens, ' + S.data.presences.length + ' lieux de présence.' : '') +
       (S.queue.length ? ' ' + S.queue.length + ' compte(s) rendu(s) en attente.' : '') +
       (S.fiches.length ? ' ' + S.fiches.length + ' fiche(s) praticien en attente' + (S.ui.serveurAncien ? ' : le serveur Apps Script doit être mis à jour pour les recevoir.' : '.') : '') + '</p>' +
+      envoisRefusesHtml() +
       (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' +
         '<button class="bouton bouton-large" type="button" data-a="rechargerBase" style="margin-bottom:10px">Recharger toute la base</button>' : '') +
       '<button class="bouton bouton-large" type="button" data-a="demo" style="margin-bottom:10px">Charger les données de démonstration</button>' +
@@ -8415,6 +8367,19 @@
       '<h3>Effacer</h3><button class="bouton bouton-large bouton-danger" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button>');
     return h;
   };
+  // 3.29.0 : envois refusés par le serveur : visibles, détaillés, renvoyables ; jamais effacés en silence
+  function envoisRefusesHtml() {
+    var d = S.deadLetter || {}, l = (d.visites || []).map(function (v) { return { t: 'Compte rendu', nom: v.nom, date: v.date, err: v.derniereErreur }; })
+      .concat((d.fiches || []).map(function (f) { return { t: 'Fiche', nom: f.praticien && f.praticien.nom, date: '', err: f.derniereErreur }; }));
+    if (!l.length) return '';
+    return '<h3>Envois refusés par le serveur</h3><p class="discret" style="margin-top:0">Ils restent sur ce téléphone. Après correction (ou avec votre superviseur), renvoyez-les.</p>' +
+      '<ul class="liste-rappels" style="margin-bottom:10px">' + l.map(function (x) {
+        return '<li><div><b>' + esc(x.t) + ' : ' + esc(x.nom || 'sans nom') + '</b>' + (x.date ? ' <span class="discret">' + esc(dateCourte(x.date)) + '</span>' : '') +
+          (x.err ? '<small class="discret bloc-texte">' + esc(x.err) + '</small>' : '') + '</div></li>';
+      }).join('') + '</ul>' +
+      '<div class="rangee" style="margin-bottom:10px"><button class="bouton bouton-plein" type="button" data-a="renvoyerRefuses">Renvoyer</button>' +
+      '<button class="bouton" type="button" data-a="copierRefuses">Copier le détail</button></div>';
+  }
   // ------------------------------------------------------------------ Feuilles (fenêtres du bas)
   function rendreFeuille() {
     var f = S.ui.feuille, el = $('feuille'); if (!el) return;
@@ -9254,7 +9219,13 @@
   }
   // 3.28.42 : toute suppression (supprimer, effacer, retirer, remplacer, abandonner) : « Non » à droite, en bouton principal et choisi par défaut ;
   // « Oui » à gauche, discret, pour ne pas supprimer par réflexe
-  function estSuppression(f) { return f.destructif || /supprim|effac|retir|remplac|abandon|vider|quitter/i.test((f.oui || '') + ' ' + (f.titre || '')); }
+  // 3.29.0 : aussi tout ce qui écrase ou fait perdre une saisie (« Écraser la position », « seront perdus », « Remplacer votre tournée »),
+  // repéré dans le titre, le bouton ou le message ; un appel peut aussi se déclarer destructif (7e argument de confirmerPuis)
+  var MOTS_DESTRUCTIFS = /supprim|effac|retir|remplac|abandon|vider|quitter|[ée]cras|perdu|r[ée]initialis/i;
+  function estSuppression(f) {
+    if (f.destructif !== undefined) return !!f.destructif;
+    return MOTS_DESTRUCTIFS.test((f.oui || '') + ' ' + (f.titre || '') + ' ' + String(f.message || '').replace(/<[^>]+>/g, ' '));
+  }
   FEUILLES.confirmer = function (f) {
     if (estSuppression(f)) return { corps: '<p style="margin-top:0">' + f.message + '</p>',
       pied: '<button class="bouton-texte sortir-question" type="button" data-a="sortirQuestion">Sortir</button>' +
@@ -10308,13 +10279,6 @@
   }
 
   // Background Sync API / WorkManager en zone blanche
-  function declencherBackgroundSync() {
-    if ('serviceWorker' in navigator && 'SyncManager' in window) {
-      navigator.serviceWorker.ready.then(function (reg) {
-        return reg.sync.register('mediplanner-sync-queue');
-      }).catch(function () {});
-    }
-  }
 
   // ------------------------------------------------------------------ Actions sur la tournée
   function arret(uid) { return S.plan.filter(function (a) { return a.uid === uid; })[0] || (S.horsPlan || []).filter(function (a) { return a.uid === uid; })[0]; }
@@ -10792,10 +10756,10 @@
         if (S.plan.some(function (a) { return a.date === d && a.code === im.code; })) return;
         var a = Moteur.arretDepuisCreneau(cr, d);
         a.impose = true; a.garde = true; if (im.rdv) a.rdv = im.rdv; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres; a.rdvPrisLe = im.prisLe || ''; }
+        // 3.29.0 : coût d'insertion dans l'ordre actuel du jour (rapide) ; la journée choisie est ensuite réordonnée en entier
         var jour = S.plan.filter(function (x) { return x.date === d; });
-        var avant = jour.reduce(function (s, x) { return s + (x.dist || 0); }, 0);
-        var essai = Moteur.ordonnerJour(jour.map(function (x) { return Object.assign({}, x); }).concat([a]), departCoord());
-        var cout = essai.filter(function (x) { return x.retard; }).length * 1000 + essai.reduce(function (s, x) { return s + x.dist; }, 0) - avant + jour.length * 0.5;
+        var ev = Moteur.evaluerInsertion(jour, a, departCoord());
+        var cout = ev.retards * 1000 + ev.km + jour.length * 0.5;
         if (!best || cout < best.cout) best = { cout: cout, a: a, d: d };
       });
     });
@@ -11155,7 +11119,7 @@
           if (e.commune) etabTrouve.commune = e.commune;
         } else {
           S.data.etablissements.push({
-            code: e.code || ('ETAB-' + ('00' + (S.data.etablissements.length + 1)).slice(-3)),
+            code: e.code || ('TMP-ETAB-' + Date.now().toString(36)),   // 3.29.0 : code définitif donné par le serveur
             nom: nomEtab,
             commune: e.commune || '',
             quartier: e.quartier || '',
@@ -11196,13 +11160,14 @@
           commune: e.commune || '',
           lat: pCapt.lat,
           lon: pCapt.lon,
-          originegps: 'Repertoire Hopital (±' + p.prec + 'm)'
+          originegps: 'Repertoire Hopital (±' + p.prec + 'm)',
+          auteur: moi()
         };
         if (e.code) payload.code = e.code;
         apiPost('etablissement', payload).then(function () {
           if (!S.config.demo && connecte()) synchroniser(true);
         }).catch(function (err) {
-          console.warn('Erreur envoi etablissement:', err);
+          signalerErreur('envoi établissement', err, { nom: nomEtab });
         });
 
         toast('GPS fixé pour ' + nomEtab + ' (± ' + p.prec + ' m)' + (S.config.demo ? '.' : ', envoyé à la BDD.'));
@@ -11216,7 +11181,7 @@
           '<p style="margin:0">Voulez-vous vraiment fixer cette position pour <b>' + esc(nomEtab) + '</b> ?</p>',
           'Fixer la position',
           sauverHopital,
-          function () { toast('Position inchangée.'); }
+          function () { toast('Position inchangée.'); }, null, true
         );
         return;
       }
@@ -11266,15 +11231,6 @@
     reinitFiltresProduits: function () {
       S.ui.rechProduit = '';
       S.ui.aireProduit = '';
-      rendre();
-    },
-    crAucunProduit: function (el) {
-      var a = arret(el.dataset.uid); if (!a) return;
-      var c = a.cr;
-      c.presentes = 'non';
-      c.produits = [];
-      c.autres = '';
-      majCr(a);
       rendre();
     },
     crStatutExpress: function (el, e) {
@@ -11497,16 +11453,10 @@
       a.garde = !a.garde; if (a.garde) delete S.rejetes[a.code];
       LS.set('plan', S.plan); rendre();
     },
-    statut: function (el) {
-      var a = arret(el.dataset.uid); if (!a) return;
-      a.statut = a.statut === el.dataset.v ? '' : el.dataset.v; horodater(a);
-      LS.set('plan', S.plan); rendre();
-    },
     retirer: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       confirmerPuis('Retirer de la tournée', 'Retirer <b>' + esc(a.nom) + '</b> de votre tournée du ' + dateFr(a.date) + ' ?', 'Retirer', function () { retirerArret(a.uid); });
     },
-    retirerConfirme: function (el) { retirerArret(el.dataset.uid); },
 
     rattraper: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -11610,7 +11560,6 @@
       }
       rendre();
     },
-    confirmerProgrammeDirect: function () { confirmerProgramme(); },
 
     corriger: function (el, e) {
       if (e && typeof e.clientY === 'number' && e.clientY > 0) S.ui.dernierClicY = e.clientY;
@@ -11811,7 +11760,6 @@
       if (place) publierPlan();
       toast(place ? 'Ajouté à la tournée du ' + dateCourte(S.ui.jour) + '.' : 'Ajouté. Il sera placé à la prochaine proposition de tournée.');
     },
-    retirerImpose: function (el) { S.imposes.splice(+el.dataset.i, 1); LS.set('imposes', S.imposes); rendre(); },
     // 3.26.75 : retrait d'un prioritaire ou d'un RDV de l'étape 7, après confirmation (bouton ou appui long)
     retirerImposeDemande: function (el) {
       var i = +el.dataset.i, im = S.imposes[i]; if (!im) return; var pr = praticien(im.code);
@@ -11931,7 +11879,6 @@
         }
       }
     },
-    filtre: function (el) { S.ui.filtre = el.dataset.v; S.ui.limite = 40; rendre(); },
     annuaire: function (el) {
       var v = el.dataset.v, f = filtresCour();
       S.ui.limite = 40; S.ui.contactOuvert = null; S.ui.hopOuvert = null;
@@ -12059,6 +12006,12 @@
         synchroniser(false, false, true);
       });
     },
+    renvoyerRefuses: function () {
+      var n = renvoyerMisDeCote(); rendre();
+      toast(n + ' envoi(s) remis dans la file. Synchronisation…');
+      if (connecte()) synchroniser(false);
+    },
+    copierRefuses: function () { copier(JSON.stringify({ delegue: moi(), version: APP_VERSION, refuses: S.deadLetter }, null, 1)); },
     sync: function () {
       if (S.ui.feuille && S.ui.feuille.type !== 'fiche') { /* la fenêtre reste ouverte : la synchro se fait en arrière-plan */ }
       if (S.config.demo) { toast('Mode démonstration : aucune synchronisation.'); return; }
@@ -12410,23 +12363,6 @@
       syncCr(a); validerVisites(a.uid);
       if (a.hors) return;   // jour passé hors tournée : pas de remplacement après coup
       S.ui.feuille = { type: 'remplacer', titre: 'Remplacer ' + a.nom, pleine: true, uid: a.uid, choix: null, garder: true, lieuRef: a.lieu }; rendre();
-    },
-    produit: function (el) {
-      var a = arret(el.dataset.uid); if (!a) return;
-      var l = listeProduits(a.produits), i = l.indexOf(el.dataset.v);
-      if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
-      a.produits = l.join(', '); LS.set('plan', S.plan); rendre();
-    },
-    activite: function (el) {
-      var a = arret(el.dataset.uid); if (!a) return;
-      var l = listeActivites(a.activite), i = l.indexOf(el.dataset.v);
-      if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
-      a.activite = l.join(' ; '); LS.set('plan', S.plan); rendre();
-    },
-    prochaine: function (el) {
-      var a = arret(el.dataset.uid); if (!a) return;
-      a.prochaine = a.prochaine === el.dataset.v ? '' : el.dataset.v;
-      LS.set('plan', S.plan); rendre();
     },
     crVal: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
@@ -12818,12 +12754,7 @@
     effacerVisiteChoix: function (el) {
       if (el.dataset.v === 'supprimer') { var f0 = S.ui.feuille, a0 = f0 && arret(f0.uid); S.ui.feuille = null; if (a0) supprimerVisiteJour(a0); else rendre(); return; }
       var f = S.ui.feuille, a = f && arret(f.uid); S.ui.feuille = null; if (!a) { rendre(); return; }
-      if (el.dataset.v === 'supprimer') {
-        S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
-        S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; }); S.horsPlan = (S.horsPlan || []).filter(function (x) { return x.uid !== a.uid; });
-        LS.set('horsPlan', S.horsPlan); S.ui.aPublier = true; LS.set('aPublier', true); sauver(); rendre(); toast('Visite supprimée de la journée.');
-        if (connecte()) synchroniser(true);
-      } else effacerCr(a);
+      effacerCr(a);
     },
     ficheChoixQuartier: function (el) {
       var f = S.ui.feuille, i = +el.dataset.i; if (!f || f.type !== 'fiche' || !f.d.lieux[i]) return;
@@ -13062,7 +12993,6 @@
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'ident') { (S.ui.identBrouillon = S.ui.identBrouillon || {})[el.dataset.k] = el.value; return; }
-    if (f === 'commentaire') { var a = arret(el.dataset.uid); if (a) { a.commentaire = el.value; LS.set('plan', S.plan); } }
     if (f === 'cr') { var ac = arret(el.dataset.uid); if (ac) majCr(ac, el.dataset.k, el.value); }
     if (f === 'fiche') {
       majChampFiche(el, false);
@@ -13100,10 +13030,6 @@
         var zp = document.getElementById('presentsIci'); if (zp && S.ui.feuille) zp.innerHTML = rendrePresentsIci(S.ui.feuille.d);
         var zc = document.getElementById('ficheCreerNom'); if (zc && S.ui.feuille) zc.textContent = nomCreer(S.ui.feuille.d);
       }
-    }
-    if (f === 'produits') {
-      var ap = arret(el.dataset.uid), ref = ap ? produitsPour(ap) : produitsRef();
-      if (ap) { ap.produits = listeProduits(ap.produits).filter(function (x) { return ref.indexOf(x) >= 0; }).concat(listeProduits(el.value)).join(', '); LS.set('plan', S.plan); }
     }
     if (f === 'rechCommunes' && S.ui.feuille) {
       S.ui.feuille.q = el.value; var zc = document.getElementById('resCommunes'); if (zc) zc.innerHTML = resultatsCommunes(el.value);
@@ -13160,17 +13086,15 @@
     }
     if (f === 'jourDate' && el.value) { allerAuJour(el.value); return; }
     if (f === 'rapport') { var Rr = rapportOuCree(jourAffiche()); Rr[el.dataset.k] = el.value; sauverRapports(); return; }
-    if (f === 'rechProduit') {
-      S.ui.rechProduit = el.value; var pp = el.selectionStart; rendre();
-      var cp = document.querySelector('[data-f="rechProduit"]'); if (cp) { cp.focus(); try { cp.setSelectionRange(pp, pp); } catch (x) {} }
+    // 3.29.0 : une frappe de recherche ne redessine que les résultats (le champ reste en place : focus, curseur et clavier intacts)
+    if (f === 'rechProduit') { S.ui.rechProduit = el.value; rendreAutourDuChampDiffere(el); }
+    if (f === 'rechHop') { S.ui.rechHop = el.value; S.ui.limite = 40; rendreAutourDuChampDiffere(el); }   // 3.27.30 : annuaire des hôpitaux
+    if (f === 'recherche') {
+      if (S.ui.tab === 'autour') S.ui.rechercheAutour = el.value; else S.ui.recherche = el.value;
+      S.ui.limite = 40; S.ui._pratAffiches = 0; rendreAutourDuChampDiffere(el);
     }
-    if (f === 'rechHop') {   // 3.27.30 : recherche dans l'annuaire des hôpitaux
-      S.ui.rechHop = el.value; S.ui.limite = 40; pos = el.selectionStart; rendre();
-      var chH = document.querySelector('[data-f="rechHop"]'); if (chH) { chH.focus(); try { chH.setSelectionRange(pos, pos); } catch (x) {} }
-    }
-    if (f === 'recherche' || f === 'rechercheImpose') {
-      if (f === 'recherche') { if (S.ui.tab === 'autour') S.ui.rechercheAutour = el.value; else S.ui.recherche = el.value; S.ui.limite = 40; } else S.ui.feuille.q = el.value;
-      pos = el.selectionStart; rendre();
+    if (f === 'rechercheImpose') {
+      S.ui.feuille.q = el.value; pos = el.selectionStart; rendre();
       var champ = document.querySelector('[data-f="' + f + '"]');
       if (champ) { champ.focus(); try { champ.setSelectionRange(pos, pos); } catch (x) {} }
     }
@@ -13199,7 +13123,6 @@
     }
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
     if (f === 'fiche') majChampFiche(el, true);
-    if (f === 'prochaine') { var ax = arret(el.dataset.uid); if (ax) { ax.prochaine = el.value; LS.set('plan', S.plan); rendre(); } }
     if (f === 'importSecours' && el.files && el.files[0]) { importerSecours(el.files[0]); el.value = ''; }
     if (f === 'saisieAvancee') { S.config.modifPasse = S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie avancée activée : jours passés et à venir modifiables.' : 'Saisie avancée désactivée : seul le jour même se saisit.'); rendre(); }
     if (f === 'waWeb') { S.config.waWeb = el.checked; LS.set('config', S.config); toast(el.checked ? 'WhatsApp Web sera toujours ouvert.' : 'WhatsApp s\'ouvrira dans l\'application du téléphone.'); }
@@ -13316,21 +13239,38 @@
   // ------------------------------------------------------------------ Démarrage
   window.addEventListener('online', function () { synchroniser(true); });
   window.addEventListener('offline', function () { S.ui.sync = 'horsligne'; afficherEntete(); });
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', function (e) {
-      if (e.data && e.data.type === 'BACKGROUND_SYNC') {
-        if (connecte() && navigator.onLine) synchroniser(true);
-      }
-    });
-  }
   // Chargement asynchrone des données flash IndexedDB
   // 3.26.80 : la base (plus de 500 ko) n'est gardée que dans IndexedDB ; on attend sa lecture avant la 1re synchronisation,
   // sinon chaque ouverture retéléchargeait toute la base (1,4 Mo) et affichait « Chargement de votre base »
   S.ui.restauration = true;
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}   // évite l'effacement par le téléphone
+  // 3.29.0 : union de deux files (par uid) : rien de ce qui est sur le téléphone ou en mémoire n'est perdu
+  function fusionnerParUid(a, b) {
+    var vus = {}, res = [];
+    (a || []).concat(b || []).forEach(function (x) {
+      if (!x) return;
+      var u = x.uid || JSON.stringify(x);
+      if (vus[u] !== undefined) { res[vus[u]] = x; return; }   // la version la plus récente (en mémoire) l'emporte
+      vus[u] = res.length; res.push(x);
+    });
+    return res;
+  }
+  function lireUrgence(k) { try { var v = localStorage.getItem(PREFIXE + 'urgence.' + k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
   var idbRestauree = IDB.chargerTout().then(function (tous) {
+    // valeurs en mémoire avant la relecture (saisies faites pendant l'ouverture, réglages venus d'un lien)
+    var memQueue = S.queue || [], memFiches = S.fiches || [], memDl = S.deadLetter || { visites: [], fiches: [] }, memData = S.data;
+    var enAttenteEcriture = {};
+    IDB._fileAttente.forEach(function (it) { enAttenteEcriture[it.k] = it.val; });
     Object.keys(tous).forEach(function (k) {
+      // réglages légers déjà lus dans localStorage puis modifiés : la valeur en mémoire est la plus récente
+      if (!CLES_LOURDES[k] && !CLES_PRECIEUSES[k] && enAttenteEcriture[k] !== undefined) return;
       LS._mem[k] = tous[k];
+    });
+    // écritures en attente : les clés lourdes déjà présentes sur le téléphone ne sont pas écrasées par une valeur de démarrage
+    IDB._fileAttente = IDB._fileAttente.filter(function (it) {
+      if (CLES_PRECIEUSES[it.k]) return false;           // réécrites plus bas après fusion
+      if (it.k === 'data') return false;                 // réécrite plus bas si la mémoire est plus récente
+      return !(CLES_LOURDES[it.k] && tous[it.k] !== undefined);
     });
     if (LS._mem.config) S.config = LS._mem.config;
     if (LS._mem.data) {
@@ -13358,15 +13298,27 @@
     }
     if (LS._mem.imposes) S.imposes = LS._mem.imposes;
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
-    if (LS._mem.queue) S.queue = LS._mem.queue;
-    if (LS._mem.fiches) S.fiches = LS._mem.fiches;
-    if (LS._mem.deadLetter) S.deadLetter = LS._mem.deadLetter;
     if (LS._mem.archives) S.archives = LS._mem.archives;
     if (LS._mem.horsPlan) S.horsPlan = LS._mem.horsPlan;
+    // 3.29.0 : comptes rendus et fiches non envoyés : téléphone + mémoire + copie de secours, réunis sans doublon
+    var dlDisque = tous.deadLetter || {}, dlUrg = lireUrgence('deadLetter') || {};
+    S.queue = fusionnerParUid(fusionnerParUid(tous.queue, lireUrgence('queue')), memQueue);
+    S.fiches = fusionnerParUid(fusionnerParUid(tous.fiches, lireUrgence('fiches')), memFiches);
+    S.deadLetter = {
+      visites: fusionnerParUid(fusionnerParUid(dlDisque.visites, dlUrg.visites), memDl.visites),
+      fiches: fusionnerParUid(fusionnerParUid(dlDisque.fiches, dlUrg.fiches), memDl.fiches)
+    };
+    // 3.29.0 : ce qui avait été mis de côté pour une simple erreur de réseau (versions précédentes) repart dans la file d'envoi
+    recupererMisDeCote();
+    harmoniserSpecialitesStockees();
+    LS.set('queue', S.queue); LS.set('fiches', S.fiches); LS.set('deadLetter', S.deadLetter);
+    if (memData && S.data !== memData && String(memData.syncedAt || '') > String((S.data || {}).syncedAt || '')) { S.data = memData; }
+    if (S.data && S.data !== tous.data) LS.set('data', S.data);
+    IDB._viderFileAttente();
     ctxCache.data = null;
   }).then(function () {
     S.ui.restauration = false; rendreSiPossible();
-  }, function () { S.ui.restauration = false; rendreSiPossible(); });
+  }, function () { idbRelue = true; IDB._viderFileAttente(); S.ui.restauration = false; rendreSiPossible(); });
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.ui.installEvt = e; if (S.ui.tab === 'reglages') rendre(); });
   // 3.25.28 : recalcul de la position et des distances à l'ouverture, réouverture, focus et réveil
   if (S.ui.tab === 'jour') { var tj0 = aujourdhui(); if (datesPlan().indexOf(tj0) >= 0) { S.ui.jour = tj0; S.ui.jourVue = null; } else S.ui.jourVue = tj0; }
@@ -13415,16 +13367,61 @@
     verifierChangementJour();
     rappelCrSoir();
     rafraichirRepertoireHeure();
-    // 3.27.10 : chaque minute, envoi de ce qui attend et vérification de la base (corrections faites dans le Google Sheet)
-    synchroniser(true, true);
+    // 3.27.10 : chaque minute, envoi de ce qui attend et vérification de la base (base de secours Google Sheets ; Supabase a son propre rythme ci-dessous)
+    if (((S.config && S.config.bddSource) || 'supabase') !== 'supabase') synchroniser(true, true);
   }, 60000);
 
   // 3.28.13 : base Supabase vérifiée toutes les 15 s (empreinte légère) : un ajout ou une correction d'un délégué apparaît chez tous les autres
+  // 3.29.0 : signal temps réel reçu du serveur => vérification immédiate ; tant que ce signal est actif, la vérification de secours passe à 60 s
+  var tourSupabase = 0;
   setInterval(function () {
     if (document.visibilityState !== 'visible') return;
     if (((S.config && S.config.bddSource) || 'supabase') !== 'supabase') return;
+    tourSupabase++;
+    if (tempsReel.actif && tourSupabase % 4 && !enAttente()) return;
     synchroniser(true, true);
   }, 15000);
+
+  // 3.29.0 : temps réel (Supabase Realtime, canal « mediplanner ») : le serveur signale chaque écriture (application ou saisie dans le Sheet)
+  var tempsReel = { ws: null, actif: false, ref: 0, battement: null, reprise: null, delai: 2000, minuteur: null };
+  function tempsReelEnvoyer(m) { try { tempsReel.ws.send(JSON.stringify(m)); } catch (e) {} }
+  function tempsReelOuvrir() {
+    if (tempsReel.ws || !connecte() || !window.WebSocket || !navigator.onLine || document.visibilityState !== 'visible') return;
+    if (((S.config && S.config.bddSource) || 'supabase') !== 'supabase') return;
+    var ws;
+    try { ws = new WebSocket(SUPABASE_CONFIG.url.replace(/^http/, 'ws') + '/realtime/v1/websocket?apikey=' + encodeURIComponent(SUPABASE_CONFIG.key) + '&vsn=1.0.0'); }
+    catch (e) { return; }
+    tempsReel.ws = ws;
+    ws.onopen = function () {
+      tempsReelEnvoyer({ topic: 'realtime:mediplanner', event: 'phx_join', payload: { config: { broadcast: { self: false }, presence: { key: '' } } }, ref: String(++tempsReel.ref) });
+      clearInterval(tempsReel.battement);
+      tempsReel.battement = setInterval(function () { tempsReelEnvoyer({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++tempsReel.ref) }); }, 25000);
+    };
+    ws.onmessage = function (e) {
+      var m; try { m = JSON.parse(e.data); } catch (x) { return; }
+      if (m.event === 'phx_reply' && m.topic === 'realtime:mediplanner') { tempsReel.actif = !!(m.payload && m.payload.status === 'ok'); tempsReel.delai = 2000; return; }
+      if (m.event === 'broadcast' && m.payload && m.payload.event === 'maj') {
+        // plusieurs signaux rapprochés (un enregistrement touche plusieurs tables) : une seule relecture
+        clearTimeout(tempsReel.minuteur);
+        tempsReel.minuteur = setTimeout(function () { synchroniser(true, true); }, 600);
+      }
+    };
+    ws.onclose = ws.onerror = function () {
+      if (tempsReel.ws !== ws) return;
+      tempsReel.ws = null; tempsReel.actif = false; clearInterval(tempsReel.battement);
+      clearTimeout(tempsReel.reprise);
+      tempsReel.reprise = setTimeout(tempsReelOuvrir, tempsReel.delai);
+      tempsReel.delai = Math.min(tempsReel.delai * 2, 60000);
+    };
+  }
+  function tempsReelFermer() {
+    var ws = tempsReel.ws; tempsReel.ws = null; tempsReel.actif = false;
+    clearInterval(tempsReel.battement); clearTimeout(tempsReel.reprise);
+    if (ws) try { ws.close(); } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') tempsReelOuvrir(); else tempsReelFermer(); });
+  window.addEventListener('online', tempsReelOuvrir);
+  setTimeout(tempsReelOuvrir, 3000);
 
   // ------------------------------------------------------------------ Thème
   function appliquerTheme(t) {
@@ -13737,5 +13734,5 @@
   // Accès pour les tests automatisés
   window.__tournees = { S: S, ctx: ctx, actualiserLieux: actualiserLieux, texteProgramme: texteProgramme, texteRapport: texteRapport, urlWhatsapp: urlWhatsapp, normaliserNumero: normaliserNumero,
                         supprimerJourPlanifie: supprimerJourPlanifie, demanderSuppressionJour: demanderSuppressionJour,
-                        version: APP_VERSION, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre, distMoi: distMoi };
+                        version: APP_VERSION, sauver: sauver, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre, distMoi: distMoi };
 })();

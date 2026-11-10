@@ -1,7 +1,8 @@
 ﻿/* =============================================================================
    commun.js : référentiel, modèle de données et fonctions partagées (version 3)
-   Ce fichier est IDENTIQUE dans l'application (commun.js) et dans Google Apps
-   Script (Commun.gs). Toute modification doit être reportée dans les deux.
+   Source unique : apps-script/Commun.gs en est la copie exacte, produite par
+   « node scripts/commun.js » (contrôle : « node scripts/commun.js --verifier »).
+   Ne jamais modifier Commun.gs à la main.
 
    Modèle de données
    - Praticiens : une ligne par médecin ou pharmacie (note de potentiel 1 à 3,
@@ -50,6 +51,18 @@ var CHAMPS_PRESENCES = [
   ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS']
 ];
 
+// 3.26.54 : règle unique de position d'un lieu. Latitude / longitude lues avec virgule ou point ;
+// 0, vide ou hors de la Côte d'Ivoire = pas de position. Renvoie { lat, lon } ou null.
+function lireCoord(o) {
+  if (!o) return null;
+  var la = parseFloat(String(o.lat === undefined || o.lat === null ? '' : o.lat).replace(',', '.')),
+      lo = parseFloat(String(o.lon === undefined || o.lon === null ? '' : o.lon).replace(',', '.'));
+  if (!isFinite(la) || !isFinite(lo) || la === 0 || lo === 0) return null;
+  if (la < 4 || la > 11 || lo < -9 || lo > -2) return null;
+  return { lat: la, lon: lo };
+}
+function aCoord(o) { return !!lireCoord(o); }
+
 var CHAMPS_HIST = [
   ['date', 'DateVisite'], ['horodatage', 'Horodatage'], ['idPresence', 'IdPresence'], ['code', 'CodeContact'],
   ['nom', 'Nom'], ['type', 'Type'], ['specialite', 'Spécialité'], ['note', 'Note'],
@@ -79,18 +92,14 @@ var CHAMPS_ETABLISSEMENTS = [
 ];
 var HORAIRES_PHARMACIE = ['08:00-12:30', '15:00-20:00'];
 var ACTIVITES_DEFAUT = ['Routine', 'Présentation', 'Échantillons', 'Cadeaux', 'EPU', 'Staff', 'Réunion', 'Déjeuner', 'Garde', 'Dépistage', 'Autre'];
-var ACTIVITES_PHARMACIE_DEFAUT = ['Routine', 'Présentation', 'Échantillons', 'Cadeaux', 'Stocks', 'Commande', 'PLV', 'Formation', 'Animation', 'Retour', 'Autre'];
+var ACTIVITES_PHARMACIE_DEFAUT = ['Routine', 'Présentation', 'Échantillons', 'Cadeaux', 'Stocks', 'Commande', 'MEP', 'Formation', 'Animation', 'Autre'];
 // anciens libellés, remplacés automatiquement (base et historique)
 var ACTIVITES_RENOMMEES = { 'Visite de routine (rappel)': 'Routine', 'Réunion / staff': 'Réunion', 'Remise d\'échantillons': 'Échantillons',
   'Autre activité': 'Autre', 'Vérification des stocks': 'Stocks', 'Prise de commande': 'Commande', 'Mise en avant / PLV': 'PLV',
   'Formation de l\'équipe officinale': 'Formation', 'Animation promotionnelle': 'Animation', 'Retour ou échange de produits': 'Retour', 'Retour ou échange': 'Retour', 'Présentation produit': 'Présentation' };
-var PRODUITS_DEFAUT = [
-  'Zyltan', 'Zyltan H', 'Zyltan AM', 'Losartan AM',
-  'Lesstrol 20', 'Lesstrol AM', 'Lesstrol EZ',
-  'Eurythmic', 'Tensicard',
-  'Telmikaa', 'Telmikaa AM', 'Telmikaa H', 'Telmikaa AMH', 'Telmikaa CT',
-  'Rozukaa 10', 'Rozukaa 20', 'Rozukaa F', 'Rozukaa A', 'Rozukaa Gold',
-  'Lesskaa', 'Myonit SR', 'Antiplatt', 'Antiplatt Plus', 'Orlitroy', 'Troynuron'
+var PRODUITS_DEFAUT = [   // 3.26.72 : alignée sur les produits actifs de la base (Fiches produits, Actif = vrai)
+  'Zyltan H', 'Zyltan AM', 'Lesstrol 20', 'Lesstrol AM', 'Eurythmic', 'Tensicard',
+  'Telmikaa', 'Rozukaa 10', 'Rozukaa 20', 'Antiplatt', 'Myonit SR'
 ];
 
 // Tournées publiées par les délégués (visibles par toute l'équipe)
@@ -801,7 +810,7 @@ var REGLAGES_MOTEUR = {
   penaliteKm: 25,              // points de score retirés par km de détour ajouté à la tournée
   rayonAutourKm: 5,            // rayon par défaut de « Autour de moi »
   nbPropositions: 15,
-  detourRoutier: 1.5,          // coefficient fixe vol d'oiseau -> distance réelle estimée (x 1,5)
+  detourRoutier: 1.6,          // coefficient fixe vol d'oiseau -> distance réelle estimée (x 1,6)
   minutesParKm: 3,             // vitesse moyenne en ville (~20 km/h, trafic d'Abidjan)
   facteurPointe: 1.6,          // trajets plus lents aux heures de pointe
   heuresPointe: [[420, 570], [990, 1170]],   // 7:00-9:30 et 16:30-19:30
@@ -822,6 +831,48 @@ function sansAccents(s) {
   return String(s === undefined || s === null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 function normaliser(s) { return sansAccents(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+// 3.29.0 : numéro d'un code (MED-007, MED-1000) : 3 chiffres au moins, jamais tronqué au-delà de 999
+function numeroCode(n) { n = Math.max(0, Math.floor(+n || 0)); return n < 1000 ? ('00' + n).slice(-3) : String(n); }
+
+
+// 3.27.26 : spécialité canonique (« Médecine générale », « Médecin généraliste », « MG » -> « Généraliste »)
+// 3.29.0 : une seule écriture par spécialité : discipline (« Cardiologie »), abréviation (« Cardio ») ou autre casse ramenées
+// au nom du praticien de la liste de référence (« Cardiologue ») ; une spécialité inconnue est gardée telle quelle
+var SPECIALITES_SYNONYMES = {
+  cardio: 'Cardiologue', cardiologie: 'Cardiologue', neuro: 'Neurologue', neurologie: 'Neurologue', pneumo: 'Pneumologue', pneumologie: 'Pneumologue',
+  nephro: 'Néphrologue', nephrologie: 'Néphrologue', endocrino: 'Endocrinologue', endocrinologie: 'Endocrinologue', diabeto: 'Diabétologue', diabetologie: 'Diabétologue',
+  gyneco: 'Gynécologue', gynecologie: 'Gynécologue', gynecologueobstetricien: 'Gynécologue', dermato: 'Dermatologue', dermatologie: 'Dermatologue',
+  rhumato: 'Rhumatologue', rhumatologie: 'Rhumatologue', gastro: 'Gastro-entérologue', gastroenterologie: 'Gastro-entérologue', gastroenterologue: 'Gastro-entérologue',
+  infectio: 'Infectiologue', infectiologie: 'Infectiologue', ophtalmo: 'Ophtalmologue', ophtalmologie: 'Ophtalmologue', pedia: 'Pédiatre', pediatrie: 'Pédiatre',
+  medecineinterne: 'Interniste', interne: 'Interniste', psychiatrie: 'Psychiatre', urologie: 'Urologue', chirurgie: 'Chirurgien',
+  // 3.29.0 : infirmier ou sage-femme sans service précis : classé avec les généralistes (MG)
+  infirmier: 'Généraliste', infirmiere: 'Généraliste', ide: 'Généraliste', sagefemme: 'Généraliste'
+};
+function specialiteCanonique(s) {
+  var t = String(s || '').trim().replace(/\s+/g, ' '), k = normaliser(t);
+  if (!k) return t;
+  if (/^(medecinegenerale|medecingeneraliste|generaliste|mg|medecingeneral)$/.test(k)) return 'Généraliste';
+  if (SPECIALITES_SYNONYMES[k]) return SPECIALITES_SYNONYMES[k];
+  for (var i = 0; i < SPECIALITES_DEFAUT.length; i++) if (normaliser(SPECIALITES_DEFAUT[i]) === k) return SPECIALITES_DEFAUT[i];
+  return t;
+}
+
+// 3.27.18 : abréviations courantes des noms d'établissements (2 Pltx = Deux Plateaux, St = Saint, CSU-COM = CSU Com)
+function abregesEtab(s) {
+  return (' ' + String(s || '').replace(/[-\/'’().,]/g, ' ') + ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/ 2 /g, ' deux ')
+    .replace(/ (pltx|plts|plx|plat|plateau) /g, ' plateaux ')
+    .replace(/ ste /g, ' sainte ').replace(/ st /g, ' saint ')
+    .replace(/ (csu ?com|csucom) /g, ' csucom ').replace(/ (fsu ?com|fsucom) /g, ' fsucom ')
+    .replace(/\s+/g, ' ').trim();
+}
+// Clé d'un établissement : sans accents, sans abréviations, sans mots génériques ni espaces
+function cleEtablissement(s) {
+  var t = abregesEtab(sansAccents(String(s || '')).toLowerCase());
+  return (' ' + t + ' ').replace(/ (de|du|des|d|l|le|la|les|et|au|aux|centre|medical|medicale|polyclinique|clinique|hopital|cabinet|sante|urbain|communautaire) /g, ' ')
+    .replace(/ (de|du|des|d|l|le|la|les|et|au|aux) /g, ' ').replace(/[^a-z0-9]/g, '');
+}
 
 // 3.26.9 : Détection intelligente d'un même établissement (CHU, cliniques, hôpitaux avec variantes d'écriture)
 function memeEtablissement(a, b) {
@@ -831,7 +882,7 @@ function memeEtablissement(a, b) {
   if (sa === sb) return true;
 
   function nettoyerEtab(s) {
-    return s
+    return abregesEtab(s)
       .replace(/\b(centre hospitalier universitaire|centre hospitalier et universitaire|centre hosp univ)\b/g, 'chu')
       .replace(/\b(hopital militaire d abidjan|hopital militaire abidjan)\b/g, 'hma')
       .replace(/\b(institut de cardiologie d abidjan|institut cardiologie abidjan|institut de cardiologie)\b/g, 'ica')
@@ -1101,7 +1152,7 @@ function genererBaseFictive(dateRefIso, options) {
   var m, code, nom, spec;
   // Médecins
   for (m = 1; m <= nbMed; m++) {
-    code = 'MED-' + ('00' + m).slice(-3);
+    code = 'MED-' + numeroCode(m);
     nom = 'Dr ' + pioche(noms) + ' ' + pioche(prenoms);
     spec = pioche(specs);
     praticiens.push({ code: code, type: 'Médecin', nom: nom, specialite: spec,
@@ -1149,7 +1200,7 @@ function genererBaseFictive(dateRefIso, options) {
   }
   // Pharmacies : le titulaire est disponible certains jours, matin et/ou soir
   for (m = 1; m <= nbPha; m++) {
-    code = 'PHA-' + ('00' + m).slice(-3);
+    code = 'PHA-' + numeroCode(m);
     var qp = pool[Math.floor(rnd() * pool.length)];
     nom = 'Dr ' + pioche(noms) + ' ' + pioche(prenoms);
     praticiens.push({ code: code, type: 'Pharmacie', nom: nom, specialite: 'Pharmacien',
@@ -1344,6 +1395,10 @@ var FICHES_PRODUITS_DEFAUT = [
   { gamme: "Orlitroy (orlistat)", aire: "Métabolisme et neuropathie", produit: "Orlitroy", dci: "Orlistat 60 ou 120 mg, gélule", classe: "Inhibiteur des lipases digestives (anti-obésité)", indications: "Obésité (IMC ≥ 30) ou surpoids (IMC ≥ 28) avec facteurs de risque (diabète, hypertension, cholestérol), en association à un régime modérément hypocalorique", contreIndications: "Allergie à l'orlistat\nSyndrome de malabsorption chronique\nCholestase\nGrossesse et allaitement", posologie: "1 gélule à chacun des 3 repas principaux contenant des graisses\nSauter la prise si le repas est sauté ou sans graisses\nArrêter si perte de poids < 5 % après 12 semaines", precautions: "Prendre une multivitamine le soir (vitamines A, D, E, K)\nCiclosporine, lévothyroxine, antiépileptiques, anticoagulants : espacer ou surveiller\nRepas trop gras : troubles digestifs", effets: "Selles grasses, urgences pour aller à la selle\nGaz, douleurs abdominales\nBaisse des vitamines liposolubles", arguments: "Agit dans l'intestin, sans effet sur le cerveau ni le cœur\nBloque environ 30 % des graisses du repas\nAide l'hypertendu ou le diabétique en surpoids à atteindre ses objectifs", laboratoire: LABO_TROIKAA, sources: "RCP orlistat / Xenical (ANSM, VIDAL) ; truemeds.in, netmeds.com (Orlitroy 60 et 120)" },
   { gamme: "Troynuron (prégabaline)", aire: "Métabolisme et neuropathie", produit: "Troynuron", dci: "Troynuron (NT) : prégabaline 75 mg + nortriptyline 10 mg + méthylcobalamine 1500 µg, comprimé\nTroynuron SR : complément (méthylcobalamine, acide folique, pyridoxine)", classe: "Traitement de la douleur neuropathique (antiépileptique + antidépresseur tricyclique + vitamine B12) ; SR : complément vitaminique", indications: "Douleurs neuropathiques : neuropathie du diabétique, névralgies, sciatique\nTroynuron SR : carences en vitamines B, anémie, fatigue", contreIndications: "Allergie à l'un des composants\nInfarctus récent, troubles du rythme ou bloc cardiaque (nortriptyline)\nAssociation aux IMAO\nGlaucome à angle fermé, adénome de la prostate avec rétention urinaire", posologie: "1 comprimé le soir au coucher\nAugmentation progressive selon le médecin\nNe pas arrêter brutalement", precautions: "Somnolence, vertiges : prudence pour la conduite\nAlcool, sédatifs, opioïdes : majorent la somnolence\nSujet âgé, insuffisant rénal : adapter (prégabaline éliminée par le rein)\nRisque de mésusage de la prégabaline", effets: "Somnolence, vertiges\nBouche sèche, constipation\nPrise de poids, œdèmes", arguments: "Trois actions complémentaires sur la douleur nerveuse en un comprimé\nPrise le soir : améliore aussi le sommeil\nLa vitamine B12 aide à réparer le nerf", laboratoire: LABO_TROIKAA, sources: "RCP prégabaline / Lyrica et nortriptyline (ANSM, VIDAL) ; 1mg.com (Troynuron 75/10/1500 µg, Troynuron SR)" }
 ];
+// 3.26.79 : fiches intégrées hors de la liste active (ex. Losartan AM) marquées inactives : jamais proposées, même hors connexion
+FICHES_PRODUITS_DEFAUT.forEach(function (f) { if (PRODUITS_DEFAUT.map(normaliser).indexOf(normaliser(f.produit)) < 0) f.actif = 'Non'; });
+
+
 
 // ---------------------------------------------------------------- Comptes rendus de la journée (3.13.0)
 // Feuille « Rapports du jour » : une ligne par délégué et par jour (synthèse automatique + saisie du délégué)
@@ -1352,6 +1407,107 @@ var CHAMPS_RAPPORTS = [
   ['nonFaites', 'Non faites'], ['sansCr', 'Sans compte rendu'], ['synthese', 'Synthèse'], ['faits', 'Faits marquants'],
   ['concurrence', 'Concurrence'], ['besoins', 'Besoins'], ['km', 'Kilomètres'], ['maj', 'Mise à jour']
 ];
+
+// Découpage des grandes communes d'Abidjan en 4 grands sous-secteurs pour les tournées délégués
+var ZONES_GRANDES_COMMUNES = {
+  'Cocody': [
+    { nom: 'Cocody – Angré', lib: 'Cocody – Angré (7e/8e tranche, CHU Angré, Djorobité)', mots: ['angre', 'tranche', 'chu angre', 'djorobite', 'djorogobite', 'chateau', 'mahou', 'petroivoire', 'besakoi'] },
+    { nom: 'Cocody – Deux Plateaux', lib: 'Cocody – Deux Plateaux (Vallons, Aghien, ENA, Attoban)', mots: ['plateaux', 'plateau', 'vallon', 'aghien', 'ena', 'attoban', 'palmas', 'latrille', 'socece', 'sococe'] },
+    { nom: 'Cocody – Riviera', lib: 'Cocody – Riviera (Riviera 1-4, Palmeraie, Faya, M\'Badon, Anono)', mots: ['riviera', 'palmeraie', 'faya', 'mbadon', 'm\'badon', 'anono', 'bonoumin', 'abatta', 'akouedo', 'golf', 'ciad'] },
+    { nom: 'Cocody – Centre', lib: 'Cocody – Centre (Saint-Jean, Danga, CHU Cocody, Mermoz)', mots: ['saint-jean', 'st jean', 'danga', 'chu cocody', 'mermoz', 'blockhauss', 'ambassade', 'lycee technique', 'arts', 'universite', 'centre', 'cannebiere', 'nestle'] }
+  ],
+  'Yopougon': [
+    { nom: 'Yopougon – Niangon', lib: 'Yopougon – Niangon (Nord, Sud, Académie, Lokoua, Cité Verte)', mots: ['niangon', 'academie', 'lokoua', 'verte', 'texaco', 'lubafrique'] },
+    { nom: 'Yopougon – Maroc & Toits Rouges', lib: 'Yopougon – Maroc & Toits Rouges (Bel Air, Sideci, Selmer)', mots: ['maroc', 'toits rouges', 'bel air', 'sideci', 'selmer', 'cie', 'nouveau bureau', 'carrefour'] },
+    { nom: 'Yopougon – Centre & Mairie', lib: 'Yopougon – Centre & Mairie (CHU Yop., Saint-André, Siporex, Keneya)', mots: ['chu yop', 'saint-andre', 'st andre', 'siporex', 'mairie', 'keneya', 'pompiers', 'wassakara', 'justice', 'ficgayo'] },
+    { nom: 'Yopougon – Sud & Gesco', lib: 'Yopougon – Sud & Gesco (Port-Bouët 2, Kouté, Zone Industrielle, Sable)', mots: ['port-bouet 2', 'port bouet 2', 'koute', 'gesco', 'industrielle', 'sable', 'millionnaire', 'nouveau quartier', 'acadie'] }
+  ],
+  'Abobo': [
+    { nom: 'Abobo – Nord & PK18', lib: 'Abobo – Nord & PK18 (PK18, N\'Dotré, Anonkoua Kouté, Belle Ville, Biabou)', mots: ['nord', 'abobo nord', 'pk18', 'pk 18', 'ndotre', 'n\'dotre', 'anonkoua', 'koute', 'belle ville', 'biabou', 'akeikoi', 'agneby'] },
+    { nom: 'Abobo – Centre & Mairie', lib: 'Abobo – Centre & Mairie (Samaké, Gare, Derrière rails, Mairie, Habitat)', mots: ['centre', 'abobo centre', 'samake', 'mairie', 'gendarmerie', 'gare', 'habitat', 'banco', 'marche', 'sogefiha', 'rail', 'rails', 'derriere rail', 'derriere rails'] },
+    { nom: 'Abobo – Baoulé & Avocatier', lib: 'Abobo – Baoulé & Avocatier (Abobo Baoulé, Avocatier, Clouetcha, Dépôt SOTRA, Abobo-Té)', mots: ['baoule', 'avocatier', 'clouetcha', 'sotra', 'abobo te', 'abobote'] },
+    { nom: 'Abobo – Sud & Plaque', lib: 'Abobo – Sud & Plaque (Sagbé, Plaque 1 & 2, Anador, Houphouët-Boigny, Dokui)', mots: ['sud', 'abobo sud', 'sagbe', 'plaque', 'anador', 'houphouet', 'agbekoi', 'dokui', 'colatier'] }
+  ]
+};
+
+function zoneDeQuartier(commune, quartier, lieu) {
+  var comNorm = normaliser(commune || '');
+  var comCle = (comNorm.indexOf('cocody') >= 0 ? 'Cocody' : (comNorm.indexOf('yopougon') >= 0 ? 'Yopougon' : (comNorm.indexOf('abobo') >= 0 ? 'Abobo' : '')));
+  if (!comCle || !ZONES_GRANDES_COMMUNES[comCle]) return '';
+  // 3.28.23 : mots entiers, le quartier d'abord, puis le nom du lieu (« Pharmacie » ne contient plus « cie »,
+  // « Plateau Dokui » ne passe plus pour Abobo-Té à cause de « te »)
+  var zones = ZONES_GRANDES_COMMUNES[comCle];
+  var mots = function (x) { return ' ' + String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' '; };
+  var colle = function (x) { return mots(x).replace(/ /g, ''); };
+  var essais = [[mots(quartier), false], [mots(lieu), false], [colle(quartier), true], [colle(lieu), true]];
+  for (var e = 0; e < essais.length; e++) {
+    var texte = essais[e][0], partiel = essais[e][1];
+    if (!texte.trim()) continue;
+    for (var i = 0; i < zones.length; i++) {
+      var z = zones[i];
+      for (var j = 0; j < z.mots.length; j++) {
+        var m = mots(z.mots[j]);
+        if (!partiel ? texte.indexOf(m) >= 0 : (m.replace(/ /g, '').length >= 5 && texte.indexOf(m.replace(/ /g, '')) >= 0)) return z.nom;
+      }
+    }
+  }
+  return zones[zones.length - 1].nom;
+}
+
+function communeParente(nom) {
+  if (!nom) return '';
+  var s = String(nom).trim();
+  // Seules les 3 grandes communes sont segmentées en sous-secteurs
+  var m = s.match(/^(Abobo|Cocody|Yopougon)\b/i);
+  if (m) {
+    var p = m[1].toLowerCase();
+    if (p === 'abobo') return 'Abobo';
+    if (p === 'cocody') return 'Cocody';
+    if (p === 'yopougon') return 'Yopougon';
+  }
+  return s;
+}
+
+function secteurDeQuartier(quartier, lieu, commune, listeQuartiers) {
+  var qs = listeQuartiers || (typeof quartiers === 'function' ? quartiers() : (typeof quartiersDefautObjets === 'function' ? quartiersDefautObjets() : []));
+  if (!qs || !qs.length) return commune || '';
+  var qNorm = normaliser(quartier || '');
+  if (qNorm) {
+    for (var i = 0; i < qs.length; i++) {
+      if (normaliser(qs[i].quartier) === qNorm) return qs[i].commune;
+    }
+  }
+  var lNorm = normaliser(lieu || '');
+  if (lNorm) {
+    for (var j = 0; j < qs.length; j++) {
+      var qn = normaliser(qs[j].quartier);
+      if (qn && qn.length >= 3 && lNorm.indexOf(qn) >= 0) return qs[j].commune;
+    }
+  }
+  return commune || '';
+}
+
+function communeCorrespondante(c, dans, listeQuartiers) {
+  if (!dans) return true;
+  var com = c.commune || '';
+  if (dans[com] || dans[com + ' (Toute la commune)']) return true;
+  var par = communeParente(com);
+  if (par && (dans[par] || dans[par + ' (Toute la commune)'])) return true;
+  // 3.26.63 : commune connue = seule référence (un lieu du Plateau ne passe plus pour Cocody à cause d'un mot de son nom)
+  if (com) {
+    var z = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier(com, c.quartier, '') : '';
+    return !!(z && dans[z]);
+  }
+  var sec = secteurDeQuartier(c.quartier, c.lieu, com, listeQuartiers);
+  if (sec && dans[sec]) return true;
+  if (sec) {
+    var secPar = communeParente(sec);
+    if (secPar && (dans[secPar] || dans[secPar + ' (Toute la commune)'])) return true;
+  }
+  var zone = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier(com, c.quartier, c.lieu) : '';
+  if (zone && dans[zone]) return true;
+  return false;
+}
 
 // 3.27.44 : Formatage strict du numéro de téléphone en Côte d'Ivoire (+225 07 47 27 55 38)
 function formaterTelephoneCI(n) {
@@ -1390,6 +1546,8 @@ if (typeof module !== 'undefined' && module.exports) {
     CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, CHAMPS_ETABLISSEMENTS: CHAMPS_ETABLISSEMENTS, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES,
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
-    quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive
+    quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
+    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
+    formaterTelephoneCI: formaterTelephoneCI
   };
 }

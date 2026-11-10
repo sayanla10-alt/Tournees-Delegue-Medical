@@ -43,6 +43,18 @@ function jumReq_(methode, chemin, payload, prefer) {
   return { code: r.getResponseCode(), texte: r.getContentText() };
 }
 
+// 3.29.0 : signal temps réel (Supabase Realtime, canal « mediplanner ») : les téléphones ouverts relisent la base aussitôt,
+// sans attendre leur vérification de 15 s. Aucune donnée dans le message, seulement le nom des tables modifiées.
+function jumDiffuser_(tables) {
+  if (!tables || !tables.length) return;
+  try {
+    var c = jumCfg_();
+    UrlFetchApp.fetch(c.url + '/realtime/v1/api/broadcast', { method: 'post', muteHttpExceptions: true, contentType: 'application/json',
+      headers: { apikey: c.key, Authorization: 'Bearer ' + c.key },
+      payload: JSON.stringify({ messages: [{ topic: 'mediplanner', event: 'maj', payload: { tables: tables, le: new Date().toISOString() } }] }) });
+  } catch (e) { console.warn('Diffusion temps réel : ' + e); }
+}
+
 function jumOk_(r, quoi) {
   if (r.code >= 200 && r.code < 300) return;
   throw new Error(quoi + ' : HTTP ' + r.code + ' ' + String(r.texte).slice(0, 300));
@@ -313,7 +325,7 @@ function synchroniserSupabase(force) {
   var t0 = Date.now(), props = PropertiesService.getScriptProperties();
   var emp = JSON.parse(props.getProperty('SUPA_EMPREINTES') || '{}');
   var etat = JSON.parse(props.getProperty('SUPA_ETAT') || '{}'); etat.tables = etat.tables || {};
-  var erreurs = 0, codesMed = null;
+  var erreurs = 0, codesMed = null, modifiees = [];
   try {
     // 1) d'abord ce qui a été modifié directement dans Supabase (Table Editor, SQL) : reporté dans le Sheet
     try { etat.retour = jumAppliquerSupabase_(); } catch (eR) { erreurs++; etat.retour = { erreur: String(eR.message || eR).slice(0, 300) }; }
@@ -333,6 +345,7 @@ function synchroniserSupabase(force) {
         try { var rq = jumReq_('get', table + '?select=' + (JUM_TABLES[table].pk || 'id') + '&maj_source=eq.api&limit=1'); horsServeur = rq.code === 200 && JSON.parse(rq.texte).length > 0; } catch (eA) {}
         if (force !== true && emp[table] === h && !horsServeur) return;
         var n = jumSyncTable_(table, rows, force === true || horsServeur);
+        modifiees.push(table);
         emp[table] = h;
         jumMemoriserLignes_(table, rows);
         etat.tables[table] = { sheets: rows.length + ignorees, supabase: n.total, supprimees: n.supprimees, le: new Date().toISOString() };
@@ -348,6 +361,7 @@ function synchroniserSupabase(force) {
     etat.duree = Math.round((Date.now() - t0) / 1000);
     props.setProperty('SUPA_EMPREINTES', JSON.stringify(emp));
     props.setProperty('SUPA_ETAT', JSON.stringify(etat));
+    jumDiffuser_(modifiees);
     Logger.log('JUMELAGE ' + (etat.ok ? 'OK' : erreurs + ' erreur(s)') + ' en ' + etat.duree + ' s ' + JSON.stringify(etat.tables));
     return { ok: etat.ok, etat: etat };
   } finally {
@@ -369,7 +383,8 @@ function jumMemoriserLignes_(table, rows) {
   if (txt.length < 95000) CacheService.getScriptCache().put('JRH_' + table, txt, 21600);
 }
 var JUM_APRES_ACTION = {
-  valider: ['visites', 'praticiens', 'pharmacies', 'audit_logs'], fiche: ['praticiens', 'presences', 'pharmacies', 'audit_logs'], planning: ['plannings'],
+  // 3.29.0 : le journal d'audit suit avec le jumelage de 5 minutes (il ne ralentit plus chaque enregistrement)
+  valider: ['visites', 'praticiens', 'pharmacies', 'plannings'], fiche: ['praticiens', 'presences', 'pharmacies'], planning: ['plannings'],
   rapport: ['rapports'], delegue: ['listes_reference'], etablissement: ['etablissements', 'presences'],
   fusion: ['etablissements', 'pharmacies', 'presences', 'visites', 'plannings', 'audit_logs']
 };
@@ -377,6 +392,9 @@ var JUM_APRES_ACTION = {
 function jumPousserApresEcriture_(action) {
   var tables = JUM_APRES_ACTION[action]; if (!tables) return;
   var cache = CacheService.getScriptCache(), codesMed = null;
+  try { jumPousserTables_(tables, cache, codesMed); } finally { jumDiffuser_(tables); }
+}
+function jumPousserTables_(tables, cache, codesMed) {
   tables.forEach(function (table) {
     try {
       var t = JUM_TABLES[table], rows = jumLignes_(table); if (!rows || !rows.length) return;

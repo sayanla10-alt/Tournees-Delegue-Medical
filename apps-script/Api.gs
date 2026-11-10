@@ -22,8 +22,9 @@ var FEUILLES = {
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour', audit: 'Audit_Logs'
 };
-var VERSION_SERVEUR = '3.28.16';
-var NB_HISTORIQUE_RENVOYE = 1500;      // visites renvoyées à l'application (statistiques sur un mois d'équipe)
+var VERSION_SERVEUR = '3.29.0';
+var NB_HISTORIQUE_RENVOYE = 8000;      // 3.29.0 : dernières lignes lues dans Historique (plafond de sécurité)
+var JOURS_HISTORIQUE_RENVOYE = 120;    // 3.29.0 : visites des 120 derniers jours renvoyées à l'application (comme Supabase)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)
 var JOURS_PLANNINGS_EQUIPE = 14;       // rafraîchissement léger toutes les 2 minutes
 var COULEUR_ENTETE = '#0B4F6C';
@@ -72,12 +73,16 @@ function doPost(e) {
     if (!jetonValide(body.token)) return json({ ok: false, erreur: 'Jeton d\'accès invalide.' });
     var actions = { valider: function () { return enregistrerVisites(body.visites || []); }, planning: function () { return publierPlanning(body); },
       fiche: function () { return ficheUnique(body); }, etablissement: function () { return enregistrerEtablissement(body.etablissement || body); },
-      rapport: function () { return enregistrerRapport(body.rapport || {}); }, delegue: function () { return ajouterDelegue(body.nom); } };
+      rapport: function () { return enregistrerRapport(body.rapport || {}); }, delegue: function () { return ajouterDelegue(body.nom); },
+      erreur: function () { return enregistrerErreursApp(body); } };
     if (!actions[body.action]) return json({ ok: false, erreur: 'Action inconnue.' });
+    // 3.29.0 : erreurs des téléphones : journal seulement, sans toucher aux données ni au cache de lecture
+    if (body.action === 'erreur') { AUDIT_TAMPON_ = []; try { return json(actions.erreur()); } finally { viderAudit_(); } }
     // 3.27.52 : toute écriture invalide le cache de lecture (avant et après, pour qu'aucune lecture en cours ne fige l'ancien état)
     marquerModif();
     var resultat;
-    try { resultat = actions[body.action](); } finally { marquerModif(); }
+    AUDIT_TAMPON_ = [];   // 3.29.0 : journal d'audit écrit en une fois à la fin de l'appel
+    try { resultat = actions[body.action](); } finally { marquerModif(); viderAudit_(); }
     // 3.28.12 : Supabase (base principale de lecture) mis à jour avant la réponse au téléphone
     if (resultat && resultat.ok !== false) { try { if (typeof jumPousserApresEcriture_ === 'function') jumPousserApresEcriture_(body.action); } catch (eJ) { console.warn('Jumelage : ' + eJ); } }
     return json(resultat);

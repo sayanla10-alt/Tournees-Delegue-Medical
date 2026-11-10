@@ -64,7 +64,8 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 - L'application lit Supabase (`bddSource = 'supabase'`), et Google Sheets en secours. Toute écriture passe par le serveur Apps Script (règles métier : codes, fusions, compteurs, géocodage), qui écrit le Sheet puis Supabase avant de répondre (`jumPousserApresEcriture_` dans doPost).
 - `apps-script/Jumelage.gs` : déclencheur `jumelageAuto` toutes les 5 minutes (1. modifications faites directement dans Supabase, `maj_source = 'supabase'`, reportées dans le Sheet, suppressions comprises via `jumelage_suppressions` ; 2. Sheet vers Supabase, ajouts, modifications, suppressions) et déclencheur installable `jumSurEdition` (saisie à la main dans le Sheet envoyée tout de suite).
 - Le serveur écrit dans Supabase avec l'en-tête `x-mediplanner: sheets`. Une écriture d'API sans cet en-tête est marquée `api` et écrasée par le Sheet. Ne jamais faire écrire le téléphone directement dans Supabase (`MIROIR_CLIENT = false`).
-- Les téléphones vérifient l'empreinte de Supabase toutes les 15 s (`marqueurSupabase_` : nombre de lignes et dernière modification par table) et ne rechargent que si elle change : un ajout d'un délégué est vu par les autres en 15 s environ.
+- Temps réel (3.29.0) : après chaque écriture (application, saisie dans le Sheet via `jumSurEdition`, tour de 5 minutes), le serveur envoie un signal sur le canal Supabase Realtime `mediplanner` (`jumDiffuser_`, sans données) ; les téléphones ouverts relisent aussitôt la base. Secours : empreinte de Supabase (`marqueurSupabase_`) toutes les 15 s, 60 s quand le signal temps réel est actif.
+- Journées et visites supprimées : lignes « Supprimé » de l'onglet Plannings (CodeContact `-` pour une journée entière), publiées avec la tournée ; elles valent sur tous les appareils du délégué. Ne pas les compter comme des visites (`sansSuppressions`).
 - Le dossier `apps-script/` est la copie exacte du serveur en ligne : toute modification passe par le dépôt, puis l'éditeur Apps Script (fichiers remplacés en entier), puis un déploiement. Plus de `SupabaseSync.gs` (remplacé par `Jumelage.gs`).
 - Déclencheurs SQL : `supabase/jumelage_bidirectionnel.sql`. Colonnes : `supabase/jumelage_colonnes.sql`.
 - Nouvelle colonne ou nouvel onglet : l'ajouter dans `jumLignes_`, `JUM_TABLES`, `JUM_RETOUR`, créer la colonne dans Supabase et la lire dans `chargerToutSupabase`.
@@ -76,3 +77,13 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 - Chaque cellule changée et chaque ligne retirée est notée dans `Fusions_Journal` (masqué) : toute fusion s'annule, sans écraser ce qui a été modifié depuis.
 - L'onglet `Fusions` garde les redirections : `fusRediriger_` / `fusRedirigerFiche_` rattachent à la fiche gardée une visite, une tournée ou une fiche envoyée plus tard avec l'ancien code, l'ancien identifiant de lieu ou l'ancien nom. Ne pas supprimer cet onglet.
 - Supabase suit aussitôt (`JUM_APRES_ACTION.fusion`). Tests : `test-fusion.js` (simulation complète puis annulation, retour à l'état initial vérifié).
+
+## 13. CODE PARTAGÉ : `commun.js` SOURCE UNIQUE
+- `apps-script/Commun.gs` est la copie exacte de `commun.js`, produite par `node scripts/commun.js` ; contrôle avant publication : `node scripts/commun.js --verifier`. Ne jamais modifier `Commun.gs` à la main.
+- Spécialités : toujours passer par `specialiteCanonique` (Cardiologie = Cardiologue, Infirmier = Généraliste…). Codes : `numeroCode` (au-delà de 999, jamais tronqué).
+
+## 14. ENVOIS ET STOCKAGE DU TÉLÉPHONE
+- Un compte rendu ou une fiche n'est mis de côté (`deadLetter`) que sur un refus du serveur (`e.refus`), jamais sur une erreur de réseau ; les envois refusés sont listés dans Réglages › Avancé et comptés dans « x en attente ».
+- Avant la relecture d'IndexedDB au démarrage, aucune écriture n'y part ; la file, les fiches et les envois refusés sont fusionnés par uid (jamais remplacés).
+- Erreurs du téléphone : `signalerErreur` -> action serveur `erreur` -> journal d'audit (Action `ERREUR_APP`).
+
