@@ -1,9 +1,7 @@
 {
-  "version": "3.29.3",
+  "version": "3.29.4",
   "date": "2026-11-10",
   "notes": [
-    "Journée : position GPS précise suivie en continu",
-    "Fixer la position d'un lieu : mesure précise avant d'enregistrer",
-    "Planifier : visite déjà renseignée hors des communes choisies sur fond ambre"
+    "Journée sans planification : + Médecin, + Pharmacie et Autour de moi"
   ]
 }

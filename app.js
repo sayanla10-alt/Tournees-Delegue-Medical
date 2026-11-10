@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.3';
+  var APP_VERSION = '3.29.4';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.4', ['Journée, jour sans planification : + Médecin, + Pharmacie et Autour de moi sous « Reprendre un ancien programme »']],
     ['3.29.3', ['Journée : écran allumé, la position GPS précise est suivie en continu ; les distances « de vous » se mettent à jour en marchant (suivi arrêté dès qu\'on quitte Journée ou l\'application)',
                'Fixer la position d\'un lieu : votre position est d\'abord remesurée avec précision (± 15 m visés, jusqu\'à 25 s) ; au-delà de ± 30 m, l\'application demande avant d\'enregistrer',
                'Planifier et Journée : une visite déjà renseignée, un RDV de suivi ou un ancien programme repris hors des communes choisies pour le jour s\'affiche sur fond ambre, avec l\'étiquette « Déjà renseignée, hors communes choisies »']],
@@ -4122,7 +4123,11 @@
     // week-end ou férié : on propose le prochain jour ouvré
     var n = 0; while ((jourSemaineIndex(d) > 4 || estFerie(d)) && n++ < 10) d = ajouterJours(d, 1);
     return '<button class="bouton bouton-plein bouton-large" type="button" data-a="planifierDate" data-v="' + d + '" style="margin-top:12px">' + icone('calendrier') + 'Planifier le ' + esc(dateCourte(d)) + '</button>' +
-      boutonAnciens('margin-top:8px');   // 3.26.76 : ou reprendre un ancien programme
+      boutonAnciens('margin-top:8px') +   // 3.26.76 : ou reprendre un ancien programme
+      // 3.29.4 : ou composer la journée soi-même : + Médecin, + Pharmacie, Autour de moi
+      '<div class="rangee-tirage barre-remplacant" style="margin-top:8px"><button class="bouton" type="button" data-a="ajouterProches" data-v="Médecin" data-d="' + d + '">' + icone('plus') + '<span>Médecin</span></button>' +
+      '<button class="bouton" type="button" data-a="ajouterProches" data-v="Pharmacie" data-d="' + d + '">' + icone('plus') + '<span>Pharmacie</span></button>' +
+      '<button class="bouton" type="button" data-a="ajouterTournee" data-d="' + d + '">' + icone('cible') + '<span>Autour de moi</span></button></div>';
   }
   // 3.24.7 : compteurs du jour : visites, faites, sans CR (ouvre le compte rendu), à planifier
   // (visites par jour voulues dans Planifier moins celles déjà prévues ; ouvre Planifier pour ce jour)
