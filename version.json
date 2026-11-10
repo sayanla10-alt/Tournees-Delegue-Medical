@@ -1,9 +1,8 @@
 {
-  "version": "3.29.0",
+  "version": "3.29.1",
   "date": "2026-11-10",
   "notes": [
-    "Comptes rendus : plus jamais mis de côté pour une coupure de réseau",
-    "Modifications du Sheet visibles en quelques secondes",
-    "Répertoire : tous les prescripteurs, spécialités sans doublon"
+    "Répertoire : « cœur de cible » affiché quand c'est le cas",
+    "Hôpitaux : étoiles sur la ligne du nom"
   ]
 }

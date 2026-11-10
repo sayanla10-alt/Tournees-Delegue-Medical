@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.0';
+  var APP_VERSION = '3.29.1';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.1', [
+      'Répertoire : le message dit « cœur de cible » quand seules les spécialités du cœur de cible sont filtrées ; « toutes spécialités » seulement quand aucune n\'est filtrée',
+      'Répertoire › Hôpitaux : les étoiles restent sur la ligne du nom du médecin ; « Aujourd\'hui » en tête de la ligne suivante'
+    ]],
     ['3.29.0', [
       'Comptes rendus et fiches : une coupure de réseau ne les met plus jamais de côté ; ils repartent seuls jusqu\'à leur arrivée. Ceux mis de côté par les versions précédentes repartent d\'eux-mêmes',
       'Envois refusés par le serveur : comptés dans « en attente », listés dans Réglages › Avancé avec le motif, et renvoyables',
@@ -1703,14 +1707,14 @@
     return Object.keys(n).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).map(function (k) { return { nom: k, n: n[k] }; });
   }
   // Détermine si toutes les spécialités cibles (ou toutes les spécialités médicales) sont sélectionnées
+  // 3.29.1 : « toutes » seulement si aucune spécialité n'est filtrée ou si toutes celles de la base sont cochées
+  // (le cœur de cible ou 4 spécialités ne sont plus présentés comme « toutes spécialités »)
   function sontToutesSpecialites(specs) {
     if (!specs || !specs.length) return true;
-    if (typeof memeEnsembleSpecs === 'function' && typeof coeurDeCible === 'function' && memeEnsembleSpecs(specs, coeurDeCible())) return true;
-    var tot = specialitesListe();
-    if (tot.length > 0 && specs.length >= tot.length) return true;
-    if (specs.length >= 4) return true;
-    return false;
+    var sel = ensemble(specs.map(specialiteCanonique)), tot = specialitesListe();
+    return tot.length > 0 && tot.every(function (x) { return sel[x.nom]; });
   }
+  function estCoeurDeCible(specs) { return !!(specs && specs.length) && memeEnsembleSpecs(harmoniserSpecs(specs), harmoniserSpecs(coeurDeCible())); }
   // Durée estimée d'une journée : du premier RDV à la fin de la dernière visite
   function estimationJour(l) {
     var R = REGLAGES_MOTEUR, deb = null, fin = null, dist = 0;
@@ -6840,6 +6844,12 @@
     return '<span class="nom-lien" data-a="voirContact" data-v="' + esc(code) + '" role="link" tabindex="0" title="Ouvrir la fiche">' + html + '</span>';
   }
   // 3.28.9 : nom d'un médecin engagé en ambre, partout où un nom est affiché
+  // 3.29.1 : nom + étoiles : le dernier mot du nom et les étoiles ne se séparent jamais (étoiles jamais seules à la ligne)
+  function nomEtoiles(p) {
+    var eng = p && !estPharmacie(p) && estConventionne(p.conventionne !== undefined ? p.conventionne : ((praticien(p.code) || {}).conventionne));
+    var mots = String(p ? p.nom : '').trim().split(/\s+/), dernier = mots.pop() || '';
+    return '<b' + (eng ? ' class="nom-engage"' : '') + '>' + esc(mots.length ? mots.join(' ') + ' ' : '') + '<span class="nom-fin">' + esc(dernier) + '\u00a0' + etoiles(p.note) + '</span></b>';
+  }
   function nomPrat(p) {
     var eng = p && !estPharmacie(p) && estConventionne(p.conventionne !== undefined ? p.conventionne : ((praticien(p.code) || {}).conventionne));
     return '<b' + (eng ? ' class="nom-engage"' : '') + '>' + esc(p ? p.nom : '') + '</b>';
@@ -7087,7 +7097,8 @@
     var l = [];
     if (f.type !== 'tous') l.push(['type', f.type, f.type === 'Pharmacie' ? 'Pharmacies' : 'Médecins']);
     f.potentiels.forEach(function (x) { l.push(['potentiels', x, ETOILES[x]]); });
-    if (f.type !== 'Pharmacie' && !sontToutesSpecialites(f.specialites)) f.specialites.forEach(function (x) { l.push(['specialites', x, x]); });
+    if (f.type !== 'Pharmacie' && estCoeurDeCible(f.specialites)) l.push(['specialites', '__coeur', 'Cœur de cible']);
+    else if (f.type !== 'Pharmacie' && !sontToutesSpecialites(f.specialites)) f.specialites.forEach(function (x) { l.push(['specialites', x, x]); });
     f.communes.forEach(function (x) { l.push(['communes', x, x]); });
     if (f.visite !== 'tous') l.push(['visite', f.visite, LIB_VISITE[f.visite]]);
     if (f.conv !== 'tous') l.push(['conv', f.conv, f.conv === 'oui' ? 'Engagés' : 'Non engagés']);
@@ -7158,7 +7169,7 @@
         } },
       { id: 'spec', si: f.type !== 'Pharmacie', resume: function () {
           if (!f.specialites.length) return 'Toutes';
-          if (memeEnsembleSpecs(f.specialites, coeurDeCible())) return 'Cœur de cible';
+          if (estCoeurDeCible(f.specialites)) return 'Cœur de cible';
           if (sontToutesSpecialites(f.specialites)) return 'Toutes';
           return f.specialites.length <= 2 ? f.specialites.map(abrSpec).join(', ') : f.specialites.slice(0, 2).map(abrSpec).join(', ') + ' +' + (f.specialites.length - 2);
         },
@@ -7279,6 +7290,8 @@
     if (f.type !== 'Pharmacie') {
       if (sontToutesSpecialites(f.specialites)) {
         c.push('toutes spécialités');
+      } else if (estCoeurDeCible(f.specialites)) {
+        c.push('cœur de cible (' + f.specialites.length + ' spécialité' + (f.specialites.length > 1 ? 's' : '') + ')');
       } else if (f.specialites.length) {
         t += ' ' + f.specialites.map(function (x) {
           var ab = abbrevSpec(x);
@@ -7305,7 +7318,7 @@
     if (q && String(q).trim()) c.push('« ' + String(q).trim() + ' »');
     var lt = { priorite: 'tri potentiel', score: 'tri priorité', retard: 'tri retard', nom: 'tri nom' };
     if (n > 1 && lt[tri]) c.push(lt[tri]);
-    var aucunFiltre = f.type === 'tous' && (!f.communes || !f.communes.length) && (!f.potentiels || !f.potentiels.length) &&
+    var aucunFiltre = f.type === 'tous' && sontToutesSpecialites(f.specialites) && (!f.communes || !f.communes.length) && (!f.potentiels || !f.potentiels.length) &&
                       f.visite === 'tous' && f.conv === 'tous' && f.equipe === 'tous' && (!q || !String(q).trim());
     if (aucunFiltre) {
       return t + ' · Toute la base de données';
@@ -7391,8 +7404,9 @@
           var p = c.prat[x.code];
           var jours = JOURS_CLES.map(function (j, i) { var v = lireDispo(x[j]); return v.matin || v.soir ? JOURS[i].slice(0, 3) + ' ' + (v.matin && v.soir ? 'M+S' : (v.matin ? 'M' : 'S')) : ''; }).filter(Boolean).join(' · ');
           var auj = ordre(x) === 0;
-          return '<li><button type="button" class="hop-med" data-a="voirContact" data-v="' + esc(p.code) + '">' + nomPrat(p) + ' ' + etoiles(p.note) + (auj ? ' <span class="etiquette auj">Aujourd\'hui</span>' : '') +
-            '<small>' + (p.specialite ? '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>' + (jours ? ' · ' : '') : '') + esc(jours) + '</small></button>' +
+          // 3.29.1 : étoiles toujours collées au nom (sur sa ligne) ; « Aujourd'hui » en tête de la ligne suivante
+          return '<li><button type="button" class="hop-med" data-a="voirContact" data-v="' + esc(p.code) + '">' + nomEtoiles(p) +
+            '<small>' + (auj ? '<span class="etiquette auj">Aujourd\'hui</span> ' : '') + (p.specialite ? '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>' + (jours ? ' · ' : '') : '') + esc(jours) + '</small></button>' +
             '<button type="button" class="bouton petit" data-a="planifierProchaines" data-v="' + esc(p.code) + '">Planifier</button></li>';
         }).join('') + '</ul>';
       }
@@ -12595,7 +12609,8 @@
     },
     retirerFiltre: function (el) {
       var f = filtresCour(), k = el.dataset.k;
-      if (Array.isArray(f[k])) f[k] = f[k].filter(function (x) { return x !== el.dataset.v; }); else f[k] = 'tous';
+      if (k === 'specialites' && el.dataset.v === '__coeur') f[k] = [];   // 3.29.1 : retirer « Cœur de cible » = toutes les spécialités
+      else if (Array.isArray(f[k])) f[k] = f[k].filter(function (x) { return x !== el.dataset.v; }); else f[k] = 'tous';
       majFiltres(f); rendre();
     },
     effacerFiltres: function () {

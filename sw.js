@@ -12,13 +12,13 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.29.0';
+var VERSION = '3.29.1';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-700-normal.woff2'
 ];
-// 3.29.0 : les fichiers sont pré-chargés exactement sous l'adresse que la page demande (?v=version) et toujours depuis
+// 3.29.1 : les fichiers sont pré-chargés exactement sous l'adresse que la page demande (?v=version) et toujours depuis
 // le réseau (cache: 'reload'), jamais depuis le cache du navigateur : une nouvelle version ne peut plus enregistrer l'ancien fichier
 var FICHIERS = [
   './', './index.html', './manifest.webmanifest',
@@ -67,7 +67,7 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  // 3.29.0 : une page ouverte avec des paramètres (lien de partage) ou hors ligne retombe sur index.html
+  // 3.29.1 : une page ouverte avec des paramètres (lien de partage) ou hors ligne retombe sur index.html
   var navigation = e.request.mode === 'navigate';
   e.respondWith(
     caches.match(e.request).then(function (r) {

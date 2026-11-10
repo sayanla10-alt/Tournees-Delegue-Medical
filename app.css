@@ -2543,7 +2543,9 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 }
 /* 3.28.9 : bulle « Aujourd'hui » / présents aujourd'hui (sarcelle, distincte de l'ambre des engagés) */
 .etiquette.auj { background: var(--primaire-pale); color: var(--primaire); border-color: var(--primaire); font-weight: 700; }
-.hop-medecins .etiquette.auj { margin-left: 4px; vertical-align: middle; }
+.hop-medecins .etiquette.auj { margin: 0 4px 0 0; vertical-align: middle; }
+.nom-fin { white-space: nowrap; }
+.nom-fin .note { font-weight: 400; }
 
 /* Types de visite organisés (Communs + Spécifiques Médecin / Pharmacie) */
 .types-cr { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
