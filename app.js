@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.7';
+  var APP_VERSION = '3.29.8';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.8', ['Fiche : dans la liste des établissements proposés, c\'est bien celui touché qui est repris ; un nom qui correspond à plusieurs établissements (ex. « Bingerville ») n\'est plus remplacé automatiquement par le premier']],
     ['3.29.7', ['+ Médecin, + Pharmacie, Autour de moi : « Par ma position » mesure d\'abord votre position avec précision, puis affiche les résultats ; votre quartier s\'affiche dans « Ou choisir un quartier »']],
     ['3.29.6', ['Répertoire, Pharmacies : distance depuis votre position sur chaque carte, comme pour les hôpitaux']],
     ['3.29.5', ['Planifier, jour sans planification : + Médecin, + Pharmacie et Autour de moi sous « Reprendre un ancien programme », comme dans Journée']],
@@ -9753,6 +9754,14 @@
     l.forEach(function (e) { e.txt = normaliser(e.lieu + ' ' + (e.quartier || '') + ' ' + (e.commune || '') + ' ' + (e.categorie || '')); });
     return l;
   }
+  function cleEtab(e) { return normaliser(e.lieu || '') + '|' + normaliser(e.commune || '') + '|' + normaliser(e.quartier || ''); }
+  // 3.29.8 : texte tapé qui correspond à plusieurs établissements (ex. « Bingerville ») : pas de correction automatique, l'utilisateur choisit
+  function lieuAmbigu(v) {
+    var t = normaliser(v || ''), mots = sansAccents(String(v || '')).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean);
+    if (!mots.length) return false;
+    var l = etablissementsConnus().filter(function (e) { var n = e.txt || normaliser(e.lieu || ''); return mots.every(function (m) { return n.indexOf(m) >= 0; }); });
+    return !l.some(function (e) { return normaliser(e.lieu || '') === t; }) && l.length > 1;
+  }
   function suggestionsLieu(q, i) {
     var t = normaliser(q || ''), mots = t ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
     S.ui.sugLieux = S.ui.sugLieux || {}; S.ui.sugLieux[i] = [];
@@ -9790,7 +9799,7 @@
       return '<div class="discret" style="font-size:12px;margin:6px 0 4px;font-weight:700;color:var(--primaire)">' + libTitre + '</div>' +
         '<ul class="sug-liste">' + tri.map(function (e, k) {
           var distTxt = e.dist < 50 ? (e.dist < 1 ? Math.round(e.dist * 1000) + ' m' : km(e.dist)) : '';
-          return '<li><button type="button" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '"><b>' + esc(e.lieu) + '</b><small>' +
+          return '<li><button type="button" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '" data-cle="' + esc(cleEtab(e)) + '"><b>' + esc(e.lieu) + '</b><small>' +
             esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + (distTxt ? ' · ' + distTxt : '') + ' · ' + (e.n ? e.n + ' praticien' + (e.n > 1 ? 's' : '') : 'Hôpital') + '</small></button></li>';
         }).join('') + '</ul>';
     }
@@ -9815,7 +9824,7 @@
     if (!l.length) return '';
     return '<ul class="sug-liste">' + l.map(function (e, k) {
       var distTxt = e.dist < 50 ? (e.dist < 1 ? Math.round(e.dist * 1000) + ' m' : km(e.dist)) : '';
-      return '<li><button type="button" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '"><b>' + esc(e.lieu) + '</b><small>' +
+      return '<li><button type="button" data-a="ficheChoixLieu" data-i="' + i + '" data-v="' + k + '" data-cle="' + esc(cleEtab(e)) + '"><b>' + esc(e.lieu) + '</b><small>' +
         esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Quartier non renseigné') + (distTxt ? ' · ' + distTxt : '') + ' · ' + (e.n ? e.n + ' praticien' + (e.n > 1 ? 's' : '') : 'Hôpital') + '</small></button></li>';
     }).join('') + '</ul>';
   }
@@ -12874,7 +12883,14 @@
       }
     },
     ficheChoixLieu: function (el) {
-      var f = S.ui.feuille, i = +el.dataset.i, e = ((S.ui.sugLieux || {})[i] || [])[+el.dataset.v]; if (!f || !e) return;
+      // 3.29.8 : l'établissement touché est retrouvé par son nom et sa commune (et non par sa place dans la liste, qui peut avoir bougé)
+      var f = S.ui.feuille, i = +el.dataset.i, cle = el.dataset.cle;
+      var e = cle ? etablissementsConnus().filter(function (x) { return cleEtab(x) === cle; })[0] : null;
+      if (!e) e = ((S.ui.sugLieux || {})[i] || [])[+el.dataset.v];
+      if (!f || !e) return;
+      // le champ quitte le focus avec le nom choisi : sans cela, l'écran redessiné y remettait le texte tapé (« Bingerville »)
+      var act = document.activeElement;
+      if (act && act.dataset && act.dataset.f === 'fiche' && act.dataset.k === 'lieu') { act.value = e.lieu; S.ui.ignorerChangeLieu = true; try { act.blur(); } catch (x) {} S.ui.ignorerChangeLieu = false; }
       var l = f.d.lieux[i]; l.lieu = e.lieu; delete f.err['lieu' + i];
       // 3.26.59 : établissement connu : repères repris de la base
       if (!l.reperes) { var pR = (S.data.presences || []).filter(function (x) { return x.reperes && normaliser(x.lieu) === normaliser(e.lieu); })[0]; if (pR) l.reperes = pR.reperes; }
@@ -13083,6 +13099,12 @@
     var d = e.target; if (!d || !d.dataset || !d.dataset.bil) return;
     (S.ui.bilOuverts = S.ui.bilOuverts || {})[d.dataset.bil] = d.open;
   }, true);
+  // 3.29.8 : toucher une suggestion d'établissement ne fait pas quitter le champ avant le choix (sinon l'écran se redessine
+  // sous le doigt et un autre établissement est pris)
+  document.addEventListener('mousedown', function (e) {
+    var b = e.target && e.target.closest && e.target.closest('.sug-lieux button');
+    if (b) e.preventDefault();
+  }, true);
   document.addEventListener('input', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'ident') { (S.ui.identBrouillon = S.ui.identBrouillon || {})[el.dataset.k] = el.value; return; }
@@ -13094,7 +13116,7 @@
         var idxL = +el.dataset.i, valL = el.value.trim();
         var zs = document.getElementById('sugLieu' + idxL);
         if (zs) zs.innerHTML = suggestionsLieu(valL, idxL);
-        if (valL.length >= 2 && S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.lieux[idxL]) {
+        if (valL.length >= 2 && S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.lieux[idxL] && !lieuAmbigu(valL)) {
           var lObj = S.ui.feuille.d.lieux[idxL];
           var bddMatch = trouverEtablissementBDD(valL, lObj.quartier, lObj.commune);
           if (bddMatch && bddMatch.quartier && !/^NL$/i.test(bddMatch.quartier)) {
@@ -13215,7 +13237,8 @@
       rendre();
     }
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
-    if (f === 'fiche') majChampFiche(el, true);
+    // 3.29.8 : champ retiré de l'écran (redessiné après un choix dans une liste) : son ancienne valeur ne doit rien écraser
+    if (f === 'fiche' && el.isConnected && !S.ui.ignorerChangeLieu) majChampFiche(el, true);
     if (f === 'importSecours' && el.files && el.files[0]) { importerSecours(el.files[0]); el.value = ''; }
     if (f === 'saisieAvancee') { S.config.modifPasse = S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie avancée activée : jours passés et à venir modifiables.' : 'Saisie avancée désactivée : seul le jour même se saisit.'); rendre(); }
     if (f === 'waWeb') { S.config.waWeb = el.checked; LS.set('config', S.config); toast(el.checked ? 'WhatsApp Web sera toujours ouvert.' : 'WhatsApp s\'ouvrira dans l\'application du téléphone.'); }
@@ -13253,7 +13276,7 @@
     }
     if (i !== undefined) d.lieux[+i][k] = v; else d[k] = v;
     if (!change) return;
-    if (k === 'lieu' && d.type !== 'Pharmacie' && i !== undefined) {
+    if (k === 'lieu' && d.type !== 'Pharmacie' && i !== undefined && !lieuAmbigu(v)) {
       // Auto-correction vers l'écriture officielle et récupération automatique du quartier / GPS depuis la BDD
       var can = trouverEtablissementBDD(v, d.lieux[+i].quartier, d.lieux[+i].commune);
       if (can) {

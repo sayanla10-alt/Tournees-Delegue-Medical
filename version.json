@@ -1,7 +1,7 @@
 {
-  "version": "3.29.7",
+  "version": "3.29.8",
   "date": "2026-11-10",
   "notes": [
-    "Par ma position : position mesurée d'abord, quartier affiché"
+    "Fiche : l'établissement choisi dans la liste est bien celui repris"
   ]
 }
