@@ -87,3 +87,9 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 - Avant la relecture d'IndexedDB au démarrage, aucune écriture n'y part ; la file, les fiches et les envois refusés sont fusionnés par uid (jamais remplacés).
 - Erreurs du téléphone : `signalerErreur` -> action serveur `erreur` -> journal d'audit (Action `ERREUR_APP`).
 
+
+## 15. FICHES DE VISITE PHOTOGRAPHIÉES (`apps-script/Ocr.gs`, 3.30.0)
+- Répertoire › Ajouter › Fiche : photo (2000 px, JPEG 0,82) envoyée par l'action `lireFiche` ; le serveur la range dans le dossier Drive « MediPlanner - Fiches scannées », la fait lire par Gemini (JSON imposé par `schemaLectureFiche_`), note la lecture dans l'onglet « Fiches scannées » et l'audit `LECTURE_FICHE`. Cette action ne modifie ni Praticiens ni Présences et ne déclenche pas le jumelage.
+- Clé : propriété du script `CLE_GEMINI` (menu MediPlanner › Lecture des fiches photographiées), jamais dans le code ; modèle : propriété `MODELE_GEMINI`, sinon `MODELES_GEMINI_DEFAUT` (404 : modèle suivant).
+- Rien n'est écrit sans l'écran « Vérifier la fiche ». L'enregistrement passe par `enregistrerFiche` (file d'envoi habituelle). Contact existant : seuls les champs vides sont complétés, un écart (téléphone, spécialité) se remplace seulement si la case est cochée. La fiche fait foi : le jour de visite devient présence confirmée sur le lieu lu (créneaux choisis, matin et soir par défaut) ; une absence déclarée couvrant ce jour s'arrête la veille. Nouveau contact : seuls ce jour et ces créneaux sont cochés (jamais la semaine entière par défaut).
+- Le téléphone garde la photo (clé `fichesScannees`, IndexedDB) tant qu'elle n'est pas lue : coupure réseau = « En attente », relancée au retour du réseau et à l'ouverture.

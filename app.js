@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.9';
+  var APP_VERSION = '3.30.0';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.30.0', ['Répertoire › Ajouter › Fiche : photographiez une fiche de visite ; le serveur la range dans Drive et la lit (écriture manuscrite, texte imprimé, cachets)',
+               'Vérification avant enregistrement : date, médecins et pharmacies lus, fiche existante proposée ou nouveau contact ; un contact existant n\'est complété que sur ses champs vides (remplacement au choix)',
+               'La fiche fait foi : le jour de la visite devient un jour de présence confirmé (matin et soir) sur le lieu lu ; une absence déclarée qui couvre ce jour s\'arrête la veille']],
     ['3.29.9', ['Compte rendu de visite (médecin) : étapes « Produits présentés ? », choix des produits présentés et « Réaction du médecin » rétablies ; échantillons parmi les produits présentés ; formulaire express : produits présentés rétablis ; synthèse : produits présentés rétablis']],
     ['3.29.8', ['Fiche : dans la liste des établissements proposés, c\'est bien celui touché qui est repris ; un nom qui correspond à plusieurs établissements (ex. « Bingerville ») n\'est plus remplacé automatiquement par le premier']],
     ['3.29.7', ['+ Médecin, + Pharmacie, Autour de moi : « Par ma position » mesure d\'abord votre position avec précision, puis affiche les résultats ; votre quartier s\'affiche dans « Ou choisir un quartier »']],
@@ -1122,7 +1125,7 @@
 
   var PREFIXE = 'tournees.';
   var CLES_LEGERES = { config: true, token: true, theme: true, onglet: true };
-  var CLES_LOURDES = { data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true };
+  var CLES_LOURDES = { fichesScannees: true, data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true };
   // 3.29.0 : saisies pas encore reçues par le serveur : fusionnées (jamais remplacées) à la relecture, copie de secours si l'écriture échoue
   var CLES_PRECIEUSES = { queue: true, fiches: true, deadLetter: true };
 
@@ -7572,7 +7575,7 @@
       (S.ui.contactOuvert
         ? '<button class="bouton bouton-modifier-rep" type="button" data-a="modifierActif">' + icone('crayon') + '<span>Modifier</span></button>'
         : '<button class="bouton bouton-modifier-rep desactive" type="button" data-a="modifierActif" style="opacity:.45" title="Touchez d\'abord un contact dans la liste">' + icone('crayon') + '<span>Modifier</span></button>') +
-      '</div>';
+      '</div>' + bandeauScans();   // 3.30.0 : fiches photographiées à vérifier ou en cours de lecture
     var aFiltres = criteresActifs(f).length > 0 || !!(S.ui.recherche && String(S.ui.recherche).trim());
     var phrase = phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri);
     h += '<div class="bandeau-criteres-rep">' +
@@ -10043,6 +10046,235 @@
   }
   function nomCreer(d) { var n = nomAvecTitre(d.nom, d.type); return n ? '« ' + n + ' »' : (d.type === 'Pharmacie' ? 'cette pharmacie' : 'ce médecin'); }
 
+  // ------------------------------------------------------------------ 3.30.0 : fiches de visite photographiées
+  // Répertoire › + Ajouter › Fiche : photo de la fiche (appareil photo du téléphone), compressée, envoyée au serveur
+  // qui la range dans Drive et la fait lire (Gemini). La lecture revient ici : le délégué vérifie chaque médecin et
+  // chaque pharmacie lus, choisit la fiche existante correspondante ou un nouveau contact, puis enregistre.
+  // L'enregistrement passe par enregistrerFiche (mêmes envois, mêmes contrôles que la saisie à la main).
+  // Règles : un contact existant n'est complété que sur les champs vides (remplacement au choix) ; la fiche papier fait foi
+  // pour la date : le jour de la visite devient un jour de présence confirmé (matin et soir) sur le lieu lu, et une
+  // absence déclarée qui couvre ce jour s'arrête la veille.
+  var CLE_SCANS = 'fichesScannees';
+  function scans() { var l = LS.get(CLE_SCANS, []); return Array.isArray(l) ? l : []; }
+  function sauverScans(l) {
+    var lim = Date.now() - 7 * 86400000;   // fiches enregistrées gardées 7 jours, puis oubliées (la photo reste dans Drive)
+    LS.set(CLE_SCANS, l.filter(function (x) { return x.statut !== 'enregistree' || x.t > lim; }));
+  }
+  function scan(id) { return scans().filter(function (x) { return x.id === id; })[0] || null; }
+  function majScan(id, fn) { var l = scans(); l.forEach(function (x) { if (x.id === id) fn(x); }); sauverScans(l); }
+  function scansEnCours() { return scans().filter(function (x) { return x.statut !== 'enregistree'; }); }
+
+  function choisirPhotoFiche() {
+    if (!connecte()) { toast('Lecture des fiches : il faut être relié à la base (pas en démonstration).', 4500); return; }
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.setAttribute('capture', 'environment'); inp.style.display = 'none';
+    inp.addEventListener('change', function () {
+      var f = inp.files && inp.files[0]; inp.remove();
+      if (f) traiterPhotoFiche(f);
+    });
+    document.body.appendChild(inp); inp.click();
+  }
+  // Photo réduite à 2000 px de côté (écriture manuscrite lisible) en JPEG 0,82 : quelques centaines de Ko
+  function compresserPhoto(fichier) {
+    return new Promise(function (ok, ko) {
+      var url = URL.createObjectURL(fichier), img = new Image();
+      img.onload = function () {
+        var m = 2000, r = Math.min(1, m / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * r); c.height = Math.round(img.naturalHeight * r);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        ok(c.toDataURL('image/jpeg', 0.82).split(',')[1]);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); ko(new Error('Photo illisible.')); };
+      img.src = url;
+    });
+  }
+  function traiterPhotoFiche(fichier) {
+    toast('Préparation de la photo…');
+    compresserPhoto(fichier).then(function (b64) {
+      var e = { id: 'SC-' + Date.now().toString(36).toUpperCase(), t: Date.now(), statut: 'envoi', image: b64, erreur: '' };
+      var l = scans(); l.push(e); sauverScans(l);
+      S.ui.feuille = { type: 'ficheScan', titre: 'Fiche photographiée', pleine: true, id: e.id }; rendre();
+      lireScan(e.id);
+    }).catch(function (err) { toast(err.message || 'Photo illisible.'); });
+  }
+  // Appel du serveur avec un délai long (la lecture prend de 10 à 60 s) ; une coupure laisse la photo en attente
+  function lireScan(id) {
+    var e = scan(id); if (!e || !e.image || S.ui.scanEnvoi === id) return;
+    S.ui.scanEnvoi = id;
+    majScan(id, function (x) { x.statut = 'envoi'; x.erreur = ''; });
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null, minuteur = ctrl ? setTimeout(function () { ctrl.abort(); }, 150000) : null;
+    var body = JSON.stringify({ token: S.config.token, action: 'lireFiche', image: e.image, mime: 'image/jpeg', auteur: moi(), uid: id });
+    fetch(S.config.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        var j; try { j = JSON.parse(t); } catch (x) { throw { reseau: true, message: 'Le serveur est momentanément indisponible.' }; }
+        if (!j.ok) throw { reseau: !!j.reessai, message: /Action inconnue/.test(j.erreur || '') ? 'Le serveur n\'est pas encore à jour pour lire les fiches.' : (j.erreur || 'Lecture impossible.') };
+        majScan(id, function (x) { x.statut = 'lue'; x.lecture = j.lecture; x.photo = j.photo || null; delete x.image; x.validation = preparerValidationScan(j.lecture); });
+        toast('Fiche lue : vérifiez avant d\'enregistrer.', 4000);
+        if (S.ui.feuille && S.ui.feuille.type === 'ficheScan' && S.ui.feuille.id === id) S.ui.feuille = { type: 'ficheScanValider', titre: 'Vérifier la fiche', pleine: true, id: id };
+      })
+      .catch(function (err) {
+        var reseau = !err || err.reseau !== false && (err.reseau || err.name === 'AbortError' || err instanceof TypeError);
+        majScan(id, function (x) { x.statut = reseau ? 'attente' : 'erreur'; x.erreur = (err && err.message) || 'Lecture impossible.'; });
+        if (!reseau) signalerErreur('lecture fiche', err, {});
+      })
+      .then(function () { if (minuteur) clearTimeout(minuteur); S.ui.scanEnvoi = null; rendreSiPossible(); });
+  }
+  function relancerScansEnAttente() {
+    if (!connecte() || !navigator.onLine) return;
+    scans().filter(function (x) { return x.statut === 'attente' || (x.statut === 'envoi' && S.ui.scanEnvoi !== x.id); }).slice(0, 1).forEach(function (x) { lireScan(x.id); });
+  }
+
+  // ---- rapprochement avec la base
+  function nomScan(x, estPh) {
+    if (estPh) { var n = String(x.nom || '').trim(); return /^(pharmacie|phcie|grande pharmacie)\b/i.test(n) ? n : 'Pharmacie ' + n; }
+    var t = /^p(r|rof)\.?$/i.test(String(x.titre || '').trim()) ? 'Pr' : (/^(m|mme|mlle|m\.)$/i.test(String(x.titre || '').trim()) ? '' : 'Dr');
+    return [t, x.nom, x.prenoms].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  }
+  function quartierScan(q, commune) {
+    var nq = normaliser(q || ''), nc = normaliser(commune || ''); if (!nq && !nc) return null;
+    var l = quartiers();
+    return l.filter(function (x) { return nq && normaliser(x.quartier) === nq; })[0] ||
+      l.filter(function (x) { return nq && nq.length >= 4 && (normaliser(x.quartier).indexOf(nq) >= 0 || nq.indexOf(normaliser(x.quartier)) >= 0) && (!nc || normaliser(x.commune) === nc); })[0] ||
+      l.filter(function (x) { return nc && !nq && normaliser(x.quartier) === nc; })[0] || null;
+  }
+  function entiteScan(x, estPh, L) {
+    // quartier : celui écrit pour ce contact, sinon celui de son établissement connu, sinon le quartier prospecté de la fiche
+    var q = quartierScan(x.quartier, x.commune || L.commune);
+    var ent = { type: estPh ? 'Pharmacie' : 'Médecin', inclus: true, nom: nomScan(x, estPh), telephone: formaterTelephoneCI(x.telephone) || String(x.telephone || ''),
+      specialite: estPh ? 'Pharmacien' : specialiteCanonique(x.specialite || ''), specLue: x.specialite || '', etablissement: estPh ? '' : String(x.etablissement || '').trim(),
+      adresse: x.adresse || '', quartier: q ? q.quartier : '', quartierLu: x.quartier || L.quartier || '', commune: q ? q.commune : (x.commune || L.commune || ''),
+      confiance: x.confiance, source: x.source, remplacer: {} };
+    if (!estPh && ent.etablissement) {
+      var can = trouverEtablissementBDD(ent.etablissement, ent.quartier, ent.commune);
+      if (can) { ent.etablissement = can.lieu || ent.etablissement; if (!ent.quartier && can.quartier) { ent.quartier = can.quartier; ent.commune = can.commune || ent.commune; } ent.lat = can.lat || ''; ent.lon = can.lon || ''; }
+    }
+    if (!ent.quartier) { var q2 = quartierScan(L.quartier, L.commune); if (q2) { ent.quartier = q2.quartier; ent.commune = q2.commune; } }
+    var cands = chercherDoublonsFiche({ type: ent.type, nom: ent.nom, telephone: ent.telephone, lieux: [{ lieu: ent.etablissement }] })
+      .filter(function (c) { return c.memeType && !/^TMP-/.test(c.p.code); }).slice(0, 3);
+    ent.cands = cands.map(function (c) { return c.p.code; });
+    ent.choix = cands[0] && cands[0].bloquant ? cands[0].p.code : '';
+    return ent;
+  }
+  function preparerValidationScan(L) {
+    L = L || {};
+    var ents = (L.medecins || []).map(function (x) { return entiteScan(x, false, L); }).concat((L.pharmacies || []).map(function (x) { return entiteScan(x, true, L); }));
+    var d = /^\d{4}-\d{2}-\d{2}$/.test(L.date_visite || '') ? L.date_visite : '';
+    return { date: d, dateLue: !!d, matin: true, soir: true, entites: ents, remarques: L.remarques || '' };
+  }
+  // Fiche (brouillon) qui sera enregistrée pour une entité, et la liste lisible de ce qui change
+  function lieuScan(ent, v, wd) {
+    var estPh = ent.type === 'Pharmacie', l = lieuVide(estPh);
+    l.lieu = estPh ? ent.nom : ent.etablissement; l.quartier = ent.quartier; l.commune = ent.commune; l.reperes = ent.adresse || '';
+    l.lat = ent.lat || ''; l.lon = ent.lon || ''; l.origineGps = '';
+    l.jours = l.jours.map(function () { return { matin: false, soir: false }; });
+    if (wd >= 0 && wd <= 4) l.jours[wd] = { matin: !!v.matin, soir: !!v.soir };
+    return l;
+  }
+  function planScan(ent, v) {
+    var ch = [], estPh = ent.type === 'Pharmacie', wd = v.date ? jourSemaineIndex(v.date) : -1, d, L;
+    var creneaux = [v.matin ? 'matin' : '', v.soir ? 'soir' : ''].filter(Boolean).join(' et ');
+    if (!ent.choix) {
+      d = brouillonFiche('');
+      d.type = ent.type; d.nom = ent.nom; d.telephone = ent.telephone; d.specialite = estPh ? 'Pharmacien' : ent.specialite;
+      d.lieux = [lieuScan(ent, v, wd)];
+      ch.push('Nouveau contact' + (estPh ? '' : (ent.specialite ? ', ' + ent.specialite : '')) + (d.lieux[0].lieu ? ', ' + d.lieux[0].lieu : '') + (ent.quartier ? ' (' + ent.quartier + ')' : ''));
+      L = d.lieux[0];
+    } else {
+      d = brouillonFiche(ent.choix);
+      var telE = normaliserNumero(d.telephone), telL = normaliserNumero(ent.telephone);
+      if (telL && !telE) { d.telephone = ent.telephone; ch.push('Téléphone ajouté : ' + ent.telephone); }
+      else if (telL && telE !== telL) { if (ent.remplacer.telephone) { d.telephone = ent.telephone; ch.push('Téléphone remplacé : ' + ent.telephone); } else ch.push({ k: 'telephone', t: 'Téléphone lu ' + ent.telephone + ', différent de ' + d.telephone }); }
+      if (!estPh && ent.specialite) {
+        var spE = specialiteCanonique(d.specialite || '');
+        if (!spE) { d.specialite = ent.specialite; ch.push('Spécialité ajoutée : ' + ent.specialite); }
+        else if (normaliser(spE) !== normaliser(ent.specialite)) { if (ent.remplacer.specialite) { d.specialite = ent.specialite; ch.push('Spécialité remplacée : ' + ent.specialite); } else ch.push({ k: 'specialite', t: 'Spécialité lue ' + ent.specialite + ', différente de ' + spE }); }
+      }
+      var idx = -1;
+      if (estPh) idx = 0;
+      else if (ent.etablissement) d.lieux.forEach(function (l, k) { if (idx < 0 && l.lieu && memeEtablissement(l.lieu, ent.etablissement)) idx = k; });
+      if (idx < 0 && !estPh && ent.etablissement) {
+        var vide = d.lieux.length === 1 && !String(d.lieux[0].lieu || '').trim();
+        if (vide) d.lieux = []; d.lieux.push(lieuScan(ent, v, -1)); idx = d.lieux.length - 1; ch.push('Nouveau lieu : ' + ent.etablissement);
+      }
+      if (idx < 0) idx = 0;
+      L = d.lieux[idx];
+      if (L && !L.quartier && ent.quartier) { L.quartier = ent.quartier; L.commune = ent.commune; ch.push('Quartier ajouté : ' + ent.quartier); }
+      if (L && !L.reperes && ent.adresse) L.reperes = ent.adresse;
+      if (L && wd >= 0 && wd <= 4) {
+        var av = L.jours[wd] || { matin: false, soir: false };
+        L.jours[wd] = { matin: av.matin || !!v.matin, soir: av.soir || !!v.soir };
+      }
+      // la fiche papier fait foi : présent ce jour-là, donc une absence déclarée qui couvre ce jour s'arrête la veille
+      if (v.date && d.absentDu && v.date >= d.absentDu && (!d.absentAu || v.date <= d.absentAu)) {
+        if (d.absentDu < v.date) { d.absentAu = ajouterJours(v.date, -1); ch.push('Absence déclarée arrêtée au ' + dateCourte(d.absentAu)); }
+        else { d.absentDu = ''; d.absentAu = ''; ch.push('Absence déclarée levée (présent le ' + dateCourte(v.date) + ')'); }
+      }
+    }
+    if (wd > 4) ch.push('Week-end : aucun créneau de présence enregistré');
+    else if (wd >= 0 && L && creneaux) ch.push('Présence confirmée : ' + nomJour(v.date).toLowerCase() + ' ' + creneaux + (L.lieu ? ', ' + L.lieu : ''));
+    var err = !String(ent.nom || '').trim() ? 'Nom manquant' : (!v.date ? 'Date de visite manquante' : (!ent.choix && !L.quartier ? 'Quartier à choisir' : (!ent.choix && !estPh && !L.lieu ? 'Établissement manquant' : '')));
+    return { d: d, changes: ch, erreur: err };
+  }
+
+  // ---- écrans
+  FEUILLES.ficheScan = function (f) {
+    var l = scansEnCours().sort(function (a, b) { return b.t - a.t; }), h = '';
+    if (!l.length) return '<div class="vide"><strong>Aucune fiche en cours</strong>Photographiez une fiche depuis Répertoire › Ajouter › Fiche.</div>';
+    h += '<ul class="liste">' + l.map(function (x) {
+      var et = x.statut === 'envoi' ? '<span class="etiquette">Lecture en cours…</span>' : x.statut === 'attente' ? '<span class="etiquette p1">En attente du réseau</span>' :
+        x.statut === 'erreur' ? '<span class="etiquette alerte">Non lue</span>' : '<span class="etiquette ok">Lue, à vérifier</span>';
+      var n = x.validation ? x.validation.entites.length : 0;
+      return '<li class="element"><div class="element-titre">Fiche du ' + esc(horodatageDe(x.t)) + '</div>' +
+        '<span class="discret bloc-texte">' + (x.validation ? n + ' contact' + (n > 1 ? 's' : '') + ' lu' + (n > 1 ? 's' : '') + (x.validation.date ? ', visite du ' + dateCourte(x.validation.date) : '') : esc(x.erreur || 'Photo envoyée au serveur, lecture de 10 s à 1 min.')) + '</span>' +
+        '<span class="etiquettes">' + et + '</span><div class="rangee" style="margin-top:8px">' +
+        (x.statut === 'lue' ? '<button class="bouton bouton-plein" type="button" data-a="scanVerifier" data-v="' + x.id + '">Vérifier</button>' : '') +
+        (x.statut === 'erreur' || x.statut === 'attente' ? '<button class="bouton" type="button" data-a="scanRelancer" data-v="' + x.id + '">' + icone('relancer') + 'Relancer</button>' : '') +
+        (x.statut !== 'envoi' ? '<button class="bouton" type="button" data-a="scanOublier" data-v="' + x.id + '">Retirer</button>' : '') + '</div></li>';
+    }).join('') + '</ul>';
+    return h;
+  };
+  function horodatageDe(t) { var d = new Date(t); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  FEUILLES.ficheScanValider = function (f) {
+    var x = scan(f.id); if (!x || !x.validation) return '<div class="vide"><strong>Fiche introuvable</strong></div>';
+    var v = x.validation, h = '';
+    h += (x.photo && x.photo.url ? '<p class="discret" style="margin:0 0 8px"><a href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">' + icone('carte') + 'Voir la photo (Drive)</a></p>' : '') +
+      '<div class="grille-2 serre"><label class="champ"><span>Date de la visite' + (v.dateLue ? '' : ' (non lue)') + '</span><input type="date" data-f="scan" data-k="date" value="' + esc(v.date) + '"></label>' +
+      '<div class="champ"><span>Présence ce jour</span><div class="segment" role="group">' +
+        '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button><button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button></div></div></div>';
+    if (!v.entites.length) h += '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, à plat et bien éclairée.</div>';
+    v.entites.forEach(function (ent, i) {
+      var pl = planScan(ent, v), estPh = ent.type === 'Pharmacie';
+      h += '<section class="bloc compact scan-ent' + (ent.inclus ? '' : ' scan-exclu') + '">' +
+        '<label class="case"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="inclus"' + (ent.inclus ? ' checked' : '') + '> <b>' + (estPh ? 'Pharmacie' : 'Médecin') + '</b>' +
+          (ent.confiance !== undefined && ent.confiance < 0.6 ? ' <span class="etiquette alerte">Lecture incertaine</span>' : '') + '</label>' +
+        '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(ent.nom) + '"></label>' +
+        (estPh ? '' : '<div class="grille-2 serre"><label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"' + (ent.specLue && ent.specLue !== ent.specialite ? ' title="Lu : ' + esc(ent.specLue) + '"' : '') + '></label>' +
+          '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label></div>' +
+          '<label class="champ"><span>Établissement</span><input type="text" data-f="scan" data-i="' + i + '" data-k="etablissement" value="' + esc(ent.etablissement) + '"></label>') +
+        (estPh ? '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' : '') +
+        '<div class="champ"><span>Quartier' + (ent.quartierLu && !ent.quartier ? ' (lu : ' + esc(ent.quartierLu) + ')' : '') + '</span>' + selecteurListe('scanQ' + f.id + '_' + i, { titre: 'Quartier', valeur: ent.quartier || null, vide: 'Choisir…', sections: sectionsQuartiers(),
+          appliquer: (function (k) { return function (val) { var y = scan(f.id); if (!y) return; majScan(f.id, function (z) { var q = quartiers().filter(function (o) { return o.quartier === val; })[0]; z.validation.entites[k].quartier = val; z.validation.entites[k].commune = q ? q.commune : ''; }); }; })(i) }) + '</div>' +
+        '<p class="fx-sec">Dans la base</p><div class="puces">' +
+          '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="" aria-pressed="' + !ent.choix + '">Nouveau contact</button>' +
+          ent.cands.map(function (c) { var p = praticien(c) || {}; return '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="' + esc(c) + '" aria-pressed="' + (ent.choix === c) + '">' + esc(p.nom || c) + (p.specialite && !estPh ? ' <small>' + esc(abrSpec(p.specialite)) + '</small>' : '') + '</button>'; }).join('') + '</div>' +
+        '<ul class="scan-changes">' + pl.changes.map(function (c) {
+          if (typeof c === 'string') return '<li>' + esc(c) + '</li>';
+          return '<li>' + esc(c.t) + ' <label class="case petite"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="remplacer.' + c.k + '"' + (ent.remplacer[c.k] ? ' checked' : '') + '> remplacer</label></li>';
+        }).join('') + '</ul>' +
+        (pl.erreur && ent.inclus ? '<p class="erreur-texte" style="margin:4px 0 0">' + esc(pl.erreur) + '</p>' : '') + '</section>';
+    });
+    if (v.remarques) h += '<p class="discret"><b>Autres informations lues :</b> ' + esc(v.remarques) + '</p>';
+    var ok = v.entites.filter(function (ent) { return ent.inclus && !planScan(ent, v).erreur; }).length;
+    return { corps: h, pied: '<div class="rangee"><button class="bouton" type="button" data-a="fermerFeuille">Plus tard</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="scanEnregistrer"' + (ok ? '' : ' disabled') + '>' + icone('valider') + 'Enregistrer' + (ok ? ' (' + ok + ')' : '') + '</button></div>' };
+  };
+  function bandeauScans() {
+    var l = scansEnCours(); if (!l.length) return '';
+    var lues = l.filter(function (x) { return x.statut === 'lue'; }).length, autres = l.length - lues;
+    return '<button type="button" class="bandeau info bandeau-scans" data-a="scanListe">' + icone('repertoire') + '<p><b>Fiches photographiées</b> : ' +
+      [lues ? lues + ' à vérifier' : '', autres ? autres + ' en cours' : ''].filter(Boolean).join(', ') + '</p></button>';
+  }
   FEUILLES.fiche = function (f) {
     var d = f.d, seulPlanning = !!f.planningSeul;
     synchroniserDefautsFiche(d);
@@ -10054,7 +10286,7 @@
     if (f.cherche) {
       h += '<div class="segment" role="group" aria-label="Type">' + ['Médecin', 'Pharmacie'].map(function (t) {
         return '<button type="button" data-a="ficheVal" data-k="type" data-v="' + t + '" aria-pressed="' + (d.type === t) + '">' + t + '</button>';
-      }).join('') + '</div>';
+      }).join('') + '<button type="button" data-a="ficheScanner" aria-pressed="false" title="Photographier une fiche de visite">Fiche</button></div>';   // 3.30.0
       var g = gpsFrais();
       if (estPh && g) {
         var proches = pharmaciesConnuesProches(g, 0.5);
@@ -12739,6 +12971,33 @@
         rendre();
       }
     },
+    // 3.30.0 : fiches de visite photographiées
+    ficheScanner: function () { choisirPhotoFiche(); },
+    scanListe: function () { S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre(); relancerScansEnAttente(); },
+    scanVerifier: function (el) { S.ui.feuille = { type: 'ficheScanValider', titre: 'Vérifier la fiche', pleine: true, id: el.dataset.v, retourAction: 'scanListe' }; rendre(); },
+    scanRelancer: function (el) { var x = scan(el.dataset.v); if (!x) return; if (!x.image) { toast('Photo plus disponible sur ce téléphone : reprenez-la.'); return; } lireScan(x.id); rendre(); },
+    scanOublier: function (el) {
+      var id = el.dataset.v;
+      confirmerPuis('Retirer la fiche', 'Retirer cette fiche photographiée de ce téléphone ? La photo déjà envoyée reste dans Drive.', 'Retirer', function () {
+        sauverScans(scans().filter(function (x) { return x.id !== id; })); S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre();
+      }, function () { S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre(); }, null, true);
+    },
+    scanChoix: function (el) { var f = S.ui.feuille; majScan(f.id, function (x) { x.validation.entites[+el.dataset.i].choix = el.dataset.v; x.validation.entites[+el.dataset.i].remplacer = {}; }); rendre(); },
+    scanCreneau: function (el) { var f = S.ui.feuille, k = el.dataset.v; majScan(f.id, function (x) { x.validation[k] = !x.validation[k]; if (!x.validation.matin && !x.validation.soir) x.validation[k === 'matin' ? 'soir' : 'matin'] = true; }); rendre(); },
+    scanEnregistrer: function () {
+      var f = S.ui.feuille, x = scan(f.id); if (!x || !x.validation) return;
+      var v = x.validation, codes = [], n = 0;
+      v.entites.forEach(function (ent) {
+        if (!ent.inclus) return;
+        var pl = planScan(ent, v); if (pl.erreur) return;
+        codes.push(enregistrerFiche(pl.d)); n++;
+      });
+      if (!n) { toast('Rien à enregistrer.'); return; }
+      majScan(f.id, function (y) { y.statut = 'enregistree'; y.codes = codes; });
+      S.ui.feuille = null; S.ui.tab = 'praticiens'; rendre();
+      toast(n + ' fiche' + (n > 1 ? 's' : '') + ' enregistrée' + (n > 1 ? 's' : '') + (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.'), 4000);
+      synchroniser(true);
+    },
     nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau contact', pleine: true, etape: 0, cherche: true, nouveau: true, d: brouillonFiche(''), err: {} }; rendre(); setTimeout(function () { var i = document.querySelector('.fx-champ-g'); if (i) i.focus(); }, 250); },
     // 3.27.1 : personne introuvable dans la base : on passe à la fiche (1. Où et quand)
     ficheCreer: function () {
@@ -13134,6 +13393,10 @@
     var el = e.target, f = el.dataset && el.dataset.f, pos;
     if (f === 'ident') { (S.ui.identBrouillon = S.ui.identBrouillon || {})[el.dataset.k] = el.value; return; }
     if (f === 'cr') { var ac = arret(el.dataset.uid); if (ac) majCr(ac, el.dataset.k, el.value); }
+    if (f === 'scan' && S.ui.feuille && el.type !== 'checkbox') {   // 3.30.0 : champs de vérification d'une fiche photographiée
+      var fS = S.ui.feuille, kS = el.dataset.k, iS = el.dataset.i;
+      majScan(fS.id, function (x) { if (iS === undefined) x.validation[kS] = el.value; else x.validation.entites[+iS][kS] = el.value; });
+    }
     if (f === 'fiche') {
       majChampFiche(el, false);
       if (el.dataset.k === 'lieu') {
@@ -13262,6 +13525,15 @@
       rendre();
     }
     if (f === 'eqDate' && el.value) { S.ui.eqDate = el.value; S.ui.jourEquipe = null; rendre(); }
+    if (f === 'scan' && S.ui.feuille) {   // 3.30.0 : cases à cocher, date et changements : l'aperçu des changements se met à jour
+      var fC = S.ui.feuille, kC = el.dataset.k, iC = el.dataset.i, valC = el.type === 'checkbox' ? el.checked : el.value;
+      majScan(fC.id, function (x) {
+        var o = iC === undefined ? x.validation : x.validation.entites[+iC];
+        if (kC.indexOf('remplacer.') === 0) o.remplacer[kC.slice(10)] = valC; else o[kC] = valC;
+        if (kC === 'specialite' && iC !== undefined) o.specialite = specialiteCanonique(valC) || valC;
+      });
+      rendre();
+    }
     // 3.29.8 : champ retiré de l'écran (redessiné après un choix dans une liste) : son ancienne valeur ne doit rien écraser
     if (f === 'fiche' && el.isConnected && !S.ui.ignorerChangeLieu) majChampFiche(el, true);
     if (f === 'importSecours' && el.files && el.files[0]) { importerSecours(el.files[0]); el.value = ''; }
@@ -13378,7 +13650,8 @@
   }
 
   // ------------------------------------------------------------------ Démarrage
-  window.addEventListener('online', function () { synchroniser(true); });
+  window.addEventListener('online', function () { synchroniser(true); setTimeout(relancerScansEnAttente, 3000); });
+  setTimeout(relancerScansEnAttente, 8000);   // 3.30.0 : photo restée en attente (coupure, fermeture) : relue à l'ouverture
   window.addEventListener('offline', function () { S.ui.sync = 'horsligne'; afficherEntete(); });
   // Chargement asynchrone des données flash IndexedDB
   // 3.26.80 : la base (plus de 500 ko) n'est gardée que dans IndexedDB ; on attend sa lecture avant la 1re synchronisation,

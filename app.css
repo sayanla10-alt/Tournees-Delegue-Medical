@@ -3882,3 +3882,11 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 :root[data-theme] .arret.ancien.fait .arret-carte, :root[data-theme] .arret.ancien.fait-attente .arret-carte,
 :root:not([data-theme="clair"]) .arret.ancien.fait .arret-carte, :root:not([data-theme="clair"]) .arret.ancien.fait-attente .arret-carte { background: var(--ambre-pale); border-color: var(--ambre-trait); }
 .etiquette.ambre { color: var(--ambre); background: var(--papier); border-color: var(--ambre-trait); }
+
+/* 3.30.0 : fiches de visite photographiées */
+.scan-ent { margin-top: 10px; }
+.scan-ent.scan-exclu > :not(.case) { opacity: .45; }
+.scan-changes { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--gris); }
+.scan-changes li { margin: 2px 0; }
+.case.petite { display: inline-flex; gap: 4px; font-size: 12px; margin-left: 6px; }
+.bandeau-scans { width: 100%; text-align: left; cursor: pointer; margin: 8px 0 0; }
