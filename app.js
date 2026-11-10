@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.30.1';
+  var APP_VERSION = '3.30.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.30.2', ['Planifier : toute proposition récupérée (compte rendu déjà saisi, RDV repris, ancien programme) s\'affiche sur fond ambre, quelles que soient les communes ; Journée garde ses trois couleurs (blanc à faire, vert faite, rouge non faite)']],
     ['3.30.1', ['Fiche photographiée : la visite est aussi enregistrée (compte rendu « Visite faite » du jour de la fiche, case cochée par défaut) ; la date de dernière visite se met à jour ; rien en double si le compte rendu existe déjà, rien pour une date à venir']],
     ['3.30.0', ['Répertoire › Ajouter › Fiche : photographiez une fiche de visite ; le serveur la range dans Drive et la lit (écriture manuscrite, texte imprimé, cachets)',
                'Vérification avant enregistrement : date, médecins et pharmacies lus, fiche existante proposée ou nouveau contact ; un contact existant n\'est complété que sur ses champs vides (remplacement au choix)',
@@ -3825,8 +3826,10 @@
     return p.communes && p.communes.length ? p.communes : null;
   }
   // 3.29.3 : visite reprise (compte rendu déjà saisi, RDV de suivi, ancien programme) hors des communes choisies pour son jour
+  // 3.30.2 : Planifier seulement : toute proposition récupérée (compte rendu déjà saisi, RDV de suivi ou fixé, ancien programme),
+  // quelles que soient les communes, se distingue des praticiens tirés au sort
   function estReprise(a) {
-    return !!(a.statut || a.etape || a.etat === 'repris' || a.etat === 'valide' || a.corrige) && !dansCommunesDu(a, a.date);
+    return !!(a.statut || a.etape || a.rdv || a.etat === 'repris' || a.etat === 'valide' || a.corrige);
   }
   function dansCommunesDu(a, d) {
     var l = communesPour(d);
@@ -5283,7 +5286,7 @@
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
     var ancien = estReprise(a);
-    if (ancien) e += '<span class="etiquette ambre">Déjà ' + (a.statut ? 'renseignée' : 'prévue') + ', hors communes choisies</span>';
+    if (ancien) e += '<span class="etiquette ambre">' + (a.statut ? 'Déjà renseignée' : (a.etape || a.rdv ? 'RDV repris' : 'Ancien programme')) + (dansCommunesDu(a, a.date) ? '' : ', hors communes choisies') + '</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici</span>';
     e += etiquetteCollegues(a.code, a.date);
@@ -6294,8 +6297,7 @@
   function rendreArret(a) {
     var ouvert = S.ui.ouvert === a.uid, verrou = a.etat === 'valide';
     // 3.29.3 : visite reprise (compte rendu déjà saisi, RDV de suivi, ancien programme) hors des communes choisies : carte ambre
-    var ancien = estReprise(a);
-    var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') + (ancien ? ' ancien' : '') +
+    var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') +   // 3.30.2 : Journée : blanc, vert, rouge seulement
       (a.statut ? (estKo(a.statut) ? (verrou ? ' absent' : ' absent-attente') : (verrou ? ' fait' : ' fait-attente')) : '') +   // plein = enregistré, vide de couleur = à enregistrer
       (S.ui.flashOk && S.ui.flashOk[a.uid] ? ' vient-enregistrer' : '');
     var e = '';
@@ -6308,7 +6310,6 @@
     if (a.statut && !verrou) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + ', à enregistrer</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.etat === 'repris') e += '<span class="etiquette">Repris d\'un ancien programme</span>';
-    if (ancien) e += '<span class="etiquette ambre">Déjà ' + (a.statut ? 'renseignée' : 'prévue') + ', hors communes choisies</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">RDV prévu le ' + dateCourte(a.prochaine) + '</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';
