@@ -1,8 +1,7 @@
 {
-  "version": "3.29.1",
+  "version": "3.29.2",
   "date": "2026-11-10",
   "notes": [
-    "Répertoire : « cœur de cible » affiché quand c'est le cas",
-    "Hôpitaux : étoiles sur la ligne du nom"
+    "Répertoire : « cœur de cible (6) » sur une seule ligne"
   ]
 }

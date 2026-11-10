@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.29.1';
+  var APP_VERSION = '3.29.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.29.2', [
+      'Répertoire : message plus court, « cœur de cible (6) », sur une seule ligne'
+    ]],
     ['3.29.1', [
       'Répertoire : le message dit « cœur de cible » quand seules les spécialités du cœur de cible sont filtrées ; « toutes spécialités » seulement quand aucune n\'est filtrée',
       'Répertoire › Hôpitaux : les étoiles restent sur la ligne du nom du médecin ; « Aujourd\'hui » en tête de la ligne suivante'
@@ -7291,7 +7294,7 @@
       if (sontToutesSpecialites(f.specialites)) {
         c.push('toutes spécialités');
       } else if (estCoeurDeCible(f.specialites)) {
-        c.push('cœur de cible (' + f.specialites.length + ' spécialité' + (f.specialites.length > 1 ? 's' : '') + ')');
+        c.push('cœur de cible (' + f.specialites.length + ')');
       } else if (f.specialites.length) {
         t += ' ' + f.specialites.map(function (x) {
           var ab = abbrevSpec(x);
