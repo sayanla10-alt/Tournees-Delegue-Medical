@@ -1,7 +1,7 @@
 {
-  "version": "3.31.12",
+  "version": "3.31.13",
   "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : mise à jour intelligente des plannings de présence hebdomadaires avec les données fraîches du terrain et semainier visuel rattaché à l'hôpital."
+    "Vérifier la fiche : semainier interactif au pouce par hôpital, recherche instantanée par premières lettres et textes ultra-épurés pour mobile."
   ]
 }

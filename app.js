@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.12';
+  var APP_VERSION = '3.31.13';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.13', ['Vérifier la fiche ultra-épuré pour mobile : suppression des textes longs redondants et questions raccourcies',
+                 'Semainier 100% interactif au pouce : touchez directement un jour (Lun, Mar, Mer, Jeu, Ven) pour ajuster le planning du praticien',
+                 'Recherche d\'hôpital instantanée : tapez les premières lettres avec auto-complétion directe au lieu de la liste déroulante']],
     ['3.31.12', ['Vérifier la fiche : mise à jour intelligente des plannings de présence avec les données fraîches du terrain',
                  'Semainier visuel interactif rattaché directement à chaque hôpital (créneaux neufs du terrain mis en valeur)',
                  'Pré-sélection automatique de l\'établissement unique et ligne Planning (Présence) dans le tableau comparatif']],
@@ -10269,6 +10272,9 @@
       d.type = ent.type; d.nom = ent.nom; d.specialite = estPh ? 'Pharmacien' : (R.specialite ? '' : ent.specialite); d.telephone = R.telephone ? '' : ent.telephone;
       d.lieux = [lieuScan(ent, v, R.programme ? -1 : wd)];
       L = d.lieux[0];
+      if (L && ent.joursModifs) {
+        Object.keys(ent.joursModifs).forEach(function (kj) { if (+kj >= 0 && +kj < 5) L.jours[+kj] = JSON.parse(JSON.stringify(ent.joursModifs[kj])); });
+      }
       if (!estPh) ligne('specialite', 'Spécialité', ent.specialite, '', 'nouveau', ent.specialite ? 'refus' : '');
       ligne('telephone', 'Téléphone', ent.telephone, '', 'nouveau', ent.telephone ? 'refus' : '');
       if (!estPh) ligne('etablissement', 'Établissement', L.lieu, '', 'nouveau');
@@ -10309,6 +10315,9 @@
         var av = L.jours[wd] || { matin: false, soir: false };
         L.jours[wd] = { matin: av.matin || !!v.matin, soir: av.soir || !!v.soir };
       }
+      if (L && ent.joursModifs) {
+        Object.keys(ent.joursModifs).forEach(function (kj) { if (+kj >= 0 && +kj < 5) L.jours[+kj] = JSON.parse(JSON.stringify(ent.joursModifs[kj])); });
+      }
       // la fiche papier fait foi : présent ce jour-là, donc une absence déclarée qui couvre ce jour s'arrête la veille
       if (v.date && d.absentDu && v.date >= d.absentDu && (!d.absentAu || v.date <= d.absentAu)) {
         var abs = 'du ' + dateCourte(d.absentDu) + (d.absentAu ? ' au ' + dateCourte(d.absentAu) : '');
@@ -10322,8 +10331,8 @@
     if (wd > 4) ch.push('Week-end : aucun jour de présence enregistré');
     else if (wd >= 0 && L && creneaux) {
       var dej = avant && avant[wd] && (!v.matin || avant[wd].matin) && (!v.soir || avant[wd].soir);
-      if (dej) ligne('programme', 'Programme', nomJour(v.date) + ' ' + creneaux, resumeJours(avant), 'identique');
-      else ligne('programme', 'Programme', nomJour(v.date) + ' ' + creneaux + ' à cocher', avant ? (resumeJours(avant) || 'aucun jour') : '', avant ? 'ajout' : 'nouveau', 'refus');
+      if (dej) ligne('programme', 'Planning', nomJour(v.date) + ' ' + creneaux, resumeJours(avant), 'identique');
+      else ligne('programme', 'Planning', nomJour(v.date) + ' ' + creneaux + ' à cocher', avant ? (resumeJours(avant) || 'aucun jour') : '', avant ? 'ajout' : 'nouveau', 'refus');
     }
     var err = !String(ent.nom || '').trim() ? 'Nom manquant' : (!v.date ? 'Date de visite manquante' :
       (ent.douteux && !ent.decision ? 'Même personne que ' + ((praticien(ent.douteux) || {}).nom || 'le contact proposé') + ' ? Répondez ci-dessous' :
@@ -10579,12 +10588,11 @@
       // 1. BLOC ARBITRAGE FUZZY MATCH (Modifier l'ancien OU Créer nouveau)
       var contactFuzzy = dt || (ex && cand1 && ex.code === cand1.code ? cand1 : null) || (cand1 && !ex ? cand1 : null);
       if (contactFuzzy) {
-        var raisonFuzzy = (ent.raisons && ent.raisons[contactFuzzy.code]) || 'Nom très ressemblant';
         var prs = (ctx().presencesParCode[contactFuzzy.code] || []).map(function (x) { return x.lieu; }).filter(Boolean).slice(0, 2).join(', ');
         var estChoisiAncien = ent.choix === contactFuzzy.code;
 
         h += '<div class="scan-arbitrage-fuzzy">' +
-          '<div class="scan-fuzzy-titre">🔍 <b>Ressemblance détectée</b> (' + esc(raisonFuzzy) + ')</div>' +
+          '<div class="scan-fuzzy-titre">🔍 <b>Ressemblance détectée</b></div>' +
           '<div class="scan-fuzzy-existant">' +
             '<b>' + esc(contactFuzzy.nom) + '</b> · ' + esc([contactFuzzy.specialite, prs, contactFuzzy.telephone].filter(Boolean).join(' · ') || 'Enregistré') +
           '</div>' +
@@ -10599,68 +10607,46 @@
         '</div>';
       }
 
-      // 2. PRÉSENCE DÉTECTÉE & CHOIX DE L'HÔPITAL DE RENCONTRE
-      var creneauxTxt = [v.matin ? 'matin' : '', v.soir ? 'soir' : ''].filter(Boolean).join(' et ') || 'journée';
-      var presenceTxt = v.date ? (nomJour(v.date) + ' ' + (creneauxTxt ? creneauxTxt + ' ' : '') + '(' + dateCourte(v.date) + ')') : 'Visite du jour';
-
+      // 2. CHOIX DE L'HÔPITAL DE RENCONTRE & PLANNING INTERACTIF
       if (!estPh) {
         h += '<div class="scan-bloc-presence-hopital">' +
-          '<div class="scan-presence-ligne-titre">' +
-            '<span class="scan-presence-tag">📅 <b>Présence détectée : ' + esc(presenceTxt) + '</b></span>' +
-          '</div>' +
-          '<div class="scan-hopital-question">🏥 <b>Dans quel hôpital ou clinique a eu lieu cette présence ?</b></div>';
+          '<div class="scan-hopital-question">🏥 <b>Où cette visite ?</b></div>';
 
         // Accès rapide si le praticien a déjà des lieux connus
         if (ex && ex.lieux && ex.lieux.length) {
           var lieuxConnus = ex.lieux.filter(function (l) { return l && l.lieu; });
           if (lieuxConnus.length) {
-            h += '<div class="scan-hopital-rapides">' +
-              '<span class="scan-hopital-rapides-label">Établissements habituels de ce praticien :</span>' +
-              '<div class="scan-hopital-pills-barre">';
+            h += '<div class="scan-hopital-pills-barre">';
             lieuxConnus.forEach(function (l) {
               var actif = ent.etablissement === l.lieu || (!ent.etablissement && L && L.lieu === l.lieu);
               h += '<button type="button" class="scan-pill-hopital' + (actif ? ' actif' : '') + '" data-a="scanChoisirHopital" data-i="' + i + '" data-etab="' + esc(l.lieu) + '">' +
                 (actif ? '✓ ' : '') + esc(l.lieu) +
               '</button>';
             });
-            h += '</div></div>';
+            h += '</div>';
           }
         }
 
-        // Sélecteur complet de tous les établissements
-        h += selecteurListe('scanEtab' + f.id + '_' + i, {
-          titre: 'Hôpital ou clinique de la visite',
-          valeur: ent.etablissement || (L && L.lieu) || null,
-          vide: 'Choisir parmi tous les hôpitaux / cliniques…',
-          sections: sectionsEtablissements(),
-          appliquer: function (nomEtab) {
-            majScan(f.id, function (z) {
-              var e = z.validation.entites[i];
-              e.etablissement = nomEtab;
-              var can = trouverEtablissementBDD(nomEtab, '', '');
-              if (can) {
-                if (can.quartier) { e.quartier = can.quartier; e.commune = can.commune || e.commune; }
-                if (can.lat) { e.lat = can.lat; e.lon = can.lon; }
-              }
-            });
-          }
-        });
+        // Champ de recherche direct : premières lettres avec suggestions
+        h += '<div class="scan-hopital-recherche-wrap">' +
+          '<input type="text" class="scan-input-hopital" data-f="scanEtabInput" data-i="' + i + '" placeholder="Écrire le nom de l\'établissement…" value="' + esc(ent.etablissement || '') + '" autocomplete="off">' +
+          '<div id="scanSuggEtab_' + i + '" class="scan-sugg-etabs"></div>' +
+        '</div>';
 
         var etabActuel = ent.etablissement || (L && L.lieu);
         if (etabActuel) {
           var qActuel = ent.quartier || (L && L.quartier) || '';
           var cActuel = ent.commune || (L && L.commune) || '';
-          h += '<div class="scan-hopital-cascade">✓ Présence rattachée à : <b>' + esc(etabActuel) + '</b>' + (qActuel ? ' · Quartier : ' + esc(qActuel) + (cActuel ? ' (' + esc(cActuel) + ')' : '') : '') + '</div>';
+          h += '<div class="scan-hopital-cascade">✓ <b>' + esc(etabActuel) + '</b>' + (qActuel ? ' · ' + esc(qActuel) + (cActuel ? ' (' + esc(cActuel) + ')' : '') : '') + '</div>';
         }
 
-        // Aperçu immédiat du semainier actualisé sur cet hôpital
-        if (pl.prog && v.date) {
+        // Semainier 100% interactif rattaché à cet établissement
+        if (pl.prog) {
           h += '<div class="scan-semaine-apercu">' +
-            '<div class="scan-semaine-legende">' +
-              '<span><b>Planning de la semaine actualisé</b> sur ' + esc(etabActuel || 'cet établissement') + ' :</span>' +
-              '<small>Vert vif = nouveau créneau terrain · Vert foncé = créneau déjà connu</small>' +
+            '<div class="scan-semaine-titre-court">' +
+              '<span>Planning sur ce lieu :</span> <small>(toucher un jour pour modifier)</small>' +
             '</div>' +
-            semaineScan(pl.prog) +
+            semaineScan(pl.prog, i) +
           '</div>';
         }
 
@@ -10668,9 +10654,6 @@
       } else {
         // Pour les pharmacies
         h += '<div class="scan-bloc-presence-hopital">' +
-          '<div class="scan-presence-ligne-titre">' +
-            '<span class="scan-presence-tag">📅 <b>Visite détectée : ' + esc(presenceTxt) + '</b></span>' +
-          '</div>' +
           (!ent.quartier ? (
             '<div class="scan-hopital-question">📍 <b>Quartier de l\'officine :</b></div>' +
             selecteurListe('scanQ' + f.id + '_' + i, {
@@ -10686,7 +10669,7 @@
                 });
               }
             })
-          ) : '<div class="scan-hopital-cascade">📍 Officine située à : <b>' + esc(ent.quartier) + '</b>' + (ent.commune ? ' (' + esc(ent.commune) + ')' : '') + '</div>') +
+          ) : '<div class="scan-hopital-cascade">📍 <b>' + esc(ent.quartier) + '</b>' + (ent.commune ? ' (' + esc(ent.commune) + ')' : '') + '</div>') +
         '</div>';
       }
 
@@ -10695,7 +10678,7 @@
         var changs = pl.cmp.filter(function (r) { return r.etat === 'different' || r.etat === 'ajout'; });
         if (changs.length) {
           h += '<div class="scan-table-wrap">' +
-            '<div class="scan-table-titre">⚙️ <b>Mentions différentes : touchez pour choisir ce que vous gardez</b></div>' +
+            '<div class="scan-table-titre">⚙️ <b>Mentions différentes : touchez pour choisir</b></div>' +
             '<table class="scan-table-comparatif">' +
               '<thead>' +
                 '<tr>' +
@@ -10709,7 +10692,7 @@
           changs.forEach(function (r) {
             var k = r.k, ficheVal = r.fiche || '', baseVal = r.base || '';
             var estAccepte = r.opt === 'remplacer' ? !!(ent.remplacer && ent.remplacer[k]) : !(ent.refus && ent.refus[k]);
-            var libChamp = k === 'telephone' ? 'Téléphone' : k === 'specialite' ? 'Spécialité' : k === 'etablissement' ? 'Établissement' : k === 'quartier' ? 'Quartier' : k === 'nom' ? 'Nom' : k === 'programme' ? 'Planning (Présence)' : k === 'absence' ? 'Absence' : esc(r.champ);
+            var libChamp = k === 'telephone' ? 'Téléphone' : k === 'specialite' ? 'Spécialité' : k === 'etablissement' ? 'Établissement' : k === 'quartier' ? 'Quartier' : k === 'nom' ? 'Nom' : k === 'programme' ? 'Planning' : k === 'absence' ? 'Absence' : esc(r.champ);
 
             var labelAncien = baseVal ? esc(baseVal) : '<span class="scan-val-vide">— (aucun)</span>';
             var labelNouveau = ficheVal ? esc(ficheVal) : '<span class="scan-val-vide">— (aucun)</span>';
@@ -10750,12 +10733,38 @@
 
     return h + '</section>';
   }
-  function semaineScan(prog) {
-    var J = ['L', 'M', 'M', 'J', 'V'];
-    return '<div class="scan-sem">' + J.map(function (j, k) {
+  function semaineScan(prog, i) {
+    var J = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven'];
+    var N = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+    return '<div class="scan-sem-barre" role="group" aria-label="Planning hebdomadaire">' + J.map(function (j, k) {
       var a = (prog.avant || [])[k] || {}, b = prog.apres[k] || {};
-      var cr = function (c) { return b[c] ? (a[c] ? 'on' : 'neuf') : ''; };
-      return '<span class="scan-j' + (k === prog.wd ? ' jour-fiche' : '') + '"><b>' + j + '</b><i class="' + cr('matin') + '" title="Matin"></i><i class="' + cr('soir') + '" title="Soir"></i></span>';
+      var aActif = a.matin || a.soir;
+      var bActif = b.matin || b.soir;
+      var estJourFiche = k === prog.wd;
+      var labelCreneaux = b.matin && b.soir ? 'M+S' : b.matin ? 'Matin' : b.soir ? 'Soir' : '—';
+      var etatCls = bActif ? (aActif ? 'present-base' : 'present-terrain') : 'absent';
+
+      return '<button type="button" class="scan-sem-btn ' + etatCls + (estJourFiche ? ' jour-visite' : '') + '" data-a="scanBasculerJour" data-i="' + i + '" data-j="' + k + '" title="' + N[k] + ' : toucher pour modifier">' +
+        '<span class="scan-sem-nom">' + j + (estJourFiche ? ' •' : '') + '</span>' +
+        '<span class="scan-sem-creneau">' + labelCreneaux + '</span>' +
+      '</button>';
+    }).join('') + '</div>';
+  }
+  function suggestionsScanEtab(q, i) {
+    var t = normaliser(q || '');
+    if (t.length < 2) return '';
+    var mots = sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean);
+    var tous = etabsBase();
+    var l = tous.filter(function (e) {
+      var n = normaliser(e.nom + ' ' + (e.quartier || '') + ' ' + (e.commune || ''));
+      return mots.every(function (m) { return n.indexOf(m) >= 0; });
+    }).slice(0, 5);
+    if (!l.length) return '<div class="scan-sugg-vide">Aucun hôpital trouvé avec ces lettres.</div>';
+    return '<div class="scan-sugg-liste">' + l.map(function (e) {
+      return '<button type="button" class="scan-sugg-btn" data-a="scanChoisirHopital" data-i="' + i + '" data-etab="' + esc(e.nom) + '">' +
+        '<b>' + esc(e.nom) + '</b>' +
+        '<small>' + esc([e.quartier, e.commune].filter(Boolean).join(', ') || 'Abidjan') + '</small>' +
+      '</button>';
     }).join('') + '</div>';
   }
   // 3.31.4 : noms lus en majuscules (« KOUASSI AYA ») écrits comme dans la base (« Kouassi Aya »)
@@ -13670,6 +13679,25 @@
       });
       rendre();
     },
+    scanBasculerJour: function (el) {
+      var f = S.ui.feuille, i = +el.dataset.i, j = +el.dataset.j;
+      majScan(f.id, function (x) {
+        var e = x.validation.entites[i];
+        e.joursModifs = e.joursModifs || {};
+        var pl = planScan(e, x.validation);
+        var cur = (e.joursModifs[j] !== undefined) ? e.joursModifs[j] : ((pl.prog && pl.prog.apres && pl.prog.apres[j]) || { matin: false, soir: false });
+        var next;
+        if (!cur.matin && !cur.soir) {
+          next = { matin: true, soir: false };
+        } else if (cur.matin && !cur.soir) {
+          next = { matin: true, soir: true };
+        } else {
+          next = { matin: false, soir: false };
+        }
+        e.joursModifs[j] = next;
+      });
+      rendre();
+    },
     scanChoisirHopital: function (el) {
       var f = S.ui.feuille, k = +el.dataset.i, etab = el.dataset.etab;
       majScan(f.id, function (x) {
@@ -14105,6 +14133,20 @@
     if (f === 'scan' && S.ui.feuille && el.type !== 'checkbox') {   // 3.30.0 : champs de vérification d'une fiche photographiée
       var fS = S.ui.feuille, kS = el.dataset.k, iS = el.dataset.i;
       majScan(fS.id, function (x) { if (iS === undefined) x.validation[kS] = el.value; else x.validation.entites[+iS][kS] = el.value; });
+    }
+    if (f === 'scanEtabInput' && S.ui.feuille) {
+      var iE = +el.dataset.i, valE = el.value.trim(), fE = S.ui.feuille;
+      majScan(fE.id, function (x) {
+        var entE = x.validation.entites[iE];
+        entE.etablissement = el.value;
+        var can = trouverEtablissementBDD(el.value, '', '');
+        if (can && can.quartier) {
+          entE.quartier = can.quartier;
+          entE.commune = can.commune || '';
+        }
+      });
+      var zSugg = document.getElementById('scanSuggEtab_' + iE);
+      if (zSugg) zSugg.innerHTML = suggestionsScanEtab(valE, iE);
     }
     if (f === 'fiche') {
       majChampFiche(el, false);
