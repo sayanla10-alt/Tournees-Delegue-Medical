@@ -1739,7 +1739,7 @@ details.avance h3 { margin-top: 18px; }
 
 /* 3.19.0 : questions Oui / Non / Sortir */
 .feuille-pied .sortir-question { margin-right: auto; color: var(--gris); font-weight: 600; padding: 10px 6px; }
-.bandeau-prog.flash { animation: flash-fondu 6s ease forwards; }
+.bandeau-prog.flash, .bandeau-scans.flash { animation: flash-fondu 7.5s ease forwards; }
 @keyframes flash-fondu { 0%, 87% { opacity: 1; } 100% { opacity: 0; } }
 
 /* 3.19.0 : Produits, sections repliables par aire */
@@ -2075,10 +2075,13 @@ details.avance h3 { margin-top: 18px; }
 #vue.jour-glisse-g .synthese-jour, #vue.jour-glisse-g .maintenant, #vue.jour-glisse-g .ligne, #vue.jour-glisse-g .tete-jour-plan, #vue.jour-glisse-g .bandeau-prog {
   animation: glisseJourGauche .22s cubic-bezier(.22, 1, .36, 1) both;
 }
-/* 3.31.34 : Données du bas stables et immédiatement visibles quand la frise défile */
-.plan-jour, .plan-jour .ligne-plan {
+/* 3.31.34 & 3.31.35 : Données du bas stables et immédiatement visibles (aucun fondu à opacity:0) */
+.plan-jour, .plan-jour .ligne-plan,
+#vue.vue-entre .plan-jour, #vue.vue-entre .plan-jour .ligne-plan,
+#vue.vue-entre .arret, #vue.vue-entre .ligne {
   opacity: 1 !important;
 }
+#vue.vue-entre .plan-jour .ligne-plan,
 #vue.jour-glisse-d .plan-jour .ligne-plan,
 #vue.jour-glisse-g .plan-jour .ligne-plan {
   animation: none !important;

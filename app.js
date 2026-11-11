@@ -9,10 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.34';
+  var APP_VERSION = '3.31.35';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.35', ['Planifier & Journée : nouvel algorithme TSP anti allers-retours (termine chaque quartier/zone avant d\'en sortir, respect strict des horaires, répartition équilibrée Matin/Soir et entre les jours)',
+                 'Journée : l\'ordre GPS suit désormais la même optimisation TSP sans zigzags au lieu du tri en étoile',
+                 'Planifier & Journée : correction définitive des jours planifiés apparaissant vides avant de revenir (synchronisation serveur, démarrage IndexedDB et sélection de date)',
+                 'Répertoire : onglet Hôpitaux uniformisé avec Médecins et Pharmacies (boutons Recherche, + Ajouter, Modifier ; suppression de « établissements de A à Z »)',
+                 'Répertoire & Planifier : bandeau « Fiches photographiées » temporaire à l\'ouverture (7,5 s) et durée du bandeau « Tournée confirmée » portée à 7,5 s']],
     ['3.31.34', ['Planifier : stabilisation totale du défilement de la frise (suppression des clics parasites lors du balayage tactile)',
                  'Planifier : affichage immédiat et stable des visites du bas lors des animations de date (plus aucune disparition)',
                  'Planifier : barre flottante d\'actions immunisée contre les cassures de positionnement sticky']],
@@ -2980,6 +2985,7 @@
   }
   function publierPlan(sansModif) {
     marquerModifie(sansModif);
+    S.ui.dernierePubLocal = Date.now();
     if (!connecte()) return;
     S.ui.aPublier = true; LS.set('aPublier', true);
     synchroniser(true);
@@ -3099,7 +3105,10 @@
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
       LS.set('data', S.data); ctxCache.data = null;
       var nVis = 0; try { nVis = actualiserVisitesPlanifiees() || 0; } catch (eA) { console.warn(eA); }
-      var planChange = false; try { planChange = actualiserPlanDepuisServeur(); } catch (eP) { console.warn(eP); }
+      var planChange = false;
+      if (!tentePub) {
+        try { planChange = actualiserPlanDepuisServeur(); } catch (eP) { console.warn(eP); }
+      }
       aChange = !d.inchange || nVis > 0 || planChange || hist.length !== (ancien.historique || []).length || JSON.stringify(sansSuppressions(d.plannings || [])) !== JSON.stringify(ancien.plannings || []);
       if (!d.inchange && d.doublons === undefined && d.source !== 'supabase') basculerServeurActuel().then(function (ok) { if (ok) setTimeout(function () { synchroniser(false); }, 300); });
       S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
@@ -3924,7 +3933,7 @@
   function versPlan(x, v, d) {
     var s = v || x, x2 = x || {}, pr = praticien(s.code) || {}, c = creneauDe(s.code, d, s.idPresence || x2.idPresence, s.creneau || x2.creneau);
     var st = v ? v.statut || '' : vraiStatut(x2.statut);
-    return completerHeures({ uid: (v && v.uid) || x2.uid || ('C-' + d + '-' + s.code), date: d, heure: x2.heure || (v && v.heure) || '', creneau: s.creneau || x2.creneau || (c ? c.creneau : ''),
+    return completerHeures({ uid: (v && v.uid) || x2.uid || ('C-' + d + '-' + s.code), cle: (c && c.cle) || x2.cle || '', date: d, heure: x2.heure || (v && v.heure) || '', creneau: s.creneau || x2.creneau || (c ? c.creneau : ''),
       debut: x2.debut || '', fin: x2.fin || '', idPresence: s.idPresence || x2.idPresence || '', code: s.code, nom: s.nom || pr.nom || s.code, type: pr.type || s.type || 'Médecin',
       specialite: s.specialite || pr.specialite || '', note: pr.note || s.note, conventionne: pr.conventionne, quartier: s.quartier || x2.quartier || '', commune: s.commune || x2.commune || '',
       lieu: s.lieu || x2.lieu || '', lat: c && c.coord ? c.coord.lat : null, lon: c && c.coord ? c.coord.lon : null, statut: st,
@@ -4094,6 +4103,7 @@
   // pour les jours futurs sans visites validées, si l'utilisateur n'a pas de saisie locale non publiée
   function actualiserPlanDepuisServeur() {
     if (!pret() || !moi() || S.ui.aPublier) return false;
+    if (S.ui.dernierePubLocal && Date.now() - S.ui.dernierePubLocal < 60000) return false;
     var t = aujourdhui(), change = false;
     var srvPlannings = (S.data && S.data.plannings) || [];
     var srvParDate = {};
@@ -4106,22 +4116,35 @@
     var retiresSrv = joursRetires();
     Object.keys(datesTraitees).forEach(function (d) {
       if (jourSemaineIndex(d) > 4) return;
-      if (retiresSrv[d] && !S.plan.some(function (a) { return a.date === d; })) return;   // 3.28.28 : journée supprimée par vous
       var visitesJour = S.plan.filter(function (a) { return a.date === d; });
+      if (retiresSrv[d] && !visitesJour.length) return;   // 3.28.28 : journée supprimée par vous
       var aValide = visitesJour.some(function (a) { return a.statut || a.etat === 'valide'; });
       // 3.31.33 : Ne jamais écraser une proposition locale en cours de revue, un brouillon ou des visites locales
       var estBrouillonLocal = S.ui.aAccepter === d || (S.jours[d] && S.jours[d].etat === 'proposition') || (S.ui.avantTirage && S.ui.avantTirage.date === d);
       if (aValide || estBrouillonLocal) return;
-      var srvVisites = srvParDate[d] || [];
-      if (!srvVisites.length && visitesJour.length > 0) return;   // Ne jamais vider une tournée locale si le serveur n'a pas encore synchronisé
-      var codesActuels = visitesJour.map(function (a) { return a.code; }).join(',');
-      var codesServeur = srvVisites.map(function (p) { return p.code; }).join(',');
+      var supVis = visitesSupprimeesJour(d);
+      var srvActifs = (srvParDate[d] || []).filter(function (p) { return p.code && p.code !== CODE_JOUR_SUPPRIME && !supVis[p.code]; });
+      if (!srvActifs.length) return;   // 3.31.35 : ne jamais vider une tournée locale tant que le serveur n'a rien à mettre à la place
+      var codesActuels = visitesJour.map(function (a) { return a.code; }).slice().sort().join(',');
+      var codesServeur = srvActifs.map(function (p) { return p.code; }).slice().sort().join(',');
       if (codesActuels !== codesServeur) {
-        if (!srvVisites.length) return;
-        S.plan = S.plan.filter(function (a) { return a.date !== d; });
-        var src = donneesJour(d, true);
-        var confirme = srvVisites.some(function (x) { return x.prog ? x.prog === 'valide' : x.programme === 'Validé'; });
-        S.plan = S.plan.concat(src);
+        var parCode = {}, faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && v.code && !supVis[v.code]; });
+        faites.forEach(function (v) { parCode[v.code] = v; });
+        var vus = {}, src = [];
+        srvActifs.forEach(function (x) {
+          if (vus[x.code]) return;
+          vus[x.code] = true;
+          src.push(versPlan(x, parCode[x.code], d));
+        });
+        faites.forEach(function (v) {
+          if (vus[v.code]) return;
+          vus[v.code] = true;
+          src.push(versPlan(null, v, d));
+        });
+        if (!src.length) return;   // 3.31.35 : sécurité absolue : ne jamais remplacer par du vide
+        src = Moteur.ordonnerJour(src, departCoord(), d === t ? minutesMaintenant() : 0);
+        var confirme = srvActifs.some(function (x) { return x.prog ? x.prog === 'valide' : x.programme === 'Validé'; });
+        S.plan = S.plan.filter(function (a) { return a.date !== d; }).concat(src);
         S.jours[d] = { etat: confirme ? 'valide' : 'proposition', valideLe: '', modifieLe: '' };
         change = true;
       }
@@ -4133,9 +4156,8 @@
     return change;
   }
   function choisirJour(dates) {
-    var t = aujourdhui();
-    if (S.ui.jour && S.ui.jour >= t) return;   // 3.31.32 : préserve la date choisie par l'utilisateur (ex: 12 même si pas encore de visites)
     if (!S.ui.jour || dates.indexOf(S.ui.jour) < 0) {
+      var t = aujourdhui();
       S.ui.jour = dates.indexOf(t) >= 0 ? t : (dates.filter(function (d) { return d >= t; })[0] || dates[0]);
     }
   }
@@ -4202,6 +4224,10 @@
     ((S.data && S.data.suppressions) || []).forEach(function (p) {
       if (!p.delegue || !estMoi(p.delegue)) return;
       if (p.code === CODE_JOUR_SUPPRIME) jours[p.date] = true; else (visites[p.date] = visites[p.date] || {})[p.code] = true;
+    });
+    // Si la table Plannings contient des visites actives pour cette date, une ancienne marque « Supprimé » ne l'efface pas
+    ((S.data && S.data.plannings) || []).forEach(function (p) {
+      if (p.delegue && estMoi(p.delegue) && p.code && p.code !== CODE_JOUR_SUPPRIME && jours[p.date]) delete jours[p.date];
     });
     return { jours: jours, visites: visites };
   }
@@ -4350,12 +4376,19 @@
       h += rendreJourHors(d);
       return h;
     }
-    if (!S.plan.length) {
-      return h + rendreRappels() + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».</div>' +
+    var duJour = S.plan.filter(function (a) { return a.date === d; });
+    if (!S.plan.length || !duJour.length) {
+      if (!futurVerrouille(d)) {
+        var lh2 = arretsHorsJour(d);
+        if (lh2.length) {
+          return h + (d === t ? rendreRappels() : '') + (rapportDe(d) || !passeVerrouille(d) || d < t ? tuileRapport(d, lh2) : '') + rendreJourHors(d);
+        }
+      } else if (d > t && programmeDuJour(d).length) {
+        return h + rendreJourHors(d);
+      }
+      return h + (d === t ? rendreRappels() : '') + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».</div>' +
         (boutonPlanifierJour(d) || '<button class="bouton bouton-plein bouton-large" type="button" data-a="nav" data-tab="semaine" style="margin-top:12px">' + icone('calendrier') + 'Planifier ma tournée</button>');
     }
-    var duJour = S.plan.filter(function (a) { return a.date === d; });
-    var renseignees = duJour.filter(function (a) { return a.statut; }).length;
     var com = Array.from(new Set(duJour.map(function (a) { return a.commune; }).filter(Boolean)));
     var est = estimationJour(duJour), liens = lienItineraire(duJour);
     var infos = [est ? minutesVersHeure(est.debut) + ' → ' + minutesVersHeure(est.fin) : '', com.length ? esc(libelleCommunes(com)) : ''].filter(Boolean).join(' · ');
@@ -4366,22 +4399,26 @@
     if (!futurVerrouille(d) && duJour.length && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
     // 3.24.23 : les visites renseignées passent en bas (« Effectuées », dans l'ordre des heures) ;
-    // en haut restent les visites à faire, les plus proches d'abord
+    // en haut restent les visites à faire, ordonnées selon le même TSP anti allers-retours (depuis la position GPS si récente)
     var hv = function (x) { return heureVersMinutes((x.statut && x.valideA) || x.heure) || 0; };
     var parHeure = function (x, y) { return hv(x) - hv(y); };
     var aFaire = duJour.filter(function (a) { return !a.statut; }), faites = duJour.filter(function (a) { return a.statut; }).sort(parHeure);
-    // 3.25.15 : aujourd'hui, avec ma position : les visites pas encore vues du plus proche au plus loin
-    var gp = d === t && S.ui.posGps && Date.now() - S.ui.posGps.t < 15 * 60000 ? S.ui.posGps : null, parProximite = false;
-    if (gp) {
-      var dm = {}; aFaire.forEach(function (a) { var c = coordPrecise(a) || coordArret(a); var dist = c ? distanceVol(gp, c) : null; dm[a.uid] = dist !== null ? dist : 9999; });
-      aFaire.sort(function (x, y) { return dm[x.uid] - dm[y.uid]; }); parProximite = true;
+    var gp = d === t && S.ui.posGps && Date.now() - S.ui.posGps.t < 15 * 60000 ? S.ui.posGps : null;
+    if (gp && aFaire.length > 1) {
+      var copies = aFaire.map(function (a) { return Object.assign({}, a); });
+      aFaire = Moteur.ordonnerJour(copies, { lat: gp.lat, lon: gp.lon }, minutesMaintenant());
     }
+    var creneauDeVisite = function (a) {
+      if (a.creneau === 'Matin' || a.creneau === 'Soir') return a.creneau;
+      var m = heureVersMinutes(a.heure);
+      return m !== null && m >= 780 ? 'Soir' : 'Matin';
+    };
     ['Matin', 'Soir'].forEach(function (cren) {
-      var liste = aFaire.filter(function (a) { return a.creneau === cren; });
+      var liste = aFaire.filter(function (a) { return creneauDeVisite(a) === cren; });
       if (!liste.length) return;
       h += '<div class="creneau-titre">' + cren + '</div><ol class="ligne">';
       liste.forEach(function (a, i) {
-        if (i > 0 && a.dist > 0 && !parProximite) {
+        if (i > 0 && a.dist > 0) {
           h += '<li class="troncon"><div></div><div class="arret-rail"></div>' +
             trajetMini(a.dist, a.trajet !== undefined ? a.trajet : Math.round(a.dist * REGLAGES_MOTEUR.minutesParKm)) + '</li>';
         }
@@ -4864,16 +4901,21 @@
     '</div>';
   }
   VUES.semaine = function () {
+    if (S.ui.restauration) {
+      return '<div class="tete-vue"><div style="display:flex;align-items:center;gap:8px"><h2 class="titre-vue" style="margin:0">Planifier</h2></div></div>' +
+        '<div class="vide"><strong>Lecture de votre planning…</strong>Chargement de vos données enregistrées.</div>';
+    }
     if (!S.ui.voirParams) importerAgenda();
     if (S.ui.voirParams) {
       return '<div class="page-entree"><button type="button" class="retour" data-a="fermerParams">' + icone('chevron') + 'Planifier</button>' +
         '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; touchez un critère pour l\'ajuster ou proposez directement votre tournée.</p>' + rendreParams() + '</div>';
     }
+    var tAuj = aujourdhui();
     // 3.31.2 & 3.31.32 : avant la barre des critères, pour qu'elle montre déjà la bonne période
     // à l'entrée dans Planifier, la frise s'ouvre sur J+1 : sa tournée s'il en a une, sinon J+1 en blanc, prêt à planifier
     if (!S.ui.planInit) {
       S.ui.planInit = true;
-      var j1 = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+      var j1 = prochainJourOuvre(ajouterJours(tAuj, 1));
       S.ui.jour = j1;
       if (S.plan.some(function (a) { return a.date === j1; })) { S.ui.planVide = null; }
       else { S.ui.planVide = j1; S.ui.jourSupprime = null; }
@@ -4883,14 +4925,14 @@
     // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
     // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
     var jSup = S.ui.jourSupprime, jVide = S.ui.planVide;
-    if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
-    if (jVide && (jVide < aujourdhui() || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
+    if (jSup && (jSup < tAuj || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
+    if (jVide && (jVide < tAuj || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
     if (S.ui.jour && S.plan.some(function (a) { return a.date === S.ui.jour; })) { jVide = S.ui.planVide = null; jSup = S.ui.jourSupprime = null; }
-    var jourActif = S.ui.jour || jVide || jSup;
-    if (!jourActif || jourActif < aujourdhui()) {
-      choisirJour(datesF);
-      jourActif = S.ui.jour;
+    if (!S.ui.jour || S.ui.jour < tAuj) {
+      if (jSup || jVide) S.ui.jour = jSup || jVide;
+      else choisirJour(datesF);
     }
+    var jourActif = S.ui.jour || jVide || jSup;
     // 3.31.32 : Le badge Confirmé / Brouillon monte sur la ligne du titre à droite de Planifier pour économiser une ligne
     var etatHaut = '';
     if (jourActif && S.plan.some(function (a) { return a.date === jourActif; })) {
@@ -4900,11 +4942,12 @@
       '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
       '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
       barreCriteresPlanifier();
-    if (jSup || jVide) {
-      var jx = jSup || jVide;
+    var duJourActif = jourActif ? S.plan.filter(function (a) { return a.date === jourActif; }) : [];
+    if ((jSup && jSup === jourActif) || (jVide && jVide === jourActif) || (jourActif && !duJourActif.length && datesF.length)) {
+      var jx = (jSup && jSup === jourActif ? jSup : null) || (jVide && jVide === jourActif ? jVide : jourActif);
       return h + frisePlanifier(datesF, null) +
-        (jSup ? '<div class="vide"><strong>' + majuscule(dateLongue(jSup)) + ' supprimé</strong>Plus aucune visite prévue ce jour. Proposez une nouvelle tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>'
-          : '<div class="vide"><strong>' + majuscule(dateLongue(jVide)) + '</strong>Rien de planifié ce jour. Proposez une tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>') +
+        (jSup && jSup === jx ? '<div class="vide"><strong>' + majuscule(dateLongue(jSup)) + ' supprimé</strong>Plus aucune visite prévue ce jour. Proposez une nouvelle tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>'
+          : '<div class="vide"><strong>' + majuscule(dateLongue(jx)) + '</strong>Rien de planifié ce jour. Proposez une tournée pour ce jour, ou touchez un autre jour ci-dessus.</div>') +
         '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="planifierJourSupprime" data-v="' + jx + '">' + icone('relancer') + 'Proposer pour le ' + dateCourte(jx) + '</button></div>' +
         boutonAnciens('margin-top:10px') + boutonsComposer(jx);   // 3.29.5
     }
@@ -4912,11 +4955,10 @@
       return h + frisePlanifier([], null) + '<div class="vide"><strong>Aucun jour planifié</strong>Touchez « Proposer ma tournée » ou ajustez vos critères ci-dessus.</div>' +
         '<div class="rangee"><button class="bouton bouton-plein bouton-large" type="button" data-a="generer">' + icone('relancer') + 'Proposer ma tournée</button></div>' +
         '<button class="bouton bouton-large" type="button" data-a="voirParams" style="margin-top:8px">' + icone('filtre') + 'Choisir mes critères pas à pas</button>' +
-        boutonAnciens('margin-top:10px') + boutonsComposer(prochainJourOuvre(ajouterJours(aujourdhui(), 1)));   // 3.29.5
+        boutonAnciens('margin-top:10px') + boutonsComposer(prochainJourOuvre(ajouterJours(tAuj, 1)));   // 3.29.5
     }
     var dates = datesF;
-    // 3.25.0 : à l'ouverture (et après rafraîchissement), demain est sélectionné par défaut
-    choisirJour(dates);
+    if (!S.ui.jour || S.ui.jour < tAuj) choisirJour(dates);
     var d = S.ui.jour, enAttente = S.ui.aAccepter === d;
     if (S.ui.annulReprise) {
       h += '<section class="bandeau-prog reprise"><div><b>Programme repris</b><span>' + esc(S.ui.annulReprise.libelle) +
@@ -5336,7 +5378,7 @@
     S.ui.flashTexte = dates.length === 1 ? majuscule(dateLongue(dates[0])) + ' confirmé' : dates.length + ' jours confirmés';
     sauver(); publierPlan(true);
     S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée ✓', dates: dates, avantJours: avantJours, avantAAccepter: avantAAccepter, depuisChoix: !!depuisChoix, retourAction: 'annulerConfirmation' };
-    S.ui.flashValide = Date.now() + 6000; setTimeout(function () { S.ui.flashValide = 0; rendreSiPossible(); }, 6100);   // 3.28.33 : 2 s de plus pour lire
+    S.ui.flashValide = Date.now() + 7500; setTimeout(function () { if (Date.now() >= S.ui.flashValide) { S.ui.flashValide = 0; rendreSiPossible(); } }, 7600);   // 3.31.35 : +1,5 s pour lire (7,5 s)
     rendre();
   }
   // 3.19.0 : toute question se pose en trois boutons : Oui (appliquer), Non (refuser ; action propre à la question,
@@ -7672,8 +7714,26 @@
     l.sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
     var h = '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechHop" placeholder="Hôpital, clinique, quartier, commune…" value="' +
       esc(S.ui.rechHop || '') + '" aria-label="Rechercher un hôpital"></div></div>';
-    h += '<p class="phrase-criteres" style="text-align:center">' + l.length + ' établissement' + (l.length > 1 ? 's' : '') + (f.communes && f.communes.length ? ' · ' + esc(condenserCommunesEtSecteurs(f.communes) || '') : '') + ' · de A à Z' + '</p>';
-    if (!l.length) return h + '<div class="vide"><strong>Aucun établissement</strong>Aucun hôpital ne correspond à cette recherche.</div>';
+    h += '<div class="rangee-actions-rep">' +
+      '<button class="bouton bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + '<span>Recherche</span></button>' +
+      '<button class="bouton bouton-plein bouton-ajouter-rep" type="button" data-a="ficheHopital">' + icone('plus') + '<span>Ajouter</span></button>' +
+      (S.ui.hopOuvert
+        ? '<button class="bouton bouton-modifier-rep" type="button" data-a="modifierHopitalActif">' + icone('crayon') + '<span>Modifier</span></button>'
+        : '<button class="bouton bouton-modifier-rep desactive" type="button" data-a="modifierHopitalActif" style="opacity:.45" title="Touchez d\'abord un hôpital dans la liste">' + icone('crayon') + '<span>Modifier</span></button>') +
+      '</div>' + bandeauScans();
+    var aFiltresHop = (f.communes && f.communes.length > 0) || !!(S.ui.rechHop && String(S.ui.rechHop).trim());
+    h += '<div class="bandeau-criteres-rep">' +
+      '<div class="centre-reinit-rep">' +
+        (aFiltresHop
+          ? '<button type="button" class="bouton-reinit-rep" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
+              icone('relancer') + '<span>Réinitialiser les filtres</span>' +
+            '</button>'
+          : '<button type="button" class="bouton-reinit-rep desactive" disabled title="Aucun filtre actif">' +
+              icone('relancer') + '<span>Réinitialiser les filtres</span>' +
+            '</button>') +
+      '</div>' +
+      '</div>';
+    if (!l.length) return h + '<div class="vide"><strong>Aucun établissement</strong>Aucun hôpital ne correspond à cette recherche.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
     h += '<ul class="liste">';
     l.slice(0, S.ui.limite).forEach(function (e) {
       var ouvert = S.ui.hopOuvert === e.cle;
@@ -11096,10 +11156,15 @@
       (reste ? ' ; ' + reste + ' restant' + (reste > 1 ? 's' : '') : '') + (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.'), 4000);
     synchroniser(true);
   }
+  function demarrerFlashScans() {
+    if (!scansEnCours().length) { S.ui.flashScans = 0; return; }
+    S.ui.flashScans = Date.now() + 7500;
+    setTimeout(function () { if (Date.now() >= S.ui.flashScans) { S.ui.flashScans = 0; rendreSiPossible(); } }, 7600);
+  }
   function bandeauScans() {
-    var l = scansEnCours(); if (!l.length) return '';
+    var l = scansEnCours(); if (!l.length || !S.ui.flashScans || Date.now() >= S.ui.flashScans) return '';
     var lues = l.filter(function (x) { return x.statut === 'lue'; }).length, autres = l.length - lues;
-    return '<button type="button" class="bandeau info bandeau-scans" data-a="scanListe">' + icone('repertoire') + '<p><b>Fiches photographiées</b> : ' +
+    return '<button type="button" class="bandeau info bandeau-scans flash" data-a="scanListe">' + icone('repertoire') + '<p><b>Fiches photographiées</b> : ' +
       [lues ? lues + ' à vérifier' : '', autres ? autres + ' en cours' : ''].filter(Boolean).join(', ') + '</p></button>';
   }
   // ------------------------------------------------------------------ 3.31.0 : nouvel hôpital (Répertoire › Ajouter › Hôpital)
@@ -12473,6 +12538,7 @@
       S.ui.tab = dest; S.ui.pharmaciesProches = false;
       // 3.26.50 : Journée s'ouvre toujours sur aujourd'hui (centré dans la frise, grisé si non ouvré)
       if (dest === 'jour') { var tj = aujourdhui(); if (datesPlan().indexOf(tj) >= 0) { S.ui.jour = tj; S.ui.jourVue = null; } else S.ui.jourVue = tj; S.ui.ouvert = null; }
+      if (dest === 'praticiens') demarrerFlashScans();
       if (S.ui.tab === 'historique') { S.ui.tab = 'suivi'; S.ui.suiviVue = 'bilan'; S.ui.statsVue = 'historique'; }
       S.ui.feuille = null;
       rendre(); window.scrollTo(0, 0);
@@ -13872,7 +13938,7 @@
     },
     effacerFiltres: function () {
       majFiltres(JSON.parse(JSON.stringify(FILTRES_VIDES)));
-      if (S.ui.tab === 'autour') S.ui.rechercheAutour = ''; else S.ui.recherche = '';
+      if (S.ui.tab === 'autour') S.ui.rechercheAutour = ''; else { S.ui.recherche = ''; S.ui.rechHop = ''; }
       S.ui.etapesF[cleFiltres()] = { ok: {} }; sauverEtapes(); rendre();
     },
     // Fiche praticien
@@ -13919,14 +13985,47 @@
       if (e.nom.length < 3) err.hnom = 'Nom de l\'établissement manquant';
       if (!e.categorie) err.hcat = 'Choisissez la catégorie';
       if (!e.quartier) err.hquartier = 'Choisissez le quartier';
-      var dbl = doublonsHopital(e.nom).filter(function (x) { return normaliser(x.nom) === normaliser(e.nom); })[0];
+      var dbl = doublonsHopital(e.nom).filter(function (x) {
+        return normaliser(x.nom) === normaliser(e.nom) && (!f.edition || normaliser(x.nom) !== normaliser(f.ancienNom || ''));
+      })[0];
       if (dbl) err.hnom = 'Déjà dans la base : ' + dbl.nom;
       if (Object.keys(err).length) { f.err = err; rendre(); toast(dbl ? 'Cet établissement existe déjà.' : 'Complétez les champs signalés.'); return; }
       var q = quartiers().filter(function (x) { return x.quartier === e.quartier; })[0] || {};
-      var x = { uid: 'E-' + Date.now().toString(36), code: 'TMP-ETAB-' + Date.now().toString(36).toUpperCase(), nom: e.nom, categorie: e.categorie, quartier: e.quartier,
-        commune: q.commune || e.commune || '', zone: q.zone || '', reperes: String(e.reperes || '').trim(), telephone: formaterTelephoneCI(e.telephone) || String(e.telephone || '').trim(),
-        lat: e.lat || '', lon: e.lon || '', originegps: e.lat ? origineTerrain(e.prec) : '', auteur: moi() };
+      var com = q.commune || e.commune || '', zone = q.zone || '', rep = String(e.reperes || '').trim(), tel = formaterTelephoneCI(e.telephone) || String(e.telephone || '').trim();
+      S.data = S.data || {};
       S.data.etablissements = S.data.etablissements || [];
+      if (f.edition) {
+        var cibleNom = f.ancienNom || e.nom;
+        var etabEx = S.data.etablissements.filter(function (x) { return (e.code && x.code === e.code) || normaliser(x.nom) === normaliser(cibleNom); })[0];
+        if (etabEx) {
+          etabEx.nom = e.nom; etabEx.categorie = e.categorie; etabEx.quartier = e.quartier; etabEx.commune = com;
+          etabEx.zone = zone; etabEx.reperes = rep; etabEx.telephone = tel;
+          if (e.lat && e.lon) { etabEx.lat = e.lat; etabEx.lon = e.lon; }
+        } else {
+          S.data.etablissements.push({ code: e.code || ('TMP-ETAB-' + Date.now().toString(36).toUpperCase()), nom: e.nom, categorie: e.categorie, quartier: e.quartier, commune: com, zone: zone, reperes: rep, telephone: tel, lat: e.lat || '', lon: e.lon || '' });
+        }
+        ((S.data && S.data.presences) || []).forEach(function (pr) {
+          if (normaliser(pr.lieu || '') === normaliser(cibleNom)) {
+            pr.lieu = e.nom; pr.quartier = e.quartier; pr.commune = com; pr.zone = zone;
+            if (rep) pr.reperes = rep;
+            if (e.lat && e.lon) { pr.lat = e.lat; pr.lon = e.lon; }
+          }
+        });
+        S.ui.hopOuvert = normaliser(e.nom);
+        ctxCache.data = null; sauver();
+        if (!S.config.demo && connecte()) {
+          var payloadMaj = { nom: e.nom, ancienNom: cibleNom, categorie: e.categorie, quartier: e.quartier, commune: com, zone: zone, reperes: rep, telephone: tel, auteur: moi() };
+          if (e.code) payloadMaj.code = e.code;
+          if (e.lat && e.lon) { payloadMaj.lat = e.lat; payloadMaj.lon = e.lon; if (e.prec) payloadMaj.originegps = origineTerrain(e.prec); }
+          apiPost('etablissement', payloadMaj).then(function () { synchroniser(true); }).catch(function (errM) { signalerErreur('maj établissement', errM, { nom: e.nom }); });
+        }
+        S.ui.feuille = null; rendre();
+        toast(e.nom + ' mis à jour' + (S.config.demo ? '.' : ', envoyé à la BDD.'));
+        return;
+      }
+      var x = { uid: 'E-' + Date.now().toString(36), code: 'TMP-ETAB-' + Date.now().toString(36).toUpperCase(), nom: e.nom, categorie: e.categorie, quartier: e.quartier,
+        commune: com, zone: zone, reperes: rep, telephone: tel,
+        lat: e.lat || '', lon: e.lon || '', originegps: e.lat ? origineTerrain(e.prec) : '', auteur: moi() };
       S.data.etablissements.push({ code: x.code, nom: x.nom, categorie: x.categorie, quartier: x.quartier, commune: x.commune, zone: x.zone, reperes: x.reperes, telephone: x.telephone, lat: x.lat, lon: x.lon });
       ctxCache.data = null; sauver();
       if (!S.config.demo) { LS.set('etabsEnAttente', LS.get('etabsEnAttente', []).concat([x])); envoyerEtabsEnAttente(); }
@@ -14102,6 +14201,22 @@
       }
       var d = brouillonFiche(code);
       S.ui.feuille = { type: 'fiche', titre: d.nom || 'Modifier', pleine: true, etape: 1, d: d, err: {}, initial: JSON.stringify(d) };
+      rendre();
+    },
+    modifierHopitalActif: function () {
+      if (!S.ui.hopOuvert) {
+        toast('Touchez d\'abord un hôpital dans la liste.');
+        return;
+      }
+      var e = hopitauxRepertoire(true).filter(function (x) { return x.cle === S.ui.hopOuvert; })[0];
+      if (!e) { toast('Hôpital introuvable.'); return; }
+      var etabBase = ((S.data && S.data.etablissements) || []).filter(function (x) { return normaliser(x.nom) === e.cle; })[0] || {};
+      var cat = etabBase.categorie || (/^CHU\b/i.test(e.nom) ? 'CHU' : (/^CHR\b/i.test(e.nom) ? 'CHR' : (/polyclinique/i.test(e.nom) ? 'Polyclinique' : (/clinique/i.test(e.nom) ? 'Clinique Privée' : 'Centre Médical'))));
+      S.ui.feuille = {
+        type: 'hopitalNouveau', titre: 'Modifier ' + e.nom, pleine: true, cherche: false, edition: true, ancienNom: e.nom,
+        e: { code: etabBase.code || '', nom: e.nom, categorie: cat, quartier: e.quartier || etabBase.quartier || '', commune: e.commune || etabBase.commune || '', reperes: e.reperes || etabBase.reperes || '', telephone: e.telephone || etabBase.telephone || '', lat: isFinite(e.lat) ? e.lat : '', lon: isFinite(e.lon) ? e.lon : '', prec: '' },
+        err: {}
+      };
       rendre();
     },
     modifierPlanning: function (el) {
@@ -14830,11 +14945,15 @@
     IDB._viderFileAttente();
     ctxCache.data = null;
   }).then(function () {
-    S.ui.restauration = false; rendreSiPossible();
+    S.ui.restauration = false;
+    if (S.plan.length && S.ui.jour && !S.plan.some(function (a) { return a.date === S.ui.jour; })) S.ui.planInit = false;
+    if (S.ui.tab === 'praticiens') demarrerFlashScans();
+    rendreSiPossible();
   }, function () { idbRelue = true; IDB._viderFileAttente(); S.ui.restauration = false; rendreSiPossible(); });
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); S.ui.installEvt = e; if (S.ui.tab === 'reglages') rendre(); });
   // 3.25.28 : recalcul de la position et des distances à l'ouverture, réouverture, focus et réveil
   if (S.ui.tab === 'jour') { var tj0 = aujourdhui(); if (datesPlan().indexOf(tj0) >= 0) { S.ui.jour = tj0; S.ui.jourVue = null; } else S.ui.jourVue = tj0; }
+  if (S.ui.tab === 'praticiens') demarrerFlashScans();
   // 3.27.23 : 18 h 30, compte rendu du jour non finalisé : notification du téléphone (une fois par jour)
   function rappelCrSoir() {
     if (!pret() || minutesMaintenant() < 18 * 60 + 30) return;

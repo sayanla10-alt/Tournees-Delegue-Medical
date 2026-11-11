@@ -1,9 +1,11 @@
 {
-  "version": "3.31.34",
+  "version": "3.31.35",
   "date": "2026-11-11",
   "notes": [
-    "Planifier : stabilisation totale du défilement de la frise (suppression des clics parasites lors du balayage tactile)",
-    "Planifier : affichage immédiat et stable des visites du bas lors des animations de date",
-    "Planifier : barre flottante d'actions immunisée contre les cassures de positionnement"
+    "Planifier & Journée : nouvel algorithme TSP anti allers-retours (termine chaque quartier/zone avant d'en sortir, respect des horaires, répartition équilibrée Matin/Soir et multi-jours)",
+    "Journée : l'ordre GPS suit le même algorithme TSP sans zigzags au lieu du tri en étoile",
+    "Planifier & Journée : correction définitive des jours planifiés apparaissant vides avant de revenir",
+    "Répertoire : onglet Hôpitaux uniformisé avec Médecins et Pharmacies (boutons Recherche, + Ajouter, Modifier)",
+    "Répertoire & Planifier : bandeau Fiches photographiées temporaire à l'ouverture (7,5 s) et Tournée confirmée porté à 7,5 s"
   ]
 }
