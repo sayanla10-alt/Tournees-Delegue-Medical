@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.13';
+  var APP_VERSION = '3.31.14';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.14', ['Vérifier la fiche : colonnes simplifiées « Ancien » et « Nouveau », retrait des lignes planning et compte rendu du tableau',
+                 'Rapprochement intelligent : « Modifier l\'ancien » pré-sélectionné par défaut pour les ressemblances',
+                 'Gain d\'espace vertical maximal pour smartphone et libellé clair : « Où a eu lieu cette visite ? »']],
     ['3.31.13', ['Vérifier la fiche ultra-épuré pour mobile : suppression des textes longs redondants et questions raccourcies',
                  'Semainier 100% interactif au pouce : touchez directement un jour (Lun, Mar, Mer, Jeu, Ven) pour ajuster le planning du praticien',
                  'Recherche d\'hôpital instantanée : tapez les premières lettres avec auto-complétion directe au lieu de la liste déroulante']],
@@ -10588,6 +10591,12 @@
       // 1. BLOC ARBITRAGE FUZZY MATCH (Modifier l'ancien OU Créer nouveau)
       var contactFuzzy = dt || (ex && cand1 && ex.code === cand1.code ? cand1 : null) || (cand1 && !ex ? cand1 : null);
       if (contactFuzzy) {
+        // « Modifier l'ancien » est toujours pré-sélectionné par défaut
+        if (!ent.decision && !ent.choix) {
+          ent.choix = contactFuzzy.code;
+          ent.decision = 'oui';
+          ex = praticien(ent.choix);
+        }
         var prs = (ctx().presencesParCode[contactFuzzy.code] || []).map(function (x) { return x.lieu; }).filter(Boolean).slice(0, 2).join(', ');
         var estChoisiAncien = ent.choix === contactFuzzy.code;
 
@@ -10610,7 +10619,7 @@
       // 2. CHOIX DE L'HÔPITAL DE RENCONTRE & PLANNING INTERACTIF
       if (!estPh) {
         h += '<div class="scan-bloc-presence-hopital">' +
-          '<div class="scan-hopital-question">🏥 <b>Où cette visite ?</b></div>';
+          '<div class="scan-hopital-question">🏥 <b>Où a eu lieu cette visite ?</b></div>';
 
         // Accès rapide si le praticien a déjà des lieux connus
         if (ex && ex.lieux && ex.lieux.length) {
@@ -10675,7 +10684,9 @@
 
       // 3. TABLEAU COMPARATIF [ANCIEN | NOUVEAU] AVEC CHOIX AU CLIC
       if (ex) {
-        var changs = pl.cmp.filter(function (r) { return r.etat === 'different' || r.etat === 'ajout'; });
+        var changs = pl.cmp.filter(function (r) {
+          return (r.etat === 'different' || r.etat === 'ajout') && r.k !== 'programme' && r.k !== 'cr';
+        });
         if (changs.length) {
           h += '<div class="scan-table-wrap">' +
             '<div class="scan-table-titre">⚙️ <b>Mentions différentes : touchez pour choisir</b></div>' +
@@ -10683,8 +10694,8 @@
               '<thead>' +
                 '<tr>' +
                   '<th class="scan-th-champ">Mention</th>' +
-                  '<th class="scan-th-col">Ancien (En base)</th>' +
-                  '<th class="scan-th-col">Nouveau (Lu)</th>' +
+                  '<th class="scan-th-col">Ancien</th>' +
+                  '<th class="scan-th-col">Nouveau</th>' +
                 '</tr>' +
               '</thead>' +
               '<tbody>';
@@ -10692,7 +10703,7 @@
           changs.forEach(function (r) {
             var k = r.k, ficheVal = r.fiche || '', baseVal = r.base || '';
             var estAccepte = r.opt === 'remplacer' ? !!(ent.remplacer && ent.remplacer[k]) : !(ent.refus && ent.refus[k]);
-            var libChamp = k === 'telephone' ? 'Téléphone' : k === 'specialite' ? 'Spécialité' : k === 'etablissement' ? 'Établissement' : k === 'quartier' ? 'Quartier' : k === 'nom' ? 'Nom' : k === 'programme' ? 'Planning' : k === 'absence' ? 'Absence' : esc(r.champ);
+            var libChamp = k === 'telephone' ? 'Téléphone' : k === 'specialite' ? 'Spécialité' : k === 'etablissement' ? 'Établissement' : k === 'quartier' ? 'Quartier' : k === 'nom' ? 'Nom' : k === 'absence' ? 'Absence' : esc(r.champ);
 
             var labelAncien = baseVal ? esc(baseVal) : '<span class="scan-val-vide">— (aucun)</span>';
             var labelNouveau = ficheVal ? esc(ficheVal) : '<span class="scan-val-vide">— (aucun)</span>';

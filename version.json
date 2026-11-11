@@ -1,7 +1,7 @@
 {
-  "version": "3.31.13",
+  "version": "3.31.14",
   "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : semainier interactif au pouce par hôpital, recherche instantanée par premières lettres et textes ultra-épurés pour mobile."
+    "Vérifier la fiche : colonnes simplifiées Ancien et Nouveau, retrait des lignes superflues, Modifier l'ancien pré-sélectionné par défaut et gain d'espace vertical."
   ]
 }
