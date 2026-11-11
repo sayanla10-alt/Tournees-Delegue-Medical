@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.37';
+  var APP_VERSION = '3.31.38';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.38', ['Planifier : cartes oranges allégées et centrées (boutons Remplacer / Supprimer sur le modèle des cartes collègues, punaise Garder et croix conservées, suppression du texte redondant)',
+                 'Planifier : les anciennes visites supprimées ou remplacées restent définitivement effacées et ne reviennent plus après synchronisation ni recalcul',
+                 'Planifier : un tirage sur de nouvelles communes ne réinjecte plus d\'anciennes visites hors zone']],
     ['3.31.37', ['Planifier : chaque journée conserve ses propres critères (communes, quartiers, spécialités, potentiel, rythme) ; planifier le 12 avec d\'autres filtres ne modifie plus ceux du 11 et ne passe plus les visites du 11 en orange']],
     ['3.31.36', ['Algorithme & Cartographie : correction des coordonnées GPS aberrantes (ex. HG Avocatier, Anonkoua), suivi du quartier de départ, et suppression du découpage en secteurs artificiels pour un trajet continu sans allers-retours',
                  'Planifier : affichage fidèle à l\'ordre chronologique réel du trajet',
@@ -4321,6 +4324,32 @@
   }
   function joursRetires() { return Object.assign({}, suppressionsServeur().jours, LS.get('joursRetires', {})); }
   function visitesSupprimeesJour(d) { return Object.assign({}, suppressionsServeur().visites[d] || {}, (LS.get('visitesSupprimees', {}) || {})[d] || {}); }
+  function marquerVisiteSupprimee(date, code) {
+    if (!date || !code) return;
+    var sup = LS.get('visitesSupprimees', {});
+    (sup[date] = sup[date] || {})[code] = true;
+    LS.set('visitesSupprimees', sup);
+    if (S.data && S.data.plannings) {
+      S.data.plannings = S.data.plannings.filter(function (x) {
+        return !(x.date === date && x.code === code && x.delegue && estMoi(x.delegue) && !vraiStatut(x.statut));
+      });
+    }
+    var arch = LS.get('archives', {});
+    if (arch[date]) {
+      arch[date] = arch[date].filter(function (x) { return x.code !== code; });
+      if (!arch[date].length) delete arch[date];
+      LS.set('archives', arch);
+    }
+  }
+  function demarquerVisiteSupprimee(date, code) {
+    if (!date || !code) return;
+    var sup = LS.get('visitesSupprimees', {});
+    if (sup[date] && sup[date][code]) {
+      delete sup[date][code];
+      if (!Object.keys(sup[date]).length) delete sup[date];
+      LS.set('visitesSupprimees', sup);
+    }
+  }
   // 3.27.41 : programme d'un jour hors tournée en cours : feuille Plannings du serveur en priorité, sinon archive locale
   function programmeDuJour(d) {
     var srv = ((S.data && S.data.plannings) || []).filter(function (x) { return x.date === d && x.delegue && estMoi(x.delegue); });
@@ -5270,11 +5299,12 @@
   }
   function appliquerRemplacement(uid, cle, garder) {
     var a = arret(uid), cr = Moteur.creneauParCle(ctx(), cle); if (!a || !cr) return;
-    if (!garder) { S.rejetes[a.code] = true; refuser(a.code, a.date); S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
+    if (!garder) { S.rejetes[a.code] = true; refuser(a.code, a.date); marquerVisiteSupprimee(a.date, a.code); S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
+    demarquerVisiteSupprimee(a.date, cr.code);
     var n = Moteur.arretDepuisCreneau(cr, a.date); n.etat = 'ajoute'; n.garde = true;
     S.plan.push(n); reordonner(a.date);
     if (S.ui.tab === 'semaine') mettreBrouillon([a.date]);
-    S.ui.feuille = null; S.ui.ouvert = null; marquerModifie(); sauver(); rendre(); publierPlan();
+    S.ui.feuille = null; S.ui.ouvert = null; S.ui.aPublier = true; LS.set('aPublier', true); marquerModifie(); sauver(); rendre(); publierPlan(true);
     var placé = arret(n.uid);
     toast((garder ? n.nom + ' ajouté en remplacement de ' + a.nom : a.nom + ' remplacé par ' + n.nom) + (placé ? ' (' + placé.heure + ', ' + n.quartier + ')' : '') + '.', 5000);
   }
@@ -5312,10 +5342,11 @@
     S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; });
     if (!S.plan.some(function (x) { return x.date === a.date; })) { var rt = LS.get('joursRetires', {}); rt[a.date] = true; LS.set('joursRetires', rt); }
     S.rejetes[a.code] = true; refuser(a.code, a.date);
+    marquerVisiteSupprimee(a.date, a.code);
     S.imposes = S.imposes.filter(function (im) { return im.code !== a.code; });
     reordonner(a.date);
     if (S.ui.tab === 'semaine' && S.plan.some(function (x) { return x.date === a.date; })) mettreBrouillon([a.date]);
-    S.ui.ouvert = null; sauver(); rendre(); publierPlan();
+    S.ui.ouvert = null; S.ui.aPublier = true; LS.set('aPublier', true); marquerModifie(); sauver(); rendre(); publierPlan(true);
     toast(a.nom + ' retiré de la tournée.');
   }
   // 3.26.31 : suppression d'une journée planifiée après confirmation (appui très long sur la date)
@@ -5355,7 +5386,7 @@
     S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
     S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; }); S.horsPlan = (S.horsPlan || []).filter(function (x) { return x.uid !== a.uid; });
     // 3.26.64 : mémorisée comme supprimée : elle ne revient plus par le programme publié ni par l'historique
-    var sup = LS.get('visitesSupprimees', {}); (sup[a.date] = sup[a.date] || {})[a.code] = true; LS.set('visitesSupprimees', sup);
+    marquerVisiteSupprimee(a.date, a.code);
     if (!S.plan.some(function (x) { return x.date === a.date; })) { var rt = LS.get('joursRetires', {}); rt[a.date] = true; LS.set('joursRetires', rt); }
     S.ui.ouvert = null; LS.set('horsPlan', S.horsPlan); S.ui.aPublier = true; LS.set('aPublier', true); sauver(); rendre(); publierPlan(); toast('Visite supprimée de la journée.');
   }
@@ -5655,21 +5686,17 @@
             (e ? '<span class="etiquettes">' + e + '</span>' : '') +
           '</button>' +
           (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
-            (horsZone ? '' :
-              '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
-                (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
-              '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>')) +
+            '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
+              (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
+            '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
         '</div>' +
       '</div>' +
-      // Sous les cartes oranges (hors communes choisies) : strictement deux boutons Remplacer et Supprimer
+      // Sous les cartes oranges (hors communes choisies) : deux boutons centrés Remplacer et Supprimer, comme sur les cartes collègues
       (horsZone && !verrou && !a.statut ?
-        '<div class="actions-carte-orange">' +
-          '<span class="actions-carte-orange-texte">' + icone('localisation') + 'Hors commune cible</span>' +
-          '<div class="rangee-boutons-orange">' +
-            '<button type="button" class="bouton petit bouton-plein" data-a="conflitRemplacer" data-uid="' + a.uid + '">' + icone('relancer') + '<span>Remplacer</span></button>' +
-            '<button type="button" class="bouton petit danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '">' + icone('fermer') + '<span>Supprimer</span></button>' +
-          '</div>' +
-        '</div>' : '') +
+        '<div class="actions-carte-orange"><div class="rangee">' +
+          '<button type="button" class="bouton petit bouton-plein" data-a="conflitRemplacer" data-uid="' + a.uid + '">Remplacer</button>' +
+          '<button type="button" class="bouton petit danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '">Supprimer</button>' +
+        '</div></div>' : '') +
       (conflitArret(a) ? questionConflit(a, conflitArret(a)) : '') +
       '</li>';
   }
@@ -11952,7 +11979,13 @@
         conserves.forEach(function (a) { heuresGardees[a.uid] = a.heure; });
       }
       // 3.28.18 : une visite hors des communes choisies pour son jour : gardée si elle est faite ou renseignée, sinon selon votre réponse
-      if (horsZone === 'retirer') conserves = conserves.filter(function (a) { return a.etat === 'valide' || a.corrige || a.statut || dansCommunesDu(a, a.date); });
+      if (horsZone === 'retirer') {
+        conserves = conserves.filter(function (a) {
+          var garder = !!(a.statut || a.corrige || dansCommunesDu(a, a.date));
+          if (!garder) { marquerVisiteSupprimee(a.date, a.code); refuser(a.code, a.date); }
+          return garder;
+        });
+      }
       // agenda : les autres jours restent ; un praticien déjà prévu à quelques jours d'écart n'est pas repris
       var horsCible = S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
@@ -11972,8 +12005,17 @@
         if (r2.arrets.length > r.arrets.length) r = r2;
         // 3.28.33 : sinon, on garde les médecins restés dans la liste (à leur heure) et on comble les places libérées
         if (manque(r) && (portee === 'jour' || portee === 'semaine')) {
-          var restes = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && conserves.indexOf(a) < 0 && !refusesActuels(a.date).codes[a.code]; })
-            .map(function (a) { var x = JSON.parse(JSON.stringify(a)); x.garde = true; return x; });
+          var restes = S.plan.filter(function (a) {
+            if (cible.indexOf(a.date) < 0 || conserves.indexOf(a) >= 0) return false;
+            if (refusesActuels(a.date).codes[a.code] || visitesSupprimeesJour(a.date)[a.code]) return false;
+            if (!dansCommunesDu(a, a.date)) return false;
+            var accD = filtreCibles(a.date);
+            if (accD) {
+              var pr = praticien(a.code) || a;
+              if (!accD(pr)) return false;
+            }
+            return true;
+          }).map(function (a) { var x = JSON.parse(JSON.stringify(a)); x.garde = true; return x; });
           if (restes.length) {
             var r3 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {}, conserves: conserves.concat(restes) }));
             r3.arrets.forEach(function (a) { var o = restes.filter(function (x) { return x.uid === a.uid; })[0]; if (o) { var src = S.plan.filter(function (y) { return y.uid === o.uid; })[0]; a.garde = !!(src && src.garde); } });
@@ -12188,7 +12230,8 @@
     }
     var a = Moteur.arretDepuisCreneau(c, date);
     a.etat = 'ajoute'; a.garde = true;
-    // 3.28.18 : ajouté à la main : la croix d'avant est levée
+    // 3.28.18 : ajouté à la main : la croix et l'éventuelle suppression d'avant sont levées
+    demarquerVisiteSupprimee(date, c.code);
     var rf = refusesActuels(date); if (rf.codes[c.code]) { delete rf.codes[c.code]; sauverRefusesDate(date, rf); }
     S.plan.push(a);
     reordonner(date);

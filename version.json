@@ -1,9 +1,9 @@
 {
-  "version": "3.31.37",
+  "version": "3.31.38",
   "date": "2026-11-11",
   "notes": [
-    "Planifier : chaque date conserve ses propres critères (communes, quartiers, spécialités, potentiel, rythme) ; changer de filtre sur le 12 n'écrase plus le 11 et ne passe plus ses visites en orange",
-    "Planifier : les refus par la croix sont également mémorisés indépendamment par date",
-    "Tournée & Cartographie : validation croisée GPS et ordre chronologique continu sans allers-retours (Abobo, etc.)"
+    "Planifier : cartes oranges plus compactes sans texte redondant, boutons Remplacer / Supprimer centrés à parité comme sur les cartes collègues, et boutons Garder / Retirer conservés",
+    "Planifier : les anciennes visites effacées ou remplacées sont mémorisées supprimées et ne reviennent plus après synchro ni recalcul",
+    "Planifier : les tirages sur de nouvelles communes ne réinjectent plus les anciennes visites hors zone"
   ]
 }
