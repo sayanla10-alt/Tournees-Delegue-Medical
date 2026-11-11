@@ -3895,3 +3895,27 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .bouton.bouton-fiche-scan { display: flex; width: 100%; min-height: 38px; height: auto; padding: 4px 8px; margin: 6px 0 0; justify-content: center; align-items: center; gap: 6px; }
 .bouton.bouton-fiche-scan svg { width: 16px; height: 16px; }
 .scan-lu { margin: 4px 0 6px; font-size: 12px; line-height: 1.35; }
+
+/* 3.31.3 : Vérifier la fiche */
+.scan-tete .case { margin-top: 6px; }
+.scan-photo { display: flex; width: fit-content; align-items: center; gap: 4px; margin-top: 6px; font-size: 13px; }
+.scan-photo svg { width: 14px; height: 14px; }
+.scan-resume { margin: 12px 2px 0; font-size: 14px; }
+.scan-groupe { margin-top: 14px; }
+.scan-ent { margin-top: 8px; padding: 10px 12px; }
+.scan-ligne1 { display: flex; align-items: flex-start; gap: 10px; }
+.scan-case { flex: none; margin: 2px 0 0; }
+.scan-case input { width: 20px; height: 20px; }
+.scan-nom { flex: 1 1 auto; min-width: 0; }
+.scan-nom b { overflow-wrap: anywhere; }
+.scan-nom small { display: block; color: var(--gris); font-size: 12.5px; line-height: 1.35; margin-top: 2px; overflow-wrap: anywhere; }
+.scan-nom small.scan-base { color: var(--primaire); display: flex; align-items: center; gap: 4px; }
+.scan-nom small.scan-base svg { width: 13px; height: 13px; flex: none; }
+.scan-ligne1 .bouton.petit { flex: none; }
+.scan-err { margin: 6px 0 0 30px; }
+.scan-ent .scan-changes { margin: 6px 0 0 30px; padding-left: 14px; }
+.scan-detail { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--trait); }
+.scan-rempl { display: flex; margin: 6px 0 0; }
+.scan-erreur { border-color: var(--ambre-trait); }
+.scan-exclu { opacity: .55; }
+.scan-nom .nowrap { white-space: nowrap; }

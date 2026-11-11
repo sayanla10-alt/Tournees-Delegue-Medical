@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.2';
+  var APP_VERSION = '3.31.3';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.3', ['Vérifier la fiche réorganisé : date, présence et compte rendu en tête, résumé, puis les contacts rangés par état (À compléter, Nouveaux contacts, Déjà dans la base, Non retenus) ; chaque contact tient sur une carte courte, « Modifier » déplie ses champs']],
     ['3.31.2', ['Planifier : le jour touché dans la frise devient la période planifiée ; touchez le 12, la tournée est proposée pour le 12 (avant, elle partait sur la date gardée dans Période, par exemple aujourd\'hui)']],
     ['3.31.1', ['Fiche photographiée : toutes les lignes de la fiche sont lues (jusqu\'à 15 et plus), avec pour chacune spécialité, établissement, téléphone et adresse du cachet ; le texte lu s\'affiche sous chaque contact à vérifier ; photo envoyée en meilleure définition']],
     ['3.31.0', ['Répertoire › Ajouter : nouveau bouton Hôpital (à la place de Fiche) : on cherche d\'abord dans la base, puis on crée l\'établissement (nom officiel, catégorie, quartier, repères, téléphone, position prise devant)',
@@ -10275,42 +10276,72 @@
     return h;
   };
   function horodatageDe(t) { var d = new Date(t); return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+  // 3.31.3 : écran « Vérifier la fiche » réorganisé : en-tête (date, présence, compte rendu), résumé, puis les contacts
+  // rangés par état : À compléter, Nouveaux contacts, Déjà dans la base, Non retenus. Chaque contact tient en une carte
+  // courte (nom en entier, spécialité, établissement, téléphone, ce qui va changer) ; « Modifier » déplie les champs.
   FEUILLES.ficheScanValider = function (f) {
     var x = scan(f.id); if (!x || !x.validation) return '<div class="vide"><strong>Fiche introuvable</strong></div>';
     var v = x.validation, h = '';
-    h += (x.photo && x.photo.url ? '<p class="discret" style="margin:0 0 8px"><a href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">' + icone('carte') + 'Voir la photo (Drive)</a></p>' : '') +
+    var plans = v.entites.map(function (ent) { return planScan(ent, v); });
+    var etat = function (i) { var e = v.entites[i]; return !e.inclus ? 'exclu' : plans[i].erreur ? 'erreur' : e.choix ? 'existant' : 'nouveau'; };
+    var n = { erreur: 0, nouveau: 0, existant: 0, exclu: 0 }; v.entites.forEach(function (e, i) { n[etat(i)]++; });
+    // en-tête
+    h += '<section class="bloc compact scan-tete">' +
       '<div class="grille-2 serre"><label class="champ"><span>Date de la visite' + (v.dateLue ? '' : ' (non lue)') + '</span><input type="date" data-f="scan" data-k="date" value="' + esc(v.date) + '"></label>' +
       '<div class="champ"><span>Présence ce jour</span><div class="segment" role="group">' +
         '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button><button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button></div></div></div>' +
-      '<label class="case"><input type="checkbox" data-f="scan" data-k="visite"' + (v.visite !== false ? ' checked' : '') + '> Enregistrer aussi la visite (compte rendu « Visite faite »)</label>';
-    if (!v.entites.length) h += '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, à plat et bien éclairée.</div>';
-    v.entites.forEach(function (ent, i) {
-      var pl = planScan(ent, v), estPh = ent.type === 'Pharmacie';
-      h += '<section class="bloc compact scan-ent' + (ent.inclus ? '' : ' scan-exclu') + '">' +
-        '<label class="case"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="inclus"' + (ent.inclus ? ' checked' : '') + '> <b>' + (estPh ? 'Pharmacie' : 'Médecin') + '</b>' +
-          (ent.confiance !== undefined && ent.confiance < 0.6 ? ' <span class="etiquette alerte">Lecture incertaine</span>' : '') + '</label>' +
-        (ent.transcription ? '<p class="discret scan-lu">Lu : ' + esc(ent.transcription) + '</p>' : '') +   // 3.31.1 : texte lu sur la ligne et le cachet
-        '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(ent.nom) + '"></label>' +
-        (estPh ? '' : '<div class="grille-2 serre"><label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"' + (ent.specLue && ent.specLue !== ent.specialite ? ' title="Lu : ' + esc(ent.specLue) + '"' : '') + '></label>' +
-          '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label></div>' +
-          '<label class="champ"><span>Établissement</span><input type="text" data-f="scan" data-i="' + i + '" data-k="etablissement" value="' + esc(ent.etablissement) + '"></label>') +
-        (estPh ? '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' : '') +
-        '<div class="champ"><span>Quartier' + (ent.quartierLu && !ent.quartier ? ' (lu : ' + esc(ent.quartierLu) + ')' : '') + '</span>' + selecteurListe('scanQ' + f.id + '_' + i, { titre: 'Quartier', valeur: ent.quartier || null, vide: 'Choisir…', sections: sectionsQuartiers(),
-          appliquer: (function (k) { return function (val) { var y = scan(f.id); if (!y) return; majScan(f.id, function (z) { var q = quartiers().filter(function (o) { return o.quartier === val; })[0]; z.validation.entites[k].quartier = val; z.validation.entites[k].commune = q ? q.commune : ''; }); }; })(i) }) + '</div>' +
-        '<p class="fx-sec">Dans la base</p><div class="puces">' +
-          '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="" aria-pressed="' + !ent.choix + '">Nouveau contact</button>' +
-          ent.cands.map(function (c) { var p = praticien(c) || {}; return '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="' + esc(c) + '" aria-pressed="' + (ent.choix === c) + '">' + esc(p.nom || c) + (p.specialite && !estPh ? ' <small>' + esc(abrSpec(p.specialite)) + '</small>' : '') + '</button>'; }).join('') + '</div>' +
-        '<ul class="scan-changes">' + pl.changes.map(function (c) {
-          if (typeof c === 'string') return '<li>' + esc(c) + '</li>';
-          return '<li>' + esc(c.t) + ' <label class="case petite"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="remplacer.' + c.k + '"' + (ent.remplacer[c.k] ? ' checked' : '') + '> remplacer</label></li>';
-        }).join('') + '</ul>' +
-        (pl.erreur && ent.inclus ? '<p class="erreur-texte" style="margin:4px 0 0">' + esc(pl.erreur) + '</p>' : '') + '</section>';
+      '<label class="case"><input type="checkbox" data-f="scan" data-k="visite"' + (v.visite !== false ? ' checked' : '') + '> Créer aussi le compte rendu « Visite faite »</label>' +
+      (x.photo && x.photo.url ? '<a class="discret scan-photo" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">' + icone('photo') + 'Voir la photo</a>' : '') + '</section>';
+    if (!v.entites.length) return h + '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, à plat et bien éclairée.</div>';
+    // résumé
+    h += '<p class="scan-resume"><b>' + v.entites.length + ' contact' + (v.entites.length > 1 ? 's' : '') + ' lu' + (v.entites.length > 1 ? 's' : '') + '</b>' +
+      [n.erreur ? n.erreur + ' à compléter' : '', n.nouveau ? n.nouveau + ' nouveau' + (n.nouveau > 1 ? 'x' : '') : '', n.existant ? n.existant + ' déjà dans la base' : '', n.exclu ? n.exclu + ' non retenu' + (n.exclu > 1 ? 's' : '') : '']
+        .filter(Boolean).map(function (t) { return ' · ' + t; }).join('') + '</p>';
+    var groupes = [['erreur', 'À compléter'], ['nouveau', 'Nouveaux contacts'], ['existant', 'Déjà dans la base'], ['exclu', 'Non retenus']];
+    groupes.forEach(function (g) {
+      var idx = v.entites.map(function (e, i) { return i; }).filter(function (i) { return etat(i) === g[0]; });
+      if (!idx.length) return;
+      h += '<p class="fx-sec scan-groupe">' + g[1] + ' (' + idx.length + ')</p>';
+      idx.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, g[0]); });
     });
-    if (v.remarques) h += '<p class="discret"><b>Autres informations lues :</b> ' + esc(v.remarques) + '</p>';
-    var ok = v.entites.filter(function (ent) { return ent.inclus && !planScan(ent, v).erreur; }).length;
+    if (v.remarques) h += '<p class="discret scan-remarques"><b>Autres informations lues :</b> ' + esc(v.remarques) + '</p>';
+    var ok = n.nouveau + n.existant;
     return { corps: h, pied: '<div class="rangee"><button class="bouton" type="button" data-a="fermerFeuille">Plus tard</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="scanEnregistrer"' + (ok ? '' : ' disabled') + '>' + icone('valider') + 'Enregistrer' + (ok ? ' (' + ok + ')' : '') + '</button></div>' };
   };
+  function carteScan(f, v, ent, pl, i, etat) {
+    var estPh = ent.type === 'Pharmacie', ouvert = ent.ouvert || (etat === 'erreur' && ent.ouvert !== false);
+    var ex = ent.choix ? praticien(ent.choix) : null;
+    var infos = [estPh ? 'Pharmacie' : ent.specialite, estPh ? '' : ent.etablissement, ent.quartier].filter(Boolean).map(esc).join(' · ') +
+      (ent.telephone ? ' · <span class="nowrap">' + esc(ent.telephone) + '</span>' : '');
+    var chg = pl.changes.map(function (c) { return typeof c === 'string' ? c : c.t; }).filter(function (c) { return !/^Nouveau contact/.test(c); });
+    var h = '<section class="bloc compact scan-ent scan-' + etat + '">' +
+      '<div class="scan-ligne1"><label class="case scan-case"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="inclus"' + (ent.inclus ? ' checked' : '') + ' aria-label="Retenir ce contact"></label>' +
+        '<div class="scan-nom"><b>' + esc(ent.nom || 'Nom à lire') + '</b>' +
+          (ent.confiance !== undefined && ent.confiance < 0.6 ? ' <span class="etiquette alerte">Lecture incertaine</span>' : '') +
+          '<small>' + (infos.replace(/^ · /, '') || 'Aucune autre mention lue') + '</small>' +
+          (ex ? '<small class="scan-base">' + icone('repertoire') + 'Dans la base : ' + esc(ex.nom) + '</small>' : '') + '</div>' +
+        '<button type="button" class="bouton petit" data-a="scanOuvrir" data-i="' + i + '">' + (ouvert ? 'Fermer' : 'Modifier') + '</button></div>' +
+      (pl.erreur && ent.inclus ? '<p class="erreur-texte scan-err">' + esc(pl.erreur) + '</p>' : '') +
+      (chg.length && ent.inclus && !pl.erreur ? '<ul class="scan-changes">' + chg.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ul>' : '');
+    if (ouvert) {
+      h += '<div class="scan-detail">' +
+        (ent.transcription ? '<p class="discret scan-lu">Lu : ' + esc(ent.transcription) + '</p>' : '') +
+        '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(ent.nom) + '"></label>' +
+        (estPh ? '' : '<label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"></label>' +
+          '<label class="champ"><span>Établissement</span><input type="text" data-f="scan" data-i="' + i + '" data-k="etablissement" value="' + esc(ent.etablissement) + '"></label>') +
+        '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' +
+        '<div class="champ"><span>Quartier' + (ent.quartierLu && !ent.quartier ? ' (lu : ' + esc(ent.quartierLu) + ')' : '') + '</span>' + selecteurListe('scanQ' + f.id + '_' + i, { titre: 'Quartier', valeur: ent.quartier || null, vide: 'Choisir…', sections: sectionsQuartiers(),
+          appliquer: function (val) { majScan(f.id, function (z) { var q = quartiers().filter(function (o) { return o.quartier === val; })[0]; z.validation.entites[i].quartier = val; z.validation.entites[i].commune = q ? q.commune : ''; }); } }) + '</div>' +
+        '<p class="fx-sec">Correspond à</p><div class="puces">' +
+          '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="" aria-pressed="' + !ent.choix + '">Nouveau contact</button>' +
+          ent.cands.map(function (c) { var p = praticien(c) || {}; return '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="' + esc(c) + '" aria-pressed="' + (ent.choix === c) + '">' + esc(p.nom || c) + (p.specialite && !estPh ? ' <small>' + esc(abrSpec(p.specialite)) + '</small>' : '') + '</button>'; }).join('') + '</div>' +
+        pl.changes.filter(function (c) { return typeof c !== 'string'; }).map(function (c) {
+          return '<label class="case petite scan-rempl"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="remplacer.' + c.k + '"' + (ent.remplacer[c.k] ? ' checked' : '') + '> ' + esc(c.t) + ' : remplacer</label>';
+        }).join('') + '</div>';
+    }
+    return h + '</section>';
+  }
   function bandeauScans() {
     var l = scansEnCours(); if (!l.length) return '';
     var lues = l.filter(function (x) { return x.statut === 'lue'; }).length, autres = l.length - lues;
@@ -13138,6 +13169,7 @@
         sauverScans(scans().filter(function (x) { return x.id !== id; })); S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre();
       }, function () { S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre(); }, null, true);
     },
+    scanOuvrir: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k], pl = planScan(e, x.validation), ouv = e.ouvert || (!!pl.erreur && e.inclus && e.ouvert !== false); e.ouvert = !ouv; }); rendre(); },
     scanChoix: function (el) { var f = S.ui.feuille; majScan(f.id, function (x) { x.validation.entites[+el.dataset.i].choix = el.dataset.v; x.validation.entites[+el.dataset.i].remplacer = {}; }); rendre(); },
     scanCreneau: function (el) { var f = S.ui.feuille, k = el.dataset.v; majScan(f.id, function (x) { x.validation[k] = !x.validation[k]; if (!x.validation.matin && !x.validation.soir) x.validation[k === 'matin' ? 'soir' : 'matin'] = true; }); rendre(); },
     scanEnregistrer: function () {

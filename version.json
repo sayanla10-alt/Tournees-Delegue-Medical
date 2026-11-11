@@ -1,7 +1,7 @@
 {
-  "version": "3.31.2",
+  "version": "3.31.3",
   "date": "2026-11-10",
   "notes": [
-    "Planifier : le jour touché est le jour planifié"
+    "Vérifier la fiche : écran rangé, contacts par état"
   ]
 }
