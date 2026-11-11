@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.26';
+  var APP_VERSION = '3.31.27';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -5462,6 +5462,7 @@
             '<button type="button" class="bouton petit danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '">' + icone('fermer') + '<span>Supprimer</span></button>' +
           '</div>' +
         '</div>' : '') +
+      (conflitArret(a) ? questionConflit(a, conflitArret(a)) : '') +
       '</li>';
   }
 
@@ -6485,8 +6486,9 @@
           '<div class="rangee-actions bas-carte"><button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else if (!verrou) {
         h += rendreCompteRendu(a);
+        var cf = conflitArret(a);
         h += a.hors ? '<div class="rangee-actions bas-carte"><button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>' :
-          '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
+          cf ? questionConflit(a, cf) : '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
           '<button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else {
         h += '<div class="cr-enregistre">' +
