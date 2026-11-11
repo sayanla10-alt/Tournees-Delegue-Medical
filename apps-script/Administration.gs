@@ -122,6 +122,17 @@ function menuMigrerQuartiersHierarchie() {
     SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
+function propagerQuartiersSilencieux() {
+  var ss = SpreadsheetApp.getActive();
+  var bilan = propagerQuartiersSurFiches_(ss);
+  var tables = bilan.tablesModifiees || [];
+  if (tables.length && typeof jumPousserApresEcriture_ === 'function') {
+    try { jumPousserApresEcriture_(tables); } catch (eJ) {}
+  }
+  Logger.log('Propagation Quartiers : ' + JSON.stringify(bilan));
+  return bilan;
+}
+
 function propagerQuartiersManuellement() {
   var ss = SpreadsheetApp.getActive();
   var bilan = propagerQuartiersSurFiches_(ss);
@@ -129,13 +140,15 @@ function propagerQuartiersManuellement() {
   if (tables.length && typeof jumPousserApresEcriture_ === 'function') {
     try { jumPousserApresEcriture_(tables); } catch (eJ) {}
   }
-  SpreadsheetApp.getUi().alert('Propagation Territoires & Quartiers',
-    'Découpage Quartiers appliqué aux fiches :\n' +
-    '- Presences : ' + bilan.presences + ' ligne(s)\n' +
-    '- Pharmacies : ' + bilan.pharmacies + ' ligne(s)\n' +
-    '- Etablissements : ' + bilan.etablissements + ' ligne(s)\n' +
-    '- Plannings à venir : ' + bilan.plannings + ' ligne(s)',
-    SpreadsheetApp.getUi().ButtonSet.OK);
+  try {
+    SpreadsheetApp.getUi().alert('Propagation Territoires & Quartiers',
+      'Découpage Quartiers appliqué aux fiches :\n' +
+      '- Presences : ' + bilan.presences + ' ligne(s)\n' +
+      '- Pharmacies : ' + bilan.pharmacies + ' ligne(s)\n' +
+      '- Etablissements : ' + bilan.etablissements + ' ligne(s)\n' +
+      '- Plannings à venir : ' + bilan.plannings + ' ligne(s)',
+      SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (eU) {}
 }
 
 // Convertit un index de colonne 1-based (1 -> A, 5 -> E, 27 -> AA) en lettre(s) A1
