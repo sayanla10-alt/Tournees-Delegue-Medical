@@ -1,7 +1,7 @@
 {
-  "version": "3.31.15",
+  "version": "3.31.16",
   "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : Nouveaux contacts en tête, Modifications sans bannière superflue, titre dynamique avec date, comparaison du nom BDD/Photo et bouton d'enregistrement individuel."
+    "Vérifier la fiche : sélecteur de date interactif intégré dans le titre, suppression de la redondance d'en-tête, boutons comparatifs élargis, nouveaux contacts en minuscules et sécurisation stricte des doublons journaliers."
   ]
 }

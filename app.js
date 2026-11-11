@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.15';
+  var APP_VERSION = '3.31.16';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.16', ['Vérifier la fiche : sélecteur de date interactif intégré directement dans le titre de la feuille',
+                 'Gain d\'espace vertical maximal avec suppression du bandeau date inférieur et boutons élargis sans chevauchement',
+                 'Nouveaux contacts en minuscules fidèles à la charte, prévention stricte des doublons journaliers et autocomplétion sécurisée']],
     ['3.31.15', ['Vérifier la fiche du [date] : Nouveaux contacts placés au top, Modifications directement à la suite',
                  'Suppression des bannières intermédiaires superflues et en-tête date/créneau ultra-compact',
                  'Bouton individuel « Enregistrer ce contact » sur chaque fiche et comparaison du Nom BDD / Photo au clic dans le tableau']],
@@ -8547,8 +8550,8 @@
     var defil = el.querySelector('.feuille-corps'), haut = defil && el.dataset.type === sousType ? defil.scrollTop : 0;
     var nouvelle = !defil || el.dataset.ouverte !== f.type;
     el.dataset.type = sousType; el.dataset.ouverte = f.type;
-    el.innerHTML = '<div class="voile" data-a="fermerFeuille"></div><div class="feuille' + (f.pleine ? ' pleine' : '') + (nouvelle ? ' anim' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(f.titre || '') + '">' +
-      '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="' + (f.retourAction || 'fermerFeuille') + '" aria-label="Retour">' + icone('chevron') + '</button><b>' + esc(f.titre || '') + '</b>' + tete + '</div>' +
+    el.innerHTML = '<div class="voile" data-a="fermerFeuille"></div><div class="feuille' + (f.pleine ? ' pleine' : '') + (nouvelle ? ' anim' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(String(f.titre || '').replace(/<[^>]+>/g, '')) + '">' +
+      '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="' + (f.retourAction || 'fermerFeuille') + '" aria-label="Retour">' + icone('chevron') + '</button><b>' + (f.titreHtml ? f.titre : esc(f.titre || '')) + '</b>' + tete + '</div>' +
       '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
     if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
     // 3.25.49 : Bande des produits fluide : centrage doux du produit sélectionné sans saut ni boucle
@@ -10347,7 +10350,7 @@
     }
     var err = !String(ent.nom || '').trim() ? 'Nom manquant' : (!v.date ? 'Date de visite manquante' :
       (ent.douteux && !ent.decision ? 'Même personne que ' + ((praticien(ent.douteux) || {}).nom || 'le contact proposé') + ' ? Répondez ci-dessous' :
-      (!ent.choix && !L.quartier ? 'Quartier à choisir' : (!ent.choix && !estPh && !L.lieu ? 'Établissement manquant' : ''))));
+      (!L || !L.quartier ? 'Quartier à choisir' : (!estPh && !L.lieu ? 'Établissement manquant' : ''))));
     // compte rendu « Visite faite » du jour de la fiche, sauf s'il existe déjà ou si la date est à venir
     if (v.date && !err) {
       if (ent.choix && visiteDejaNotee(ent.choix, v.date)) ch.push('Compte rendu du ' + dateCourte(v.date) + ' déjà enregistré');
@@ -10357,8 +10360,16 @@
     return { d: d, changes: ch, cmp: cmp, prog: prog, erreur: err, lieu: L, cr: v.date && !err && !R.cr && !(ent.choix && visiteDejaNotee(ent.choix, v.date)) && !(v.date > aujourdhui() && !S.config.saisieFutur) };
   }
   function visiteDejaNotee(code, date) {
-    var dans = function (l) { return (l || []).some(function (x) { return x.code === code && String(x.date || '').slice(0, 10) === date && !estSuppressionPlanning(x); }); };
-    return dans(S.data && S.data.historique) || dans(S.queue);
+    if (!code) return false;
+    var d10 = String(date || '').slice(0, 10);
+    var dans = function (l) {
+      return (l || []).some(function (x) {
+        return x && x.code === code && String(x.date || '').slice(0, 10) === d10 && !estSuppressionPlanning(x);
+      });
+    };
+    return dans(S.data && S.data.historique) || dans(S.queue) || (S.plan && S.plan.some(function (p) {
+      return p && p.code === code && String(p.date || '').slice(0, 10) === d10 && p.fait;
+    }));
   }
   function creerVisiteScan(code, ent, v, L, idScan) {
     if ((ent.refus && ent.refus.cr) || !v.date || (v.date > aujourdhui() && !S.config.saisieFutur) || visiteDejaNotee(code, v.date)) return false;
@@ -10457,7 +10468,12 @@
   FEUILLES.ficheScanValider = function (f) {
     var x = scan(f.id); if (!x || !x.validation) return '<div class="vide"><strong>Fiche introuvable</strong></div>';
     var v = x.validation, h = '';
-    f.titre = 'Vérifier la fiche' + (v.date ? ' du ' + dateFr(v.date) : '');
+    // 0 : Le calendrier et la date sont intégrés directement dans le titre de la feuille (gain de place maximal)
+    f.titreHtml = true;
+    f.titre = 'Fiche du <label class="scan-titre-date-wrap">' +
+      '<input type="date" class="scan-titre-date-inp" data-f="scan" data-k="date" value="' + esc(v.date || '') + '" title="Changer la date de la fiche">' +
+      '<span class="scan-titre-date-txt">' + (v.date ? esc(dateFr(v.date)) : 'Date à choisir') + ' 📅</span>' +
+    '</label>';
     var plans = v.entites.map(function (ent) { return planScan(ent, v); });
 
     var doutes = [], enrichir = [], nouveaux = [], identiques = [], faits = [];
@@ -10473,24 +10489,13 @@
       else identiques.push(i);
     });
 
-    // En-tête : Date, créneau et bilan visuel compact sur une ligne
+    // En-tête : Créneaux + Photo + Bilan des badges compacts (date déplacée dans le titre)
     h += '<section class="scan-tete-propre">' +
-      '<div class="scan-date-slot-compact">' +
-        '<div class="scan-date-slot-cell">' +
-          '<label class="scan-date-label"><span>Date</span>' +
-            '<input type="date" class="scan-date-inp" data-f="scan" data-k="date" value="' + esc(v.date) + '">' +
-          '</label>' +
+      '<div class="scan-tete-compact-barre">' +
+        '<div class="segment scan-segment-mini" role="group" aria-label="Créneau de visite">' +
+          '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button>' +
+          '<button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button>' +
         '</div>' +
-        '<div class="scan-date-slot-cell scan-slot-cell">' +
-          '<span class="scan-slot-label">Créneau</span>' +
-          '<div class="segment scan-segment-mini" role="group">' +
-            '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button>' +
-            '<button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button>' +
-          '</div>' +
-        '</div>' +
-        (x.photo && x.photo.url ? '<a class="scan-photo-btn" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener" title="Voir photo">' + icone('photo') + '<span>Photo</span></a>' : '') +
-      '</div>' +
-      '<div class="scan-tete-bas">' +
         '<div class="scan-bilan-badges">' +
           '<span class="scan-pill-stat"><b>' + v.entites.length + '</b> lus</span>' +
           (nouveaux.length ? '<span class="scan-pill-stat neuf"><b>' + nouveaux.length + '</b> nouveau' + (nouveaux.length > 1 ? 'x' : '') + '</span>' : '') +
@@ -10498,18 +10503,19 @@
           (doutes.length ? '<span class="scan-pill-stat doute"><b>' + doutes.length + '</b> à trancher</span>' : '') +
           (identiques.length ? '<span class="scan-pill-stat"><b>' + identiques.length + '</b> à jour</span>' : '') +
         '</div>' +
+        (x.photo && x.photo.url ? '<a class="scan-photo-btn" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener" title="Voir photo originale">' + icone('photo') + '<span>Photo</span></a>' : '') +
       '</div>' +
     '</section>';
 
     if (!v.entites.length) return h + '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, bien à plat et éclairée.</div>';
 
-    // 1. Nouveaux contacts détectés (au top en tout premier)
+    // 1. Nouveaux contacts détectés (au top, libellé en minuscules selon la charte existante)
     if (nouveaux.length) {
-      h += '<div class="scan-section-titre"><span>🆕 Nouveaux contacts à créer</span><small>' + nouveaux.length + '</small></div>';
+      h += '<div class="scan-section-titre"><span>🆕 nouveaux contacts à créer</span><small>' + nouveaux.length + '</small></div>';
       nouveaux.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, 'nouveau'); });
     }
 
-    // 2. Modifications sur contacts existants (immédiatement sous les nouveaux, SANS bannière inutile)
+    // 2. Modifications sur contacts existants (directement sous les nouveaux, SANS bannière inutile)
     if (enrichir.length) {
       enrichir.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, 'enrichir'); });
     }
@@ -10833,6 +10839,13 @@
     sauver();
     if (!reste) { S.ui.feuille = null; S.ui.tab = 'praticiens'; }
     rendre();
+    // 8 : En cas d'enregistrement individuel ou partiel, scroll automatique vers la prochaine carte à traiter
+    if (reste && seul !== null) {
+      setTimeout(function () {
+        var elNext = document.querySelector('.scan-carte-but:not(.exclu):not(.fait)');
+        if (elNext) elNext.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
     toast(n + ' contact' + (n > 1 ? 's' : '') + ' enregistré' + (n > 1 ? 's' : '') + (nCr ? ', ' + nCr + ' compte' + (nCr > 1 ? 's' : '') + ' rendu' + (nCr > 1 ? 's' : '') : '') +
       (reste ? ' ; ' + reste + ' restant' + (reste > 1 ? 's' : '') : '') + (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.'), 4000);
     synchroniser(true);
