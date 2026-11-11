@@ -3944,3 +3944,14 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .scan-j i.neuf { background: var(--vert); }
 .scan-ent .scan-changes { margin-top: 6px; }
 .scan-cmp tr.tel td { white-space: nowrap; overflow-wrap: normal; font-size: 12px; }
+
+/* 3.31.5 : changements validés un par un, enregistrement par contact */
+.scan-titre-chg { margin: 10px 0 0 30px; font-size: 12px; }
+.scan-cmp th label { display: flex; align-items: flex-start; gap: 6px; }
+.scan-cmp input.scan-ok { width: 18px; height: 18px; flex: none; margin: 0; }
+.scan-cmp tr.refuse td { text-decoration: line-through; color: var(--gris); }
+.scan-cmp .scan-sem { margin-top: 4px; }
+.scan-pied-ent { display: flex; justify-content: flex-end; margin-top: 10px; }
+.scan-fait { margin: 6px 0 0 30px; color: var(--vert); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.scan-fait svg { width: 16px; height: 16px; }
+.scan-cmp tbody th { width: 34%; overflow-wrap: normal; word-break: normal; hyphens: none; }

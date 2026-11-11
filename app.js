@@ -9,10 +9,12 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.4';
+  var APP_VERSION = '3.31.5';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.5', ['Vérifier la fiche : chaque changement proposé (spécialité, téléphone, établissement, quartier, programme, absence, compte rendu) a sa case : coché, il est appliqué ; une valeur différente de la base n\'est prise que si vous la cochez',
+               'Chaque contact a son bouton « Enregistrer ce contact » ; « Tout enregistrer » enregistre ceux qui sont prêts ; les contacts enregistrés passent dans « Enregistrés »']],
     ['3.31.4', ['Vérifier la fiche : chaque contact dit s\'il est nouveau dans la base, déjà dans la base (même nom, même téléphone) ou s\'il ressemble à un contact existant (question « Même personne ? ») ; tableau fiche / base champ par champ (nom, spécialité, téléphone, établissement, quartier : identique, ajouté, différent, avec « prendre la fiche ») ; programme de la semaine sur le lieu, le jour de la fiche coché (mardi pour une fiche du 10 novembre)',
                'Noms lus en majuscules écrits comme dans la base (KOUASSI AYA devient Kouassi Aya)']],
     ['3.31.3', ['Vérifier la fiche réorganisé : date, présence et compte rendu en tête, résumé, puis les contacts rangés par état (À compléter, Nouveaux contacts, Déjà dans la base, Non retenus) ; chaque contact tient sur une carte courte, « Modifier » déplie ses champs']],
@@ -10195,90 +10197,99 @@
     if (wd >= 0 && wd <= 4) l.jours[wd] = { matin: !!v.matin, soir: !!v.soir };
     return l;
   }
-  // 3.31.4 : comparaison fiche / base champ par champ (cmp) et programme de la semaine avant / après (prog)
+  // 3.31.5 : chaque changement proposé (fiche / base) se valide un par un : opt « remplacer » (valeur différente : appliqué
+  // seulement si coché) ou « refus » (ajout : appliqué sauf si décoché). ent.remplacer[k] / ent.refus[k] gardent les réponses.
+  function resumeJours(j) {
+    var N = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.'], l = [];
+    (j || []).forEach(function (x, k) { if (k < 5 && x && (x.matin || x.soir)) l.push(N[k] + ' ' + (x.matin && x.soir ? 'matin et soir' : x.matin ? 'matin' : 'soir')); });
+    return l.join(', ');
+  }
   function planScan(ent, v) {
     var ch = [], cmp = [], estPh = ent.type === 'Pharmacie', wd = v.date ? jourSemaineIndex(v.date) : -1, d, L, avant = null;
+    var R = ent.refus || {}, P = ent.remplacer || {};
     var creneaux = [v.matin ? 'matin' : '', v.soir ? 'soir' : ''].filter(Boolean).join(' et ');
-    var ligne = function (k, champ, fiche, base, etat, rempl) { if (fiche || base) cmp.push({ k: k, champ: champ, fiche: fiche || '', base: base || '', etat: etat, rempl: !!rempl }); };
+    var ligne = function (k, champ, fiche, base, etat, opt) {
+      if (!fiche && !base) return;
+      cmp.push({ k: k, champ: champ, fiche: fiche || '', base: base || '', etat: etat, opt: opt || '', actif: opt === 'remplacer' ? !!P[k] : opt === 'refus' ? !R[k] : true });
+    };
     if (!ent.choix) {
       d = brouillonFiche('');
-      d.type = ent.type; d.nom = ent.nom; d.telephone = ent.telephone; d.specialite = estPh ? 'Pharmacien' : ent.specialite;
-      d.lieux = [lieuScan(ent, v, wd)];
+      d.type = ent.type; d.nom = ent.nom; d.specialite = estPh ? 'Pharmacien' : (R.specialite ? '' : ent.specialite); d.telephone = R.telephone ? '' : ent.telephone;
+      d.lieux = [lieuScan(ent, v, R.programme ? -1 : wd)];
       L = d.lieux[0];
-      ligne('nom', 'Nom', ent.nom, '', 'nouveau');
-      if (!estPh) ligne('specialite', 'Spécialité', ent.specialite, '', 'nouveau');
-      ligne('telephone', 'Téléphone', ent.telephone, '', 'nouveau');
+      if (!estPh) ligne('specialite', 'Spécialité', ent.specialite, '', 'nouveau', ent.specialite ? 'refus' : '');
+      ligne('telephone', 'Téléphone', ent.telephone, '', 'nouveau', ent.telephone ? 'refus' : '');
       if (!estPh) ligne('etablissement', 'Établissement', L.lieu, '', 'nouveau');
       ligne('quartier', 'Quartier', ent.quartier, '', 'nouveau');
     } else {
       d = brouillonFiche(ent.choix);
-      // nom
       var nE = d.nom;
-      if (ent.nom && normaliser(ent.nom) !== normaliser(nE)) { if (ent.remplacer.nom) d.nom = ent.nom; ligne('nom', 'Nom', ent.nom, nE, ent.remplacer.nom ? 'remplace' : 'different', true); }
+      if (ent.nom && normaliser(ent.nom) !== normaliser(nE)) { if (P.nom) d.nom = ent.nom; ligne('nom', 'Nom', ent.nom, nE, 'different', 'remplacer'); }
       else ligne('nom', 'Nom', ent.nom, nE, 'identique');
-      // spécialité
       if (!estPh) {
         var spE = specialiteCanonique(d.specialite || '');
-        if (ent.specialite && !spE) { d.specialite = ent.specialite; ligne('specialite', 'Spécialité', ent.specialite, '', 'ajout'); }
-        else if (ent.specialite && normaliser(spE) !== normaliser(ent.specialite)) { if (ent.remplacer.specialite) d.specialite = ent.specialite; ligne('specialite', 'Spécialité', ent.specialite, spE, ent.remplacer.specialite ? 'remplace' : 'different', true); }
+        if (ent.specialite && !spE) { if (!R.specialite) d.specialite = ent.specialite; ligne('specialite', 'Spécialité', ent.specialite, '', 'ajout', 'refus'); }
+        else if (ent.specialite && normaliser(spE) !== normaliser(ent.specialite)) { if (P.specialite) d.specialite = ent.specialite; ligne('specialite', 'Spécialité', ent.specialite, spE, 'different', 'remplacer'); }
         else ligne('specialite', 'Spécialité', ent.specialite, spE, ent.specialite ? 'identique' : 'base');
       }
-      // téléphone
       var telE = normaliserNumero(d.telephone), telL = normaliserNumero(ent.telephone), telB = d.telephone;
-      if (telL && !telE) { d.telephone = ent.telephone; ligne('telephone', 'Téléphone', ent.telephone, '', 'ajout'); }
-      else if (telL && telE !== telL) { if (ent.remplacer.telephone) d.telephone = ent.telephone; ligne('telephone', 'Téléphone', ent.telephone, telB, ent.remplacer.telephone ? 'remplace' : 'different', true); }
+      if (telL && !telE) { if (!R.telephone) d.telephone = ent.telephone; ligne('telephone', 'Téléphone', ent.telephone, '', 'ajout', 'refus'); }
+      else if (telL && telE !== telL) { if (P.telephone) d.telephone = ent.telephone; ligne('telephone', 'Téléphone', ent.telephone, telB, 'different', 'remplacer'); }
       else ligne('telephone', 'Téléphone', ent.telephone, telB, telL ? 'identique' : 'base');
-      // établissement (lieu)
       var idx = -1, lieuxBase = d.lieux.map(function (l) { return l.lieu; }).filter(Boolean);
       if (estPh) idx = 0;
       else if (ent.etablissement) d.lieux.forEach(function (l, k) { if (idx < 0 && l.lieu && memeEtablissement(l.lieu, ent.etablissement)) idx = k; });
       if (idx < 0 && !estPh && ent.etablissement) {
-        var vide = d.lieux.length === 1 && !String(d.lieux[0].lieu || '').trim();
-        if (vide) d.lieux = []; d.lieux.push(lieuScan(ent, v, -1)); idx = d.lieux.length - 1;
-        ligne('etablissement', 'Établissement', ent.etablissement, lieuxBase.join(' ; '), 'nouveau-lieu');
+        ligne('etablissement', 'Établissement', ent.etablissement, lieuxBase.join(' ; '), 'nouveau-lieu', 'refus');
+        if (!R.etablissement) {
+          var vide = d.lieux.length === 1 && !String(d.lieux[0].lieu || '').trim();
+          if (vide) d.lieux = []; d.lieux.push(lieuScan(ent, v, -1)); idx = d.lieux.length - 1;
+        }
       } else if (!estPh) ligne('etablissement', 'Établissement', ent.etablissement, d.lieux[idx < 0 ? 0 : idx] ? d.lieux[idx < 0 ? 0 : idx].lieu : '', ent.etablissement ? 'identique' : 'base');
       if (idx < 0) idx = 0;
       L = d.lieux[idx];
-      // quartier du lieu
-      if (L && ent.quartier && !L.quartier) { L.quartier = ent.quartier; L.commune = ent.commune; ligne('quartier', 'Quartier', ent.quartier, '', 'ajout'); }
-      else if (L && ent.quartier && normaliser(L.quartier) !== normaliser(ent.quartier)) ligne('quartier', 'Quartier', ent.quartier, L.quartier, 'info');
+      if (L && ent.quartier && !L.quartier) { if (!R.quartier) { L.quartier = ent.quartier; L.commune = ent.commune; } ligne('quartier', 'Quartier', ent.quartier, '', 'ajout', 'refus'); }
+      else if (L && ent.quartier && normaliser(L.quartier) !== normaliser(ent.quartier)) { if (P.quartier) { L.quartier = ent.quartier; L.commune = ent.commune; } ligne('quartier', 'Quartier', ent.quartier, L.quartier, 'different', 'remplacer'); }
       else if (L) ligne('quartier', 'Quartier', ent.quartier, L.quartier, ent.quartier ? 'identique' : 'base');
       if (L && !L.reperes && ent.adresse) L.reperes = ent.adresse;
       if (L) avant = JSON.parse(JSON.stringify(L.jours || []));
-      if (L && wd >= 0 && wd <= 4) {
+      if (L && wd >= 0 && wd <= 4 && !R.programme) {
         var av = L.jours[wd] || { matin: false, soir: false };
         L.jours[wd] = { matin: av.matin || !!v.matin, soir: av.soir || !!v.soir };
       }
       // la fiche papier fait foi : présent ce jour-là, donc une absence déclarée qui couvre ce jour s'arrête la veille
       if (v.date && d.absentDu && v.date >= d.absentDu && (!d.absentAu || v.date <= d.absentAu)) {
-        if (d.absentDu < v.date) { d.absentAu = ajouterJours(v.date, -1); ch.push('Absence déclarée arrêtée au ' + dateCourte(d.absentAu)); }
-        else { d.absentDu = ''; d.absentAu = ''; ch.push('Absence déclarée levée (présent le ' + dateCourte(v.date) + ')'); }
+        var abs = 'du ' + dateCourte(d.absentDu) + (d.absentAu ? ' au ' + dateCourte(d.absentAu) : '');
+        var fin = d.absentDu < v.date ? 'arrêtée au ' + dateCourte(ajouterJours(v.date, -1)) : 'levée';
+        ligne('absence', 'Absence', 'Présent le ' + dateCourte(v.date) + ' : absence ' + fin, 'Absence déclarée ' + abs, 'ajout', 'refus');
+        if (!R.absence) { if (d.absentDu < v.date) d.absentAu = ajouterJours(v.date, -1); else { d.absentDu = ''; d.absentAu = ''; } }
       }
     }
+    // programme de la semaine sur ce lieu
     var prog = L ? { avant: avant, apres: JSON.parse(JSON.stringify(L.jours || [])), wd: wd, lieu: L.lieu || '' } : null;
     if (wd > 4) ch.push('Week-end : aucun jour de présence enregistré');
     else if (wd >= 0 && L && creneaux) {
       var dej = avant && avant[wd] && (!v.matin || avant[wd].matin) && (!v.soir || avant[wd].soir);
-      ch.push((dej ? 'Programme : ' + nomJour(v.date).toLowerCase() + ' ' + creneaux + ' déjà coché' : 'Programme : ' + nomJour(v.date).toLowerCase() + ' ' + creneaux + ' coché') + (L.lieu ? ', ' + L.lieu : ''));
+      if (dej) ligne('programme', 'Programme', nomJour(v.date) + ' ' + creneaux, resumeJours(avant), 'identique');
+      else ligne('programme', 'Programme', nomJour(v.date) + ' ' + creneaux + ' à cocher', avant ? (resumeJours(avant) || 'aucun jour') : '', avant ? 'ajout' : 'nouveau', 'refus');
     }
     var err = !String(ent.nom || '').trim() ? 'Nom manquant' : (!v.date ? 'Date de visite manquante' :
       (ent.douteux && !ent.decision ? 'Même personne que ' + ((praticien(ent.douteux) || {}).nom || 'le contact proposé') + ' ? Répondez ci-dessous' :
       (!ent.choix && !L.quartier ? 'Quartier à choisir' : (!ent.choix && !estPh && !L.lieu ? 'Établissement manquant' : ''))));
-    // 3.30.1 : compte rendu « Visite faite » du jour de la fiche (dernière visite à jour), sauf s'il existe déjà ou si la date est à venir
-    if (v.visite !== false && v.date && !err) {
-      var dejaCr = ent.choix && visiteDejaNotee(ent.choix, v.date);
-      if (dejaCr) ch.push('Compte rendu du ' + dateCourte(v.date) + ' déjà enregistré');
+    // compte rendu « Visite faite » du jour de la fiche, sauf s'il existe déjà ou si la date est à venir
+    if (v.date && !err) {
+      if (ent.choix && visiteDejaNotee(ent.choix, v.date)) ch.push('Compte rendu du ' + dateCourte(v.date) + ' déjà enregistré');
       else if (v.date > aujourdhui() && !S.config.saisieFutur) ch.push('Date à venir : pas de compte rendu');
-      else ch.push('Compte rendu : visite faite le ' + dateCourte(v.date));
+      else ligne('cr', 'Compte rendu', 'Visite faite le ' + dateCourte(v.date), '', 'ajout', 'refus');
     }
-    return { d: d, changes: ch, cmp: cmp, prog: prog, erreur: err, lieu: L };
+    return { d: d, changes: ch, cmp: cmp, prog: prog, erreur: err, lieu: L, cr: v.date && !err && !R.cr && !(ent.choix && visiteDejaNotee(ent.choix, v.date)) && !(v.date > aujourdhui() && !S.config.saisieFutur) };
   }
   function visiteDejaNotee(code, date) {
     var dans = function (l) { return (l || []).some(function (x) { return x.code === code && String(x.date || '').slice(0, 10) === date && !estSuppressionPlanning(x); }); };
     return dans(S.data && S.data.historique) || dans(S.queue);
   }
   function creerVisiteScan(code, ent, v, L, idScan) {
-    if (v.visite === false || !v.date || (v.date > aujourdhui() && !S.config.saisieFutur) || visiteDejaNotee(code, v.date)) return false;
+    if ((ent.refus && ent.refus.cr) || !v.date || (v.date > aujourdhui() && !S.config.saisieFutur) || visiteDejaNotee(code, v.date)) return false;
     var pr = praticien(code) || {};
     var vis = { uid: 'F-' + v.date + '-' + code + '-' + idScan, date: v.date, idPresence: '', code: code, nom: pr.nom || ent.nom, type: ent.type,
       specialite: ent.type === 'Pharmacie' ? 'Pharmacien' : (pr.specialite || ent.specialite || ''), note: pr.note, commune: (L && L.commune) || ent.commune || '', quartier: (L && L.quartier) || ent.quartier || '',
@@ -10314,21 +10325,20 @@
     var x = scan(f.id); if (!x || !x.validation) return '<div class="vide"><strong>Fiche introuvable</strong></div>';
     var v = x.validation, h = '';
     var plans = v.entites.map(function (ent) { return planScan(ent, v); });
-    var etat = function (i) { var e = v.entites[i]; return !e.inclus ? 'exclu' : plans[i].erreur ? 'erreur' : e.choix ? 'existant' : 'nouveau'; };
-    var n = { erreur: 0, nouveau: 0, existant: 0, exclu: 0 }; v.entites.forEach(function (e, i) { n[etat(i)]++; });
+    var etat = function (i) { var e = v.entites[i]; return e.enregistre ? 'fait' : !e.inclus ? 'exclu' : plans[i].erreur ? 'erreur' : e.choix ? 'existant' : 'nouveau'; };
+    var n = { erreur: 0, nouveau: 0, existant: 0, exclu: 0, fait: 0 }; v.entites.forEach(function (e, i) { n[etat(i)]++; });
     // en-tête
     h += '<section class="bloc compact scan-tete">' +
       '<div class="grille-2 serre"><label class="champ"><span>Date de la visite' + (v.dateLue ? '' : ' (non lue)') + '</span><input type="date" data-f="scan" data-k="date" value="' + esc(v.date) + '"></label>' +
       '<div class="champ"><span>Présence ce jour</span><div class="segment" role="group">' +
         '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button><button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button></div></div></div>' +
-      '<label class="case"><input type="checkbox" data-f="scan" data-k="visite"' + (v.visite !== false ? ' checked' : '') + '> Créer aussi le compte rendu « Visite faite »</label>' +
       (x.photo && x.photo.url ? '<a class="discret scan-photo" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">' + icone('photo') + 'Voir la photo</a>' : '') + '</section>';
     if (!v.entites.length) return h + '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, à plat et bien éclairée.</div>';
     // résumé
     h += '<p class="scan-resume"><b>' + v.entites.length + ' contact' + (v.entites.length > 1 ? 's' : '') + ' lu' + (v.entites.length > 1 ? 's' : '') + '</b>' +
-      [n.erreur ? n.erreur + ' à compléter' : '', n.nouveau ? n.nouveau + ' nouveau' + (n.nouveau > 1 ? 'x' : '') : '', n.existant ? n.existant + ' déjà dans la base' : '', n.exclu ? n.exclu + ' non retenu' + (n.exclu > 1 ? 's' : '') : '']
+      [n.erreur ? n.erreur + ' à compléter' : '', n.nouveau ? n.nouveau + ' nouveau' + (n.nouveau > 1 ? 'x' : '') : '', n.existant ? n.existant + ' déjà dans la base' : '', n.exclu ? n.exclu + ' non retenu' + (n.exclu > 1 ? 's' : '') : '', n.fait ? n.fait + ' enregistré' + (n.fait > 1 ? 's' : '') : '']
         .filter(Boolean).map(function (t) { return ' · ' + t; }).join('') + '</p>';
-    var groupes = [['erreur', 'À compléter'], ['nouveau', 'Nouveaux contacts'], ['existant', 'Déjà dans la base'], ['exclu', 'Non retenus']];
+    var groupes = [['erreur', 'À compléter'], ['nouveau', 'Nouveaux contacts'], ['existant', 'Déjà dans la base'], ['exclu', 'Non retenus'], ['fait', 'Enregistrés']];
     groupes.forEach(function (g) {
       var idx = v.entites.map(function (e, i) { return i; }).filter(function (i) { return etat(i) === g[0]; });
       if (!idx.length) return;
@@ -10338,7 +10348,7 @@
     if (v.remarques) h += '<p class="discret scan-remarques"><b>Autres informations lues :</b> ' + esc(v.remarques) + '</p>';
     var ok = n.nouveau + n.existant;
     return { corps: h, pied: '<div class="rangee"><button class="bouton" type="button" data-a="fermerFeuille">Plus tard</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="scanEnregistrer"' + (ok ? '' : ' disabled') + '>' + icone('valider') + 'Enregistrer' + (ok ? ' (' + ok + ')' : '') + '</button></div>' };
+      '<button class="bouton bouton-plein" type="button" data-a="scanEnregistrer"' + (ok ? '' : ' disabled') + '>' + icone('valider') + 'Tout enregistrer' + (ok ? ' (' + ok + ')' : '') + '</button></div>' };
   };
   function carteScan(f, v, ent, pl, i, etat) {
     var estPh = ent.type === 'Pharmacie', ouvert = ent.ouvert || (etat === 'erreur' && ent.ouvert !== false && !ent.douteux);
@@ -10350,6 +10360,7 @@
         '<div class="scan-nom"><b>' + esc(ent.nom || 'Nom à lire') + '</b><div class="etiquettes">' + statut +
           (ent.confiance !== undefined && ent.confiance < 0.6 ? '<span class="etiquette alerte">Lecture incertaine</span>' : '') + '</div></div>' +
         '<button type="button" class="bouton petit" data-a="scanOuvrir" data-i="' + i + '">' + (ouvert ? 'Fermer' : 'Modifier') + '</button></div>';
+    if (ent.enregistre) return h.replace('<button type="button" class="bouton petit" data-a="scanOuvrir" data-i="' + i + '">' + (ouvert ? 'Fermer' : 'Modifier') + '</button>', '') + '<p class="scan-fait">' + icone('valider') + 'Enregistré</p></section>';
     if (!ent.inclus) return h + '</section>';
     // nom proche : la question d'abord
     if (dt) {
@@ -10358,28 +10369,22 @@
         '<div class="rangee"><button type="button" class="bouton petit" data-a="scanDecision" data-i="' + i + '" data-v="oui">Oui, c\'est lui</button>' +
         '<button type="button" class="bouton petit" data-a="scanDecision" data-i="' + i + '" data-v="non">Non, nouveau contact</button></div></div>';
     } else if (pl.erreur) h += '<p class="erreur-texte scan-err">' + esc(pl.erreur) + '</p>';
-    // comparaison fiche / base
-    var lib = { identique: 'identique', ajout: 'ajouté', different: 'différent', remplace: 'remplacé', nouveau: '', 'nouveau-lieu': 'lieu ajouté', info: 'différent', base: '' };
-    var lignes = pl.cmp.filter(function (r) { return r.etat !== 'identique' && r.etat !== 'base' && !(r.k === 'nom' && r.etat === 'nouveau'); });
+    // 3.31.5 : changements proposés, chacun à valider (case cochée = appliqué)
+    var lib = { identique: 'identique', ajout: 'à ajouter', different: 'différent', nouveau: '', 'nouveau-lieu': 'lieu à ajouter', base: '' };
+    var lignes = pl.cmp.filter(function (r) { return r.etat !== 'identique' && r.etat !== 'base'; });
     var idem = pl.cmp.filter(function (r) { return r.etat === 'identique'; }).map(function (r) { return r.champ.toLowerCase(); });
     if (lignes.length) {
-      h += '<table class="scan-cmp"><thead><tr><th></th><th>Fiche</th>' + (ex ? '<th>Base</th>' : '') + '</tr></thead><tbody>' + lignes.map(function (r) {
-        var cl = r.etat === 'different' || r.etat === 'info' ? 'diff' : r.etat === 'remplace' || r.etat === 'ajout' || r.etat === 'nouveau-lieu' ? 'ajout' : '';
-        return '<tr class="' + cl + (r.k === 'telephone' ? ' tel' : '') + '"><th>' + esc(r.champ) + (lib[r.etat] ? '<small>' + lib[r.etat] + '</small>' : '') + '</th><td>' + esc(r.fiche || '·') + '</td>' + (ex ? '<td>' + esc(r.base || '·') +
-          (r.rempl ? '<label class="case petite"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="remplacer.' + r.k + '"' + (ent.remplacer[r.k] ? ' checked' : '') + '> prendre la fiche</label>' : '') + '</td>' : '') + '</tr>';
+      h += '<p class="fx-sec scan-titre-chg">' + (ex ? 'Changements proposés : cochez ceux à appliquer' : 'Informations du nouveau contact') + '</p>' +
+        '<table class="scan-cmp"><thead><tr><th></th><th>Fiche</th>' + (ex ? '<th>Base</th>' : '') + '</tr></thead><tbody>' + lignes.map(function (r) {
+        var cl = (r.etat === 'different' ? 'diff' : 'ajout') + (r.actif ? '' : ' refuse') + (r.k === 'telephone' ? ' tel' : '');
+        var cb = r.opt ? '<input type="checkbox" class="scan-ok" data-f="scan" data-i="' + i + '" data-k="appliquer.' + r.k + '" data-opt="' + r.opt + '"' + (r.actif ? ' checked' : '') + ' aria-label="Appliquer : ' + esc(r.champ) + '"> ' : '';
+        var fiche = esc(r.fiche || '·');
+        if (r.k === 'programme' && pl.prog) fiche += semaineScan(pl.prog);
+        return '<tr class="' + cl + '"><th><label>' + cb + esc(r.champ) + '</label>' + (lib[r.etat] ? '<small>' + lib[r.etat] + '</small>' : '') + '</th><td>' + fiche + '</td>' + (ex ? '<td>' + esc(r.base || '·') + '</td>' : '') + '</tr>';
       }).join('') + '</tbody></table>';
     }
     if (idem.length) h += '<p class="discret scan-idem">Identique à la base : ' + esc(idem.join(', ')) + '</p>';
-    // programme de la semaine sur ce lieu
-    if (pl.prog && pl.prog.wd >= 0) {
-      var J = ['L', 'M', 'M', 'J', 'V'];
-      h += '<div class="scan-prog"><span class="discret">Programme' + (pl.prog.lieu ? ' · ' + esc(pl.prog.lieu) : '') + '</span><div class="scan-sem">' + J.map(function (j, k) {
-        var a = (pl.prog.avant || [])[k] || {}, b = pl.prog.apres[k] || {};
-        var cr = function (c) { return b[c] ? (a[c] || !pl.prog.avant && k !== pl.prog.wd ? 'on' : 'neuf') : ''; };
-        return '<span class="scan-j' + (k === pl.prog.wd ? ' jour-fiche' : '') + '"><b>' + j + '</b><i class="' + cr('matin') + '" title="Matin"></i><i class="' + cr('soir') + '" title="Soir"></i></span>';
-      }).join('') + '</div></div>';
-    }
-    var autres = pl.changes.filter(function (c) { return typeof c === 'string' && !/^Programme/.test(c); });
+    var autres = pl.changes.filter(function (c) { return typeof c === 'string'; });
     if (autres.length && !pl.erreur) h += '<ul class="scan-changes">' + autres.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ul>';
     if (ouvert) {
       h += '<div class="scan-detail">' +
@@ -10394,7 +10399,16 @@
           '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="" aria-pressed="' + !ent.choix + '">Nouveau contact</button>' +
           ent.cands.map(function (c) { var p = praticien(c) || {}; return '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="' + esc(c) + '" aria-pressed="' + (ent.choix === c) + '">' + esc(p.nom || c) + (p.specialite && !estPh ? ' <small>' + esc(abrSpec(p.specialite)) + '</small>' : '') + '</button>'; }).join('') + '</div></div>';
     }
+    h += '<div class="scan-pied-ent"><button type="button" class="bouton petit bouton-plein" data-a="scanEnregistrerUn" data-i="' + i + '"' + (pl.erreur ? ' disabled' : '') + '>' + icone('valider') + 'Enregistrer ce contact</button></div>';
     return h + '</section>';
+  }
+  function semaineScan(prog) {
+    var J = ['L', 'M', 'M', 'J', 'V'];
+    return '<div class="scan-sem">' + J.map(function (j, k) {
+      var a = (prog.avant || [])[k] || {}, b = prog.apres[k] || {};
+      var cr = function (c) { return b[c] ? (a[c] ? 'on' : 'neuf') : ''; };
+      return '<span class="scan-j' + (k === prog.wd ? ' jour-fiche' : '') + '"><b>' + j + '</b><i class="' + cr('matin') + '" title="Matin"></i><i class="' + cr('soir') + '" title="Soir"></i></span>';
+    }).join('') + '</div>';
   }
   // 3.31.4 : noms lus en majuscules (« KOUASSI AYA ») écrits comme dans la base (« Kouassi Aya »)
   function nomPropre(t, estPh) {
@@ -10407,6 +10421,31 @@
       if (w !== w.toUpperCase() && w !== w.toLowerCase()) return w;   // casse déjà mêlée (« N'Za ») : gardée
       return lw.replace(/(^|[-'’])([a-zà-ÿ])/g, function (m, s, c) { return s + c.toUpperCase(); });
     }).join(' ');
+  }
+  // 3.31.5 : enregistre un contact (indice) ou tous ceux qui sont prêts (null) ; la fiche est close quand il n'en reste plus
+  function enregistrerScan(seul) {
+    var f = S.ui.feuille, x = scan(f.id); if (!x || !x.validation) return;
+    var v = x.validation, faits = {}, n = 0, nCr = 0;
+    v.entites.forEach(function (ent, k) {
+      if ((seul !== null && k !== seul) || !ent.inclus || ent.enregistre) return;
+      var pl = planScan(ent, v); if (pl.erreur) return;
+      var code = enregistrerFiche(pl.d); faits[k] = code; n++;
+      if (pl.cr && creerVisiteScan(code, ent, v, pl.lieu, x.id)) nCr++;
+    });
+    if (!n) { toast('Rien à enregistrer : complétez d\'abord les contacts signalés.'); return; }
+    var reste = 0;
+    majScan(f.id, function (y) {
+      y.validation.entites.forEach(function (e, k) { if (faits[k]) { e.enregistre = faits[k]; e.ouvert = false; } });
+      reste = y.validation.entites.filter(function (e) { return e.inclus && !e.enregistre; }).length;
+      y.codes = (y.codes || []).concat(Object.keys(faits).map(function (k) { return faits[k]; }));
+      if (!reste) y.statut = 'enregistree';
+    });
+    sauver();
+    if (!reste) { S.ui.feuille = null; S.ui.tab = 'praticiens'; }
+    rendre();
+    toast(n + ' contact' + (n > 1 ? 's' : '') + ' enregistré' + (n > 1 ? 's' : '') + (nCr ? ', ' + nCr + ' compte' + (nCr > 1 ? 's' : '') + ' rendu' + (nCr > 1 ? 's' : '') : '') +
+      (reste ? ' ; ' + reste + ' restant' + (reste > 1 ? 's' : '') : '') + (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.'), 4000);
+    synchroniser(true);
   }
   function bandeauScans() {
     var l = scansEnCours(); if (!l.length) return '';
@@ -13235,26 +13274,12 @@
         sauverScans(scans().filter(function (x) { return x.id !== id; })); S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre();
       }, function () { S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre(); }, null, true);
     },
-    scanDecision: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k]; e.decision = el.dataset.v; e.choix = el.dataset.v === 'oui' ? e.douteux : ''; e.remplacer = {}; }); rendre(); },
+    scanDecision: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k]; e.decision = el.dataset.v; e.choix = el.dataset.v === 'oui' ? e.douteux : ''; e.remplacer = {}; e.refus = {}; }); rendre(); },
     scanOuvrir: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k], pl = planScan(e, x.validation), ouv = e.ouvert || (!!pl.erreur && e.inclus && e.ouvert !== false); e.ouvert = !ouv; }); rendre(); },
     scanChoix: function (el) { var f = S.ui.feuille; majScan(f.id, function (x) { var e = x.validation.entites[+el.dataset.i]; e.choix = el.dataset.v; e.remplacer = {}; if (e.douteux) e.decision = el.dataset.v === e.douteux ? 'oui' : 'non'; }); rendre(); },
     scanCreneau: function (el) { var f = S.ui.feuille, k = el.dataset.v; majScan(f.id, function (x) { x.validation[k] = !x.validation[k]; if (!x.validation.matin && !x.validation.soir) x.validation[k === 'matin' ? 'soir' : 'matin'] = true; }); rendre(); },
-    scanEnregistrer: function () {
-      var f = S.ui.feuille, x = scan(f.id); if (!x || !x.validation) return;
-      var v = x.validation, codes = [], n = 0, nCr = 0;
-      v.entites.forEach(function (ent) {
-        if (!ent.inclus) return;
-        var pl = planScan(ent, v); if (pl.erreur) return;
-        var code = enregistrerFiche(pl.d); codes.push(code); n++;
-        if (creerVisiteScan(code, ent, v, pl.lieu, x.id)) nCr++;
-      });
-      if (!n) { toast('Rien à enregistrer.'); return; }
-      majScan(f.id, function (y) { y.statut = 'enregistree'; y.codes = codes; });
-      S.ui.feuille = null; S.ui.tab = 'praticiens'; rendre();
-      sauver();
-      toast(n + ' fiche' + (n > 1 ? 's' : '') + ' enregistrée' + (n > 1 ? 's' : '') + (nCr ? ', ' + nCr + ' compte' + (nCr > 1 ? 's' : '') + ' rendu' + (nCr > 1 ? 's' : '') : '') + (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.'), 4000);
-      synchroniser(true);
-    },
+    scanEnregistrer: function () { enregistrerScan(null); },
+    scanEnregistrerUn: function (el) { enregistrerScan(+el.dataset.i); },
     nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau contact', pleine: true, etape: 0, cherche: true, nouveau: true, d: brouillonFiche(''), err: {} }; rendre(); setTimeout(function () { var i = document.querySelector('.fx-champ-g'); if (i) i.focus(); }, 250); },
     // 3.27.1 : personne introuvable dans la base : on passe à la fiche (1. Où et quand)
     ficheCreer: function () {
@@ -13797,7 +13822,10 @@
       var fC = S.ui.feuille, kC = el.dataset.k, iC = el.dataset.i, valC = el.type === 'checkbox' ? el.checked : el.value;
       majScan(fC.id, function (x) {
         var o = iC === undefined ? x.validation : x.validation.entites[+iC];
-        if (kC.indexOf('remplacer.') === 0) o.remplacer[kC.slice(10)] = valC; else o[kC] = valC;
+        if (kC.indexOf('appliquer.') === 0) {   // 3.31.5 : changement validé ou refusé
+          var kk = kC.slice(10); o.remplacer = o.remplacer || {}; o.refus = o.refus || {};
+          if (el.dataset.opt === 'remplacer') o.remplacer[kk] = valC; else o.refus[kk] = !valC;
+        } else if (kC.indexOf('remplacer.') === 0) o.remplacer[kC.slice(10)] = valC; else o[kC] = valC;
         if (kC === 'specialite' && iC !== undefined) o.specialite = specialiteCanonique(valC) || valC;
       });
       rendre();
