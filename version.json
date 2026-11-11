@@ -1,7 +1,7 @@
 {
-  "version": "3.31.21",
+  "version": "3.31.23",
   "date": "2026-11-11",
   "notes": [
-    "Reconnaissance OCR contextuelle intelligente : injection du répertoire des praticiens de la base dans Gemini/Claude pour déchiffrer les cachets baveux, matching flou multi-critères token-par-token croisant prénoms proches (ex: Prosine/Rosine) avec la spécialité, l'établissement et le téléphone."
+    "Architecture multi-agents hiérarchisée : 2 agents d'extraction spatiale et manuscrite (1A, 1B), 2 agents spécialisés dans les cachets et tampons baveux (2A, 2B), 1 agent arbitre d'extraction (Agent 3), suivis des agents de réconciliation BDD et de validation métier."
   ]
 }

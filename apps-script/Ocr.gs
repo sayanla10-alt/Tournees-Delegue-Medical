@@ -19,45 +19,38 @@ var MODELES_GEMINI_DEFAUT = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-
 var TAILLE_MAX_PHOTO = 8 * 1024 * 1024;   // octets, après décodage
 
 var CONSIGNE_LECTURE_FICHE = [
-  'Tu agis en tant qu\'orchestrateur d\'un collège de 7 agents experts en archivistique médicale et extraction OCR de documents pharmaceutiques manuscrits en Côte d\'Ivoire.',
-  'Objectif : extraire, filtrer, structurer et normaliser à 100% de fidélité les informations manuscrites et tamponnées des fiches de "RAPPORT JOURNALIER" de visite médicale.',
+  'Tu agis en tant que superviseur d\'un collège d\'agents d\'intelligence artificielle médicale hautement spécialisés, collaborant en pipeline strict pour extraire et vérifier les fiches manuscrites et tamponnées de rapport journalier en Côte d\'Ivoire.',
   '',
-  'SYSTÈME MULTI-AGENTS SPÉCIALISÉS (EXÉCUTION COMBINÉE) :',
+  'PIPELINE MULTI-AGENTS HIÉRARCHISÉ :',
   '',
-  '1. AGENT 1 - SCANNER SPATIAL & DÉCOMPTE STRICT :',
-  '   - Parcourt la fiche de haut en bas sans en manquer une seule ligne.',
-  '   - Extrait la date générale de la fiche (AAAA-MM-JJ), la ville et la commune de prospection.',
-  '   - Compte l\'intégralité des lignes de visite réelles et renseigne "nb_lignes".',
+  '--- ÉTAPE 1 : EXTRACTION SPATIALE & MANUSCRITE (DEUX AGENTS DÉDIÉS) ---',
+  '1. AGENT 1A (Cartographe Spatial & En-tête) :',
+  '   - Détecte l\'en-tête : date (AAAA-MM-JJ), nom du délégué, commune et quartier prospectés.',
+  '   - Balaye la feuille de haut en bas et compte avec exactitude chaque arrêt ou ligne de visite ("nb_lignes").',
+  '2. AGENT 1B (Extracteur de l\'Écriture Manuscrite) :',
+  '   - Lit spécifiquement les écritures à la main portées par le délégué sur chaque ligne : nom noté, spécialité, téléphone, et surtout le LIEU RÉEL EFFECTIF où la visite s\'est tenue (clinique, hôpital, cabinet).',
   '',
-  '2. AGENT 2 - DISSOCIATION CACHET VS LIEU RÉEL DE VISITE (CRUCIAL) :',
-  '   - De nombreux médecins consultent dans un hôpital B (clinique privée, cabinet) tout en apposant leur cachet officiel de l\'hôpital A (ex: CHU ou CHR).',
-  '   - PRIORITÉ ABSOLUE : Si un établissement ou une clinique est noté à la main sur la ligne, en en-tête de groupe ou en marge, c\'est cet établissement qui constitue le lieu réel de la visite (champ "etablissement").',
-  '   - Le nom d\'hôpital imprimé sur le cachet du médecin doit être conservé dans la "transcription" brute, mais ne doit JAMAIS écraser le lieu réel manuscrit où le délégué a rencontré le médecin.',
+  '--- ÉTAPE 2 : EXTRACTION DES CACHETS & ENCRE DIFFICILE (DEUX AGENTS DÉDIÉS) ---',
+  '3. AGENT 2A (Détecteur & Isoleur de Tampons Encreurs) :',
+  '   - Repère chaque empreinte de cachet médical (ronde, rectangulaire, ovale, même inclinée, en marge ou en bas de page).',
+  '   - Isole les mentions gravées : titre, nom, spécialité, numéros d\'ordre ONMCI, téléphone, établissement d\'attache.',
+  '4. AGENT 2B (Spécialiste Encre Baveuse & Caractères Estompés) :',
+  '   - Analyse les encrages baveux, faibles ou partiellement effacés.',
+  '   - Décrypte fidèlement les bribes alphabétiques réelles sans extrapolation fantaisiste (ex: identifie les lettres "K...BENAN" et "R...SINE").',
   '',
-  '3. AGENT 3 - FILTRE STRICT ANTI-PARASITES & FAUX POSITIFS :',
-  '   - ÉLIMINER FORMELLEMENT et ne JAMAIS créer de médecin pour :',
-  '     * Les mentions de visa ou de passage : "Vu", "Visa", "R.A.S", "Reçu", "Bon", "P.O.", "Signé".',
-  '     * Les signatures isolées sans nom de praticien identifiable.',
-  '     * Les statuts d\'absence ou de tournée : "Absent", "En congé", "Déplacé", "Rapport".',
-  '     * Les coordonnées de l\'employeur, du laboratoire (ex: Graabel Pharma) ou du délégué.',
+  '--- ÉTAPE 3 : ARBITRAGE DES EXTRACTIONS (AGENT ARBITRE CENTRAL) ---',
+  '5. AGENT 3 (Arbitre Confronteur des Extractions 1 et 2) :',
+  '   - Confronte pour chaque ligne ce qu\'ont extrait les Agents 1 (manuscrit) et les Agents 2 (cachet).',
+  '   - DISSOCIATION CRUCIALE DU LIEU : Si le cachet indique un hôpital d\'attache A (ex: CHU Treichville) mais que le délégué a noté à la main une clinique B (ex: Clinique Sainte Marie), l\'arbitre retient la CLINIQUE B comme lieu effectif de la visite ("etablissement"). Le CHU reste consigné dans "transcription".',
+  '   - ÉLIMINATION DES FAUX POSITIFS : Élimine formellement les mentions de visa ("Vu", "Visa", "R.A.S", "Reçu", "Bon", signatures seules) : NE JAMAIS créer de contact pour ces lignes parasites.',
   '',
-  '4. AGENT 4 - ONOMASTIQUE MÉDICALE CI & ZÉRO DÉDOUBLEMENT :',
-  '   - TITRE : Extraire STRICTEMENT dans le champ "titre" (Dr, Pr, Prof, SF pour sage-femme, IDE pour infirmier).',
-  '   - NOM & PRÉNOMS : Retirer impérativement "Dr", "Docteur", "Pr" du champ "nom" et du champ "prenoms". Zéro dédoublement (jamais "Dr Dr Kouassi").',
-  '   - Ne pas dupliquer le nom dans les prénoms si un seul terme est lisible.',
-  '   - Nettoyer les mentions académiques ou d\'ordre médical dans le nom (ex: MD, CES, PHD, Ordre n°...).',
-  '',
-  '5. AGENT 5 - NORMALISATION SPÉCIALITÉS & TÉLÉPHONES CI :',
-  '   - Spécialité : Médecine Générale, Pédiatrie, Cardiologie, Gynécologie-Obstétrique, Dermatologie, etc.',
-  '   - Téléphones CI : Format strict 10 chiffres (mobiles 07, 05, 01 ; fixes 27, 25, 21). Extraire sans indicatif ni espace.',
-  '',
-  '6. AGENT 6 - EXTRACTION DES OFFICINES (PHARMACIES) :',
-  '   - Ranger les officines dans la liste "pharmacies" (ex: "Pharmacie Principale").',
-  '   - Ne pas créer de médecin pour un pharmacien d\'officine, sauf si une visite distincte lui est dédiée.',
-  '',
-  '7. AGENT 7 - SUPERVISEUR & ASSURANCE QUALITÉ :',
-  '   - Recopie l\'intégralité textuelle brute de la ligne et du cachet dans "transcription" (séparés par " | ").',
-  '   - Attribue une note de confiance objective (0.2 à 0.95).'
+  '--- ÉTAPE 4 & 5 : CONTRÔLE ONOMASTIQUE, OFFICINES & SUPERVISION ---',
+  '6. AGENT 4 (Normalisateur Onomastique & Téléphonique CI) :',
+  '   - ZÉRO DÉDOUBLEMENT DE TITRE : "titre" contient Dr, Pr, SF ou IDE. Le titre est STRICTEMENT RETIRÉ du champ "nom" et du champ "prenoms" (jamais "Dr Dr Kouassi").',
+  '   - Format téléphone CI : strict 10 chiffres (mobiles 07, 05, 01 ; fixes 27, 25, 21).',
+  '7. AGENT 5 (Ségrégation Officines & Contrôle d\'Exhaustivité) :',
+  '   - Sépare clairement les pharmacies d\'officine (dans "pharmacies") des praticiens (dans "medecins").',
+  '   - Recopie l\'intégralité brute dans "transcription" (séparée par " | "). Attribue une note de confiance objective.'
 ].join('\n');
 
 function schemaLectureFiche_() {
@@ -105,12 +98,84 @@ function lireFichePhoto(body) {
     catch (e) { erreurs.push(moteurs[i][0] + ' : ' + String(e.message || e)); }
   }
   if (!lecture) erreur = erreurs.join(' ; ');
+  else lecture = agentReconciliationBdd_(lecture);
   journaliserFicheScannee_(auteur, photo, lecture, erreur);
   enregistrerAudit(SpreadsheetApp.getActive(), auteur, 'LECTURE_FICHE', 'Fiche', photo.id, erreur ? 'Erreur : ' + erreur : resumeLecture_(lecture));
   if (erreur) return { ok: false, erreur: 'Lecture impossible : ' + erreur, refus: /clé|key|API_KEY|PERMISSION|403|400/i.test(erreur), photo: photo };
   var r = { ok: true, lecture: lecture, photo: photo };
   if (cache) { try { cache.put(cleC, JSON.stringify(r), 21600); } catch (eC) {} }
   return r;
+}
+
+function agentReconciliationBdd_(lecture) {
+  if (!lecture || !lecture.medecins || !lecture.medecins.length) return lecture;
+  try {
+    var ss = SpreadsheetApp.getActive(), shP = ss && ss.getSheetByName(FEUILLES.praticiens);
+    if (!shP || shP.getLastRow() <= 1) return lecture;
+    var raw = shP.getRange(2, 1, Math.min(600, shP.getLastRow() - 1), 6).getValues();
+    var basePrats = raw.map(function (r) {
+      return { code: String(r[0] || '').trim(), type: String(r[1] || '').trim(), nom: String(r[2] || '').trim(), specialite: String(r[3] || '').trim(), telephone: String(r[5] || '').trim() };
+    }).filter(function (p) { return p.nom && p.type !== 'Pharmacie'; });
+
+    lecture.medecins.forEach(function (med) {
+      var nomLu = String(med.nom || '').trim(), prenomsLus = String(med.prenoms || '').trim();
+      var texteComplet = (nomLu + ' ' + prenomsLus).toLowerCase();
+      var motsLus = sansAccents(texteComplet).split(/[^a-z]+/).filter(function (w) { return w.length >= 3; });
+      var speLue = specialiteCanonique(med.specialite || '');
+      var telLu = String(med.telephone || '').replace(/\D/g, '');
+
+      var meilleurPrat = null, meilleurScore = 0, meilleureRaison = '';
+
+      basePrats.forEach(function (p) {
+        var pNomSansAcc = sansAccents(p.nom).toLowerCase();
+        var pMots = pNomSansAcc.split(/[^a-z]+/).filter(function (w) { return w.length >= 3; });
+        var pSpe = specialiteCanonique(p.specialite || '');
+        var pTel = String(p.telephone || '').replace(/\D/g, '');
+
+        var memeSpe = !!(speLue && pSpe && speLue === pSpe);
+        var memeTel = !!(telLu && pTel && (telLu === pTel || (telLu.length >= 8 && pTel.length >= 8 && telLu.slice(-8) === pTel.slice(-8))));
+
+        // Recherche d'un mot très proche (ex: "Prosine" vs "Rosine")
+        var maxSim = 0, motMatch = '';
+        motsLus.forEach(function (w) {
+          pMots.forEach(function (pw) {
+            var sim = similariteLevenshtein(w, pw);
+            if (sim > maxSim) { maxSim = sim; motMatch = pw; }
+          });
+        });
+
+        var score = 0;
+        if (memeTel) score += 50;
+        if (maxSim >= 0.85) score += 35;
+        else if (maxSim >= 0.75) score += 20;
+        if (memeSpe) score += 25;
+
+        if (score > meilleurScore && score >= 45) {
+          meilleurScore = score;
+          meilleurPrat = p;
+          meilleureRaison = (maxSim >= 0.75 ? 'prénom/nom proche (' + motMatch + ')' : '') + (memeSpe ? ' · même spécialité (' + p.specialite + ')' : '') + (memeTel ? ' · même tél' : '');
+        }
+      });
+
+      if (meilleurPrat) {
+        med.reconciliation = {
+          code: meilleurPrat.code,
+          nom: meilleurPrat.nom,
+          specialite: meilleurPrat.specialite,
+          telephone: meilleurPrat.telephone,
+          raison: meilleureRaison,
+          certitude: meilleurScore >= 60 ? 'haute' : 'probable'
+        };
+        // Si certitude haute, on propose le nom exact de la BDD
+        if (meilleurScore >= 55) {
+          med.nom_bdd_suggere = meilleurPrat.nom;
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('Erreur réconciliation BDD OCR : ' + e);
+  }
+  return lecture;
 }
 
 function resumeLecture_(l) {

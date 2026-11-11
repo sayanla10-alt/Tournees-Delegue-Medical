@@ -9,10 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.21';
+  var APP_VERSION = '3.31.23';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.23', ['Architecture multi-agents hiérarchisée : 2 agents d\'extraction spatiale/manuscrite (1A, 1B), 2 agents cachets/tampons (2A, 2B)',
+                 'Agent 3 arbitre les extractions et confronte les sources pour éliminer les ambiguïtés et faux positifs',
+                 'Agents 4 et 5 réconcilient avec la BDD et tranchent en faveur des médecins réels de la base (ex: Kouabenan Rosine)']],
+    ['3.31.22', ['Agent de réconciliation BDD dédié : recherche automatique des praticiens de la base croisant prénoms approchants, spécialités et téléphones',
+                 'Double vérification serveur (Apps Script) et client (app.js) pour éliminer les faux doublons sur cachets baveux (ex: Prosine/Rosine)',
+                 'Qualification automatique en ressemblance détectée dès que le contexte concorde']],
     ['3.31.21', ['Rapprochement OCR contextuel intelligent : injection du répertoire des praticiens de la base dans Gemini pour décoder les cachets baveux',
                  'Matching multi-critères token-par-token : détection des prénoms proches (ex: Prosine/Rosine) croisée avec la spécialité, l\'hôpital et le téléphone',
                  'Raison de détection explicite : la carte indique précisément la concordance détectée (prénom, spécialité, lieu)']],
@@ -10377,6 +10383,16 @@
     });
     ent.choix = cands[0] && (cands[0].exact || cands[0].memeTel || (cands[0].concordanceContextuelle && (cands[0].memeSpe || cands[0].memeLieu))) ? cands[0].p.code : '';
     ent.douteux = !ent.choix && cands[0] && (cands[0].fuzzy >= 0.52 || cands[0].proche || cands[0].concordanceContextuelle) ? cands[0].p.code : '';
+
+    // Intégration de l'Agent de Réconciliation BDD Serveur (si identifié par croisement Apps Script)
+    if (x.reconciliation && x.reconciliation.code) {
+      var codeRec = x.reconciliation.code;
+      if (ent.cands.indexOf(codeRec) < 0) ent.cands.unshift(codeRec);
+      ent.raisons[codeRec] = x.reconciliation.raison || 'identifié en base';
+      ent.choix = codeRec;
+      ent.douteux = '';
+      if (x.nom_bdd_suggere) ent.nomSuggestionBdd = x.nom_bdd_suggere;
+    }
     return ent;
   }
   function preparerValidationScan(L) {
