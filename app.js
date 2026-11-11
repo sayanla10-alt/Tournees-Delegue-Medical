@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.25';
+  var APP_VERSION = '3.31.26';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -5409,8 +5409,15 @@
     var verrou = a.etat === 'valide', e = '';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
+    
+    // Logique stricte : en orange (ambre) UNIQUEMENT ceux en dehors des zones ciblées par les filtres
+    var horsZone = !dansCommunesDu(a, a.date);
     var ancien = estReprise(a);
-    if (ancien) e += '<span class="etiquette ambre">' + (a.statut ? 'Déjà renseignée' : (a.etape || a.rdv ? 'RDV repris' : 'Ancien programme')) + (dansCommunesDu(a, a.date) ? '' : ', hors communes choisies') + '</span>';
+    if (horsZone) {
+      e += '<span class="etiquette ambre">' + (a.statut ? 'Déjà renseignée' : (a.etape || a.rdv ? 'RDV' : 'Visite passée')) + ', hors communes choisies</span>';
+    } else if (ancien && a.statut) {
+      e += '<span class="etiquette ok">Déjà renseignée</span>';
+    }
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
     if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici</span>';
     e += etiquetteCollegues(a.code, a.date);
@@ -5421,7 +5428,10 @@
       ? infosPharmaciePlan(a)
       : infosMedecinPlan(a);
 
-    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + (ancien ? ' ancien' : '') + '">' +
+    // Carte orange appliquée STRICTEMENT si hors des zones ciblées par les filtres
+    var classeOrange = horsZone ? ' ancien' : '';
+
+    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + classeOrange + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
         '<span class="lp-pastille-col">' + pastilleType(a) + '</span>' +
         '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
@@ -5436,12 +5446,22 @@
             (e ? '<span class="etiquettes">' + e + '</span>' : '') +
           '</button>' +
           (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
-            '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
-              (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
-            '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
+            (horsZone ? '' :
+              '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
+                (a.garde ? 'Ne plus garder' : 'Garder au prochain calcul') + '">' + icone('epingle') + '<small>' + (a.garde ? 'Gardé' : 'Garder') + '</small></button>' +
+              '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>')) +
         '</div>' +
       '</div>' +
-      (conflitArret(a) ? questionConflit(a, conflitArret(a)) : '') +
+      // Sous les cartes oranges (hors communes choisies) : boutons Remplacer, Supprimer, Conserver
+      (horsZone && !verrou && !a.statut ?
+        '<div class="actions-carte-orange">' +
+          '<span class="actions-carte-orange-texte">' + icone('localisation') + 'Hors commune cible</span>' +
+          '<div class="rangee-boutons-orange">' +
+            '<button type="button" class="bouton petit' + (a.garde ? ' bouton-plein' : '') + '" data-a="garder" data-uid="' + a.uid + '">' + icone('epingle') + '<span>' + (a.garde ? 'Conservé' : 'Conserver') + '</span></button>' +
+            '<button type="button" class="bouton petit bouton-plein" data-a="conflitRemplacer" data-uid="' + a.uid + '">' + icone('relancer') + '<span>Remplacer</span></button>' +
+            '<button type="button" class="bouton petit danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '">' + icone('fermer') + '<span>Supprimer</span></button>' +
+          '</div>' +
+        '</div>' : '') +
       '</li>';
   }
 
@@ -6465,9 +6485,8 @@
           '<div class="rangee-actions bas-carte"><button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else if (!verrou) {
         h += rendreCompteRendu(a);
-        var cf = conflitArret(a);
         h += a.hors ? '<div class="rangee-actions bas-carte"><button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>' :
-          cf ? questionConflit(a, cf) : '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
+          '<div class="rangee-actions bas-carte"><button class="bouton petit danger-doux" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Retirer de la tournée</button>' +
           '<button class="bouton petit" type="button" data-a="quitterCarte">Quitter</button></div>';
       } else {
         h += '<div class="cr-enregistre">' +
