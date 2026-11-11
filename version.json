@@ -1,7 +1,7 @@
 {
-  "version": "3.31.10",
+  "version": "3.31.11",
   "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : pliage/dépliage compact, arbitrage fuzzy match ancien/nouveau, choix hôpital en cascade et validation granulaire champ par champ."
+    "Vérifier la fiche : nom complet sur ligne dédiée sans troncature, tableau comparatif Ancien/Nouveau au clic et liaison présence-hôpital."
   ]
 }
