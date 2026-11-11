@@ -1,7 +1,7 @@
 {
-  "version": "3.31.19",
+  "version": "3.31.20",
   "date": "2026-11-11",
   "notes": [
-    "Vérification de fiche : titre épuré 'Fiche du [date]' sans widget calendrier ni duplication de date, correction de la hauteur des boutons Matin/Soir (non tronqués), clarification du choix BDD 'Garder contact en base' avec conservation par défaut du nom existant, et boutons rapides Tout en base / Tout adopter."
+    "Architecture multi-agents OCR avancée : dissociation stricte cachet vs lieu réel de visite, filtrage impitoyable des faux positifs/mentions parasites, dédoublonnage onomastique (plus de doublons de titres 'Dr Dr' ou nom répété), et interface épurée sans verbiage respectant la charte graphique."
   ]
 }

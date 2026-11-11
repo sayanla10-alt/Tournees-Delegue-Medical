@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.19';
+  var APP_VERSION = '3.31.20';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.20', ['Architecture multi-agents OCR : dissociation stricte cachet d\'hôpital d\'attache vs lieu réel de visite',
+                 'Filtrage strict anti-parasites : rejet des visas, mentions administratives et faux médecins',
+                 'Dédoublonnage onomastique : suppression des doublons de titres « Dr Dr » et des répétitions de noms',
+                 'Tableau comparatif épuré [Ancien | Nouveau] et interface directe sans verbiage fidèle à la charte']],
     ['3.31.19', ['Titre épuré « Fiche du [date] » sans widget calendrier encombrant ni duplication de date',
                  'Boutons créneaux Matin / Soir parfaitement dimensionnés en hauteur, sans aucune troncature ni rognage',
                  'Rattachement BDD limpide : « Garder contact en base » préserve par défaut le nom et les infos existantes',
@@ -10293,7 +10297,12 @@
   function nomScan(x, estPh) {
     if (estPh) { var n = nomPropre(x.nom, true); return /^(pharmacie|phcie|grande pharmacie)\b/i.test(n) ? n.replace(/^phcie\b/i, 'Pharmacie') : 'Pharmacie ' + n; }
     var t = /^p(r|rof)\.?$/i.test(String(x.titre || '').trim()) ? 'Pr' : (/^(m|mme|mlle|m\.)$/i.test(String(x.titre || '').trim()) ? '' : 'Dr');
-    return [t, nomPropre(x.nom), nomPropre(x.prenoms)].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    var netNom = String(x.nom || '').replace(/^(?:dr|docteur|pr|prof|professeur|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+    var netPrenoms = String(x.prenoms || '').replace(/^(?:dr|docteur|pr|prof|professeur|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+    netNom = netNom.replace(/\b(?:md|ces|phd|ordre\s*n[°o]?\s*\d+)\b.*$/i, '').trim();
+    netPrenoms = netPrenoms.replace(/\b(?:md|ces|phd|ordre\s*n[°o]?\s*\d+)\b.*$/i, '').trim();
+    if (netNom && netPrenoms && netNom.toLowerCase() === netPrenoms.toLowerCase()) netPrenoms = '';
+    return [t, nomPropre(netNom), nomPropre(netPrenoms)].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
   }
   function quartierScan(q, commune) {
     var nq = normaliser(q || ''), nc = normaliser(commune || ''); if (!nq && !nc) return null;
@@ -10688,10 +10697,10 @@
     if (ouvert || dt || (pl.erreur && !ent.etablissement && !ent.quartier)) {
       h += '<div class="scan-corps-deplie">';
 
-      // 1. BLOC ARBITRAGE FUZZY MATCH (Garder le contact en base OU Créer nouveau)
+      // 1. BLOC ARBITRAGE FUZZY MATCH
       var contactFuzzy = dt || (ex && cand1 && ex.code === cand1.code ? cand1 : null) || (cand1 && !ex ? cand1 : null);
       if (contactFuzzy) {
-        // « Garder contact en base » est toujours pré-sélectionné par défaut
+        // « Modifier l'ancien » est toujours pré-sélectionné par défaut
         if (!ent.decision && !ent.choix) {
           ent.choix = contactFuzzy.code;
           ent.decision = 'oui';
@@ -10707,13 +10716,12 @@
           '</div>' +
           '<div class="segment scan-segment-choix" role="group" aria-label="Action doublon">' +
             '<button type="button" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="ancien" data-code="' + esc(contactFuzzy.code) + '" aria-pressed="' + estChoisiAncien + '">' +
-              'Garder contact en base' +
+              'Modifier l\'ancien' +
             '</button>' +
             '<button type="button" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="nouveau" aria-pressed="' + (!ent.choix) + '">' +
               'Créer nouveau' +
             '</button>' +
           '</div>' +
-          (estChoisiAncien ? '<div class="scan-fuzzy-astuce">💡 <b>Nom et coordonnées de la base conservés.</b> Touchez ci-dessous pour modifier si besoin.</div>' : '') +
         '</div>';
       }
 
@@ -10754,7 +10762,7 @@
         if (pl.prog) {
           h += '<div class="scan-semaine-apercu">' +
             '<div class="scan-semaine-titre-court">' +
-              '<span>Planning sur ce lieu :</span> <small>(toucher un jour pour modifier)</small>' +
+              '<span>Planning sur ce lieu :</span>' +
             '</div>' +
             semaineScan(pl.prog, i) +
           '</div>';
@@ -10783,7 +10791,7 @@
         '</div>';
       }
 
-      // 3. TABLEAU COMPARATIF [EN BASE | SUR FICHE] PUR ET EXPLICITE
+      // 3. TABLEAU COMPARATIF [ANCIEN | NOUVEAU] PUR
       if (ex) {
         // Filtrer strictement : seules les mentions réellement différentes ou nouvelles sont présentées
         // Si l'information lue est conforme à la BDD, elle est ignorée pour ne pas surcharger l'écran
@@ -10792,18 +10800,11 @@
         });
         if (changs.length) {
           h += '<div class="scan-table-wrap">' +
-            '<div class="scan-table-barre">' +
-              '<span class="scan-table-titre">⚙️ <b>Touchez pour choisir :</b></span>' +
-              '<div class="scan-table-actions-rapides">' +
-                '<button type="button" class="scan-btn-mini" data-a="scanGarderToutBase" data-i="' + i + '" title="Conserver toutes les données de la base">Tout en base</button>' +
-                '<button type="button" class="scan-btn-mini" data-a="scanAdopterToutFiche" data-i="' + i + '" title="Adopter toutes les nouveautés de la fiche">Tout adopter</button>' +
-              '</div>' +
-            '</div>' +
             '<table class="scan-table-comparatif">' +
               '<thead>' +
                 '<tr>' +
-                  '<th class="scan-th-col">En base (conservé)</th>' +
-                  '<th class="scan-th-col">Lu sur la fiche</th>' +
+                  '<th class="scan-th-col">Ancien</th>' +
+                  '<th class="scan-th-col">Nouveau</th>' +
                 '</tr>' +
               '</thead>' +
               '<tbody>';
@@ -10816,13 +10817,13 @@
             var labelNouveau = ficheVal ? esc(ficheVal) : '<span class="scan-val-vide">— (aucun)</span>';
 
             h += '<tr>' +
-              '<td class="scan-td-cell scan-td-ancien' + (!estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="ancien" title="Garder la valeur de la base">' +
+              '<td class="scan-td-cell scan-td-ancien' + (!estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="ancien" title="Garder l\'ancien">' +
                 '<div class="scan-td-contenu">' +
                   (!estAccepte ? '<span class="scan-td-coche">✓</span>' : '') +
                   '<span>' + labelAncien + '</span>' +
                 '</div>' +
               '</td>' +
-              '<td class="scan-td-cell scan-td-nouveau' + (estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="nouveau" title="Adopter la valeur lue sur la fiche">' +
+              '<td class="scan-td-cell scan-td-nouveau' + (estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="nouveau" title="Adopter le nouveau">' +
                 '<div class="scan-td-contenu">' +
                   (estAccepte ? '<span class="scan-td-coche">✓</span>' : '') +
                   '<span>' + labelNouveau + '</span>' +
@@ -10840,7 +10841,7 @@
       h += '<div class="scan-edition-rapide">' +
         (ent.transcription ? '<p class="discret scan-lu">Lu sur la photo : ' + esc(ent.transcription) + '</p>' : '') +
         '<div class="grille-2 serre">' +
-          '<label class="champ"><span>' + (ex ? 'Nom retenu' : 'Nom') + '</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(nomRetenu) + '"></label>' +
+          '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(nomRetenu) + '"></label>' +
           '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone || (ex ? ex.telephone : '')) + '"></label>' +
         '</div>' +
         (estPh ? '' : '<label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite || (ex ? ex.specialite : '')) + '"></label>') +

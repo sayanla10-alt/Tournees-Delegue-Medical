@@ -19,22 +19,45 @@ var MODELES_GEMINI_DEFAUT = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-
 var TAILLE_MAX_PHOTO = 8 * 1024 * 1024;   // octets, après décodage
 
 var CONSIGNE_LECTURE_FICHE = [
-  'Tu agis en tant qu\'expert en archivistique médicale, ingénierie des données et traitement OCR avancé.',
-  'Ton objectif est d\'extraire, structurer et normaliser sans aucune perte de données l\'intégralité des informations manuscrites, imprimées et tamponnées contenues dans les fiches de "RAPPORT JOURNALIER" de Graabel Pharma à Abidjan (Côte d\'Ivoire).',
+  'Tu agis en tant qu\'orchestrateur d\'un collège de 7 agents experts en archivistique médicale et extraction OCR de documents pharmaceutiques manuscrits en Côte d\'Ivoire.',
+  'Objectif : extraire, filtrer, structurer et normaliser à 100% de fidélité les informations manuscrites et tamponnées des fiches de "RAPPORT JOURNALIER" de visite médicale.',
   '',
-  'PROTOCOLE DE TRAITEMENT EN 5 ÉTAPES (SIMULATION MULTI-AGENTS INTERNE) :',
-  '1. AGENT 1 (Extraction Brute OCR) : Parcourt la fiche de haut en bas. Compte l\'intégralité des lignes ou cachets de visite (y compris bas de page, de travers, signatures avec tampon). Renseigne nb_lignes avec le décompte exact.',
-  '2. AGENT 2 (Relecture critique & Détection tampons/cachets) : Pour chaque ligne, lit attentivement l\'encre manuscrite, les cachets d\'encre (nom du praticien, spécialité, établissement, numéros d\'ordre ONMCI, téléphones) et les mentions en marge.',
-  '3. AGENT 3 (Arbitrage sans perte) : Recopie dans transcription l\'intégralité textuelle brute de la ligne et du cachet (séparés par " | "). Zéro omission.',
-  '4. AGENT 4 (Normalisation & Contrôle Métier Côte d\'Ivoire) :',
-  '   - Titres : Dr, Pr, Prof, M., Mme, SF (sage-femme), IDE (infirmier/infirmière).',
-  '   - Noms & Prénoms : Séparer nom de famille et prénoms. Préserver les particules (ex: KOUAME, COULIBALY, DIOMANDE, KOFFI).',
-  '   - Spécialités canoniques : médecine générale, pédiatrie, cardiologie, gynécologie, dermatologie, etc.',
-  '   - Établissements : Hôpital, CHU, CHR, Clinique, Polyclinique, CMS, FSU, Centre de Santé, Cabinet.',
-  '   - Téléphones CI : Format 10 chiffres (mobiles Orange/MTN/Moov 07, 05, 01 ; fixes 27/25/21). Extraire sans indicatif ni espace.',
-  '   - Communes & Quartiers d\'Abidjan : Cocody (Angré, Riviera...), Yopougon, Marcory, Plateau, Treichville, Abobo, Koumassi, Port-Bouët, Adjamé, Attécoubé, etc.',
-  '   - Pharmacies : Nom officiel de l\'officine dans pharmacies, soignants dans medecins.',
-  '5. AGENT 5 (Cross-Check & Assurance Qualité) : Vérification finale pour éviter d\'arrêter prématurément. Même une ligne partiellement lisible doit produire une entrée (avec confiance ajustée 0.2 à 0.9). Remarques utiles (rupture, commande, absence) dans remarques.'
+  'SYSTÈME MULTI-AGENTS SPÉCIALISÉS (EXÉCUTION COMBINÉE) :',
+  '',
+  '1. AGENT 1 - SCANNER SPATIAL & DÉCOMPTE STRICT :',
+  '   - Parcourt la fiche de haut en bas sans en manquer une seule ligne.',
+  '   - Extrait la date générale de la fiche (AAAA-MM-JJ), la ville et la commune de prospection.',
+  '   - Compte l\'intégralité des lignes de visite réelles et renseigne "nb_lignes".',
+  '',
+  '2. AGENT 2 - DISSOCIATION CACHET VS LIEU RÉEL DE VISITE (CRUCIAL) :',
+  '   - De nombreux médecins consultent dans un hôpital B (clinique privée, cabinet) tout en apposant leur cachet officiel de l\'hôpital A (ex: CHU ou CHR).',
+  '   - PRIORITÉ ABSOLUE : Si un établissement ou une clinique est noté à la main sur la ligne, en en-tête de groupe ou en marge, c\'est cet établissement qui constitue le lieu réel de la visite (champ "etablissement").',
+  '   - Le nom d\'hôpital imprimé sur le cachet du médecin doit être conservé dans la "transcription" brute, mais ne doit JAMAIS écraser le lieu réel manuscrit où le délégué a rencontré le médecin.',
+  '',
+  '3. AGENT 3 - FILTRE STRICT ANTI-PARASITES & FAUX POSITIFS :',
+  '   - ÉLIMINER FORMELLEMENT et ne JAMAIS créer de médecin pour :',
+  '     * Les mentions de visa ou de passage : "Vu", "Visa", "R.A.S", "Reçu", "Bon", "P.O.", "Signé".',
+  '     * Les signatures isolées sans nom de praticien identifiable.',
+  '     * Les statuts d\'absence ou de tournée : "Absent", "En congé", "Déplacé", "Rapport".',
+  '     * Les coordonnées de l\'employeur, du laboratoire (ex: Graabel Pharma) ou du délégué.',
+  '',
+  '4. AGENT 4 - ONOMASTIQUE MÉDICALE CI & ZÉRO DÉDOUBLEMENT :',
+  '   - TITRE : Extraire STRICTEMENT dans le champ "titre" (Dr, Pr, Prof, SF pour sage-femme, IDE pour infirmier).',
+  '   - NOM & PRÉNOMS : Retirer impérativement "Dr", "Docteur", "Pr" du champ "nom" et du champ "prenoms". Zéro dédoublement (jamais "Dr Dr Kouassi").',
+  '   - Ne pas dupliquer le nom dans les prénoms si un seul terme est lisible.',
+  '   - Nettoyer les mentions académiques ou d\'ordre médical dans le nom (ex: MD, CES, PHD, Ordre n°...).',
+  '',
+  '5. AGENT 5 - NORMALISATION SPÉCIALITÉS & TÉLÉPHONES CI :',
+  '   - Spécialité : Médecine Générale, Pédiatrie, Cardiologie, Gynécologie-Obstétrique, Dermatologie, etc.',
+  '   - Téléphones CI : Format strict 10 chiffres (mobiles 07, 05, 01 ; fixes 27, 25, 21). Extraire sans indicatif ni espace.',
+  '',
+  '6. AGENT 6 - EXTRACTION DES OFFICINES (PHARMACIES) :',
+  '   - Ranger les officines dans la liste "pharmacies" (ex: "Pharmacie Principale").',
+  '   - Ne pas créer de médecin pour un pharmacien d\'officine, sauf si une visite distincte lui est dédiée.',
+  '',
+  '7. AGENT 7 - SUPERVISEUR & ASSURANCE QUALITÉ :',
+  '   - Recopie l\'intégralité textuelle brute de la ligne et du cachet dans "transcription" (séparés par " | ").',
+  '   - Attribue une note de confiance objective (0.2 à 0.95).'
 ].join('\n');
 
 function schemaLectureFiche_() {
@@ -209,6 +232,7 @@ function titreCourt_(v) {
   var k = sansAccents(String(v || '')).toLowerCase().replace(/[^a-z]/g, '');
   return /^(dr|docteur)/.test(k) ? 'Dr' : /^(pr|prof|professeur)/.test(k) ? 'Pr' : /^(mme|madame)$/.test(k) ? 'Mme' : /^(m|mr|monsieur)$/.test(k) ? 'M.' : /^(sf|sagefemme)$/.test(k) ? 'SF' : /^(ide|infirmier|infirmiere)$/.test(k) ? 'IDE' : '';
 }
+var MOTS_PARASITES_OCR_ = /^(?:vu|visa|ras|r\.a\.s|signature|signe|conge|absent|annule|rapport|delegue|graabel|pharma|echantillon|bon)\b/i;
 function nettoyerLecture_(l) {
   var s = function (v, n) { return String(v === undefined || v === null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n || 120); };
   var tel = function (v) { var d = String(v || '').replace(/\D/g, ''); if (d.indexOf('225') === 0 && d.length === 13) d = d.slice(3); return d.length >= 8 && d.length <= 13 ? d : ''; };
@@ -224,13 +248,17 @@ function nettoyerLecture_(l) {
     medecins: ((l && l.medecins) || []).slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
       x = completerDepuisTranscription_({ transcription: s(x.transcription, 600), titre: x.titre, nom: x.nom, prenoms: x.prenoms, specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
         telephone: tel(x.telephone), adresse: x.adresse, quartier: x.quartier, commune: x.commune, source: x.source, confiance: x.confiance });
-      return { transcription: x.transcription, titre: titreCourt_(x.titre), nom: s(x.nom, 80), prenoms: s(x.prenoms, 80), specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
+      var netNom = s(x.nom, 80).replace(/^(?:dr|docteur|pr|prof|professeur|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+      var netPrenoms = s(x.prenoms, 80).replace(/^(?:dr|docteur|pr|prof|professeur|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+      if (netNom && netPrenoms && netNom.toLowerCase() === netPrenoms.toLowerCase()) netPrenoms = '';
+      return { transcription: x.transcription, titre: titreCourt_(x.titre), nom: netNom, prenoms: netPrenoms, specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
                telephone: tel(x.telephone), adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), source: s(x.source, 12), confiance: conf(x.confiance) };
-    }).filter(function (x) { return x.nom; }),
+    }).filter(function (x) { return x.nom && !MOTS_PARASITES_OCR_.test(x.nom); }),
     pharmacies: ((l && l.pharmacies) || []).slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
       var tP = completerDepuisTranscription_({ transcription: s(x.transcription, 600), telephone: tel(x.telephone) });
-      return { transcription: tP.transcription, nom: s(x.nom, 120), adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), telephone: tP.telephone, source: s(x.source, 12), confiance: conf(x.confiance) };
-    }).filter(function (x) { return x.nom; }),
+      var netNomPh = s(x.nom, 120);
+      return { transcription: tP.transcription, nom: netNomPh, adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), telephone: tP.telephone, source: s(x.source, 12), confiance: conf(x.confiance) };
+    }).filter(function (x) { return x.nom && !MOTS_PARASITES_OCR_.test(x.nom); }),
     remarques: s(l && l.remarques, 600)
   };
 }
