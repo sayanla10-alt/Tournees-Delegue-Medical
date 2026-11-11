@@ -51,7 +51,14 @@ var Moteur = (function () {
       if (!p) return;
       (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(pr);
       var q = idxQ[bas(pr.quartier)];
-      var coord = lireCoord(pr) || (q ? { lat: q.lat, lon: q.lon, approx: true } : null);
+      var coord = lireCoord(pr);
+      if (coord && typeof estCommuneInterieur === 'function' && estCommuneInterieur(pr.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(coord)) {
+        coord = null;
+      }
+      if (!coord) {
+        coord = q ? { lat: q.lat, lon: q.lon, approx: true } : (typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(pr.commune) || centroideVilleInterieur(pr.quartier)) : null);
+        if (coord && !coord.approx) coord = { lat: coord.lat, lon: coord.lon, approx: true };
+      }
       var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
       var st = stats[String(pr.id)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
       JOURS_CLES.forEach(function (cle, j) {

@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.17';
+  var APP_VERSION = '3.31.18';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.18', ['Pharmacies et hôpitaux de l\'intérieur (hors Abidjan) : suppression définitive du faux plafonnement à 99 km',
+                 'Distances réelles fidèlement calculées à travers toute la Côte d\'Ivoire (ex: Abidjan - Bouaké ~348 km)',
+                 'Référentiel des centroïdes et hôpitaux majeurs de l\'intérieur avec assainissement des coordonnées aberrantes tombées à Abidjan']],
     ['3.31.17', ['Tableau comparatif épuré à 2 colonnes pures [Ancien | Nouveau] sans colonne mention inutile',
                  'En-tête repensé ergonomique avec gros boutons Matin/Soir de 44px au pouce et badges de synthèse intégrés',
                  'Filtrage strict : les données conformes à la BDD sont automatiquement ignorées pour concentrer l\'action sur les vrais changements']],
@@ -1545,7 +1548,11 @@
     return '<span class="trajet-mini" role="img" aria-label="' + dist + ', ' + duree(pied) + ' à pied, ' + duree(Math.max(1, minVoiture)) + ' en voiture">' +
       '<span>' + icone('route') + dist + '</span><span>' + icone('pieton') + duree(pied) + '</span><span>' + icone('voiture') + duree(Math.max(1, minVoiture)) + '</span></span>';
   }
-  function km(n) { return (Math.round(n * 10) / 10).toLocaleString('fr-FR') + ' km'; }
+  function km(n) {
+    if (n === null || n === undefined || !isFinite(n)) return '';
+    if (n >= 50) return Math.round(n).toLocaleString('fr-FR') + ' km';
+    return (Math.round(n * 10) / 10).toLocaleString('fr-FR') + ' km';
+  }
   function pct(n) { return (Math.round(n * 10) / 10).toLocaleString('fr-FR', { minimumFractionDigits: 1 }) + ' %'; }
   function vuDepuis(derniere, ref) {
     if (!derniere) return 'Jamais visité';
@@ -4292,7 +4299,7 @@
     // 3.25.15 : aujourd'hui, avec ma position : les visites pas encore vues du plus proche au plus loin
     var gp = d === t && S.ui.posGps && Date.now() - S.ui.posGps.t < 15 * 60000 ? S.ui.posGps : null, parProximite = false;
     if (gp) {
-      var dm = {}; aFaire.forEach(function (a) { var c = coordPrecise(a) || coordArret(a); dm[a.uid] = c ? distanceVol(gp, c) : 99; });
+      var dm = {}; aFaire.forEach(function (a) { var c = coordPrecise(a) || coordArret(a); var dist = c ? distanceVol(gp, c) : null; dm[a.uid] = dist !== null ? dist : 9999; });
       aFaire.sort(function (x, y) { return dm[x.uid] - dm[y.uid]; }); parProximite = true;
     }
     ['Matin', 'Soir'].forEach(function (cren) {
@@ -4515,9 +4522,27 @@
   var AGE_GPS_MIN = 10;
   function gpsFrais() { var g = S.ui.posGps; return g && Date.now() - g.t < AGE_GPS_MIN * 60000 ? g : null; }
   function coordPrecise(a) {
-    var c0 = lireCoord(a); if (c0) return c0;
+    var c0 = lireCoord(a);
+    if (c0) {
+      if (typeof estCommuneInterieur === 'function' && estCommuneInterieur(a.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(c0)) {
+        var repli0 = typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(a.commune) || centroideVilleInterieur(a.quartier)) : null;
+        if (repli0) return { lat: repli0.lat, lon: repli0.lon, approx: true };
+      }
+      return c0;
+    }
     var cr = a.idPresence && ctx().parCode[a.code] ? ctx().parCode[a.code].filter(function (x) { return String(x.idPresence) === String(a.idPresence); })[0] : null;
-    return cr && cr.coord ? cr.coord : null;
+    if (cr && cr.coord) {
+      if (typeof estCommuneInterieur === 'function' && estCommuneInterieur(a.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(cr.coord)) {
+        var repliCr = typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(a.commune) || centroideVilleInterieur(a.quartier)) : null;
+        if (repliCr) return { lat: repliCr.lat, lon: repliCr.lon, approx: true };
+      }
+      return cr.coord;
+    }
+    if (typeof estCommuneInterieur === 'function' && estCommuneInterieur(a.commune) && typeof centroideVilleInterieur === 'function') {
+      var repliDir = centroideVilleInterieur(a.commune) || centroideVilleInterieur(a.quartier);
+      if (repliDir) return { lat: repliDir.lat, lon: repliDir.lon, approx: true };
+    }
+    return null;
   }
   // pharmacie ouverte à moins de 500 m, hors de ma journée, non prévue par un collègue cette semaine, pas vue récemment
   var RAYON_PHARMACIE_KM = 0.5;
@@ -4823,7 +4848,7 @@
     var nMed = duJour.length - nPhar;
     // 3.26.68 : distance du parcours estimée d'une visite à la suivante (ordre des heures), coefficient routier inclus
     var totalKm = (function () { var l = duJour.slice().sort(function (x, y) { return String(x.heure || '').localeCompare(String(y.heure || '')); }), t = 0, prec = null;
-      l.forEach(function (a) { var c = coordArret(a); if (c && prec) { var dk = distanceKm(prec, c); if (dk < 99) t += dk; } if (c) prec = c; }); return t; })();
+      l.forEach(function (a) { var c = coordArret(a); if (c && prec) { var dk = distanceKm(prec, c); if (dk !== null && isFinite(dk) && dk < 1500) t += dk; } if (c) prec = c; }); return t; })();
     var comJour = Array.from(new Set(duJour.map(function (a) { return a.commune; }).filter(Boolean)));
     var etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmé' + (S.jours[d] && S.jours[d].modifieLe ? ', modifié' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
     var details = [
@@ -4996,7 +5021,8 @@
       if (!cibleEstPh && filtre && !filtre(p)) return;
       if (d === aujourdhui() && cr.fin <= minutesMaintenant()) return;   // aujourd'hui : seulement ceux encore présents
       if (joursEcoules(p.derniere, d) < (+S.params.delai || 0)) return;
-      var dist = origine && cr.coord ? distanceKm(origine, cr.coord) : 99;
+      var dK = origine && cr.coord ? distanceKm(origine, cr.coord) : null;
+      var dist = dK !== null ? dK : 999;
       var memeLieu = memeEtablissement(lieuA, cr.lieu);
       var x = { cr: cr, dist: dist, score: Moteur.scoreDe(p, d) + (memeLieu ? 50 : 0), memeLieu: memeLieu };
       var existant = vus[cr.code];
@@ -5314,7 +5340,7 @@
     var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || coord) : null;
     if (c && pos) {
       var d = distanceVol(pos, c);
-      morceaux.push(distMoi(d));
+      morceaux.push(distMoi(d, c && c.approx));
     }
     return morceaux.join(' · ');
   }
@@ -5327,7 +5353,7 @@
     var base = infosSansDoublon(a, [a.lieu, a.quartier, reperesDe(a), a.commune]);
     if (c && pos) {
       var d = distanceVol(pos, c);
-      return (base ? base + ' · ' : '') + distMoi(d);
+      return (base ? base + ' · ' : '') + distMoi(d, c && c.approx);
     }
     return base;
   }
@@ -6600,11 +6626,30 @@
     else carte.setView([5.345, -4.01], 11);
   }
   function coordArret(a) {
-    var c0 = lireCoord(a); if (c0) return c0;
+    var c0 = lireCoord(a);
+    if (c0) {
+      if (typeof estCommuneInterieur === 'function' && estCommuneInterieur(a.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(c0)) {
+        var repli0 = typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(a.commune) || centroideVilleInterieur(a.quartier)) : null;
+        if (repli0) return { lat: repli0.lat, lon: repli0.lon, approx: true };
+      }
+      return c0;
+    }
     var cr = a.idPresence && ctx().parCode[a.code] ? ctx().parCode[a.code].filter(function (x) { return String(x.idPresence) === String(a.idPresence); })[0] : null;
-    if (cr && cr.coord) return cr.coord;
+    if (cr && cr.coord) {
+      if (typeof estCommuneInterieur === 'function' && estCommuneInterieur(a.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(cr.coord)) {
+        var repliCr = typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(a.commune) || centroideVilleInterieur(a.quartier)) : null;
+        if (repliCr) return { lat: repliCr.lat, lon: repliCr.lon, approx: true };
+      }
+      return cr.coord;
+    }
     var q = quartiers().filter(function (x) { return x.quartier === a.quartier; })[0];
-    return q ? { lat: +q.lat, lon: +q.lon } : null;
+    if (q) return { lat: +q.lat, lon: +q.lon };
+    // 3.31.18 : Repli pour l'intérieur du pays (hors Abidjan) sur le centroïde de la ville
+    if (typeof centroideVilleInterieur === 'function') {
+      var cv = centroideVilleInterieur(a.commune) || centroideVilleInterieur(a.quartier);
+      if (cv) return { lat: cv.lat, lon: cv.lon, approx: true };
+    }
+    return null;
   }
 
   // ------------------------------------------------------------------ Vue : produits (aide-mémoire du délégué)
@@ -7499,6 +7544,15 @@
         var ref = trouverEtablissementRef(it.nom);
         if (ref && isFinite(ref.lat)) { it.lat = ref.lat; it.lon = ref.lon; }
       }
+      // 3.31.18 : Détection des coordonnées d'Abidjan assignées par erreur à un établissement de l'intérieur
+      if (isFinite(it.lat) && typeof estCommuneInterieur === 'function' && estCommuneInterieur(it.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan({ lat: it.lat, lon: it.lon })) {
+        it.lat = NaN; it.lon = NaN;
+      }
+      // Repli sur le centroïde de la ville de l'intérieur
+      if (!isFinite(it.lat) && typeof centroideVilleInterieur === 'function') {
+        var cv = centroideVilleInterieur(it.commune) || centroideVilleInterieur(it.quartier);
+        if (cv) { it.lat = cv.lat; it.lon = cv.lon; it.approx = true; }
+      }
       if ((it.pres.length || avecVides) && !cabinet(it.nom)) l.push(it);
     });
     return l;
@@ -7531,7 +7585,7 @@
       var clPres = ici > 0 ? 'etiquette auj' : 'etiquette';
       h += '<li class="element element-hopital"><div class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '" role="button" tabindex="0">' +
         '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + '</span>' +
-        '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d) : '') + '</span>' +
+        '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d, e.approx) : '') + '</span>' +
         '<span class="etiquettes">' + badgeGps + '<span class="' + clPres + '">' + txtPres + '</span>' +
           (vus ? '<span class="etiquette ok">' + vus + ' vu' + (vus > 1 ? 's' : '') + ' ce mois</span>' : '') +
           '</span></div>';
@@ -7578,9 +7632,23 @@
   // 3.29.6 : pharmacie du Répertoire : distance depuis ma position jusqu'à son lieu le plus proche, comme les cartes Hôpitaux
   function distancePharmacie(p, lieux) {
     var g = gpsFrais(); if (!g || !estPharmacie(p)) return '';
-    var d = null;
-    lieux.concat([p]).forEach(function (x) { var co = lireCoord(x); if (co) { var k = distanceVol(g, co); if (d === null || k < d) d = k; } });
-    return d !== null ? ' · ' + distMoi(d) : '';
+    var d = null, approx = false;
+    lieux.concat([p]).forEach(function (x) {
+      var co = lireCoord(x);
+      var com = x.commune || p.commune;
+      if (co && typeof estCommuneInterieur === 'function' && estCommuneInterieur(com) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(co)) {
+        co = null;
+      }
+      if (!co && typeof centroideVilleInterieur === 'function') {
+        var cv = centroideVilleInterieur(com || x.quartier || p.quartier);
+        if (cv) { co = { lat: cv.lat, lon: cv.lon }; approx = true; }
+      }
+      if (co) {
+        var k = distanceVol(g, co);
+        if (k !== null && (d === null || k < d)) d = k;
+      }
+    });
+    return d !== null ? ' · ' + distMoi(d, approx) : '';
   }
   // 3.28.19 : carte (fiche) d'un contact, hors de la vue pour être aussi ouverte en fenêtre depuis tout l'écran
   function cartePraticienHtml(p, c, t, ouvert) {
@@ -9897,7 +9965,12 @@
         var rq = quartiers().filter(function (x) { return x.quartier === e.quartier; })[0];
         if (rq && isFinite(rq.lat)) coord = { lat: rq.lat, lon: rq.lon };
       }
-      e.dist = posRef && coord ? distanceKm(posRef, coord) : 999;
+      if (!coord && typeof centroideVilleInterieur === 'function') {
+        var cv = centroideVilleInterieur(e.commune) || centroideVilleInterieur(e.quartier);
+        if (cv) coord = { lat: cv.lat, lon: cv.lon };
+      }
+      var dHop = posRef && coord ? distanceKm(posRef, coord) : null;
+      e.dist = dHop !== null ? dHop : 999;
       var memeQuart = S.user && S.user.quartier && e.quartier === S.user.quartier;
       var memeCom = S.user && S.user.commune && e.commune === S.user.commune;
       e.scoreLoc = memeQuart ? 0 : (memeCom ? 1 : 2);
@@ -11990,6 +12063,7 @@
   function arreterSuiviGps() { if (suiviGps.id !== null) { try { navigator.geolocation.clearWatch(suiviGps.id); } catch (e) {} } suiviGps.id = null; }
   function precisionDe(p) { var a = p && p.coords && p.coords.accuracy; return a === null || a === undefined || isNaN(a) ? 9999 : a; }
   function distanceCourte(k) {
+    if (k === null || k === undefined || !isFinite(k)) return '';
     if (k <= 0.035) return 'Sur place';
     if (k < 1) {
       var m = Math.max(10, Math.round(k * 100) * 10);
@@ -12001,7 +12075,7 @@
   var PREC_DISTANCE_M = 50;
   function positionImprecise() { var g = gpsFrais(); return !!(g && g.prec && g.prec > PREC_DISTANCE_M); }
   function distMoi(k, approx) {
-    if (k === null || k === undefined) return '';
+    if (k === null || k === undefined || !isFinite(k)) return '';
     if (k <= 0.035) return 'Sur place';
     var imp = positionImprecise();
     if (!imp) return (approx ? '≈ ' : '') + distanceCourte(k);
@@ -13993,8 +14067,12 @@
         // Référence géographique : quartier sélectionné ou position existante
         var qDecl = l.quartier ? quartiers().filter(function (q) { return q.quartier === l.quartier; })[0] : null;
         var refGeo = qDecl && isFinite(qDecl.lat) ? { lat: qDecl.lat, lon: qDecl.lon } : avant;
+        if (!refGeo && typeof centroideVilleInterieur === 'function') {
+          var cv = centroideVilleInterieur(l.commune) || centroideVilleInterieur(l.quartier);
+          if (cv) refGeo = { lat: cv.lat, lon: cv.lon };
+        }
         var nomLieuRef = l.quartier || l.commune || (f.d.nom ? f.d.nom : 'l\'établissement');
-        var distanceKmEcart = refGeo && isFinite(refGeo.lat) ? distanceVol(pCapt, refGeo) : 0;
+        var distanceKmEcart = refGeo && isFinite(refGeo.lat) ? (distanceVol(pCapt, refGeo) || 0) : 0;
 
         function appliquerGps() {
           l.lat = pCapt.lat; l.lon = pCapt.lon; l.prec = pCapt.prec; l.origineGps = origineTerrain(pCapt.prec);

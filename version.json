@@ -1,7 +1,7 @@
 {
-  "version": "3.31.17",
+  "version": "3.31.18",
   "date": "2026-11-11",
   "notes": [
-    "Tableau comparatif épuré à 2 colonnes pures Ancien et Nouveau sans colonne mention, en-tête ergonomique avec boutons Matin et Soir à 44px au pouce et élimination des mentions identiques déjà en BDD."
+    "Pharmacies et hôpitaux de l'intérieur (hors Abidjan) : suppression définitive du faux plafonnement à 99 km, calcul des vraies distances kilométriques, référentiel officiel des centroïdes de l'intérieur et assainissement des coordonnées aberrantes."
   ]
 }

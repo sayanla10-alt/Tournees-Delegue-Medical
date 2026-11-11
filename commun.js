@@ -795,9 +795,221 @@ var TABLE_REFERENCE_ETABLISSEMENTS_CI = {
   'sssu adjame est': { lat: 5.355954, lon: -4.017690, commune: 'Adjamé', quartier: 'Adjamé Centre', titre: 'SSSU Adjamé - Est', cat: 'CSU / Dispensaire' },
   'trade center plateau': { lat: 5.318560, lon: -4.015810, commune: 'Plateau', quartier: 'Plateau', titre: 'Clinique Médicale Trade Center (Plateau)', cat: 'Clinique Privée' },
   'tresor medical plateau': { lat: 5.326041, lon: -4.018832, commune: 'Plateau', quartier: 'Plateau', titre: 'Centre Médical du Trésor (Plateau)', cat: 'Centre Médical' },
-  'xmed bingerville': { lat: 5.361285, lon: -3.894236, commune: 'Bingerville', quartier: 'Bingerville Centre', titre: 'Centre d\'Excellence Médicale Xmed (Bingerville)', cat: 'Centre Médical' }
+  'xmed bingerville': { lat: 5.361285, lon: -3.894236, commune: 'Bingerville', quartier: 'Bingerville Centre', titre: 'Centre d\'Excellence Médicale Xmed (Bingerville)', cat: 'Centre Médical' },
+
+  // =============================================================================
+  // ÉTABLISSEMENTS DE RÉFÉRENCE DE L'INTÉRIEUR DU PAYS (HORS GRAND ABIDJAN)
+  // CHU, CHR, Hôpitaux Généraux et Cliniques des grandes villes et chefs-lieux
+  // =============================================================================
+  // Bouaké (District de la Vallée du Bandama / Gbêkê)
+  'chu de bouake': { lat: 7.698333, lon: -5.035000, commune: 'Bouaké', quartier: 'Kennedy', titre: 'CHU de Bouaké', cat: 'CHU' },
+  'chu bouake': { lat: 7.698333, lon: -5.035000, commune: 'Bouaké', quartier: 'Kennedy', titre: 'CHU de Bouaké', cat: 'CHU' },
+  'chu de bouake campus 1': { lat: 7.698333, lon: -5.035000, commune: 'Bouaké', quartier: 'Kennedy', titre: 'CHU de Bouaké (Campus 1)', cat: 'CHU' },
+  'chu bouake campus 1': { lat: 7.698333, lon: -5.035000, commune: 'Bouaké', quartier: 'Kennedy', titre: 'CHU de Bouaké (Campus 1)', cat: 'CHU' },
+  'chu de bouake campus 2': { lat: 7.691667, lon: -5.023333, commune: 'Bouaké', quartier: 'Commerce', titre: 'CHU de Bouaké (Campus 2)', cat: 'CHU' },
+  'chu bouake campus 2': { lat: 7.691667, lon: -5.023333, commune: 'Bouaké', quartier: 'Commerce', titre: 'CHU de Bouaké (Campus 2)', cat: 'CHU' },
+  'chr de bouake': { lat: 7.688889, lon: -5.025000, commune: 'Bouaké', quartier: 'Commerce', titre: 'CHR de Bouaké', cat: 'CHR' },
+  'chr bouake': { lat: 7.688889, lon: -5.025000, commune: 'Bouaké', quartier: 'Commerce', titre: 'CHR de Bouaké', cat: 'CHR' },
+  'hopital general de bouake': { lat: 7.688889, lon: -5.025000, commune: 'Bouaké', quartier: 'Commerce', titre: 'Hôpital Général de Bouaké', cat: 'Hôpital Public' },
+  'clinique de la paix bouake': { lat: 7.695000, lon: -5.032000, commune: 'Bouaké', quartier: 'Air France', titre: 'Clinique de la Paix (Bouaké)', cat: 'Clinique Privée' },
+  'clinique sainte marie bouake': { lat: 7.692000, lon: -5.028000, commune: 'Bouaké', quartier: 'Commerce', titre: 'Clinique Sainte-Marie (Bouaké)', cat: 'Clinique Privée' },
+
+  // Yamoussoukro (District Autonome de Yamoussoukro)
+  'chr de yamoussoukro': { lat: 6.818889, lon: -5.275000, commune: 'Yamoussoukro', quartier: 'Habitat', titre: 'CHR de Yamoussoukro', cat: 'CHR' },
+  'chr yamoussoukro': { lat: 6.818889, lon: -5.275000, commune: 'Yamoussoukro', quartier: 'Habitat', titre: 'CHR de Yamoussoukro', cat: 'CHR' },
+  'hopital saint joseph moscati': { lat: 6.861700, lon: -5.244300, commune: 'Yamoussoukro', quartier: 'Basilique', titre: 'Hôpital Catholique Saint Joseph Moscati', cat: 'Hôpital Public' },
+  'hopital moscati': { lat: 6.861700, lon: -5.244300, commune: 'Yamoussoukro', quartier: 'Basilique', titre: 'Hôpital Catholique Saint Joseph Moscati', cat: 'Hôpital Public' },
+  'hopital saint joseph moscati yamoussoukro': { lat: 6.861700, lon: -5.244300, commune: 'Yamoussoukro', quartier: 'Basilique', titre: 'Hôpital Catholique Saint Joseph Moscati', cat: 'Hôpital Public' },
+  'clinique saint roch yamoussoukro': { lat: 6.815000, lon: -5.279000, commune: 'Yamoussoukro', quartier: 'Centre', titre: 'Clinique Saint-Roch (Yamoussoukro)', cat: 'Clinique Privée' },
+
+  // Daloa (District du Sassandra-Marahoué / Haut-Sassandra)
+  'chr de daloa': { lat: 6.883333, lon: -6.450000, commune: 'Daloa', quartier: 'Centre', titre: 'CHR de Daloa', cat: 'CHR' },
+  'chr daloa': { lat: 6.883333, lon: -6.450000, commune: 'Daloa', quartier: 'Centre', titre: 'CHR de Daloa', cat: 'CHR' },
+  'hopital general de daloa': { lat: 6.883333, lon: -6.450000, commune: 'Daloa', quartier: 'Centre', titre: 'CHR de Daloa', cat: 'CHR' },
+
+  // San-Pédro (District du Bas-Sassandra / San-Pédro)
+  'chr de san pedro': { lat: 4.755000, lon: -6.640000, commune: 'San-Pédro', quartier: 'Bardot', titre: 'CHR de San-Pédro', cat: 'CHR' },
+  'chr san pedro': { lat: 4.755000, lon: -6.640000, commune: 'San-Pédro', quartier: 'Bardot', titre: 'CHR de San-Pédro', cat: 'CHR' },
+  'polyclinique de san pedro': { lat: 4.748000, lon: -6.636000, commune: 'San-Pédro', quartier: 'Cité', titre: 'Polyclinique de San-Pédro', cat: 'Polyclinique' },
+  'polyclinique san pedro': { lat: 4.748000, lon: -6.636000, commune: 'San-Pédro', quartier: 'Cité', titre: 'Polyclinique de San-Pédro', cat: 'Polyclinique' },
+
+  // Korhogo (District des Savanes / Poro)
+  'chr de korhogo': { lat: 9.458000, lon: -5.629600, commune: 'Korhogo', quartier: 'Centre', titre: 'CHR de Korhogo', cat: 'CHR' },
+  'chr korhogo': { lat: 9.458000, lon: -5.629600, commune: 'Korhogo', quartier: 'Centre', titre: 'CHR de Korhogo', cat: 'CHR' },
+  'chu de korhogo': { lat: 9.458000, lon: -5.629600, commune: 'Korhogo', quartier: 'Centre', titre: 'CHU de Korhogo', cat: 'CHU' },
+  'chu korhogo': { lat: 9.458000, lon: -5.629600, commune: 'Korhogo', quartier: 'Centre', titre: 'CHU de Korhogo', cat: 'CHU' },
+
+  // Man (District des Montagnes / Tonkpi)
+  'chr de man': { lat: 7.412500, lon: -7.553800, commune: 'Man', quartier: 'Centre', titre: 'CHR de Man', cat: 'CHR' },
+  'chr man': { lat: 7.412500, lon: -7.553800, commune: 'Man', quartier: 'Centre', titre: 'CHR de Man', cat: 'CHR' },
+  'chu de man': { lat: 7.412500, lon: -7.553800, commune: 'Man', quartier: 'Centre', titre: 'CHR / CHU de Man', cat: 'CHU' },
+
+  // Gagnoa (District du Gôh-Djiboua / Gôh)
+  'chr de gagnoa': { lat: 6.131900, lon: -5.950600, commune: 'Gagnoa', quartier: 'Centre', titre: 'CHR de Gagnoa', cat: 'CHR' },
+  'chr gagnoa': { lat: 6.131900, lon: -5.950600, commune: 'Gagnoa', quartier: 'Centre', titre: 'CHR de Gagnoa', cat: 'CHR' },
+
+  // Soubré (District du Bas-Sassandra / Nawa)
+  'chr de soubre': { lat: 5.785600, lon: -6.608300, commune: 'Soubré', quartier: 'Centre', titre: 'CHR de Soubré', cat: 'CHR' },
+  'chr soubre': { lat: 5.785600, lon: -6.608300, commune: 'Soubré', quartier: 'Centre', titre: 'CHR de Soubré', cat: 'CHR' },
+
+  // Abengourou (District de la Comoé / Indénié-Djuablin)
+  'chr d abengourou': { lat: 6.729700, lon: -3.496400, commune: 'Abengourou', quartier: 'Centre', titre: 'CHR d\'Abengourou', cat: 'CHR' },
+  'chr abengourou': { lat: 6.729700, lon: -3.496400, commune: 'Abengourou', quartier: 'Centre', titre: 'CHR d\'Abengourou', cat: 'CHR' },
+
+  // Agboville (District des Lagunes / Agnéby-Tiassa)
+  'chr d agboville': { lat: 5.928100, lon: -4.213300, commune: 'Agboville', quartier: 'Centre', titre: 'CHR d\'Agboville', cat: 'CHR' },
+  'chr agboville': { lat: 5.928100, lon: -4.213300, commune: 'Agboville', quartier: 'Centre', titre: 'CHR d\'Agboville', cat: 'CHR' },
+
+  // Grand-Bassam (District de la Comoé / Sud-Comoé)
+  'hopital general de grand bassam': { lat: 5.211800, lon: -3.738800, commune: 'Grand-Bassam', quartier: 'France', titre: 'Hôpital Général de Grand-Bassam', cat: 'Hôpital Public' },
+  'hopital general grand bassam': { lat: 5.211800, lon: -3.738800, commune: 'Grand-Bassam', quartier: 'France', titre: 'Hôpital Général de Grand-Bassam', cat: 'Hôpital Public' },
+
+  // Dabou (District des Lagunes / Grands-Ponts)
+  'hopital general de dabou': { lat: 5.325600, lon: -4.376700, commune: 'Dabou', quartier: 'Centre', titre: 'Hôpital Général de Dabou', cat: 'Hôpital Public' },
+  'hopital general dabou': { lat: 5.325600, lon: -4.376700, commune: 'Dabou', quartier: 'Centre', titre: 'Hôpital Général de Dabou', cat: 'Hôpital Public' },
+  'hopital methodiste de dabou': { lat: 5.328000, lon: -4.380000, commune: 'Dabou', quartier: 'Centre', titre: 'Hôpital Protestant Méthodiste de Dabou', cat: 'Hôpital Public' },
+
+  // Divo (District du Gôh-Djiboua / Lôh-Djiboua)
+  'chr de divo': { lat: 5.837200, lon: -5.357200, commune: 'Divo', quartier: 'Centre', titre: 'CHR de Divo', cat: 'CHR' },
+  'chr divo': { lat: 5.837200, lon: -5.357200, commune: 'Divo', quartier: 'Centre', titre: 'CHR de Divo', cat: 'CHR' },
+
+  // Bondoukou (District du Zanzan / Gontougo)
+  'chr de bondoukou': { lat: 8.033300, lon: -2.800000, commune: 'Bondoukou', quartier: 'Centre', titre: 'CHR de Bondoukou', cat: 'CHR' },
+  'chr bondoukou': { lat: 8.033300, lon: -2.800000, commune: 'Bondoukou', quartier: 'Centre', titre: 'CHR de Bondoukou', cat: 'CHR' },
+
+  // Ferkessédougou (District des Savanes / Tchologo)
+  'hopital general de ferkessedougou': { lat: 9.600000, lon: -5.200000, commune: 'Ferkessédougou', quartier: 'Centre', titre: 'Hôpital Général de Ferkessédougou', cat: 'Hôpital Public' },
+  'hopital general ferkessedougou': { lat: 9.600000, lon: -5.200000, commune: 'Ferkessédougou', quartier: 'Centre', titre: 'Hôpital Général de Ferkessédougou', cat: 'Hôpital Public' },
+  'hopital baptiste de ferkessedougou': { lat: 9.600000, lon: -5.200000, commune: 'Ferkessédougou', quartier: 'Centre', titre: 'Hôpital Protestant Baptiste de Ferké', cat: 'Hôpital Public' },
+
+  // Odienné (District du Denguélé / Kabadougou)
+  'chr d odienne': { lat: 9.505100, lon: -7.564300, commune: 'Odienné', quartier: 'Centre', titre: 'CHR d\'Odienné', cat: 'CHR' },
+  'chr odienne': { lat: 9.505100, lon: -7.564300, commune: 'Odienné', quartier: 'Centre', titre: 'CHR d\'Odienné', cat: 'CHR' },
+
+  // Séguéla (District du Woroba / Worodougou)
+  'chr de seguela': { lat: 7.961100, lon: -6.673100, commune: 'Séguéla', quartier: 'Centre', titre: 'CHR de Séguéla', cat: 'CHR' },
+  'chr seguela': { lat: 7.961100, lon: -6.673100, commune: 'Séguéla', quartier: 'Centre', titre: 'CHR de Séguéla', cat: 'CHR' },
+
+  // Daoukro (District des Lacs / Iffou)
+  'hopital general de daoukro': { lat: 7.059200, lon: -3.963100, commune: 'Daoukro', quartier: 'Centre', titre: 'Hôpital Général de Daoukro', cat: 'Hôpital Public' },
+  'hopital general daoukro': { lat: 7.059200, lon: -3.963100, commune: 'Daoukro', quartier: 'Centre', titre: 'Hôpital Général de Daoukro', cat: 'Hôpital Public' },
+
+  // Aboisso (District de la Comoé / Sud-Comoé)
+  'chr d aboisso': { lat: 5.467800, lon: -3.207200, commune: 'Aboisso', quartier: 'Centre', titre: 'CHR d\'Aboisso', cat: 'CHR' },
+  'chr aboisso': { lat: 5.467800, lon: -3.207200, commune: 'Aboisso', quartier: 'Centre', titre: 'CHR d\'Aboisso', cat: 'CHR' },
+
+  // Adzopé (District des Lagunes / La Mé)
+  'chr d adzope': { lat: 6.106900, lon: -3.861900, commune: 'Adzopé', quartier: 'Centre', titre: 'CHR d\'Adzopé', cat: 'CHR' },
+  'chr adzope': { lat: 6.106900, lon: -3.861900, commune: 'Adzopé', quartier: 'Centre', titre: 'CHR d\'Adzopé', cat: 'CHR' },
+
+  // Guiglo (District des Montagnes / Cavally)
+  'chr de guiglo': { lat: 6.543600, lon: -7.493100, commune: 'Guiglo', quartier: 'Centre', titre: 'CHR de Guiglo', cat: 'CHR' },
+  'chr guiglo': { lat: 6.543600, lon: -7.493100, commune: 'Guiglo', quartier: 'Centre', titre: 'CHR de Guiglo', cat: 'CHR' },
+
+  // Katiola (District de la Vallée du Bandama / Hambol)
+  'hopital general de katiola': { lat: 8.137200, lon: -5.100800, commune: 'Katiola', quartier: 'Centre', titre: 'Hôpital Général de Katiola', cat: 'Hôpital Public' },
+
+  // Dimbokro (District des Lacs / N'Zi)
+  'hopital general de dimbokro': { lat: 6.646700, lon: -4.705300, commune: 'Dimbokro', quartier: 'Centre', titre: 'Hôpital Général de Dimbokro', cat: 'Hôpital Public' },
+
+  // Bouaflé (District du Sassandra-Marahoué / Marahoué)
+  'chr de bouafle': { lat: 6.990300, lon: -5.744200, commune: 'Bouaflé', quartier: 'Centre', titre: 'CHR de Bouaflé', cat: 'CHR' },
+  'chr bouafle': { lat: 6.990300, lon: -5.744200, commune: 'Bouaflé', quartier: 'Centre', titre: 'CHR de Bouaflé', cat: 'CHR' },
+
+  // Tiassalé (District des Lagunes / Agnéby-Tiassa)
+  'hopital general de tiassale': { lat: 5.898300, lon: -4.822800, commune: 'Tiassalé', quartier: 'Centre', titre: 'Hôpital Général de Tiassalé', cat: 'Hôpital Public' }
 };
 
+}
+
+// ---------------------------------------------------------------- Villes et Communes de l'Intérieur de Côte d'Ivoire (Hors Grand Abidjan)
+// 3.31.18 : Référentiel des centroïdes géographiques précis pour les villes et chefs-lieux de l'intérieur
+var COMMUNES_GRAND_ABIDJAN = [
+  'Abobo', 'Adjamé', 'Attécoubé', 'Cocody', 'Koumassi', 'Marcory',
+  'Plateau', 'Port-Bouët', 'Treichville', 'Yopougon', 'Bingerville', 'Anyama', 'Songon'
+];
+
+var VILLES_INTERIEUR_CI = {
+  'bouake': { nom: 'Bouaké', lat: 7.69385, lon: -5.03031, zone: 'Zone Intérieur' },
+  'yamoussoukro': { nom: 'Yamoussoukro', lat: 6.82055, lon: -5.27674, zone: 'Zone Intérieur' },
+  'daloa': { nom: 'Daloa', lat: 6.87735, lon: -6.45022, zone: 'Zone Intérieur' },
+  'san-pedro': { nom: 'San-Pédro', lat: 4.74851, lon: -6.63630, zone: 'Zone Intérieur' },
+  'san pedro': { nom: 'San-Pédro', lat: 4.74851, lon: -6.63630, zone: 'Zone Intérieur' },
+  'korhogo': { nom: 'Korhogo', lat: 9.45803, lon: -5.62961, zone: 'Zone Intérieur' },
+  'man': { nom: 'Man', lat: 7.41251, lon: -7.55383, zone: 'Zone Intérieur' },
+  'gagnoa': { nom: 'Gagnoa', lat: 6.13193, lon: -5.95060, zone: 'Zone Intérieur' },
+  'soubre': { nom: 'Soubré', lat: 5.78556, lon: -6.60833, zone: 'Zone Intérieur' },
+  'abengourou': { nom: 'Abengourou', lat: 6.72972, lon: -3.49639, zone: 'Zone Intérieur' },
+  'agboville': { nom: 'Agboville', lat: 5.92806, lon: -4.21333, zone: 'Zone Intérieur' },
+  'grand-bassam': { nom: 'Grand-Bassam', lat: 5.21180, lon: -3.73884, zone: 'Zone Intérieur' },
+  'grand bassam': { nom: 'Grand-Bassam', lat: 5.21180, lon: -3.73884, zone: 'Zone Intérieur' },
+  'dabou': { nom: 'Dabou', lat: 5.32556, lon: -4.37667, zone: 'Zone Intérieur' },
+  'divo': { nom: 'Divo', lat: 5.83722, lon: -5.35722, zone: 'Zone Intérieur' },
+  'bondoukou': { nom: 'Bondoukou', lat: 8.03333, lon: -2.80000, zone: 'Zone Intérieur' },
+  'ferkessedougou': { nom: 'Ferkessédougou', lat: 9.60000, lon: -5.20000, zone: 'Zone Intérieur' },
+  'ferke': { nom: 'Ferkessédougou', lat: 9.60000, lon: -5.20000, zone: 'Zone Intérieur' },
+  'odienne': { nom: 'Odienné', lat: 9.50511, lon: -7.56433, zone: 'Zone Intérieur' },
+  'seguela': { nom: 'Séguéla', lat: 7.96111, lon: -6.67306, zone: 'Zone Intérieur' },
+  'daoukro': { nom: 'Daoukro', lat: 7.05917, lon: -3.96306, zone: 'Zone Intérieur' },
+  'aboisso': { nom: 'Aboisso', lat: 5.46778, lon: -3.20722, zone: 'Zone Intérieur' },
+  'adzope': { nom: 'Adzopé', lat: 6.10694, lon: -3.86194, zone: 'Zone Intérieur' },
+  'guiglo': { nom: 'Guiglo', lat: 6.54361, lon: -7.49306, zone: 'Zone Intérieur' },
+  'touba': { nom: 'Touba', lat: 8.28333, lon: -7.68333, zone: 'Zone Intérieur' },
+  'boundiali': { nom: 'Boundiali', lat: 9.52167, lon: -6.48694, zone: 'Zone Intérieur' },
+  'katiola': { nom: 'Katiola', lat: 8.13722, lon: -5.10083, zone: 'Zone Intérieur' },
+  'duekoue': { nom: 'Duékoué', lat: 6.74194, lon: -7.34972, zone: 'Zone Intérieur' },
+  'dimbokro': { nom: 'Dimbokro', lat: 6.64667, lon: -4.70528, zone: 'Zone Intérieur' },
+  'issia': { nom: 'Issia', lat: 6.49222, lon: -6.58556, zone: 'Zone Intérieur' },
+  'sinfra': { nom: 'Sinfra', lat: 6.62111, lon: -5.91139, zone: 'Zone Intérieur' },
+  'bouafle': { nom: 'Bouaflé', lat: 6.99028, lon: -5.74417, zone: 'Zone Intérieur' },
+  'tiassale': { nom: 'Tiassalé', lat: 5.89833, lon: -4.82278, zone: 'Zone Intérieur' },
+  'oume': { nom: 'Oumé', lat: 6.53306, lon: -5.51694, zone: 'Zone Intérieur' },
+  'bonoua': { nom: 'Bonoua', lat: 5.27000, lon: -3.59500, zone: 'Zone Intérieur' },
+  'bouna': { nom: 'Bouna', lat: 9.26667, lon: -2.99972, zone: 'Zone Intérieur' },
+  'tingrela': { nom: 'Tengréla', lat: 10.48333, lon: -6.41667, zone: 'Zone Intérieur' },
+  'tengrela': { nom: 'Tengréla', lat: 10.48333, lon: -6.41667, zone: 'Zone Intérieur' },
+  'mankono': { nom: 'Mankono', lat: 8.05861, lon: -6.18972, zone: 'Zone Intérieur' },
+  'vavoua': { nom: 'Vavoua', lat: 7.38194, lon: -6.47778, zone: 'Zone Intérieur' },
+  'sassandra': { nom: 'Sassandra', lat: 4.95389, lon: -6.08444, zone: 'Zone Intérieur' },
+  'tabou': { nom: 'Tabou', lat: 4.42278, lon: -7.35278, zone: 'Zone Intérieur' },
+  'akoupe': { nom: 'Akoupé', lat: 6.38417, lon: -3.89556, zone: 'Zone Intérieur' },
+  'arrah': { nom: 'Arrah', lat: 6.67361, lon: -3.96944, zone: 'Zone Intérieur' },
+  'bongouanou': { nom: 'Bongouanou', lat: 6.65167, lon: -4.19972, zone: 'Zone Intérieur' },
+  'tanda': { nom: 'Tanda', lat: 7.80333, lon: -3.16833, zone: 'Zone Intérieur' },
+  'agnibilekrou': { nom: 'Agnibilékrou', lat: 7.13111, lon: -3.20417, zone: 'Zone Intérieur' },
+  'beoumi': { nom: 'Béoumi', lat: 7.67389, lon: -5.58083, zone: 'Zone Intérieur' },
+  'sakassou': { nom: 'Sakassou', lat: 7.45472, lon: -5.29278, zone: 'Zone Intérieur' }
+};
+
+function estCommuneGrandAbidjan(c) {
+  if (!c) return false;
+  var s = sansAccents(String(c)).toLowerCase().trim();
+  return /^(abobo|adjame|attecoube|cocody|koumassi|marcory|plateau|port[- ]bouet|treichville|yopougon|bingerville|anyama|songon)\b/i.test(s);
+}
+
+function estCommuneInterieur(c) {
+  if (!c) return false;
+  var s = sansAccents(String(c)).toLowerCase().trim();
+  if (!s || s === 'abidjan' || estCommuneGrandAbidjan(s)) return false;
+  return true;
+}
+
+function estCoordonneeAbidjan(c) {
+  if (!c || !isFinite(c.lat) || !isFinite(c.lon)) return false;
+  return c.lat >= 5.15 && c.lat <= 5.58 && c.lon >= -4.35 && c.lon <= -3.75;
+}
+
+function centroideVilleInterieur(nom) {
+  if (!nom) return null;
+  var k = sansAccents(String(nom)).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  if (!k) return null;
+  if (VILLES_INTERIEUR_CI[k]) return VILLES_INTERIEUR_CI[k];
+  var mots = k.split(/\s+/);
+  for (var i = 0; i < mots.length; i++) {
+    var m = mots[i];
+    if (m.length >= 3 && VILLES_INTERIEUR_CI[m]) return VILLES_INTERIEUR_CI[m];
+  }
+  return null;
 }
 
 function trouverEtablissementRef(nom) {
@@ -1043,17 +1255,23 @@ function calcScore(note, jours, dernierStatut) {
   return Math.round((note * 100 + retard * 100 + bonus) * 10) / 10;
 }
 
-// 3.25.40 : distance routière réelle estimée en km avec coefficient fixe x 1,5 demandé
-function distanceVol(a, b) { var d = distanceKm(a, b); return d >= 99 ? 99 : d; }
+// 3.31.18 : distance routière réelle estimée en km (vol d'oiseau x coefficient détour routier)
+// Plus aucun plafonnement artificiel à 99 km : les distances réelles de l'intérieur (ex: Abidjan - Bouaké ~348 km)
+// sont fidèlement calculées et affichées. Renvoie null si une coordonnée est absente ou invalide.
+function distanceVol(a, b) {
+  if (!a || !b || !isFinite(a.lat) || !isFinite(b.lat) || !isFinite(a.lon) || !isFinite(b.lon)) return null;
+  return distanceKm(a, b);
+}
 // a, b : objets { lat, lon }. Distance routière estimée en km.
 function distanceKm(a, b) {
-  if (!a || !b || !isFinite(a.lat) || !isFinite(b.lat)) return 99;
+  if (!a || !b || !isFinite(a.lat) || !isFinite(b.lat) || !isFinite(a.lon) || !isFinite(b.lon)) return null;
   if (a.lat === b.lat && a.lon === b.lon) return 0;
   var R = 6371, rad = Math.PI / 180;
   var dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
   var h = Math.pow(Math.sin(dLat / 2), 2) +
           Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.pow(Math.sin(dLon / 2), 2);
-  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * REGLAGES_MOTEUR.detourRoutier;
+  var detour = (typeof REGLAGES_MOTEUR !== 'undefined' && REGLAGES_MOTEUR && REGLAGES_MOTEUR.detourRoutier) ? REGLAGES_MOTEUR.detourRoutier : 1.6;
+  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * detour;
 }
 
 function quartiersDefautObjets() {
@@ -1717,9 +1935,12 @@ if (typeof module !== 'undefined' && module.exports) {
     minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,
     CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, CHAMPS_ETABLISSEMENTS: CHAMPS_ETABLISSEMENTS, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES,
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
-    estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
+    estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm, distanceVol: distanceVol,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
     ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
+    COMMUNES_GRAND_ABIDJAN: COMMUNES_GRAND_ABIDJAN, VILLES_INTERIEUR_CI: VILLES_INTERIEUR_CI,
+    estCommuneGrandAbidjan: estCommuneGrandAbidjan, estCommuneInterieur: estCommuneInterieur,
+    estCoordonneeAbidjan: estCoordonneeAbidjan, centroideVilleInterieur: centroideVilleInterieur, trouverEtablissementRef: trouverEtablissementRef,
     formaterTelephoneCI: formaterTelephoneCI,
     distanceLevenshtein: distanceLevenshtein, similariteLevenshtein: similariteLevenshtein,
     similariteTrigrammes: similariteTrigrammes, normaliserPhonetiqueCI: normaliserPhonetiqueCI,
