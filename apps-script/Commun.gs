@@ -2113,7 +2113,7 @@ function zoneDeQuartier(commune, quartier, lieu, listeQuartiers) {
   return zones[zones.length - 1].nom;
 }
 
-function communeParente(nom) {
+function communeParente(nom, listeQuartiers) {
   if (!nom) return '';
   var s = String(nom).trim();
   // Seules les 3 grandes communes sont segmentées en sous-secteurs
@@ -2123,6 +2123,15 @@ function communeParente(nom) {
     if (p === 'abobo') return 'Abobo';
     if (p === 'cocody') return 'Cocody';
     if (p === 'yopougon') return 'Yopougon';
+  }
+  if (listeQuartiers && listeQuartiers.length) {
+    var ns = normaliser(s);
+    for (var i = 0; i < listeQuartiers.length; i++) {
+      var q = listeQuartiers[i];
+      if (q && q.subdivision && normaliser(q.subdivision) === ns && q.commune) {
+        return communeParente(q.commune);
+      }
+    }
   }
   return s;
 }
@@ -2145,16 +2154,22 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   var sub = c.subdivision || '';
   var sec = c.secteur || '';
   var qua = c.quartier || '';
-  if (sub && dans[sub]) return true;
+  var r = resoudreTerritoire(c, listeQuartiers);
+  var subRes = (r && r.matched && r.subdivision) ? r.subdivision : sub;
+  var subNormTiret = function (v) { return String(v || '').trim().replace(/\s+-\s+/g, ' – '); };
+  var matchDans = function (v) {
+    if (!v) return false;
+    var t = subNormTiret(v);
+    return !!(dans[v] || dans[t]);
+  };
+  if (matchDans(subRes) || (!r && matchDans(sub))) return true;
   if (com && (dans[com] || dans[com + ' (Toute la commune)'])) return true;
-  var par = communeParente(com);
+  var par = communeParente(com, listeQuartiers);
   if (par && (dans[par] || dans[par + ' (Toute la commune)'])) return true;
   if (qua && dans[qua]) return true;
   if (sec && dans[sec]) return true;
   if (c.zone && dans[c.zone]) return true;
   if (c.territoire && dans[c.territoire]) return true;
-
-  var r = resoudreTerritoire(c, listeQuartiers);
   if (r) {
     if (!com || normaliser(com) === 'abidjan') {
       if (r.subdivision && dans[r.subdivision]) return true;

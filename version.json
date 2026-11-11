@@ -1,8 +1,8 @@
 {
-  "version": "3.31.42",
+  "version": "3.31.43",
   "date": "2026-11-11",
   "notes": [
-    "Territoires & Quartiers : pilotage dynamique des subdivisions, secteurs et quartiers depuis la base (Abidjan & Intérieur)",
-    "Saisie intelligente : recherche tolérante aux variantes (ex. 8eme tranche) et remplissage automatique secteur, subdivision, commune, zone, territoire et fil d'Ariane"
+    "Google Sheets & Supabase : formules de recherche dynamiques liées à l'onglet Quartiers pour répercuter chaque modification de secteur ou quartier sur les fiches et en base",
+    "Planifier : cartes épurées sans doublon (« Hors communes choisies » et « Prévu par … » alignés sur une seule ligne, bloc unique Remplacer / Supprimer)"
   ]
 }

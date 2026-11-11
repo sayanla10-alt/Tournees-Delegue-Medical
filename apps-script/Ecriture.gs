@@ -712,15 +712,31 @@ function enregistrerFiche(b, dejaVerrouille) {
     });
     // 1) lieux déjà en base : réécrits sur leur propre ligne ; 2) lieux nouveaux : sur les lignes libérées, sinon ajoutés ;
     // 3) lignes restantes du praticien (lieux supprimés ou doublons) : effacées
-    var utilisees = {}, nouveaux = [];
+    var utilisees = {}, nouveaux = [], lignesFormulesR = [];
     lignesR.forEach(function (v, n) {
       var i = ligneParId[lignesId[n]];
-      if (i !== undefined && !utilisees[i]) { utilisees[i] = true; shR.getRange(i + 2, 1, 1, entR.length).setValues([v]); }
+      if (i !== undefined && !utilisees[i]) {
+        utilisees[i] = true;
+        shR.getRange(i + 2, 1, 1, entR.length).setValues([v]);
+        lignesFormulesR.push(i + 2);
+      }
       else nouveaux.push(v);
     });
     var libres = mesLignes.filter(function (i) { return !utilisees[i]; });
-    while (nouveaux.length && libres.length) { var li = libres.shift(); utilisees[li] = true; shR.getRange(li + 2, 1, 1, entR.length).setValues([nouveaux.shift()]); }
-    if (nouveaux.length) shR.getRange(shR.getLastRow() + 1, 1, nouveaux.length, entR.length).setValues(nouveaux);
+    while (nouveaux.length && libres.length) {
+      var li = libres.shift();
+      utilisees[li] = true;
+      shR.getRange(li + 2, 1, 1, entR.length).setValues([nouveaux.shift()]);
+      lignesFormulesR.push(li + 2);
+    }
+    if (nouveaux.length) {
+      var startNewR = shR.getLastRow() + 1;
+      shR.getRange(startNewR, 1, nouveaux.length, entR.length).setValues(nouveaux);
+      for (var nr = 0; nr < nouveaux.length; nr++) lignesFormulesR.push(startNewR + nr);
+    }
+    if (lignesFormulesR.length && typeof deployerFormulesTerritoire_ === 'function') {
+      try { deployerFormulesTerritoire_(ss, [FEUILLES.presences], lignesFormulesR); } catch (eF) {}
+    }
     // L'application cliente envoie la liste complète des lieux du praticien dans b.presences lors d'une modification :
     // les lieux absents sont retirés, sauf si b.presences est vide (évite une suppression accidentelle)
     // ou si b.supprimerPresences === false. Pour supprimer tous les lieux, passer b.supprimerPresences === true.
@@ -858,6 +874,9 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   var rangPh = ligne >= 0 ? ligne + 2 : sh.getLastRow() + 1;
   if (kTel >= 0) sh.getRange(rangPh, kTel + 1).setNumberFormat('@');
   sh.getRange(rangPh, 1, 1, ent.length).setValues([v]);
+  if (typeof deployerFormulesTerritoire_ === 'function') {
+    try { deployerFormulesTerritoire_(ss, [FEUILLES.pharmacies], [rangPh]); } catch (eFPh) {}
+  }
   var ids = {}; if (lieu.id) ids[lieu.id] = 'P-' + code;
   enregistrerAudit(ss, auteur, ligne >= 0 ? 'MODIFICATION_FICHE' : 'CREATION_FICHE', 'Pharmacie', code, modif.nom);
   return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
@@ -947,8 +966,11 @@ function enregistrerEtablissement(b) {
     var cTelE = pos[indexChamp(champsE, 'telephone')];
     if (cTelE >= 0) sh.getRange(rangE, cTelE + 1).setNumberFormat('@');
     sh.getRange(rangE, 1, 1, ent.length).setValues([v]);
+    if (typeof deployerFormulesTerritoire_ === 'function') {
+      try { deployerFormulesTerritoire_(ss, [FEUILLES.etablissements], [rangE]); } catch (eFEt) {}
+    }
 
-    // Cascade GPS et territoire/quartier vers la feuille Presences si lat/lon modifiés
+    // Cascade GPS et territoire/quartier vers la feuille Presences sans écraser les formules dynamiques
     var cascades = 0;
     if (isFinite(modif.lat) && isFinite(modif.lon) && modif.lat) {
       var shR = ss.getSheetByName(FEUILLES.presences);
@@ -957,31 +979,29 @@ function enregistrerEtablissement(b) {
         var cLieu = entR.indexOf(normaliser('Lieu/Etablissement'));
         var cLatR = entR.indexOf(normaliser('Latitude'));
         var cLonR = entR.indexOf(normaliser('Longitude'));
-        var cTerR = entR.indexOf(normaliser('Territoire'));
-        var cZonR = entR.indexOf(normaliser('Zone'));
         var cComR = entR.indexOf(normaliser('Commune'));
-        var cSubR = entR.indexOf(normaliser('Subdivision'));
         var cQuartR = entR.indexOf(normaliser('Quartier'));
         var cSecR = entR.indexOf(normaliser('Secteur'));
         if (cLieu >= 0 && cLatR >= 0 && cLonR >= 0) {
           var nR = shR.getLastRow() - 1;
           var valR = shR.getRange(2, 1, nR, entR.length).getValues();
-          var modifR = false;
-          valR.forEach(function (row) {
+          var fR = shR.getRange(2, 1, nR, entR.length).getFormulas();
+          var rowsGeoR = [];
+          valR.forEach(function (row, idxR) {
             if (normaliser(row[cLieu]) === nomNorm) {
-              row[cLatR] = modif.lat;
-              row[cLonR] = modif.lon;
-              if (modif.territoire && cTerR >= 0 && !row[cTerR]) row[cTerR] = modif.territoire;
-              if (modif.zone && cZonR >= 0 && !row[cZonR]) row[cZonR] = modif.zone;
-              if (modif.commune && cComR >= 0 && (!row[cComR] || normaliser(row[cComR]) === 'nl')) row[cComR] = modif.commune;
-              if (modif.subdivision && cSubR >= 0 && !row[cSubR]) row[cSubR] = modif.subdivision;
-              if (modif.quartier && cQuartR >= 0 && (!row[cQuartR] || normaliser(row[cQuartR]) === 'nl')) row[cQuartR] = modif.quartier;
-              if (modif.secteur && cSecR >= 0 && !row[cSecR]) row[cSecR] = modif.secteur;
+              var rnR = idxR + 2;
+              shR.getRange(rnR, cLatR + 1).setValue(modif.lat);
+              shR.getRange(rnR, cLonR + 1).setValue(modif.lon);
+              if (modif.commune && cComR >= 0 && !fR[idxR][cComR] && (!row[cComR] || normaliser(row[cComR]) === 'nl')) shR.getRange(rnR, cComR + 1).setValue(modif.commune);
+              if (modif.quartier && cQuartR >= 0 && !fR[idxR][cQuartR] && (!row[cQuartR] || normaliser(row[cQuartR]) === 'nl')) shR.getRange(rnR, cQuartR + 1).setValue(modif.quartier);
+              if (modif.secteur && cSecR >= 0 && !fR[idxR][cSecR] && !row[cSecR]) shR.getRange(rnR, cSecR + 1).setValue(modif.secteur);
+              rowsGeoR.push(rnR);
               cascades++;
-              modifR = true;
             }
           });
-          if (modifR) shR.getRange(2, 1, nR, entR.length).setValues(valR);
+          if (rowsGeoR.length && typeof deployerFormulesTerritoire_ === 'function') {
+            try { deployerFormulesTerritoire_(ss, [FEUILLES.presences], rowsGeoR); } catch (eFR) {}
+          }
         }
       }
     }

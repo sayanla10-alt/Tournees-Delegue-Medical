@@ -122,6 +122,7 @@ function menuMigrerQuartiersHierarchie() {
     SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
+// Exécute en éditeur sans popup UI (met à jour les formules dynamiques + Plannings futurs)
 function propagerQuartiersSilencieux() {
   var ss = SpreadsheetApp.getActive();
   var bilan = propagerQuartiersSurFiches_(ss);
@@ -130,6 +131,14 @@ function propagerQuartiersSilencieux() {
     try { jumPousserApresEcriture_(tables); } catch (eJ) {}
   }
   Logger.log('Propagation Quartiers : ' + JSON.stringify(bilan));
+  return bilan;
+}
+
+function deployerFormulesTerritoireSilencieux() {
+  var ss = SpreadsheetApp.getActive();
+  var bilan = deployerFormulesTerritoire_(ss);
+  SpreadsheetApp.flush();
+  Logger.log('Formules Territoires : ' + JSON.stringify(bilan));
   return bilan;
 }
 
@@ -142,7 +151,7 @@ function propagerQuartiersManuellement() {
   }
   try {
     SpreadsheetApp.getUi().alert('Propagation Territoires & Quartiers',
-      'Découpage Quartiers appliqué aux fiches :\n' +
+      'Formules dynamiques et découpage Quartiers appliqués aux fiches :\n' +
       '- Presences : ' + bilan.presences + ' ligne(s)\n' +
       '- Pharmacies : ' + bilan.pharmacies + ' ligne(s)\n' +
       '- Etablissements : ' + bilan.etablissements + ' ligne(s)\n' +
@@ -929,7 +938,241 @@ function importerPharmacies() {
   return msg;
 }
 
-// Propage les définitions de l'onglet Quartiers vers Presences, Pharmacies, Etablissements et Plannings à venir (jamais le passé historique)
+function nomFeuilleFormule_(nom) {
+  var s = String(nom || '').trim();
+  return /^[A-Za-z0-9_]+$/.test(s) ? s : "'" + s.replace(/'/g, "''") + "'";
+}
+
+function chapTxtFormule_(v) {
+  var s = v === undefined || v === null ? '' : String(v).trim();
+  if (/^#(N\/A|REF!|ERROR!|VALUE!|NAME\?|DIV\/0!|NUM!)/i.test(s)) return '';
+  return s;
+}
+
+function escChaineFormule_(v) {
+  return '"' + chapTxtFormule_(v).replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
+}
+
+// Lit la structure de l'onglet Quartiers et ses ensembles de clés pour construire des formules dynamiques sans référence circulaire
+function metaQuartiersFormules_(ss) {
+  ss = ss || SpreadsheetApp.getActive();
+  var shQ = ss.getSheetByName(FEUILLES.quartiers);
+  var fRef = nomFeuilleFormule_(FEUILLES.quartiers);
+  var meta = { feuilleRef: fRef, cTer: 'A', cZ: 'B', cCom: 'C', cSub: 'D', cQ: 'E', cSec: 'F', secteurs: {} };
+  if (!shQ || shQ.getLastColumn() < 1) return meta;
+  var nc = shQ.getLastColumn();
+  var ent = shQ.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
+  var letCol = function (noms, defCol) {
+    for (var i = 0; i < noms.length; i++) {
+      var k = ent.indexOf(normaliser(noms[i]));
+      if (k >= 0) return lettreColonne_(k + 1);
+    }
+    return defCol;
+  };
+  meta.cTer = letCol(['Territoire'], 'A');
+  meta.cZ = letCol(['Zone'], 'B');
+  meta.cCom = letCol(['Commune'], 'C');
+  meta.cSub = letCol(['Subdivision'], 'D');
+  meta.cQ = letCol(['Quartier'], 'E');
+  meta.cSec = letCol(['Secteur'], 'F');
+
+  if (shQ.getLastRow() > 1) {
+    var kSec = ent.indexOf(normaliser('Secteur'));
+    if (kSec >= 0) {
+      shQ.getRange(2, kSec + 1, shQ.getLastRow() - 1, 1).getValues().forEach(function (r) {
+        var sv = normaliser(r[0]);
+        if (sv) meta.secteurs[sv] = true;
+      });
+    }
+  }
+  return meta;
+}
+
+// Construit les formules dynamiques INDEX/MATCH & INDEX/FILTER pour une ligne d'une feuille (sans jamais créer de boucle circulaire)
+function formulesLigneTerritoire_(rowNum, vals, refsDest, metaQ) {
+  var qPre = metaQ.feuilleRef + '!';
+  var secVal = chapTxtFormule_(vals.secteur), comVal = chapTxtFormule_(vals.commune), qVal = chapTxtFormule_(vals.quartier);
+  var estModeSecteur = !!(secVal && refsDest.letSec && metaQ.secteurs[normaliser(secVal)]);
+
+  var rangeQ = function (colLet) { return qPre + '$' + colLet + '$2:$' + colLet; };
+  var matchSec = function (colLet, secRef) {
+    return 'INDEX(' + rangeQ(colLet) + ',MATCH(TRIM(' + secRef + '),' + rangeQ(metaQ.cSec) + ',0))';
+  };
+  var out = { modeSecteur: estModeSecteur };
+
+  if (estModeSecteur) {
+    var sRef = '$' + refsDest.letSec + rowNum;
+    var mkSec = function (colLet, fb) {
+      return '=IF(TRIM(' + sRef + ')="","",IFERROR(' + matchSec(colLet, sRef) + ',' + escChaineFormule_(fb) + '))';
+    };
+    out.territoire = mkSec(metaQ.cTer, vals.territoire);
+    out.zone = mkSec(metaQ.cZ, vals.zone);
+    out.commune = mkSec(metaQ.cCom, comVal);
+    out.subdivision = mkSec(metaQ.cSub, vals.subdivision);
+    out.quartier = mkSec(metaQ.cQ, qVal);
+    return out;
+  }
+
+  var comRef = refsDest.letCom ? '$' + refsDest.letCom + rowNum : '';
+  var qRef = refsDest.letQ ? '$' + refsDest.letQ + rowNum : '';
+  var secRefOpt = refsDest.letSec ? '$' + refsDest.letSec + rowNum : '';
+
+  var matchComQ = function (colLet) {
+    if (comRef && qRef) {
+      return 'INDEX(FILTER(' + rangeQ(colLet) + ',' + rangeQ(metaQ.cCom) + '=TRIM(' + comRef + '),' + rangeQ(metaQ.cQ) + '=TRIM(' + qRef + ')),1)';
+    }
+    if (qRef) return 'INDEX(' + rangeQ(colLet) + ',MATCH(TRIM(' + qRef + '),' + rangeQ(metaQ.cQ) + ',0))';
+    return '';
+  };
+  var matchCom = function (colLet) {
+    return comRef ? 'INDEX(' + rangeQ(colLet) + ',MATCH(TRIM(' + comRef + '),' + rangeQ(metaQ.cCom) + ',0))' : '';
+  };
+
+  var wrapComQ = function (colLet, fb, avecFallbackCom) {
+    var inner = matchComQ(colLet);
+    var mc = avecFallbackCom ? matchCom(colLet) : '';
+    var guardBase = (comRef && qRef) ? ('TRIM(' + comRef + ')&TRIM(' + qRef + ')=""') : (qRef ? 'TRIM(' + qRef + ')=""' : 'TRUE');
+    var exprComQ;
+    if (inner && mc) exprComQ = 'IFERROR(' + inner + ',IFERROR(' + mc + ',' + escChaineFormule_(fb) + '))';
+    else if (inner) exprComQ = 'IFERROR(' + inner + ',' + escChaineFormule_(fb) + ')';
+    else if (mc) exprComQ = 'IFERROR(' + mc + ',' + escChaineFormule_(fb) + ')';
+    else exprComQ = escChaineFormule_(fb);
+
+    if (secRefOpt) {
+      var bySec = matchSec(colLet, secRefOpt);
+      var secFb = inner ? ('IFERROR(' + bySec + ',' + exprComQ + ')') : ('IFERROR(' + bySec + ',' + escChaineFormule_(fb) + ')');
+      return '=IF(TRIM(' + secRefOpt + ')<>"",' + secFb + ',IF(' + guardBase + ',"",' + exprComQ + '))';
+    }
+    return '=IF(' + guardBase + ',"",' + exprComQ + ')';
+  };
+
+  out.subdivision = wrapComQ(metaQ.cSub, vals.subdivision, false);
+  out.zone = wrapComQ(metaQ.cZ, vals.zone, true);
+  out.territoire = wrapComQ(metaQ.cTer, vals.territoire, true);
+  return out;
+}
+
+// Déploie les formules dynamiques pointant vers Quartiers sur Presences, Pharmacies et Etablissements
+function deployerFormulesTerritoire_(ss, nomsFeuilles, rowNumsOpt) {
+  ss = ss || SpreadsheetApp.getActive();
+  assurerColonnesTerritoire_(ss);
+  var metaQ = metaQuartiersFormules_(ss);
+  var refQ = referentielQuartiers_(ss);
+  var ciblesFeuilles = (nomsFeuilles && nomsFeuilles.length)
+    ? nomsFeuilles
+    : [FEUILLES.presences, FEUILLES.pharmacies, FEUILLES.etablissements];
+  var bilan = { presences: 0, pharmacies: 0, etablissements: 0, total: 0 };
+
+  ciblesFeuilles.forEach(function (nomF) {
+    if ([FEUILLES.presences, FEUILLES.pharmacies, FEUILLES.etablissements].indexOf(nomF) < 0) return;
+    var sh = ss.getSheetByName(nomF);
+    if (!sh || sh.getLastRow() < 2 || sh.getLastColumn() < 1) return;
+    var nc = sh.getLastColumn(), n = sh.getLastRow() - 1;
+    var ent = sh.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
+    var idx = function (nom) { return ent.indexOf(normaliser(nom)); };
+    var cTer = idx('Territoire'), cZ = idx('Zone'), cCom = idx('Commune'),
+        cSub = idx('Subdivision'), cQ = idx('Quartier'), cSec = idx('Secteur');
+    if (cQ < 0 && cCom < 0 && cSec < 0) return;
+    var lieuNom = nomF === FEUILLES.presences ? 'Lieu/Etablissement' : 'Nom';
+    var cLieu = idx(lieuNom);
+
+    var refsDest = {
+      letTer: cTer >= 0 ? lettreColonne_(cTer + 1) : '',
+      letZ: cZ >= 0 ? lettreColonne_(cZ + 1) : '',
+      letCom: cCom >= 0 ? lettreColonne_(cCom + 1) : '',
+      letSub: cSub >= 0 ? lettreColonne_(cSub + 1) : '',
+      letQ: cQ >= 0 ? lettreColonne_(cQ + 1) : '',
+      letSec: cSec >= 0 ? lettreColonne_(cSec + 1) : ''
+    };
+
+    var data = sh.getRange(2, 1, n, nc).getValues();
+    var colTer = cTer >= 0 ? data.map(function (r) { return [r[cTer]]; }) : null;
+    var colZ = cZ >= 0 ? data.map(function (r) { return [r[cZ]]; }) : null;
+    var colCom = cCom >= 0 ? data.map(function (r) { return [r[cCom]]; }) : null;
+    var colSub = cSub >= 0 ? data.map(function (r) { return [r[cSub]]; }) : null;
+    var colQ = cQ >= 0 ? data.map(function (r) { return [r[cQ]]; }) : null;
+    var colSec = cSec >= 0 ? data.map(function (r) { return [r[cSec]]; }) : null;
+
+    var indicesRows = [];
+    if (Array.isArray(rowNumsOpt) && rowNumsOpt.length) {
+      rowNumsOpt.forEach(function (rn) { var i = rn - 2; if (i >= 0 && i < n) indicesRows.push(i); });
+    } else {
+      for (var ii = 0; ii < n; ii++) indicesRows.push(ii);
+    }
+    if (!indicesRows.length) return;
+
+    var keyBilan = nomF === FEUILLES.presences ? 'presences' : (nomF === FEUILLES.pharmacies ? 'pharmacies' : 'etablissements');
+    indicesRows.forEach(function (i) {
+      var r = data[i];
+      var rawCom = cCom >= 0 ? chapTxtFormule_(r[cCom]) : '';
+      var rawQ = cQ >= 0 ? chapTxtFormule_(r[cQ]) : '';
+      var rawSec = cSec >= 0 ? chapTxtFormule_(r[cSec]) : '';
+      var rawTer = cTer >= 0 ? chapTxtFormule_(r[cTer]) : '';
+      var rawZ = cZ >= 0 ? chapTxtFormule_(r[cZ]) : '';
+      var rawSub = cSub >= 0 ? chapTxtFormule_(r[cSub]) : '';
+      var rawLieu = cLieu >= 0 ? chapTxtFormule_(r[cLieu]) : '';
+      if (!rawCom && !rawQ && !rawSec) return;
+
+      var secPourMode = rawSec;
+      var resT = resoudreTerritoireEcriture_({
+        territoire: rawTer, zone: rawZ, commune: rawCom, subdivision: rawSub,
+        quartier: rawQ, secteur: rawSec, lieu: rawLieu
+      }, refQ);
+      if ((!secPourMode || !metaQ.secteurs[normaliser(secPourMode)]) && resT.secteur && metaQ.secteurs[normaliser(resT.secteur)]) {
+        secPourMode = resT.secteur;
+        if (colSec) colSec[i][0] = secPourMode;
+      }
+
+      var vals = {
+        territoire: resT.territoire || rawTer,
+        zone: resT.zone || rawZ,
+        commune: resT.commune || rawCom,
+        subdivision: resT.subdivision !== undefined && resT.subdivision !== '' ? resT.subdivision : rawSub,
+        quartier: resT.quartier || rawQ,
+        secteur: secPourMode || resT.secteur || ''
+      };
+      var f = formulesLigneTerritoire_(i + 2, vals, refsDest, metaQ);
+      if (colTer && f.territoire) colTer[i][0] = f.territoire;
+      if (colZ && f.zone) colZ[i][0] = f.zone;
+      if (colSub && f.subdivision) colSub[i][0] = f.subdivision;
+      if (f.modeSecteur) {
+        if (colCom && f.commune) colCom[i][0] = f.commune;
+        if (colQ && f.quartier) colQ[i][0] = f.quartier;
+      } else {
+        if (colCom && vals.commune) colCom[i][0] = vals.commune;
+        if (colQ && vals.quartier) colQ[i][0] = vals.quartier;
+      }
+      bilan[keyBilan]++;
+      bilan.total++;
+    });
+
+    if (Array.isArray(rowNumsOpt) && rowNumsOpt.length) {
+      indicesRows.forEach(function (i) {
+        var rn = i + 2;
+        if (cSec >= 0 && colSec) sh.getRange(rn, cSec + 1).setValue(colSec[i][0]);
+        if (cCom >= 0 && colCom) sh.getRange(rn, cCom + 1).setValue(colCom[i][0]);
+        if (cQ >= 0 && colQ) sh.getRange(rn, cQ + 1).setValue(colQ[i][0]);
+        if (cSub >= 0 && colSub) sh.getRange(rn, cSub + 1).setValue(colSub[i][0]);
+        if (cZ >= 0 && colZ) sh.getRange(rn, cZ + 1).setValue(colZ[i][0]);
+        if (cTer >= 0 && colTer) sh.getRange(rn, cTer + 1).setValue(colTer[i][0]);
+      });
+    } else {
+      if (colSec && cSec >= 0) sh.getRange(2, cSec + 1, n, 1).setValues(colSec);
+      if (colCom && cCom >= 0) sh.getRange(2, cCom + 1, n, 1).setValues(colCom);
+      if (colQ && cQ >= 0) sh.getRange(2, cQ + 1, n, 1).setValues(colQ);
+      if (colSub && cSub >= 0) sh.getRange(2, cSub + 1, n, 1).setValues(colSub);
+      if (colZ && cZ >= 0) sh.getRange(2, cZ + 1, n, 1).setValues(colZ);
+      if (colTer && cTer >= 0) sh.getRange(2, cTer + 1, n, 1).setValues(colTer);
+    }
+  });
+
+  if (bilan.total > 0) {
+    try { marquerModif(); } catch (eM) {}
+  }
+  return bilan;
+}
+
+// Propage les définitions de l'onglet Quartiers vers Presences, Pharmacies, Etablissements (formules dynamiques) et Plannings à venir (jamais le passé historique)
 function propagerQuartiersSurFiches_(ss, lignesEditees, opts) {
   ss = ss || SpreadsheetApp.getActive();
   opts = opts || {};
@@ -973,6 +1216,51 @@ function propagerQuartiersSurFiches_(ss, lignesEditees, opts) {
   }
 
   var ancienNorm = opts.ancienLibelle ? normaliser(opts.ancienLibelle) : '';
+  var bilan = { presences: 0, pharmacies: 0, etablissements: 0, plannings: 0, total: 0, tablesModifiees: [] };
+
+  // 1) Si un nom clé (Secteur ou Quartier) a été renommé dans Quartiers, répercuter sur les clés statiques (sans écraser les formules)
+  [FEUILLES.presences, FEUILLES.pharmacies, FEUILLES.etablissements].forEach(function (nomF) {
+    if (!ancienNorm || !cibles || cibles.length !== 1) return;
+    var shF = ss.getSheetByName(nomF);
+    if (!shF || shF.getLastRow() < 2 || shF.getLastColumn() < 1) return;
+    var nF = shF.getLastRow() - 1, ncF = shF.getLastColumn();
+    var entF = shF.getRange(1, 1, 1, ncF).getValues()[0].map(normaliser);
+    var cQF = entF.indexOf(normaliser('Quartier')), cSecF = entF.indexOf(normaliser('Secteur'));
+    if (cQF >= 0) {
+      var vQ = shF.getRange(2, cQF + 1, nF, 1).getValues(), fQ = shF.getRange(2, cQF + 1, nF, 1).getFormulas();
+      for (var iq = 0; iq < nF; iq++) {
+        if (!fQ[iq][0] && normaliser(vQ[iq][0]) === ancienNorm && cibles[0].quartier) {
+          shF.getRange(iq + 2, cQF + 1).setValue(cibles[0].quartier);
+        }
+      }
+    }
+    if (cSecF >= 0) {
+      var vS = shF.getRange(2, cSecF + 1, nF, 1).getValues(), fS = shF.getRange(2, cSecF + 1, nF, 1).getFormulas();
+      for (var isc = 0; isc < nF; isc++) {
+        if (!fS[isc][0] && normaliser(vS[isc][0]) === ancienNorm && cibles[0].secteur) {
+          shF.getRange(isc + 2, cSecF + 1).setValue(cibles[0].secteur);
+        }
+      }
+    }
+  });
+
+  // 2) Préserver/déployer les formules dynamiques sur Presences, Pharmacies et Etablissements
+  if (opts.seulementPlanningsFuturs !== true) {
+    var bForm = deployerFormulesTerritoire_(ss);
+    bilan.presences = bForm.presences;
+    bilan.pharmacies = bForm.pharmacies;
+    bilan.etablissements = bForm.etablissements;
+    bilan.total += bForm.total;
+  } else {
+    // Recalculer quand même les formules existantes avant propagation/sync
+    SpreadsheetApp.flush();
+  }
+  ['presences', 'pharmacies', 'etablissements'].forEach(function (t) {
+    var nbT = bilan[t] || 0;
+    if (nbT > 0 || opts.seulementPlanningsFuturs === true) bilan.tablesModifiees.push(t);
+  });
+
+  // 3) Mettre à jour uniquement les Plannings à venir (>= aujourd'hui, jamais le passé historique)
   var correspondCible = function (fiche, resT) {
     if (!cibles) return true;
     var rCom = normaliser(resT.commune), rQ = normaliser(resT.quartier), rS = normaliser(resT.secteur);
@@ -986,77 +1274,42 @@ function propagerQuartiersSurFiches_(ss, lignesEditees, opts) {
     return false;
   };
 
-  var bilan = { presences: 0, pharmacies: 0, etablissements: 0, plannings: 0, total: 0, tablesModifiees: [] };
-  var configs = [
-    { key: 'presences', feuille: FEUILLES.presences, table: 'presences', lieuCol: 'Lieu/Etablissement', futurSeulement: false },
-    { key: 'pharmacies', feuille: FEUILLES.pharmacies, table: 'pharmacies', lieuCol: 'Nom', futurSeulement: false },
-    { key: 'etablissements', feuille: FEUILLES.etablissements, table: 'etablissements', lieuCol: 'Nom', futurSeulement: false },
-    { key: 'plannings', feuille: FEUILLES.plannings, table: 'plannings', lieuCol: 'Lieu/Etablissement', futurSeulement: true }
-  ];
+  var shPl = ss.getSheetByName(FEUILLES.plannings);
+  if (shPl && shPl.getLastRow() >= 2 && shPl.getLastColumn() >= 1) {
+    var ncP = shPl.getLastColumn(), nP = shPl.getLastRow() - 1;
+    var entP = shPl.getRange(1, 1, 1, ncP).getValues()[0].map(normaliser);
+    var cComP = entP.indexOf(normaliser('Commune')), cQP = entP.indexOf(normaliser('Quartier')),
+        cLieuP = entP.indexOf(normaliser('Lieu/Etablissement')), cDateP = entP.indexOf(normaliser('Date'));
+    if ((cQP >= 0 || cComP >= 0) && cDateP >= 0) {
+      var dataP = shPl.getRange(2, 1, nP, ncP).getValues();
+      dataP.forEach(function (row, idxRow) {
+        var dIso = typeof versIso === 'function' ? versIso(row[cDateP], tz) : '';
+        if (!dIso || dIso < aujourdhui) return;
+        var com = cComP >= 0 ? String(row[cComP] || '').trim() : '';
+        var q = cQP >= 0 ? String(row[cQP] || '').trim() : '';
+        var lieu = cLieuP >= 0 ? String(row[cLieuP] || '').trim() : '';
+        if (!com && !q) return;
 
-  configs.forEach(function (cfg) {
-    var sh = ss.getSheetByName(cfg.feuille);
-    if (!sh || sh.getLastRow() < 2 || sh.getLastColumn() < 1) return;
-    var nc = sh.getLastColumn(), n = sh.getLastRow() - 1;
-    var ent = sh.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
-    var cTer = ent.indexOf(normaliser('Territoire')), cZ = ent.indexOf(normaliser('Zone')),
-        cCom = ent.indexOf(normaliser('Commune')), cSub = ent.indexOf(normaliser('Subdivision')),
-        cQ = ent.indexOf(normaliser('Quartier')), cSec = ent.indexOf(normaliser('Secteur')),
-        cLieu = ent.indexOf(normaliser(cfg.lieuCol)), cDate = cfg.futurSeulement ? ent.indexOf(normaliser('Date')) : -1;
-    if (cQ < 0 && cCom < 0 && cSec < 0) return;
-    if (cfg.futurSeulement && cDate < 0) return;
-
-    var data = sh.getRange(2, 1, n, nc).getValues();
-    var modifie = false;
-    data.forEach(function (row) {
-      if (cfg.futurSeulement) {
-        var dIso = typeof versIso === 'function' ? versIso(row[cDate], tz) : '';
-        if (!dIso || dIso < aujourdhui) return;   // Ne jamais modifier les tournées passées historiques
-      }
-      var com = cCom >= 0 ? String(row[cCom] || '').trim() : '';
-      var q = cQ >= 0 ? String(row[cQ] || '').trim() : '';
-      var sec = cSec >= 0 ? String(row[cSec] || '').trim() : '';
-      var lieu = cLieu >= 0 ? String(row[cLieu] || '').trim() : '';
-      if (!com && !q && !sec) return;
-
-      var resT = resoudreTerritoireEcriture_({ commune: com, quartier: q, secteur: sec, lieu: lieu }, refQ);
-      if (!correspondCible({ commune: com, quartier: q, secteur: sec }, resT)) return;
-      if (ancienNorm && cibles && cibles.length === 1 && (normaliser(q) === ancienNorm || normaliser(sec) === ancienNorm)) {
-        resT = {
-          territoire: cibles[0].territoire || resT.territoire,
-          zone: cibles[0].zone || resT.zone,
-          commune: cibles[0].commune || resT.commune,
-          subdivision: cibles[0].subdivision || resT.subdivision,
-          quartier: cibles[0].quartier || resT.quartier,
-          secteur: cibles[0].secteur || resT.secteur
-        };
-      }
-      if (!resT.commune && !resT.quartier && !resT.territoire && !resT.zone) return;
-
-      var maj = false;
-      var majChamp = function (idx, val) {
-        if (idx >= 0 && val && String(row[idx] || '').trim() !== String(val).trim()) {
-          row[idx] = val; maj = true;
+        var resT = resoudreTerritoireEcriture_({ commune: com, quartier: q, lieu: lieu }, refQ);
+        if (!correspondCible({ commune: com, quartier: q, secteur: '' }, resT)) return;
+        if (ancienNorm && cibles && cibles.length === 1 && normaliser(q) === ancienNorm) {
+          resT.commune = cibles[0].commune || resT.commune;
+          resT.quartier = cibles[0].quartier || resT.quartier;
         }
-      };
-      majChamp(cTer, resT.territoire);
-      majChamp(cZ, resT.zone);
-      majChamp(cCom, resT.commune);
-      majChamp(cSub, resT.subdivision);
-      majChamp(cQ, resT.quartier);
-      majChamp(cSec, resT.secteur);
-      if (maj) {
-        modifie = true;
-        bilan[cfg.key]++;
-        bilan.total++;
-      }
-    });
-    if (modifie) {
-      sh.getRange(2, 1, n, nc).setValues(data);
-      bilan.tablesModifiees.push(cfg.table);
+        var mod = false;
+        if (cComP >= 0 && resT.commune && String(row[cComP] || '').trim() !== String(resT.commune).trim()) {
+          shPl.getRange(idxRow + 2, cComP + 1).setValue(resT.commune); mod = true;
+        }
+        if (cQP >= 0 && resT.quartier && String(row[cQP] || '').trim() !== String(resT.quartier).trim()) {
+          shPl.getRange(idxRow + 2, cQP + 1).setValue(resT.quartier); mod = true;
+        }
+        if (mod) { bilan.plannings++; bilan.total++; }
+      });
+      if (bilan.plannings > 0) bilan.tablesModifiees.push('plannings');
     }
-  });
+  }
 
+  SpreadsheetApp.flush();
   if (bilan.total > 0) {
     try { marquerModif(); } catch (eM) {}
   }
@@ -1122,6 +1375,8 @@ function onEdit(e) {
                       (cQ > 0 && c0 <= cQ && cQ <= cEnd) ||
                       (cCom > 0 && c0 <= cCom && cCom <= cEnd);
       var refQ = toucheGeo ? referentielQuartiers_(ss) : null;
+      var editeSecSeul = (cSec > 0 && c0 === cSec && cEnd === cSec);
+      var lignesGeo = [];
 
       for (var r2 = rStart; r2 <= rEnd; r2++) {
         if (nom === FEUILLES.presences && cC > 0) {
@@ -1132,35 +1387,35 @@ function onEdit(e) {
           }
         }
         if (!toucheGeo) continue;
-        var valCom = cCom > 0 ? String(sh.getRange(r2, cCom).getValue() || '').trim() : '';
-        var valQ = cQ > 0 ? String(sh.getRange(r2, cQ).getValue() || '').trim() : '';
-        var valSec = cSec > 0 ? String(sh.getRange(r2, cSec).getValue() || '').trim() : '';
-        var valLieu = cLieu > 0 ? String(sh.getRange(r2, cLieu).getValue() || '').trim() : '';
+        var valCom = cCom > 0 ? chapTxtFormule_(sh.getRange(r2, cCom).getValue()) : '';
+        var valQ = cQ > 0 ? chapTxtFormule_(sh.getRange(r2, cQ).getValue()) : '';
+        var valSec = cSec > 0 ? chapTxtFormule_(sh.getRange(r2, cSec).getValue()) : '';
+        var valLieu = cLieu > 0 ? chapTxtFormule_(sh.getRange(r2, cLieu).getValue()) : '';
         if (!valCom && !valQ && !valSec) continue;
 
-        var resT = resoudreTerritoireEcriture_({ commune: valCom, quartier: valQ, secteur: valSec, lieu: valLieu }, refQ);
-        var ecrireSi = function (col, val) {
-          if (col > 0 && val && String(sh.getRange(r2, col).getValue() || '').trim() !== String(val).trim()) {
-            sh.getRange(r2, col).setValue(val);
-          }
-        };
-        ecrireSi(cTer, resT.territoire);
-        ecrireSi(cZ, resT.zone);
-        ecrireSi(cCom, resT.commune);
-        ecrireSi(cSub, resT.subdivision);
-        ecrireSi(cQ, resT.quartier);
-        ecrireSi(cSec, resT.secteur);
+        var resT = resoudreTerritoireEcriture_(editeSecSeul && valSec
+          ? { secteur: valSec, lieu: valLieu }
+          : { commune: valCom, quartier: valQ, secteur: valSec, lieu: valLieu }, refQ);
+        if (resT.secteur && cSec > 0 && !valSec) sh.getRange(r2, cSec).setValue(resT.secteur);
+        if (resT.commune && cCom > 0 && (!valCom || (editeSecSeul && valSec))) sh.getRange(r2, cCom).setValue(resT.commune);
+        if (resT.quartier && cQ > 0 && (!valQ || (editeSecSeul && valSec))) sh.getRange(r2, cQ).setValue(resT.quartier);
+        if (resT.subdivision && cSub > 0) sh.getRange(r2, cSub).setValue(resT.subdivision);
+        if (resT.zone && cZ > 0) sh.getRange(r2, cZ).setValue(resT.zone);
+        if (resT.territoire && cTer > 0) sh.getRange(r2, cTer).setValue(resT.territoire);
+        lignesGeo.push(r2);
+      }
+      if (lignesGeo.length) {
+        deployerFormulesTerritoire_(ss, [nom], lignesGeo);
+        SpreadsheetApp.flush();
       }
     } else if (nom === FEUILLES.quartiers) {
       var lignesEditees = [];
       for (var rq = rStart; rq <= rEnd; rq++) lignesEditees.push(rq);
-      var opts = (nb === 1 && e.range.getNumColumns() === 1 && e.oldValue) ? { ancienLibelle: e.oldValue } : null;
-      var bilan = propagerQuartiersSurFiches_(ss, lignesEditees, opts);
-      var tables = ['quartiers'];
-      (bilan.tablesModifiees || []).forEach(function (t) { if (tables.indexOf(t) < 0) tables.push(t); });
-      try {
-        if (typeof jumPousserApresEcriture_ === 'function') jumPousserApresEcriture_(tables);
-      } catch (eJ) {}
+      var opts = (nb === 1 && e.range.getNumColumns() === 1 && e.oldValue)
+        ? { ancienLibelle: e.oldValue, seulementPlanningsFuturs: false }
+        : { seulementPlanningsFuturs: true };
+      propagerQuartiersSurFiches_(ss, lignesEditees, opts);
+      SpreadsheetApp.flush();
     }
   } catch (err) {
     // Une erreur de saisie ne doit jamais bloquer le Sheet

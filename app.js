@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.42';
+  var APP_VERSION = '3.31.43';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.43', [
+      'Google Sheets & Supabase : formules de recherche dynamiques liées à l\'onglet Quartiers pour répercuter chaque modification de secteur ou quartier sur les fiches et en base',
+      'Planifier : cartes épurées sans doublon (« Hors communes choisies » et « Prévu par … » alignés sur une seule ligne, bloc unique Remplacer / Supprimer)'
+    ]],
     ['3.31.42', [
       'Territoires & Quartiers : pilotage dynamique des subdivisions, secteurs et quartiers depuis la base (Abidjan & Intérieur)',
       'Saisie intelligente : recherche tolérante aux variantes (ex. 8eme tranche) et remplissage automatique secteur, subdivision, commune, zone, territoire et fil d\'Ariane'
@@ -1585,20 +1589,10 @@
     return l;
   }
   function quartiers() {
-    var def = quartiersDefautObjets();
-    if (!S.data || !S.data.quartiers || !S.data.quartiers.length) return def;
-    var existants = {}, res = [];
-    function cleQ(q) {
-      var com = (typeof communeParente === 'function' ? communeParente(q.commune || '') : (q.commune || ''));
-      return [normaliser(com), normaliser(q.quartier || ''), normaliser(q.secteur || '')].join('|');
+    if (S.data && S.data.quartiers && S.data.quartiers.length) {
+      return S.data.quartiers.filter(function (q) { return q && (q.quartier || q.secteur); });
     }
-    S.data.quartiers.forEach(function (q) {
-      if (q && (q.quartier || q.secteur)) { existants[cleQ(q)] = true; res.push(q); }
-    });
-    def.forEach(function (q) {
-      if (!existants[cleQ(q)]) res.push(q);
-    });
-    return res;
+    return quartiersDefautObjets();
   }
   function nomSecteur(q, com, coord) {
     var s = (q && q !== 'NL' && q !== 'Non localisé') ? String(q).trim() : '';
@@ -2058,10 +2052,11 @@
     var compteParGrande = {};
     grandes.forEach(function (g) { compteParGrande[g] = 0; });
 
+    var qs = (typeof quartiers === 'function') ? quartiers() : [];
     liste.forEach(function (x) {
       if (!x) return;
       var str = String(x).trim();
-      var par = (typeof communeParente === 'function') ? communeParente(str) : '';
+      var par = (typeof communeParente === 'function') ? communeParente(str, qs) : '';
       if (grandes.indexOf(par) >= 0) {
         if (secsParGrande[par] && secsParGrande[par].indexOf(str) >= 0) {
           compteParGrande[par]++;
@@ -2084,10 +2079,11 @@
     });
 
     // 2. Pour les autres éléments :
+    var qs = (typeof quartiers === 'function') ? quartiers() : [];
     liste.forEach(function (x) {
       if (!x) return;
       var str = String(x).trim();
-      var par = (typeof communeParente === 'function') ? communeParente(str) : '';
+      var par = (typeof communeParente === 'function') ? communeParente(str, qs) : '';
       if (grandesTraitees[par]) return;
 
       // Si c'est un sous-secteur individuel d'une grande commune, on retire le préfixe redondant
@@ -2948,7 +2944,8 @@
     var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, SUPABASE_CONFIG.delaiMs) : null;
     var opts = {
       method: 'GET',
-      headers: supabaseHeaders_(false)
+      headers: supabaseHeaders_(false),
+      cache: 'no-store'
     };
     if (ctrl) opts.signal = ctrl.signal;
 
@@ -3012,7 +3009,7 @@
       supabaseGetTout_('pharmacies?select=*&order=code'),
       supabaseGetTout_('etablissements?select=*&order=nom'),
       supabaseGetTout_('fiches_produits?select=*&order=produit'),
-      supabaseGetTout_('quartiers?select=*&order=quartier'),
+      supabaseGetTout_('quartiers?select=*&order=commune,quartier,secteur'),
       supabaseGetTout_('listes_reference?select=*&order=ordre'),
       supabaseGetTout_('plannings?select=*&order=id'),
       supabaseGetTout_('visites?select=*&date=gte.' + depuis + '&order=date.desc,uid'),
@@ -3277,6 +3274,7 @@
       return {
         ok: true,
         version: 1,
+        schemaGeo: 2,
         source: 'supabase',
         sig: sig,
         praticiens: praticiens,
@@ -3511,7 +3509,7 @@
       } else if (source === 'supabase' && typeof chargerToutSupabase === 'function') {
         // 3.28.14 : « Recharger toute la base » (force) relit aussi Supabase, en entier, sans comparer l'empreinte
         return marqueurSupabase_().then(function (m) {
-          if (!force && S.data && S.data.marqueurSb === m && (S.data.praticiens || []).length) return Object.assign({}, S.data, { inchange: true, source: 'supabase' });
+          if (!force && S.data && S.data.schemaGeo === 2 && S.data.marqueurSb === m && (S.data.praticiens || []).length) return Object.assign({}, S.data, { inchange: true, source: 'supabase' });
           return chargerToutSupabase().then(function (dS) { dS.marqueurSb = m; return dS; });
         }).catch(function (errSb) {
           console.warn('Supabase indisponible, bascule transparente sur Google Sheets:', errSb);
@@ -3545,7 +3543,7 @@
       S.data = { version: d.version || ancien.version, sig: d.sig || ancien.sig, praticiens: praticiens, presences: presences, quartiers: base.quartiers || ancien.quartiers || [],
                  statuts: base.statuts || ancien.statuts || [], etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || ancien.delegues || [], feries: base.feries || ancien.feries || [], activites: base.activites || ancien.activites || [], activitesPharmacie: base.activitesPharmacie || ancien.activitesPharmacie || [], produits: base.produits || ancien.produits || [], fiches: base.fiches || ancien.fiches || [],
                  historique: hist, histDepuis: debutHistorique(), plannings: sansSuppressions(d.plannings || ancien.plannings || []), suppressions: d.inchange ? (ancien.suppressions || []) : suppressionsDe(d.plannings, ancien), rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
-                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '', marqueurSb: d.marqueurSb || '' };
+                 sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '', marqueurSb: d.marqueurSb || '', schemaGeo: d.schemaGeo || 2 };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, statuts()); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
@@ -5803,16 +5801,20 @@
       (manques.length ? ' ; ' + manques.length + ' praticien' + (manques.length > 1 ? 's' : '') + ' absent' + (manques.length > 1 ? 's' : '') + ' ce jour-là (non repris)' : '') + '.', 5000);
   }
 
-  // Médecin déjà prévu par un collègue la même semaine : question « Le remplacer ? » (Oui : un autre praticien ; Non : je le garde)
+  // Médecin déjà prévu par un collègue la même semaine : question « Le remplacer ? » sans répéter le badge déjà affiché au-dessus
   function conflitArret(a) {
     if (a.etat === 'valide' || a.statut || a.conflitOk || S.config.demo) return null;
     var l = cibleParCollegues(a.code, a.date);
     return l.length ? l[0] : null;
   }
   function questionConflit(a, cf) {
-    return '<div class="conflit"><p>Aussi prévu par <b>' + esc(cf.delegue) + '</b> le ' + dateFr(cf.date) + '. Le remplacer par un autre praticien ?</p>' +
+    var dejaBadge = !!etiquetteCollegues(a.code, a.date);
+    var texte = dejaBadge
+      ? 'Le remplacer par un autre praticien ?'
+      : ('Aussi prévu par <b>' + esc(cf.delegue) + '</b> le ' + dateFr(cf.date) + '. Le remplacer par un autre praticien ?');
+    return '<div class="conflit"><p>' + texte + '</p>' +
       '<div class="rangee"><button class="bouton petit bouton-plein" type="button" data-a="conflitRemplacer" data-uid="' + a.uid + '">Remplacer</button>' +
-      '<button class="bouton petit" type="button" data-a="conflitGarder" data-uid="' + a.uid + '">Non</button></div></div>';
+      '<button class="bouton petit danger-doux" type="button" data-a="retirerPlan" data-uid="' + a.uid + '">Supprimer</button></div></div>';
   }
   // Candidats pour remplacer une visite : présents ce jour-là, hors tournée, non prévus par un collègue, selon les critères de la tournée ;
   // ceux du même établissement d'abord (+ bonus), ceux qui s'insèrent sans retard, puis par priorité et proximité du lieu remplacé
@@ -6265,6 +6267,7 @@
 
     // Carte orange appliquée STRICTEMENT si hors des zones ciblées par les filtres
     var classeOrange = horsZone ? ' ancien' : '';
+    var cf = conflitArret(a);
 
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + classeOrange + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
@@ -6278,7 +6281,6 @@
         '<div class="lp-bas">' +
           '<button type="button" class="lp-details-btn" data-a="voirVisite" data-uid="' + a.uid + '">' +
             (sousTitre ? '<span class="discret bloc-texte">' + specGras(a, sousTitre) + '</span>' : '') +
-            (e ? '<span class="etiquettes">' + e + '</span>' : '') +
           '</button>' +
           (verrou ? '<span class="lp-fait" title="Compte Rendu enregistré">' + icone('valider') + '</span>' :
             '<span class="lp-actions"><button type="button" class="lp-garder" data-a="garder" data-uid="' + a.uid + '" aria-pressed="' + !!a.garde + '" aria-label="' +
@@ -6286,13 +6288,14 @@
             '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
         '</div>' +
       '</div>' +
-      // Sous les cartes oranges (hors communes choisies) : deux boutons centrés Remplacer et Supprimer, comme sur les cartes collègues
-      (horsZone && !verrou && !a.statut ?
+      (e ? '<button type="button" class="lp-etiquettes-btn" data-a="voirVisite" data-uid="' + a.uid + '"><span class="etiquettes">' + e + '</span></button>' : '') +
+      // Sous les cartes oranges sans conflit collègue : un seul couple Remplacer / Supprimer (jamais doublonné au-dessus du bloc conflit)
+      (horsZone && !verrou && !a.statut && !cf ?
         '<div class="actions-carte-orange"><div class="rangee">' +
           '<button type="button" class="bouton petit bouton-plein" data-a="conflitRemplacer" data-uid="' + a.uid + '">Remplacer</button>' +
           '<button type="button" class="bouton petit danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '">Supprimer</button>' +
         '</div></div>' : '') +
-      (conflitArret(a) ? questionConflit(a, conflitArret(a)) : '') +
+      (cf ? questionConflit(a, cf) : '') +
       '</li>';
   }
 

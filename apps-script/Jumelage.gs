@@ -13,14 +13,13 @@
 // À lancer une fois depuis l'éditeur : installe le déclencheur et fait la première recopie complète
 function installerJumelage() {
   ScriptApp.getProjectTriggers().forEach(function (tr) {
-    if (tr.getHandlerFunction() === 'jumelageAuto') ScriptApp.deleteTrigger(tr);
-  });
-  ScriptApp.getProjectTriggers().forEach(function (tr) {
-    if (tr.getHandlerFunction() === 'jumSurEdition') ScriptApp.deleteTrigger(tr);
+    var h = tr.getHandlerFunction();
+    if (h === 'jumelageAuto' || h === 'jumSurEdition' || h === 'jumSurChangement') ScriptApp.deleteTrigger(tr);
   });
   ScriptApp.newTrigger('jumelageAuto').timeBased().everyMinutes(JUMELAGE_MINUTES).create();
   // saisie à la main dans le Sheet : envoyée à Supabase dans les secondes qui suivent
   ScriptApp.newTrigger('jumSurEdition').forSpreadsheet(SpreadsheetApp.getActive()).onEdit().create();
+  ScriptApp.newTrigger('jumSurChangement').forSpreadsheet(SpreadsheetApp.getActive()).onChange().create();
   return synchroniserSupabase(true);
 }
 
@@ -409,7 +408,8 @@ function synchroniserSupabase(force) {
   try {
     // 1) d'abord ce qui a été modifié directement dans Supabase (Table Editor, SQL) : reporté dans le Sheet
     try { etat.retour = jumAppliquerSupabase_(); } catch (eR) { erreurs++; etat.retour = { erreur: String(eR.message || eR).slice(0, 300) }; }
-    // 2) puis le Sheet vers Supabase
+    // 2) puis le Sheet vers Supabase (recalculer les formules dynamiques avant lecture)
+    try { SpreadsheetApp.flush(); } catch (eFl) {}
     Object.keys(JUM_TABLES).forEach(function (table) {
       try {
         var rows = jumLignes_(table), ignorees = 0;
@@ -494,6 +494,7 @@ function jumPousserApresEcriture_(action) {
     return;
   }
   try {
+    SpreadsheetApp.flush();
     var cache = CacheService.getScriptCache(), codesMed = null;
     jumPousserTables_(tables, cache, codesMed);
   } finally {
@@ -567,11 +568,41 @@ function jumSurEdition(e) {
       return;
     }
     try {
+      if (table === 'quartiers') {
+        try {
+          var shAct = e.range.getSheet();
+          if (shAct && shAct.getName() === FEUILLES.quartiers && typeof propagerQuartiersSurFiches_ === 'function') {
+            var r0q = Math.max(2, e.range.getRow()), r1q = r0q + e.range.getNumRows() - 1;
+            var lq = []; for (var iq = r0q; iq <= r1q; iq++) lq.push(iq);
+            var optsQ = (e.range.getNumRows() === 1 && e.range.getNumColumns() === 1 && e.oldValue)
+              ? { ancienLibelle: e.oldValue, seulementPlanningsFuturs: false }
+              : { seulementPlanningsFuturs: true };
+            propagerQuartiersSurFiches_(SpreadsheetApp.getActive(), lq, optsQ);
+          }
+        } catch (ePr) {}
+      }
+      SpreadsheetApp.flush();
       jumPousserApresEcriture_(table === 'quartiers' ? JUM_APRES_ACTION.quartiers : [table]);
     } finally {
       if (!dejaVerrou) { try { verrou.releaseLock(); } catch (eR) {} }
     }
   } catch (err) { console.warn('jumSurEdition : ' + err); }
+}
+
+// Déclencheur installable onChange : capture insertions/suppressions de lignes ou collages (ex. onglet Quartiers) et resynchronise formules + Supabase
+function jumSurChangement(e) {
+  try {
+    var type = e && e.changeType ? String(e.changeType) : '';
+    if (type !== 'INSERT_ROW' && type !== 'REMOVE_ROW' && type !== 'EDIT' && type !== 'OTHER') return;
+    var ss = SpreadsheetApp.getActive();
+    var sh = ss.getActiveSheet();
+    SpreadsheetApp.flush();
+    if (sh && sh.getName() === FEUILLES.quartiers) {
+      jumPousserApresEcriture_(JUM_APRES_ACTION.quartiers);
+    } else {
+      synchroniserSupabase(false);
+    }
+  } catch (err) { console.warn('jumSurChangement : ' + err); }
 }
 
 // ---------------------------------------------------------------- Supabase -> Sheet (modifications faites directement dans Supabase)
