@@ -1,7 +1,7 @@
 {
-  "version": "3.31.14",
+  "version": "3.31.15",
   "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : colonnes simplifiées Ancien et Nouveau, retrait des lignes superflues, Modifier l'ancien pré-sélectionné par défaut et gain d'espace vertical."
+    "Vérifier la fiche : Nouveaux contacts en tête, Modifications sans bannière superflue, titre dynamique avec date, comparaison du nom BDD/Photo et bouton d'enregistrement individuel."
   ]
 }

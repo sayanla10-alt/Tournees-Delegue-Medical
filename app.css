@@ -3884,47 +3884,90 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .etiquette.ambre { color: var(--ambre); background: var(--papier); border-color: var(--ambre-trait); }
 
 /* =============================================================================
-   3.31.8 : Vérifier la fiche - Approche limpide axée sur le but (Nouveaux noms & Mentions)
+   3.31.8 / 3.31.15 : Vérifier la fiche - Approche limpide axée sur le but
    ============================================================================= */
 .scan-tete-propre {
   background: var(--surface);
   border: 1px solid var(--trait);
   border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
   max-width: 100%;
   box-sizing: border-box;
 }
-.scan-date-slot-grille {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 10px;
-  align-items: flex-end;
+.scan-date-slot-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
 }
-.scan-date-slot-grille .champ { margin: 0; }
-.scan-date-slot-grille input[type="date"] {
-  height: 44px;
-  border-radius: 8px;
+.scan-date-slot-cell {
+  flex: 1 1 0;
+  min-width: 0;
 }
-.scan-date-slot-grille .segment {
-  height: 44px;
+.scan-slot-cell {
+  flex: 1 1 0;
+  min-width: 0;
 }
-.scan-date-slot-grille .segment button {
-  height: 44px;
+.scan-date-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--texte);
+  margin: 0;
+}
+.scan-date-inp {
+  height: 34px !important;
+  font-size: 12.5px !important;
+  padding: 2px 6px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--trait) !important;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.scan-slot-label {
+  display: none;
+}
+.scan-segment-mini {
+  height: 34px !important;
+  margin: 0 !important;
+}
+.scan-segment-mini button {
+  height: 34px !important;
+  font-size: 12px !important;
+  padding: 2px 6px !important;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
 }
+.scan-photo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primaire);
+  background: rgba(10, 108, 116, 0.08);
+  border: 1px solid var(--primaire);
+  border-radius: 6px;
+  height: 34px;
+  padding: 0 8px;
+  flex: none;
+  text-decoration: none;
+}
+.scan-photo-btn svg { width: 14px; height: 14px; fill: currentColor; }
 .scan-tete-bas {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 10px;
-  padding-top: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid var(--trait);
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .scan-bilan-badges {
   display: flex;
@@ -4752,5 +4795,20 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 }
 .scan-edition-rapide {
   padding-top: 6px;
+}
+.scan-carte-action-un {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--trait);
+}
+.scan-btn-save-un {
+  width: 100%;
+  min-height: 40px;
+  font-size: 13.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 

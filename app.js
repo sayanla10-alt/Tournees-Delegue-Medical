@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.14';
+  var APP_VERSION = '3.31.15';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.15', ['Vérifier la fiche du [date] : Nouveaux contacts placés au top, Modifications directement à la suite',
+                 'Suppression des bannières intermédiaires superflues et en-tête date/créneau ultra-compact',
+                 'Bouton individuel « Enregistrer ce contact » sur chaque fiche et comparaison du Nom BDD / Photo au clic dans le tableau']],
     ['3.31.14', ['Vérifier la fiche : colonnes simplifiées « Ancien » et « Nouveau », retrait des lignes planning et compte rendu du tableau',
                  'Rapprochement intelligent : « Modifier l\'ancien » pré-sélectionné par défaut pour les ressemblances',
                  'Gain d\'espace vertical maximal pour smartphone et libellé clair : « Où a eu lieu cette visite ? »']],
@@ -10285,8 +10288,13 @@
     } else {
       d = brouillonFiche(ent.choix);
       var nE = d.nom;
-      if (ent.nom && normaliser(ent.nom) !== normaliser(nE)) { if (P.nom) d.nom = ent.nom; ligne('nom', 'Nom', ent.nom, nE, 'different', 'remplacer'); }
-      else ligne('nom', 'Nom', ent.nom, nE, 'identique');
+      var nomLu = ent.nom ? nomPropre(ent.nom, estPh) : '';
+      if (nomLu && nE && (normaliser(nomLu) !== normaliser(nE) || nomLu.trim().toLowerCase() !== nE.trim().toLowerCase())) {
+        if (P.nom) d.nom = nomLu;
+        ligne('nom', 'Nom', nomLu, nE, 'different', 'remplacer');
+      } else {
+        ligne('nom', 'Nom', nomLu || ent.nom, nE, 'identique');
+      }
       if (!estPh) {
         var spE = specialiteCanonique(d.specialite || '');
         if (ent.specialite && !spE) { if (!R.specialite) d.specialite = ent.specialite; ligne('specialite', 'Spécialité', ent.specialite, '', 'ajout', 'refus'); }
@@ -10449,6 +10457,7 @@
   FEUILLES.ficheScanValider = function (f) {
     var x = scan(f.id); if (!x || !x.validation) return '<div class="vide"><strong>Fiche introuvable</strong></div>';
     var v = x.validation, h = '';
+    f.titre = 'Vérifier la fiche' + (v.date ? ' du ' + dateFr(v.date) : '');
     var plans = v.entites.map(function (ent) { return planScan(ent, v); });
 
     var doutes = [], enrichir = [], nouveaux = [], identiques = [], faits = [];
@@ -10464,45 +10473,51 @@
       else identiques.push(i);
     });
 
-    // En-tête : Date, créneau et bilan visuel direct
+    // En-tête : Date, créneau et bilan visuel compact sur une ligne
     h += '<section class="scan-tete-propre">' +
-      '<div class="scan-date-slot-grille">' +
-        '<label class="champ"><span>Date de visite' + (v.dateLue ? '' : ' (non lue)') + '</span><input type="date" data-f="scan" data-k="date" value="' + esc(v.date) + '"></label>' +
-        '<div class="champ"><span>Créneau</span><div class="segment" role="group">' +
-          '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button>' +
-          '<button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button>' +
-        '</div></div>' +
+      '<div class="scan-date-slot-compact">' +
+        '<div class="scan-date-slot-cell">' +
+          '<label class="scan-date-label"><span>Date</span>' +
+            '<input type="date" class="scan-date-inp" data-f="scan" data-k="date" value="' + esc(v.date) + '">' +
+          '</label>' +
+        '</div>' +
+        '<div class="scan-date-slot-cell scan-slot-cell">' +
+          '<span class="scan-slot-label">Créneau</span>' +
+          '<div class="segment scan-segment-mini" role="group">' +
+            '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button>' +
+            '<button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button>' +
+          '</div>' +
+        '</div>' +
+        (x.photo && x.photo.url ? '<a class="scan-photo-btn" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener" title="Voir photo">' + icone('photo') + '<span>Photo</span></a>' : '') +
       '</div>' +
       '<div class="scan-tete-bas">' +
         '<div class="scan-bilan-badges">' +
           '<span class="scan-pill-stat"><b>' + v.entites.length + '</b> lus</span>' +
           (nouveaux.length ? '<span class="scan-pill-stat neuf"><b>' + nouveaux.length + '</b> nouveau' + (nouveaux.length > 1 ? 'x' : '') + '</span>' : '') +
-          (enrichir.length ? '<span class="scan-pill-stat enrichir"><b>' + enrichir.length + '</b> à enrichir</span>' : '') +
+          (enrichir.length ? '<span class="scan-pill-stat enrichir"><b>' + enrichir.length + '</b> modification' + (enrichir.length > 1 ? 's' : '') + '</span>' : '') +
           (doutes.length ? '<span class="scan-pill-stat doute"><b>' + doutes.length + '</b> à trancher</span>' : '') +
           (identiques.length ? '<span class="scan-pill-stat"><b>' + identiques.length + '</b> à jour</span>' : '') +
         '</div>' +
-        (x.photo && x.photo.url ? '<a class="discret scan-photo" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">' + icone('photo') + 'Voir photo</a>' : '') +
       '</div>' +
     '</section>';
 
     if (!v.entites.length) return h + '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, bien à plat et éclairée.</div>';
 
-    // 1. Doutes & Homonymes (À trancher en priorité)
-    if (doutes.length) {
-      h += '<div class="scan-section-titre"><span>❓ Homonymes & Précisions</span><small>' + doutes.length + '</small></div>';
-      doutes.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, 'doute'); });
-    }
-
-    // 2. Mentions nouvelles sur contacts existants (Le coeur de l'enrichissement)
-    if (enrichir.length) {
-      h += '<div class="scan-section-titre"><span>⚡ Mentions à ajouter sur vos contacts</span><small>' + enrichir.length + '</small></div>';
-      enrichir.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, 'enrichir'); });
-    }
-
-    // 3. Nouveaux contacts détectés (Création de nouvelles fiches)
+    // 1. Nouveaux contacts détectés (au top en tout premier)
     if (nouveaux.length) {
       h += '<div class="scan-section-titre"><span>🆕 Nouveaux contacts à créer</span><small>' + nouveaux.length + '</small></div>';
       nouveaux.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, 'nouveau'); });
+    }
+
+    // 2. Modifications sur contacts existants (immédiatement sous les nouveaux, SANS bannière inutile)
+    if (enrichir.length) {
+      enrichir.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, 'enrichir'); });
+    }
+
+    // 3. Doutes & Homonymes (si présents)
+    if (doutes.length) {
+      h += '<div class="scan-section-titre"><span>❓ Homonymes & Précisions</span><small>' + doutes.length + '</small></div>';
+      doutes.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, 'doute'); });
     }
 
     // 4. Déjà dans la base · À jour (Bloc compact de chips, zéro encombrement)
@@ -10528,7 +10543,7 @@
       pied: '<div class="rangee">' +
         '<button class="bouton" type="button" data-a="fermerFeuille">Plus tard</button>' +
         '<button class="bouton bouton-plein" type="button" data-a="scanEnregistrer"' + (nbPrets ? '' : ' disabled') + '>' +
-          icone('valider') + 'Enregistrer (' + nbPrets + ')' +
+          icone('valider') + 'Tout enregistrer (' + nbPrets + ')' +
         '</button>' +
       '</div>'
     };
@@ -10553,7 +10568,7 @@
     var nomAffiche = esc(ent.nom ? nomPropre(ent.nom, estPh) : (ex ? ex.nom : 'Nom à lire'));
 
     // Indicateur de statut
-    var tagLib = etat === 'nouveau' ? 'Nouveau contact' : etat === 'enrichir' ? 'Mentions à ajouter' : 'À trancher';
+    var tagLib = etat === 'nouveau' ? 'Nouveau contact' : etat === 'enrichir' ? 'Modifications' : 'À trancher';
 
     var h = '<section class="scan-carte-but ' + etat + (ent.inclus ? '' : ' exclu') + (ouvert ? ' scan-carte-ouverte' : ' scan-carte-pliee') + '">';
 
@@ -10737,6 +10752,13 @@
           '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' +
         '</div>' +
         (estPh ? '' : '<label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"></label>') +
+      '</div>';
+
+      // 5. BOUTON ENREGISTRER CE CONTACT INDIVIDUELLEMENT
+      h += '<div class="scan-carte-action-un">' +
+        '<button type="button" class="bouton bouton-plein scan-btn-save-un" data-a="scanEnregistrerUn" data-i="' + i + '">' +
+          icone('valider') + 'Enregistrer ce contact' +
+        '</button>' +
       '</div>';
 
       h += '</div>'; // fin scan-corps-deplie
