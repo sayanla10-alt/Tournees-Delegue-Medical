@@ -117,7 +117,7 @@ var QUARTIERS_DEFAUT = [
   // Abobo (Zone Nord) - 4 secteurs
   ['Abobo – Nord & PK18', 'PK 18', 'Zone Nord', 5.455, -4.050],
   ['Abobo – Nord & PK18', 'N\'Dotré', 'Zone Nord', 5.475, -4.045],
-  ['Abobo – Nord & PK18', 'Anonkoua Kouté', 'Zone Nord', 5.445, -4.048],
+  ['Abobo – Nord & PK18', 'Anonkoua Kouté', 'Zone Nord', 5.435, -4.047],
   ['Abobo – Nord & PK18', 'Belle Ville', 'Zone Nord', 5.460, -4.040],
   ['Abobo – Nord & PK18', 'Biabou', 'Zone Nord', 5.435, -4.005],
   ['Abobo – Nord & PK18', 'Akeikoi', 'Zone Nord', 5.450, -4.015],
@@ -131,8 +131,8 @@ var QUARTIERS_DEFAUT = [
   ['Abobo – Centre & Mairie', 'Marché', 'Zone Nord', 5.417, -4.021],
   ['Abobo – Centre & Mairie', 'Gendarmerie', 'Zone Nord', 5.414, -4.015],
 
-  ['Abobo – Baoulé & Avocatier', 'Abobo Baoulé', 'Zone Nord', 5.440, -4.008],
-  ['Abobo – Baoulé & Avocatier', 'Avocatier', 'Zone Nord', 5.432, -4.035],
+  ['Abobo – Baoulé & Avocatier', 'Abobo Baoulé', 'Zone Nord', 5.431, -3.996],
+  ['Abobo – Baoulé & Avocatier', 'Avocatier', 'Zone Nord', 5.439, -4.024],
   ['Abobo – Baoulé & Avocatier', 'Clouetcha', 'Zone Nord', 5.425, -4.025],
   ['Abobo – Baoulé & Avocatier', 'Dépôt SOTRA', 'Zone Nord', 5.430, -4.030],
   ['Abobo – Baoulé & Avocatier', 'Abobo-Té', 'Zone Nord', 5.438, -4.012],

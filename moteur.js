@@ -42,6 +42,16 @@ var Moteur = (function () {
     var feries = {};
     (data.feries && data.feries.length ? data.feries : FERIES_DEFAUT).forEach(function (d) { feries[d] = true; });
     var parJour = [[], [], [], [], []], parCode = {}, presencesParCode = {};
+    var etabCoords = {};
+    (data.etablissements || []).forEach(function (e) {
+      var ke = cleNorm(e.nom || '') + '|' + cleNorm(e.commune || '');
+      var co = lireCoord(e);
+      if (ke && co) {
+        var refE = typeof trouverEtablissementRef === 'function' ? trouverEtablissementRef(e.nom) : null;
+        if (refE && isFinite(refE.lat) && distanceVol(co, refE) > 1.5) co = { lat: refE.lat, lon: refE.lon };
+        etabCoords[ke] = co;
+      }
+    });
     var idsVus = {};
     (data.presences || []).forEach(function (pr, i) {
       // 3.26.50 : identifiant en double (base corrigée à la main) : rendu unique, sinon deux lieux s'échangent à l'écran
@@ -54,6 +64,19 @@ var Moteur = (function () {
       var coord = lireCoord(pr);
       if (coord && typeof estCommuneInterieur === 'function' && estCommuneInterieur(pr.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(coord)) {
         coord = null;
+      }
+      // 3.31.36 : validation cartographique : si une table de référence vérifiée existe ou si le GPS diverge
+      // de > 3,5 km du quartier déclaré dans le Grand Abidjan, corriger la position aberrante
+      var refLieu = typeof trouverEtablissementRef === 'function' ? trouverEtablissementRef(pr.lieu) : null;
+      if (refLieu && isFinite(refLieu.lat)) {
+        if (!coord || distanceVol(coord, refLieu) > 1.5) coord = { lat: refLieu.lat, lon: refLieu.lon };
+      } else if (coord && q && isFinite(q.lat) && typeof estCommuneGrandAbidjan === 'function' && estCommuneGrandAbidjan(pr.commune)) {
+        if (distanceVol(coord, q) > 3.5) {
+          var ke = cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '');
+          var ce = etabCoords[ke];
+          if (ce && distanceVol(ce, q) <= 3.5) coord = { lat: ce.lat, lon: ce.lon };
+          else coord = { lat: q.lat, lon: q.lon, approx: true };
+        }
       }
       if (!coord) {
         coord = q ? { lat: q.lat, lon: q.lon, approx: true } : (typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(pr.commune) || centroideVilleInterieur(pr.quartier)) : null);
@@ -177,11 +200,10 @@ var Moteur = (function () {
     var a = it.a, cr = creneauDeItem(it);
     return cleNorm(a.lieu) ? cleNorm(a.lieu) + '|' + cleNorm(a.commune) + '|' + cr : 'u|' + (a.uid || a.code) + '|' + cr;
   }
-  function coutOrdre(route, depart) {
+  function coutOrdreBase(route, depart) {
     var s = simuler(route), km = 0, attente = 0, t = null, prev = depart;
     var vusEtab = {}, cleEtabPrev = null, coupesEtab = 0;
     var vusQCren = {}, cleQCrenPrev = null, coupesQuartierCren = 0;
-    var vusZCren = {}, cleZCrenPrev = null, coupesZoneCren = 0;
     var vusQJour = {}, cleQJourPrev = null, coupesQuartierJour = 0;
     route.forEach(function (it, i) {
       km += prev ? dist(prev, it) : 0;
@@ -196,16 +218,19 @@ var Moteur = (function () {
       vusQCren[kqc] = true; cleQCrenPrev = kqc;
       if (kq !== cleQJourPrev && vusQJour[kq]) coupesQuartierJour++;
       vusQJour[kq] = true; cleQJourPrev = kq;
-      var kzc = cleSecteurTournee(it) + '|' + cr;
-      if (kzc !== cleZCrenPrev && vusZCren[kzc]) coupesZoneCren++;
-      vusZCren[kzc] = true; cleZCrenPrev = kzc;
     });
-    // Priorité absolue : 0 retard (*1000) > 0 retour dans un établissement quitté (*80) >
-    // 0 aller-retour quartier (*35) et secteur (*25) dans la demi-journée > continuité inter-créneaux (*6) > km + attente
+    // Priorité absolue : 0 retard (*1000) > ne jamais scinder un établissement (*100) >
+    // finir un quartier réel avant d'en sortir (demi-journée *45, journée *12) > vraie distance routière (km) + attente
+    // (les grands secteurs administratifs ne priment pas sur la géométrie réelle des quartiers)
     return {
       retards: s.nbRetards,
-      cout: s.nbRetards * 1000 + coupesEtab * 80 + coupesQuartierCren * 35 + coupesZoneCren * 25 + coupesQuartierJour * 6 + km + attente / 60
+      cout: s.nbRetards * 1000 + coupesEtab * 100 + coupesQuartierCren * 45 + coupesQuartierJour * 12 + km + attente / 60
     };
+  }
+  function coutOrdre(route, depart) {
+    var c = coutOrdreBase(route, depart);
+    if (depart && route.length) c.cout += 0.2 * dist(route[route.length - 1], depart);
+    return c;
   }
   function ordonnerItems(items, depart) {
     if (items.length < 2) return items.slice();
@@ -233,8 +258,8 @@ var Moteur = (function () {
       (function permuter(reste, pris) {
         if (!reste.length) { evaluer(pris); return; }
         if (best && pris.length >= 2) {
-          var lb = coutOrdre(aplatir(pris), depart);
-          if (lb.cout >= best.c.cout - 1e-6) return;   // Branch & Bound : coût partiel déjà supérieur ou égal au meilleur
+          var lb = coutOrdreBase(aplatir(pris), depart);
+          if (lb.cout >= best.c.cout - 1e-6) return;   // Branch & Bound : borne inférieure admissible monotone
         }
         for (var i = 0; i < reste.length; i++) permuter(reste.slice(0, i).concat(reste.slice(i + 1)), pris.concat([reste[i]]));
       })(groupes, []);
@@ -303,7 +328,7 @@ var Moteur = (function () {
     its.sort(function (a, b) { return a.tot - b.tot || a.tard - b.tard; });
     var route = [], dep = depart ? { coord: depart } : null;
     its.forEach(function (it) { route = insererAuMieux(route, it, dep); });
-    return finaliser(meilleurOrdre(route, dep));
+    return finaliser(meilleurOrdre(route, dep), dep);
   }
 
   // 3.28.20 : regroupement : les médecins d'un même hôpital se suivent, et les hôpitaux d'un même quartier aussi,
@@ -329,24 +354,26 @@ var Moteur = (function () {
     return z || a.commune || a.quartier || '';
   }
   function cleSecteurTournee(it) { var k = cleNorm(nomSecteurTournee(it.a)); return k || cleQuartier(it); }
-  function regrouper(route) {
+  function regrouper(route, depart) {
     if (route.length < 3 || route.some(function (it) { return it.fixe; })) return route;   // visites déjà faites : ordre réel gardé
     var ref = simuler(route), finRef = ref.debuts.length ? Math.max.apply(null, ref.debuts) : 0;
+    var coutRef = coutOrdre(route, depart);
     function acceptable(r) {
       var s = simuler(r);
-      return s.nbRetards <= ref.nbRetards && (s.debuts.length ? Math.max.apply(null, s.debuts) : 0) <= finRef + 20;
+      if (s.nbRetards > ref.nbRetards || (s.debuts.length ? Math.max.apply(null, s.debuts) : 0) > finRef + 20) return false;
+      // Ne jamais dégrader l'itinéraire géographique optimisé par le TSP
+      return coutOrdre(r, depart).cout <= coutRef.cout + 0.5;
     }
     function grouperPar(r, cle) {   // ordre des groupes = ordre de leur première visite
       var ordre = [], par = {};
       r.forEach(function (it) { var k = cle(it); if (!par[k]) { par[k] = []; ordre.push(k); } par[k].push(it); });
       return ordre.reduce(function (l, k) { return l.concat(par[k]); }, []);
     }
-    // 1. d'un coup, si possible
-    var r0 = grouperPar(route, cleLieuSpec), r1 = grouperPar(r0, cleEtablissement), r2 = grouperPar(r1, cleQuartier), r3 = grouperPar(r2, cleSecteurTournee);
-    if (acceptable(r3)) return r3;
-    var r = acceptable(r2) ? r2 : (acceptable(r1) ? r1 : (acceptable(r0) ? r0 : route.slice()));
-    // 2. sinon, visite par visite : rapprochée de la dernière visite du même hôpital (puis du même quartier) si l'horaire le permet
-    [cleLieuSpec, cleEtablissement, cleQuartier, cleSecteurTournee].forEach(function (cle) {
+    // 1. d'un coup, si possible (même spécialité dans un même établissement sans détour ni retard)
+    var r0 = grouperPar(route, cleLieuSpec), r1 = grouperPar(r0, cleEtablissement);
+    var r = acceptable(r1) ? r1 : (acceptable(r0) ? r0 : route.slice());
+    // 2. sinon, visite par visite : rapprochée de la dernière visite du même hôpital si cela ne rallonge pas la tournée
+    [cleLieuSpec, cleEtablissement].forEach(function (cle) {
       for (var passe = 0; passe < 2; passe++) {
         for (var i = 1; i < r.length; i++) {
           var k = cle(r[i]);
@@ -363,8 +390,8 @@ var Moteur = (function () {
     return r;
   }
 
-  function finaliser(route) {
-    route = regrouper(route);
+  function finaliser(route, depart) {
+    route = regrouper(route, depart);
     var s = simuler(route);
     return route.map(function (it, i) {
       var a = it.a;
@@ -434,7 +461,7 @@ var Moteur = (function () {
     var route = [];
     (o.fixes || []).slice().sort(function (a, b) { return item(a).tot - item(b).tot; })
       .forEach(function (a) { route = insererAuMieux(route, item(a), depart); });
-    if (j > 4 || (ctx.feries && ctx.feries[date])) return finaliser(route);
+    if (j > 4 || (ctx.feries && ctx.feries[date])) return finaliser(route, depart);
 
     var creneaux = candidatsJour(ctx, date, o, utilises);
     var cands = creneaux.map(function (c) {
@@ -505,7 +532,7 @@ var Moteur = (function () {
     if (route.length < cibleJour) passe(true);
     route = equilibrerCreneaux(meilleurOrdre(route, depart), cands, depart, targetMatin, targetSoir);
     route.forEach(function (it) { utilises[it.a.code] = true; });
-    return finaliser(route);
+    return finaliser(route, depart);
   }
 
   // ------------------------------------------------------------------ Planning d'une période
