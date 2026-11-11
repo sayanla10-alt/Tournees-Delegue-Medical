@@ -150,21 +150,31 @@ function agentReconciliationBdd_(lecture) {
           if (bestW >= 0.80) nbMotsMatchs++;
         });
 
+        // Règle du bon sens métier : même spé + prénom fort + racine patronyme commune (>= 3 lettres)
+        var racineCommune = motsLus.some(function (w) {
+          if (w.length < 3) return false;
+          var r = w.slice(0, 3);
+          return pMots.some(function (pw) { return pw.indexOf(r) === 0; });
+        });
+        var trioMetier = memeSpe && (maxSim >= 0.78 || nbMotsMatchs >= 1) && racineCommune;
+
         var score = 0;
         if (memeTel) score += 50;
         if (fuzzy >= 0.90) score += 65;
         else if (fuzzy >= 0.80) score += 45;
         else if (fuzzy >= 0.65) score += 25;
         if (nbMotsMatchs >= 2) score += 35; // Patronyme + Prénom reconnus même si le prénom traditionnel intermédiaire n'était pas sur le cachet
+        if (trioMetier) score += 40; // Trio métier décisif (ex: Koua... + Rosine/Prosine + Gynécologie)
         if (memeSpe) score += 30;
 
         if (score > meilleurScore && score >= 45) {
           meilleurScore = score;
           meilleurPrat = p;
           var details = [];
-          if (fuzzy >= 0.90 || nbMotsMatchs >= 2) details.push('nom/prénom identifié en base (' + p.nom + ')');
+          if (trioMetier) details.push('concordance métier (' + p.nom + ' · même spécialité)');
+          else if (fuzzy >= 0.90 || nbMotsMatchs >= 2) details.push('nom/prénom identifié en base (' + p.nom + ')');
           else if (maxSim >= 0.75) details.push('nom approchant (' + motMatch + ')');
-          if (memeSpe) details.push('même spécialité (' + p.specialite + ')');
+          if (memeSpe && !trioMetier) details.push('même spécialité (' + p.specialite + ')');
           if (memeTel) details.push('même tél');
           meilleureRaison = details.join(' · ') || 'concordance base';
         }

@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.24';
+  var APP_VERSION = '3.31.25';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -9737,12 +9737,22 @@
       var speP = p.specialite ? specialiteCanonique(p.specialite) : '';
       var memeSpe = !!(speD && speP && speD === speP);
 
+      // Règle du bon sens métier (Trio : Même spécialité + Prénom commun ou approchant + Même racine de patronyme >= 3 lettres)
+      // Ex: "Kouadio Prosine" vs "Dr Kouabenan Affoua Rosine" en Gynécologie
+      var memeRacineNom = mots.some(function (w) {
+        if (w.length < 3) return false;
+        var r = w.slice(0, 3);
+        return pMots.some(function (pw) { return pw.indexOf(r) === 0; });
+      });
+      var trioMetier = memeSpe && (maxSimMot >= 0.78 || communs >= 1) && memeRacineNom;
+      if (trioMetier) exact = true;
+
       var pres = c.presencesParCode[p.code] || [];
       var memeLieu = !estPh && lieuxD.length ? pres.filter(function (x) { return lieuxD.some(function (l) { return memeEtablissement(l, x.lieu); }); })[0] : null;
 
       // Concordance contextuelle : prénom/mot très proche (>= 0.78 ex: Prosine vs Rosine) + même spé ou même hôpital
       var motCleForte = maxSimMot >= 0.78;
-      var concordanceContextuelle = (motCleForte && (memeSpe || !!memeLieu)) || (maxSimMot >= 0.84 && (communs >= 1 || fuzzy >= 0.50));
+      var concordanceContextuelle = trioMetier || (motCleForte && (memeSpe || !!memeLieu)) || (maxSimMot >= 0.84 && (communs >= 1 || fuzzy >= 0.50));
 
       var proche = !exact && (fuzzy >= 0.55 || debut || communs >= 2 || (tape.length >= 4 && pMots.join('').indexOf(tape) >= 0) || concordanceContextuelle);
       if (!exact && !memeTel && !proche) return;
