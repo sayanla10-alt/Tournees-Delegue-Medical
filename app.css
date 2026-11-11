@@ -3883,75 +3883,384 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 :root:not([data-theme="clair"]) .arret.ancien.fait .arret-carte, :root:not([data-theme="clair"]) .arret.ancien.fait-attente .arret-carte { background: var(--ambre-pale); border-color: var(--ambre-trait); }
 .etiquette.ambre { color: var(--ambre); background: var(--papier); border-color: var(--ambre-trait); }
 
-/* 3.30.0 : fiches de visite photographiées */
-.scan-ent { margin-top: 10px; }
-.scan-ent.scan-exclu > :not(.case) { opacity: .45; }
-.scan-changes { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--gris); }
-.scan-changes li { margin: 2px 0; }
-.case.petite { display: inline-flex; gap: 4px; font-size: 12px; margin-left: 6px; }
-.bandeau-scans { width: 100%; text-align: left; cursor: pointer; margin: 8px 0 0; }
+/* =============================================================================
+   3.31.7 : Vérifier la fiche - Refonte UI/UX ergonomique à une main, gain d'espace, zéro débordement
+   ============================================================================= */
+.scan-ent {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.scan-ent.scan-exclu > :not(.scan-ligne1) { opacity: .4; }
+.scan-ent.scan-exclu { opacity: .6; }
+.scan-ent.scan-erreur { border-color: var(--ambre-trait); background: var(--fond-alerte, var(--surface)); }
+.scan-ent.scan-enrichir { border-left: 3px solid var(--primaire); }
+.scan-ent.scan-nouveau { border-left: 3px solid #2D7FF9; }
+.scan-ent.scan-identique { border-left: 3px solid var(--vert); background: var(--surface); }
 
-/* 3.31.0 : Ajouter : bouton Fiche sous le choix Médecin, Pharmacie, Hôpital, sur toute la largeur, même hauteur */
-.bouton.bouton-fiche-scan { display: flex; width: 100%; min-height: 38px; height: auto; padding: 4px 8px; margin: 6px 0 0; justify-content: center; align-items: center; gap: 6px; }
-.bouton.bouton-fiche-scan svg { width: 16px; height: 16px; }
-.scan-lu { margin: 4px 0 6px; font-size: 12px; line-height: 1.35; }
-
-/* 3.31.3 : Vérifier la fiche */
-.scan-tete .case { margin-top: 6px; }
-.scan-photo { display: flex; width: fit-content; align-items: center; gap: 4px; margin-top: 6px; font-size: 13px; }
+/* En-tête de fiche & résumé */
+.scan-tete .champ { margin-bottom: 0; }
+.scan-photo { display: inline-flex; width: fit-content; align-items: center; gap: 5px; margin-top: 8px; font-size: 13px; color: var(--primaire); font-weight: 500; }
 .scan-photo svg { width: 14px; height: 14px; }
-.scan-resume { margin: 12px 2px 0; font-size: 14px; }
-.scan-groupe { margin-top: 14px; }
-.scan-ent { margin-top: 8px; padding: 10px 12px; }
-.scan-ligne1 { display: flex; align-items: flex-start; gap: 10px; }
-.scan-case { flex: none; margin: 2px 0 0; }
-.scan-case input { width: 20px; height: 20px; }
-.scan-nom { flex: 1 1 auto; min-width: 0; }
-.scan-nom b { overflow-wrap: anywhere; }
-.scan-nom small { display: block; color: var(--gris); font-size: 12.5px; line-height: 1.35; margin-top: 2px; overflow-wrap: anywhere; }
-.scan-nom small.scan-base { color: var(--primaire); display: flex; align-items: center; gap: 4px; }
-.scan-nom small.scan-base svg { width: 13px; height: 13px; flex: none; }
-.scan-ligne1 .bouton.petit { flex: none; }
-.scan-err { margin: 6px 0 0 30px; }
-.scan-ent .scan-changes { margin: 6px 0 0 30px; padding-left: 14px; }
-.scan-detail { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--trait); }
-.scan-rempl { display: flex; margin: 6px 0 0; }
-.scan-erreur { border-color: var(--ambre-trait); }
-.scan-exclu { opacity: .55; }
-.scan-nom .nowrap { white-space: nowrap; }
 
-/* 3.31.4 : Vérifier la fiche : comparaison fiche / base et programme */
-.scan-nom .etiquettes { margin-top: 4px; }
-.scan-question { margin: 8px 0 0 30px; padding: 8px 10px; border: 1px solid var(--ambre-trait); border-radius: 10px; background: var(--ambre-pale); }
-.scan-question p { margin: 0 0 6px; }
-.scan-question small { display: block; color: var(--gris); font-size: 12.5px; margin-top: 2px; }
-.scan-cmp { width: calc(100% - 30px); margin: 8px 0 0 30px; border-collapse: collapse; font-size: 13px; }
-.scan-cmp th, .scan-cmp td { text-align: left; vertical-align: top; padding: 4px 6px; border-top: 1px solid var(--trait); overflow-wrap: anywhere; }
-.scan-cmp thead th { border-top: 0; color: var(--gris); font-weight: 600; font-size: 12px; padding-top: 0; }
-.scan-cmp tbody th { width: 30%; font-weight: 600; }
-.scan-cmp tbody th small { display: block; font-weight: 400; font-size: 11.5px; color: var(--gris); }
-.scan-cmp tr.diff th small { color: var(--ambre); }
-.scan-cmp tr.ajout th small { color: var(--vert); }
-.scan-cmp .case.petite { display: flex; margin: 4px 0 0; }
-.scan-idem { margin: 6px 0 0 30px; font-size: 12.5px; }
-.scan-prog { margin: 8px 0 0 30px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
-.scan-sem { display: flex; gap: 4px; }
+/* Bandeau résumé compact à badges */
+.scan-resume-barre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+.scan-badge-total {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--texte);
+  margin-right: 2px;
+}
+.scan-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 12px;
+  line-height: 1.3;
+}
+.scan-badge-erreur { background: var(--ambre-pale); color: var(--ambre); border: 1px solid var(--ambre-trait); }
+.scan-badge-enrichir { background: var(--vert-pale, #E8F5E9); color: var(--vert); border: 1px solid var(--vert-trait, #C8E6C9); }
+.scan-badge-nouveau { background: #EBF3FD; color: #1976D2; border: 1px solid var(--trait); }
+.scan-badge-identique { background: var(--fond-champ, #F0F4F4); color: var(--gris); border: 1px solid var(--trait); }
+.scan-badge-fait { background: var(--vert-pale, #E8F5E9); color: var(--vert); font-weight: 700; }
+
+/* Titre de groupe de contacts */
+.scan-groupe-titre {
+  margin: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primaire);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.scan-groupe-titre small {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--gris);
+}
+
+/* Ligne principale du contact */
+.scan-ligne1 {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+.scan-case {
+  flex: none;
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  cursor: pointer;
+}
+.scan-case input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--primaire);
+  cursor: pointer;
+}
+.scan-nom {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-nom-titre {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.scan-nom-titre b {
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--texte);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-nom-sub {
+  font-size: 12.5px;
+  color: var(--gris);
+  margin-top: 2px;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-ligne1 .bouton.petit {
+  flex: none;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Question Homonyme / Doute - Confort une main */
+.scan-question {
+  margin: 8px 0 0;
+  padding: 10px;
+  border: 1px solid var(--ambre-trait);
+  border-radius: 8px;
+  background: var(--ambre-pale);
+  width: 100%;
+  box-sizing: border-box;
+}
+.scan-q-titre {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--texte);
+  margin-bottom: 2px;
+}
+.scan-q-desc {
+  font-size: 12px;
+  color: var(--gris);
+  margin-bottom: 8px;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-q-boutons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+.scan-btn-oui {
+  background: var(--primaire) !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  font-weight: 600;
+  min-height: 40px;
+}
+.scan-btn-non {
+  background: var(--surface) !important;
+  color: var(--texte) !important;
+  border: 1px solid var(--trait) !important;
+  font-weight: 600;
+  min-height: 40px;
+}
+
+/* Ligne ultra-compacte pour contact déjà dans la base et à jour */
+.scan-identique-ligne {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--vert);
+  font-weight: 500;
+}
+.scan-identique-ligne svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+/* Nouveau contact : affichage propre sans table */
+.scan-nouveau-carte {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--fond-champ, #F7FAFA);
+  border-radius: 8px;
+  border: 1px solid var(--trait);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.scan-nouveau-ligne {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-nouveau-ligne .lbl {
+  color: var(--gris);
+  font-size: 11.5px;
+  flex: none;
+  width: 80px;
+}
+.scan-nouveau-ligne b {
+  font-weight: 600;
+  color: var(--texte);
+  text-align: right;
+  flex: 1 1 auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Mentions à ajouter / Différences (remplace table.scan-cmp) */
+.scan-mentions-titre {
+  margin: 8px 0 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gris);
+  letter-spacing: 0.3px;
+}
+.scan-mentions-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.scan-mention-carte {
+  border-radius: 8px;
+  border: 1px solid var(--trait);
+  background: var(--surface);
+  transition: opacity .15s;
+  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+.scan-mention-carte.refuse {
+  opacity: .5;
+  background: var(--fond-champ, #F7FAFA);
+}
+.scan-mention-carte.refuse .scan-mention-val-ajout,
+.scan-mention-carte.refuse .scan-mention-val-diff {
+  text-decoration: line-through;
+}
+.scan-mention-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px; /* Zone tactile optimale au pouce */
+}
+.scan-mention-label input.scan-ok {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-top: 2px;
+  accent-color: var(--primaire);
+}
+.scan-mention-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-mention-entete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+.scan-mention-entete b {
+  font-size: 13px;
+  color: var(--texte);
+}
+.scan-mention-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+.scan-mention-ajout .scan-mention-badge {
+  background: var(--vert-pale, #E8F5E9);
+  color: var(--vert);
+}
+.scan-mention-diff .scan-mention-badge {
+  background: var(--ambre-pale);
+  color: var(--ambre);
+}
+.scan-mention-val-ajout {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vert);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-mention-val-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-mention-val-diff .val-fiche {
+  color: var(--texte);
+  font-weight: 600;
+}
+.scan-mention-val-diff .val-base {
+  color: var(--gris);
+  font-size: 11.5px;
+}
+.scan-mention-val-diff small {
+  font-weight: 400;
+  color: var(--gris);
+  margin-right: 4px;
+}
+
+/* Pied de carte individuel */
+.scan-pied-ent {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--trait);
+}
+.scan-btn-save-un {
+  min-height: 38px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.scan-fait-ligne {
+  margin-top: 6px;
+  color: var(--vert);
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.scan-fait-ligne svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Semainier compact */
+.scan-sem { display: flex; gap: 4px; margin-top: 4px; }
 .scan-j { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; width: 24px; padding: 2px 0; border-radius: 6px; border: 1px solid var(--trait); }
-.scan-j.jour-fiche { border-color: var(--primaire); }
+.scan-j.jour-fiche { border-color: var(--primaire); background: rgba(10,108,116,0.08); }
 .scan-j b { font-size: 11px; }
 .scan-j i { display: block; width: 14px; height: 5px; border-radius: 3px; background: var(--trait); }
-.scan-j i.on { background: var(--primaire); opacity: .55; }
+.scan-j i.on { background: var(--primaire); opacity: .65; }
 .scan-j i.neuf { background: var(--vert); }
-.scan-ent .scan-changes { margin-top: 6px; }
-.scan-cmp tr.tel td { white-space: nowrap; overflow-wrap: normal; font-size: 12px; }
 
-/* 3.31.5 : changements validés un par un, enregistrement par contact */
-.scan-titre-chg { margin: 10px 0 0 30px; font-size: 12px; }
-.scan-cmp th label { display: flex; align-items: flex-start; gap: 6px; }
-.scan-cmp input.scan-ok { width: 18px; height: 18px; flex: none; margin: 0; }
-.scan-cmp tr.refuse td { text-decoration: line-through; color: var(--gris); }
-.scan-cmp .scan-sem { margin-top: 4px; }
-.scan-pied-ent { display: flex; justify-content: flex-end; margin-top: 10px; }
-.scan-fait { margin: 6px 0 0 30px; color: var(--vert); font-weight: 600; display: flex; align-items: center; gap: 6px; }
-.scan-fait svg { width: 16px; height: 16px; }
-.scan-cmp tbody th { width: 34%; overflow-wrap: normal; word-break: normal; hyphens: none; }
+.scan-changes { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; color: var(--gris); }
+.scan-changes li { margin: 2px 0; }
+.scan-idem { margin-top: 6px; font-size: 12px; color: var(--gris); }
+.scan-detail { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--trait); }
+.scan-err { margin-top: 6px; }
