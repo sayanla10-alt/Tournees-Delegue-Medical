@@ -160,7 +160,7 @@ function deployerFormulesTerritoireSilencieux() {
 }
 
 // Écrit une colonne mixte (formules '=...' via setFormulas pour la traduction locale auto, valeurs texte via setValues)
-function ecrireColonneMixte_(sh, col1Based, matrix, origVals) {
+function ecrireColonneMixte_(sh, col1Based, matrix, origVals, viaVal) {
   if (!matrix || !matrix.length) return;
   var n = matrix.length, i = 0;
   while (i < n) {
@@ -175,7 +175,9 @@ function ecrireColonneMixte_(sh, col1Based, matrix, origVals) {
     }
     var len = j - i;
     if (estF) {
-      sh.getRange(2 + i, col1Based, len, 1).setFormulas(matrix.slice(i, j));
+      var rng = sh.getRange(2 + i, col1Based, len, 1);
+      if (viaVal === 'value') rng.setValues(matrix.slice(i, j));
+      else rng.setFormulas(matrix.slice(i, j));
     } else if (origVals) {
       var change = false;
       for (var k = i; k < j; k++) {
@@ -1000,12 +1002,94 @@ function escChaineFormule_(v) {
   return '"' + chapTxtFormule_(v).replace(/"/g, '""').replace(/[\r\n]+/g, ' ') + '"';
 }
 
+function traduireFormuleLocale_(expr, fmt) {
+  if (!expr || !fmt) return expr;
+  var out = '', i = 0, inQ = false;
+  while (i < expr.length) {
+    var ch = expr.charAt(i);
+    if (ch === '"') {
+      out += ch;
+      if (inQ && i + 1 < expr.length && expr.charAt(i + 1) === '"') { out += '"'; i += 2; continue; }
+      inQ = !inQ; i++; continue;
+    }
+    if (!inQ && ch === ',' && fmt.sep === ';') { out += ';'; i++; continue; }
+    out += ch; i++;
+  }
+  if (fmt.frFns) {
+    var fns = { IFERROR: 'SIERREUR', IF: 'SI', TRIM: 'SUPPRESPACE', MATCH: 'EQUIV', FILTER: fmt.filterFn || 'FILTER' };
+    var res = '', k = 0, q = false;
+    while (k < out.length) {
+      var c2 = out.charAt(k);
+      if (c2 === '"') {
+        res += c2;
+        if (q && k + 1 < out.length && out.charAt(k + 1) === '"') { res += '"'; k += 2; continue; }
+        q = !q; k++; continue;
+      }
+      if (!q && /[A-Z]/.test(c2)) {
+        var m = out.slice(k).match(/^(IFERROR|IF|TRIM|MATCH|FILTER)(?=\()/);
+        if (m && (k === 0 || !/[A-Z0-9_]/i.test(out.charAt(k - 1)))) {
+          res += fns[m[1]]; k += m[1].length; continue;
+        }
+      }
+      res += c2; k++;
+    }
+    out = res;
+  }
+  return out;
+}
+
+function detecterFormatFormule_(ss, metaQ) {
+  var def = { sep: ',', frFns: false, filterFn: 'FILTER', via: 'formula' };
+  try {
+    var shQ = ss.getSheetByName(FEUILLES.quartiers);
+    if (!shQ || shQ.getLastRow() < 2) return def;
+    var rTest = shQ.getRange(2, 1, 1, 1).getValue();
+    var valTest = chapTxtFormule_(rTest);
+    if (!valTest) return def;
+    var fRef = metaQ.feuilleRef || nomFeuilleFormule_(FEUILLES.quartiers);
+    var cTer = metaQ.cTer || 'A';
+    var rng = fRef + '!$' + cTer + '$2:$' + cTer;
+    var probeUS = '=IF(TRIM("x")="","",IFERROR(INDEX(FILTER(' + rng + ',' + rng + '=' + escChaineFormule_(valTest) + '),1),IFERROR(INDEX(' + rng + ',MATCH(' + escChaineFormule_(valTest) + ',' + rng + ',0)),"ERR")))';
+    var cSpare = Math.max(shQ.getLastColumn() + 2, 12);
+    var cell = shQ.getRange(1, cSpare);
+    var estFr = /^fr/i.test(String(ss.getSpreadsheetLocale ? ss.getSpreadsheetLocale() : ''));
+    var candidats = estFr ? [
+      { sep: ';', frFns: false, filterFn: 'FILTER', via: 'formula' },
+      { sep: ';', frFns: false, filterFn: 'FILTER', via: 'value' },
+      { sep: ';', frFns: true,  filterFn: 'FILTER', via: 'value' },
+      { sep: ';', frFns: true,  filterFn: 'FILTRE', via: 'value' },
+      { sep: ';', frFns: true,  filterFn: 'FILTER', via: 'formula' },
+      { sep: ';', frFns: true,  filterFn: 'FILTRE', via: 'formula' },
+      { sep: ',', frFns: false, filterFn: 'FILTER', via: 'formula' }
+    ] : [
+      { sep: ',', frFns: false, filterFn: 'FILTER', via: 'formula' },
+      { sep: ';', frFns: false, filterFn: 'FILTER', via: 'formula' },
+      { sep: ';', frFns: true,  filterFn: 'FILTER', via: 'value' }
+    ];
+    try {
+      for (var i = 0; i < candidats.length; i++) {
+        var cand = candidats[i];
+        try {
+          var f = traduireFormuleLocale_(probeUS, cand);
+          if (cand.via === 'value') cell.setValue(f); else cell.setFormula(f);
+          SpreadsheetApp.flush();
+          var d = String(cell.getDisplayValue() || '').trim();
+          if (d && d.charAt(0) !== '#' && d !== 'ERR') return cand;
+        } catch (eCand) {}
+      }
+    } finally {
+      try { cell.clearContent(); } catch (eCl) {}
+    }
+  } catch (eDet) {}
+  return def;
+}
+
 // Lit la structure de l'onglet Quartiers et ses ensembles de clés pour construire des formules dynamiques sans référence circulaire
 function metaQuartiersFormules_(ss) {
   ss = ss || SpreadsheetApp.getActive();
   var shQ = ss.getSheetByName(FEUILLES.quartiers);
   var fRef = nomFeuilleFormule_(FEUILLES.quartiers);
-  var meta = { feuilleRef: fRef, cTer: 'A', cZ: 'B', cCom: 'C', cSub: 'D', cQ: 'E', cSec: 'F', secteurs: {} };
+  var meta = { feuilleRef: fRef, cTer: 'A', cZ: 'B', cCom: 'C', cSub: 'D', cQ: 'E', cSec: 'F', secteurs: {}, fmt: null };
   if (!shQ || shQ.getLastColumn() < 1) return meta;
   var nc = shQ.getLastColumn();
   var ent = shQ.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
@@ -1032,6 +1116,7 @@ function metaQuartiersFormules_(ss) {
       });
     }
   }
+  meta.fmt = detecterFormatFormule_(ss, meta);
   return meta;
 }
 
@@ -1047,10 +1132,11 @@ function formulesLigneTerritoire_(rowNum, vals, refsDest, metaQ) {
   };
   var out = { modeSecteur: estModeSecteur };
 
+  var tr = function (expr) { return metaQ.fmt ? traduireFormuleLocale_(expr, metaQ.fmt) : expr; };
   if (estModeSecteur) {
     var sRef = '$' + refsDest.letSec + rowNum;
     var mkSec = function (colLet, fb) {
-      return '=IF(TRIM(' + sRef + ')="","",IFERROR(' + matchSec(colLet, sRef) + ',' + escChaineFormule_(fb) + '))';
+      return tr('=IF(TRIM(' + sRef + ')="","",IFERROR(' + matchSec(colLet, sRef) + ',' + escChaineFormule_(fb) + '))');
     };
     out.territoire = mkSec(metaQ.cTer, vals.territoire);
     out.zone = mkSec(metaQ.cZ, vals.zone);
@@ -1093,9 +1179,9 @@ function formulesLigneTerritoire_(rowNum, vals, refsDest, metaQ) {
     return '=IF(' + guardBase + ',"",' + exprComQ + ')';
   };
 
-  out.subdivision = wrapComQ(metaQ.cSub, vals.subdivision, false);
-  out.zone = wrapComQ(metaQ.cZ, vals.zone, true);
-  out.territoire = wrapComQ(metaQ.cTer, vals.territoire, true);
+  out.subdivision = tr(wrapComQ(metaQ.cSub, vals.subdivision, false));
+  out.zone = tr(wrapComQ(metaQ.cZ, vals.zone, true));
+  out.territoire = tr(wrapComQ(metaQ.cTer, vals.territoire, true));
   return out;
 }
 
@@ -1193,10 +1279,13 @@ function deployerFormulesTerritoire_(ss, nomsFeuilles, rowNumsOpt) {
       bilan.total++;
     });
 
+    var viaFmt = (metaQ.fmt && metaQ.fmt.via) || 'formula';
     if (Array.isArray(rowNumsOpt) && rowNumsOpt.length) {
       var ecrireCell = function (rn, col1, val) {
-        if (typeof val === 'string' && val.charAt(0) === '=') sh.getRange(rn, col1).setFormula(val);
-        else sh.getRange(rn, col1).setValue(val);
+        if (typeof val === 'string' && val.charAt(0) === '=') {
+          if (viaFmt === 'value') sh.getRange(rn, col1).setValue(val);
+          else sh.getRange(rn, col1).setFormula(val);
+        } else sh.getRange(rn, col1).setValue(val);
       };
       indicesRows.forEach(function (i) {
         var rn = i + 2;
@@ -1209,12 +1298,12 @@ function deployerFormulesTerritoire_(ss, nomsFeuilles, rowNumsOpt) {
       });
     } else {
       var origCol = function (cIdx) { return cIdx >= 0 ? data.map(function (r) { return r[cIdx]; }) : null; };
-      if (colSec && cSec >= 0) ecrireColonneMixte_(sh, cSec + 1, colSec, origCol(cSec));
-      if (colCom && cCom >= 0) ecrireColonneMixte_(sh, cCom + 1, colCom, origCol(cCom));
-      if (colQ && cQ >= 0) ecrireColonneMixte_(sh, cQ + 1, colQ, origCol(cQ));
-      if (colSub && cSub >= 0) ecrireColonneMixte_(sh, cSub + 1, colSub, origCol(cSub));
-      if (colZ && cZ >= 0) ecrireColonneMixte_(sh, cZ + 1, colZ, origCol(cZ));
-      if (colTer && cTer >= 0) ecrireColonneMixte_(sh, cTer + 1, colTer, origCol(cTer));
+      if (colSec && cSec >= 0) ecrireColonneMixte_(sh, cSec + 1, colSec, origCol(cSec), viaFmt);
+      if (colCom && cCom >= 0) ecrireColonneMixte_(sh, cCom + 1, colCom, origCol(cCom), viaFmt);
+      if (colQ && cQ >= 0) ecrireColonneMixte_(sh, cQ + 1, colQ, origCol(cQ), viaFmt);
+      if (colSub && cSub >= 0) ecrireColonneMixte_(sh, cSub + 1, colSub, origCol(cSub), viaFmt);
+      if (colZ && cZ >= 0) ecrireColonneMixte_(sh, cZ + 1, colZ, origCol(cZ), viaFmt);
+      if (colTer && cTer >= 0) ecrireColonneMixte_(sh, cTer + 1, colTer, origCol(cTer), viaFmt);
     }
   });
 
