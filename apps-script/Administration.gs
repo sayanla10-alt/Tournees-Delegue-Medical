@@ -138,8 +138,55 @@ function deployerFormulesTerritoireSilencieux() {
   var ss = SpreadsheetApp.getActive();
   var bilan = deployerFormulesTerritoire_(ss);
   SpreadsheetApp.flush();
-  Logger.log('Formules Territoires : ' + JSON.stringify(bilan));
-  return bilan;
+  var verif = {};
+  [FEUILLES.presences, FEUILLES.pharmacies, FEUILLES.etablissements].forEach(function (nomF) {
+    var sh = ss.getSheetByName(nomF);
+    if (!sh || sh.getLastRow() < 2 || sh.getLastColumn() < 1) return;
+    var nc = sh.getLastColumn(), n = sh.getLastRow() - 1;
+    var disp = sh.getRange(2, 1, n, nc).getDisplayValues();
+    var errs = 0, ex = '';
+    for (var i = 0; i < disp.length; i++) {
+      for (var j = 0; j < disp[i].length; j++) {
+        if (/^#(ERROR|N\/A|REF!|VALUE!|NAME\?|DIV\/0!|NUM!)/i.test(String(disp[i][j] || '').trim())) {
+          errs++;
+          if (!ex) ex = 'R' + (i + 2) + 'C' + (j + 1) + '=' + disp[i][j];
+        }
+      }
+    }
+    verif[nomF] = { erreurs: errs, exempleErr: ex, ligne2: disp[0].slice(0, 10) };
+  });
+  Logger.log('Formules Territoires (' + ss.getSpreadsheetLocale() + ') : ' + JSON.stringify(bilan) + ' | Verif: ' + JSON.stringify(verif));
+  return { bilan: bilan, verif: verif };
+}
+
+// Écrit une colonne mixte (formules '=...' via setFormulas pour la traduction locale auto, valeurs texte via setValues)
+function ecrireColonneMixte_(sh, col1Based, matrix, origVals) {
+  if (!matrix || !matrix.length) return;
+  var n = matrix.length, i = 0;
+  while (i < n) {
+    var v = matrix[i][0];
+    var estF = typeof v === 'string' && v.charAt(0) === '=';
+    var j = i + 1;
+    while (j < n) {
+      var vj = matrix[j][0];
+      var estFj = typeof vj === 'string' && vj.charAt(0) === '=';
+      if (estFj !== estF) break;
+      j++;
+    }
+    var len = j - i;
+    if (estF) {
+      sh.getRange(2 + i, col1Based, len, 1).setFormulas(matrix.slice(i, j));
+    } else if (origVals) {
+      var change = false;
+      for (var k = i; k < j; k++) {
+        if (String(matrix[k][0] === undefined || matrix[k][0] === null ? '' : matrix[k][0]) !== String(origVals[k] === undefined || origVals[k] === null ? '' : origVals[k])) {
+          change = true; break;
+        }
+      }
+      if (change) sh.getRange(2 + i, col1Based, len, 1).setValues(matrix.slice(i, j));
+    }
+    i = j;
+  }
 }
 
 function propagerQuartiersManuellement() {
@@ -1147,22 +1194,27 @@ function deployerFormulesTerritoire_(ss, nomsFeuilles, rowNumsOpt) {
     });
 
     if (Array.isArray(rowNumsOpt) && rowNumsOpt.length) {
+      var ecrireCell = function (rn, col1, val) {
+        if (typeof val === 'string' && val.charAt(0) === '=') sh.getRange(rn, col1).setFormula(val);
+        else sh.getRange(rn, col1).setValue(val);
+      };
       indicesRows.forEach(function (i) {
         var rn = i + 2;
-        if (cSec >= 0 && colSec) sh.getRange(rn, cSec + 1).setValue(colSec[i][0]);
-        if (cCom >= 0 && colCom) sh.getRange(rn, cCom + 1).setValue(colCom[i][0]);
-        if (cQ >= 0 && colQ) sh.getRange(rn, cQ + 1).setValue(colQ[i][0]);
-        if (cSub >= 0 && colSub) sh.getRange(rn, cSub + 1).setValue(colSub[i][0]);
-        if (cZ >= 0 && colZ) sh.getRange(rn, cZ + 1).setValue(colZ[i][0]);
-        if (cTer >= 0 && colTer) sh.getRange(rn, cTer + 1).setValue(colTer[i][0]);
+        if (cSec >= 0 && colSec) ecrireCell(rn, cSec + 1, colSec[i][0]);
+        if (cCom >= 0 && colCom) ecrireCell(rn, cCom + 1, colCom[i][0]);
+        if (cQ >= 0 && colQ) ecrireCell(rn, cQ + 1, colQ[i][0]);
+        if (cSub >= 0 && colSub) ecrireCell(rn, cSub + 1, colSub[i][0]);
+        if (cZ >= 0 && colZ) ecrireCell(rn, cZ + 1, colZ[i][0]);
+        if (cTer >= 0 && colTer) ecrireCell(rn, cTer + 1, colTer[i][0]);
       });
     } else {
-      if (colSec && cSec >= 0) sh.getRange(2, cSec + 1, n, 1).setValues(colSec);
-      if (colCom && cCom >= 0) sh.getRange(2, cCom + 1, n, 1).setValues(colCom);
-      if (colQ && cQ >= 0) sh.getRange(2, cQ + 1, n, 1).setValues(colQ);
-      if (colSub && cSub >= 0) sh.getRange(2, cSub + 1, n, 1).setValues(colSub);
-      if (colZ && cZ >= 0) sh.getRange(2, cZ + 1, n, 1).setValues(colZ);
-      if (colTer && cTer >= 0) sh.getRange(2, cTer + 1, n, 1).setValues(colTer);
+      var origCol = function (cIdx) { return cIdx >= 0 ? data.map(function (r) { return r[cIdx]; }) : null; };
+      if (colSec && cSec >= 0) ecrireColonneMixte_(sh, cSec + 1, colSec, origCol(cSec));
+      if (colCom && cCom >= 0) ecrireColonneMixte_(sh, cCom + 1, colCom, origCol(cCom));
+      if (colQ && cQ >= 0) ecrireColonneMixte_(sh, cQ + 1, colQ, origCol(cQ));
+      if (colSub && cSub >= 0) ecrireColonneMixte_(sh, cSub + 1, colSub, origCol(cSub));
+      if (colZ && cZ >= 0) ecrireColonneMixte_(sh, cZ + 1, colZ, origCol(cZ));
+      if (colTer && cTer >= 0) ecrireColonneMixte_(sh, cTer + 1, colTer, origCol(cTer));
     }
   });
 
