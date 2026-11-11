@@ -1,7 +1,7 @@
 {
-  "version": "3.31.7",
+  "version": "3.31.8",
   "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : refonte UI/UX compacte pour saisie à une main, zéro débordement horizontal, organisation par état (mentions à enrichir, nouveaux contacts, déjà à jour sans encombrement)"
+    "Vérifier la fiche : refonte radicale axée sur le but (Nouveaux noms & Mentions nouvelles), suppression de toute confusion et saisie fluide au pouce"
   ]
 }

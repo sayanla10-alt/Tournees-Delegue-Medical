@@ -3884,361 +3884,374 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .etiquette.ambre { color: var(--ambre); background: var(--papier); border-color: var(--ambre-trait); }
 
 /* =============================================================================
-   3.31.7 : Vérifier la fiche - Refonte UI/UX ergonomique à une main, gain d'espace, zéro débordement
+   3.31.8 : Vérifier la fiche - Approche limpide axée sur le but (Nouveaux noms & Mentions)
    ============================================================================= */
-.scan-ent {
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
+.scan-tete-propre {
   background: var(--surface);
   border: 1px solid var(--trait);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
   max-width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
 }
-.scan-ent.scan-exclu > :not(.scan-ligne1) { opacity: .4; }
-.scan-ent.scan-exclu { opacity: .6; }
-.scan-ent.scan-erreur { border-color: var(--ambre-trait); background: var(--fond-alerte, var(--surface)); }
-.scan-ent.scan-enrichir { border-left: 3px solid var(--primaire); }
-.scan-ent.scan-nouveau { border-left: 3px solid #2D7FF9; }
-.scan-ent.scan-identique { border-left: 3px solid var(--vert); background: var(--surface); }
-
-/* En-tête de fiche & résumé */
-.scan-tete .champ { margin-bottom: 0; }
-.scan-photo { display: inline-flex; width: fit-content; align-items: center; gap: 5px; margin-top: 8px; font-size: 13px; color: var(--primaire); font-weight: 500; }
-.scan-photo svg { width: 14px; height: 14px; }
-
-/* Bandeau résumé compact à badges */
-.scan-resume-barre {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 10px 0 4px;
+.scan-date-slot-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: flex-end;
 }
-.scan-badge-total {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--texte);
-  margin-right: 2px;
+.scan-date-slot-grille .champ { margin: 0; }
+.scan-date-slot-grille input[type="date"] {
+  height: 44px;
+  border-radius: 8px;
 }
-.scan-badge {
-  display: inline-flex;
-  align-items: center;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 12px;
-  line-height: 1.3;
+.scan-date-slot-grille .segment {
+  height: 44px;
 }
-.scan-badge-erreur { background: var(--ambre-pale); color: var(--ambre); border: 1px solid var(--ambre-trait); }
-.scan-badge-enrichir { background: var(--vert-pale, #E8F5E9); color: var(--vert); border: 1px solid var(--vert-trait, #C8E6C9); }
-.scan-badge-nouveau { background: #EBF3FD; color: #1976D2; border: 1px solid var(--trait); }
-.scan-badge-identique { background: var(--fond-champ, #F0F4F4); color: var(--gris); border: 1px solid var(--trait); }
-.scan-badge-fait { background: var(--vert-pale, #E8F5E9); color: var(--vert); font-weight: 700; }
-
-/* Titre de groupe de contacts */
-.scan-groupe-titre {
-  margin: 14px 0 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--primaire);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.scan-groupe-titre small {
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: none;
-  color: var(--gris);
-}
-
-/* Ligne principale du contact */
-.scan-ligne1 {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  width: 100%;
-}
-.scan-case {
-  flex: none;
-  min-width: 32px;
-  min-height: 32px;
+.scan-date-slot-grille .segment button {
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
-  cursor: pointer;
+  font-weight: 600;
 }
-.scan-case input {
+.scan-tete-bas {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--trait);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.scan-bilan-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.scan-pill-stat {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: var(--fond-champ, #f0f4f4);
+  color: var(--texte);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.scan-pill-stat.neuf {
+  background: #EBF3FD;
+  color: #1976D2;
+}
+.scan-pill-stat.enrichir {
+  background: var(--vert-pale, #E8F5E9);
+  color: var(--vert, #2E7D32);
+}
+.scan-pill-stat.doute {
+  background: var(--ambre-pale, #FFF8E1);
+  color: var(--ambre, #D97706);
+}
+
+.scan-photo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--primaire);
+  font-weight: 600;
+}
+.scan-photo svg { width: 14px; height: 14px; }
+
+/* Titres de sections fonctionnelles */
+.scan-section-titre {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--primaire);
+  margin: 16px 0 8px;
+  padding-left: 2px;
+}
+.scan-section-titre small {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gris);
+  background: var(--fond-champ, #F0F4F4);
+  padding: 1px 7px;
+  border-radius: 10px;
+  text-transform: none;
+}
+
+/* Carte contact unifiée, propre et sans débordement */
+.scan-carte-but {
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  transition: opacity .15s, border-color .15s;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.scan-carte-but.exclu {
+  opacity: .5;
+  background: var(--fond-champ, #F7FAFA);
+}
+.scan-carte-but.nouveau {
+  border-left: 4px solid #2D7FF9;
+}
+.scan-carte-but.enrichir {
+  border-left: 4px solid var(--vert, #2E7D32);
+}
+.scan-carte-but.doute {
+  border-left: 4px solid var(--ambre, #D97706);
+  background: var(--fond-alerte, var(--surface));
+}
+
+.scan-carte-haut {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+.scan-case-principale {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  min-height: 44px; /* Zone tactile optimale au pouce */
+}
+.scan-case-principale input[type="checkbox"] {
   width: 22px;
   height: 22px;
   accent-color: var(--primaire);
   cursor: pointer;
-}
-.scan-nom {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-.scan-nom-titre {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.scan-nom-titre b {
-  font-size: 15px;
-  line-height: 1.3;
-  color: var(--texte);
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-.scan-nom-sub {
-  font-size: 12.5px;
-  color: var(--gris);
-  margin-top: 2px;
-  line-height: 1.35;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-.scan-ligne1 .bouton.petit {
-  flex: none;
-  min-height: 32px;
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
-/* Question Homonyme / Doute - Confort une main */
-.scan-question {
-  margin: 8px 0 0;
-  padding: 10px;
-  border: 1px solid var(--ambre-trait);
-  border-radius: 8px;
-  background: var(--ambre-pale);
-  width: 100%;
-  box-sizing: border-box;
-}
-.scan-q-titre {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--texte);
-  margin-bottom: 2px;
-}
-.scan-q-desc {
-  font-size: 12px;
-  color: var(--gris);
-  margin-bottom: 8px;
-  line-height: 1.35;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-.scan-q-boutons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-}
-.scan-btn-oui {
-  background: var(--primaire) !important;
-  color: #FFFFFF !important;
-  border: none !important;
-  font-weight: 600;
-  min-height: 40px;
-}
-.scan-btn-non {
-  background: var(--surface) !important;
-  color: var(--texte) !important;
-  border: 1px solid var(--trait) !important;
-  font-weight: 600;
-  min-height: 40px;
-}
-
-/* Ligne ultra-compacte pour contact déjà dans la base et à jour */
-.scan-identique-ligne {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--vert);
-  font-weight: 500;
-}
-.scan-identique-ligne svg {
-  width: 14px;
-  height: 14px;
   flex: none;
 }
-
-/* Nouveau contact : affichage propre sans table */
-.scan-nouveau-carte {
-  margin-top: 8px;
-  padding: 8px 10px;
-  background: var(--fond-champ, #F7FAFA);
-  border-radius: 8px;
-  border: 1px solid var(--trait);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.scan-nouveau-ligne {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12.5px;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-.scan-nouveau-ligne .lbl {
-  color: var(--gris);
-  font-size: 11.5px;
-  flex: none;
-  width: 80px;
-}
-.scan-nouveau-ligne b {
-  font-weight: 600;
-  color: var(--texte);
-  text-align: right;
-  flex: 1 1 auto;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-
-/* Mentions à ajouter / Différences (remplace table.scan-cmp) */
-.scan-mentions-titre {
-  margin: 8px 0 4px;
-  font-size: 11.5px;
+.scan-tag-statut {
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--gris);
   letter-spacing: 0.3px;
+  padding: 3px 8px;
+  border-radius: 6px;
 }
-.scan-mentions-liste {
+.scan-tag-nouveau {
+  background: #EBF3FD;
+  color: #1976D2;
+}
+.scan-tag-enrichir {
+  background: var(--vert-pale, #E8F5E9);
+  color: var(--vert, #2E7D32);
+}
+.scan-tag-doute {
+  background: var(--ambre-pale, #FFF8E1);
+  color: var(--ambre, #D97706);
+}
+.scan-btn-editer {
+  font-size: 12px;
+  padding: 4px 10px;
+  min-height: 32px;
+  flex: none;
+}
+
+.scan-carte-nom {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--texte);
+  line-height: 1.3;
+  margin-bottom: 3px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-carte-sous {
+  font-size: 13px;
+  color: var(--gris);
+  line-height: 1.35;
+  margin-bottom: 6px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+.scan-carte-sous b {
+  color: var(--texte);
+  font-weight: 600;
+}
+.scan-carte-tel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texte);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+}
+
+/* Bloc des mentions nouvelles à ajouter (en vert lisible) */
+.scan-nouveautes-encart {
+  background: var(--vert-pale, #E8F5E9);
+  border: 1px solid var(--vert-trait, #C8E6C9);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 100%;
 }
-.scan-mention-carte {
-  border-radius: 8px;
-  border: 1px solid var(--trait);
-  background: var(--surface);
-  transition: opacity .15s;
-  overflow: hidden;
-  width: 100%;
-  box-sizing: border-box;
-}
-.scan-mention-carte.refuse {
-  opacity: .5;
-  background: var(--fond-champ, #F7FAFA);
-}
-.scan-mention-carte.refuse .scan-mention-val-ajout,
-.scan-mention-carte.refuse .scan-mention-val-diff {
-  text-decoration: line-through;
-}
-.scan-mention-label {
+.scan-nouveaute-ligne {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 8px 10px;
-  cursor: pointer;
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 44px; /* Zone tactile optimale au pouce */
-}
-.scan-mention-label input.scan-ok {
-  width: 20px;
-  height: 20px;
-  flex: none;
-  margin-top: 2px;
-  accent-color: var(--primaire);
-}
-.scan-mention-detail {
-  flex: 1 1 auto;
-  min-width: 0;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--encre, #1B5E20);
   overflow-wrap: break-word;
   word-break: break-word;
 }
-.scan-mention-entete {
+.scan-plus-bulle {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--vert, #2E7D32);
+  color: #fff;
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 3px;
-}
-.scan-mention-entete b {
-  font-size: 13px;
-  color: var(--texte);
-}
-.scan-mention-badge {
-  font-size: 10.5px;
+  justify-content: center;
+  font-size: 12px;
   font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 10px;
-  text-transform: uppercase;
+  line-height: 1;
+  margin-top: 1px;
 }
-.scan-mention-ajout .scan-mention-badge {
-  background: var(--vert-pale, #E8F5E9);
-  color: var(--vert);
+.scan-nouveaute-txt {
+  flex: 1 1 auto;
 }
-.scan-mention-diff .scan-mention-badge {
-  background: var(--ambre-pale);
-  color: var(--ambre);
+.scan-nouveaute-txt b {
+  font-weight: 700;
 }
-.scan-mention-val-ajout {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--vert);
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-.scan-mention-val-diff {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12.5px;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-.scan-mention-val-diff .val-fiche {
-  color: var(--texte);
-  font-weight: 600;
-}
-.scan-mention-val-diff .val-base {
+.scan-nouveaute-txt small.val-anc {
   color: var(--gris);
+  font-weight: 400;
   font-size: 11.5px;
 }
-.scan-mention-val-diff small {
-  font-weight: 400;
-  color: var(--gris);
-  margin-right: 4px;
-}
 
-/* Pied de carte individuel */
-.scan-pied-ent {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--trait);
+/* Bloc unifié des contacts déjà à jour */
+.scan-bloc-identiques {
+  background: var(--surface);
+  border: 1px solid var(--trait);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
 }
-.scan-btn-save-un {
-  min-height: 38px;
-  padding: 6px 14px;
-  font-size: 13px;
+.scan-identiques-entete {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.scan-check-vert-rond {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--vert-pale, #E8F5E9);
+  color: var(--vert, #2E7D32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex: none;
+}
+.scan-identiques-titres b {
+  font-size: 14px;
+  color: var(--texte);
+  display: block;
+}
+.scan-identiques-titres small {
+  font-size: 12px;
+  color: var(--gris);
+}
+.scan-identiques-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.scan-chip-identique {
+  font-size: 12px;
   font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--trait);
+  background: var(--fond-champ, #F0F4F4);
+  color: var(--texte);
+  cursor: pointer;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  line-height: 1.2;
+  transition: all .15s ease;
 }
+.scan-chip-identique.actif {
+  background: var(--vert-pale, #E8F5E9);
+  border-color: var(--vert-trait, #C8E6C9);
+  color: var(--vert, #2E7D32);
+}
+.scan-chip-identique.inactif {
+  opacity: .5;
+  text-decoration: line-through;
+}
+
+/* Boutons de décision pour les homonymes */
+.scan-doute-bloc {
+  background: var(--ambre-pale, #FFF8E1);
+  border: 1px solid var(--ambre-trait, #FFE082);
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 8px;
+}
+.scan-doute-question {
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--texte);
+  margin-bottom: 10px;
+}
+.scan-doute-boutons {
+  display: flex;
+  gap: 8px;
+}
+.scan-doute-boutons button {
+  flex: 1 1 0;
+  min-height: 44px;
+  font-weight: 700;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.scan-btn-oui {
+  background: var(--primaire);
+  color: #fff;
+  border-color: var(--primaire);
+}
+.scan-btn-non {
+  background: var(--surface);
+  color: var(--texte);
+  border-color: var(--trait);
+}
+
 .scan-fait-ligne {
   margin-top: 6px;
-  color: var(--vert);
+  color: var(--vert, #2E7D32);
   font-weight: 600;
   font-size: 13px;
   display: flex;

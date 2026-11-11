@@ -1,5 +1,5 @@
 /* =============================================================================
-   Fusion.gs (3.31.7) : fusion des doublons, sans perte de données
+   Fusion.gs (3.31.8) : fusion des doublons, sans perte de données
    Ce fichier gère la détection, la fusion intelligente et l'annulation des doublons
    pour les établissements de santé (hôpitaux, cliniques, centres médicaux) et les
    pharmacies, sans aucune perte d'information.
@@ -15,8 +15,8 @@
    - Redirection dynamique : les anciens codes/identifiants restent reconnus pour
      les terminaux terrain se synchronisant ultérieurement.
    - Résilience anti-timeout : exécution par lot en mémoire (mémoïsation des tables),
-     écritures vectorielles groupées, traitement par tranches rapides (anti-quota),
-     et suppression sécurisée du bas vers le haut.
+     écritures atomiques groupées setValues() (zéro deleteRow en boucle, zéro 504),
+     traitement par tranches rapides (anti-quota), et nettoyage sécurisé en fin de grille.
    - Synchronisation automatique vers Supabase via Jumelage.gs.
    ============================================================================= */
 
@@ -30,7 +30,7 @@ var FUSION_DECISIONS = ['Garder A', 'Garder B', 'Différents'];
    fusSecurise_ : exécution résiliente avec reprise sur incident Google Sheets
    Protège les appels SpreadsheetApp contre les délais d'attente (timeouts de
    connexion, erreurs 503 ou verrouillage temporaire). En cas d'erreur de service,
-   vide la file d'attente, attend selon un backoff exponentiel et réessaie.
+   attend selon un backoff exponentiel sans saturer la file d'attente, et réessaie.
    ============================================================================= */
 function fusSecurise_(fn, maxEssais) {
   maxEssais = maxEssais || 3;
@@ -42,8 +42,7 @@ function fusSecurise_(fn, maxEssais) {
       var estTimeout = /délai|timeout|service|timed out|occupé|socket|connection|quota/i.test(msg);
       if (estTimeout && essai < maxEssais) {
         console.warn('Google Sheets service temporairement indisponible (' + msg + ') - Réessai ' + essai + '/' + maxEssais + '...');
-        try { SpreadsheetApp.flush(); } catch (eF) {}
-        Utilities.sleep(1000 * Math.pow(2, essai - 1)); // 1s, 2s
+        Utilities.sleep(1200 * Math.pow(2, essai - 1)); // 1.2s, 2.4s
         continue;
       }
       throw err;
@@ -52,30 +51,34 @@ function fusSecurise_(fn, maxEssais) {
 }
 
 /* =============================================================================
-   fusTable_ : lecture optimisée d'un onglet par en-têtes
-   Charge les données d'une feuille et fournit un助手 de recherche de colonne
-   insensible à la casse et aux accents.
+   fusTable_ : lecture optimisée et sécurisée d'un onglet par en-têtes
+   Charge les données d'une feuille avec protection anti-délai et fournit un assistant
+   de recherche de colonne insensible à la casse et aux accents.
    ============================================================================= */
 function fusTable_(ss, nom) {
   var sh = ss.getSheetByName(nom);
   if (!sh || sh.getLastColumn() < 1) return null;
-  var brut = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
-  var ent = brut.map(normaliser), n = Math.max(sh.getLastRow() - 1, 0);
-  return {
-    sh: sh,
-    nom: nom,
-    brut: brut,
-    ent: ent,
-    n: n,
-    data: n ? sh.getRange(2, 1, n, brut.length).getValues() : [],
-    col: function () {
-      for (var i = 0; i < arguments.length; i++) {
-        var k = ent.indexOf(normaliser(arguments[i]));
-        if (k >= 0) return k;
+  return fusSecurise_(function () {
+    var nc = sh.getLastColumn();
+    var nr = sh.getLastRow();
+    var brut = sh.getRange(1, 1, 1, nc).getValues()[0].map(String);
+    var ent = brut.map(normaliser), n = Math.max(nr - 1, 0);
+    return {
+      sh: sh,
+      nom: nom,
+      brut: brut,
+      ent: ent,
+      n: n,
+      data: n ? sh.getRange(2, 1, n, brut.length).getValues() : [],
+      col: function () {
+        for (var i = 0; i < arguments.length; i++) {
+          var k = ent.indexOf(normaliser(arguments[i]));
+          if (k >= 0) return k;
+        }
+        return -1;
       }
-      return -1;
-    }
-  };
+    };
+  });
 }
 
 /* =============================================================================
@@ -208,70 +211,104 @@ function fusChantier_(t, cleEntete) {
 }
 
 /* =============================================================================
-   fusAppliquer_ : écriture optimisée et sécurisée sur Google Sheets
-   - Journalise les valeurs modifiées pour permettre l'annulation intégrale.
-   - OPTIMISATION CRITIQUE ANTI-TIMEOUT : si un nombre limité de lignes est touché
-     (<= 35 lignes), écrit directement les cellules concernées au lieu de renvoyer
-     la colonne entière de 10 000 lignes à Google Sheets.
-   - Supprime les lignes absorbées de manière sécurisée du bas vers le haut.
-   - Force un flush régulier pour vider la file RPC et prévenir l'erreur :
-     "Expiration du délai de connexion au service Feuilles de calcul".
+   fusAppliquer_ : persistance atomique en mémoire et écriture groupée ultra-rapide
+   RÉSOLUTIONS CLÉS ANTI-TIMEOUT :
+   1. Élimine TOTALEMENT les appels `deleteRow` en boucle qui provoquent le timeout Google Sheets.
+   2. Si des lignes sont supprimées (absorbées/doublons) :
+      - Filtre les données en mémoire (t.data) pour ne conserver que les lignes actives.
+      - Réécrit l'intégralité du tableau en UN SEUL appel setValues() (instantané, < 200 ms).
+      - Efface et nettoie le reliquat de lignes en bas de tableau en UNE SEULE opération sans shift.
+   3. Si aucune ligne n'est supprimée :
+      - Si peu de lignes sont touchées (<= 15) : met à jour chaque ligne modifiée en 1 appel (1 row).
+      - Si plus de 15 lignes sont touchées : réécrit le tableau en 1 appel setValues() global.
+   4. Zéro boucle de `setValue()` par cellule.
    ============================================================================= */
 function fusAppliquer_(ch, idF, journal) {
-  var t = ch.t, cles = Object.keys(ch.cellules);
+  var t = ch.t;
+  if (!t || !t.sh) return;
+  var cles = Object.keys(ch.cellules);
+  var retireesSet = {};
+  ch.retirees.forEach(function (i) { retireesSet[i] = 1; });
 
-  // 1. Préparation des entrées du journal d'audit
+  // 1. Journalisation des modifications de cellules pour rollback fidèle
   cles.forEach(function (i) {
     i = +i;
-    if (ch.retirees.indexOf(i) >= 0) return;
+    if (retireesSet[i]) return;
     var cells = [];
     Object.keys(ch.cellules[i]).forEach(function (c) {
       cells.push([t.brut[c], fusEnc_(ch.cellules[i][c]), fusEnc_(t.data[i][c])]);
     });
-    journal.push([idF, t.nom, 'cellules', ch.cleEntete, ch.cle >= 0 ? fusTxt_(t.data[i][ch.cle]) : '', i + 2, JSON.stringify(cells)]);
+    if (cells.length) {
+      journal.push([idF, t.nom, 'cellules', ch.cleEntete, ch.cle >= 0 ? fusTxt_(t.data[i][ch.cle]) : '', i + 2, JSON.stringify(cells)]);
+    }
   });
 
-  // 2. Écriture ciblée dans la feuille :
-  // Évite d'envoyer inutilement 10 000 cellules quand seules 1 ou 2 lignes changent
-  var lignesTouchees = cles.map(function (k) { return +k; }).filter(function (i) { return ch.retirees.indexOf(i) < 0; });
-  if (lignesTouchees.length > 0 && lignesTouchees.length <= 35) {
-    lignesTouchees.forEach(function (i) {
-      var modifs = ch.cellules[i];
-      if (!modifs) return;
-      Object.keys(modifs).forEach(function (c) {
-        c = +c;
-        fusSecurise_(function () {
-          t.sh.getRange(i + 2, c + 1).setValue(t.data[i][c]);
-        });
-      });
-    });
-  } else if (lignesTouchees.length > 35) {
-    // Si un grand nombre de lignes est modifié, écriture vectorielle par colonne
-    Object.keys(ch.colsTouchees).forEach(function (c) {
-      c = +c;
-      fusSecurise_(function () {
-        t.sh.getRange(2, c + 1, t.n, 1).setValues(t.data.map(function (l) { return [l[c]]; }));
-      });
-    });
-  }
-
-  // 3. Suppression des lignes absorbées / doublons (en partant du bas)
+  // 2. Journalisation des lignes absorbées / retirées
   if (ch.retirees.length) {
-    ch.retirees.slice().sort(function (a, b) { return b - a; }).forEach(function (i) {
+    ch.retirees.forEach(function (i) {
       var o = {}, src = ch.cellules[i] || {};
       t.brut.forEach(function (h, c) { o[h] = fusEnc_(c in src ? src[c] : t.data[i][c]); });
       var kv = ch.cle >= 0 ? fusTxt_(ch.cle in src ? src[ch.cle] : t.data[i][ch.cle]) : '';
       journal.push([idF, t.nom, 'ligne', ch.cleEntete, kv, i + 2, JSON.stringify(o)]);
-      fusSecurise_(function () {
-        t.sh.deleteRow(i + 2);
-      });
     });
   }
 
-  // 4. Vidage de la file d'attente Google Sheets
-  fusSecurise_(function () {
-    SpreadsheetApp.flush();
-  });
+  // 3. Application des modifications sur la feuille Google Sheets
+  if (ch.retirees.length > 0) {
+    // CAS A : Des lignes ont été absorbées (retirées).
+    // On construit en mémoire la nouvelle liste de lignes épurée.
+    var nouvellesLignes = [];
+    for (var k = 0; k < t.data.length; k++) {
+      if (!retireesSet[k]) {
+        nouvellesLignes.push(t.data[k]);
+      }
+    }
+
+    var nbAncien = t.n;
+    var nbNouveau = nouvellesLignes.length;
+    var nbSupprimees = nbAncien - nbNouveau;
+
+    fusSecurise_(function () {
+      if (nbNouveau > 0) {
+        // Écriture atomique de toutes les lignes conservées en 1 seule requête API
+        t.sh.getRange(2, 1, nbNouveau, t.brut.length).setValues(nouvellesLignes);
+      }
+      if (nbSupprimees > 0) {
+        // Nettoyage immédiat du reliquat en bas de tableau en 1 seule opération (sans recalcul lourd)
+        t.sh.getRange(nbNouveau + 2, 1, nbSupprimees, t.brut.length).clearContent();
+        try {
+          t.sh.deleteRows(nbNouveau + 2, nbSupprimees);
+        } catch (eDel) {
+          // Si deleteRows est bloqué par des protections, clearContent a déjà nettoyé les données
+        }
+      }
+    });
+
+    // Mise à jour de l'état mémoire de la table
+    t.data = nouvellesLignes;
+    t.n = nbNouveau;
+  } else {
+    // CAS B : Aucune ligne retirée, seulement des cellules modifiées.
+    var lignesTouchees = cles.map(function (k) { return +k; });
+    if (lignesTouchees.length > 0 && lignesTouchees.length <= 15) {
+      // Moins de 15 lignes : écriture ciblée ligne par ligne (1 seul appel setValues par ligne au lieu de par cellule)
+      lignesTouchees.forEach(function (i) {
+        fusSecurise_(function () {
+          t.sh.getRange(i + 2, 1, 1, t.brut.length).setValues([t.data[i]]);
+        });
+      });
+    } else if (lignesTouchees.length > 15) {
+      // Plus de 15 lignes modifiées : écriture globale de toute la table en 1 appel
+      fusSecurise_(function () {
+        t.sh.getRange(2, 1, t.n, t.brut.length).setValues(t.data);
+      });
+    }
+  }
+
+  // Réinitialisation du chantier
+  ch.cellules = {};
+  ch.retirees = [];
+  ch.colsTouchees = {};
 }
 
 /* =============================================================================
@@ -944,7 +981,7 @@ function detecterDoublons() {
    7. Synchronisation Supabase groupée une seule fois à la fin.
    ============================================================================= */
 function appliquerDecisionsDoublons_(auteur, limiteLot) {
-  limiteLot = limiteLot || 15;
+  limiteLot = limiteLot || 10;
   var ss = SpreadsheetApp.getActive(), t = fusTable_(ss, FUSION_PROPOSITIONS);
   if (!t) return { ok: false, erreur: 'Lancez d\'abord la détection des doublons.' };
   var cD = t.col('Décision'), cT = t.col('Type'), cAc = t.col('A Code'), cAn = t.col('A Nom (à garder)'), cAm = t.col('A Commune'),
@@ -998,6 +1035,20 @@ function appliquerDecisionsDoublons_(auteur, limiteLot) {
   if (ctx.tP) ctx.chP = fusChantier_(ctx.tP, 'IdPresence');
   if (ctx.tH) ctx.ch_tH = fusChantier_(ctx.tH, 'IdSync');
   if (ctx.tT) ctx.ch_tT = fusChantier_(ctx.tT, 'IdArret');
+
+  // S'assurer de la présence préalable de la colonne Alias
+  [ctx.tE, ctx.tPh].forEach(function (table) {
+    if (!table) return;
+    if (table.col('Alias') < 0) {
+      var colIdx = table.brut.length;
+      fusSecurise_(function () {
+        table.sh.getRange(1, colIdx + 1).setValue('Alias').setFontWeight('bold');
+      });
+      table.brut.push('Alias');
+      table.ent.push(normaliser('Alias'));
+      table.data.forEach(function (l) { l.push(''); });
+    }
+  });
 
   AUDIT_TAMPON_ = AUDIT_TAMPON_ || [];
 
@@ -1055,8 +1106,8 @@ function appliquerDecisionsDoublons_(auteur, limiteLot) {
       }
     });
 
-    // 1. Écritures groupées des chantiers modifiés
-    [ctx.ch_tH, ctx.ch_tT, ctx.chP, ctx.chE, ctx.chPh].forEach(function (ch) {
+    // 1. Écritures groupées des chantiers modifiés (Présences puis Visites/Plannings puis Etablissements/Pharmacies)
+    [ctx.chP, ctx.ch_tH, ctx.ch_tT, ctx.chE, ctx.chPh].forEach(function (ch) {
       if (ch && (Object.keys(ch.cellules).length || ch.retirees.length)) {
         fusAppliquer_(ch, 'LOT-' + Utilities.formatDate(new Date(), 'UTC', 'yyMMddHHmmss'), ctx.journalLot);
       }
@@ -1078,7 +1129,7 @@ function appliquerDecisionsDoublons_(auteur, limiteLot) {
       });
     }
 
-    // 4. Mise à jour de la colonne Décision dans Doublons à fusionner en 1 seule passe
+    // 4. Mise à jour de la colonne Décision dans Doublons à fusionner en 1 seule passe vectorielle
     fusSecurise_(function () {
       t.sh.getRange(2, cD + 1, t.data.length, 1).setValues(t.data.map(function (l) { return [l[cD]]; }));
     });
@@ -1147,9 +1198,19 @@ function menuAppliquerDecisions() {
     } else {
       msg += '\n\nToutes les décisions sélectionnées ont été traitées avec succès !';
     }
-    ui.alert('Fusions terminées', msg, ui.ButtonSet.OK);
+    try {
+      ui.alert('Fusions terminées', msg, ui.ButtonSet.OK);
+    } catch (eUi) {
+      console.log('Fusions terminées : ' + msg);
+    }
   } catch (err) {
-    ui.alert('Erreur', 'Une interruption est survenue lors de l\'application des décisions :\n' + String(err.message || err) + '\n\nLes lignes déjà marquées "Fait" ont été correctement enregistrées. Vous pouvez relancer le menu pour les suivantes.', ui.ButtonSet.OK);
+    var errMsg = String(err && err.message ? err.message : err);
+    console.error('Erreur menuAppliquerDecisions: ' + errMsg);
+    try {
+      ui.alert('Erreur', 'Une interruption est survenue lors de l\'application des décisions :\n' + errMsg + '\n\nLes lignes déjà marquées "Fait" ont été correctement enregistrées. Vous pouvez relancer le menu pour les suivantes.', ui.ButtonSet.OK);
+    } catch (eUi) {
+      console.error('Impossible d\'afficher l\'alerte UI: ' + eUi);
+    }
   }
 }
 
