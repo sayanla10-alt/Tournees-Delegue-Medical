@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.27';
+  var APP_VERSION = '3.31.29';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -5452,12 +5452,11 @@
               '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>')) +
         '</div>' +
       '</div>' +
-      // Sous les cartes oranges (hors communes choisies) : boutons Remplacer, Supprimer, Conserver
+      // Sous les cartes oranges (hors communes choisies) : strictement deux boutons Remplacer et Supprimer
       (horsZone && !verrou && !a.statut ?
         '<div class="actions-carte-orange">' +
           '<span class="actions-carte-orange-texte">' + icone('localisation') + 'Hors commune cible</span>' +
           '<div class="rangee-boutons-orange">' +
-            '<button type="button" class="bouton petit' + (a.garde ? ' bouton-plein' : '') + '" data-a="garder" data-uid="' + a.uid + '">' + icone('epingle') + '<span>' + (a.garde ? 'Conservé' : 'Conserver') + '</span></button>' +
             '<button type="button" class="bouton petit bouton-plein" data-a="conflitRemplacer" data-uid="' + a.uid + '">' + icone('relancer') + '<span>Remplacer</span></button>' +
             '<button type="button" class="bouton petit danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '">' + icone('fermer') + '<span>Supprimer</span></button>' +
           '</div>' +

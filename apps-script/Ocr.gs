@@ -15,8 +15,75 @@
 
 var DOSSIER_FICHES_SCANNEES = 'MediPlanner - Fiches scannées';
 var ONGLET_FICHES_SCANNEES = 'Fiches scannées';
-var MODELES_GEMINI_DEFAUT = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
+// 3.31.29 : Cascade de modèles intelligente : gemini-2.5-pro en priorité pour une intelligence maximale,
+// puis gemini-2.5-flash dès que les quotas gratuits du Pro sont atteints.
+var MODELES_GEMINI_DEFAUT = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
 var TAILLE_MAX_PHOTO = 8 * 1024 * 1024;   // octets, après décodage
+
+// Gestionnaire intelligent des quotas du tier gratuit pour Gemini 2.5 Pro (2 req/min, 50 req/jour)
+var QUOTAS_GEMINI_PRO = {
+  maxJour: 45,          // marge de sécurité sous les 50/jour
+  maxMinute: 2,         // max 2 requêtes / minute
+  pauseApres429Sec: 600 // 10 minutes de repli automatique sur Flash si Google répond 429
+};
+
+function estGeminiProDisponible_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    if (cache.get('GEMINI_PRO_PAUSE_429')) return false;
+
+    var aujourd = Utilities.formatDate(new Date(), 'Africa/Abidjan', 'yyyy-MM-dd');
+    var props = PropertiesService.getScriptProperties();
+    var dateStockee = props.getProperty('GEMINI_PRO_DATE');
+    var cptJour = parseInt(props.getProperty('GEMINI_PRO_CPT_JOUR') || '0', 10);
+
+    if (dateStockee !== aujourd) {
+      cptJour = 0;
+      props.setProperty('GEMINI_PRO_DATE', aujourd);
+      props.setProperty('GEMINI_PRO_CPT_JOUR', '0');
+    }
+
+    if (cptJour >= QUOTAS_GEMINI_PRO.maxJour) return false;
+
+    // Vérification de la minute glissante (max 2 requêtes / 60s)
+    var historiqueMinute = cache.get('GEMINI_PRO_TIMESTAMPS_MIN');
+    if (historiqueMinute) {
+      var maintenant = Date.now();
+      var ts = JSON.parse(historiqueMinute).filter(function (t) { return (maintenant - t) < 60000; });
+      if (ts.length >= QUOTAS_GEMINI_PRO.maxMinute) return false;
+    }
+    return true;
+  } catch (e) {
+    return true; // En cas de doute, on tente
+  }
+}
+
+function enregistrerAppelProReussi_() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var cptJour = parseInt(props.getProperty('GEMINI_PRO_CPT_JOUR') || '0', 10);
+    props.setProperty('GEMINI_PRO_CPT_JOUR', String(cptJour + 1));
+
+    var cache = CacheService.getScriptCache();
+    var maintenant = Date.now(), ts = [];
+    var historiqueMinute = cache.get('GEMINI_PRO_TIMESTAMPS_MIN');
+    if (historiqueMinute) {
+      try {
+        ts = JSON.parse(historiqueMinute).filter(function (t) { return (maintenant - t) < 60000; });
+      } catch (e) {}
+    }
+    ts.push(maintenant);
+    cache.put('GEMINI_PRO_TIMESTAMPS_MIN', JSON.stringify(ts), 120);
+  } catch (e) {}
+}
+
+function marquerGeminiProSature_() {
+  try {
+    var cache = CacheService.getScriptCache();
+    cache.put('GEMINI_PRO_PAUSE_429', '1', QUOTAS_GEMINI_PRO.pauseApres429Sec);
+    console.warn('Gemini 2.5 Pro a atteint son quota gratuit (429). Bascule automatique immédiate sur Gemini 2.5 Flash.');
+  } catch (e) {}
+}
 
 var CONSIGNE_LECTURE_FICHE = [
   'Tu agis en tant que superviseur d\'un collège d\'agents d\'intelligence artificielle médicale hautement spécialisés, collaborant en pipeline strict pour extraire et vérifier les fiches manuscrites et tamponnées de rapport journalier en Côte d\'Ivoire.',
@@ -239,7 +306,17 @@ function referentielPraticiensPourOcr_() {
 
 function appelerGemini_(cle, b64, mime) {
   var prop = PropertiesService.getScriptProperties().getProperty('MODELE_GEMINI');
-  var modeles = prop ? [prop].concat(MODELES_GEMINI_DEFAUT.filter(function (m) { return m !== prop; })) : MODELES_GEMINI_DEFAUT, derniere = '';
+  var modeles = [];
+  if (prop) {
+    modeles = [prop].concat(MODELES_GEMINI_DEFAUT.filter(function (m) { return m !== prop; }));
+  } else {
+    // Vérification intelligente des compteurs de quotas gratuits (Pro -> Flash)
+    if (estGeminiProDisponible_()) {
+      modeles.push('gemini-2.5-pro');
+    }
+    modeles.push('gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash');
+  }
+  var derniere = '';
   var consigneComplete = CONSIGNE_LECTURE_FICHE + referentielPraticiensPourOcr_();
   var envoyer = function (modele, parts) {
     return UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(modele) + ':generateContent', {
@@ -255,24 +332,41 @@ function appelerGemini_(cle, b64, mime) {
   };
   var image = { inline_data: { mime_type: mime, data: b64 } };
   for (var i = 0; i < modeles.length; i++) {
+    var modeleEnCours = modeles[i];
     for (var essai = 0; essai < 2; essai++) {
-      var rep = envoyer(modeles[i], [{ text: consigneComplete }, image]), code = rep.getResponseCode();
+      var rep = envoyer(modeleEnCours, [{ text: consigneComplete }, image]), code = rep.getResponseCode();
       if (code === 200) {
+        if (modeleEnCours === 'gemini-2.5-pro') {
+          enregistrerAppelProReussi_();
+        }
         var l = lire(rep), n = ((l.medecins || []).length + (l.pharmacies || []).length);
         // 3.31.1 : moins d'entrées que de lignes comptées : seconde lecture ciblée, on garde la plus complète
         if (+l.nb_lignes > n) {
           try {
-            var rep2 = envoyer(modeles[i], [{ text: consigneComplete + '\nATTENTION : tu as compté ' + l.nb_lignes + ' lignes mais rendu seulement ' + n + ' entrée(s). Relis toute la fiche ligne par ligne, de haut en bas, et rends une entrée pour CHACUNE des ' + l.nb_lignes + ' lignes.' }, image]);
+            var rep2 = envoyer(modeleEnCours, [{ text: consigneComplete + '\nATTENTION : tu as compté ' + l.nb_lignes + ' lignes mais rendu seulement ' + n + ' entrée(s). Relis toute la fiche ligne par ligne, de haut en bas, et rends une entrée pour CHACUNE des ' + l.nb_lignes + ' lignes.' }, image]);
             if (rep2.getResponseCode() === 200) { var l2 = lire(rep2); if ((l2.medecins || []).length + (l2.pharmacies || []).length > n) l = l2; }
           } catch (e2) {}
         }
+        l.modele_ia = modeleEnCours;
         return nettoyerLecture_(l);
       }
       var txt = rep.getContentText(), msg = txt; try { msg = JSON.parse(txt).error.message; } catch (e) {}
-      derniere = 'Gemini ' + code + ' : ' + String(msg).slice(0, 300);
-      if (code === 404) break;                                                          // modèle retiré : suivant
-      if (code === 429 || code >= 500) { if (essai === 0) { Utilities.sleep(2500); continue; } break; }   // surcharge : on réessaie, puis modèle suivant
-      throw new Error(derniere);                                                        // clé, crédit, requête : inutile d'insister
+      derniere = 'Gemini (' + modeleEnCours + ') ' + code + ' : ' + String(msg).slice(0, 300);
+      if (code === 404) break; // modèle retiré : passer au modèle suivant
+      if (code === 429) {
+        if (modeleEnCours === 'gemini-2.5-pro') {
+          // Limite atteinte sur Pro : pause automatique et bascule immédiate sur Flash !
+          marquerGeminiProSature_();
+          break;
+        }
+        if (essai === 0) { Utilities.sleep(2500); continue; }
+        break;
+      }
+      if (code >= 500) {
+        if (essai === 0) { Utilities.sleep(2500); continue; }
+        break;
+      }
+      throw new Error(derniere); // clé invalide ou autre erreur définitive
     }
   }
   throw new Error(derniere || 'aucun modèle disponible');
