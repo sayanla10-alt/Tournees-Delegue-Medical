@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.11';
+  var APP_VERSION = '3.31.12';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.12', ['Vérifier la fiche : mise à jour intelligente des plannings de présence avec les données fraîches du terrain',
+                 'Semainier visuel interactif rattaché directement à chaque hôpital (créneaux neufs du terrain mis en valeur)',
+                 'Pré-sélection automatique de l\'établissement unique et ligne Planning (Présence) dans le tableau comparatif']],
     ['3.31.11', ['Vérifier la fiche : nom complet affiché sur sa propre ligne sans aucune troncature',
                  'Présence détectée : choix explicite et logique de l\'hôpital/clinique où a eu lieu la visite (rattachement automatique du quartier)',
                  'Tableau comparatif Ancien / Nouveau : sélection au clic de chaque mention différente (téléphone, spécialité, lieu) avec surbrillance nette',
@@ -10524,6 +10527,16 @@
     var ex = ent.choix ? praticien(ent.choix) : null;
     var dt = ent.douteux && !ent.decision ? praticien(ent.douteux) : null;
     var cand1 = (ent.cands && ent.cands[0]) ? praticien(ent.cands[0]) : null;
+
+    // Pré-sélection automatique si le médecin n'a qu'un seul établissement connu
+    if (ex && ex.lieux && ex.lieux.length === 1 && !ent.etablissement && ex.lieux[0].lieu) {
+      ent.etablissement = ex.lieux[0].lieu;
+      if (!ent.quartier && ex.lieux[0].quartier) {
+        ent.quartier = ex.lieux[0].quartier;
+        ent.commune = ex.lieux[0].commune;
+      }
+    }
+
     var L = pl.lieu;
     var nomAffiche = esc(ent.nom ? nomPropre(ent.nom, estPh) : (ex ? ex.nom : 'Nom à lire'));
 
@@ -10639,6 +10652,18 @@
           var cActuel = ent.commune || (L && L.commune) || '';
           h += '<div class="scan-hopital-cascade">✓ Présence rattachée à : <b>' + esc(etabActuel) + '</b>' + (qActuel ? ' · Quartier : ' + esc(qActuel) + (cActuel ? ' (' + esc(cActuel) + ')' : '') : '') + '</div>';
         }
+
+        // Aperçu immédiat du semainier actualisé sur cet hôpital
+        if (pl.prog && v.date) {
+          h += '<div class="scan-semaine-apercu">' +
+            '<div class="scan-semaine-legende">' +
+              '<span><b>Planning de la semaine actualisé</b> sur ' + esc(etabActuel || 'cet établissement') + ' :</span>' +
+              '<small>Vert vif = nouveau créneau terrain · Vert foncé = créneau déjà connu</small>' +
+            '</div>' +
+            semaineScan(pl.prog) +
+          '</div>';
+        }
+
         h += '</div>';
       } else {
         // Pour les pharmacies
@@ -10684,7 +10709,7 @@
           changs.forEach(function (r) {
             var k = r.k, ficheVal = r.fiche || '', baseVal = r.base || '';
             var estAccepte = r.opt === 'remplacer' ? !!(ent.remplacer && ent.remplacer[k]) : !(ent.refus && ent.refus[k]);
-            var libChamp = k === 'telephone' ? 'Téléphone' : k === 'specialite' ? 'Spécialité' : k === 'etablissement' ? 'Établissement' : k === 'quartier' ? 'Quartier' : k === 'nom' ? 'Nom' : k === 'absence' ? 'Absence' : esc(r.champ);
+            var libChamp = k === 'telephone' ? 'Téléphone' : k === 'specialite' ? 'Spécialité' : k === 'etablissement' ? 'Établissement' : k === 'quartier' ? 'Quartier' : k === 'nom' ? 'Nom' : k === 'programme' ? 'Planning (Présence)' : k === 'absence' ? 'Absence' : esc(r.champ);
 
             var labelAncien = baseVal ? esc(baseVal) : '<span class="scan-val-vide">— (aucun)</span>';
             var labelNouveau = ficheVal ? esc(ficheVal) : '<span class="scan-val-vide">— (aucun)</span>';
@@ -10710,12 +10735,7 @@
         }
       }
 
-      // 4. PRÉSENCE ET COMPTE RENDU
-      if (pl.prog && v.date) {
-        h += '<div class="scan-carte-presence">📅 Présence enregistrée : <b>' + nomJour(v.date) + ' ' + (v.matin && v.soir ? 'matin et soir' : v.matin ? 'matin' : 'soir') + '</b> ' + semaineScan(pl.prog) + '</div>';
-      }
-
-      // 5. CHAMPS MANUELS D'ÉDITION DIRECTE
+      // 4. CHAMPS MANUELS D'ÉDITION DIRECTE
       h += '<div class="scan-edition-rapide">' +
         (ent.transcription ? '<p class="discret scan-lu">Lu sur la photo : ' + esc(ent.transcription) + '</p>' : '') +
         '<div class="grille-2 serre">' +

@@ -1,7 +1,7 @@
 {
-  "version": "3.31.11",
+  "version": "3.31.12",
   "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : nom complet sur ligne dédiée sans troncature, tableau comparatif Ancien/Nouveau au clic et liaison présence-hôpital."
+    "Vérifier la fiche : mise à jour intelligente des plannings de présence hebdomadaires avec les données fraîches du terrain et semainier visuel rattaché à l'hôpital."
   ]
 }

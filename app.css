@@ -4526,6 +4526,27 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   font-weight: 600;
   line-height: 1.3;
 }
+.scan-semaine-apercu {
+  background: #fff;
+  border: 1px solid #BBF7D0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.scan-semaine-legende {
+  display: flex;
+  flex-direction: column;
+  font-size: 11.5px;
+  color: #166534;
+  line-height: 1.25;
+}
+.scan-semaine-legende small {
+  color: var(--gris, #6B7280);
+  font-size: 10.5px;
+}
 
 /* Tableau comparatif [Ancien | Nouveau] avec micro-sélection au clic */
 .scan-table-wrap {
