@@ -91,9 +91,17 @@ function fusVide_(v) {
   return v === '' || v === null || v === undefined || (typeof v === 'string' && !v.trim());
 }
 
+var FUS_TZ_ = null;
+function fusTz_() {
+  if (!FUS_TZ_) {
+    try { FUS_TZ_ = SpreadsheetApp.getActive().getSpreadsheetTimeZone(); } catch (e) { FUS_TZ_ = 'UTC'; }
+  }
+  return FUS_TZ_;
+}
+
 // Nettoie une valeur sous forme de texte ou de date ISO YYYY-MM-DD
 function fusTxt_(v) {
-  return v instanceof Date ? Utilities.formatDate(v, 'UTC', 'yyyy-MM-dd') : String(v === undefined || v === null ? '' : v).trim();
+  return v instanceof Date ? Utilities.formatDate(v, fusTz_(), 'yyyy-MM-dd') : String(v === undefined || v === null ? '' : v).trim();
 }
 
 // Encode une valeur avec son type pour le journal d'annulation (D:Date, N:Nombre, B:Booléen, S:Texte)

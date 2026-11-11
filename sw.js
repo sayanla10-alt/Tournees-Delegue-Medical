@@ -12,7 +12,7 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.31.40';
+var VERSION = '3.31.41';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -23,7 +23,7 @@ var POLICES = [
 var FICHIERS = [
   './', './index.html', './manifest.webmanifest',
   './app.css?v=' + VERSION, './commun.js?v=' + VERSION, './moteur.js?v=' + VERSION, './app.js?v=' + VERSION,
-  './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', function (e) {
@@ -37,6 +37,12 @@ self.addEventListener('install', function (e) {
       })).then(function () {
         return c.addAll(POLICES).catch(function () {});
       });
+    }).then(function () {
+      return caches.keys().then(function (keys) {
+        if (keys.some(function (k) { return k.indexOf('tournees-v') === 0; })) {
+          return self.skipWaiting();
+        }
+      });
     })
   );
 });
@@ -46,7 +52,7 @@ self.addEventListener('activate', function (e) {
     caches.keys().then(function (keys) {
       return Promise.all(
         keys.map(function (k) {
-          if (k !== CACHE && k.indexOf('mediplanner-') === 0) {
+          if ((k !== CACHE && k.indexOf('mediplanner-') === 0) || k.indexOf('tournees-v') === 0) {
             return caches.delete(k);
           }
         })
@@ -69,11 +75,12 @@ self.addEventListener('fetch', function (e) {
 
   // 3.29.2 : une page ouverte avec des paramètres (lien de partage) ou hors ligne retombe sur index.html
   var navigation = e.request.mode === 'navigate';
+  var estPolice = POLICES.indexOf(url) >= 0;
   e.respondWith(
     caches.match(e.request).then(function (r) {
       if (!r && navigation) return fetch(e.request).catch(function () { return caches.match('./index.html'); });
       return r || fetch(e.request).then(function (resp) {
-        if (resp && resp.status === 200 && resp.type === 'basic') {
+        if (resp && ((resp.status === 200 && resp.type === 'basic') || (estPolice && (resp.status === 200 || resp.type === 'opaque')))) {
           var respClone = resp.clone();
           caches.open(CACHE).then(function (c) {
             c.put(e.request, respClone);

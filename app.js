@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.40';
+  var APP_VERSION = '3.31.41';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.41', [
+      'Planifier & Moteur : génération semaine préservée depuis Critères, critères/remplacements isolés par commune et par jour, et ordre GPS/horaire fiabilisé',
+      'Synchronisation & Comptes rendus : correction des suppressions serveur, file d\'envoi résiliente et mode Express Pharmacies/boutons corrigés'
+    ]],
     ['3.31.40', [
       'Planifier : plafond exact par jour respecté (jamais plus de visites que le filtre choisi)',
       'Planifier : une journée ou visite supprimée ne réapparaît plus au prochain tirage'
@@ -1198,12 +1202,18 @@
         cles.forEach(function (cleLs) {
           if (cleLs.indexOf(PREFIXE) === 0) {
             var k = cleLs.slice(PREFIXE.length);
+            if (k.indexOf('urgence.') === 0) return;
             var brut = localStorage.getItem(cleLs);
             if (brut) {
               try {
                 var val = JSON.parse(brut);
-                IDB.set(k, val);
-                if (LS._mem[k] === undefined) LS._mem[k] = val;
+                if (!idbRelue) {
+                  if (LS._mem[k] === undefined) LS._mem[k] = val;
+                  if (CLES_LOURDES[k] && IDB._fileAttente.every(function (it) { return it.k !== k; })) IDB.set(k, val);
+                } else if (LS._mem[k] === undefined) {
+                  LS._mem[k] = val;
+                  IDB.set(k, val);
+                }
                 if (CLES_LOURDES[k]) localStorage.removeItem(cleLs);
               } catch (eP) {}
             }
@@ -1215,13 +1225,13 @@
 
   var PREFIXE = 'tournees.';
   var CLES_LEGERES = { config: true, token: true, theme: true, onglet: true };
-  var CLES_LOURDES = { fichesScannees: true, data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true };
+  var CLES_LOURDES = { fichesScannees: true, data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true, secours: true, erreursApp: true };
   // 3.29.0 : saisies pas encore reçues par le serveur : fusionnées (jamais remplacées) à la relecture, copie de secours si l'écriture échoue
   var CLES_PRECIEUSES = { queue: true, fiches: true, deadLetter: true };
 
   // 3.28.25 : réglages et filtres gardés aussi dans localStorage (lus dès le démarrage) ; tant que la base du téléphone
   // n'est pas relue, un réglage introuvable au démarrage n'y est pas écrasé par sa valeur par défaut
-  var A_SAUVER = { params: true, filtres: true, filtresAutour: true };
+  var A_SAUVER = { params: true, filtres: true, filtresAutour: true, etatsJours: true, rapports: true };
   var absentsAuDemarrage = {}, idbRelue = false;
   var LS = {
     _mem: {},
@@ -1240,16 +1250,18 @@
     },
     set: function (k, v) {
       LS._mem[k] = v;
-      if (idbRelue || !absentsAuDemarrage[k]) IDB.set(k, v);
-      if (k === 'plan' && typeof S !== 'undefined' && S && S.horsPlan) {
+      if (!idbRelue && absentsAuDemarrage[k]) return;
+      IDB.set(k, v);
+      if (k === 'plan' && typeof S !== 'undefined' && S && S.horsPlan && (idbRelue || !absentsAuDemarrage.horsPlan)) {
         IDB.set('horsPlan', S.horsPlan);
       }
-      if (!CLES_LOURDES[k] && (idbRelue || !absentsAuDemarrage[k])) {
+      if (!CLES_LOURDES[k]) {
         try {
           var str = JSON.stringify(v);
-          if (str.length < 50000) localStorage.setItem(PREFIXE + k, str);
+          if (str && str.length < 50000) localStorage.setItem(PREFIXE + k, str);
+          else { try { localStorage.removeItem(PREFIXE + k); } catch (e) {} }
         } catch (e) {}
-      } else if (CLES_LOURDES[k]) {
+      } else {
         try { localStorage.removeItem(PREFIXE + k); } catch (e) {}
       }
     },
@@ -1820,19 +1832,13 @@
   function filtresRechercheType(type) { return Object.assign(JSON.parse(JSON.stringify(S.ui.filtres)), { type: type }); }
   // 3.28.37 : + Médecin / + Pharmacie dans Journée : mêmes critères que la journée planifiée (Planifier) :
   // spécialités et potentiels pour les médecins, potentiels pour les pharmacies ; les communes sont celles du jour
-  function filtreAjout() {
-    var p = S.params || {}, sp = ensemble((p.specialites || []).map(specialiteCanonique)), po = ensemble(p.potentiels || []);
-    var avecSpec = (p.specialites || []).length > 0, avecPot = (p.potentiels || []).length > 0;
-    if (!avecSpec && !avecPot) return null;
-    return function (pr) {
-      var pharma = pr.type === 'Pharmacie';
-      if (avecSpec && !pharma && !sp[pr.specialite]) return false;
-      if (avecPot && !po[lettrePotentiel(pr.note)]) return false;
-      return true;
-    };
+  function filtreAjout(d) {
+    var jour = d || (S.ui && (S.ui.dateAjout || S.ui.jour)) || null;
+    if (S.ui && S.ui.typeAjout) return filtreCibles(jour, S.ui.typeAjout === 'Pharmacie' ? 'pharmacies' : 'medecins');
+    return filtreCibles(jour);
   }
-  function filtreCibles(d) {
-    var p = paramsDuJour(d), t = p.typeCibles || 'tous', sp = {}, po = {};
+  function filtreCibles(d, typeForce) {
+    var p = paramsDuJour(d), t = typeForce || p.typeCibles || 'tous', sp = {}, po = {};
     (p.specialites || []).forEach(function (x) { sp[specialiteCanonique(x)] = true; });
     (p.potentiels || []).forEach(function (x) { po[x] = true; });
     var avecSpec = t !== 'pharmacies' && p.specialites && p.specialites.length, avecPot = p.potentiels && p.potentiels.length;
@@ -2588,13 +2594,23 @@
   // Toutes les 15 s, le téléphone la compare : la base n'est rechargée que si un délégué (ou le Sheet) a changé quelque chose.
   var MARQUEUR_TABLES = ['praticiens', 'presences', 'pharmacies', 'etablissements', 'visites', 'plannings', 'rapports', 'quartiers', 'fiches_produits', 'listes_reference'];
   function marqueurSupabase_() {
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, SUPABASE_CONFIG.delaiMs || 15000) : null;
     return Promise.all(MARQUEUR_TABLES.map(function (t) {
       var h = supabaseHeaders_(false); h.Prefer = 'count=exact';
-      return fetch(SUPABASE_CONFIG.url + '/rest/v1/' + t + '?select=updated_at&order=updated_at.desc&limit=1', { headers: h, cache: 'no-store' }).then(function (r) {
+      var opts = { headers: h, cache: 'no-store' };
+      if (ctrl) opts.signal = ctrl.signal;
+      return fetch(SUPABASE_CONFIG.url + '/rest/v1/' + t + '?select=updated_at&order=updated_at.desc&limit=1', opts).then(function (r) {
         if (!r.ok) throw new Error('Supabase HTTP ' + r.status);
         return r.json().then(function (j) { return String((r.headers.get('content-range') || '').split('/')[1] || '') + '@' + ((j && j[0] && j[0].updated_at) || ''); });
       });
-    })).then(function (l) { return l.join('|'); });
+    })).then(function (l) {
+      if (timer) clearTimeout(timer);
+      return l.join('|');
+    }, function (err) {
+      if (timer) clearTimeout(timer);
+      throw err;
+    });
   }
   function supabaseGet_(endpoint) {
     var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -2750,7 +2766,7 @@
           nom: ph.nom,
           lieu: ph.nom,
           quartier: ph.quartier || '',
-          commune: ph.commune || 'Abidjan',
+          commune: ph.commune || '',
           zone: ph.zone || '',
           horaireMatin: ph.horaire_matin || '08:00 - 12:30',
           horaireSoir: ph.horaire_soir || '15:00 - 19:30',
@@ -2864,9 +2880,11 @@
 
       // 9. Visites (Historique)
       var historique = rawVisites.map(function (v) {
+        var prox = v.prochaine_etape || v.prochaine_visite;
         return {
           uid: v.uid,
           date: v.date ? String(v.date).slice(0, 10) : '',
+          heure: v.heure || '',
           horodatage: v.horodatage || v.created_at || (v.date + 'T12:00:00Z'),
           delegue: v.delegue || '',
           code: v.code || '',
@@ -2883,7 +2901,7 @@
           activite: v.type_echange || '',
           produits: v.produits_presentes || '',
           echantillons: v.echantillons || '',
-          prochaine: v.prochaine_etape || (v.prochaine_visite ? String(v.prochaine_visite).slice(0, 10) : ''),
+          prochaine: prox ? String(prox).slice(0, 10) : '',
           commentaire: v.commentaire || '',
           interlocuteur: v.interlocuteur || '', reactions: v.reactions || '', stocks: v.stocks || '',
           commande: v.commande || '', complements: v.complements || '', suite: v.suite || ''
@@ -2978,6 +2996,9 @@
       if (!r.ok) throw erreur('Le serveur a répondu ' + r.status + '.', r.status >= 500 || r.status === 429);
       return r.text().then(function (t) {
         try { return JSON.parse(t); } catch (x) { throw erreur('Le serveur est momentanément indisponible.', true); }
+      }, function (e) {
+        throw erreur(e && e.name === 'AbortError' ? 'Le serveur ne répond pas (délai dépassé).' :
+          'Connexion interrompue pendant la réception. Vérifiez le réseau.', true);
       });
     }, function (e) {
       throw erreur(e && e.name === 'AbortError' ? 'Le serveur ne répond pas (délai dépassé).' :
@@ -3062,6 +3083,7 @@
     marquerModifie(sansModif);
     S.ui.dernierePubLocal = Date.now();
     if (!connecte()) return;
+    S.ui._verPub = (S.ui._verPub || 0) + 1;
     S.ui.aPublier = true; LS.set('aPublier', true);
     synchroniser(true);
   }
@@ -3110,7 +3132,7 @@
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
     S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete(); if (!pret()) rendreSiPossible();
     if (!sansGps) localiser(true, 'sync');   // 3.27.47 : localisation passive régulée (cache 3 min)
-    var tentePub = false, aChange = true;
+    var tentePub = false, aChange = true, verPubAvant = S.ui._verPub || 0;
     // 1. fiches praticiens (codes définitifs), 2. comptes rendus, 3. tournée, 4. données à jour
     var envoi = envoyerFiches().catch(function (errF) {
       console.warn('Erreur envoi fiches, poursuite des comptes rendus:', errF);
@@ -3121,9 +3143,12 @@
     return envoi.then(function () { return envoyerRapportsEnAttente(); }).then(function () { return envoyerErreursApp(); }).then(function () {
       if (!S.ui.aPublier || !moi()) return;
       tentePub = true;
+      verPubAvant = S.ui._verPub || 0;
       var planPayload = chargePlan();
       return apiPost('planning', planPayload).then(function (r) {
-        S.ui.aPublier = false; LS.set('aPublier', false);
+        if ((S.ui._verPub || 0) === verPubAvant) {
+          S.ui.aPublier = false; LS.set('aPublier', false);
+        }
         S.ui.portee = porteePlan(); LS.set('portee', S.ui.portee);
         S.ui.conflits = r.conflits || [];
       });
@@ -3169,11 +3194,11 @@
       var base = d.inchange ? ancien : d;
       // nom de délégué fusionné dans la base (ex. adresse e-mail saisie comme nom) : ce téléphone prend le bon nom
       if (d.alias && moi()) Object.keys(d.alias).forEach(function (k) {
-        if (k.toLowerCase() === moi().toLowerCase()) { S.config.delegue = d.alias[k]; LS.set('config', S.config); S.ui.aPublier = true; LS.set('aPublier', true); }
+        if (k.toLowerCase() === moi().toLowerCase()) { S.config.delegue = d.alias[k]; LS.set('config', S.config); S.ui._verPub = (S.ui._verPub || 0) + 1; S.ui.aPublier = true; LS.set('aPublier', true); }
       });
       S.data = { version: d.version || ancien.version, sig: d.sig || ancien.sig, praticiens: praticiens, presences: presences, quartiers: base.quartiers || ancien.quartiers || [],
                  statuts: base.statuts || ancien.statuts || [], etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || ancien.delegues || [], feries: base.feries || ancien.feries || [], activites: base.activites || ancien.activites || [], activitesPharmacie: base.activitesPharmacie || ancien.activitesPharmacie || [], produits: base.produits || ancien.produits || [], fiches: base.fiches || ancien.fiches || [],
-                 historique: hist, histDepuis: debutHistorique(), plannings: sansSuppressions(d.plannings || ancien.plannings || []), suppressions: suppressionsDe(d.plannings, ancien), rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
+                 historique: hist, histDepuis: debutHistorique(), plannings: sansSuppressions(d.plannings || ancien.plannings || []), suppressions: d.inchange ? (ancien.suppressions || []) : suppressionsDe(d.plannings, ancien), rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
                  sauvegarde: d.sauvegarde || ancien.sauvegarde || '', serveurRecent: true, rev: d.rev || '', marqueurSb: d.marqueurSb || '' };
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, statuts()); });
@@ -3209,7 +3234,7 @@
       importerAgenda();
       if (!sansGps || aChange || !S.ui.feuille) rendreSiPossible(); else afficherEntete();
       // 3.27.47 : Second appel redondant localiser supprimé pour économiser la batterie
-      if (S.ui.aPublier && !tentePub && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
+      if (S.ui.aPublier && (!tentePub || (S.ui._verPub || 0) !== verPubAvant) && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
     });
   }
 
@@ -3241,8 +3266,10 @@
   window.addEventListener('unhandledrejection', function (e) { signalerErreur('promesse', e.reason); });
 
   // 3.27.47 : Fiches praticiens envoyées avec traçabilité auteur et Dead-Letter Queue (anti-bloquant)
-  function envoyerFiches() {
+  function envoyerFiches(essaisRestants) {
     if (!S.fiches.length) return Promise.resolve();
+    if (essaisRestants === undefined) essaisRestants = S.fiches.length;
+    if (essaisRestants <= 0) return Promise.resolve();
     var f = S.fiches[0];
     if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
     return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences, auteur: moi() }).then(function (r) {
@@ -3250,7 +3277,8 @@
       if (r.ancien && r.code && r.ancien !== r.code) remplacerCode(r.ancien, r.code);
       if (r.ids) remplacerIds(r.ids);
       LS.set('fiches', S.fiches); LS.set('plan', S.plan); LS.set('imposes', S.imposes); LS.set('queue', S.queue);
-      return envoyerFiches();
+      if (S.data) LS.set('data', S.data);
+      return envoyerFiches(essaisRestants - 1);
     }, function (e) {
       if (/Action inconnue/i.test(e.message)) { S.ui.serveurAncien = true; return; }
 
@@ -3269,13 +3297,14 @@
         LS.set('deadLetter', S.deadLetter);
         signalerErreur('envoi fiche refusé', e, { nom: rejete.praticien && rejete.praticien.nom });
         toast('Fiche « ' + (rejete.praticien && rejete.praticien.nom || '') + ' » refusée par le serveur : voir Réglages, Envois refusés.', 6000);
-        return envoyerFiches();
+        return envoyerFiches(essaisRestants - 1);
       }
 
       if (S.fiches.length > 1) {
         S.fiches.push(S.fiches.shift());
-        LS.set('fiches', S.fiches);
       }
+      LS.set('fiches', S.fiches);
+      if (essaisRestants > 1 && S.fiches.length > 1) return envoyerFiches(essaisRestants - 1);
       return null;
     });
   }
@@ -3284,9 +3313,11 @@
   function traiterQueueVisites() {
     if (!S.queue || !S.queue.length) return Promise.resolve();
 
+    var uidAjoutes = false;
     S.queue.forEach(function (v) {
-      if (!v.uid) v.uid = 'V' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      if (!v.uid) { v.uid = 'V' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); uidAjoutes = true; }
     });
+    if (uidAjoutes) LS.set('queue', S.queue);
 
 
     return apiPost('valider', { visites: S.queue }).then(function (r) {
@@ -3318,7 +3349,10 @@
       v.derniereErreur = errU.message || String(errU);
       v.dernierEssai = new Date().toISOString();
       // 3.29.0 : réseau absent ou lent : la visite reste dans la file et repart à la synchronisation suivante, sans limite
-      if (!errU.refus) return null;
+      if (!errU.refus) {
+        LS.set('queue', S.queue);
+        return viderQueueVisitesUnitaire(index + 1);
+      }
       v.refus = true;
       S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
       S.deadLetter.visites = S.deadLetter.visites || [];
@@ -3332,7 +3366,15 @@
     });
   }
   function remplacerCode(ancien, code) {
-    S.plan.forEach(function (a) { if (a.code === ancien) a.code = code; });
+    S.plan.forEach(function (a) {
+      if (a.code === ancien) a.code = code;
+      if (a.uid && String(a.uid).indexOf(ancien) >= 0) a.uid = String(a.uid).split(ancien).join(code);
+    });
+    (S.horsPlan || []).forEach(function (a) {
+      if (a.code === ancien) a.code = code;
+      if (a.uid && String(a.uid).indexOf(ancien) >= 0) a.uid = String(a.uid).split(ancien).join(code);
+    });
+    if (S.horsPlan) LS.set('horsPlan', S.horsPlan);
     S.imposes.forEach(function (a) { if (a.code === ancien) a.code = code; });
     if (S.ui.contactOuvert === ancien) S.ui.contactOuvert = code;
     S.queue.forEach(function (a) { if (a.code === ancien) a.code = code; });
@@ -3340,6 +3382,49 @@
       if (f.praticien.code === ancien) f.praticien.code = code;
       f.presences.forEach(function (x) { if (x.code === ancien) x.code = code; });
     });
+    if (S.deadLetter) {
+      var dlChg = false;
+      (S.deadLetter.visites || []).forEach(function (v) { if (v && v.code === ancien) { v.code = code; dlChg = true; } });
+      (S.deadLetter.fiches || []).forEach(function (f) {
+        if (f && f.praticien && f.praticien.code === ancien) { f.praticien.code = code; dlChg = true; }
+        ((f && f.presences) || []).forEach(function (x) { if (x && x.code === ancien) { x.code = code; dlChg = true; } });
+      });
+      if (dlChg) LS.set('deadLetter', S.deadLetter);
+    }
+    var vs = LS.get('visitesSupprimees', null);
+    if (vs && typeof vs === 'object') {
+      var vsChg = false;
+      Object.keys(vs).forEach(function (d) {
+        if (vs[d] && vs[d][ancien]) {
+          vs[d][code] = vs[d][ancien];
+          delete vs[d][ancien];
+          vsChg = true;
+        }
+      });
+      if (vsChg) LS.set('visitesSupprimees', vs);
+    }
+    var rp = LS.get('refusesParJour', null);
+    if (rp && typeof rp === 'object') {
+      var rpChg = false;
+      Object.keys(rp).forEach(function (d) {
+        if (rp[d] && rp[d].codes && rp[d].codes[ancien]) {
+          rp[d].codes[code] = rp[d].codes[ancien];
+          delete rp[d].codes[ancien];
+          rpChg = true;
+        }
+      });
+      if (rpChg) LS.set('refusesParJour', rp);
+    }
+    var arch = LS.get('archives', null);
+    if (arch && typeof arch === 'object') {
+      var archChg = false;
+      Object.keys(arch).forEach(function (d) {
+        var liste = Array.isArray(arch[d]) ? arch[d] : (arch[d] && arch[d].arrets);
+        if (!Array.isArray(liste)) return;
+        liste.forEach(function (x) { if (x && x.code === ancien) { x.code = code; archChg = true; } });
+      });
+      if (archChg) LS.set('archives', arch);
+    }
     if (S.data) {
       S.data.praticiens.forEach(function (x) { if (x.code === ancien) x.code = code; });
       S.data.presences.forEach(function (x) { if (x.code === ancien) x.code = code; });
@@ -3406,7 +3491,7 @@
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
-      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' || S.ui.tab === 'bilanjour' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'suivi' ? (S.ui.suiviVue || 'bilan') : (S.ui.tab === 'audit' ? 'bilan' : S.ui.tab)));
+      var actif = S.ui.tab === 'autour' || S.ui.tab === 'rapport' || S.ui.tab === 'bilanjour' ? 'jour' : (S.ui.tab === 'recherche' || S.ui.tab === 'contacts' ? 'praticiens' : (S.ui.tab === 'suivi' || S.ui.tab === 'bilan' || S.ui.tab === 'equipe' || S.ui.tab === 'audit' ? 'suivi' : S.ui.tab));
       if (b.dataset.tab === actif) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
   }
@@ -4005,19 +4090,40 @@
   // tournée en cours (toute si elle est confirmée, sinon les visites renseignées, gardées ou imposées),
   // sinon programme archivé ou publié (confirmé) et comptes rendus de ce jour
   function vraiStatut(s) { return s && s !== 'À faire' ? s : ''; }
+  function heureHorodatage(h) {
+    if (!h) return '';
+    var s = String(h).trim();
+    if (/^\d{2}:\d{2}/.test(s)) return s.slice(0, 5);
+    var dt = new Date(s);
+    if (!isNaN(dt.getTime())) return pad2(dt.getHours()) + ':' + pad2(dt.getMinutes());
+    var m = s.match(/(\d{2}:\d{2})/);
+    return m ? m[1] : '';
+  }
   function versPlan(x, v, d) {
     var s = v || x, x2 = x || {}, pr = praticien(s.code) || {}, c = creneauDe(s.code, d, s.idPresence || x2.idPresence, s.creneau || x2.creneau);
     var st = v ? v.statut || '' : vraiStatut(x2.statut);
-    return completerHeures({ uid: (v && v.uid) || x2.uid || ('C-' + d + '-' + s.code), cle: (c && c.cle) || x2.cle || '', date: d, heure: x2.heure || (v && v.heure) || '', creneau: s.creneau || x2.creneau || (c ? c.creneau : ''),
+    var va = (v && (v.valideA || heureHorodatage(v.horodatage))) || '';
+    var a = { uid: (v && v.uid) || x2.uid || ('C-' + d + '-' + s.code), cle: (c && c.cle) || x2.cle || '', date: d, heure: x2.heure || (v && v.heure) || '', creneau: s.creneau || x2.creneau || (c ? c.creneau : ''),
       debut: x2.debut || '', fin: x2.fin || '', idPresence: s.idPresence || x2.idPresence || '', code: s.code, nom: s.nom || pr.nom || s.code, type: pr.type || s.type || 'Médecin',
       specialite: s.specialite || pr.specialite || '', note: pr.note || s.note, conventionne: pr.conventionne, quartier: s.quartier || x2.quartier || '', commune: s.commune || x2.commune || '',
-      lieu: s.lieu || x2.lieu || '', lat: c && c.coord ? c.coord.lat : null, lon: c && c.coord ? c.coord.lon : null, statut: st,
+      lieu: s.lieu || x2.lieu || '', reperes: (v && v.reperes) || x2.reperes || (c && c.reperes) || pr.reperes || '', lat: c && c.coord ? c.coord.lat : null, lon: c && c.coord ? c.coord.lon : null, statut: st,
       activite: v ? v.activite || '' : '', produits: v ? v.produits || '' : '', commentaire: v ? v.commentaire || '' : '', prochaine: v ? String(v.prochaine || '').slice(0, 10) : '',
-      etat: st ? 'valide' : '', garde: true, impose: false, rdv: '', dist: 0, retard: false });
+      rdvConfirme: !!(v && (v.rdvConfirme || (v.suite && /^RDV confirmé/i.test(v.suite)))),
+      etat: st ? 'valide' : '', garde: true, impose: false, rdv: '', dist: 0, retard: false };
+    if (va) a.valideA = va;
+    return completerHeures(a);
   }
   function donneesJour(d, tout) {
     var dansPlan = S.plan.filter(function (a) { return a.date === d; });
-    if (dansPlan.length) return dansPlan.filter(function (a) { return tout || jourConfirme(d) || a.statut || a.etat === 'valide' || a.garde || a.impose || a.corrige; });
+    if (dansPlan.length) {
+      var res = dansPlan.filter(function (a) { return tout || jourConfirme(d) || a.statut || a.etat === 'valide' || a.garde || a.impose || a.corrige; });
+      var vusPlan = {};
+      res.forEach(function (a) { vusPlan[a.code] = true; });
+      selectionJour(d, tout).faites.forEach(function (v) {
+        if (!vusPlan[v.code]) { vusPlan[v.code] = true; res.push(versPlan(null, v, d)); }
+      });
+      return res;
+    }
     var sel = selectionJour(d, tout), prevus = sel.prevus, faites = sel.faites, parCode = sel.parCode;   // 3.29.0 : règle unique
     var l = prevus.map(function (x) { return versPlan(x, parCode[x.code], d); });
     faites.forEach(function (v) { if (!prevus.some(function (x) { return x.code === v.code; })) l.push(versPlan(null, v, d)); });
@@ -4102,7 +4208,7 @@
   function etatJour(d) { return S.jours[d] && S.jours[d].etat === 'valide' ? 'valide' : 'proposition'; }
   function jourConfirme(d) { return etatJour(d) === 'valide'; }
   function joursBrouillon() { return datesPlanAvenir().filter(function (d) { return !jourConfirme(d); }); }
-  function mettreBrouillon(dates) { dates.forEach(function (d) { S.jours[d] = { etat: 'proposition', valideLe: '', modifieLe: '' }; }); }
+  function mettreBrouillon(dates) { dates.forEach(function (d) { S.jours[d] = { etat: 'proposition', valideLe: '', modifieLe: '' }; }); LS.set('etatsJours', S.jours); }
   function signatureJour(d) { return S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code + '@' + a.heure; }).sort().join(','); }
   function confirmerJours(dates) {
     var h = horodatageCourt(), sig = LS.get('signJours', {});
@@ -4127,7 +4233,7 @@
     // 3.24.9 : un jour qui disparaît n'est plus noté « retiré » d'office (il revenait vide après certaines mises à jour) ;
     // seul un retrait volontaire (dernière visite du jour retirée) l'écarte de l'import
     Object.keys(S.jours).forEach(function (d) { if (!present[d]) delete S.jours[d]; });
-    Object.keys(retires).forEach(function (d) { if (present[d] || d < lim) delete retires[d]; });
+    Object.keys(retires).forEach(function (d) { if (d < lim || S.plan.some(function (a) { return a.date === d && !a.statut; })) delete retires[d]; });
     LS.set('joursRetires', retires);
     var vsup = LS.get('visitesSupprimees', {}) || {}, lim70 = ajouterJours(aujourdhui(), -70), vchg = false;
     Object.keys(vsup).forEach(function (d) { if (d < lim70) { delete vsup[d]; vchg = true; } });
@@ -4177,7 +4283,25 @@
     var t = aujourdhui(), n = 0, deja = ensemble(datesPlan()), retires = joursRetires();
     for (var k = -7; k <= 70; k++) {
       var d = ajouterJours(t, k);
-      if (deja[d] || retires[d] || jourSemaineIndex(d) > 4) continue;
+      if (jourSemaineIndex(d) > 4) continue;
+      if (deja[d]) {
+        var hp = (S.horsPlan || []).filter(function (y) { return y.date === d; });
+        if (hp.length) {
+          var supJ = visitesSupprimeesJour(d);
+          hp.forEach(function (h) {
+            S.horsPlan = S.horsPlan.filter(function (y) { return y !== h; });
+            if (!vraiStatut(h.statut) && (retires[d] || supJ[h.code])) return;
+            var c = Object.assign({}, h); delete c.hors; delete c.horsTournee; c.garde = true;
+            var idx = -1;
+            for (var i = 0; i < S.plan.length; i++) { if (S.plan[i].date === d && S.plan[i].code === h.code) { idx = i; break; } }
+            if (idx < 0) S.plan.push(c);
+            else if (vraiStatut(c.statut) && !vraiStatut(S.plan[idx].statut)) S.plan[idx] = Object.assign({}, S.plan[idx], c, { uid: S.plan[idx].uid });
+          });
+          n++;
+        }
+        continue;
+      }
+      if (retires[d]) continue;
       var src = programmeDuJour(d), l = donneesJour(d, true);
       if (!l.length) continue;
       var confirme = src.some(function (x) { return x.prog ? x.prog === 'valide' : x.programme === 'Validé'; }) || l.some(function (x) { return x.statut; });
@@ -4209,21 +4333,37 @@
       }
     });
     var datesTraitees = ensemble(Object.keys(srvParDate).concat(datesPlan().filter(function (d) { return d >= t; })));
-    var retiresSrv = joursRetires();
+    var supSrv = suppressionsServeur();
+    var retiresSrv = Object.assign({}, supSrv.jours, LS.get('joursRetires', {}));
     Object.keys(datesTraitees).forEach(function (d) {
       if (jourSemaineIndex(d) > 4) return;
       var visitesJour = S.plan.filter(function (a) { return a.date === d; });
-      if (retiresSrv[d] && !visitesJour.length) return;   // 3.28.28 : journée supprimée par vous
       var aValide = visitesJour.some(function (a) { return a.statut || a.etat === 'valide'; });
-      // 3.31.33 : Ne jamais écraser une proposition locale en cours de revue, un brouillon ou des visites locales
-      var estBrouillonLocal = S.ui.aAccepter === d || (S.jours[d] && S.jours[d].etat === 'proposition') || (S.ui.avantTirage && S.ui.avantTirage.date === d);
-      if (aValide || estBrouillonLocal) return;
+      // 3.31.33 : Ne jamais écraser une proposition locale en cours de revue ou un tirage en cours ;
+      // une proposition déjà enregistrée sans tirage en cours reste synchronisable depuis le serveur
+      var estProposition = !!(S.jours[d] && S.jours[d].etat === 'proposition');
+      var tirageEnCours = S.ui.aAccepter === d || (S.ui.avantTirage && S.ui.avantTirage.date === d) || (S.ui.avantJJ && S.ui.avantJJ.date === d);
+      var estBrouillonLocal = tirageEnCours;
+      if (supSrv.jours[d] && !aValide && !estBrouillonLocal) {
+        if (visitesJour.length || S.jours[d]) {
+          S.plan = S.plan.filter(function (a) { return a.date !== d; });
+          delete S.jours[d];
+          change = true;
+        }
+        return;
+      }
+      if (retiresSrv[d] && !visitesJour.length) return;   // 3.28.28 : journée supprimée par vous
+      if (aValide || estBrouillonLocal || (estProposition && tirageEnCours)) return;
       var supVis = visitesSupprimeesJour(d);
       var srvActifs = (srvParDate[d] || []).filter(function (p) { return p.code && p.code !== CODE_JOUR_SUPPRIME && p.programme !== PROG_SUPPRIME && !supVis[p.code]; });
       if (!srvActifs.length) return;   // 3.31.35 : ne jamais vider une tournée locale tant que le serveur n'a rien à mettre à la place
-      var codesActuels = visitesJour.map(function (a) { return a.code; }).slice().sort().join(',');
-      var codesServeur = srvActifs.map(function (p) { return p.code; }).slice().sort().join(',');
-      if (codesActuels !== codesServeur) {
+      var progLocal = jourConfirme(d) ? 'Validé' : 'Proposition';
+      var sigActuels = visitesJour.map(function (a) { return [a.code, a.idPresence || '', a.heure || '', progLocal].join('|'); }).slice().sort().join(',');
+      var sigServeur = srvActifs.map(function (p) {
+        var pProg = (p.prog ? p.prog === 'valide' : p.programme === 'Validé') ? 'Validé' : 'Proposition';
+        return [p.code, p.idPresence || '', p.heure || '', pProg].join('|');
+      }).slice().sort().join(',');
+      if (sigActuels !== sigServeur) {
         var parCode = {}, faites = visitesConnues().filter(function (v) { return String(v.date || '').slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && v.code && !supVis[v.code]; });
         faites.forEach(function (v) { parCode[v.code] = v; });
         var vus = {}, src = [];
@@ -4238,7 +4378,8 @@
           src.push(versPlan(null, v, d));
         });
         if (!src.length) return;   // 3.31.35 : sécurité absolue : ne jamais remplacer par du vide
-        src = Moteur.ordonnerJour(src, departCoord(), d === t ? minutesMaintenant() : 0);
+        if (src.every(function (a) { return !!a.heure; })) src.sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
+        else src = Moteur.ordonnerJour(src, departCoord(), d === t ? minutesMaintenant() : 0);
         var confirme = srvActifs.some(function (x) { return x.prog ? x.prog === 'valide' : x.programme === 'Validé'; });
         S.plan = S.plan.filter(function (a) { return a.date !== d; }).concat(src);
         S.jours[d] = { etat: confirme ? 'valide' : 'proposition', valideLe: '', modifieLe: '' };
@@ -4289,7 +4430,14 @@
     S.ui.ouvert = null; rendre(); window.scrollTo(0, 0);
   }
   // En-tête du jour : « Aujourd'hui », la date affichée, l'état de la tournée, une seule navigation (bande de la semaine)
-  function nbVisitesJour(d) { var n = S.plan.filter(function (a) { return a.date === d; }).length; return n || programmeDuJour(d).length; }
+  function nbVisitesJour(d) {
+    var n = S.plan.filter(function (a) { return a.date === d; }).length;
+    if (n) return n;
+    var sel = selectionJour(d, true), vus = {};
+    sel.prevus.forEach(function (x) { var k = x.code || x.uid; if (k) vus[k] = true; });
+    sel.faites.forEach(function (v) { var k = v.code || v.uid; if (k) vus[k] = true; });
+    return Object.keys(vus).length;
+  }
   function enteteJour(d) {
     var t = aujourdhui(), dates = datesPlan(), tour = dates.indexOf(d) >= 0, etat;
     if (tour) etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmée</span>' :
@@ -4316,10 +4464,23 @@
   function sansSuppressions(l) { return (l || []).filter(function (p) { return !estSuppressionPlanning(p); }); }
   function suppressionsDe(l, ancien) { return l ? l.filter(estSuppressionPlanning) : ((ancien && ancien.suppressions) || []); }
   function suppressionsServeur() {
+    function normMaj(v) {
+      if (!v) return 0;
+      var s = String(v).trim();
+      if (!s) return 0;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) s += 'T00:00:00Z';
+      else if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s)) s = s.replace(' ', 'T') + (s.length === 16 ? ':00' : '') + 'Z';
+      else {
+        if (s.indexOf(' ') > 0 && s.indexOf('T') < 0) s = s.replace(' ', 'T');
+        if (/[+-]\d{2}$/.test(s)) s += ':00';
+      }
+      var ts = Date.parse(s);
+      return isNaN(ts) ? 0 : ts;
+    }
     var jours = {}, joursMaj = {}, visites = {}, visitesMaj = {};
     ((S.data && S.data.suppressions) || []).forEach(function (p) {
       if (!p.delegue || !estMoi(p.delegue)) return;
-      var maj = p.maj ? String(p.maj) : '';
+      var maj = normMaj(p.maj);
       if (p.code === CODE_JOUR_SUPPRIME) {
         jours[p.date] = true;
         if (!joursMaj[p.date] || (maj && maj > joursMaj[p.date])) joursMaj[p.date] = maj;
@@ -4331,17 +4492,19 @@
     });
     // Si la table Plannings contient des visites actives PLUS RÉCENTES que la suppression, elles prévalent ;
     // d'anciennes lignes « Validé » datant d'avant « Journée supprimée » restent neutralisées.
+    var joursRetiresLoc = LS.get('joursRetires', {}) || {};
+    var visitesSupLoc = LS.get('visitesSupprimees', {}) || {};
     ((S.data && S.data.plannings) || []).forEach(function (p) {
       if (!p.delegue || !estMoi(p.delegue) || !p.code || p.code === CODE_JOUR_SUPPRIME) return;
       if (p.programme === PROG_SUPPRIME) return;
-      var maj = p.maj ? String(p.maj) : '';
+      var maj = normMaj(p.maj);
       if (jours[p.date]) {
-        var supMaj = joursMaj[p.date] || '';
-        if ((!supMaj || (maj && maj > supMaj)) && !joursRetires()[p.date]) delete jours[p.date];
+        var supMaj = joursMaj[p.date] || 0;
+        if ((!supMaj || (maj && maj > supMaj)) && !joursRetiresLoc[p.date]) delete jours[p.date];
       }
       if (visites[p.date] && visites[p.date][p.code]) {
-        var vMaj = (visitesMaj[p.date] && visitesMaj[p.date][p.code]) || '';
-        if ((!vMaj || (maj && maj > vMaj)) && !visitesSupprimeesJour(p.date)[p.code]) delete visites[p.date][p.code];
+        var vMaj = (visitesMaj[p.date] && visitesMaj[p.date][p.code]) || 0;
+        if ((!vMaj || (maj && maj > vMaj)) && !(visitesSupLoc[p.date] && visitesSupLoc[p.date][p.code])) delete visites[p.date][p.code];
       }
     });
     return { jours: jours, visites: visites };
@@ -4376,9 +4539,9 @@
   }
   // 3.27.41 : programme d'un jour hors tournée en cours : feuille Plannings du serveur en priorité, sinon archive locale
   function programmeDuJour(d) {
+    if (suppressionsServeur().jours[d]) return [];   // 3.29.0 : journée supprimée (sur ce téléphone ou un autre) : l'archive locale ne la ressuscite pas
     var srv = ((S.data && S.data.plannings) || []).filter(function (x) { return x.date === d && x.delegue && estMoi(x.delegue); });
     if (srv && srv.length) return srv;
-    if (suppressionsServeur().jours[d]) return [];   // 3.29.0 : journée supprimée (sur ce téléphone ou un autre) : l'archive locale ne la ressuscite pas
     var arch = LS.get('archives', {});
     if (arch[d] && arch[d].length) return arch[d];
     return [];
@@ -4430,10 +4593,14 @@
     var uid = v.uid || ('V-' + d + '-' + v.code), a = S.horsPlan.filter(function (y) { return y.uid === uid; })[0];
     if (a) return completerHeures(a);
     var pr = praticien(v.code) || {}; x = x || {};
+    var c = creneauDe(v.code, d, v.idPresence || x.idPresence, v.creneau || x.creneau);
+    var va = v.valideA || heureHorodatage(v.horodatage);
     a = { uid: uid, hors: true, date: d, heure: v.heure || x.heure || '', creneau: v.creneau || x.creneau || '', debut: x.debut || '', fin: x.fin || '', idPresence: v.idPresence || x.idPresence || '',
       code: v.code, nom: v.nom || x.nom || pr.nom || v.code, type: v.type || pr.type || 'Médecin', specialite: v.specialite || x.specialite || pr.specialite || '', note: v.note || x.note || pr.note,
-      conventionne: pr.conventionne, quartier: v.quartier || x.quartier || '', commune: v.commune || x.commune || '', lieu: v.lieu || x.lieu || '',
-      statut: v.statut || '', activite: v.activite || '', produits: v.produits || '', commentaire: v.commentaire || '', prochaine: String(v.prochaine || '').slice(0, 10), etat: 'valide' };
+      conventionne: pr.conventionne, quartier: v.quartier || x.quartier || '', commune: v.commune || x.commune || '', lieu: v.lieu || x.lieu || '', reperes: v.reperes || x.reperes || (c && c.reperes) || pr.reperes || '',
+      statut: v.statut || '', activite: v.activite || '', produits: v.produits || '', commentaire: v.commentaire || '', prochaine: String(v.prochaine || '').slice(0, 10),
+      rdvConfirme: !!(v && (v.rdvConfirme || (v.suite && /^RDV confirmé/i.test(v.suite)))), etat: 'valide' };
+    if (va) a.valideA = va;
     S.horsPlan.push(a); return completerHeures(a);
   }
   // toutes les visites d'un jour hors tournée : prévues (archive ou tournée publiée) et réalisées (Historique)
@@ -4475,7 +4642,8 @@
   function compteursJour(d, l) {
     var t = aujourdhui(), n = l.length, nf = l.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
     var sans = d <= t || !futurVerrouille(d) ? l.filter(function (a) { return !a.statut; }).length : 0;
-    var aPlan = d >= t && jourSemaineIndex(d) < 5 && !estFerie(d) ? Math.max(0, (+S.params.maxJour || 8) - n) : 0;
+    var maxJ = +(paramsDuJour(d).maxJour || S.params.maxJour || 8);
+    var aPlan = d >= t && jourSemaineIndex(d) < 5 && !estFerie(d) ? Math.max(0, maxJ - n) : 0;
     return '<b>' + n + ' visite' + (n > 1 ? 's' : '') + '</b> · ' + nf + ' faite' + (nf > 1 ? 's' : '') +
       (sans ? ' · <button type="button" class="bouton-texte lien-cr" data-a="ouvrirRapport">' + sans + ' sans CR ›</button>' : '') +
       (aPlan ? ' · <button type="button" class="bouton-texte lien-cr lien-plan" data-a="planifierDate" data-v="' + d + '">' + aPlan + ' à planifier ›</button>' : '');
@@ -4530,15 +4698,6 @@
       return h + (d === t ? rendreRappels() : '') + '<div class="vide"><strong>Aucune visite prévue</strong>Préparez d\'abord votre tournée dans « Planifier ».</div>' +
         (boutonPlanifierJour(d) || '<button class="bouton bouton-plein bouton-large" type="button" data-a="nav" data-tab="semaine" style="margin-top:12px">' + icone('calendrier') + 'Planifier ma tournée</button>');
     }
-    var com = Array.from(new Set(duJour.map(function (a) { return a.commune; }).filter(Boolean)));
-    var est = estimationJour(duJour), liens = lienItineraire(duJour);
-    var infos = [est ? minutesVersHeure(est.debut) + ' → ' + minutesVersHeure(est.fin) : '', com.length ? esc(libelleCommunes(com)) : ''].filter(Boolean).join(' · ');
-    h += '<section class="synthese-jour"><div class="sj-ligne"><span>' + compteursJour(d, duJour) + (infos ? '<small class="discret bloc-texte">' + infos + '</small>' : '') + '</span>' +
-        (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' +
-      barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length, duJour.filter(function (a) { return a.statut; }).length) +
-      '</section>';
-    if (!futurVerrouille(d) && duJour.length && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, duJour);
-    if (d === t) h += rendreRappels() + rendreMaintenant(duJour, liens);
     // 3.24.23 : les visites renseignées passent en bas (« Effectuées », dans l'ordre des heures) ;
     // en haut restent les visites à faire, ordonnées selon le même TSP anti allers-retours (depuis la position GPS si récente)
     var hv = function (x) { return heureVersMinutes((x.statut && x.valideA) || x.heure) || 0; };
@@ -4549,6 +4708,16 @@
       var copies = aFaire.map(function (a) { return Object.assign({}, a); });
       aFaire = Moteur.ordonnerJour(copies, { lat: gp.lat, lon: gp.lon }, minutesMaintenant());
     }
+    var duJourOrdonne = aFaire.concat(faites);
+    var com = Array.from(new Set(duJourOrdonne.map(function (a) { return a.commune; }).filter(Boolean)));
+    var est = estimationJour(duJourOrdonne), liens = lienItineraire(duJourOrdonne);
+    var infos = [est ? minutesVersHeure(est.debut) + ' → ' + minutesVersHeure(est.fin) : '', com.length ? esc(libelleCommunes(com)) : ''].filter(Boolean).join(' · ');
+    h += '<section class="synthese-jour"><div class="sj-ligne"><span>' + compteursJour(d, duJour) + (infos ? '<small class="discret bloc-texte">' + infos + '</small>' : '') + '</span>' +
+        (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' +
+      barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length, duJour.filter(function (a) { return a.statut; }).length) +
+      '</section>';
+    if (!futurVerrouille(d) && duJour.length && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, duJour);
+    if (d === t) h += rendreRappels() + rendreMaintenant(duJourOrdonne, liens);
     var creneauDeVisite = function (a) {
       if (a.creneau === 'Matin' || a.creneau === 'Soir') return a.creneau;
       var m = heureVersMinutes(a.heure);
@@ -4636,8 +4805,11 @@
   VUES.bilanjour = function () {
     var d = jourAffiche(), t = aujourdhui(), R = rapportDe(d), valide = !!(R && R.valideLe);
     var duJour = visitesDuJourRapport(d);
-    if (!duJour.length) duJour = ((S.data && S.data.historique) || []).filter(function (v) { return String(v.date).slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)); })
-      .map(function (v) { return versPlan(null, v, d); });
+    if (!duJour.length) {
+      var supBilan = visitesSupprimeesJour(d);
+      duJour = ((S.data && S.data.historique) || []).filter(function (v) { return String(v.date).slice(0, 10) === d && (!v.delegue || estMoi(v.delegue)) && !supBilan[v.code]; })
+        .map(function (v) { return versPlan(null, v, d); });
+    }
     var s = syntheseJour(duJour), nF = s.faites.length, n = s.prevues;
     var ordre = duJour.slice().sort(function (x, y) { return String(heureVisite(x)).localeCompare(String(heureVisite(y))); });
     var comm = []; s.communes.forEach(function (c) { var p = communeParente(c) || c; if (comm.indexOf(p) < 0) comm.push(p); });
@@ -5056,28 +5228,41 @@
     // à l'entrée dans Planifier, la frise s'ouvre sur J+1 : sa tournée s'il en a une, sinon J+1 en blanc, prêt à planifier
     if (!S.ui.planInit) {
       S.ui.planInit = true;
+      var dPrecInit = S.ui.jour || S.params.dateRef;
       var j1 = prochainJourOuvre(ajouterJours(tAuj, 1));
-      S.ui.jour = j1;
-      if (S.plan.some(function (a) { return a.date === j1; })) { S.ui.planVide = null; }
-      else { S.ui.planVide = j1; S.ui.jourSupprime = null; }
-      S.params.dateRef = j1; S.params.mode = 'jour'; LS.set('params', S.params);
-      chargerCriteresPourJour(j1);
+      if (!S.ui.jour || S.ui.jour < tAuj) S.ui.jour = j1;
+      if (S.plan.some(function (a) { return a.date === S.ui.jour; })) { S.ui.planVide = null; }
+      else { S.ui.planVide = S.ui.jour; S.ui.jourSupprime = null; }
+      if (S.params.mode !== 'semaine') {
+        S.params.dateRef = S.ui.jour; S.params.mode = 'jour'; LS.set('params', S.params);
+      }
+      chargerCriteresPourJour(S.ui.jour, dPrecInit);
     }
     var datesF = datesPlanAvenir();
     // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
     // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
     var jSup = S.ui.jourSupprime, jVide = S.ui.planVide;
-    if (jSup && (jSup < tAuj || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
+    if (jSup && (jSup < tAuj || S.plan.some(function (a) { return a.date === jSup && !a.statut; }))) jSup = S.ui.jourSupprime = null;
     if (jVide && (jVide < tAuj || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
-    if (S.ui.jour && S.plan.some(function (a) { return a.date === S.ui.jour; })) { jVide = S.ui.planVide = null; jSup = S.ui.jourSupprime = null; }
-    if (!S.ui.jour || S.ui.jour < tAuj) {
-      if (jSup || jVide) S.ui.jour = jSup || jVide;
-      else choisirJour(datesF);
+    var dPrecJour = S.ui.jour || S.params.dateRef;
+    if (jSup) {
+      S.ui.jour = jSup;
+      jVide = S.ui.planVide = null;
+    } else {
+      if (S.ui.jour && S.plan.some(function (a) { return a.date === S.ui.jour; })) { jVide = S.ui.planVide = null; }
+      if (!S.ui.jour || S.ui.jour < tAuj) {
+        if (jVide) S.ui.jour = jVide;
+        else choisirJour(datesF);
+      }
+    }
+    if (S.ui.jour && S.ui.jour !== dPrecJour) {
+      if (S.params.mode !== 'semaine') { S.params.dateRef = S.ui.jour; LS.set('params', S.params); }
+      chargerCriteresPourJour(S.ui.jour, dPrecJour);
     }
     var jourActif = S.ui.jour || jVide || jSup;
     // 3.31.32 : Le badge Confirmé / Brouillon monte sur la ligne du titre à droite de Planifier pour économiser une ligne
     var etatHaut = '';
-    if (jourActif && S.plan.some(function (a) { return a.date === jourActif; })) {
+    if (jourActif && !(jSup && jSup === jourActif) && S.plan.some(function (a) { return a.date === jourActif; })) {
       etatHaut = jourConfirme(jourActif) ? '<span class="etiquette ok">Confirmé' + (S.jours[jourActif] && S.jours[jourActif].modifieLe ? ', mod.' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
     }
     var h = '<div class="tete-vue"><div style="display:flex;align-items:center;gap:8px"><h2 class="titre-vue" style="margin:0">Planifier</h2>' + etatHaut + '</div>' +
@@ -5100,7 +5285,14 @@
         boutonAnciens('margin-top:10px') + boutonsComposer(prochainJourOuvre(ajouterJours(tAuj, 1)));   // 3.29.5
     }
     var dates = datesF;
-    if (!S.ui.jour || S.ui.jour < tAuj) choisirJour(dates);
+    if (!S.ui.jour || S.ui.jour < tAuj) {
+      var dPrec2 = S.ui.jour || S.params.dateRef;
+      choisirJour(dates);
+      if (S.ui.jour && S.ui.jour !== dPrec2) {
+        if (S.params.mode !== 'semaine') { S.params.dateRef = S.ui.jour; LS.set('params', S.params); }
+        chargerCriteresPourJour(S.ui.jour, dPrec2);
+      }
+    }
     var d = S.ui.jour, enAttente = S.ui.aAccepter === d;
     if (S.ui.annulReprise) {
       h += '<section class="bandeau-prog reprise"><div><b>Programme repris</b><span>' + esc(S.ui.annulReprise.libelle) +
@@ -5254,8 +5446,12 @@
       if (!S.plan.some(function (x) { return x.code === im.code && x.date >= im.apres; })) placerImpose(im);
     });
     mettreBrouillon(Object.keys(cibles).filter(function (d) { return S.plan.some(function (a) { return a.date === d; }); }));
+    var dPrecReprise = S.ui.jour || S.params.dateRef;
     S.ui.jour = Object.keys(cibles).sort()[0]; S.ui.feuille = null; S.ui.voirParams = false; S.ui.tab = 'semaine';
-    if (type === 'semaine') { S.params.mode = 'semaine'; S.params.dateRef = lundiDe(S.ui.jour); } else if (S.params.mode === 'jour') S.params.dateRef = S.ui.jour;
+    S.ui.planInit = true; S.ui.aAccepter = null; S.ui.jourSupprime = null; S.ui.planVide = null;
+    if (type === 'semaine') { S.params.mode = 'semaine'; S.params.dateRef = lundiDe(S.ui.jour); } else if (S.params.mode !== 'semaine') S.params.dateRef = S.ui.jour;
+    LS.set('params', S.params);
+    chargerCriteresPourJour(S.ui.jour, dPrecReprise);
     sauver(); rendre(); publierPlan(true); window.scrollTo(0, 0);
     toast(nouveaux.length + ' visite' + (nouveaux.length > 1 ? 's' : '') + ' reprise' + (nouveaux.length > 1 ? 's' : '') + ' en brouillon' +
       (manques.length ? ' ; ' + manques.length + ' praticien' + (manques.length > 1 ? 's' : '') + ' absent' + (manques.length > 1 ? 's' : '') + ' ce jour-là (non repris)' : '') + '.', 5000);
@@ -5275,8 +5471,13 @@
   // Candidats pour remplacer une visite : présents ce jour-là, hors tournée, non prévus par un collègue, selon les critères de la tournée ;
   // ceux du même établissement d'abord (+ bonus), ceux qui s'insèrent sans retard, puis par priorité et proximité du lieu remplacé
   function candidatsRemplacement(a) {
-    var d = a.date, j = jourSemaineIndex(d), c = ctx(), filtre = filtreCibles(d), pJ = paramsDuJour(d), ex = exclusCollegues([d]);
+    var d = a.date, j = jourSemaineIndex(d), c = ctx(), pJ = paramsDuJour(d), ex = exclusCollegues([d]);
     Object.keys(refusesActuels(d).codes).forEach(function (cR) { ex[cR] = true; });   // 3.26.94 : retirés à la main : pas reproposés en remplacement
+    var supVis = visitesSupprimeesJour(d);
+    var sp = {}, po = {};
+    (pJ.specialites || []).forEach(function (x) { sp[specialiteCanonique(x)] = true; });
+    (pJ.potentiels || []).forEach(function (x) { po[x] = true; });
+    var avecSpec = !!(pJ.specialites && pJ.specialites.length), avecPot = !!(pJ.potentiels && pJ.potentiels.length);
     var dansPlan = ensemble(S.plan.filter(function (x) { return x.date === d; }).map(function (x) { return x.code; }));
     var origine = coordArret(a), vus = {}, l = [];
     var lieuA = a.lieu || '';
@@ -5285,8 +5486,10 @@
       var p = cr.prat;
       var pEstPh = estPharmacie(p);
       if (pEstPh !== cibleEstPh) return;   // Remplacement strict : médecins par médecins, pharmacies par pharmacies
-      if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || absentLe(p, d)) return;
-      if (!cibleEstPh && filtre && !filtre(p)) return;
+      if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || supVis[cr.code] || absentLe(p, d)) return;
+      if (!dansCommunesDu(cr, d)) return;
+      if (!cibleEstPh && avecSpec && !sp[p.specialite] && !sp[specialiteCanonique(p.specialite)]) return;
+      if (avecPot && !po[lettrePotentiel(p.note)]) return;
       if (d === aujourdhui() && cr.fin <= minutesMaintenant()) return;   // aujourd'hui : seulement ceux encore présents
       if (joursEcoules(p.derniere, d) < (+pJ.delai || 0)) return;
       var dK = origine && cr.coord ? distanceKm(origine, cr.coord) : null;
@@ -5323,7 +5526,7 @@
   }
   function appliquerRemplacement(uid, cle, garder) {
     var a = arret(uid), cr = Moteur.creneauParCle(ctx(), cle); if (!a || !cr) return;
-    if (!garder) { S.rejetes[a.code] = true; refuser(a.code, a.date); marquerVisiteSupprimee(a.date, a.code); S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
+    if (!garder) { S.rejetes[a.code] = true; refuser(a.code, a.date); marquerVisiteSupprimee(a.date, a.code); S.imposes = S.imposes.filter(function (im) { return !(im.code === a.code && im.date === a.date); }); S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
     demarquerVisiteSupprimee(a.date, cr.code);
     var n = Moteur.arretDepuisCreneau(cr, a.date); n.etat = 'ajoute'; n.garde = true;
     S.plan.push(n); reordonner(a.date);
@@ -5367,7 +5570,7 @@
     if (!S.plan.some(function (x) { return x.date === a.date; })) { var rt = LS.get('joursRetires', {}); rt[a.date] = true; LS.set('joursRetires', rt); }
     S.rejetes[a.code] = true; refuser(a.code, a.date);
     marquerVisiteSupprimee(a.date, a.code);
-    S.imposes = S.imposes.filter(function (im) { return im.code !== a.code; });
+    S.imposes = S.imposes.filter(function (im) { return !(im.code === a.code && im.date === a.date); });
     reordonner(a.date);
     if (S.ui.tab === 'semaine' && S.plan.some(function (x) { return x.date === a.date; })) mettreBrouillon([a.date]);
     S.ui.ouvert = null; S.ui.aPublier = true; LS.set('aPublier', true); marquerModifie(); sauver(); rendre(); publierPlan(true);
@@ -5398,7 +5601,7 @@
     S.imposes = S.imposes.filter(function (im) { return im.date !== date; });
     if (S.ui.avantJJ && S.ui.avantJJ.date === date) S.ui.avantJJ = null;
     var restantes = datesPlanAvenir();
-    if (S.ui.jour === date) S.ui.jour = restantes[0] || prochainJourOuvre(ajouterJours(aujourdhui(), 1));
+    if (S.ui.jour === date && !resteFaites) S.ui.jour = restantes[0] || prochainJourOuvre(ajouterJours(aujourdhui(), 1));
     // 3.28.29 : l'écran reste sur la journée supprimée (vide, avec « Planifier le … » pour la refaire)
     if (S.ui.tab === 'jour' && date >= aujourdhui() && !resteFaites) S.ui.jourVue = date;
     else if (S.ui.jourVue === date) S.ui.jourVue = null;
@@ -5419,6 +5622,11 @@
   // 3.26.62 : suppression complète d'une visite de la journée (appui très long)
   function supprimerVisiteJour(a) {
     S.queue = S.queue.filter(function (v) { return v.uid !== a.uid; });
+    if (S.deadLetter && Array.isArray(S.deadLetter.visites)) {
+      var dlAvant = S.deadLetter.visites.length;
+      S.deadLetter.visites = S.deadLetter.visites.filter(function (v) { return v.uid !== a.uid && !(v.date === a.date && v.code === a.code); });
+      if (S.deadLetter.visites.length !== dlAvant) LS.set('deadLetter', S.deadLetter);
+    }
     S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; }); S.horsPlan = (S.horsPlan || []).filter(function (x) { return x.uid !== a.uid; });
     // 3.26.64 : mémorisée comme supprimée : elle ne revient plus par le programme publié ni par l'historique
     marquerVisiteSupprimee(a.date, a.code);
@@ -5491,17 +5699,20 @@
     // des visites de l'ancienne journée étaient restées dans la sélection (Proposer complète les jours déjà planifiés) :
     // on refait la journée sans elles, les nouvelles et les visites faites restent à leur heure
     if (gardes.length < duJour.length) {
-      var p = S.params, horsCible = S.plan.filter(function (a) { return a.date !== t; });
-      var exclus = p.eviterCollegues !== false ? exclusCollegues([t]) : exclusValides([t]), ecart = Math.max(+p.delai || 0, 5);
+      var p = S.params, pJ = paramsDuJour(t), horsCible = S.plan.filter(function (a) { return a.date !== t; });
+      var maxJ = +(pJ.maxJour || p.maxJour || 8), delai = pJ.delai !== undefined ? +pJ.delai : (+p.delai || 0);
+      var exclus = pJ.eviterCollegues !== false ? exclusCollegues([t]) : exclusValides([t]), ecart = Math.max(delai, 5);
       horsCible.forEach(function (a) { if (Math.abs(joursEcoules(a.date, t)) < ecart) exclus[a.code] = true; });
       Object.keys(refusesActuels(t).codes).forEach(function (c) { exclus[c] = true; });
+      Object.keys(visitesSupprimeesJour(t)).forEach(function (c) { exclus[c] = true; });
       var heures = {}; gardes.forEach(function (a) { heures[a.uid] = a.heure; });
       var r = Moteur.genererPlanning(ctx(), {
-        dates: [t], communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0, exclus: exclus, rejetes: anciens,
+        dates: [t], communesPour: communesPour, maxJour: maxJ, delai: delai, exclus: exclus, rejetes: anciens,
         conserves: gardes, imposes: S.imposes.filter(function (im) { return im.date === t; }).concat(rdvProchaines([t])), depart: departCoord(), accepte: filtreCibles(t)
       });
-      r.arrets.forEach(function (a) { if (heures[a.uid]) a.heure = heures[a.uid]; });
-      S.plan = horsCible.concat(r.arrets); trierPlan();
+      var res = plafonnerArretsMaxJour(r.arrets, maxJ);
+      res.forEach(function (a) { if (heures[a.uid]) a.heure = heures[a.uid]; });
+      S.plan = horsCible.concat(res); trierPlan();
     }
     var rt = LS.get('joursRetires', {}); if (rt[t]) { delete rt[t]; LS.set('joursRetires', rt); }
   }
@@ -5689,7 +5900,10 @@
     var horsZone = !dansCommunesDu(a, a.date);
     var ancien = estReprise(a);
     if (horsZone) {
-      e += '<span class="etiquette ambre">' + (a.statut ? 'Déjà renseignée' : (a.etape || a.rdv ? 'RDV' : 'Visite passée')) + ', hors communes choisies</span>';
+      var libHors = a.statut ? 'Déjà renseignée, hors communes choisies'
+        : (a.etape || a.rdv ? 'RDV, hors communes choisies'
+          : ((a.originePasse || (a.date && a.date < aujourdhui())) ? 'Visite passée, hors communes choisies' : 'Hors communes choisies'));
+      e += '<span class="etiquette ambre">' + libHors + '</span>';
     } else if (ancien && a.statut) {
       e += '<span class="etiquette ok">Déjà renseignée</span>';
     }
@@ -6009,7 +6223,7 @@
         r.commentaire = c.bilan || '';
       } else {
         r.interlocuteur = c.interlocuteur || '';
-        if (c.stocksVerif === 'oui' || im.stocks) {
+        if (c.stocksVerif === 'oui' || im.stocks || (c.stocksVerif !== 'non' && c.produitsStock && c.produitsStock.length)) {
           var prodsK = (c.produitsStock && c.produitsStock.length) ? c.produitsStock : Object.keys(c.stocks || {});
           r.stocks = prodsK.filter(function (p) { return c.stocks[p] && c.stocks[p].etat; }).map(function (p) {
             var s = c.stocks[p]; return p + ' : ' + s.etat.toLowerCase() + (s.qte ? ' (' + s.qte + ')' : '') + (s.anomalie ? ', ' + s.anomalie.toLowerCase() + (s.lot ? ' lot ' + s.lot : '') : '');
@@ -6325,12 +6539,8 @@
             return '<div class="champ champ-reaction-produit"><div class="etiquette-med-cr"><b>' + esc(p) + '</b></div><div class="grille-reactions-cr">' + pucesValCr(a, 'reactions.' + p, REACTIONS, c.reactions[p]) + '</div></div>';
           }).join('') + '</div>';
         }, function () { var r = produitsPresentes(c).filter(function (p) { return c.reactions[p]; }); return r.length ? r.map(function (p) { return p + ' : ' + c.reactions[p].toLowerCase(); }).join(', ') : 'non renseignée'; });
-        if (!im.echant && !c.echant) c.echant = 'non';
-        if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant); });
+        if (!im.echant) e('echant', 'Échantillons remis ?', 'auto', function () { return choixCr(a, 'echant', [['oui', 'Oui'], ['non', 'Non']], c.echant || 'non'); }, function () { return oui(c.echant || 'non'); });
         if (c.echant === 'oui' || im.echant) e('echQ', 'Échantillons remis (quantités)', 'continuer', function () { return tableQ(a, 'echQ', produitsPresentes(c), c.echQ); }, function () { return listeQ(c.echQ) || 'aucune quantité'; });
-      } else {
-        c.echant = 'non';
-        c.echQ = {};
       }
       e('bilan', 'Bilan', 'facultatif', function () { return texteCr(a, 'bilan', c.bilan, 'Besoins, objections, engagements, autres activités…', true); }, function () { return c.bilan || 'aucun'; });
       etapesSuite(a, c, SUITES.medecin, e);
@@ -6417,9 +6627,8 @@
   // 3.25.43 : Formulaire Express en un seul écran pour les visites rapides
   function rendreCompteRenduExpress(a) {
     var c = crDe(a);
-    if (!c.statut) c.statut = c.faite === 'non' && c.motif ? c.motif : 'Visite faite';
-    appliquerStatutExpress(c); syncCr(a);
-    var estFait = Moteur.estVisite(c.statut, statuts());
+    var statutAffiche = c.statut || (c.faite === 'non' && c.motif ? c.motif : 'Visite faite');
+    var estFait = Moteur.estVisite(statutAffiche, statuts());
     var ph = estPharmacie(a);
 
     var h = '<div class="cr-express-bloc">' +
@@ -6432,10 +6641,10 @@
     h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
       '<span>Statut de la visite</span>' +
       '<div class="puces" style="margin-top:4px">' +
-      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Visite faite" aria-pressed="' + (c.statut === 'Visite faite') + '">✓ Visite faite</button>' +
-      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Absent" aria-pressed="' + (c.statut === 'Absent') + '">Absent</button>' +
-      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Indisponible" aria-pressed="' + (c.statut === 'Indisponible') + '">Indisponible</button>' +
-      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="RDV reporté" aria-pressed="' + (c.statut === 'RDV reporté') + '">Reporté</button>' +
+      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Visite faite" aria-pressed="' + (statutAffiche === 'Visite faite') + '">✓ Visite faite</button>' +
+      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Absent" aria-pressed="' + (statutAffiche === 'Absent') + '">Absent</button>' +
+      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="Indisponible" aria-pressed="' + (statutAffiche === 'Indisponible') + '">Indisponible</button>' +
+      '<button type="button" class="puce" data-a="crStatutExpress" data-uid="' + a.uid + '" data-v="RDV reporté" aria-pressed="' + (statutAffiche === 'RDV reporté') + '">Reporté</button>' +
       '</div></div>';
 
     if (!estFait) {
@@ -6443,7 +6652,7 @@
         '<span>Préciser le motif</span>' +
         '<select data-f="crSelect" data-uid="' + a.uid + '" data-k="statut">' +
         statuts().filter(function (s) { return !s.visite; }).map(function (s) {
-          return '<option' + (s.nom === c.statut ? ' selected' : '') + '>' + esc(s.nom) + '</option>';
+          return '<option' + (s.nom === statutAffiche ? ' selected' : '') + '>' + esc(s.nom) + '</option>';
         }).join('') + '</select></div>';
       h += '<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer la visite non réalisée</button>' +
@@ -6457,10 +6666,10 @@
       rendreChoixTypesCr(a, c.types) +
       '</div>';
 
-    // 3. Produits présentés (3.29.9 : rétabli)
+    // 3. Produits présentés / vérifiés en stock (3.29.9 : rétabli)
     h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
-      '<div class="gamme-cr-titre" style="margin-bottom:6px"><span><b>Produits présentés</b></span></div>' +
-      rendreChoixProduitsCr(a, 'produits', c.produits) +
+      '<div class="gamme-cr-titre" style="margin-bottom:6px"><span><b>' + (ph ? 'Produits vérifiés en stock' : 'Produits présentés') + '</b></span></div>' +
+      rendreChoixProduitsCr(a, ph ? 'produitsStock' : 'produits', ph ? c.produitsStock : c.produits) +
       '</div>';
 
     // 4. Prochaine étape
@@ -6477,16 +6686,17 @@
       '<span>Prochain contact / RDV</span>' +
       '<div class="puces" style="margin-top:4px">' +
       optProchaine.map(function (op) {
-        var d = op[0] ? ajouterJours(aujourdhui(), parseInt(op[0], 10)) : '';
+        var d = op[0] ? ajouterJours(a.date || aujourdhui(), parseInt(op[0], 10)) : '';
         var actif = (op[0] === '' && !valP) || (op[0] && valP === d);
         return '<button type="button" class="puce" data-a="crEtapeRapide" data-uid="' + a.uid + '" data-v="' + d + '" aria-pressed="' + actif + '">' + op[1] + '</button>';
       }).join('') +
       '</div></div>';
 
     // 5. Bilan / Note rapide facultative
+    var cleObs = ph ? 'commentaire' : 'bilan';
     h += '<div class="champ etape-cr-bloc" style="margin-top:10px">' +
       '<span>Observation rapide <small class="discret">(facultatif)</small></span>' +
-      '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="bilan" value="' + esc(c.bilan || '') + '" placeholder="Objections, engagements, besoins…">' +
+      '<input type="text" data-f="cr" data-uid="' + a.uid + '" data-k="' + cleObs + '" value="' + esc(c[cleObs] || '') + '" placeholder="' + (ph ? 'Demande du pharmacien, concurrence, prix…' : 'Objections, engagements, besoins…') + '">' +
       '</div>';
 
     // 6. Bouton de validation sous le pouce
@@ -6613,13 +6823,17 @@
   // valeur d'un chemin « a.b.c » dans le compte rendu
   function majCr(a, cle, valeur, multi) {
     var c = crDe(a), p = cle.split('.'), o = c;
-    // nom de produit pouvant contenir un point : le 2e élément est le produit, le reste le champ
-    if (p.length > 2) p = [p[0], p.slice(1, p.length - 1).join('.'), p[p.length - 1]];
-    else if (p.length === 2) p = [p[0], p[1]];
+    // nom de produit pouvant contenir un point : le 2e élément est le produit, le reste le champ (pour stocks.<produit>.<champ>)
+    if (cle.indexOf('stocks.') === 0 && p.length > 2) p = [p[0], p.slice(1, p.length - 1).join('.'), p[p.length - 1]];
+    else if (p.length >= 2) p = [p[0], p.slice(1).join('.')];
     for (var i = 0; i < p.length - 1; i++) { if (!o[p[i]] || typeof o[p[i]] !== 'object') o[p[i]] = {}; o = o[p[i]]; }
     var k = p[p.length - 1];
     if (multi) { var l = Array.isArray(o[k]) ? o[k] : [], j = l.indexOf(valeur); if (j >= 0) l.splice(j, 1); else l.push(valeur); o[k] = l; }
     else o[k] = valeur;
+    if (S.config.crExpress && !a.modeComplet && !c.faite && cle !== 'statut' && cle !== 'faite') {
+      c.statut = c.statut || 'Visite faite';
+      appliquerStatutExpress(c);
+    }
     if (cle === 'faite' && valeur === 'oui') { c.motif = ''; c.remplacant = ''; }
     if (cle === 'presentes' && valeur === 'non') { c.produits = []; c.reactions = {}; c.echant = 'non'; c.echQ = {}; }
     if (cle === 'suite' && valeur === 'aucune') { c.suiteType = ''; c.date = ''; }
@@ -6902,7 +7116,7 @@
     quartiers().forEach(function (q) { var x = centres[q.commune] = centres[q.commune] || { lat: 0, lon: 0, n: 0 }; x.lat += +q.lat; x.lon += +q.lon; x.n++; });
     (c.nonCouvertes || []).forEach(function (k) {
       var x = centres[k]; if (!x) return;
-      L.circle([x.lat / x.n, x.lon / x.n], { radius: 900, color: gris, weight: 1, dashArray: '4 4', fillOpacity: 0.06 }).addTo(carte).bindTooltip(k + ' : non visitée');
+      L.circle([x.lat / x.n, x.lon / x.n], { radius: 900, color: gris, weight: 1, dashArray: '4 4', fillOpacity: 0.06 }).addTo(carte).bindTooltip(esc(k) + ' : non visitée');
     });
     (c.equipe || []).forEach(function (a) {
       var p = coordArret(a); if (!p) return;
@@ -7377,8 +7591,17 @@
   // Planifié : tournées (téléphone pour moi, feuille Plannings pour tous) ; fait : comptes rendus (Historique et file d'envoi)
   function donneesEquipe(dates) {
     var dd = ensemble(dates), nomMoi = moi() || 'Moi', l = [], cles = {};
-    var hist = (S.queue || []).concat((S.data && S.data.historique) || []), parUid = {};
-    hist.forEach(function (v) { if (v.uid && !parUid[v.uid]) parUid[v.uid] = v; });
+    var hist = (S.queue || []).concat((S.data && S.data.historique) || []), parUid = {}, parCle = {};
+    var cleHist = function (d, code, del) { return String(d || '').slice(0, 10) + '|' + (code || '') + '|' + normaliser(del || ''); };
+    hist.forEach(function (v) {
+      if (v.uid && !parUid[v.uid]) parUid[v.uid] = v;
+      var d = String(v.date || '').slice(0, 10);
+      if (d && v.code) {
+        var del = (!v.delegue || estMoi(v.delegue)) ? nomMoi : v.delegue;
+        var k = cleHist(d, v.code, del);
+        if (!parCle[k]) parCle[k] = v;
+      }
+    });
     var miennesLocales = ensemble(S.plan.map(function (a) { return a.date; }));
     function ajouter(x) {
       var k = (x.delegue || '') + '|' + x.date + '|' + x.code;
@@ -7386,15 +7609,16 @@
     }
     S.plan.forEach(function (a) {
       if (!dd[a.date]) return;
-      var v = parUid[a.uid];
+      var v = parUid[a.uid] || parCle[cleHist(a.date, a.code, nomMoi)];
       ajouter(Object.assign({}, a, { delegue: nomMoi, programme: jourConfirme(a.date) ? 'Validé' : 'Proposition',
         statut: v ? v.statut : (a.etat === 'valide' ? a.statut : ''), compte: v ? v : (a.etat === 'valide' ? a : null) }));
     });
     ((S.data && S.data.plannings) || []).forEach(function (p) {
       if (!dd[p.date] || !p.delegue) return;
       if (estMoi(p.delegue) && miennesLocales[p.date]) return;   // ma version du téléphone est la plus récente
-      var v = p.uid ? parUid[p.uid] : null, st = v ? v.statut : (p.statut === 'À faire' ? '' : p.statut);
-      ajouter(Object.assign({}, p, { delegue: estMoi(p.delegue) ? nomMoi : p.delegue, statut: st || '', compte: v || null }));
+      var delP = estMoi(p.delegue) ? nomMoi : p.delegue;
+      var v = (p.uid && parUid[p.uid]) || parCle[cleHist(p.date, p.code, delP)], st = v ? v.statut : (p.statut === 'À faire' ? '' : p.statut);
+      ajouter(Object.assign({}, p, { delegue: delP, statut: st || '', compte: v || null }));
     });
     // visites faites hors tournée publiée (ajouts, anciennes tournées)
     hist.forEach(function (v) {
@@ -7437,13 +7661,14 @@
     };
     // sélection : aucun = toute l'équipe ; un ou plusieurs délégués isolés
     var fq = S.ui.fq, sel = fq.qui === 'tous' ? [] : (fq.qui === 'moi' ? [nomMoi] : fq.liste.slice()).filter(function (n) { return noms.indexOf(n) >= 0; });
-    if (fq.qui !== 'tous' && !sel.length) return h + '<div class="vide"><strong>Rien sur cette période</strong>Aucune visite pour ' + esc(libelleQui()) + '. Choisissez d\'autres délégués ou une autre date.</div>';
-    if (noms.length === 1) sel = [];
-    var tous = !sel.length, libSel = tous ? 'Toute l\'équipe' : sel.join(', ');
+    var videSel = fq.qui !== 'tous' && !sel.length;
+    if (!videSel && noms.length === 1) sel = [];
+    var tous = !videSel && !sel.length, libSel = tous ? 'Toute l\'équipe' : sel.join(', ');
     if (!tous) {
       h += '<div style="margin:4px 0 8px"><button type="button" class="bouton-texte" data-a="collegueTous">← Revenir à toute l\'équipe</button></div>';
     }
     h += '<ul class="liste resume-equipe">' + noms.map(function (n) { return ligne(n, tout.filter(function (x) { return x.delegue === n; })); }).join('') + '</ul>';
+    if (videSel) return h + '<div class="vide"><strong>Rien sur cette période</strong>Aucune visite pour ' + esc(libelleQui()) + '. Choisissez d\'autres délégués ou une autre date.</div>';
 
     var siens = tous ? tout : tout.filter(function (x) { return sel.indexOf(x.delegue) >= 0; });
     // semaine : un jour à la fois
@@ -9074,7 +9299,7 @@
       (S.ui.erreur ? '<p class="discret" style="color:var(--rouge);margin-bottom:0">' + esc(S.ui.erreur) + '</p>' : '') +
       (S.data && S.data.praticiens && !S.data.serveurRecent && connecte() ? '<p class="discret" style="color:var(--rouge)">Ce téléphone est relié à une ancienne version du serveur : touchez « Synchroniser maintenant » pour basculer automatiquement sur le serveur à jour.</p>' : '') +
       (connecte() ? '<p class="discret" style="margin:4px 0 0">Serveur : …' + esc(String(S.config.url).replace(/\/exec.*$/, '').slice(-6)) + '</p>' : '') +
-      '<h3>Effacer</h3><button class="bouton bouton-large bouton-danger" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button>');
+      '<h3>Effacer</h3><button class="bouton bouton-large bouton-plein" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button>');
     return h;
   };
   // 3.29.0 : envois refusés par le serveur : visibles, détaillés, renvoyables ; jamais effacés en silence
@@ -9506,7 +9731,7 @@
     if (!l.length) return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer cette visite.</p>' +
       '<p class="discret">Aucun' + (ph ? 'e autre pharmacie' : ' autre médecin') + ' disponible ce jour-là selon vos critères (communes, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>' +
       '<div class="rangee-actions" style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">' +
-        '<button type="button" class="bouton bouton-plein" data-a="feuilleFermer" style="flex:1;min-width:140px">' + icone('epingle') + 'Garder ' + esc(a.nom) + '</button>' +
+        '<button type="button" class="bouton bouton-plein" data-a="fermerFeuille" style="flex:1;min-width:140px">' + icone('epingle') + 'Garder ' + esc(a.nom) + '</button>' +
         '<button type="button" class="bouton danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '" style="flex:1;min-width:140px">' + icone('fermer') + 'Retirer de la tournée</button>' +
       '</div>';
     var q = f.q || '';
@@ -9823,7 +10048,7 @@
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), ex = exclusCollegues([d]);
     var groupes = {}, ordre = [];
     (ctx().parJour[j] || []).forEach(function (cr) {
-      var p = cr.prat; if (!p || p.type !== 'Pharmacie' || absentLe(p, d)) return;
+      var p = cr.prat; if (!p || p.type !== 'Pharmacie' || absentLe(p, d) || ex[p.code]) return;
       if (!communeCorrespondante(cr, com)) return;
       if (z.moment === 'Matin' || z.moment === 'Soir') { if (cr.creneau !== z.moment) return; }
       else if (z.moment === 'maintenant' && (now < cr.debut || now > cr.fin)) return;
@@ -9866,7 +10091,7 @@
     var groupes = {}, ordre = [];
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat, k = normaliser(cr.lieu || '');
-      if (!p || p.type === 'Pharmacie' || !lieux[k] || absentLe(p, d)) return;
+      if (!p || p.type === 'Pharmacie' || !lieux[k] || absentLe(p, d) || ex[p.code]) return;
       if (h.specs.length && !specs[p.specialite]) return;
       if (h.moment === 'Matin' || h.moment === 'Soir') { if (cr.creneau !== h.moment) return; }
       else if (h.moment === 'maintenant' && (now < cr.debut || now > cr.fin)) return;
@@ -11915,15 +12140,25 @@
     var d = Object.keys(dates).sort();
     if (!d.length) return 0;
     var p = S.params, reste = S.plan.filter(function (a) { return !touches[a.uid]; });
-    var exclus = exclusCollegues(d);
-    Object.keys(codes).forEach(function (c) { exclus[c] = true; });
-    reste.forEach(function (a) { if (d.indexOf(a.date) < 0) exclus[a.code] = true; });
-    var r = Moteur.genererPlanning(ctx(), {
-      dates: d, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0, exclus: exclus,
-      rejetes: S.rejetes, conserves: reste.filter(function (a) { return d.indexOf(a.date) >= 0; }), imposes: [], depart: departCoord(),
-      accepte: filtreCibles()
+    var arretsRemplaces = [];
+    d.forEach(function (dj) {
+      var pJ = paramsDuJour(dj);
+      var maxJ = +(pJ.maxJour || p.maxJour || 8);
+      var delai = pJ.delai !== undefined ? +pJ.delai : (+p.delai || 0);
+      var exclus = pJ.eviterCollegues !== false ? exclusCollegues([dj]) : exclusValides([dj]);
+      Object.keys(codes).forEach(function (c) { exclus[c] = true; });
+      reste.forEach(function (a) { if (a.date !== dj) exclus[a.code] = true; });
+      arretsRemplaces.forEach(function (a) { exclus[a.code] = true; });
+      Object.keys(refusesActuels(dj).codes).forEach(function (c) { exclus[c] = true; });
+      Object.keys(visitesSupprimeesJour(dj)).forEach(function (c) { exclus[c] = true; });
+      var r = Moteur.genererPlanning(ctx(), {
+        dates: [dj], communesPour: communesPour, maxJour: maxJ, delai: delai, exclus: exclus,
+        rejetes: S.rejetes, conserves: reste.filter(function (a) { return a.date === dj; }), imposes: [], depart: departCoord(),
+        accepte: filtreCibles(dj)
+      });
+      Array.prototype.push.apply(arretsRemplaces, plafonnerArretsMaxJour(r.arrets, maxJ));
     });
-    S.plan = reste.filter(function (a) { return d.indexOf(a.date) < 0; }).concat(r.arrets);
+    S.plan = reste.filter(function (a) { return d.indexOf(a.date) < 0; }).concat(arretsRemplaces);
     trierPlan(); sauver();
     return Object.keys(touches).length;
   }
@@ -11939,7 +12174,7 @@
   function raisonsManque(d, n, maxJ, exclus) {
     var acc = filtreCibles(d), ref = refusesActuels(d).codes, delai = +paramsDuJour(d).delai || 0, vus = {}, nb = { tous: 0, ref: 0, autres: 0, delai: 0 };
     (ctx().parJour[jourSemaineIndex(d)] || []).forEach(function (c) {
-      if (vus[c.code] || !dansCommunesDu(c, d) || (acc && !acc(c.prat))) return;
+      if (vus[c.code] || absentLe(c.prat, d) || !dansCommunesDu(c, d) || (acc && !acc(c.prat))) return;
       vus[c.code] = true; nb.tous++;
       if (ref[c.code]) nb.ref++;
       else if (exclus[c.code]) nb.autres++;
@@ -11951,7 +12186,7 @@
       (libre > n ? ' ; les autres ont des heures de présence qui ne s\'enchaînent pas sans retard.' : '.') + ' Élargissez les communes ou les spécialités pour en avoir ' + maxJ + '.';
   }
   function plafonnerArretsMaxJour(liste, maxJ) {
-    var m = Math.max(1, +maxJ || 8), parDate = {}, ordre = [];
+    var parDate = {}, ordre = [];
     (liste || []).forEach(function (a) {
       if (!a || !a.date) return;
       if (!parDate[a.date]) { parDate[a.date] = []; ordre.push(a.date); }
@@ -11959,6 +12194,7 @@
     });
     var res = [];
     ordre.forEach(function (d) {
+      var m = Math.max(1, +(typeof maxJ === 'function' ? maxJ(d) : maxJ) || 8);
       var duJ = parDate[d];
       var faits = duJ.filter(function (a) { return !!a.statut; });
       var planifies = duJ.filter(function (a) { return !a.statut; });
@@ -11995,8 +12231,15 @@
     }
     (horsZone ? Promise.resolve() : avantTirage()).then(function () {
       var periode = datesPeriode();
-      var cible = (portee === 'jour' || (portee === 'nouveau' && p.mode === 'jour' && p.dateRef)) ? [p.dateRef || S.ui.jour] : periode;
-      cible.forEach(function (d) { sauverCriteresDate(d, p); });
+      var dJour = (S.ui.jour && S.ui.jour >= aujourdhui()) ? S.ui.jour : p.dateRef;
+      var cible = portee === 'jour' ? [dJour || p.dateRef] : (portee === 'nouveau' && p.mode === 'jour' && p.dateRef ? [p.dateRef || S.ui.jour] : periode);
+      if (cible.length === 1) {
+        sauverCriteresDate(cible[0], p);
+      } else {
+        cible.forEach(function (d) {
+          if (!S.criteresJours || !S.criteresJours[d]) sauverCriteresDate(d, p);
+        });
+      }
       // 3.28.35 : planification du jour même : on garde ce que Journée montrait avant, pour demander à l'acceptation
       // s'il faut remplacer la journée déjà planifiée ou la garder
       memoriserJourMeme(cible);
@@ -12015,7 +12258,7 @@
         }
       }
       if (portee === 'jour') {
-        var dTir = S.ui.jour;
+        var dTir = cible[0];
         if (!S.ui.avantTirage || S.ui.avantTirage.date !== dTir || S.ui.aAccepter !== dTir) {
           S.ui.avantTirage = {
             date: dTir,
@@ -12052,29 +12295,106 @@
           return garder;
         });
       }
-      var maxJ = +p.maxJour || 8;
-      conserves = plafonnerArretsMaxJour(conserves, maxJ);
+      var maxPour = function (d) { return +(paramsDuJour(d).maxJour || p.maxJour || 8); };
+      var delaiPour = function (d) { var pd = paramsDuJour(d); return pd.delai !== undefined ? +pd.delai : (+p.delai || 0); };
+      conserves = plafonnerArretsMaxJour(conserves, maxPour);
       // agenda : les autres jours restent ; un praticien déjà prévu à quelques jours d'écart n'est pas repris
       var horsCible = S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
-      var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
-      horsCible.forEach(function (a) { if (cible.some(function (d) { return Math.abs(joursEcoules(a.date, d)) < ecart; })) exclus[a.code] = true; });
-      cible.forEach(function (d) { Object.keys(refusesActuels(d).codes).forEach(function (c) { exclus[c] = true; }); });   // 3.26.94 : retirés à la main : jamais reproposés
-      var optsTirage = {
-        dates: cible, communesPour: communesPour, maxJour: maxJ, delai: +p.delai || 0,
-        exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles(cible.length === 1 ? cible[0] : null)
+      var construireExclus = function (datesCible, extraArrets) {
+        var ref0 = datesCible.length === 1 ? paramsDuJour(datesCible[0]) : p;
+        var evCol = ref0.eviterCollegues !== false;
+        var ex = evCol ? exclusCollegues(datesCible) : exclusValides(datesCible);
+        var ecart = Math.max(datesCible.length === 1 ? delaiPour(datesCible[0]) : (+p.delai || 0), 5);
+        horsCible.concat(extraArrets || []).forEach(function (a) {
+          if (datesCible.some(function (d) { return Math.abs(joursEcoules(a.date, d)) < ecart; })) ex[a.code] = true;
+        });
+        datesCible.forEach(function (d) { Object.keys(refusesActuels(d).codes).forEach(function (c) { ex[c] = true; }); });   // 3.26.94 : retirés à la main : jamais reproposés
+        return ex;
       };
-      var r = Moteur.genererPlanning(ctx(), optsTirage);
+      var cleCritNonCom = function (d) {
+        var pd = paramsDuJour(d);
+        return JSON.stringify([
+          pd.typeCibles || 'medecins',
+          Array.isArray(pd.specialites) ? pd.specialites : [],
+          Array.isArray(pd.potentiels) ? pd.potentiels : [],
+          +pd.maxJour || 8,
+          pd.delai !== undefined ? +pd.delai : 7,
+          pd.eviterCollegues !== false
+        ]);
+      };
+      var memeCritNonCom = cible.length <= 1 || cible.every(function (d) { return cleCritNonCom(d) === cleCritNonCom(cible[0]); });
+      var tousImposes = S.imposes.concat(rdvProchaines(cible));
+      var exclus = construireExclus(cible);
+      var lancerMoteur = function (rejetesMap, conservesList) {
+        if (memeCritNonCom) {
+          var d0 = cible[0];
+          return Moteur.genererPlanning(ctx(), {
+            dates: cible,
+            communesPour: communesPour,
+            maxJour: d0 ? maxPour(d0) : (+p.maxJour || 8),
+            delai: d0 ? delaiPour(d0) : (+p.delai || 0),
+            exclus: exclus,
+            rejetes: rejetesMap,
+            conserves: conservesList,
+            imposes: tousImposes,
+            depart: departCoord(),
+            accepte: d0 ? filtreCibles(d0) : filtreCibles(null)
+          });
+        }
+        var arretsAcc = [], nonPlacesMap = {}, codesPlaces = {};
+        conservesList.forEach(function (a) { codesPlaces[a.code] = true; });
+        cible.forEach(function (d) {
+          var consD = conservesList.filter(function (a) { return a.date === d; });
+          var impD = tousImposes.filter(function (im) {
+            if (codesPlaces[im.code]) return false;
+            if (im.date && im.date !== d) return false;
+            if (im.apres && d < im.apres) return false;
+            return true;
+          });
+          var resD = Moteur.genererPlanning(ctx(), {
+            dates: [d],
+            communesPour: communesPour,
+            maxJour: maxPour(d),
+            delai: delaiPour(d),
+            exclus: construireExclus([d], arretsAcc),
+            rejetes: rejetesMap,
+            conserves: consD,
+            imposes: impD,
+            depart: departCoord(),
+            accepte: filtreCibles(d)
+          });
+          resD.arrets.forEach(function (a) { arretsAcc.push(a); codesPlaces[a.code] = true; delete nonPlacesMap[a.code]; });
+          resD.nonPlaces.forEach(function (np) { if (!codesPlaces[np.code]) nonPlacesMap[np.code] = np; });
+        });
+        return { arrets: arretsAcc, nonPlaces: Object.keys(nonPlacesMap).map(function (k) { return nonPlacesMap[k]; }) };
+      };
+      var r = lancerMoteur(S.rejetes, conserves);
       // 3.28.31 : un recalcul ne propose jamais moins de visites que demandé quand c'est possible :
       // si les nouveaux venus ne laissent pas la place, on refait le tirage en reprenant aussi
       // les médecins de la liste précédente (jamais ceux retirés par la croix)
-      var manque = function (res) { return cible.some(function (d) { return res.arrets.filter(function (a) { return a.date === d; }).length < maxJ; }); };
+      var manque = function (res) { return cible.some(function (d) { return res.arrets.filter(function (a) { return a.date === d; }).length < maxPour(d); }); };
+      var estMeilleurSansDegrader = function (cand, cur) {
+        var mieux = false;
+        for (var i = 0; i < cible.length; i++) {
+          var d = cible[i], m = maxPour(d);
+          var nc = Math.min(m, cand.arrets.filter(function (a) { return a.date === d; }).length);
+          var nr = Math.min(m, cur.arrets.filter(function (a) { return a.date === d; }).length);
+          if (nc < nr) return false;
+          if (nc > nr) mieux = true;
+        }
+        return mieux;
+      };
       if (Object.keys(S.rejetes).length && manque(r)) {
-        var r2 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {} }));
-        if (r2.arrets.length > r.arrets.length) r = r2;
+        var r2 = lancerMoteur({}, conserves);
+        if (estMeilleurSansDegrader(r2, r)) r = r2;
         // 3.28.33 : sinon, on garde les médecins restés dans la liste (à leur heure) et on comble les places libérées
         if (manque(r) && (portee === 'jour' || portee === 'semaine')) {
+          var joursManquants = {};
+          cible.forEach(function (d) {
+            if (r.arrets.filter(function (a) { return a.date === d; }).length < maxPour(d)) joursManquants[d] = true;
+          });
           var restes = S.plan.filter(function (a) {
-            if (cible.indexOf(a.date) < 0 || conserves.indexOf(a) >= 0) return false;
+            if (!joursManquants[a.date] || conserves.indexOf(a) >= 0) return false;
             if (refusesActuels(a.date).codes[a.code] || visitesSupprimeesJour(a.date)[a.code]) return false;
             if (!dansCommunesDu(a, a.date)) return false;
             var accD = filtreCibles(a.date);
@@ -12085,13 +12405,13 @@
             return true;
           }).map(function (a) { var x = JSON.parse(JSON.stringify(a)); x.garde = true; return x; });
           if (restes.length) {
-            var r3 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {}, conserves: conserves.concat(restes) }));
+            var r3 = lancerMoteur({}, conserves.concat(restes));
             r3.arrets.forEach(function (a) { var o = restes.filter(function (x) { return x.uid === a.uid; })[0]; if (o) { var src = S.plan.filter(function (y) { return y.uid === o.uid; })[0]; a.garde = !!(src && src.garde); } });
-            if (r3.arrets.length > r.arrets.length) r = r3;
+            if (estMeilleurSansDegrader(r3, r)) r = r3;
           }
         }
       }
-      r.arrets = plafonnerArretsMaxJour(r.arrets, maxJ);
+      r.arrets = plafonnerArretsMaxJour(r.arrets, maxPour);
       r.arrets.forEach(function (a) { if (heuresGardees[a.uid]) a.heure = heuresGardees[a.uid]; });
       var rtPlan = LS.get('joursRetires', {}), rtMod = false;
       r.arrets.forEach(function (a) {
@@ -12105,7 +12425,7 @@
       if (portee === 'nouveau') { S.ui.portee = null; LS.set('portee', null); }
       // jours touchés : en brouillon s'ils ont reçu de nouvelles visites ; un recalcul attend « Accepter » ou « Recalculer encore »
       var touches = {}; r.arrets.forEach(function (a) { if (!heuresGardees[a.uid] && !(a.etat === 'valide' || a.corrige)) touches[a.date] = true; });
-      if (portee === 'jour') { mettreBrouillon(cible); S.ui.aAccepter = cible[0]; }
+      if (portee === 'jour') { mettreBrouillon(cible); S.ui.aAccepter = cible[0] || null; if (cible[0]) S.ui.jour = cible[0]; }
       else mettreBrouillon(Object.keys(touches));
       S.ui.voirParams = false; S.ui.ouvert = null; S.ui.planVide = null; S.ui.jourSupprime = null;
       if (portee === 'nouveau') {
@@ -12115,17 +12435,20 @@
       sauver(); rendre(); publierPlan(true);
       if (portee === 'jour') setTimeout(function () { centrerElement(document.querySelector('.bandeau-prog.accepter')); }, 60);
       var nG = Object.keys(heuresGardees).length, nN = r.arrets.length - nG;
-      var msg = r.arrets.length ? (nG ? (!nN ? 'Aucun créneau libre : les ' + nG + ' visites déjà prévues sont conservées.' : nN + ' visite' + (nN > 1 ? 's' : '') + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' déjà prévue' + (nG > 1 ? 's' : '') + ' conservée' + (nG > 1 ? 's' : '') + '.') : r.arrets.length + ' visites proposées' + (portee === 'jour' ? ' pour ce jour' : '') + '.') : 'Aucun praticien ne correspond à ces critères.';
-      if (portee === 'jour' && r.arrets.length < maxJ) msg += ' ' + raisonsManque(cible[0], r.arrets.length, maxJ, exclus);
+      var msg = r.arrets.length ? (nG ? (!nN ? 'Aucun créneau libre : les ' + nG + ' visites déjà prévues sont conservées.' : nN + ' visite' + (nN > 1 ? 's' : '') + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' déjà prévue' + (nG > 1 ? 's' : '') + ' conservée' + (nG > 1 ? 's' : '') + '.') : r.arrets.length + ' visites proposées' + (cible.length === 1 ? ' pour ce jour' : '') + '.') : 'Aucun praticien ne correspond à ces critères.';
+      var maxJ0 = cible.length === 1 ? maxPour(cible[0]) : (+p.maxJour || 8);
+      if ((portee === 'jour' || (portee === 'nouveau' && cible.length === 1)) && cible[0] && r.arrets.length < maxJ0) {
+        msg += ' ' + raisonsManque(cible[0], r.arrets.length, maxJ0, construireExclus([cible[0]]));
+      }
       var np = r.nonPlaces.filter(function (x) { return !x.etape; });
       if (np.length) msg += ' ' + np.length + ' médecin(s) prioritaire(s) absent(s) sur la période.';
       var hz = r.nonPlaces.filter(function (x) { return x.etape && x.horsCommunes; });
       if (hz.length) msg += ' ' + hz.length + ' RDV hors des communes choisies, non placé' + (hz.length > 1 ? 's' : '') + ' : ' + hz.map(function (x) { var pr = praticien(x.code); return pr ? pr.nom : x.code; }).join(', ') + '.';
-      var attendu = (+p.maxJour || 8) * cible.filter(function (d) { return jourSemaineIndex(d) < 5; }).length;
-      if (portee !== 'jour' && r.arrets.length && r.arrets.length < attendu * 0.75) {
+      var attendu = cible.reduce(function (tot, d) { return tot + (jourSemaineIndex(d) < 5 ? maxPour(d) : 0); }, 0);
+      if (cible.length > 1 && r.arrets.length && r.arrets.length < attendu * 0.75) {
         msg += ' Moins de visites que prévu : les praticiens présents sont déjà ciblés par l\'équipe, vus récemment ou hors des critères choisis. Élargissez les communes ou les spécialités.';
       }
-      toast(msg, portee === 'jour' && r.arrets.length < maxJ ? 9000 : 4500);
+      toast(msg, (cible.length === 1 && r.arrets.length < maxJ0) ? 9000 : 4500);
     });
   }
 
@@ -12295,8 +12618,24 @@
     publierPlan(!placees);
   }
 
-  function ajouterArret(c, date) {
+  function ajouterArret(c, date, force) {
     if (S.plan.some(function (a) { return a.date === date && a.code === c.code; })) { toast('Ce praticien est déjà prévu ce jour-là.'); return false; }
+    var maxJ = +(paramsDuJour(date).maxJour || S.params.maxJour || 8);
+    var nbNonFaites = S.plan.filter(function (a) { return a.date === date && !estFaiteArret(a); }).length;
+    if (nbNonFaites >= maxJ && !force) {
+      confirmerPuis(
+        'Plafond de visites atteint',
+        'La journée du <b>' + dateFr(date) + '</b> compte déjà ' + nbNonFaites + ' visites à faire (plafond réglé à ' + maxJ + '). Ajouter <b>' + esc(c.prat.nom) + '</b> quand même ?',
+        'Ajouter quand même',
+        function () {
+          if (ajouterArret(c, date, true)) {
+            if (S.ui.feuille) S.ui.feuille = null;
+            rendre();
+          }
+        }
+      );
+      return false;
+    }
     // 3.27.13 : aujourd'hui, créneau déjà terminé : on prend le créneau suivant du même lieu (ex. le soir)
     if (date === aujourdhui() && c.fin <= minutesMaintenant()) {
       var suite = (ctx().parCode[c.code] || []).filter(function (x) { return x.jourIdx === c.jourIdx && String(x.idPresence) === String(c.idPresence) && x.fin > minutesMaintenant(); })
@@ -12308,6 +12647,7 @@
     // 3.28.18 : ajouté à la main : la croix et l'éventuelle suppression d'avant sont levées
     demarquerVisiteSupprimee(date, c.code);
     var rf = refusesActuels(date); if (rf.codes[c.code]) { delete rf.codes[c.code]; sauverRefusesDate(date, rf); }
+    var rt = LS.get('joursRetires', {}); if (rt[date]) { delete rt[date]; LS.set('joursRetires', rt); }
     S.plan.push(a);
     reordonner(date);
     if (S.ui.tab === 'semaine') mettreBrouillon([date]);
@@ -12337,15 +12677,24 @@
       return !qui || estMoi(qui);
     }).map(function (p) { return { code: p.code, apres: p.prochaine < dates[0] ? dates[0] : p.prochaine, etape: true, dateRdv: p.prochaine, prisLe: prisLe[p.code + '|' + p.prochaine] || '' }; });
   }
-  function forcerArretJour(code, d, rdv, lieuPrefere) {
+  function forcerArretJour(code, d, rdv, lieuPrefere, force) {
     var c = ctx(), p = c.prat[code];
     if (!p) return false;
+    demarquerVisiteSupprimee(d, code);
+    var rf = refusesActuels(d); if (rf.codes[code]) { delete rf.codes[code]; sauverRefusesDate(d, rf); }
+    var rt = LS.get('joursRetires', {}); if (rt[d]) { delete rt[d]; LS.set('joursRetires', rt); }
     var ex = S.plan.filter(function (a) { return a.date === d && a.code === code; })[0];
     if (ex) {
       ex.impose = true; ex.garde = true; ex.inopinee = true;
       if (rdv) ex.rdv = rdv;
       reordonner(d);
       return true;
+    }
+    var maxJ = +(paramsDuJour(d).maxJour || S.params.maxJour || 8);
+    var nbNonFaites = S.plan.filter(function (a) { return a.date === d && !estFaiteArret(a); }).length;
+    if (nbNonFaites >= maxJ && force === false) {
+      toast('Plafond de ' + maxJ + ' visites atteint pour le ' + dateCourte(d) + '.');
+      return false;
     }
     var jIdx = jourSemaineIndex(d), now = minutesMaintenant(), estSoir = d === aujourdhui() && now >= 13 * 60;
     var tousCr = c.parCode[code] || [];
@@ -12402,15 +12751,23 @@
     S.plan.push(a);
     reordonner(d);
     if (!S.jours[d]) mettreBrouillon([d]);
+    if (nbNonFaites >= maxJ && !force) {
+      setTimeout(function () {
+        toast('Attention : plafond de ' + maxJ + ' visites dépassé le ' + dateCourte(d) + ' (' + (nbNonFaites + 1) + ' à faire).', 4000);
+      }, 60);
+    }
     return true;
   }
   function placerImpose(im) {
-    if (im.force && im.date) return forcerArretJour(im.code, im.date, im.rdv);
+    if (im.force && im.date) return forcerArretJour(im.code, im.date, im.rdv, undefined, true);
     var c = ctx(), dates = datesPeriode(), best = null;
     (c.parCode[im.code] || []).forEach(function (cr) {
       dates.forEach(function (d) {
         if (jourSemaineIndex(d) !== cr.jourIdx || (im.date && im.date !== d) || (im.apres && d < im.apres) || (im.cle && im.cle !== cr.cle) || estFerie(d)) return;
         if (S.plan.some(function (a) { return a.date === d && a.code === im.code; })) return;
+        var maxJ = +(paramsDuJour(d).maxJour || S.params.maxJour || 8);
+        var nbNonFaites = S.plan.filter(function (a) { return a.date === d && !estFaiteArret(a); }).length;
+        if (!im.force && nbNonFaites >= maxJ) return;
         var a = Moteur.arretDepuisCreneau(cr, d);
         a.impose = true; a.garde = true; if (im.rdv) a.rdv = im.rdv; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres; a.rdvPrisLe = im.prisLe || ''; }
         // 3.29.0 : coût d'insertion dans l'ordre actuel du jour (rapide) ; la journée choisie est ensuite réordonnée en entier
@@ -12421,6 +12778,9 @@
       });
     });
     if (!best) return false;
+    demarquerVisiteSupprimee(best.d, im.code);
+    var rf = refusesActuels(best.d); if (rf.codes[im.code]) { delete rf.codes[im.code]; sauverRefusesDate(best.d, rf); }
+    var rt = LS.get('joursRetires', {}); if (rt[best.d]) { delete rt[best.d]; LS.set('joursRetires', rt); }
     S.plan.push(best.a);
     reordonner(best.d);
     if (!im.etape) S.ui.jour = best.d;
@@ -12917,6 +13277,8 @@
       if (dest === 'praticiens') demarrerFlashScans();
       if (S.ui.tab === 'historique') { S.ui.tab = 'suivi'; S.ui.suiviVue = 'bilan'; S.ui.statsVue = 'historique'; }
       S.ui.feuille = null;
+      S.ui.aAccepter = null;
+      gererHistoriqueModal(false);
       rendre(); window.scrollTo(0, 0);
       if (S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe') rendreSiPossible(); });
     },
@@ -13033,10 +13395,18 @@
     },
     garderPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.garder(el); if (S.ui.feuille && S.ui.feuille.type === 'visitePlan') S.ui.feuille = null; rendre(); },
     retirerPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
-    voirDansJournee: function (el) { S.ui.feuille = null; S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); },
+    voirDansJournee: function (el) {
+      var a = arret(el.dataset.uid);
+      S.ui.feuille = null;
+      S.ui.aAccepter = null;
+      if (a && a.date && !a.hors) { S.ui.jour = a.date; S.ui.jourVue = null; }
+      S.ui.tab = 'jour';
+      S.ui.ouvert = el.dataset.uid;
+      rendre();
+    },
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; chercherMaPosition(); rendre(); window.scrollTo(0, 0); },
     generer: function () {
-      if (S.ui.tab === 'semaine' && S.ui.jour && S.ui.jour >= aujourdhui()) {
+      if (S.ui.tab === 'semaine' && S.params.mode !== 'semaine' && S.ui.jour && S.ui.jour >= aujourdhui()) {
         S.params.mode = 'jour';
         S.params.dateRef = S.ui.jour;
         LS.set('params', S.params);
@@ -13049,7 +13419,7 @@
       if ((el && el.__bloqueClic && Date.now() < el.__bloqueClic) || (b && b.__bloqueClic && Date.now() < b.__bloqueClic)) return;
       if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
       var dPrec = S.ui.jour || S.params.dateRef;
-      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; S.ui.planVide = null;
+      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; S.ui.planVide = null; S.ui.aAccepter = null;
       jourChoisiPlanifier(el.dataset.v, false, dPrec); rendre();
     },
     planVierge: function (el) {
@@ -13057,7 +13427,7 @@
       if ((el && el.__bloqueClic && Date.now() < el.__bloqueClic) || (b && b.__bloqueClic && Date.now() < b.__bloqueClic)) return;
       if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
       var dPrec = S.ui.jour || S.params.dateRef;
-      S.ui.planVide = el.dataset.v; S.ui.jour = el.dataset.v; S.ui.jourSupprime = null; S.ui.ouvert = null;
+      S.ui.planVide = el.dataset.v; S.ui.jour = el.dataset.v; S.ui.jourSupprime = null; S.ui.ouvert = null; S.ui.aAccepter = null;
       jourChoisiPlanifier(el.dataset.v, false, dPrec);
       rendre();
     },
@@ -13120,11 +13490,21 @@
     calChoisirJour: function (el) {
       var d = el.dataset.v, f = S.ui.feuille;
       S.ui.feuille = null;
+      S.ui.aAccepter = null;
       if (f && f.ctx === 'plan') {
         // Planifier : jour déjà planifié -> sélectionné ; sinon la planification s'ouvre sur cette date
         if (d < aujourdhui()) { toast('On ne planifie pas un jour passé.'); rendre(); return; }
-        if (datesPlan().indexOf(d) >= 0) { S.ui.jour = d; rendre(); return; }
-        S.params.dateRef = d; S.params.mode = 'jour'; LS.set('params', S.params); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); return;
+        var dPrecCal = S.ui.jour || S.params.dateRef;
+        S.ui.jourSupprime = null; S.ui.planVide = null; S.ui.ouvert = null;
+        if (datesPlan().indexOf(d) >= 0) {
+          S.ui.jour = d;
+          jourChoisiPlanifier(d, false, dPrecCal);
+          rendre(); return;
+        }
+        S.ui.jour = d; S.ui.planVide = d;
+        S.params.dateRef = d; S.params.mode = 'jour'; LS.set('params', S.params);
+        chargerCriteresPourJour(d, dPrecCal);
+        S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); return;
       }
       allerAuJour(d);
     },
@@ -13221,7 +13601,8 @@
       r.uids[el.dataset.uid] = true; LS.set('refusProches', r); rendre();
     },
     accepterJour: function () {
-      var d = S.ui.aAccepter || S.ui.jour, b = joursBrouillon();
+      var d = S.ui.jour || S.ui.aAccepter, b = joursBrouillon();
+      if (S.ui.aAccepter && S.ui.aAccepter !== d) S.ui.aAccepter = null;
       if (b.indexOf(d) < 0 && !jourConfirme(d)) b.push(d);
       var autres = b.filter(function (x) { return x !== d; });
       if (autres.length > 0) {
@@ -13270,7 +13651,7 @@
       if (av && av.date) {
         S.plan = S.plan.filter(function (a) { return a.date !== av.date; }).concat(av.arrets || []);
         trierPlan();
-        if (av.jourEtat) S.jours[av.date] = av.jourEtat;
+        if (av.jourEtat) S.jours[av.date] = av.jourEtat; else delete S.jours[av.date];
         if (av.rejetes) S.rejetes = av.rejetes;
         S.ui.avantTirage = null; S.ui.avantJJ = null;
         sauver(); rendre(); publierPlan(true);
@@ -13396,15 +13777,17 @@
     partagerTexte: function () { navigator.share({ title: 'Programme de tournée', text: S.ui.feuille.texte }).catch(function () {}); },
     fermerFeuille: function (el, force) {
       var f = S.ui.feuille;
-      if (f && f.type === 'fiche' && !force && f.donnees && (f.donnees.nom || (f.donnees.lieux && f.donnees.lieux.some(function (l) { return l.lieu || l.commune; })))) {
+      if (f && f.type === 'fiche' && force !== true && f.d && (!f.initial || JSON.stringify(f.d) !== f.initial) &&
+          (f.d.nom || (f.d.lieux && f.d.lieux.some(function (l) { return l.lieu || l.commune; })) ||
+            (f.d.presences && f.d.presences.some(function (p) { return p.lieu || p.commune; })))) {
         confirmerPuis('Abandonner les modifications ?', 'Vous avez des données non enregistrées sur cette fiche. Quitter sans enregistrer ?', 'Quitter', function () {
           ACTIONS.fermerFeuille(null, true);
         });
         return;
       }
-      if (f && f.type === 'listeChoix') { S.ui.feuille = f.retour || null; if (f.dom) rendreFeuille(); else rendre(); return; }
-      if (f && f.type === 'contactFiche') { S.ui.feuille = f.retour || null; rendre(); return; }
-      S.ui.feuille = null; rendre();
+      if (f && f.type === 'listeChoix') { S.ui.feuille = f.retour || null; if (!S.ui.feuille) gererHistoriqueModal(false); if (f.dom) rendreFeuille(); else rendre(); return; }
+      if (f && f.type === 'contactFiche') { S.ui.feuille = f.retour || null; if (!S.ui.feuille) gererHistoriqueModal(false); rendre(); return; }
+      S.ui.feuille = null; gererHistoriqueModal(false); rendre();
     },
     couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; LS.set('couvPortee', S.ui.couvPortee); rendre(); },
     couvOuvrir: function () { S.ui.couvOuverte = !S.ui.couvOuverte; rendre(); },
@@ -13634,7 +14017,7 @@
       else { S.ui.limite += 40; rendre(); }
     },
     plus: function () {
-      if (typeof window.chargerSuitePraticiens === 'function' && S.ui.tab === 'praticiens') window.chargerSuitePraticiens();
+      if (typeof window.chargerSuitePraticiens === 'function' && S.ui.tab === 'praticiens' && S.ui.annuaire !== 'hop') window.chargerSuitePraticiens();
       else { S.ui.limite += 40; rendre(); }
     },
     collegue: function (el) {
@@ -14899,9 +15282,19 @@
     theme: function (el) { appliquerTheme(el.dataset.v); rendre(); },
     fermerLancement: function (el) {
       S.ui.lancement = false; S.ui.lancementAuto = false;
-      if (el.dataset.tab && pret()) S.ui.tab = el.dataset.tab;
+      if (el.dataset.tab && pret()) {
+        if (el.dataset.tab === 'bilan') {
+          S.ui.tab = 'suivi';
+          S.ui.suiviVue = 'bilan';
+          LS.set('suiviVue', 'bilan');
+          S.ui.statsVue = 'tableau';
+          LS.set('statsVue', 'tableau');
+        } else {
+          S.ui.tab = el.dataset.tab;
+        }
+      }
       rendre(); window.scrollTo(0, 0);
-      if (S.ui.tab === 'equipe') rafraichirEquipe().then(function (ok) { if (ok) rendreSiPossible(); });
+      if (S.ui.tab === 'equipe' || (S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe')) rafraichirEquipe().then(function (ok) { if (ok) rendreSiPossible(); });
     },
     ouvrirLancement: function () { S.ui.lancement = true; S.ui.lancementAuto = false; rendre(); },
     appliquerMaj: appliquerMaj,
@@ -15181,7 +15574,7 @@
     // 3.28.19 : nom cliquable au clavier (Entrée ou Espace)
     if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.classList && e.target.classList.contains('nom-lien')) { e.preventDefault(); e.stopPropagation(); ACTIONS.voirContact(e.target); return; }
     if (e.key !== 'Escape') return;
-    if (S.ui.feuille) { S.ui.feuille = null; rendre(); }
+    if (S.ui.feuille) { ACTIONS.fermerFeuille(); }
     else if (S.ui.lancement) { S.ui.lancement = false; S.ui.lancementAuto = false; rendre(); }
   });
 
@@ -15706,12 +16099,12 @@
   // On ne touche qu'aux textes affichés : ni les valeurs des champs, ni les attributs, ni les données,
   // ni les textes partagés (WhatsApp, exports) ; les lecteurs d'écran gardent le mot entier (aria-label).
   (function () {
-    var RE = /\bPharmacie\b|\bPHARMACIE\b/g, EXCLUS = { TEXTAREA: 1, SCRIPT: 1, STYLE: 1, OPTION: 1, INPUT: 1, SELECT: 1 };
+    var RE = /\bPharmacie\b|\bPHARMACIE\b/g, EXCLUS = { TEXTAREA: 1, SCRIPT: 1, STYLE: 1, OPTION: 1, INPUT: 1, SELECT: 1, PRE: 1 };
     var RE_BLVD = /\bBoulevard\b/gi;
     var RE_CSU = /\bCSU\s+Communautaire\b/gi;
     function abreger(n) {
       if (n.nodeType === 3) {
-        var p = n.parentNode; if (!p || EXCLUS[p.nodeName] || (p.closest && p.closest('[contenteditable],textarea,select,.texte-entier'))) return;
+        var p = n.parentNode; if (!p || EXCLUS[p.nodeName] || (p.closest && p.closest('[contenteditable],textarea,select,pre,.texte-entier'))) return;
         var txt = n.nodeValue;
         if (RE.test(txt)) { RE.lastIndex = 0; txt = txt.replace(RE, function (m) { return m === 'PHARMACIE' ? 'PHCIE' : 'Phcie'; }); }
         if (RE_BLVD.test(txt)) { RE_BLVD.lastIndex = 0; txt = txt.replace(RE_BLVD, 'Blvd.'); }
@@ -15749,18 +16142,30 @@
   Promise.race([idbRestauree, new Promise(function (ok) { setTimeout(ok, 4000); })]).then(function () { S.ui.restauration = false; lancerSync(); });
 
   // 3.25.42 : Intégration du bouton retour physique / geste Android pour refermer les modales sans quitter la PWA
+  var _enPopstateModal = false, _retourModalEnCours = false, _timerRetourModal = null;
   function gererHistoriqueModal(ouvert) {
     try {
       if (ouvert) {
         if (!history.state || !history.state.mediplannerModal) {
           history.pushState({ mediplannerModal: true }, '');
         }
+      } else if (!_enPopstateModal && history.state && history.state.mediplannerModal) {
+        _retourModalEnCours = true;
+        clearTimeout(_timerRetourModal);
+        _timerRetourModal = setTimeout(function () { _retourModalEnCours = false; }, 100);
+        history.back();
       }
     } catch (e) {}
   }
   window.addEventListener('popstate', function () {
+    if (_retourModalEnCours) {
+      _retourModalEnCours = false;
+      clearTimeout(_timerRetourModal);
+      return;
+    }
     if (S.ui.feuille) {
-      ACTIONS.fermerFeuille();
+      _enPopstateModal = true;
+      try { ACTIONS.fermerFeuille(); } finally { _enPopstateModal = false; }
       return;
     }
     if (S.ui.ouvert) {

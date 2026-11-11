@@ -1,16 +1,21 @@
 // =============================================================================
-// supabase-client.js : Connecteur direct Supabase pour MediPlanner
-// Conçu pour offrir une alternative ultra-rapide à Google Apps Script
-// sans impacter le fonctionnement existant.
+// supabase-client.js : Connecteur de lecture Supabase pour MediPlanner
+// Lecture paginée alignée sur app.js ; toute écriture passe par Google Apps
+// Script (Jumelage.gs) — les écritures directes client sont désactivées.
 // =============================================================================
 
 (function (window) {
   'use strict';
 
+  // 3.28.10+ : Supabase est tenu à jour par le serveur Google Apps Script (Jumelage.gs).
+  // Le client n'écrit jamais directement dans Supabase (évite les fiches TMP orphelines et les écritures perdues).
+  var MIROIR_CLIENT = false;
+
   var SupabaseClient = {
+    MIROIR_CLIENT: MIROIR_CLIENT,
     client: null,
 
-    // Initialisation avec les clés du projet
+    // Initialisation avec les clés publiques du projet
     init: function (url, anonKey) {
       if (!url || !anonKey || typeof window.supabase === 'undefined') return false;
       try {
@@ -26,174 +31,139 @@
       return !!this.client;
     },
 
-    // 1. Chargement de tous les praticiens et présences
+    // Lecture paginée (order + offset par pages de 1000 lignes, comme supabaseGetTout_ dans app.js)
+    lireTout_: async function (table, ordre, max) {
+      if (!this.client) throw new Error('Supabase non initialisé');
+      var pas = 1000;
+      var tout = [];
+      var offset = 0;
+
+      while (true) {
+        var res = await this.client
+          .from(table)
+          .select('*')
+          .order(ordre, { ascending: true })
+          .range(offset, offset + pas - 1);
+
+        if (res.error) throw res.error;
+        var lignes = res.data || [];
+        tout = tout.concat(lignes);
+        if (lignes.length < pas || (max && tout.length >= max)) break;
+        offset += pas;
+      }
+
+      return tout;
+    },
+
+    // 1. Chargement paginé de tous les praticiens, présences et pharmacies
     chargerTout: async function () {
       if (!this.client) throw new Error('Supabase non initialisé');
-      
-      const [resPrats, resPres, resPharm] = await Promise.all([
-        this.client.from('praticiens').select('*').order('nom'),
-        this.client.from('presences').select('*'),
-        this.client.from('pharmacies').select('*').order('nom')
+
+      const [rawPrats, rawPres, rawPharm] = await Promise.all([
+        this.lireTout_('praticiens', 'code'),
+        this.lireTout_('presences', 'id'),
+        this.lireTout_('pharmacies', 'code')
       ]);
 
-      if (resPrats.error) throw resPrats.error;
-      if (resPres.error) throw resPres.error;
-
-      // Formatage compatible avec les structures attendues par MediPlanner
-      var praticiens = (resPrats.data || []).map(function (p) {
+      // Formatage compatible avec les structures attendues par MediPlanner (app.js)
+      var praticiens = rawPrats.map(function (p) {
         return {
-          code: p.code,
+          code: String(p.code),
           type: p.type || 'Médecin',
           nom: p.nom,
-          specialite: p.specialite,
-          note: p.note,
-          conventionne: p.conventionne ? 'Oui' : 'Non',
+          specialite: p.specialite || 'Généraliste',
+          note: +p.note || 2,
+          conventionne: (p.conventionne === true || p.conventionne === 'Oui') ? 'Oui' : 'Non',
           telephone: p.telephone || '',
-          derniere: p.derniere || '',
+          derniere: p.derniere ? String(p.derniere).slice(0, 10) : '',
           statut: p.statut || '',
           commentaire: p.commentaire || '',
-          nbVisites: p.nb_visites || 0,
-          actif: p.actif ? 'Oui' : 'Non'
+          nbVisites: +p.nb_visites || 0,
+          actif: (p.actif === false || p.actif === 'Non' || p.actif === '0') ? 'Non' : 'Oui',
+          prochaine: p.prochaine || '',
+          absentDu: p.absent_du || '',
+          absentAu: p.absent_au || ''
         };
       });
 
-      // Ajouter les pharmacies au format unifié si présentes
-      (resPharm.data || []).forEach(function (ph) {
+      // Ajouter les pharmacies au format unifié
+      rawPharm.forEach(function (ph) {
         praticiens.push({
-          code: ph.code,
+          code: String(ph.code),
           type: 'Pharmacie',
           nom: ph.nom,
-          specialite: 'Pharmacie',
-          note: ph.note || 2,
-          conventionne: ph.conventionne ? 'Oui' : 'Non',
+          specialite: 'Pharmacien',
+          note: +ph.note || 2,
+          conventionne: (ph.conventionne === true || ph.conventionne === 'Oui') ? 'Oui' : 'Non',
           telephone: ph.telephone || '',
-          derniere: ph.derniere || '',
+          derniere: ph.derniere ? String(ph.derniere).slice(0, 10) : '',
           statut: ph.statut || '',
           commentaire: ph.commentaire || '',
-          nbVisites: ph.nb_visites || 0,
-          actif: ph.actif ? 'Oui' : 'Non'
+          nbVisites: +ph.nb_visites || 0,
+          actif: (ph.actif === false || ph.actif === 'Non' || ph.actif === '0') ? 'Non' : 'Oui',
+          prochaine: ph.prochaine || '',
+          titulaire: ph.titulaire || ''
         });
       });
 
-      var presences = (resPres.data || []).map(function (pr) {
+      var presences = rawPres.map(function (pr) {
         return {
-          id: pr.id,
-          code: pr.code,
-          nom: pr.nom,
-          lieu: pr.lieu,
-          quartier: pr.quartier,
-          commune: pr.commune,
-          zone: pr.zone,
-          lundi: pr.lundi,
-          mardi: pr.mardi,
-          mercredi: pr.mercredi,
-          jeudi: pr.jeudi,
-          vendredi: pr.vendredi,
-          horaireMatin: pr.horaire_matin,
-          horaireSoir: pr.horaire_soir,
-          lat: pr.lat,
-          lon: pr.lon,
-          reperes: pr.reperes
+          id: String(pr.id),
+          code: String(pr.code),
+          nom: pr.nom || '',
+          lieu: pr.lieu || '',
+          quartier: pr.quartier || '',
+          commune: pr.commune || '',
+          zone: pr.zone || '',
+          lundi: pr.lundi || '',
+          mardi: pr.mardi || '',
+          mercredi: pr.mercredi || '',
+          jeudi: pr.jeudi || '',
+          vendredi: pr.vendredi || '',
+          horaireMatin: pr.horaire_matin || '',
+          horaireSoir: pr.horaire_soir || '',
+          lat: isFinite(pr.lat) && pr.lat !== null ? +pr.lat : null,
+          lon: isFinite(pr.lon) && pr.lon !== null ? +pr.lon : null,
+          reperes: pr.reperes || '',
+          secteur: pr.secteur || '',
+          origineGps: pr.origine_gps || ''
         };
       });
 
       return {
         ok: true,
         version: 1,
+        source: 'supabase',
         praticiens: praticiens,
         presences: presences,
         syncedAt: new Date().toISOString()
       };
     },
 
-    // 2. Enregistrement d'une liste de visites (Comptes-rendus)
-    enregistrerVisites: async function (visites) {
-      if (!this.client) throw new Error('Supabase non initialisé');
-      if (!Array.isArray(visites) || !visites.length) return { ok: true, count: 0 };
-
-      var lignes = visites.map(function (v) {
+    // 2. Écriture directe DÉSACTIVÉE : toutes les visites passent par Google Apps Script
+    enregistrerVisites: async function () {
+      if (!MIROIR_CLIENT || !this.MIROIR_CLIENT) {
+        console.warn('SupabaseClient.enregistrerVisites désactivé (MIROIR_CLIENT = false) : utilisez Google Apps Script.');
         return {
-          uid: v.uid || (v.code + '_' + v.date + '_' + Date.now()),
-          date: v.date,
-          delegue: v.delegue || 'Délégué',
-          code: v.code,
-          id_presence: v.idPresence || null,
-          nom: v.nom,
-          type: v.type || 'Médecin',
-          specialite: v.specialite || '',
-          note: v.note || 2,
-          commune: v.commune || '',
-          quartier: v.quartier || '',
-          lieu: v.lieu || '',
-          creneau: v.creneau || '',
-          statut: v.statut || 'Vu',
-          type_echange: v.typeEchange || '',
-          produits_presentes: v.produits || [],
-          echantillons: v.echantillons || [],
-          prochaine_visite: v.prochaine || null,
-          commentaire: v.commentaire || ''
+          ok: false,
+          desactive: true,
+          erreur: 'Écriture directe Supabase désactivée (MIROIR_CLIENT = false) : passage obligatoire par Apps Script.'
         };
-      });
-
-      // Upsert direct dans la table visites (résolution sans doublon)
-      const { data, error } = await this.client
-        .from('visites')
-        .upsert(lignes, { onConflict: 'uid' });
-
-      if (error) throw error;
-      return { ok: true, count: lignes.length };
+      }
+      return { ok: false, desactive: true };
     },
 
-    // 3. Enregistrement ou mise à jour d'une fiche praticien
-    enregistrerFiche: async function (b) {
-      if (!this.client) throw new Error('Supabase non initialisé');
-      var p = b.praticien || {};
-      var lieux = b.presences || [];
-
-      // A. Upsert Praticien
-      const { error: errP } = await this.client.from('praticiens').upsert({
-        code: p.code,
-        type: p.type || 'Médecin',
-        nom: p.nom,
-        specialite: p.specialite || 'Généraliste',
-        note: p.note || 2,
-        conventionne: p.conventionne === 'Oui' || p.conventionne === true,
-        telephone: p.telephone || '',
-        actif: p.actif !== 'Non',
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'code' });
-
-      if (errP) throw errP;
-
-      // B. Upsert Présences associées
-      if (lieux.length) {
-        var lignesLieux = lieux.map(function (l, idx) {
-          return {
-            id: l.id || (p.code + '_' + idx),
-            code: p.code,
-            nom: p.nom,
-            lieu: l.lieu,
-            quartier: l.quartier || '',
-            commune: l.commune || 'Abidjan',
-            zone: l.zone || '',
-            lundi: l.lundi || '',
-            mardi: l.mardi || '',
-            mercredi: l.mercredi || '',
-            jeudi: l.jeudi || '',
-            vendredi: l.vendredi || '',
-            horaire_matin: l.horaireMatin || '',
-            horaire_soir: l.horaireSoir || '',
-            lat: isFinite(l.lat) ? l.lat : null,
-            lon: isFinite(l.lon) ? l.lon : null,
-            reperes: l.reperes || ''
-          };
-        });
-
-        const { error: errL } = await this.client.from('presences').upsert(lignesLieux, { onConflict: 'id' });
-        if (errL) throw errL;
+    // 3. Écriture directe DÉSACTIVÉE : toutes les fiches passent par Google Apps Script
+    enregistrerFiche: async function () {
+      if (!MIROIR_CLIENT || !this.MIROIR_CLIENT) {
+        console.warn('SupabaseClient.enregistrerFiche désactivé (MIROIR_CLIENT = false) : utilisez Google Apps Script.');
+        return {
+          ok: false,
+          desactive: true,
+          erreur: 'Écriture directe Supabase désactivée (MIROIR_CLIENT = false) : passage obligatoire par Apps Script.'
+        };
       }
-
-      return { ok: true, code: p.code };
+      return { ok: false, desactive: true };
     },
 
     // Configuration par défaut du projet MediPlanner

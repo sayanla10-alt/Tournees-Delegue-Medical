@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    commun.js : référentiel, modèle de données et fonctions partagées (version 3)
    Source unique : apps-script/Commun.gs en est la copie exacte, produite par
    « node scripts/commun.js » (contrôle : « node scripts/commun.js --verifier »).
@@ -95,7 +95,7 @@ var ACTIVITES_DEFAUT = ['Routine', 'Présentation', 'Échantillons', 'Cadeaux', 
 var ACTIVITES_PHARMACIE_DEFAUT = ['Routine', 'Présentation', 'Échantillons', 'Cadeaux', 'Stocks', 'Commande', 'MEP', 'Formation', 'Animation', 'Autre'];
 // anciens libellés, remplacés automatiquement (base et historique)
 var ACTIVITES_RENOMMEES = { 'Visite de routine (rappel)': 'Routine', 'Réunion / staff': 'Réunion', 'Remise d\'échantillons': 'Échantillons',
-  'Autre activité': 'Autre', 'Vérification des stocks': 'Stocks', 'Prise de commande': 'Commande', 'Mise en avant / PLV': 'PLV',
+  'Autre activité': 'Autre', 'Vérification des stocks': 'Stocks', 'Prise de commande': 'Commande', 'Mise en avant / PLV': 'MEP', 'PLV': 'MEP',
   'Formation de l\'équipe officinale': 'Formation', 'Animation promotionnelle': 'Animation', 'Retour ou échange de produits': 'Retour', 'Retour ou échange': 'Retour', 'Présentation produit': 'Présentation' };
 var PRODUITS_DEFAUT = [   // 3.26.72 : alignée sur les produits actifs de la base (Fiches produits, Actif = vrai)
   'Zyltan H', 'Zyltan AM', 'Lesstrol 20', 'Lesstrol AM', 'Eurythmic', 'Tensicard',
@@ -1141,8 +1141,13 @@ function memeEtablissement(a, b) {
 // ---------------------------------------------------------------- Dates (AAAA-MM-JJ, sans fuseau)
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
 function isoVersJours(iso) {
-  var p = String(iso).split('-');
-  return Math.round(Date.UTC(+p[0], +p[1] - 1, +p[2]) / 86400000);
+  var m = typeof iso === 'string' ? iso.match(/^(\d{4})-(\d{2})-(\d{2})$/) : null;
+  if (!m) return NaN;
+  var y = +m[1], mo = +m[2], da = +m[3];
+  var t = Date.UTC(y, mo - 1, da);
+  var d = new Date(t);
+  if (d.getUTCFullYear() !== y || d.getUTCMonth() + 1 !== mo || d.getUTCDate() !== da) return NaN;
+  return Math.round(t / 86400000);
 }
 function joursVersIso(n) {
   var d = new Date(n * 86400000);
@@ -1160,20 +1165,27 @@ function joursOuvres(lundi) { var r = []; for (var i = 0; i < 5; i++) r.push(ajo
 function joursEcoules(derniereIso, refIso) {
   if (!derniereIso) return 365;
   var n = isoVersJours(refIso) - isoVersJours(derniereIso);
-  return n < 0 ? 0 : n;
+  return !isFinite(n) ? 365 : (n < 0 ? 0 : n);
 }
 
 // ---------------------------------------------------------------- Heures
 // "08:30", "8h30", "8" -> minutes depuis minuit (null si vide ou illisible)
 function heureVersMinutes(h) {
   if (h === null || h === undefined || h === '') return null;
-  var m = String(h).match(/(\d{1,2})\s*(?:[:hH]\s*(\d{2}))?/);
+  var s = String(h).trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}[Tt]/.test(s)) s = s.slice(s.search(/[Tt]/) + 1);
+  else if (/^[Tt]\d{1,2}:/.test(s)) s = s.slice(1);
+  var m = s.match(/^\s*(\d{1,2})(?:\s*(?:[:hH]\s*(\d{2})|[hH]))?(?::\d{2}(?:\.\d+)?)?(?:[Zz]|[+-]\d{2}:?\d{2})?\s*$/);
   if (!m) return null;
-  var v = (+m[1]) * 60 + (+(m[2] || 0));
-  return v >= 0 && v < 24 * 60 ? v : null;
+  var hh = +m[1], mm = m[2] !== undefined ? +m[2] : 0;
+  if (hh < 0 || hh >= 24 || mm < 0 || mm >= 60) return null;
+  return hh * 60 + mm;
 }
 function minutesVersHeure(m) {
-  m = Math.round(m);
+  if (m === null || m === undefined || m === '' || typeof m === 'boolean') return '';
+  m = Math.round(Number(m));
+  if (!isFinite(m) || m < 0) return '';
   return pad2(Math.floor(m / 60) % 24) + ':' + pad2(m % 60);
 }
 // "08:00-12:00" -> [480, 720] ; valeur par défaut si illisible
@@ -1190,11 +1202,13 @@ function lireHoraire(texte, defaut) {
 // Contenu d'une case jour -> { matin, soir }. Accepte « Matin », « Soir », « Matin et soir »,
 // ainsi que les saisies rapides M, S, MS, M+S, M/S, X (journée entière).
 function lireDispo(v) {
-  var t = normaliser(v);
+  var raw = sansAccents(String(v === undefined || v === null ? '' : v)).toLowerCase().trim();
+  var t = normaliser(raw);
   if (!t || t === 'non' || t === 'absent' || t === '0') return { matin: false, soir: false };
-  if (t === 'x' || t === 'oui' || t === 'journee' || t === 'tous' || t === 'ms' || t === 'sm') return { matin: true, soir: true };
-  var matin = t.indexOf('matin') >= 0 || t === 'm' || t.charAt(0) === 'm' && t.length <= 2;
-  var soir = t.indexOf('soir') >= 0 || t.indexOf('apres') >= 0 || t === 's' || /^m.?s$/.test(t);
+  if (t === 'x' || t === 'oui' || t === 'journee' || t === 'tous' || t === 'ms' || t === 'sm' || t === 'mets' || t === 'setm') return { matin: true, soir: true };
+  var toks = raw.split(/[^a-z0-9]+/).filter(Boolean);
+  var matin = t.indexOf('matin') >= 0 || t === 'm' || (t.charAt(0) === 'm' && t.length <= 2) || toks.indexOf('m') >= 0;
+  var soir = t.indexOf('soir') >= 0 || t.indexOf('apres') >= 0 || t === 's' || /^m.?s$/.test(t) || toks.indexOf('s') >= 0;
   return { matin: matin, soir: soir };
 }
 function ecrireDispo(d) { return d.matin && d.soir ? 'Matin et soir' : (d.matin ? 'Matin' : (d.soir ? 'Soir' : '')); }
@@ -1255,23 +1269,31 @@ function calcScore(note, jours, dernierStatut) {
   return Math.round((note * 100 + retard * 100 + bonus) * 10) / 10;
 }
 
-// 3.31.18 : distance routière réelle estimée en km (vol d'oiseau x coefficient détour routier)
+// 3.31.18 : distance à vol d'oiseau en km (Haversine, sans coefficient de détour routier)
 // Plus aucun plafonnement artificiel à 99 km : les distances réelles de l'intérieur (ex: Abidjan - Bouaké ~348 km)
 // sont fidèlement calculées et affichées. Renvoie null si une coordonnée est absente ou invalide.
 function distanceVol(a, b) {
-  if (!a || !b || !isFinite(a.lat) || !isFinite(b.lat) || !isFinite(a.lon) || !isFinite(b.lon)) return null;
-  return distanceKm(a, b);
-}
-// a, b : objets { lat, lon }. Distance routière estimée en km.
-function distanceKm(a, b) {
-  if (!a || !b || !isFinite(a.lat) || !isFinite(b.lat) || !isFinite(a.lon) || !isFinite(b.lon)) return null;
-  if (a.lat === b.lat && a.lon === b.lon) return 0;
+  if (!a || !b ||
+      a.lat === null || a.lat === undefined || a.lat === '' || typeof a.lat === 'boolean' ||
+      b.lat === null || b.lat === undefined || b.lat === '' || typeof b.lat === 'boolean' ||
+      a.lon === null || a.lon === undefined || a.lon === '' || typeof a.lon === 'boolean' ||
+      b.lon === null || b.lon === undefined || b.lon === '' || typeof b.lon === 'boolean' ||
+      !isFinite(a.lat) || !isFinite(b.lat) || !isFinite(a.lon) || !isFinite(b.lon)) return null;
+  var la1 = +a.lat, lo1 = +a.lon, la2 = +b.lat, lo2 = +b.lon;
+  if (la1 === la2 && lo1 === lo2) return 0;
   var R = 6371, rad = Math.PI / 180;
-  var dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
+  var dLat = (la2 - la1) * rad, dLon = (lo2 - lo1) * rad;
   var h = Math.pow(Math.sin(dLat / 2), 2) +
-          Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.pow(Math.sin(dLon / 2), 2);
+          Math.cos(la1 * rad) * Math.cos(la2 * rad) * Math.pow(Math.sin(dLon / 2), 2);
+  h = Math.min(1, Math.max(0, h));
+  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+// a, b : objets { lat, lon }. Distance routière estimée en km (vol d'oiseau x coefficient détour routier).
+function distanceKm(a, b) {
+  var vol = distanceVol(a, b);
+  if (vol === null) return null;
   var detour = (typeof REGLAGES_MOTEUR !== 'undefined' && REGLAGES_MOTEUR && REGLAGES_MOTEUR.detourRoutier) ? REGLAGES_MOTEUR.detourRoutier : 1.6;
-  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * detour;
+  return vol * detour;
 }
 
 function quartiersDefautObjets() {
@@ -1320,9 +1342,9 @@ function genererBaseFictive(dateRefIso, options) {
   });
 
   var hopitaux = [
-    ['CHU de Cocody', 'Cocody Centre'], ['CHU de Treichville', 'Treichville Arras'],
-    ['CHU de Yopougon', 'Sicogi'], ["CHU d'Angré", 'Angré'], ["Institut de Cardiologie d'Abidjan", 'Treichville Arras'],
-    ["Hôpital Général d'Abobo", 'Abobo Gare'], ['Hôpital Général de Port-Bouët', 'Port-Bouët Centre'],
+    ['CHU de Cocody', 'Cocody Centre'], ['CHU de Treichville', 'Arras'],
+    ['CHU de Yopougon', 'Sicogi'], ["CHU d'Angré", 'Angré'], ["Institut de Cardiologie d'Abidjan", 'Arras'],
+    ["Hôpital Général d'Abobo", 'Gare'], ['Hôpital Général de Port-Bouët', 'Port-Bouët Centre'],
     ["Hôpital Général d'Anyama", 'Anyama Centre'], ['Hôpital Général de Bingerville', 'Bingerville Centre'],
     ['Hôpital Général de Koumassi', 'Remblais'], ['Hôpital Général de Marcory', 'Anoumabo']
   ];
@@ -1360,7 +1382,8 @@ function genererBaseFictive(dateRefIso, options) {
 
   var praticiens = [], presences = [];
   function ajouterPresence(code, nom, lieu, qi, grille, hM, hS) {
-    var q = Q[((qi % Q.length) + Q.length) % Q.length] || Q[0];   // 3.26.50 : index hors liste (démo) ramené dans la liste
+    var idx = isFinite(qi) ? ((Math.floor(qi) % Q.length) + Q.length) % Q.length : 0;
+    var q = Q[idx] || Q[0];   // 3.26.50 : index hors liste (démo) ramené dans la liste
     var p = { id: presences.length + 1, code: code, nom: nom, lieu: lieu, quartier: q.quartier,
               commune: q.commune, zone: q.zone, horaireMatin: hM, horaireSoir: hS, lat: '', lon: '' };
     JOURS_CLES.forEach(function (j, i) { p[j] = ecrireDispo(grille[i]); });
@@ -1658,14 +1681,19 @@ function zoneDeQuartier(commune, quartier, lieu) {
   var mots = function (x) { return ' ' + String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' '; };
   var colle = function (x) { return mots(x).replace(/ /g, ''); };
   var essais = [[mots(quartier), false], [mots(lieu), false], [colle(quartier), true], [colle(lieu), true]];
-  for (var e = 0; e < essais.length; e++) {
-    var texte = essais[e][0], partiel = essais[e][1];
-    if (!texte.trim()) continue;
-    for (var i = 0; i < zones.length; i++) {
-      var z = zones[i];
-      for (var j = 0; j < z.mots.length; j++) {
-        var m = mots(z.mots[j]);
-        if (!partiel ? texte.indexOf(m) >= 0 : (m.replace(/ /g, '').length >= 5 && texte.indexOf(m.replace(/ /g, '')) >= 0)) return z.nom;
+  var motsGeneriques = { carrefour: true };
+  for (var passe = 0; passe < 2; passe++) {
+    for (var e = 0; e < essais.length; e++) {
+      var texte = essais[e][0], partiel = essais[e][1];
+      if (!texte.trim()) continue;
+      for (var i = 0; i < zones.length; i++) {
+        var z = zones[i];
+        for (var j = 0; j < z.mots.length; j++) {
+          var estGen = !!motsGeneriques[z.mots[j]];
+          if ((passe === 0 && estGen) || (passe === 1 && !estGen)) continue;
+          var m = mots(z.mots[j]);
+          if (!partiel ? texte.indexOf(m) >= 0 : (m.replace(/ /g, '').length >= 5 && texte.indexOf(m.replace(/ /g, '')) >= 0)) return z.nom;
+        }
       }
     }
   }
@@ -1689,17 +1717,45 @@ function communeParente(nom) {
 function secteurDeQuartier(quartier, lieu, commune, listeQuartiers) {
   var qs = listeQuartiers || (typeof quartiers === 'function' ? quartiers() : (typeof quartiersDefautObjets === 'function' ? quartiersDefautObjets() : []));
   if (!qs || !qs.length) return commune || '';
+  var comParent = commune ? normaliser(communeParente(commune)) : '';
+  var candidats = comParent
+    ? qs.filter(function (q) { return normaliser(communeParente(q.commune)) === comParent; })
+    : qs;
   var qNorm = normaliser(quartier || '');
+  var lNorm = normaliser(lieu || '');
   if (qNorm) {
-    for (var i = 0; i < qs.length; i++) {
-      if (normaliser(qs[i].quartier) === qNorm) return qs[i].commune;
+    var exacts = [];
+    for (var i = 0; i < candidats.length; i++) {
+      if (normaliser(candidats[i].quartier) === qNorm) exacts.push(candidats[i]);
+    }
+    if (exacts.length === 1) return exacts[0].commune;
+    if (exacts.length > 1) {
+      if (lNorm) {
+        for (var k = 0; k < exacts.length; k++) {
+          var cpEx = normaliser(communeParente(exacts[k].commune));
+          if (cpEx && lNorm.indexOf(cpEx) >= 0) return exacts[k].commune;
+        }
+      }
+      if (!comParent) return commune || '';
+      return exacts[0].commune;
     }
   }
-  var lNorm = normaliser(lieu || '');
   if (lNorm) {
-    for (var j = 0; j < qs.length; j++) {
-      var qn = normaliser(qs[j].quartier);
-      if (qn && qn.length >= 3 && lNorm.indexOf(qn) >= 0) return qs[j].commune;
+    var partiels = [];
+    for (var j = 0; j < candidats.length; j++) {
+      var qn = normaliser(candidats[j].quartier);
+      if (qn && qn.length >= 3 && lNorm.indexOf(qn) >= 0) partiels.push(candidats[j]);
+    }
+    if (partiels.length === 1) return partiels[0].commune;
+    if (partiels.length > 1) {
+      partiels.sort(function (a, b) { return normaliser(b.quartier).length - normaliser(a.quartier).length; });
+      for (var p = 0; p < partiels.length; p++) {
+        var cpP = normaliser(communeParente(partiels[p].commune));
+        if (cpP && lNorm.indexOf(cpP) >= 0) return partiels[p].commune;
+      }
+      var meme = partiels.every(function (x) { return x.commune === partiels[0].commune; });
+      if (meme || comParent) return partiels[0].commune;
+      return commune || '';
     }
   }
   return commune || '';
@@ -1713,7 +1769,7 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   if (par && (dans[par] || dans[par + ' (Toute la commune)'])) return true;
   // 3.26.63 : commune connue = seule référence (un lieu du Plateau ne passe plus pour Cocody à cause d'un mot de son nom)
   if (com) {
-    var z = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier(com, c.quartier, '') : '';
+    var z = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier(com, c.quartier, c.lieu || '') : '';
     return !!(z && dans[z]);
   }
   var sec = secteurDeQuartier(c.quartier, c.lieu, com, listeQuartiers);
@@ -1735,9 +1791,13 @@ function formaterTelephoneCI(n) {
   // 3.28.15 : plusieurs numéros (« a / b », « a ; b », « a, b ») : chacun mis en forme, l'ordre est conservé
   var parts = s.split(/\s*[\/;,|]\s*|\s+(?:ou|et)\s+/i).filter(function (x) { return /\d/.test(x); });
   if (parts.length > 1) return parts.map(formaterTelephoneCI).join(' / ');
+  if (/^\+/.test(s) && !/^\+\s*225(?:\D|$)/.test(s)) return s;
   var d = s.replace(/\D/g, '');
-  if (d.indexOf('00') === 0) d = d.slice(2);
-  if (d.indexOf('225') === 0) d = d.slice(3);
+  if (d.indexOf('00225') === 0 && (d.length === 13 || d.length === 15 || (d.length === 14 && /^[0157]/.test(d.slice(5))))) {
+    d = d.slice(5);
+  } else if (d.indexOf('225') === 0 && (d.length === 11 || d.length === 13 || (d.length === 12 && /^[0157]/.test(d.slice(3))))) {
+    d = d.slice(3);
+  }
   if (d.length === 9 && /^[0157]/.test(d)) d = '0' + d;
   if (d.length === 10) {
     return '+225 ' + d.slice(0, 2) + ' ' + d.slice(2, 4) + ' ' + d.slice(4, 6) + ' ' + d.slice(6, 8) + ' ' + d.slice(8, 10);
@@ -1955,9 +2015,12 @@ if (typeof module !== 'undefined' && module.exports) {
     minutesTrajet: minutesTrajet, FERIES_DEFAUT: FERIES_DEFAUT, absentLe: absentLe,
     CHAMPS_PHARMACIES: CHAMPS_PHARMACIES, CHAMPS_ETABLISSEMENTS: CHAMPS_ETABLISSEMENTS, HORAIRES_PHARMACIE: HORAIRES_PHARMACIE, ACTIVITES_DEFAUT: ACTIVITES_DEFAUT, ACTIVITES_RENOMMEES: ACTIVITES_RENOMMEES,
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
-    estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
+    estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm, distanceVol: distanceVol,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
     ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
+    COMMUNES_GRAND_ABIDJAN: COMMUNES_GRAND_ABIDJAN, VILLES_INTERIEUR_CI: VILLES_INTERIEUR_CI,
+    estCommuneGrandAbidjan: estCommuneGrandAbidjan, estCommuneInterieur: estCommuneInterieur,
+    estCoordonneeAbidjan: estCoordonneeAbidjan, centroideVilleInterieur: centroideVilleInterieur, trouverEtablissementRef: trouverEtablissementRef,
     formaterTelephoneCI: formaterTelephoneCI,
     distanceLevenshtein: distanceLevenshtein, similariteLevenshtein: similariteLevenshtein,
     similariteTrigrammes: similariteTrigrammes, normaliserPhonetiqueCI: normaliserPhonetiqueCI,

@@ -85,8 +85,20 @@ function doPost(e) {
     var resultat;
     AUDIT_TAMPON_ = [];   // 3.29.0 : journal d'audit écrit en une fois à la fin de l'appel
     try { resultat = actions[body.action](); } finally { marquerModif(); viderAudit_(); }
-    // 3.28.12 : Supabase (base principale de lecture) mis à jour avant la réponse au téléphone
-    if (resultat && resultat.ok !== false) { try { if (typeof jumPousserApresEcriture_ === 'function') jumPousserApresEcriture_(body.action); } catch (eJ) { console.warn('Jumelage : ' + eJ); } }
+    // 3.28.12 : Supabase (base principale de lecture) mis à jour avant la réponse au téléphone,
+    // sous verrou script pour rester coordonné avec Jumelage.gs (jumAppliquerSupabase_ / concurrence)
+    if (resultat && resultat.ok !== false) {
+      try {
+        if (typeof jumPousserApresEcriture_ === 'function') {
+          var lockJum = LockService.getScriptLock();
+          if (lockJum.tryLock(15000)) {
+            try { jumPousserApresEcriture_(body.action); } finally { lockJum.releaseLock(); }
+          } else {
+            console.warn('Jumelage différé (verrou occupé) pour ' + body.action);
+          }
+        }
+      } catch (eJ) { console.warn('Jumelage : ' + eJ); }
+    }
     return json(resultat);
   } catch (err) {
     var m = String(err.message || err);
@@ -103,13 +115,20 @@ function verrouiller() {
 }
 
 // Une fiche renvoyée après une coupure réseau n'est pas créée deux fois (mémoire 6 h par identifiant)
+// La vérification et la mise en cache sont protégées sous verrou pour bloquer tout double-envoi simultané.
 function ficheUnique(body) {
+  body = body || {};
   var cache = body.uid ? CacheService.getScriptCache() : null, cle = body.uid ? 'fiche_' + body.uid : '';
-  var connu = cache ? cache.get(cle) : null;
-  if (connu) return JSON.parse(connu);
-  var r = enregistrerFiche(body);
-  if (cache && r && r.ok) cache.put(cle, JSON.stringify(r), 21600);
-  return r;
+  var lock = verrouiller();
+  try {
+    var connu = cache ? cache.get(cle) : null;
+    if (connu) return JSON.parse(connu);
+    var r = enregistrerFiche(body, true);
+    if (cache && r && r.ok) cache.put(cle, JSON.stringify(r), 21600);
+    return r;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function jsonTexte(t) {

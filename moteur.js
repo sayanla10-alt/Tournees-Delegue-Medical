@@ -18,19 +18,56 @@ var Moteur = (function () {
   function bas(s) { return String(s || '').trim().toLowerCase(); }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function inactif(p) { var t = normaliser(p.actif); return t === 'non' || t === 'n' || t === '0'; }
+  function coordObj(o) {
+    if (!o || o.lat === null || o.lat === undefined || o.lat === '' || o.lon === null || o.lon === undefined || o.lon === '') return null;
+    var la = +o.lat, lo = +o.lon;
+    return isFinite(la) && isFinite(lo) ? { lat: la, lon: lo } : null;
+  }
+  function refCompatibleCommune(commune, ref) {
+    var c = cleNorm(commune);
+    if (!c || c === 'abidjan') return true;
+    if (ref && ref.commune) {
+      var c1 = cleNorm(typeof communeParente === 'function' ? communeParente(commune) : commune);
+      var c2 = cleNorm(typeof communeParente === 'function' ? communeParente(ref.commune) : ref.commune);
+      return c1 === c2;
+    }
+    if (typeof estCommuneInterieur === 'function') return !estCommuneInterieur(commune);
+    return typeof estCommuneGrandAbidjan === 'function' ? estCommuneGrandAbidjan(commune) : true;
+  }
 
   // ------------------------------------------------------------------ Contexte
   // data : { praticiens, presences, quartiers }
   function preparer(data) {
-    var idxQ = {};
-    (data.quartiers || []).forEach(function (q) { idxQ[bas(q.quartier)] = q; });
+    var idxQ = {}, ambiguQ = {}, parQ = {}, parAmbiguQ = {};
+    (data.quartiers || []).forEach(function (q) {
+      var kq = bas(q.quartier), kc = bas(q.commune);
+      if (!kq) return;
+      if (kc) idxQ[kc + '|' + kq] = q;
+      var kp = typeof communeParente === 'function' ? bas(communeParente(q.commune)) : kc;
+      if (kp && kp !== kc) {
+        var kpk = kp + '|' + kq;
+        if (!parAmbiguQ[kpk]) {
+          if (parQ[kpk]) { delete parQ[kpk]; parAmbiguQ[kpk] = true; }
+          else parQ[kpk] = q;
+        }
+      }
+      if (!ambiguQ[kq]) {
+        if (idxQ[kq]) {
+          delete idxQ[kq];
+          ambiguQ[kq] = true;
+        } else {
+          idxQ[kq] = q;
+        }
+      }
+    });
     var prat = {};
     (data.praticiens || []).forEach(function (p) {
       if (!p.code || inactif(p)) return;
-      p.note = lireNote(p.note);
-      if (p.type !== 'Pharmacie' && typeof specialiteCanonique === 'function') p.specialite = specialiteCanonique(p.specialite);
-      p.conv = estConventionne(p.conventionne);
-      prat[p.code] = p;
+      var pc = Object.assign({}, p);
+      pc.note = lireNote(pc.note);
+      if (pc.type !== 'Pharmacie' && typeof specialiteCanonique === 'function') pc.specialite = specialiteCanonique(pc.specialite);
+      pc.conv = estConventionne(pc.conventionne);
+      prat[pc.code] = pc;
     });
     // Fiabilité de chaque lieu : part des visites où le praticien était présent (dès 3 comptes rendus)
     var stats = {}, sts = data.statuts && data.statuts.length ? data.statuts : STATUTS_DEFAUT;
@@ -48,19 +85,29 @@ var Moteur = (function () {
       var co = lireCoord(e);
       if (ke && co) {
         var refE = typeof trouverEtablissementRef === 'function' ? trouverEtablissementRef(e.nom) : null;
-        if (refE && isFinite(refE.lat) && distanceVol(co, refE) > 1.5) co = { lat: refE.lat, lon: refE.lon };
+        var refEC = coordObj(refE);
+        if (refEC && refCompatibleCommune(e.commune, refE) && distanceVol(co, refEC) > 1.5) co = refEC;
         etabCoords[ke] = co;
       }
     });
     var idsVus = {};
     (data.presences || []).forEach(function (pr, i) {
       // 3.26.50 : identifiant en double (base corrigée à la main) : rendu unique, sinon deux lieux s'échangent à l'écran
-      if (pr.id === undefined || pr.id === '' || idsVus[String(pr.id)]) pr.id = 'L' + (i + 2) + '-' + pr.code;
-      idsVus[String(pr.id)] = true;
+      var origId = pr.id;
+      var prId = (origId === undefined || origId === '' || idsVus[String(origId)]) ? ('L' + (i + 2) + '-' + pr.code) : origId;
+      idsVus[String(prId)] = true;
       var p = prat[pr.code];
       if (!p) return;
-      (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(pr);
-      var q = idxQ[bas(pr.quartier)];
+      var prCopy = Object.assign({}, pr, { id: prId });
+      (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(prCopy);
+      var kq = bas(pr.quartier), kc = bas(pr.commune);
+      var kp = typeof communeParente === 'function' ? bas(communeParente(pr.commune)) : kc;
+      var q = kq ? (
+        (kc && idxQ[kc + '|' + kq]) ||
+        (kp && (idxQ[kp + '|' + kq] || parQ[kp + '|' + kq])) ||
+        ((!kc || kc === 'abidjan') ? idxQ[kq] : null)
+      ) : null;
+      var qCoord = coordObj(q);
       var coord = lireCoord(pr);
       if (coord && typeof estCommuneInterieur === 'function' && estCommuneInterieur(pr.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(coord)) {
         coord = null;
@@ -68,28 +115,29 @@ var Moteur = (function () {
       // 3.31.36 : validation cartographique : si une table de référence vérifiée existe ou si le GPS diverge
       // de > 3,5 km du quartier déclaré dans le Grand Abidjan, corriger la position aberrante
       var refLieu = typeof trouverEtablissementRef === 'function' ? trouverEtablissementRef(pr.lieu) : null;
-      if (refLieu && isFinite(refLieu.lat)) {
-        if (!coord || distanceVol(coord, refLieu) > 1.5) coord = { lat: refLieu.lat, lon: refLieu.lon };
-      } else if (coord && q && isFinite(q.lat) && typeof estCommuneGrandAbidjan === 'function' && estCommuneGrandAbidjan(pr.commune)) {
-        if (distanceVol(coord, q) > 3.5) {
+      var refCoord = coordObj(refLieu);
+      if (refCoord && refCompatibleCommune(pr.commune, refLieu)) {
+        if (!coord || distanceVol(coord, refCoord) > 1.5) coord = refCoord;
+      } else if (coord && qCoord && typeof estCommuneGrandAbidjan === 'function' && estCommuneGrandAbidjan(pr.commune)) {
+        if (distanceVol(coord, qCoord) > 3.5) {
           var ke = cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '');
           var ce = etabCoords[ke];
-          if (ce && distanceVol(ce, q) <= 3.5) coord = { lat: ce.lat, lon: ce.lon };
-          else coord = { lat: q.lat, lon: q.lon, approx: true };
+          if (ce && distanceVol(ce, qCoord) <= 3.5) coord = { lat: ce.lat, lon: ce.lon };
+          else coord = { lat: qCoord.lat, lon: qCoord.lon, approx: true };
         }
       }
       if (!coord) {
-        coord = q ? { lat: q.lat, lon: q.lon, approx: true } : (typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(pr.commune) || centroideVilleInterieur(pr.quartier)) : null);
+        coord = qCoord ? { lat: qCoord.lat, lon: qCoord.lon, approx: true } : (typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(pr.commune) || centroideVilleInterieur(pr.quartier)) : null);
         if (coord && !coord.approx) coord = { lat: coord.lat, lon: coord.lon, approx: true };
       }
       var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
-      var st = stats[String(pr.id)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
+      var st = (origId !== undefined && origId !== '' ? stats[String(origId)] : null) || stats[String(prId)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
       JOURS_CLES.forEach(function (cle, j) {
         var d = lireDispo(pr[cle]);
         [['Matin', d.matin, hM], ['Soir', d.soir, hS]].forEach(function (x) {
           if (!x[1]) return;
           var c = {
-            cle: pr.id + '|' + j + '|' + x[0], idPresence: pr.id, code: pr.code, jourIdx: j, jour: JOURS[j],
+            cle: prId + '|' + j + '|' + x[0], idPresence: prId, code: pr.code, jourIdx: j, jour: JOURS[j],
             creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu, quartier: pr.quartier, reperes: pr.reperes || '',
             commune: pr.commune || (q && q.commune) || '', zone: pr.zone || (q && q.zone) || '', coord: coord, prat: p,
             fiab: fiab, fiabTexte: st && st.n >= 3 ? st.ok + '/' + st.n : ''
@@ -117,7 +165,7 @@ var Moteur = (function () {
   // Score : potentiel + retard de visite + bonus si une « prochaine étape » est arrivée à échéance
   function scoreDe(p, date) {
     var s = calcScore(p.note, joursEcoules(p.derniere, date), p.statut);
-    if (p.prochaine && p.prochaine <= date) s += 120;
+    if (p.prochaine && /^\d{4}-\d{2}-\d{2}$/.test(p.prochaine) && p.prochaine <= date) s += 120;
     return s;
   }
 
@@ -141,12 +189,13 @@ var Moteur = (function () {
     // rdv : heure imposée ; fixe : visite déjà faite, laissée à son heure ; avance : visite ramenée « maintenant » (GPS)
     // 3.25.0 : les heures proposées restent dans la journée de travail (R.debutTravail - R.finTravail) ;
     // une visite déjà faite garde son heure réelle mais ne décale pas les suivantes hors de cette plage
-    var coord = a.lat !== null && a.lat !== undefined && a.lat !== '' ? { lat: +a.lat, lon: +a.lon } : null;
+    var coord = coordObj(a);
     var fixe = heureVersMinutes(a.fixe);
     if (fixe !== null) return { a: a, coord: coord, tot: fixe, tard: fixe + R.toleranceRdv, fixe: true };
     var rdv = heureVersMinutes(a.rdv || a.avance), deb = heureVersMinutes(a.debut), fin = heureVersMinutes(a.fin);
-    var tot = rdv !== null ? rdv : (deb === null ? R.debutTravail : deb);
-    var tard = rdv !== null ? rdv + R.toleranceRdv : (fin === null ? R.finTravail : fin) - R.dureeVisite;
+    if (rdv !== null) return { a: a, coord: coord, tot: rdv, tard: rdv + R.toleranceRdv };
+    var tot = deb === null ? R.debutTravail : deb;
+    var tard = (fin === null ? R.finTravail : fin) - R.dureeVisite;
     return { a: a, coord: coord, tot: Math.max(tot, R.debutTravail), tard: Math.min(tard, R.finTravail - R.dureeVisite) };
   }
   function dist(x, y) { return x && y ? distanceKm(x.coord, y.coord) : 0; }
@@ -173,8 +222,12 @@ var Moteur = (function () {
   }
 
   function delta(route, i, it, depart) {
+    if (!it || !it.coord) return 0;
     var prev = i > 0 ? route[i - 1] : depart, next = i < route.length ? route[i] : null;
-    return (prev ? dist(prev, it) : 0) + (next ? dist(it, next) : 0) - (prev && next ? dist(prev, next) : 0);
+    var d1 = prev ? dist(prev, it) : null;
+    var d2 = next ? dist(it, next) : null;
+    var d3 = prev && next ? dist(prev, next) : null;
+    return (d1 || 0) + (d2 || 0) - (d1 !== null && d2 !== null && d3 !== null ? d3 : 0);
   }
 
   // Insère un élément à la meilleure place réalisable (ou, à défaut, à la moins mauvaise)
@@ -206,9 +259,17 @@ var Moteur = (function () {
     var vusQCren = {}, cleQCrenPrev = null, coupesQuartierCren = 0;
     var vusQJour = {}, cleQJourPrev = null, coupesQuartierJour = 0;
     route.forEach(function (it, i) {
-      km += prev ? dist(prev, it) : 0;
-      if (t !== null) attente += Math.max(0, s.debuts[i] - (t + trajetMin(route[i - 1], it, t)));
-      t = s.debuts[i] + R.dureeVisite; prev = it;
+      if (it.fixe) {
+        if (it.tot >= R.debutTravail && it.tot <= R.finTravail) {
+          km += prev ? (dist(prev, it) || 0) : 0;
+          t = Math.max(t === null ? 0 : t, it.tot + R.dureeVisite);
+          prev = it;
+        }
+      } else {
+        km += prev ? (dist(prev, it) || 0) : 0;
+        if (t !== null) attente += Math.max(0, s.debuts[i] - (t + trajetMin(prev, it, t)));
+        t = s.debuts[i] + R.dureeVisite; prev = it;
+      }
       var cr = creneauDeItem(it);
       var ke = cleEtablissement(it) + '|' + cr;
       if (ke !== cleEtabPrev && vusEtab[ke]) coupesEtab++;
@@ -229,14 +290,52 @@ var Moteur = (function () {
   }
   function coutOrdre(route, depart) {
     var c = coutOrdreBase(route, depart);
-    if (depart && route.length) c.cout += 0.2 * dist(route[route.length - 1], depart);
+    if (depart && route.length) c.cout += 0.2 * (dist(route[route.length - 1], depart) || 0);
     return c;
   }
   function ordonnerItems(items, depart) {
     if (items.length < 2) return items.slice();
     var fixes = [], libres = [];
     items.forEach(function (it) { if (it.fixe) fixes.push(it); else libres.push(it); });
-    if (libres.length < 2) return fixes.concat(libres);
+    fixes.sort(function (a, b) { return a.tot - b.tot; });
+    if (!libres.length) return fixes;
+    function aplatir(ordre, sansQueueFixes) {
+      if (!fixes.length) {
+        var res = [];
+        ordre.forEach(function (g) { res = res.concat(g); });
+        return res;
+      }
+      var flat = [];
+      ordre.forEach(function (g) { flat = flat.concat(g); });
+      var r = [], fi = 0, t = null, prev = null;
+      flat.forEach(function (it) {
+        while (fi < fixes.length) {
+          var fx = fixes[fi];
+          var traj = prev ? trajetMin(prev, it, t) : 0;
+          var deb = Math.max(t === null ? it.tot : t + traj, it.tot);
+          if (it.tot >= fx.tot || (deb + R.dureeVisite > fx.tot && it.tard >= fx.tot + R.dureeVisite)) {
+            r.push(fx);
+            if (fx.tot >= R.debutTravail && fx.tot <= R.finTravail) {
+              t = Math.max(t === null ? 0 : t, fx.tot + R.dureeVisite);
+              prev = fx;
+            }
+            fi++;
+          } else {
+            break;
+          }
+        }
+        r.push(it);
+        var trajIt = prev ? trajetMin(prev, it, t) : 0;
+        var debIt = Math.max(t === null ? it.tot : t + trajIt, it.tot);
+        t = debIt + R.dureeVisite;
+        prev = it;
+      });
+      if (!sansQueueFixes) {
+        while (fi < fixes.length) r.push(fixes[fi++]);
+      }
+      return r;
+    }
+    if (libres.length < 2) return aplatir([libres]);
     var groupes = [], idx = {};
     libres.forEach(function (it) {
       var k = cleBlocLieu(it);
@@ -244,11 +343,6 @@ var Moteur = (function () {
       groupes[idx[k]].push(it);
     });
     groupes.forEach(function (g) { g.sort(function (a, b) { return a.tard - b.tard || a.tot - b.tot; }); });
-    function aplatir(ordre) {
-      var r = fixes.slice();
-      ordre.forEach(function (g) { r = r.concat(g); });
-      return r;
-    }
     var best = null;
     function evaluer(ordre) {
       var r = aplatir(ordre), c = coutOrdre(r, depart);
@@ -258,7 +352,7 @@ var Moteur = (function () {
       (function permuter(reste, pris) {
         if (!reste.length) { evaluer(pris); return; }
         if (best && pris.length >= 2) {
-          var lb = coutOrdreBase(aplatir(pris), depart);
+          var lb = coutOrdreBase(aplatir(pris, true), depart);
           if (lb.cout >= best.c.cout - 1e-6) return;   // Branch & Bound : borne inférieure admissible monotone
         }
         for (var i = 0; i < reste.length; i++) permuter(reste.slice(0, i).concat(reste.slice(i + 1)), pris.concat([reste[i]]));
@@ -299,7 +393,7 @@ var Moteur = (function () {
         }
       }
     }
-    return best ? best.r : libres;
+    return best ? best.r : aplatir([libres]);
   }
   // Ordre retenu : le regroupement par établissement, sauf s'il crée plus de retards que l'ordre d'origine
   function meilleurOrdre(route, depart) {
@@ -324,7 +418,7 @@ var Moteur = (function () {
   }
   function ordonnerJour(arrets, depart, apres) {
     var its = arrets.map(item);
-    if (apres) its.forEach(function (it) { if (!it.fixe && !it.a.rdv && !it.a.statut) it.tot = Math.max(it.tot, apres); });
+    if (apres) its.forEach(function (it) { if (!it.fixe && !it.a.rdv && !it.a.avance && !it.a.statut) it.tot = Math.max(it.tot, apres); });
     its.sort(function (a, b) { return a.tot - b.tot || a.tard - b.tard; });
     var route = [], dep = depart ? { coord: depart } : null;
     its.forEach(function (it) { route = insererAuMieux(route, it, dep); });
@@ -397,7 +491,7 @@ var Moteur = (function () {
       var a = it.a;
       a.heure = minutesVersHeure(s.debuts[i]);
       a.retard = s.retards[i];
-      a.dist = i > 0 ? Math.round(dist(route[i - 1], it) * 10) / 10 : 0;
+      a.dist = i > 0 ? Math.round((dist(route[i - 1], it) || 0) * 10) / 10 : 0;
       a.trajet = i > 0 ? trajetMin(route[i - 1], it, s.debuts[i - 1] + R.dureeVisite) : 0;
       return a;
     });
@@ -407,7 +501,7 @@ var Moteur = (function () {
   // Candidats éligibles pour une date donnée (réutilisé par genererPlanning pour estimer la charge)
   function candidatsJour(ctx, date, o, utilises) {
     var j = jourSemaineIndex(date);
-    if (j > 4 || (ctx.feries && ctx.feries[date])) return [];
+    if (isNaN(j) || j < 0 || j > 4 || (ctx.feries && ctx.feries[date])) return [];
     var dans = null;
     if (o.communes && o.communes.length) { dans = {}; o.communes.forEach(function (c) { dans[c] = true; }); }
     var out = [];
@@ -426,10 +520,13 @@ var Moteur = (function () {
   // Rééquilibrage post-sélection : si un praticien « Matin et soir » a été affecté au créneau surchargé,
   // on bascule son créneau vers la demi-journée sous-chargée si ses horaires et la route restent sans retard.
   function equilibrerCreneaux(route, cands, depart, targetMatin, targetSoir) {
+    var totalCible = targetMatin + targetSoir;
+    var tM = route.length < totalCible ? Math.ceil(route.length / 2) : targetMatin;
+    var tS = route.length < totalCible ? route.length - tM : targetSoir;
     for (var step = 0; step < route.length; step++) {
       var curM = route.filter(function (it) { return creneauDeItem(it) === 'Matin'; }).length;
       var curS = route.length - curM;
-      var sur = curM > targetMatin + (curS < targetSoir ? 0 : 1) ? 'Matin' : (curS > targetSoir + (curM < targetMatin ? 0 : 1) ? 'Soir' : '');
+      var sur = curM > tM + (curS < tS ? 0 : 1) ? 'Matin' : (curS > tS + (curM < tM ? 0 : 1) ? 'Soir' : '');
       if (!sur) break;
       var cibleCren = sur === 'Matin' ? 'Soir' : 'Matin';
       var refCost = coutOrdre(route, depart);
@@ -454,12 +551,7 @@ var Moteur = (function () {
     return route;
   }
 
-  // o : { communes: [..] | null, maxJour, targetJour, delai, exclus, rejetes, autreDispos, fixes: [arrêts], depart }
-  function planifierJour(ctx, date, o, utilises) {
-    var j = jourSemaineIndex(date);
-    var depart = o.depart ? { coord: o.depart } : null;
-    var maxFixes = o.maxJour || 8;
-    var rawFixes = (o.fixes || []).slice();
+  function filtrerFixesJour(rawFixes, maxFixes) {
     var faitsFixes = rawFixes.filter(function (a) { return !!a.statut; });
     var planFixes = rawFixes.filter(function (a) { return !a.statut; });
     if (planFixes.length > Math.max(0, maxFixes - faitsFixes.length)) {
@@ -475,10 +567,19 @@ var Moteur = (function () {
       });
       planFixes = planFixes.slice(0, Math.max(0, maxFixes - faitsFixes.length));
     }
+    return faitsFixes.concat(planFixes);
+  }
+
+  // o : { communes: [..] | null, maxJour, targetJour, delai, exclus, rejetes, autreDispos, fixes: [arrêts], depart }
+  function planifierJour(ctx, date, o, utilises) {
+    var j = jourSemaineIndex(date);
+    var depart = o.depart ? { coord: o.depart } : null;
+    var max = o.maxJour !== undefined && o.maxJour !== null ? o.maxJour : 8;
+    var fixesGardes = filtrerFixesJour((o.fixes || []).slice(), max);
     var route = [];
-    faitsFixes.concat(planFixes).sort(function (a, b) { return item(a).tot - item(b).tot; })
+    fixesGardes.sort(function (a, b) { return item(a).tot - item(b).tot; })
       .forEach(function (a) { route = insererAuMieux(route, item(a), depart); });
-    if (j > 4 || (ctx.feries && ctx.feries[date])) return finaliser(route, depart);
+    if (isNaN(j) || j < 0 || j > 4 || (ctx.feries && ctx.feries[date])) return finaliser(route, depart);
 
     var creneaux = candidatsJour(ctx, date, o, utilises);
     var cands = creneaux.map(function (c) {
@@ -492,13 +593,14 @@ var Moteur = (function () {
       if (densite[cd.a.code] !== undefined) return;
       var vus = {}, n = 0;
       cands.forEach(function (autre) {
-        if (autre.a.code !== cd.a.code && !vus[autre.a.code] && dist(cd.it, autre.it) <= 2.5) { vus[autre.a.code] = true; n++; }
+        if (autre.a.code === cd.a.code || vus[autre.a.code]) return;
+        var d = dist(cd.it, autre.it);
+        if (d !== null && d <= 2.5) { vus[autre.a.code] = true; n++; }
       });
       densite[cd.a.code] = Math.min(6, n) * 8;
     });
 
-    var max = o.maxJour || 8;
-    var cibleJour = Math.min(max, Math.max(route.length, o.targetJour || max));
+    var cibleJour = Math.min(max, Math.max(route.length, o.targetJour !== undefined && o.targetJour !== null ? o.targetJour : max));
     var targetMatin = Math.ceil(cibleJour / 2), targetSoir = cibleJour - targetMatin;
 
     function passe(avecRejetes) {
@@ -535,9 +637,11 @@ var Moteur = (function () {
         });
         if (!options.length) return;
         options.sort(function (x, y) { return y.v - x.v; });
-        var pris = false;
-        for (var k = 0; k < options.length && k < 4000; k++) {
-          var op = options[k];
+        var pris = false, triedByCren = {};
+        for (var k = 0; k < options.length; k++) {
+          var op = options[k], cr = creneauDeItem(op.cd.it);
+          if ((triedByCren[cr] || 0) >= 6000) continue;
+          triedByCren[cr] = (triedByCren[cr] || 0) + 1;
           var essai = route.slice(0, op.i).concat([op.cd.it], route.slice(op.i));
           var s = simuler(essai);
           if (!s.retards[op.i] && s.nbRetards <= base) { route = essai; pris = true; break; }
@@ -556,11 +660,16 @@ var Moteur = (function () {
   // p : { dates, communesPour(date), maxJour, delai, exclus, rejetes, conserves: [arrêts],
   //       imposes: [{ code, date?, cle?, rdv? }], depart, accepte(praticien) : filtre spécialités / types }
   function genererPlanning(ctx, p) {
-    var utilises = {}, fixes = {}, nonPlaces = [];
+    var maxJ = p.maxJour !== undefined && p.maxJour !== null ? p.maxJour : 8;
+    var utilises = {}, fixes = {}, nonPlaces = [], conservesHors = [], imposesPlaces = [];
     p.dates.forEach(function (d) { fixes[d] = []; });
     (p.conserves || []).forEach(function (a) {
-      utilises[a.code] = true;
       if (fixes[a.date]) fixes[a.date].push(a);
+      else { utilises[a.code] = true; conservesHors.push(a); }
+    });
+    p.dates.forEach(function (d) {
+      fixes[d] = filtrerFixesJour(fixes[d], maxJ);
+      fixes[d].forEach(function (a) { utilises[a.code] = true; });
     });
 
     // 3.28.17 : un lieu hors des communes choisies pour ce jour n'est pris que pour un RDV ou prioritaire choisi à la main
@@ -575,31 +684,47 @@ var Moteur = (function () {
       var rdv = heureVersMinutes(im.rdv), options = [], horsZone = 0;
       p.dates.forEach(function (d) {
         var j = jourSemaineIndex(d);
-        if (j > 4 || (im.date && im.date !== d) || (im.apres && d < im.apres) || (ctx.feries && ctx.feries[d])) return;
+        if (isNaN(j) || j < 0 || j > 4 || (im.date && im.date !== d) || (im.apres && d < im.apres) || (ctx.feries && ctx.feries[d])) return;
         (ctx.parCode[im.code] || []).forEach(function (c) {
-          if (c.jourIdx !== j || (im.cle && im.cle !== c.cle)) return;
+          if (c.jourIdx !== j || (im.cle && im.cle !== c.cle) || absentLe(c.prat, d)) return;
           var ok = dansCommunes(c, d);
           if (!ok) horsZone++;
           // RDV repris de l'historique (étape) : jamais hors des communes du jour
           if (ok || !im.etape) options.push({ d: d, c: c, hors: ok ? 0 : 1 });
         });
       });
-      if (!options.length) { if (horsZone) im.horsCommunes = true; nonPlaces.push(im); return; }
+      if (!options.length) {
+        nonPlaces.push(horsZone ? Object.assign({}, im, { horsCommunes: true }) : Object.assign({}, im));
+        return;
+      }
       options.sort(function (x, y) {
+        var fx = fixes[x.d].length < maxJ ? 0 : 1;
+        var fy = fixes[y.d].length < maxJ ? 0 : 1;
         var cx = rdv !== null && x.c.debut <= rdv && rdv <= x.c.fin ? 0 : 1;
         var cy = rdv !== null && y.c.debut <= rdv && rdv <= y.c.fin ? 0 : 1;
-        return x.hors - y.hors || cx - cy || fixes[x.d].length - fixes[y.d].length || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0) || x.c.debut - y.c.debut;
+        return fx - fy || cx - cy || x.hors - y.hors || fixes[x.d].length - fixes[y.d].length || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0) || x.c.debut - y.c.debut;
       });
       var o = options[0], a = arretDepuisCreneau(o.c, o.d);
       a.impose = true; a.garde = true; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres || ''; a.rdvPrisLe = im.prisLe || ''; }
       if (rdv !== null) a.rdv = minutesVersHeure(rdv);
       fixes[o.d].push(a);
+      imposesPlaces.push({ a: a, im: im, date: o.d });
       utilises[im.code] = true;
     });
+    if (imposesPlaces.length) {
+      utilises = {};
+      conservesHors.forEach(function (a) { utilises[a.code] = true; });
+      p.dates.forEach(function (d) {
+        fixes[d] = filtrerFixesJour(fixes[d], maxJ);
+        fixes[d].forEach(function (a) { utilises[a.code] = true; });
+      });
+      imposesPlaces.forEach(function (entry) {
+        if (fixes[entry.date].indexOf(entry.a) < 0) nonPlaces.push(Object.assign({}, entry.im));
+      });
+    }
 
     // Répartition équilibrée de la charge sur l'ensemble des jours ouvrés de la période
-    var maxJ = p.maxJour || 8;
-    var ouverts = p.dates.filter(function (d) { return jourSemaineIndex(d) <= 4 && !(ctx.feries && ctx.feries[d]); });
+    var ouverts = p.dates.filter(function (d) { var j = jourSemaineIndex(d); return !isNaN(j) && j >= 0 && j <= 4 && !(ctx.feries && ctx.feries[d]); });
     var codesParJour = {}, poolUnique = {}, nbDisposCode = {};
     ouverts.forEach(function (d) {
       var opts = { communes: p.communesPour ? p.communesPour(d) : null, delai: p.delai, exclus: p.exclus, accepte: p.accepte };
@@ -650,7 +775,7 @@ var Moteur = (function () {
         });
       }
       parDate[d] = planifierJour(ctx, d, {
-        communes: p.communesPour ? p.communesPour(d) : null, maxJour: maxJ, targetJour: ciblesJour[d] || maxJ,
+        communes: p.communesPour ? p.communesPour(d) : null, maxJour: maxJ, targetJour: ciblesJour[d] !== undefined ? ciblesJour[d] : maxJ,
         delai: p.delai, exclus: p.exclus, rejetes: p.rejetes, autreDispos: autreDispos,
         fixes: fixes[d], depart: p.depart, accepte: p.accepte
       }, utilises);
@@ -670,11 +795,13 @@ var Moteur = (function () {
   // minute : heure courante en minutes (null = toute la journée)
   function autourDe(ctx, pos, date, minute, rayon) {
     var j = jourSemaineIndex(date);
-    if (j > 4 || !pos) return [];
+    if (isNaN(j) || j < 0 || j > 4 || !pos || (ctx.feries && ctx.feries[date])) return [];
     var meilleurs = {};
     ctx.parJour[j].forEach(function (c) {
+      if (c.prat && absentLe(c.prat, date)) return;
       var pharma = c.prat && c.prat.type === 'Pharmacie';
       var d = distanceVol(pos, c.coord);   // 3.25.9 : vol d'oiseau depuis le téléphone
+      if (d === null) return;
       // 3.25.10 : lieu sans GPS (centre du quartier) : retenu s'il peut être dans le rayon (marge de 1 km)
       if ((c.coord && c.coord.approx ? Math.max(0, d - 1) : d) > rayon) return;
       var fin = pharma ? c.fin : c.fin - R.dureeVisite;
@@ -695,7 +822,9 @@ var Moteur = (function () {
   function quartierLePlusProche(lat, lon, quartiers) {
     var best = null, bestD = Infinity, p = { lat: lat, lon: lon };
     (quartiers || []).forEach(function (q) {
-      var d = distanceKm(p, q) / R.detourRoutier;
+      var d = distanceKm(p, q);
+      if (d === null) return;
+      d = d / R.detourRoutier;
       if (d < bestD) { bestD = d; best = q; }
     });
     return best ? { quartier: best, km: bestD } : null;
@@ -705,7 +834,7 @@ var Moteur = (function () {
   // mesArrets / arretsEquipe : arrêts sur les dates considérées
   function couverture(ctx, dates, mesArrets, arretsEquipe) {
     var jours = {};
-    dates.forEach(function (d) { var j = jourSemaineIndex(d); if (j < 5) jours[j] = d; });
+    dates.forEach(function (d) { var j = jourSemaineIndex(d); if (!isNaN(j) && j >= 0 && j < 5) jours[j] = d; });
     var communes = {}, ordreZones = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest', 'Zone Intérieur'];
     ctx.quartiers.forEach(function (q) {
       if (!communes[q.commune]) communes[q.commune] = { commune: q.commune, zone: q.zone, moi: 0, equipe: {}, dispo: {}, prioritaires: {} };
@@ -749,7 +878,13 @@ var Moteur = (function () {
         p.nbVisites = (+p.nbVisites || 0) + 1;
       }
       // seul un RDV confirmé reste comme prochaine étape (placée d'office dans la tournée) ; un rappel ne l'est pas
-      p.prochaine = v.rdv === false ? '' : (v.prochaine || '');
+      if (v.rdv === false) {
+        if (compte) p.prochaine = '';
+      } else if (v.prochaine) {
+        p.prochaine = v.prochaine;
+      } else if (compte) {
+        p.prochaine = '';
+      }
       p.statut = v.statut;
       p.commentaire = v.commentaire || '';
     });

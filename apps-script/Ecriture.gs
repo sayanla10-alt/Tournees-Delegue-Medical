@@ -1,12 +1,57 @@
 ﻿/* Ecriture.gs : enregistrements venant de l'application (visites, comptes rendus, tournées, fiches, délégués). (découpé de Code.gs, 3.27.14 ; tous les fichiers .gs partagent le même espace) */
+
+// Borne un texte à la limite Google Sheets (50 000 caractères max, marge à 45 000)
+function borneTexte_(val, max) {
+  var s = String(val === undefined || val === null ? '' : val);
+  var lim = max || 45000;
+  return s.length > lim ? s.slice(0, lim) : s;
+}
+
+// Neutralise les injections de formules Google Sheets / CSV (=, +, -, @, \t, \r),
+// y compris après espaces initiaux, sans altérer les nombres purs (ex. "-3.98").
+function neutraliserFormule_(val) {
+  if (val === null || val === undefined) return '';
+  if (typeof val !== 'string') return val;
+  if (!val) return '';
+  if (/^\s*-?\d+(?:[.,]\d+)?\s*$/.test(val)) return val;
+  if (/^[\t\r]|^\s*[=+\-@]/.test(val)) return "'" + val;
+  return val;
+}
+
+function texteCellule_(val, max) {
+  return neutraliserFormule_(borneTexte_(val, max));
+}
+
+// Formate un numéro CI (+225 ...) et neutralise toute valeur non téléphonique suspecte
+function preparerTelephone_(tel) {
+  var f = formaterTelephoneCI(tel || '');
+  if (!f) return '';
+  if (/^\+\d{2,3}(?:[\s\-\/]?\d{2,}){2,}(?:\s*\/\s*\+\d{2,3}(?:[\s\-\/]?\d{2,}){2,})*$/.test(f)) return borneTexte_(f, 500);
+  return texteCellule_(f, 500);
+}
+
+// Valide strictement une date ISO YYYY-MM-DD (calendrier réel)
+function estDateIso_(s) {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  var p = s.split('-'), a = +p[0], m = +p[1], j = +p[2];
+  var d = new Date(Date.UTC(a, m - 1, j));
+  return d.getUTCFullYear() === a && d.getUTCMonth() === m - 1 && d.getUTCDate() === j;
+}
+
 function enregistrerRapport(r) {
+  r = r || {};
   var delegue = nomDelegue(r.delegue);
-  if (!delegue || !r.date) return { ok: false, erreur: 'Rapport incomplet (délégué ou date).' };
+  if (!delegue || !estDateIso_(r.date)) return { ok: false, erreur: 'Rapport incomplet ou date invalide (délégué ou date).' };
   var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone(), sh = assurerRapports(ss);
     r.delegue = delegue; r.maj = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm');
-    var ligne = CHAMPS_RAPPORTS.map(function (c) { return r[c[0]] === undefined ? '' : String(r[c[0]]); });
+    var ligne = CHAMPS_RAPPORTS.map(function (c) {
+      var v = r[c[0]];
+      if (v === undefined || v === null) return '';
+      if (c[0] === 'date' || c[0] === 'maj') return String(v);
+      return texteCellule_(v);
+    });
     var iDel = indexChamp(CHAMPS_RAPPORTS, 'delegue'), iDate = indexChamp(CHAMPS_RAPPORTS, 'date'), n = sh.getLastRow() - 1, rang = -1;
     if (n > 0) sh.getRange(2, 1, n, CHAMPS_RAPPORTS.length).getDisplayValues().forEach(function (l, i) {
       if (String(l[iDel]).trim().toLowerCase() === delegue.toLowerCase() && versIso(l[iDate], tz) === r.date) rang = i + 2;
@@ -20,7 +65,8 @@ function enregistrerRapport(r) {
 
 // ---------------------------------------------------------------- Visites validées
 function enregistrerVisites(visites) {
-  (visites || []).forEach(fusRediriger_);   // 3.28.16 : référence d'une fiche fusionnée -> fiche gardée
+  if (!Array.isArray(visites)) return { ok: false, erreur: 'Liste de visites invalide.' };
+  visites.forEach(fusRediriger_);   // 3.28.16 : référence d'une fiche fusionnée -> fiche gardée
   var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
@@ -47,6 +93,7 @@ function enregistrerVisites(visites) {
     });
     visites.forEach(function (v) {
       if (!v || !v.uid) return;
+      if (!estDateIso_(v.date)) return;
       v.delegue = nomDelegue(v.delegue);
       recus.push(v.uid);
       // compte rendu corrigé après enregistrement : la ligne existante est mise à jour
@@ -55,9 +102,11 @@ function enregistrerVisites(visites) {
       var dateVisite = Utilities.parseDate(v.date, tz, 'yyyy-MM-dd');
       var ligne = ordreH.map(function (cle) {
         if (cle === 'date') return dateVisite;
-        if (cle === 'prochaine') return v.prochaine ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
+        if (cle === 'prochaine') return estDateIso_(v.prochaine) ? Utilities.parseDate(v.prochaine, tz, 'yyyy-MM-dd') : '';
         if (cle === 'horodatage') return new Date();
-        return cle && v[cle] !== undefined ? v[cle] : '';
+        if (!cle || v[cle] === undefined || v[cle] === null) return '';
+        if (cle === 'note' && isFinite(+v.note) && String(v.note).trim() !== '') return +v.note;
+        return texteCellule_(v[cle]);
       });
       var avant = correction ? !!statuts[ancienStatut[v.uid]] : false;
       if (correction) {
@@ -73,15 +122,17 @@ function enregistrerVisites(visites) {
         if (i === undefined) return;
         f.modif = true;
         if (statuts[v.statut]) {
-          var actuelle = data[i][c.derniere];
-          if (!(actuelle instanceof Date) || dateVisite > actuelle) data[i][c.derniere] = dateVisite;
-          if (!avant) data[i][c.nbVisites] = (+data[i][c.nbVisites] || 0) + 1;
-        } else if (avant) data[i][c.nbVisites] = Math.max((+data[i][c.nbVisites] || 0) - 1, 0);
-        data[i][c.statut] = v.statut;
-        data[i][c.commentaire] = v.commentaire || '';
+          if (c.derniere >= 0) {
+            var actuelle = data[i][c.derniere];
+            if (!(actuelle instanceof Date) || dateVisite > actuelle) data[i][c.derniere] = dateVisite;
+          }
+          if (!avant && c.nbVisites >= 0) data[i][c.nbVisites] = (+data[i][c.nbVisites] || 0) + 1;
+        } else if (avant && c.nbVisites >= 0) data[i][c.nbVisites] = Math.max((+data[i][c.nbVisites] || 0) - 1, 0);
+        if (c.statut >= 0) data[i][c.statut] = texteCellule_(v.statut || '');
+        if (c.commentaire >= 0) data[i][c.commentaire] = texteCellule_(v.commentaire || '');
         // seul un RDV confirmé devient la prochaine étape du praticien (un rappel reste dans l'historique)
         var prochaine = v.rdv === false ? '' : v.prochaine;
-        if (c.prochaine >= 0) data[i][c.prochaine] = prochaine ? Utilities.parseDate(prochaine, tz, 'yyyy-MM-dd') : '';
+        if (c.prochaine >= 0) data[i][c.prochaine] = estDateIso_(prochaine) ? Utilities.parseDate(prochaine, tz, 'yyyy-MM-dd') : '';
       });
     });
     suivis.forEach(function (f) {
@@ -115,24 +166,29 @@ function suiviFeuille(sh) {
 // Remplace la tournée publiée d'un délégué sur la période [debut, fin] et signale
 // les praticiens que d'autres délégués ont déjà prévus la même semaine.
 function publierPlanning(b) {
+  b = b || {};
   var delegue = nomDelegue(b.delegue);
   if (!delegue) return { ok: false, erreur: 'Indiquez votre nom dans les réglages de l\'application.' };
-  (b.arrets || []).forEach(fusRediriger_);
+  if (!estDateIso_(b.debut) || !estDateIso_(b.fin) || b.debut > b.fin || !Array.isArray(b.arrets)) {
+    return { ok: false, erreur: 'Période invalide.' };
+  }
+  var arretsValides = b.arrets.filter(function (a) { return a && estDateIso_(a.date); });
+  arretsValides.forEach(fusRediriger_);
   var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
     assurerStructure(ss);
     var sh = ss.getSheetByName(FEUILLES.plannings);
     var nbCol = CHAMPS_PLAN.length, n = Math.max(sh.getLastRow() - 1, 0);
-    var limite = ajouterJours(Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), -(JOURS_PLANNINGS_DATA + 8));
     var iDel = indexChamp(CHAMPS_PLAN, 'delegue'), iDate = indexChamp(CHAMPS_PLAN, 'date'), iCode = indexChamp(CHAMPS_PLAN, 'code');
     var iProg = indexChamp(CHAMPS_PLAN, 'programme'), iDepuis = indexChamp(CHAMPS_PLAN, 'depuis');
     var garde = [], moi = delegue.toLowerCase(), mesDepuis = {};
     if (n) {
       sh.getRange(2, 1, n, nbCol).getDisplayValues().forEach(function (l) {
         var d = versIso(l[iDate], tz), qui = String(l[iDel]).trim().toLowerCase();
-        if (!qui || d < limite) return;
-        if (qui === moi && d >= b.debut && d <= b.fin) {
+        if (!qui) return;
+        // Conserve l'historique complet de toute l'équipe ; seule la période [debut, fin] du délégué courant est remplacée
+        if (qui === moi && d && d >= b.debut && d <= b.fin) {
           // on retient depuis quand ce délégué cible ce praticien (priorité au premier arrivé)
           var k = l[iCode] + '|' + lundiDe(d);
           if (l[iDepuis] && (!mesDepuis[k] || l[iDepuis] < mesDepuis[k])) mesDepuis[k] = l[iDepuis];
@@ -143,17 +199,20 @@ function publierPlanning(b) {
     }
     var maintenant = new Date().toISOString();
     var maj = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm');
-    var nouvelles = (b.arrets || []).map(function (a) {
+    var nouvelles = arretsValides.map(function (a) {
       var depuis = mesDepuis[a.code + '|' + lundiDe(a.date)] || maintenant;
       a.depuis = depuis;
       return CHAMPS_PLAN.map(function (c) {
-        if (c[0] === 'delegue') return delegue;
+        if (c[0] === 'delegue') return texteCellule_(delegue);
         if (c[0] === 'maj') return maj;
         if (c[0] === 'depuis') return depuis;
         if (c[0] === 'etat' && !a.etat) return 'Prévu';          // visite pas encore faite
         if (c[0] === 'statut' && !a.statut) return 'À faire';
         var v = a[c[0]];
-        return v === undefined || v === null ? '' : String(v);
+        if (v === undefined || v === null) return '';
+        // Ne jamais altérer CODE_JOUR_SUPPRIME ('-') ni la date/note
+        if (c[0] === 'code' || c[0] === 'date' || c[0] === 'note' || c[0] === 'idPresence') return String(v);
+        return texteCellule_(v);
       });
     });
     // Conflits : même praticien ciblé plus tôt par un autre délégué la même semaine
@@ -161,11 +220,13 @@ function publierPlanning(b) {
     garde.forEach(function (l) {
       if (String(l[iDel]).trim().toLowerCase() === moi) return;
       if (l[iProg] === 'Supprimé') return;   // 3.29.0 : journée ou visite supprimée par un collègue : pas un conflit
-      var k = l[iCode] + '|' + lundiDe(versIso(l[iDate], tz));
-      (autres[k] = autres[k] || []).push({ delegue: l[iDel], date: versIso(l[iDate], tz), programme: l[iProg], depuis: l[iDepuis] || '' });
+      var d = versIso(l[iDate], tz);
+      if (!d) return;
+      var k = l[iCode] + '|' + lundiDe(d);
+      (autres[k] = autres[k] || []).push({ delegue: l[iDel], date: d, programme: l[iProg], depuis: l[iDepuis] || '' });
     });
     var conflits = [];
-    (b.arrets || []).forEach(function (a) {
+    arretsValides.forEach(function (a) {
       if (a.programme === 'Supprimé') return;
       // un programme validé l'emporte sur une proposition ; à statut égal, le premier arrivé garde le praticien
       var monV = a.programme === 'Validé';
@@ -177,9 +238,10 @@ function publierPlanning(b) {
       if (l.length) conflits.push({ code: a.code, nom: a.nom, date: a.date, autres: l });
     });
     var tout = garde.concat(nouvelles);
-    if (n) sh.getRange(2, 1, n, nbCol).clearContent();
+    // Écriture non destructive : écrit d'abord le planning complet, puis efface uniquement les lignes excédentaires
     if (tout.length) sh.getRange(2, 1, tout.length, nbCol).setNumberFormat('@').setValues(tout);
-    var nbJours = {}; (b.arrets || []).forEach(function (a) { if (a.programme !== 'Supprimé') nbJours[a.date] = 1; });
+    if (n > tout.length) sh.getRange(2 + tout.length, 1, n - tout.length, nbCol).clearContent();
+    var nbJours = {}; arretsValides.forEach(function (a) { if (a.programme !== 'Supprimé') nbJours[a.date] = 1; });
     enregistrerAudit(ss, delegue, 'PUBLICATION_TOURNEE', 'Planning', b.debut + ' > ' + b.fin, nouvelles.length + ' visite(s) sur ' + Object.keys(nbJours).length + ' jour(s)' + (b.supprimes && b.supprimes.length ? ', jour(s) supprimé(s) : ' + b.supprimes.join(', ') : ''));
     return { ok: true, publies: nouvelles.length, conflits: conflits };
   } finally {
@@ -197,7 +259,7 @@ function marquerArretsValides(ss, visites) {
   visites.forEach(function (v) { if (v && v.uid) parUid[v.uid] = v; });
   data.forEach(function (l) {
     var v = parUid[l[cUid]];
-    if (v) { l[cSt] = v.statut; l[cEt] = 'valide'; change = true; }
+    if (v) { l[cSt] = texteCellule_(v.statut || ''); l[cEt] = 'valide'; change = true; }
   });
   if (change) sh.getRange(2, 1, n, nbCol).setNumberFormat('@').setValues(data);
 }
@@ -211,7 +273,14 @@ function marquerArretsValides(ss, visites) {
 var AUDIT_TAMPON_ = null;
 function enregistrerAudit(ss, auteur, action, entite, code, details) {
   var detailsStr = typeof details === 'object' ? JSON.stringify(details) : String(details || '');
-  var ligne = [new Date().toISOString(), String(auteur || 'Inconnu'), String(action || ''), String(entite || ''), String(code || ''), detailsStr.slice(0, 2000)];
+  var ligne = [
+    new Date().toISOString(),
+    texteCellule_(auteur || 'Inconnu', 200),
+    texteCellule_(action || '', 200),
+    texteCellule_(entite || '', 200),
+    texteCellule_(code || '', 200),
+    texteCellule_(detailsStr, 2000)
+  ];
   if (AUDIT_TAMPON_) { AUDIT_TAMPON_.push(ligne); return; }
   ecrireAudit_(ss, [ligne]);
 }
@@ -248,13 +317,14 @@ function enregistrerErreursApp(b) {
   return { ok: true };
 }
 
-function enregistrerFiche(b) {
-  var p = b.praticien || {}, lieux = fusRedirigerFiche_(b.praticien || {}, b.presences || []);
+function enregistrerFiche(b, dejaVerrouille) {
+  b = b || {};
+  var p = b.praticien || {}, lieux = fusRedirigerFiche_(b.praticien || {}, Array.isArray(b.presences) ? b.presences : []);
   var auteur = String(b.auteur || p.auteur || 'Délégué');
   var nom = String(p.nom || '').trim();
   if (nom.length < 3) return { ok: false, erreur: 'Nom du praticien manquant.' };
   var type = p.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin';
-  var lock = verrouiller();
+  var lock = dejaVerrouille ? null : verrouiller();
   try {
     var ss = SpreadsheetApp.getActive();
     assurerStructure(ss);
@@ -281,16 +351,25 @@ function enregistrerFiche(b) {
       code = pre + '-' + numeroCode(max[pre] + 1);
     }
     var valeurs = ligne >= 0 ? dataP[ligne].slice() : entP.map(function () { return ''; });
-    var modif = { code: code, type: type, nom: nom, specialite: specialiteCanonique(String(p.specialite || '')), note: lireNote(p.note),
-                  conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non', telephone: formaterTelephoneCI(p.telephone || ''),
-                  actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui' };
+    var modif = {
+      code: code,
+      type: type,
+      nom: texteCellule_(nom),
+      specialite: texteCellule_(specialiteCanonique(String(p.specialite || ''))),
+      note: lireNote(p.note),
+      conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
+      telephone: preparerTelephone_(p.telephone || ''),
+      actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui'
+    };
     var tzF = ss.getSpreadsheetTimeZone();
-    modif.absentDu = p.absentDu ? Utilities.parseDate(p.absentDu, tzF, 'yyyy-MM-dd') : '';
-    modif.absentAu = p.absentAu ? Utilities.parseDate(p.absentAu, tzF, 'yyyy-MM-dd') : '';
+    modif.absentDu = estDateIso_(p.absentDu) ? Utilities.parseDate(p.absentDu, tzF, 'yyyy-MM-dd') : '';
+    modif.absentAu = estDateIso_(p.absentAu) ? Utilities.parseDate(p.absentAu, tzF, 'yyyy-MM-dd') : '';
     if (ligne < 0) modif.nbVisites = 0;
     CHAMPS_PRATICIENS.forEach(function (c, k) { if (posP[k] >= 0 && modif[c[0]] !== undefined && !(rattache && (modif[c[0]] === '' || c[0] === 'note' || c[0] === 'conventionne') && valeurs[posP[k]] !== '')) valeurs[posP[k]] = modif[c[0]]; });
-    if (ligne >= 0) shP.getRange(ligne + 2, 1, 1, entP.length).setValues([valeurs]);
-    else shP.getRange(shP.getLastRow() + 1, 1, 1, entP.length).setValues([valeurs]);
+    var rangP = ligne >= 0 ? ligne + 2 : shP.getLastRow() + 1;
+    var cTelP = posP[indexChamp(CHAMPS_PRATICIENS, 'telephone')];
+    if (cTelP >= 0) shP.getRange(rangP, cTelP + 1).setNumberFormat('@');
+    shP.getRange(rangP, 1, 1, entP.length).setValues([valeurs]);
 
     // --- Presences : lieux du praticien remplacés (mêmes lignes réutilisées, identifiants conservés)
     var refQ = {};
@@ -305,7 +384,12 @@ function enregistrerFiche(b) {
     var dataR = nR ? shR.getRange(2, 1, nR, entR.length).getValues() : [];
     var mesLignes = [], maxId = 0, anciensCode = String(p.code || '');
     dataR.forEach(function (l, i) {
-      if (+l[rId] > maxId) maxId = +l[rId];
+      var nId = +l[rId];
+      if (!isFinite(nId)) {
+        var mId = String(l[rId] || '').match(/(\d+)$/);
+        nId = mId ? +mId[1] : NaN;
+      }
+      if (isFinite(nId) && nId > maxId) maxId = nId;
       if ((anciensCode && String(l[rCode]) === anciensCode) || (code && String(l[rCode]) === code)) mesLignes.push(i);
     });
     if (rattache) {
@@ -329,24 +413,47 @@ function enregistrerFiche(b) {
     mesLignes.forEach(function (i) { var idL = String(dataR[i][rId]); if (idL && ligneParId[idL] === undefined) ligneParId[idL] = i; });
     var lignesId = [];
     var lignesR = lieux.map(function (x) {
-      var id = x.id && !/^TMP/.test(String(x.id)) && !idsPris[String(x.id)] ? x.id : ++maxId;
+      var idBrut = x.id === undefined || x.id === null ? '' : String(x.id).trim();
+      var id = idBrut && !/^TMP/i.test(idBrut) && !idsPris[idBrut] ? x.id : ++maxId;
+      while (idsPris[String(id)]) id = ++maxId;
       idsPris[String(id)] = true;
       lignesId.push(String(id));
-      if (x.id && /^TMP/.test(String(x.id))) ids[x.id] = id;
+      if (idBrut && /^TMP/i.test(idBrut)) ids[idBrut] = id;
       var q = refQ[normaliser(x.quartier)] || ['', '', ''];
-      var o = { id: id, code: code, nom: nom, lieu: String(x.lieu || ''), quartier: String(x.quartier || ''),
-                commune: q[0] || String(x.commune || ''), zone: q[2] || String(x.zone || ''),
-                horaireMatin: String(x.horaireMatin || ''), horaireSoir: String(x.horaireSoir || ''),
-                lat: x.lat === undefined ? '' : x.lat, lon: x.lon === undefined ? '' : x.lon, reperes: String(x.reperes || ''), origineGps: String(x.origineGps || '') };
+      var o = {
+        id: id,
+        code: code,
+        nom: texteCellule_(nom),
+        lieu: texteCellule_(x.lieu || ''),
+        quartier: texteCellule_(x.quartier || ''),
+        commune: texteCellule_(q[0] || x.commune || ''),
+        zone: texteCellule_(q[2] || x.zone || ''),
+        horaireMatin: texteCellule_(x.horaireMatin || ''),
+        horaireSoir: texteCellule_(x.horaireSoir || ''),
+        lat: x.lat === undefined ? '' : x.lat,
+        lon: x.lon === undefined ? '' : x.lon,
+        reperes: texteCellule_(x.reperes || ''),
+        origineGps: texteCellule_(x.origineGps || '')
+      };
       // 3.9.0 : pas de position prise sur place ? on cherche l'établissement sur Google Maps (Abidjan)
-      if (o.lat === '' || o.lon === '') { var g = geocoderLieu(o.lieu, o.quartier, o.commune); if (g) { o.lat = g.lat; o.lon = g.lon; o.origineGps = 'Google Maps'; coords[id] = g; } }
-      // 3.27.33 : positions à 6 décimales ; origine conservée si la position n'a pas bougé
-      if (o.lat !== '' && isFinite(nombre6(o.lat))) { o.lat = nombre6(o.lat); o.lon = nombre6(o.lon); }
+      var latTest = nombre6(o.lat), lonTest = nombre6(o.lon);
+      if (!isFinite(latTest) || !isFinite(lonTest) || latTest === 0 || lonTest === 0) {
+        var g = geocoderLieu(String(x.lieu || ''), String(x.quartier || ''), String(q[0] || x.commune || ''));
+        if (g && isFinite(nombre6(g.lat)) && isFinite(nombre6(g.lon))) {
+          o.lat = g.lat; o.lon = g.lon; o.origineGps = 'Google Maps'; coords[id] = g;
+        }
+      }
+      // 3.27.33 : positions à 6 décimales ; origine conservée si la position n'a pas bougé (valide lat & lon avec isFinite)
+      var lat6 = nombre6(o.lat), lon6 = nombre6(o.lon);
+      if (isFinite(lat6) && isFinite(lon6)) { o.lat = lat6; o.lon = lon6; }
+      else { o.lat = ''; o.lon = ''; }
       var iEx = ligneParId[String(id)], kO = posR[indexChamp(CHAMPS_PRESENCES, 'origineGps')];
-      if (!o.origineGps && iEx !== undefined && kO >= 0 && o.lat !== '' &&
+      if (!o.origineGps && iEx !== undefined && kO >= 0 && o.lat !== '' && o.lon !== '' &&
           Math.abs(nombre6(dataR[iEx][posR[indexChamp(CHAMPS_PRESENCES, 'lat')]]) - o.lat) < 0.00001 &&
-          Math.abs(nombre6(dataR[iEx][posR[indexChamp(CHAMPS_PRESENCES, 'lon')]]) - o.lon) < 0.00001) o.origineGps = String(dataR[iEx][kO] || '');
-      JOURS_CLES.forEach(function (j) { o[j] = String(x[j] || ''); });
+          Math.abs(nombre6(dataR[iEx][posR[indexChamp(CHAMPS_PRESENCES, 'lon')]]) - o.lon) < 0.00001) {
+        o.origineGps = texteCellule_(dataR[iEx][kO] || '');
+      }
+      JOURS_CLES.forEach(function (j) { o[j] = texteCellule_(x[j] || ''); });
       var v = entR.map(function () { return ''; });
       CHAMPS_PRESENCES.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
       return v;
@@ -362,8 +469,12 @@ function enregistrerFiche(b) {
     var libres = mesLignes.filter(function (i) { return !utilisees[i]; });
     while (nouveaux.length && libres.length) { var li = libres.shift(); utilisees[li] = true; shR.getRange(li + 2, 1, 1, entR.length).setValues([nouveaux.shift()]); }
     if (nouveaux.length) shR.getRange(shR.getLastRow() + 1, 1, nouveaux.length, entR.length).setValues(nouveaux);
-    // Lieux retirés de la fiche par le délégué : supprimés (comme avant 3.27.47), et notés dans le journal d'audit
-    if (libres.length) {
+    // L'application cliente envoie la liste complète des lieux du praticien dans b.presences lors d'une modification :
+    // les lieux absents sont retirés, sauf si b.presences est vide (évite une suppression accidentelle)
+    // ou si b.supprimerPresences === false. Pour supprimer tous les lieux, passer b.supprimerPresences === true.
+    var autoriserSuppression = b.supprimerPresences === true ||
+      (b.supprimerPresences !== false && Array.isArray(b.presences) && b.presences.length > 0);
+    if (libres.length && autoriserSuppression) {
       libres.sort(function (a, b) { return b - a; }).forEach(function (i) {
         var ancLieu = dataR[i] ? dataR[i][posR[indexChamp(CHAMPS_PRESENCES, 'lieu')]] : 'Lieu';
         enregistrerAudit(ss, auteur, 'SUPPRESSION_PRESENCE', 'Presence', code, 'Suppression lieu: ' + ancLieu);
@@ -373,7 +484,7 @@ function enregistrerFiche(b) {
     enregistrerAudit(ss, auteur, ligne >= 0 ? (rattache ? 'RATTACHEMENT_FICHE' : 'MODIFICATION_FICHE') : 'CREATION_FICHE', type, code, nom + ' (' + lieux.length + ' lieu(x))');
     return { ok: true, code: code, ancien: String(p.code || ''), ids: ids, coords: coords };
   } finally {
-    lock.releaseLock();
+    if (lock) lock.releaseLock();
   }
 }
 
@@ -400,26 +511,64 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   var shQ = ss.getSheetByName(FEUILLES.quartiers);
   if (shQ && shQ.getLastRow() > 1) shQ.getRange(2, 1, shQ.getLastRow() - 1, 3).getValues().forEach(function (v) { if (normaliser(v[1]) === normaliser(lieu.quartier)) q = { commune: v[0], zone: v[2] }; });
   var v = ligne >= 0 ? data[ligne].slice() : ent.map(function () { return ''; });
-  var modif = { code: code, nom: String(p.nom || '').trim(), quartier: lieu.quartier || '', commune: q.commune || lieu.commune || '', zone: q.zone || lieu.zone || '',
-    telephone: formaterTelephoneCI(p.telephone || ''), note: lireNote(p.note), conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
-    actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui', horaireMatin: lieu.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: lieu.horaireSoir || HORAIRES_PHARMACIE[1] };
-  var kOP = pos[indexChamp(CHAMPS_PHARMACIES, 'origineGps')], kLaP = pos[indexChamp(CHAMPS_PHARMACIES, 'lat')], kLoP = pos[indexChamp(CHAMPS_PHARMACIES, 'lon')];
-  if (lieu.lat && lieu.lon && lieu.lat !== 'NL' && lieu.lon !== 'NL') {
-    modif.lat = nombre6(lieu.lat); modif.lon = nombre6(lieu.lon);
+  var kQuart = pos[indexChamp(CHAMPS_PHARMACIES, 'quartier')];
+  var kCom = pos[indexChamp(CHAMPS_PHARMACIES, 'commune')];
+  var kHM = pos[indexChamp(CHAMPS_PHARMACIES, 'horaireMatin')];
+  var kHS = pos[indexChamp(CHAMPS_PHARMACIES, 'horaireSoir')];
+  var kTel = pos[indexChamp(CHAMPS_PHARMACIES, 'telephone')];
+  var kLaP = pos[indexChamp(CHAMPS_PHARMACIES, 'lat')], kLoP = pos[indexChamp(CHAMPS_PHARMACIES, 'lon')];
+
+  var quartIn = String(lieu.quartier || '').trim();
+  var comIn = String(q.commune || lieu.commune || '').trim();
+  var zoneIn = String(q.zone || lieu.zone || '').trim();
+  var hmIn = String(lieu.horaireMatin || '').trim();
+  var hsIn = String(lieu.horaireSoir || '').trim();
+
+  var modif = {
+    code: code,
+    nom: texteCellule_(String(p.nom || '').trim()),
+    telephone: preparerTelephone_(p.telephone || ''),
+    note: lireNote(p.note),
+    conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
+    actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui'
+  };
+  if (quartIn) modif.quartier = texteCellule_(quartIn);
+  else if (ligne < 0) modif.quartier = '';
+  if (comIn) modif.commune = texteCellule_(comIn);
+  else if (ligne < 0) modif.commune = '';
+  if (zoneIn) modif.zone = texteCellule_(zoneIn);
+  else if (ligne < 0) modif.zone = '';
+  if (hmIn) modif.horaireMatin = texteCellule_(hmIn);
+  else if (ligne < 0 || kHM < 0 || !String(v[kHM] || '').trim()) modif.horaireMatin = HORAIRES_PHARMACIE[0];
+  if (hsIn) modif.horaireSoir = texteCellule_(hsIn);
+  else if (ligne < 0 || kHS < 0 || !String(v[kHS] || '').trim()) modif.horaireSoir = HORAIRES_PHARMACIE[1];
+
+  var latIn = lieu.lat !== 'NL' ? nombre6(lieu.lat) : NaN;
+  var lonIn = lieu.lon !== 'NL' ? nombre6(lieu.lon) : NaN;
+  var latEx = kLaP >= 0 ? nombre6(v[kLaP]) : NaN;
+  var lonEx = kLoP >= 0 ? nombre6(v[kLoP]) : NaN;
+  var gpsExValide = isFinite(latEx) && isFinite(lonEx) && latEx !== 0 && lonEx !== 0;
+
+  if (isFinite(latIn) && isFinite(lonIn) && latIn !== 0 && lonIn !== 0) {
+    modif.lat = latIn; modif.lon = lonIn;
     // 3.27.33 : relevé terrain transmis tel quel ; position inchangée = origine conservée ; sinon origine effacée
-    var bouge = !(Math.abs(nombre6(v[kLaP]) - modif.lat) < 0.00001 && Math.abs(nombre6(v[kLoP]) - modif.lon) < 0.00001);
-    if (lieu.origineGps) modif.origineGps = String(lieu.origineGps); else if (bouge) modif.origineGps = '';
+    var bouge = !(gpsExValide && Math.abs(latEx - modif.lat) < 0.00001 && Math.abs(lonEx - modif.lon) < 0.00001);
+    if (lieu.origineGps) modif.origineGps = texteCellule_(String(lieu.origineGps)); else if (bouge) modif.origineGps = '';
   }
-  else {
-    var g = geocoderLieu(p.nom, lieu.quartier, modif.commune, p.telephone, p.titulaire);
-    if (g) {
+  else if (!gpsExValide) {
+    var comGeo = comIn || (kCom >= 0 ? String(v[kCom] || '') : '');
+    var g = geocoderLieu(p.nom, quartIn || (kQuart >= 0 ? String(v[kQuart] || '') : ''), comGeo, p.telephone, p.titulaire);
+    if (g && isFinite(nombre6(g.lat)) && isFinite(nombre6(g.lon))) {
       modif.lat = nombre6(g.lat); modif.lon = nombre6(g.lon); modif.origineGps = 'Google Maps';
-      if ((!modif.quartier || modif.quartier === 'NL') && g.quartier) modif.quartier = g.quartier;
+      var quartActuel = modif.quartier !== undefined ? modif.quartier : (kQuart >= 0 ? String(v[kQuart] || '') : '');
+      if ((!quartActuel || quartActuel === 'NL') && g.quartier) modif.quartier = texteCellule_(g.quartier);
     }
   }
   if (ligne < 0) { modif.nbVisites = 0; modif.source = 'Application'; }
   CHAMPS_PHARMACIES.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
-  if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]); else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
+  var rangPh = ligne >= 0 ? ligne + 2 : sh.getLastRow() + 1;
+  if (kTel >= 0) sh.getRange(rangPh, kTel + 1).setNumberFormat('@');
+  sh.getRange(rangPh, 1, 1, ent.length).setValues([v]);
   var ids = {}; if (lieu.id) ids[lieu.id] = 'P-' + code;
   enregistrerAudit(ss, auteur, ligne >= 0 ? 'MODIFICATION_FICHE' : 'CREATION_FICHE', 'Pharmacie', code, modif.nom);
   return { ok: true, code: code, ancien: String(p.code || ''), ids: ids };
@@ -427,6 +576,7 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
 
 // Établissement (hôpital, clinique, FSU COM, dispensaire...) créé ou modifié depuis l'application
 function enregistrerEtablissement(b) {
+  b = b || {};
   var R = fusRedirections_();
   if (b.code) b.code = fusSuivre_(R.codes, b.code);
   var nom = fusNomLieu_(R, String(b.nom || '').trim(), b.commune);
@@ -456,21 +606,26 @@ function enregistrerEtablissement(b) {
     var v = ligne >= 0 ? data[ligne].slice() : ent.map(function () { return ''; });
     var modif = {
       code: code,
-      nom: nom,
-      categorie: String(b.categorie || ''),
-      commune: String(b.commune || ''),
-      quartier: String(b.quartier || ''),
-      zone: String(b.zone || ''),
-      telephone: formaterTelephoneCI(b.telephone || ''),
-      reperes: String(b.reperes || '')
+      nom: texteCellule_(nom),
+      categorie: texteCellule_(b.categorie || ''),
+      commune: texteCellule_(b.commune || ''),
+      quartier: texteCellule_(b.quartier || ''),
+      zone: texteCellule_(b.zone || ''),
+      telephone: preparerTelephone_(b.telephone || ''),
+      reperes: texteCellule_(b.reperes || '')
     };
     if (b.lat !== undefined && b.lon !== undefined && b.lat !== '' && b.lon !== '') {
-      modif.lat = +String(b.lat).replace(',', '.');
-      modif.lon = +String(b.lon).replace(',', '.');
+      var latE = nombre6(b.lat), lonE = nombre6(b.lon);
+      if (isFinite(latE) && isFinite(lonE)) {
+        modif.lat = latE;
+        modif.lon = lonE;
+      }
     }
     CHAMPS_ETABLISSEMENTS.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
-    if (ligne >= 0) sh.getRange(ligne + 2, 1, 1, ent.length).setValues([v]);
-    else sh.getRange(sh.getLastRow() + 1, 1, 1, ent.length).setValues([v]);
+    var rangE = ligne >= 0 ? ligne + 2 : sh.getLastRow() + 1;
+    var cTelE = pos[indexChamp(CHAMPS_ETABLISSEMENTS, 'telephone')];
+    if (cTelE >= 0) sh.getRange(rangE, cTelE + 1).setNumberFormat('@');
+    sh.getRange(rangE, 1, 1, ent.length).setValues([v]);
 
     // Cascade GPS et quartier vers la feuille Presences si lat/lon modifiés
     var cascades = 0;
@@ -503,7 +658,7 @@ function enregistrerEtablissement(b) {
     }
 
     enregistrerAudit(ss, String(b.auteur || 'Délégué'), ligne >= 0 ? 'MODIFICATION_ETABLISSEMENT' : 'CREATION_ETABLISSEMENT', 'Etablissement', code,
-      nom + (isFinite(modif.lat) && modif.lat ? ' (GPS ' + modif.lat + ', ' + modif.lon + ', ' + cascades + ' lieu(x) mis à jour)' : ''));
+      nom + (isFinite(modif.lat) && isFinite(modif.lon) && modif.lat ? ' (GPS ' + modif.lat + ', ' + modif.lon + ', ' + cascades + ' lieu(x) mis à jour)' : ''));
     return { ok: true, code: code, nom: nom, lat: modif.lat, lon: modif.lon, cascades: cascades };
   } finally {
     try { lock.releaseLock(); } catch (e) {}
@@ -524,7 +679,7 @@ function ajouterDelegue(nom) {
     var n = Math.max(sh.getLastRow() - 1, 0), v = n ? sh.getRange(2, c + 1, n, 1).getValues().map(function (l) { return String(l[0]).trim(); }) : [];
     if (v.some(function (x) { return x.toLowerCase() === nom.toLowerCase(); })) return { ok: true, ajoute: false };
     var libre = v.indexOf(''); var ligne = libre >= 0 ? libre + 2 : v.length + 2;
-    sh.getRange(ligne, c + 1).setValue(nom);
+    sh.getRange(ligne, c + 1).setValue(texteCellule_(nom, 60));
     enregistrerAudit(ss, nom, 'AJOUT_DELEGUE', 'Délégué', '', nom);
     return { ok: true, ajoute: true };
   } finally {

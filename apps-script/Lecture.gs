@@ -48,7 +48,15 @@ function lireTout(sig, hdepuis) {
   var ref = { praticiens: praticiens, presences: presences, doublons: doublons, quartiers: quartiers, statuts: statuts, delegues: listes.delegues, feries: listes.feries };
   var empreinte = Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(ref), Utilities.Charset.UTF_8));
   var shEtab = ss.getSheetByName(FEUILLES.etablissements);
-  ref.etablissements = shEtab ? lireObjets(shEtab, CHAMPS_ETABLISSEMENTS, tz).filter(function (e) { return String(e.nom || '').trim() !== ''; }) : [];
+  if (shEtab && shEtab.getLastRow() >= 1 && shEtab.getLastColumn() >= 1) {
+    var entEtab = shEtab.getRange(1, 1, 1, shEtab.getLastColumn()).getValues()[0].map(normaliser);
+    var champsEtab = CHAMPS_ETABLISSEMENTS.slice();
+    if (entEtab.indexOf(normaliser('Position')) >= 0) champsEtab.push(['position', 'Position']);
+    if (entEtab.indexOf(normaliser('OrigineGPS')) >= 0) champsEtab.push(['origineGps', 'OrigineGPS']);
+    ref.etablissements = lireObjets(shEtab, champsEtab, tz).filter(function (e) { return String(e.nom || '').trim() !== ''; });
+  } else {
+    ref.etablissements = [];
+  }
   ref.activites = listes.activites; ref.produits = listes.produits; ref.activitesPharmacie = listes.activitesPharmacie;
   var inactifs = {};
   var toutesFiches = lireObjets(ss.getSheetByName(FEUILLES.fiches), CHAMPS_FICHES, tz);
@@ -128,7 +136,10 @@ function assurerListes(ss) {
 // L'ancien nom est remplacé partout (Plannings, Historique, Listes) et reste un alias : un téléphone qui l'utilise encore
 // est renommé automatiquement à la synchronisation, et ses envois sont enregistrés sous le bon nom.
 function aliasDelegues() {
-  try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('DELEGUES_ALIAS') || '{}'); } catch (e) { return {}; }
+  try {
+    var a = JSON.parse(PropertiesService.getScriptProperties().getProperty('DELEGUES_ALIAS') || '{}');
+    return a && typeof a === 'object' && !Array.isArray(a) ? a : {};
+  } catch (e) { return {}; }
 }
 function nomDelegue(n) {
   n = String(n || '').trim();
@@ -159,7 +170,7 @@ function lirePharmacies(ss, tz) {
 }
 function lireListes(ss, tz) {
   var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [], activitesPharmacie: [], produits: [] };
-  if (!sh || sh.getLastRow() < 2) return r;
+  if (!sh || sh.getLastRow() < 2 || sh.getLastColumn() < 1) return r;
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   var vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
   var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés')), cA = ent.indexOf(normaliser('Activités')), cP = ent.indexOf(normaliser('Produits')), cAP = ent.indexOf(normaliser('ActivitésPharmacie'));
@@ -203,8 +214,9 @@ function lireStatuts(ss) {
 
 // Lit une feuille en objets selon les en-têtes (l'ordre des colonnes peut changer)
 function lireObjets(sh, champs, tz, premiereLigne) {
-  if (!sh || sh.getLastRow() < 2) return [];
+  if (!sh || sh.getLastRow() < 2 || sh.getLastColumn() < 1) return [];
   premiereLigne = premiereLigne || 2;
+  if (premiereLigne > sh.getLastRow()) return [];
   var nbCol = sh.getLastColumn();
   var entetes = sh.getRange(1, 1, 1, nbCol).getValues()[0].map(normaliser);
   var pos = champs.map(function (c) { return entetes.indexOf(normaliser(c[1])); });
@@ -217,7 +229,7 @@ function lireObjets(sh, champs, tz, premiereLigne) {
       if (j < 0) { o[c[0]] = ''; return; }
       var v = ligne[j];
       if (['derniere', 'date', 'prochaine', 'absentDu', 'absentAu'].indexOf(c[0]) >= 0) o[c[0]] = versIso(v, tz);
-      else if (c[0] === 'horodatage') o[c[0]] = v instanceof Date ? v.toISOString() : String(v);
+      else if (c[0] === 'horodatage') o[c[0]] = (v instanceof Date && !isNaN(v.getTime())) ? v.toISOString() : String(v === undefined || v === null ? '' : v);
       else if (v instanceof Date) o[c[0]] = aff[i][j];
       else o[c[0]] = v;
     });
@@ -226,7 +238,7 @@ function lireObjets(sh, champs, tz, premiereLigne) {
 }
 
 function versIso(v, tz) {
-  if (v instanceof Date) return Utilities.formatDate(v, tz, 'yyyy-MM-dd');
+  if (v instanceof Date) return isNaN(v.getTime()) ? '' : Utilities.formatDate(v, tz, 'yyyy-MM-dd');
   var m = String(v || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
   m = String(v || '').match(/^\d{4}-\d{2}-\d{2}/);
@@ -246,14 +258,18 @@ function revDonnees() {
   return r;
 }
 function lireCacheGros(cache, cle) {
-  var n = cache.get(cle + '_n'); if (!n) return null;
-  var cles = []; for (var i = 0; i < +n; i++) cles.push(cle + '_' + i);
-  var m = cache.getAll(cles), t = '';
-  for (var j = 0; j < cles.length; j++) { if (m[cles[j]] === undefined || m[cles[j]] === null) return null; t += m[cles[j]]; }
-  return t;
+  try {
+    var n = parseInt(cache.get(cle + '_n'), 10);
+    if (!isFinite(n) || n <= 0) return null;
+    var cles = []; for (var i = 0; i < n; i++) cles.push(cle + '_' + i);
+    var m = cache.getAll(cles), t = '';
+    for (var j = 0; j < cles.length; j++) { if (m[cles[j]] === undefined || m[cles[j]] === null) return null; t += m[cles[j]]; }
+    return t;
+  } catch (e) { return null; }
 }
 function ecrireCacheGros(cache, cle, txt) {
   try {
+    if (!txt) return;
     var o = {}, n = Math.ceil(txt.length / CACHE_MORCEAU);
     for (var i = 0; i < n; i++) o[cle + '_' + i] = txt.substr(i * CACHE_MORCEAU, CACHE_MORCEAU);
     cache.putAll(o, 21600); cache.put(cle + '_n', String(n), 21600);
@@ -266,10 +282,11 @@ function lireToutRapide(rev) {
     return JSON.stringify({ ok: true, rev: cur, inchange: true, plannings: lirePlannings(ss, tz, JOURS_PLANNINGS_DATA), version: VERSION_DONNEES, serveur: new Date().toISOString(),
       sauvegarde: PropertiesService.getScriptProperties().getProperty('DERNIERE_SAUVEGARDE') || '' });
   }
-  var cache = CacheService.getScriptCache(), cle = 'D' + cur, txt = lireCacheGros(cache, cle);
+  var cache = null, cle = 'D' + cur, txt = null;
+  try { cache = CacheService.getScriptCache(); txt = lireCacheGros(cache, cle); } catch (eC) { txt = null; }
   if (txt) return txt;
   var r = lireTout('', ''); r.rev = cur;
   txt = JSON.stringify(r);
-  if (revDonnees() === cur) ecrireCacheGros(cache, cle, txt);
+  if (cache && revDonnees() === cur) ecrireCacheGros(cache, cle, txt);
   return txt;
 }
