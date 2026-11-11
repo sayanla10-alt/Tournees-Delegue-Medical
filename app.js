@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.32';
+  var APP_VERSION = '3.31.33';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.33', ['Planifier : persistance absolue des propositions générées (protection anti-effacement lors de la synchronisation serveur)']],
     ['3.31.32', ['Planifier : le badge Brouillon / Confirmé monte tout en haut à droite du titre pour gagner une ligne d\'affichage',
                  'Planifier : correction définitive de la sélection de date (planifier sur le 12 ne bascule plus jamais sur le 11)',
                  'Moteur : équilibrage intelligent et harmonieux Matin / Soir (ex: 4 matin, 4 soir) dans le respect strict des horaires des praticiens']],
@@ -4060,20 +4061,20 @@
       if (retiresSrv[d] && !S.plan.some(function (a) { return a.date === d; })) return;   // 3.28.28 : journée supprimée par vous
       var visitesJour = S.plan.filter(function (a) { return a.date === d; });
       var aValide = visitesJour.some(function (a) { return a.statut || a.etat === 'valide'; });
-      if (aValide) return;
+      // 3.31.33 : Ne jamais écraser une proposition locale en cours de revue, un brouillon ou des visites locales
+      var estBrouillonLocal = S.ui.aAccepter === d || (S.jours[d] && S.jours[d].etat === 'proposition') || (S.ui.avantTirage && S.ui.avantTirage.date === d);
+      if (aValide || estBrouillonLocal) return;
       var srvVisites = srvParDate[d] || [];
+      if (!srvVisites.length && visitesJour.length > 0) return;   // Ne jamais vider une tournée locale si le serveur n'a pas encore synchronisé
       var codesActuels = visitesJour.map(function (a) { return a.code; }).join(',');
       var codesServeur = srvVisites.map(function (p) { return p.code; }).join(',');
       if (codesActuels !== codesServeur) {
+        if (!srvVisites.length) return;
         S.plan = S.plan.filter(function (a) { return a.date !== d; });
-        if (srvVisites.length) {
-          var src = donneesJour(d, true);
-          var confirme = srvVisites.some(function (x) { return x.prog ? x.prog === 'valide' : x.programme === 'Validé'; });
-          S.plan = S.plan.concat(src);
-          S.jours[d] = { etat: confirme ? 'valide' : 'proposition', valideLe: '', modifieLe: '' };
-        } else {
-          delete S.jours[d];
-        }
+        var src = donneesJour(d, true);
+        var confirme = srvVisites.some(function (x) { return x.prog ? x.prog === 'valide' : x.programme === 'Validé'; });
+        S.plan = S.plan.concat(src);
+        S.jours[d] = { etat: confirme ? 'valide' : 'proposition', valideLe: '', modifieLe: '' };
         change = true;
       }
     });
