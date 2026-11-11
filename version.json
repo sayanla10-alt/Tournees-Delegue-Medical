@@ -1,9 +1,9 @@
 {
-  "version": "3.31.36",
+  "version": "3.31.37",
   "date": "2026-11-11",
   "notes": [
-    "Tournée & Cartographie : validation croisée GPS vs référentiel et quartier réel (corrige les sauts erronés comme Avocatier / Anonkoua à Abobo)",
-    "Planifier & Journée : ordre chronologique continu sans découpage artificiel de sous-zones ni allers-retours d'un même quartier",
-    "Répertoire › Hôpitaux : critères de recherche dédiés (Catégorie d'établissement, Commune, Médecins sur place / Spécialité / GPS, Tri)"
+    "Planifier : chaque date conserve ses propres critères (communes, quartiers, spécialités, potentiel, rythme) ; changer de filtre sur le 12 n'écrase plus le 11 et ne passe plus ses visites en orange",
+    "Planifier : les refus par la croix sont également mémorisés indépendamment par date",
+    "Tournée & Cartographie : validation croisée GPS et ordre chronologique continu sans allers-retours (Abobo, etc.)"
   ]
 }

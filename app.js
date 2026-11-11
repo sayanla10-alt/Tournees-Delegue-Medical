@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.36';
+  var APP_VERSION = '3.31.37';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.37', ['Planifier : chaque journée conserve ses propres critères (communes, quartiers, spécialités, potentiel, rythme) ; planifier le 12 avec d\'autres filtres ne modifie plus ceux du 11 et ne passe plus les visites du 11 en orange']],
     ['3.31.36', ['Algorithme & Cartographie : correction des coordonnées GPS aberrantes (ex. HG Avocatier, Anonkoua), suivi du quartier de départ, et suppression du découpage en secteurs artificiels pour un trajet continu sans allers-retours',
                  'Planifier : affichage fidèle à l\'ordre chronologique réel du trajet',
                  'Répertoire › Hôpitaux : critères de recherche dédiés (catégorie d\'établissement, médecins présents aujourd\'hui / maintenant, spécialités sur place, GPS manquant, tri par proximité GPS)']],
@@ -1417,6 +1418,65 @@
   if (dateRefPassee(S.params)) { S.params.dateRef = prochainJourOuvre(ajouterJours(aujourdhui(), 1)); LS.set('params', S.params); }
   S.config = Object.assign({ whatsapp: '', waWeb: false, depart: '', delegue: '' }, S.config);
 
+  // Critères propres à chaque date (YYYY-MM-DD) : planifier le 12 avec d'autres communes/spécialités n'écrase jamais les critères du 11
+  S.criteresJours = LS.get('criteresParJour', {}) || {};
+  function extraitCriteres(p, d) {
+    p = p || S.params || {};
+    var com = Array.isArray(p.communes) ? p.communes.slice() : [];
+    if (d && p.mode === 'semaine' && p.parJour && p.communesJour) {
+      var cj = p.communesJour[jourSemaineIndex(d)];
+      if (cj && cj.length) com = cj.slice();
+    }
+    return {
+      communes: com,
+      specialites: Array.isArray(p.specialites) ? p.specialites.slice() : [],
+      typeCibles: p.typeCibles || 'medecins',
+      potentiels: Array.isArray(p.potentiels) ? p.potentiels.slice() : [],
+      maxJour: +p.maxJour || 8,
+      delai: p.delai !== undefined ? +p.delai : 7,
+      eviterCollegues: p.eviterCollegues !== false
+    };
+  }
+  function paramsDuJour(d) {
+    return (d && S.criteresJours && S.criteresJours[d]) ? S.criteresJours[d] : S.params;
+  }
+  function sauverCriteresDate(d, crit) {
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+    S.criteresJours[d] = extraitCriteres(crit || S.params, d);
+    LS.set('criteresParJour', S.criteresJours);
+  }
+  function sauverCriteresDatesActives() {
+    var p = S.params || {};
+    if (p.mode === 'semaine') {
+      datesPeriode().forEach(function (d) { sauverCriteresDate(d, p); });
+    } else {
+      var dRef = p.dateRef || (S.ui && S.ui.jour);
+      if (dRef) sauverCriteresDate(dRef, p);
+    }
+  }
+  function sauverParamsEtCriteres() {
+    LS.set('params', S.params);
+    sauverCriteresDatesActives();
+  }
+  function chargerCriteresPourJour(d, dPrec) {
+    if (dPrec && dPrec !== d && /^\d{4}-\d{2}-\d{2}$/.test(dPrec) && !S.criteresJours[dPrec] &&
+        (S.plan.some(function (a) { return a.date === dPrec; }) || (S.jours && S.jours[dPrec]))) {
+      sauverCriteresDate(dPrec, S.params);
+    }
+    if (!d || !S.criteresJours || !S.criteresJours[d]) return false;
+    var c = S.criteresJours[d];
+    S.params.communes = Array.isArray(c.communes) ? c.communes.slice() : [];
+    S.params.specialites = Array.isArray(c.specialites) ? c.specialites.slice() : [];
+    S.params.typeCibles = c.typeCibles || 'medecins';
+    S.params.potentiels = Array.isArray(c.potentiels) ? c.potentiels.slice() : [];
+    S.params.maxJour = +c.maxJour || 8;
+    S.params.delai = c.delai !== undefined ? +c.delai : 7;
+    S.params.eviterCollegues = c.eviterCollegues !== false;
+    LS.set('params', S.params);
+    return true;
+  }
+  chargerCriteresPourJour(S.params.dateRef);
+
   // 3.22.0 : copie de secours du téléphone, une par jour sur 7 jours (comptes rendus et fiches non envoyés, agenda,
   // comptes rendus de journée). Exportable en fichier depuis Réglages › Avancé, pour reprendre après un incident.
   // reprise : on ajoute ce qui manque (comptes rendus et fiches non envoyés, comptes rendus de journée) ;
@@ -1763,8 +1823,8 @@
       return true;
     };
   }
-  function filtreCibles() {
-    var p = S.params, t = p.typeCibles || 'tous', sp = {}, po = {};
+  function filtreCibles(d) {
+    var p = paramsDuJour(d), t = p.typeCibles || 'tous', sp = {}, po = {};
     (p.specialites || []).forEach(function (x) { sp[specialiteCanonique(x)] = true; });
     (p.potentiels || []).forEach(function (x) { po[x] = true; });
     var avecSpec = t !== 'pharmacies' && p.specialites && p.specialites.length, avecPot = p.potentiels && p.potentiels.length;
@@ -3971,15 +4031,18 @@
   // 3.24.23 : on ne planifie jamais un jour passé ; une semaine entamée ne garde que ses jours à venir
   // 3.31.2 & 3.31.32 : Planifier : le jour touché dans la frise devient la période planifiée (une journée, ce jour-là).
   // S.ui.jour et S.params.dateRef sont strictement synchronisés pour éviter toute bascule sur aujourd'hui.
-  function jourChoisiPlanifier(d, ouverture) {
+  function jourChoisiPlanifier(d, ouverture, dPrec) {
     if (S.ui.tab !== 'semaine' || !d || d < aujourdhui()) return;
     var p = S.params;
+    dPrec = dPrec || (p.dateRef && p.dateRef !== d ? p.dateRef : null);
     if (ouverture && p.mode === 'semaine' && lundiDe(p.dateRef) === lundiDe(d)) {
       S.ui.jour = d;
+      chargerCriteresPourJour(d, dPrec);
       return;
     }
     p.mode = 'jour'; p.dateRef = d; LS.set('params', p);
     S.ui.jour = d;
+    chargerCriteresPourJour(d, dPrec);
   }
   function dateRefValide() {
     var p = S.params, t = aujourdhui();
@@ -3993,9 +4056,13 @@
   function datesPeriode() { return datesAffichees().filter(function (d) { return !estFerie(d); }); }
   function communesPour(date) {
     var p = S.params;
-    if (p.mode === 'semaine' && p.parJour) {
+    if (date && p.mode === 'semaine' && p.parJour) {
       var j = p.communesJour[jourSemaineIndex(date)];
       if (j && j.length) return j;
+    }
+    if (date && S.criteresJours && S.criteresJours[date]) {
+      var cJ = S.criteresJours[date].communes;
+      return cJ && cJ.length ? cJ : null;
     }
     // 3.28.26 : les communes de Planifier (critères du dernier tirage), indépendantes des filtres du Répertoire
     return p.communes && p.communes.length ? p.communes : null;
@@ -4057,6 +4124,15 @@
     var vsup = LS.get('visitesSupprimees', {}) || {}, lim70 = ajouterJours(aujourdhui(), -70), vchg = false;
     Object.keys(vsup).forEach(function (d) { if (d < lim70) { delete vsup[d]; vchg = true; } });
     if (vchg) LS.set('visitesSupprimees', vsup);
+    var limCrit = ajouterJours(aujourdhui(), -14), cChg = false;
+    Object.keys(S.criteresJours || {}).forEach(function (d) { if (d < limCrit) { delete S.criteresJours[d]; cChg = true; } });
+    if (cChg) LS.set('criteresParJour', S.criteresJours);
+    var rp = LS.get('refusesParJour', null);
+    if (rp) {
+      var rpChg = false;
+      Object.keys(rp).forEach(function (d) { if (/^\d{4}-\d{2}-\d{2}$/.test(d) && d < limCrit) { delete rp[d]; rpChg = true; } });
+      if (rpChg) LS.set('refusesParJour', rp);
+    }
     datesPlan().forEach(function (d) { if (!S.jours[d]) S.jours[d] = { etat: 'proposition', valideLe: '', modifieLe: '' }; });
   }
   // migration : les jours confirmés d'avant l'agenda (programme archivé ou publié, comptes rendus) rejoignent l'agenda
@@ -4932,6 +5008,7 @@
       if (S.plan.some(function (a) { return a.date === j1; })) { S.ui.planVide = null; }
       else { S.ui.planVide = j1; S.ui.jourSupprime = null; }
       S.params.dateRef = j1; S.params.mode = 'jour'; LS.set('params', S.params);
+      chargerCriteresPourJour(j1);
     }
     var datesF = datesPlanAvenir();
     // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
@@ -5145,8 +5222,8 @@
   // Candidats pour remplacer une visite : présents ce jour-là, hors tournée, non prévus par un collègue, selon les critères de la tournée ;
   // ceux du même établissement d'abord (+ bonus), ceux qui s'insèrent sans retard, puis par priorité et proximité du lieu remplacé
   function candidatsRemplacement(a) {
-    var d = a.date, j = jourSemaineIndex(d), c = ctx(), filtre = filtreCibles(), ex = exclusCollegues([d]);
-    Object.keys(refusesActuels().codes).forEach(function (cR) { ex[cR] = true; });   // 3.26.94 : retirés à la main : pas reproposés en remplacement
+    var d = a.date, j = jourSemaineIndex(d), c = ctx(), filtre = filtreCibles(d), pJ = paramsDuJour(d), ex = exclusCollegues([d]);
+    Object.keys(refusesActuels(d).codes).forEach(function (cR) { ex[cR] = true; });   // 3.26.94 : retirés à la main : pas reproposés en remplacement
     var dansPlan = ensemble(S.plan.filter(function (x) { return x.date === d; }).map(function (x) { return x.code; }));
     var origine = coordArret(a), vus = {}, l = [];
     var lieuA = a.lieu || '';
@@ -5158,7 +5235,7 @@
       if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || absentLe(p, d)) return;
       if (!cibleEstPh && filtre && !filtre(p)) return;
       if (d === aujourdhui() && cr.fin <= minutesMaintenant()) return;   // aujourd'hui : seulement ceux encore présents
-      if (joursEcoules(p.derniere, d) < (+S.params.delai || 0)) return;
+      if (joursEcoules(p.derniere, d) < (+pJ.delai || 0)) return;
       var dK = origine && cr.coord ? distanceKm(origine, cr.coord) : null;
       var dist = dK !== null ? dK : 999;
       var memeLieu = memeEtablissement(lieuA, cr.lieu);
@@ -5193,7 +5270,7 @@
   }
   function appliquerRemplacement(uid, cle, garder) {
     var a = arret(uid), cr = Moteur.creneauParCle(ctx(), cle); if (!a || !cr) return;
-    if (!garder) { S.rejetes[a.code] = true; refuser(a.code); S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
+    if (!garder) { S.rejetes[a.code] = true; refuser(a.code, a.date); S.plan = S.plan.filter(function (x) { return x.uid !== uid; }); }
     var n = Moteur.arretDepuisCreneau(cr, a.date); n.etat = 'ajoute'; n.garde = true;
     S.plan.push(n); reordonner(a.date);
     if (S.ui.tab === 'semaine') mettreBrouillon([a.date]);
@@ -5203,22 +5280,38 @@
   }
   // 3.26.94 : praticiens retirés à la main d'une liste proposée : ils ne reviennent plus dans les propositions (recalcul,
   // nouveau tirage, complément) tant que les critères de planification restent les mêmes ; un changement de critère les libère
-  function signatureCriteres() {
+  function signatureCriteres(d) {
     // 3.28.18 : tous les filtres comptent, ceux de Planifier comme ceux du Répertoire (communes, spécialités)
-    var p = S.params || {}, tri = function (l) { return (l || []).slice().sort(); };
-    return JSON.stringify([tri(p.communes), p.parJour ? p.communesJour || {} : {}, tri(p.specialites), tri(p.potentiels), p.typeCibles || '', +p.delai || 0, +p.maxJour || 0, p.eviterCollegues !== false]);
+    var p = paramsDuJour(d), tri = function (l) { return (l || []).slice().sort(); };
+    return JSON.stringify([tri(p.communes), S.params && S.params.parJour ? S.params.communesJour || {} : {}, tri(p.specialites), tri(p.potentiels), p.typeCibles || '', +p.delai || 0, +p.maxJour || 0, p.eviterCollegues !== false]);
   }
-  function refusesActuels() {
-    var r = LS.get('refuses', null), s = signatureCriteres();
-    if (!r || r.crit !== s) { r = { crit: s, codes: {} }; LS.set('refuses', r); }
+  function refusKeyDate(d) {
+    return d || (S.ui && S.ui.jour) || (S.params && S.params.dateRef) || 'global';
+  }
+  function toutRefuses() {
+    var all = LS.get('refusesParJour', null);
+    return (all && typeof all === 'object') ? all : {};
+  }
+  function sauverRefusesDate(d, r) {
+    var k = refusKeyDate(d), all = toutRefuses();
+    all[k] = r;
+    LS.set('refusesParJour', all);
+  }
+  function refusesActuels(d) {
+    var k = refusKeyDate(d), all = toutRefuses(), s = signatureCriteres(k), r = all[k];
+    if (!r) {
+      var leg = LS.get('refuses', null);
+      if (leg && leg.crit === s) { r = leg; all[k] = r; LS.set('refusesParJour', all); }
+    }
+    if (!r || r.crit !== s) { r = { crit: s, codes: {} }; all[k] = r; LS.set('refusesParJour', all); }
     return r;
   }
-  function refuser(code) { var r = refusesActuels(); r.codes[code] = true; LS.set('refuses', r); }
+  function refuser(code, d) { var r = refusesActuels(d); r.codes[code] = true; sauverRefusesDate(d, r); }
   function retirerArret(uid) {
     var a = arret(uid); if (!a) return;
     S.plan = S.plan.filter(function (x) { return x.uid !== a.uid; });
     if (!S.plan.some(function (x) { return x.date === a.date; })) { var rt = LS.get('joursRetires', {}); rt[a.date] = true; LS.set('joursRetires', rt); }
-    S.rejetes[a.code] = true; refuser(a.code);
+    S.rejetes[a.code] = true; refuser(a.code, a.date);
     S.imposes = S.imposes.filter(function (im) { return im.code !== a.code; });
     reordonner(a.date);
     if (S.ui.tab === 'semaine' && S.plan.some(function (x) { return x.date === a.date; })) mettreBrouillon([a.date]);
@@ -5335,11 +5428,11 @@
       var p = S.params, horsCible = S.plan.filter(function (a) { return a.date !== t; });
       var exclus = p.eviterCollegues !== false ? exclusCollegues([t]) : exclusValides([t]), ecart = Math.max(+p.delai || 0, 5);
       horsCible.forEach(function (a) { if (Math.abs(joursEcoules(a.date, t)) < ecart) exclus[a.code] = true; });
-      Object.keys(refusesActuels().codes).forEach(function (c) { exclus[c] = true; });
+      Object.keys(refusesActuels(t).codes).forEach(function (c) { exclus[c] = true; });
       var heures = {}; gardes.forEach(function (a) { heures[a.uid] = a.heure; });
       var r = Moteur.genererPlanning(ctx(), {
         dates: [t], communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0, exclus: exclus, rejetes: anciens,
-        conserves: gardes, imposes: S.imposes.filter(function (im) { return im.date === t; }).concat(rdvProchaines([t])), depart: departCoord(), accepte: filtreCibles()
+        conserves: gardes, imposes: S.imposes.filter(function (im) { return im.date === t; }).concat(rdvProchaines([t])), depart: departCoord(), accepte: filtreCibles(t)
       });
       r.arrets.forEach(function (a) { if (heures[a.uid]) a.heure = heures[a.uid]; });
       S.plan = horsCible.concat(r.arrets); trierPlan();
@@ -11782,7 +11875,7 @@
   // horsZone : réponse à la question sur les visites déjà prévues hors des communes choisies ('garder' | 'retirer')
   // 3.28.33 : moins de visites que demandé : on dit précisément pourquoi (praticiens présents ce jour dans les critères)
   function raisonsManque(d, n, maxJ, exclus) {
-    var acc = filtreCibles(), ref = refusesActuels().codes, delai = +S.params.delai || 0, vus = {}, nb = { tous: 0, ref: 0, autres: 0, delai: 0 };
+    var acc = filtreCibles(d), ref = refusesActuels(d).codes, delai = +paramsDuJour(d).delai || 0, vus = {}, nb = { tous: 0, ref: 0, autres: 0, delai: 0 };
     (ctx().parJour[jourSemaineIndex(d)] || []).forEach(function (c) {
       if (vus[c.code] || !dansCommunesDu(c, d) || (acc && !acc(c.prat))) return;
       vus[c.code] = true; nb.tous++;
@@ -11810,6 +11903,7 @@
     (horsZone ? Promise.resolve() : avantTirage()).then(function () {
       var periode = datesPeriode();
       var cible = (portee === 'jour' || (portee === 'nouveau' && p.mode === 'jour' && p.dateRef)) ? [p.dateRef || S.ui.jour] : periode;
+      cible.forEach(function (d) { sauverCriteresDate(d, p); });
       // 3.28.35 : planification du jour même : on garde ce que Journée montrait avant, pour demander à l'acceptation
       // s'il faut remplacer la journée déjà planifiée ou la garder
       memoriserJourMeme(cible);
@@ -11863,10 +11957,10 @@
       var horsCible = S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
       horsCible.forEach(function (a) { if (cible.some(function (d) { return Math.abs(joursEcoules(a.date, d)) < ecart; })) exclus[a.code] = true; });
-      Object.keys(refusesActuels().codes).forEach(function (c) { exclus[c] = true; });   // 3.26.94 : retirés à la main : jamais reproposés
+      cible.forEach(function (d) { Object.keys(refusesActuels(d).codes).forEach(function (c) { exclus[c] = true; }); });   // 3.26.94 : retirés à la main : jamais reproposés
       var optsTirage = {
         dates: cible, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0,
-        exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles()
+        exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles(cible.length === 1 ? cible[0] : null)
       };
       var r = Moteur.genererPlanning(ctx(), optsTirage);
       // 3.28.31 : un recalcul ne propose jamais moins de visites que demandé quand c'est possible :
@@ -11878,7 +11972,7 @@
         if (r2.arrets.length > r.arrets.length) r = r2;
         // 3.28.33 : sinon, on garde les médecins restés dans la liste (à leur heure) et on comble les places libérées
         if (manque(r) && (portee === 'jour' || portee === 'semaine')) {
-          var restes = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && conserves.indexOf(a) < 0 && !refusesActuels().codes[a.code]; })
+          var restes = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && conserves.indexOf(a) < 0 && !refusesActuels(a.date).codes[a.code]; })
             .map(function (a) { var x = JSON.parse(JSON.stringify(a)); x.garde = true; return x; });
           if (restes.length) {
             var r3 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {}, conserves: conserves.concat(restes) }));
@@ -12095,7 +12189,7 @@
     var a = Moteur.arretDepuisCreneau(c, date);
     a.etat = 'ajoute'; a.garde = true;
     // 3.28.18 : ajouté à la main : la croix d'avant est levée
-    var rf = refusesActuels(); if (rf.codes[c.code]) { delete rf.codes[c.code]; LS.set('refuses', rf); }
+    var rf = refusesActuels(date); if (rf.codes[c.code]) { delete rf.codes[c.code]; sauverRefusesDate(date, rf); }
     S.plan.push(a);
     reordonner(date);
     if (S.ui.tab === 'semaine') mettreBrouillon([date]);
@@ -12756,7 +12850,7 @@
       centrerQuestion(a.uid, S.ui.dernierClicY);
     },
     param: function (el) {
-      S.params[el.dataset.k] = el.dataset.v; LS.set('params', S.params);
+      S.params[el.dataset.k] = el.dataset.v; sauverParamsEtCriteres();
       if (el.dataset.auto) { S.ui.etapesP.ok[el.dataset.auto] = true; sauverEtapesP(); }
       rendre();
     },
@@ -12765,7 +12859,7 @@
     pEtapePasser: function (el) {
       var k = el.dataset.v;
       if (k === 'spec') S.params.specialites = []; if (k === 'valeur') S.params.potentiels = [];
-      LS.set('params', S.params); S.ui.etapesP.ok[k] = true; sauverEtapesP(); rendre();
+      sauverParamsEtCriteres(); S.ui.etapesP.ok[k] = true; sauverEtapesP(); rendre();
     },
     resumeEditer: function (el) {
       // la tuile touchée ouvre exactement cette option (les autres, déjà répondues, restent repliées)
@@ -12776,8 +12870,11 @@
     pEtapeEditer: function (el) { S.ui.etapesP.ok[el.dataset.v] = false; sauverEtapesP(); rendre(); },
     voirParams: function () { etapesPDepuisDebut(); S.ui.voirParams = true; rendre(); window.scrollTo(0, 0); },
     planifierDate: function (el) {
-      // Journée vide → Planifier, période réglée sur ce jour (les autres réponses déjà données sont reprises)
+      // Journée vide → Planifier, période réglée sur ce jour (les critères propres à ce jour sont chargés s'ils existent)
+      var dPrec = S.ui.jour || S.params.dateRef;
       S.params.mode = 'jour'; S.params.dateRef = el.dataset.v; LS.set('params', S.params);
+      S.ui.jour = el.dataset.v;
+      chargerCriteresPourJour(el.dataset.v, dPrec);
       // période déjà connue (ce jour) : le parcours reprend à l'étape 2, la période reste modifiable
       etapesPDepuisDebut(); S.ui.etapesP.ok.quand = true; sauverEtapesP();
       S.ui.tab = 'semaine'; S.ui.voirParams = true; S.ui.feuille = null; rendre(); window.scrollTo(0, 0);
@@ -12833,15 +12930,17 @@
       var b = el && el.parentNode;
       if ((el && el.__bloqueClic && Date.now() < el.__bloqueClic) || (b && b.__bloqueClic && Date.now() < b.__bloqueClic)) return;
       if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
+      var dPrec = S.ui.jour || S.params.dateRef;
       S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; S.ui.planVide = null;
-      jourChoisiPlanifier(el.dataset.v); rendre();
+      jourChoisiPlanifier(el.dataset.v, false, dPrec); rendre();
     },
     planVierge: function (el) {
       var b = el && el.parentNode;
       if ((el && el.__bloqueClic && Date.now() < el.__bloqueClic) || (b && b.__bloqueClic && Date.now() < b.__bloqueClic)) return;
       if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
+      var dPrec = S.ui.jour || S.params.dateRef;
       S.ui.planVide = el.dataset.v; S.ui.jour = el.dataset.v; S.ui.jourSupprime = null; S.ui.ouvert = null;
-      jourChoisiPlanifier(el.dataset.v);
+      jourChoisiPlanifier(el.dataset.v, false, dPrec);
       rendre();
     },
     planifierJourSupprime: function (el) { S.ui.jourSupprime = null; S.ui.planVide = null; S.ui.jour = el.dataset.v; lancerTirage('jour'); },
@@ -13233,7 +13332,7 @@
         S.params.communesJour[f.cle] = f.sel.slice();
       }
       if (f.cle === 'tout' && !(S.params.mode === 'semaine' && S.params.parJour)) { S.ui.etapesP.ok.ou = true; sauverEtapesP(); }
-      LS.set('params', S.params); S.ui.feuille = null; rendre();
+      sauverParamsEtCriteres(); S.ui.feuille = null; rendre();
     },
     // À voir absolument
     ouvrirRecherche: function () { S.ui.feuille = { type: 'recherche', titre: 'RDV ou médecin prioritaire', q: '' }; rendre(); var i = $('rechercheImpose'); if (i) i.focus(); },
@@ -13620,16 +13719,21 @@
     },
     // Ciblage de la tournée
     paramPeriodeRapide: function (el) {
+      var dPrec = S.params.dateRef || S.ui.jour;
       S.params.mode = el.dataset.m || 'semaine';
-      if (el.dataset.d) S.params.dateRef = el.dataset.d;
+      if (el.dataset.d) {
+        S.params.dateRef = el.dataset.d;
+        S.ui.jour = el.dataset.d;
+        chargerCriteresPourJour(el.dataset.d, dPrec);
+      }
       S.ui.etapesP.ok.quand = true; sauverEtapesP();
       LS.set('params', S.params); rendre();
     },
     paramPotentiel: function (el) {
-      if (el.dataset.v === 'tous') { S.params.potentiels = []; LS.set('params', S.params); rendre(); return; }
+      if (el.dataset.v === 'tous') { S.params.potentiels = []; sauverParamsEtCriteres(); rendre(); return; }
       var l = S.params.potentiels, i = l.indexOf(el.dataset.v);
       if (i >= 0) l.splice(i, 1); else l.push(el.dataset.v);
-      LS.set('params', S.params); rendre();
+      sauverParamsEtCriteres(); rendre();
     },
     paramSpecToggle: function (el) {
       var v = el.dataset.v, l = S.params.specialites;
@@ -13639,15 +13743,15 @@
         if (S.ui.filtres) { S.ui.filtres.specialites = l.slice(); LS.set('filtres', S.ui.filtres); }
         if (S.ui.filtresAutour) { S.ui.filtresAutour.specialites = l.slice(); LS.set('filtresAutour', S.ui.filtresAutour); }
       }
-      LS.set('params', S.params); rendre();
+      sauverParamsEtCriteres(); rendre();
     },
-    paramSpecToutes: function () { S.params.specialites = []; LS.set('params', S.params); rendre(); },
-    paramSpecDefaut: function () { S.params.specialites = coeurDeCible(); LS.set('params', S.params); rendre(); },
+    paramSpecToutes: function () { S.params.specialites = []; sauverParamsEtCriteres(); rendre(); },
+    paramSpecDefaut: function () { S.params.specialites = coeurDeCible(); sauverParamsEtCriteres(); rendre(); },
     paramPas: function (el) {
       var k = el.dataset.k, pas = +(el.dataset.pas || el.dataset.v) || 0;
       if (k === 'maxJour') S.params.maxJour = Math.max(1, Math.min(20, (+S.params.maxJour || 8) + pas));
       else if (k === 'delai') S.params.delai = Math.max(0, Math.min(90, (S.params.delai !== undefined ? +S.params.delai : 7) + pas));
-      LS.set('params', S.params); rendre();
+      sauverParamsEtCriteres(); rendre();
     },
     choisirSpecialites: function () {
       S.ui.feuille = { type: 'multi', titre: 'Spécialités ciblées (Cœur de cible)', titreGroupe: 'Spécialités', cle: 'specialites', options: specialitesListe(), sel: S.params.specialites.slice(),
@@ -14021,7 +14125,7 @@
     },
     multiAucun: function () { S.ui.feuille.sel = []; rendre(); },
     multiOk: function () {
-      var f = S.ui.feuille; S.params[f.cle] = f.sel.slice(); LS.set('params', S.params);
+      var f = S.ui.feuille; S.params[f.cle] = f.sel.slice(); sauverParamsEtCriteres();
       if (f.cle === 'specialites') {
         if (f.sel.length) {
           sauverCoeurDeCible(f.sel);
@@ -14895,12 +14999,20 @@
   document.addEventListener('change', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f;
     if (f === 'param') {
-      var k = el.dataset.k;
+      var k = el.dataset.k, dPrec = S.params.dateRef || S.ui.jour;
       S.params[k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? +el.value : el.value);
       if (k === 'dateRef' && S.params.dateRef && S.params.dateRef < aujourdhui() && (S.params.mode === 'jour' || joursOuvres(lundiDe(S.params.dateRef))[4] < aujourdhui())) {
         S.params.dateRef = aujourdhui(); toast('Impossible de planifier un jour passé : la date revient à aujourd\'hui.', 4000);
       }
-      LS.set('params', S.params);
+      if (k === 'dateRef') {
+        if (S.params.mode === 'jour' && S.params.dateRef) {
+          S.ui.jour = S.params.dateRef;
+          chargerCriteresPourJour(S.params.dateRef, dPrec);
+        }
+        LS.set('params', S.params);
+      } else {
+        sauverParamsEtCriteres();
+      }
       if (k === 'dateRef' || k === 'parJour') rendre();
     }
     if (f === 'autour') { S.ui.autour[el.dataset.k] = el.value; LS.set('autour', S.ui.autour); rendre(); }
