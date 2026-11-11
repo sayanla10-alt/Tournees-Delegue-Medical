@@ -129,9 +129,30 @@ function rangerPhotoFiche_(octets, mime, auteur) {
   return { id: f.getId(), url: f.getUrl(), nom: nom };
 }
 
+function referentielPraticiensPourOcr_() {
+  try {
+    var ss = SpreadsheetApp.getActive(), sh = ss && ss.getSheetByName(FEUILLES.praticiens);
+    if (!sh || sh.getLastRow() <= 1) return '';
+    var vals = sh.getRange(2, 1, Math.min(400, sh.getLastRow() - 1), 6).getValues();
+    var liste = vals.map(function (r) {
+      var nom = String(r[2] || '').trim();
+      var spe = String(r[3] || '').trim();
+      var tel = String(r[5] || '').trim();
+      return nom ? (nom + (spe ? ' [' + spe + ']' : '') + (tel ? ' ' + tel : '')) : '';
+    }).filter(Boolean);
+    if (!liste.length) return '';
+    return '\n\nRÉFÉRENTIEL DES MÉDECINS ET PHARMACIENS ENREGISTRÉS DANS LA BASE (AIDE INDISPENSABLE AUX CACHETS IMPARFAITS/BAVEUX) :\n' +
+      liste.slice(0, 250).join(' ; ') +
+      '\nCONSIGNE D\'AIDE : Si un cachet est baveux, mal tamponné ou à moitié lisible (ex: lettres estompées dans le patronyme), utilise cette liste de praticiens enregistrés pour identifier le médecin réel (croisement nom, prénom, spécialité, téléphone) au lieu d\'extrapoler un nom erroné.';
+  } catch (e) {
+    return '';
+  }
+}
+
 function appelerGemini_(cle, b64, mime) {
   var prop = PropertiesService.getScriptProperties().getProperty('MODELE_GEMINI');
   var modeles = prop ? [prop].concat(MODELES_GEMINI_DEFAUT.filter(function (m) { return m !== prop; })) : MODELES_GEMINI_DEFAUT, derniere = '';
+  var consigneComplete = CONSIGNE_LECTURE_FICHE + referentielPraticiensPourOcr_();
   var envoyer = function (modele, parts) {
     return UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(modele) + ':generateContent', {
       method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': cle }, muteHttpExceptions: true,
@@ -147,13 +168,13 @@ function appelerGemini_(cle, b64, mime) {
   var image = { inline_data: { mime_type: mime, data: b64 } };
   for (var i = 0; i < modeles.length; i++) {
     for (var essai = 0; essai < 2; essai++) {
-      var rep = envoyer(modeles[i], [{ text: CONSIGNE_LECTURE_FICHE }, image]), code = rep.getResponseCode();
+      var rep = envoyer(modeles[i], [{ text: consigneComplete }, image]), code = rep.getResponseCode();
       if (code === 200) {
         var l = lire(rep), n = ((l.medecins || []).length + (l.pharmacies || []).length);
         // 3.31.1 : moins d'entrées que de lignes comptées : seconde lecture ciblée, on garde la plus complète
         if (+l.nb_lignes > n) {
           try {
-            var rep2 = envoyer(modeles[i], [{ text: CONSIGNE_LECTURE_FICHE + '\nATTENTION : tu as compté ' + l.nb_lignes + ' lignes mais rendu seulement ' + n + ' entrée(s). Relis toute la fiche ligne par ligne, de haut en bas, et rends une entrée pour CHACUNE des ' + l.nb_lignes + ' lignes.' }, image]);
+            var rep2 = envoyer(modeles[i], [{ text: consigneComplete + '\nATTENTION : tu as compté ' + l.nb_lignes + ' lignes mais rendu seulement ' + n + ' entrée(s). Relis toute la fiche ligne par ligne, de haut en bas, et rends une entrée pour CHACUNE des ' + l.nb_lignes + ' lignes.' }, image]);
             if (rep2.getResponseCode() === 200) { var l2 = lire(rep2); if ((l2.medecins || []).length + (l2.pharmacies || []).length > n) l = l2; }
           } catch (e2) {}
         }
@@ -186,12 +207,13 @@ function schemaJson_(o) {
 function appelerClaude_(cle, b64, mime) {
   var prop = PropertiesService.getScriptProperties().getProperty('MODELE_CLAUDE');
   var modeles = prop ? [prop] : MODELES_CLAUDE_DEFAUT, derniere = '';
+  var consigneComplete = CONSIGNE_LECTURE_FICHE + referentielPraticiensPourOcr_();
   for (var i = 0; i < modeles.length; i++) {
     var corps = {
       model: modeles[i], max_tokens: 8192, temperature: 0,
       tools: [{ name: 'lecture_fiche', description: 'Enregistre ce qui est lu sur la fiche de visite.', input_schema: schemaJson_(schemaLectureFiche_()) }],
       tool_choice: { type: 'tool', name: 'lecture_fiche' },
-      messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mime, data: b64 } }, { type: 'text', text: CONSIGNE_LECTURE_FICHE }] }]
+      messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: mime, data: b64 } }, { type: 'text', text: consigneComplete }] }]
     };
     var rep = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
       method: 'post', contentType: 'application/json', payload: JSON.stringify(corps), muteHttpExceptions: true,

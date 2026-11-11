@@ -1,7 +1,7 @@
 {
-  "version": "3.31.20",
+  "version": "3.31.21",
   "date": "2026-11-11",
   "notes": [
-    "Architecture multi-agents OCR avancée : dissociation stricte cachet vs lieu réel de visite, filtrage impitoyable des faux positifs/mentions parasites, dédoublonnage onomastique (plus de doublons de titres 'Dr Dr' ou nom répété), et interface épurée sans verbiage respectant la charte graphique."
+    "Reconnaissance OCR contextuelle intelligente : injection du répertoire des praticiens de la base dans Gemini/Claude pour déchiffrer les cachets baveux, matching flou multi-critères token-par-token croisant prénoms proches (ex: Prosine/Rosine) avec la spécialité, l'établissement et le téléphone."
   ]
 }

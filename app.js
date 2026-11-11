@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.20';
+  var APP_VERSION = '3.31.21';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.21', ['Rapprochement OCR contextuel intelligent : injection du répertoire des praticiens de la base dans Gemini pour décoder les cachets baveux',
+                 'Matching multi-critères token-par-token : détection des prénoms proches (ex: Prosine/Rosine) croisée avec la spécialité, l\'hôpital et le téléphone',
+                 'Raison de détection explicite : la carte indique précisément la concordance détectée (prénom, spécialité, lieu)']],
     ['3.31.20', ['Architecture multi-agents OCR : dissociation stricte cachet d\'hôpital d\'attache vs lieu réel de visite',
                  'Filtrage strict anti-parasites : rejet des visas, mentions administratives et faux médecins',
                  'Dédoublonnage onomastique : suppression des doublons de titres « Dr Dr » et des répétitions de noms',
@@ -9698,6 +9701,8 @@
     var c = ctx(), res = [], estPh = d.type === 'Pharmacie';
     var lieuxD = (d.lieux || []).map(function (l) { return String(l.lieu || '').trim(); }).filter(function (x) { return x.length >= 2; });
     var posD = estPh && d.lieux && d.lieux[0] && aCoord(d.lieux[0]) ? lireCoord(d.lieux[0]) : (estPh ? gpsFrais() : null);
+    var speD = d.specialite ? specialiteCanonique(d.specialite) : '';
+
     ((S.data && S.data.praticiens) || []).forEach(function (p) {
       if (d.code && p.code === d.code) return;
       var pMots = motsNom(p.nom), pTel = normaliserNumero(p.telephone || '');
@@ -9709,21 +9714,54 @@
       // dès 3 lettres : chaque mot tapé est le début d'un mot du nom (le dernier peut être incomplet)
       var debut = mots.length > 0 && mots.every(function (w, i) { return pMots.some(function (pw) { return i === mots.length - 1 ? pw.indexOf(w) === 0 : pw === w || pw.indexOf(w) === 0; }); });
       var communs = mots.filter(function (w) { return w.length >= 3 && pMots.indexOf(w) >= 0; }).length;
-      var proche = !exact && (fuzzy >= 0.58 || debut || communs >= 2 || (tape.length >= 4 && pMots.join('').indexOf(tape) >= 0));
-      if (!exact && !memeTel && !proche) return;
+
+      // Détection intelligente token-par-token (prénom fort ou patronyme mal encré, ex: "Prosine" vs "Rosine")
+      var maxSimMot = 0, motMatchant = '';
+      mots.forEach(function (w) {
+        if (w.length < 3) return;
+        pMots.forEach(function (pw) {
+          if (pw.length < 3) return;
+          var sim = similariteLevenshtein(w, pw);
+          if (sim > maxSimMot) { maxSimMot = sim; motMatchant = pw; }
+        });
+      });
+
+      var speP = p.specialite ? specialiteCanonique(p.specialite) : '';
+      var memeSpe = !!(speD && speP && speD === speP);
+
       var pres = c.presencesParCode[p.code] || [];
       var memeLieu = !estPh && lieuxD.length ? pres.filter(function (x) { return lieuxD.some(function (l) { return memeEtablissement(l, x.lieu); }); })[0] : null;
+
+      // Concordance contextuelle : prénom/mot très proche (>= 0.78 ex: Prosine vs Rosine) + même spé ou même hôpital
+      var motCleForte = maxSimMot >= 0.78;
+      var concordanceContextuelle = (motCleForte && (memeSpe || !!memeLieu)) || (maxSimMot >= 0.84 && (communs >= 1 || fuzzy >= 0.50));
+
+      var proche = !exact && (fuzzy >= 0.55 || debut || communs >= 2 || (tape.length >= 4 && pMots.join('').indexOf(tape) >= 0) || concordanceContextuelle);
+      if (!exact && !memeTel && !proche) return;
+
       var prPh = pres[0], dist = null;
       if (estPh && p.type === 'Pharmacie' && posD && prPh && aCoord(prPh)) dist = distanceKm(posD, lireCoord(prPh)) * 1000;
       var proximite = dist !== null && dist <= 150;
       var lieux = pres.map(function (x) { return [x.lieu, x.quartier, x.commune].filter(Boolean).join(', '); }).filter(Boolean);
-      res.push({ p: p, exact: exact || memeTel, memeTel: memeTel, debut: debut, memeType: (p.type === 'Pharmacie') === estPh,
-        fuzzy: fuzzy,
+      res.push({
+        p: p, exact: exact || memeTel, memeTel: memeTel, debut: debut, memeType: (p.type === 'Pharmacie') === estPh,
+        fuzzy: fuzzy, maxSimMot: maxSimMot, motMatchant: motMatchant, memeSpe: memeSpe, concordanceContextuelle: concordanceContextuelle,
         memeLieu: memeLieu ? memeLieu.lieu : '', proximite: proximite, dist: dist,
         bloquant: exact || memeTel || (proche && (!!memeLieu || proximite)),
-        lieu: memeLieu ? [memeLieu.lieu, memeLieu.quartier].filter(Boolean).join(', ') : (lieux[0] || '') });
+        lieu: memeLieu ? [memeLieu.lieu, memeLieu.quartier].filter(Boolean).join(', ') : (lieux[0] || '')
+      });
     });
-    var score = function (x) { return (x.memeTel ? 12 : 0) + (x.exact ? 8 : 0) + Math.round((x.fuzzy || 0) * 8) + (x.memeLieu || x.proximite ? 4 : 0) + (x.memeType ? 2 : 0) + (x.debut ? 1 : 0); };
+    var score = function (x) {
+      return (x.memeTel ? 15 : 0) +
+             (x.exact ? 10 : 0) +
+             (x.concordanceContextuelle ? 8 : 0) +
+             (x.memeSpe ? 4 : 0) +
+             Math.round((x.maxSimMot || 0) * 6) +
+             Math.round((x.fuzzy || 0) * 8) +
+             (x.memeLieu || x.proximite ? 4 : 0) +
+             (x.memeType ? 2 : 0) +
+             (x.debut ? 1 : 0);
+    };
     res.sort(function (a, b) { return score(b) - score(a) || String(a.p.nom).localeCompare(String(b.p.nom), 'fr'); });
     return res.slice(0, 5);
   }
@@ -10323,16 +10361,22 @@
       if (can) { ent.etablissement = can.lieu || ent.etablissement; if (!ent.quartier && can.quartier) { ent.quartier = can.quartier; ent.commune = can.commune || ent.commune; } ent.lat = can.lat || ''; ent.lon = can.lon || ''; }
     }
     if (!ent.quartier) { var q2 = quartierScan(L.quartier, L.commune); if (q2) { ent.quartier = q2.quartier; ent.commune = q2.commune; } }
-    var cands = chercherDoublonsFiche({ type: ent.type, nom: ent.nom, telephone: ent.telephone, lieux: [{ lieu: ent.etablissement }] })
+    var cands = chercherDoublonsFiche({ type: ent.type, nom: ent.nom, specialite: ent.specialite, telephone: ent.telephone, lieux: [{ lieu: ent.etablissement }] })
       .filter(function (c) { return c.memeType && !/^TMP-/.test(c.p.code); }).slice(0, 3);
     ent.cands = cands.map(function (c) { return c.p.code; });
     ent.raisons = {};
     cands.forEach(function (c) {
       var pct = Math.round((c.fuzzy || 0) * 100);
-      ent.raisons[c.p.code] = c.memeTel ? 'même téléphone' : (c.exact ? ('nom quasi identique (' + pct + '%)') : ('nom proche (' + pct + '%)' + (c.memeLieu ? ', même établissement' : '')));
+      var rParts = [];
+      if (c.memeTel) rParts.push('même téléphone');
+      if (c.exact) rParts.push('nom quasi identique (' + pct + '%)');
+      else if (c.concordanceContextuelle) rParts.push('prénom proche' + (c.memeSpe ? ', même spécialité' : '') + (c.memeLieu ? ', même établissement' : ''));
+      else if (c.fuzzy >= 0.55) rParts.push('nom proche (' + pct + '%)' + (c.memeLieu ? ', même établissement' : ''));
+      else if (c.memeSpe && c.memeLieu) rParts.push('même spécialité et même établissement');
+      ent.raisons[c.p.code] = rParts.join(' · ') || 'ressemblance probable';
     });
-    ent.choix = cands[0] && (cands[0].exact || cands[0].memeTel) ? cands[0].p.code : '';
-    ent.douteux = !ent.choix && cands[0] && (cands[0].fuzzy >= 0.58 || cands[0].proche) ? cands[0].p.code : '';
+    ent.choix = cands[0] && (cands[0].exact || cands[0].memeTel || (cands[0].concordanceContextuelle && (cands[0].memeSpe || cands[0].memeLieu))) ? cands[0].p.code : '';
+    ent.douteux = !ent.choix && cands[0] && (cands[0].fuzzy >= 0.52 || cands[0].proche || cands[0].concordanceContextuelle) ? cands[0].p.code : '';
     return ent;
   }
   function preparerValidationScan(L) {
