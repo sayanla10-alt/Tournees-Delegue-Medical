@@ -1277,8 +1277,8 @@ function distanceKm(a, b) {
 function quartiersDefautObjets() {
   return QUARTIERS_DEFAUT.map(function (q) {
     var com = q[0], sec = q[5] || '';
-    if (!sec && com.indexOf(' –') >= 0) {
-      sec = com.replace(/^[^\s–-]+\s*[–-]\s*/, '');
+    if (!sec && com.indexOf(' \u2013') >= 0) {
+      sec = com.replace(/^[^\s\u2013\-]+\s*[\u2013\-]\s*/, '');
     } else if (!sec && com.indexOf(' - ') >= 0) {
       sec = com.replace(/^[^\s-]+\s*-\s*/, '');
     }
