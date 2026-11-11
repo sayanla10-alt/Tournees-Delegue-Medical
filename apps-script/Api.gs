@@ -22,7 +22,7 @@ var FEUILLES = {
   listes: 'Listes', plannings: 'Plannings', ancienneBase: 'BaseDonnees', pharmacies: 'Pharmacies',
   fiches: 'Fiches produits', rapports: 'Rapports du jour', audit: 'Audit_Logs'
 };
-var VERSION_SERVEUR = '3.31.1';
+var VERSION_SERVEUR = '3.31.6';
 var NB_HISTORIQUE_RENVOYE = 8000;      // 3.29.0 : dernières lignes lues dans Historique (plafond de sécurité)
 var JOURS_HISTORIQUE_RENVOYE = 120;    // 3.29.0 : visites des 120 derniers jours renvoyées à l'application (comme Supabase)
 var JOURS_PLANNINGS_DATA = 62;         // historique des tournées publiées (statistiques mensuelles)

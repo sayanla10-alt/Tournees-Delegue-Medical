@@ -1,7 +1,7 @@
 {
-  "version": "3.31.5",
-  "date": "2026-11-10",
+  "version": "3.31.6",
+  "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : changements validés un par un, enregistrement par contact"
+    "Fusion des doublons (hôpitaux, pharmacies) : résolution de l'expiration du délai de connexion Google Sheets (écritures ciblées, tampon d'audit, verrou atomique global, reprise automatique sur timeout)"
   ]
 }
