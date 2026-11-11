@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.29';
+  var APP_VERSION = '3.31.30';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -3293,6 +3293,7 @@
     var t = aujourdhui();
     var moisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
     var ed = $('enteteDate'); if (ed) ed.textContent = majuscule(JOURS_COURTS[jourSemaineIndex(t)]) + ' ' + (+t.slice(8)) + ' ' + moisCourts[+t.slice(5, 7) - 1] + (moi() ? ' · ' + moi() : '');
+    var bVer = $('badgeVersion') || document.querySelector('.badge-version'); if (bVer) bVer.textContent = 'v' + APP_VERSION;
     var p = $('pastilleSync'), etat, texte; if (!p) return;
     if (S.config.demo) { etat = 'demo'; texte = 'Démo'; }
     else if (!S.config.url) { etat = 'erreur'; texte = 'Non connecté'; }
