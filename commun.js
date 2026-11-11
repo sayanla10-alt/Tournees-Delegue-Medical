@@ -1824,8 +1824,8 @@ function similariteTrigrammes(a, b) {
 // Normalisation phonétique et orthographique des patronymes ivoiriens
 function normaliserPhonetiqueCI(s) {
   var t = sansAccents(String(s || '')).toLowerCase();
-  // Retrait des civilités et titres médicaux usuels
-  t = t.replace(/\b(docteur|professeur|prof|dr|pr|mme|madame|monsieur|mr|m|sf|ide|pharmacien)\b\.?/gi, ' ');
+  // Retrait des civilités, titres médicaux et statuts matrimoniaux usuels
+  t = t.replace(/\b(docteur|professeur|prof|dr|pr|mme|madame|monsieur|mr|m|sf|ide|pharmacien|epse|epouse|nee)\b\.?/gi, ' ');
   // Caractères alphanumériques uniquement
   t = t.replace(/[^a-z0-9]/g, ' ').trim().replace(/\s+/g, ' ');
   // Équivalences phonétiques courantes en Côte d'Ivoire
@@ -1835,7 +1835,11 @@ function normaliserPhonetiqueCI(s) {
   t = t.replace(/c([aou])/g, 'k$1');
   t = t.replace(/c([ei])/g, 's$1');
   t = t.replace(/c(?=[^aoueiy]|$)/g, 'k');
+  // Diphtongues ivoiriennes (Kouadio/Koadio, Kouabenan/Koabenan, Doumbia/Dombia)
+  t = t.replace(/\b(k|g|d|b|t)o([aeu])/g, '$1w$2');
   t = t.replace(/ou/g, 'w');
+  t = t.replace(/oa/g, 'wa');
+  t = t.replace(/oe/g, 'we');
   t = t.replace(/gn/g, 'n');
   t = t.replace(/tch/g, 'ch');
   t = t.replace(/dj/g, 'j');
@@ -1875,12 +1879,28 @@ function scoreFuzzyNom(nomA, nomB) {
   var triB = tokB.slice().sort().join(' ');
   if (triA === triB) return 0.98;
 
-  // Sous-ensemble exact de tokens (ex: "DR KOUAME JEAN BAPTISTE" vs "KOUAME JEAN")
-  var tousA_dans_B = tokA.every(function (ta) { return tokB.indexOf(ta) >= 0; });
-  var tousB_dans_A = tokB.every(function (tb) { return tokA.indexOf(tb) >= 0; });
+  // Sous-ensemble exact de tokens (ex: "KOUABENAN ROSINE" vs "DR KOUABENAN AFFOUA ROSINE")
+  // En Côte d'Ivoire, les prénoms multiples / traditionnels sont très souvent omis sur les cachets ou fiches.
+  // Si TOUS les tokens du nom court sont présents dans le nom long (avec au moins 2 tokens), match quasi-certain !
+  var tousA_dans_B = tokA.length >= 2 && tokA.every(function (ta) { return tokB.indexOf(ta) >= 0; });
+  var tousB_dans_A = tokB.length >= 2 && tokB.every(function (tb) { return tokA.indexOf(tb) >= 0; });
   if (tousA_dans_B || tousB_dans_A) {
-    var ratio = Math.min(tokA.length, tokB.length) / Math.max(tokA.length, tokB.length);
-    return Math.max(0.85, 0.75 + (0.22 * ratio));
+    return 0.96;
+  }
+
+  // Sous-ensemble flou (Fuzzy Subset avec tolérance fautes d'encre / OCR ex: "Koabenan Rosine" ou "Kouabenan Prosine")
+  var court = tokA.length <= tokB.length ? tokA : tokB;
+  var longToks = tokA.length <= tokB.length ? tokB : tokA;
+  if (court.length >= 2) {
+    var matchCourt = court.every(function (ca) {
+      return longToks.some(function (lb) { return similariteLevenshtein(ca, lb) >= 0.78; });
+    });
+    var auMoinsUnExact = court.some(function (ca) {
+      return longToks.some(function (lb) { return ca === lb || similariteLevenshtein(ca, lb) >= 0.90; });
+    });
+    if (matchCourt && auMoinsUnExact) {
+      return 0.93;
+    }
   }
 
   // Similarité floue token par token (meilleur appariement)

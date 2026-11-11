@@ -9,7 +9,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.23';
+  var APP_VERSION = '3.31.24';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
@@ -9714,12 +9714,14 @@
       var pMots = motsNom(p.nom), pTel = normaliserNumero(p.telephone || '');
       var memeTel = !!(tel && pTel && tel === pTel);
       var exactCle = !!cle && pMots.slice().sort().join(' ') === cle;
-      // Similarité floue robuste (Fuzzy Matching avec tolérance fautes OCR et phonétique CI)
+      // Similarité floue robuste (Fuzzy Matching avec tolérance fautes OCR, phonétique CI et sous-ensembles de prénoms multiples)
       var fuzzy = scoreFuzzyNom(d.nom, p.nom);
-      var exact = (fuzzy >= 0.88) || exactCle || memeTel;
       // dès 3 lettres : chaque mot tapé est le début d'un mot du nom (le dernier peut être incomplet)
       var debut = mots.length > 0 && mots.every(function (w, i) { return pMots.some(function (pw) { return i === mots.length - 1 ? pw.indexOf(w) === 0 : pw === w || pw.indexOf(w) === 0; }); });
       var communs = mots.filter(function (w) { return w.length >= 3 && pMots.indexOf(w) >= 0; }).length;
+      // Si au moins 2 mots signifiants sont en commun (ex: "Kouabenan" + "Rosine" dans "Dr Kouabenan Affoua Rosine") : certitude
+      var sousEnsembleNom = mots.length >= 2 && communs >= 2;
+      var exact = (fuzzy >= 0.86) || sousEnsembleNom || exactCle || memeTel;
 
       // Détection intelligente token-par-token (prénom fort ou patronyme mal encré, ex: "Prosine" vs "Rosine")
       var maxSimMot = 0, motMatchant = '';
@@ -10375,9 +10377,9 @@
       var pct = Math.round((c.fuzzy || 0) * 100);
       var rParts = [];
       if (c.memeTel) rParts.push('même téléphone');
-      if (c.exact) rParts.push('nom quasi identique (' + pct + '%)');
-      else if (c.concordanceContextuelle) rParts.push('prénom proche' + (c.memeSpe ? ', même spécialité' : '') + (c.memeLieu ? ', même établissement' : ''));
-      else if (c.fuzzy >= 0.55) rParts.push('nom proche (' + pct + '%)' + (c.memeLieu ? ', même établissement' : ''));
+      if (c.exact) rParts.push('identifié en base (' + pct + '%' + (c.memeSpe ? ', même spécialité' : '') + ')');
+      else if (c.concordanceContextuelle) rParts.push('prénom/nom approchant' + (c.memeSpe ? ', même spécialité' : '') + (c.memeLieu ? ', même établissement' : ''));
+      else if (c.fuzzy >= 0.55) rParts.push('nom proche (' + pct + '%)' + (c.memeSpe ? ', même spécialité' : '') + (c.memeLieu ? ', même établissement' : ''));
       else if (c.memeSpe && c.memeLieu) rParts.push('même spécialité et même établissement');
       ent.raisons[c.p.code] = rParts.join(' · ') || 'ressemblance probable';
     });

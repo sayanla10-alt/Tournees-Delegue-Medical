@@ -135,25 +135,38 @@ function agentReconciliationBdd_(lecture) {
         var memeSpe = !!(speLue && pSpe && speLue === pSpe);
         var memeTel = !!(telLu && pTel && (telLu === pTel || (telLu.length >= 8 && pTel.length >= 8 && telLu.slice(-8) === pTel.slice(-8))));
 
-        // Recherche d'un mot très proche (ex: "Prosine" vs "Rosine")
-        var maxSim = 0, motMatch = '';
+        // Score de fuzzy matching hybride (inversion, phonétique CI, sous-ensembles de prénoms multiples)
+        var fuzzy = scoreFuzzyNom(texteComplet, p.nom);
+
+        // Recherche des mots très proches (ex: "Koabenan" vs "Kouabenan", "Prosine" vs "Rosine")
+        var maxSim = 0, motMatch = '', nbMotsMatchs = 0;
         motsLus.forEach(function (w) {
+          var bestW = 0, bestPW = '';
           pMots.forEach(function (pw) {
             var sim = similariteLevenshtein(w, pw);
-            if (sim > maxSim) { maxSim = sim; motMatch = pw; }
+            if (sim > bestW) { bestW = sim; bestPW = pw; }
           });
+          if (bestW > maxSim) { maxSim = bestW; motMatch = bestPW; }
+          if (bestW >= 0.80) nbMotsMatchs++;
         });
 
         var score = 0;
         if (memeTel) score += 50;
-        if (maxSim >= 0.85) score += 35;
-        else if (maxSim >= 0.75) score += 20;
-        if (memeSpe) score += 25;
+        if (fuzzy >= 0.90) score += 65;
+        else if (fuzzy >= 0.80) score += 45;
+        else if (fuzzy >= 0.65) score += 25;
+        if (nbMotsMatchs >= 2) score += 35; // Patronyme + Prénom reconnus même si le prénom traditionnel intermédiaire n'était pas sur le cachet
+        if (memeSpe) score += 30;
 
         if (score > meilleurScore && score >= 45) {
           meilleurScore = score;
           meilleurPrat = p;
-          meilleureRaison = (maxSim >= 0.75 ? 'prénom/nom proche (' + motMatch + ')' : '') + (memeSpe ? ' · même spécialité (' + p.specialite + ')' : '') + (memeTel ? ' · même tél' : '');
+          var details = [];
+          if (fuzzy >= 0.90 || nbMotsMatchs >= 2) details.push('nom/prénom identifié en base (' + p.nom + ')');
+          else if (maxSim >= 0.75) details.push('nom approchant (' + motMatch + ')');
+          if (memeSpe) details.push('même spécialité (' + p.specialite + ')');
+          if (memeTel) details.push('même tél');
+          meilleureRaison = details.join(' · ') || 'concordance base';
         }
       });
 
