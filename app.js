@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.18';
+  var APP_VERSION = '3.31.19';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.19', ['Titre épuré « Fiche du [date] » sans widget calendrier encombrant ni duplication de date',
+                 'Boutons créneaux Matin / Soir parfaitement dimensionnés en hauteur, sans aucune troncature ni rognage',
+                 'Rattachement BDD limpide : « Garder contact en base » préserve par défaut le nom et les infos existantes',
+                 'Boutons d\'action rapide « Tout en base » et « Tout adopter » pour arbitrer en 1 seul clic sans friction']],
     ['3.31.18', ['Pharmacies et hôpitaux de l\'intérieur (hors Abidjan) : suppression définitive du faux plafonnement à 99 km',
                  'Distances réelles fidèlement calculées à travers toute la Côte d\'Ivoire (ex: Abidjan - Bouaké ~348 km)',
                  'Référentiel des centroïdes et hôpitaux majeurs de l\'intérieur avec assainissement des coordonnées aberrantes tombées à Abidjan']],
@@ -10544,12 +10548,9 @@
   FEUILLES.ficheScanValider = function (f) {
     var x = scan(f.id); if (!x || !x.validation) return '<div class="vide"><strong>Fiche introuvable</strong></div>';
     var v = x.validation, h = '';
-    // 0 : Le calendrier et la date sont intégrés directement dans le titre de la feuille (gain de place maximal)
-    f.titreHtml = true;
-    f.titre = 'Fiche du <label class="scan-titre-date-wrap">' +
-      '<input type="date" class="scan-titre-date-inp" data-f="scan" data-k="date" value="' + esc(v.date || '') + '" title="Changer la date de la fiche">' +
-      '<span class="scan-titre-date-txt">' + (v.date ? esc(dateFr(v.date)) : 'Date à choisir') + ' 📅</span>' +
-    '</label>';
+    // Titre sobre, clair et sans doublon de date ni calendrier superflu
+    f.titreHtml = false;
+    f.titre = 'Fiche du ' + (v.date ? dateFr(v.date) : 'date inconnue');
     var plans = v.entites.map(function (ent) { return planScan(ent, v); });
 
     var doutes = [], enrichir = [], nouveaux = [], identiques = [], faits = [];
@@ -10687,10 +10688,10 @@
     if (ouvert || dt || (pl.erreur && !ent.etablissement && !ent.quartier)) {
       h += '<div class="scan-corps-deplie">';
 
-      // 1. BLOC ARBITRAGE FUZZY MATCH (Modifier l'ancien OU Créer nouveau)
+      // 1. BLOC ARBITRAGE FUZZY MATCH (Garder le contact en base OU Créer nouveau)
       var contactFuzzy = dt || (ex && cand1 && ex.code === cand1.code ? cand1 : null) || (cand1 && !ex ? cand1 : null);
       if (contactFuzzy) {
-        // « Modifier l'ancien » est toujours pré-sélectionné par défaut
+        // « Garder contact en base » est toujours pré-sélectionné par défaut
         if (!ent.decision && !ent.choix) {
           ent.choix = contactFuzzy.code;
           ent.decision = 'oui';
@@ -10706,12 +10707,13 @@
           '</div>' +
           '<div class="segment scan-segment-choix" role="group" aria-label="Action doublon">' +
             '<button type="button" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="ancien" data-code="' + esc(contactFuzzy.code) + '" aria-pressed="' + estChoisiAncien + '">' +
-              'Modifier l\'ancien' +
+              'Garder contact en base' +
             '</button>' +
             '<button type="button" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="nouveau" aria-pressed="' + (!ent.choix) + '">' +
               'Créer nouveau' +
             '</button>' +
           '</div>' +
+          (estChoisiAncien ? '<div class="scan-fuzzy-astuce">💡 <b>Nom et coordonnées de la base conservés.</b> Touchez ci-dessous pour modifier si besoin.</div>' : '') +
         '</div>';
       }
 
@@ -10781,7 +10783,7 @@
         '</div>';
       }
 
-      // 3. TABLEAU COMPARATIF [ANCIEN | NOUVEAU] PUR SANS COLONNE MENTION (LARGEUR MAXIMALE)
+      // 3. TABLEAU COMPARATIF [EN BASE | SUR FICHE] PUR ET EXPLICITE
       if (ex) {
         // Filtrer strictement : seules les mentions réellement différentes ou nouvelles sont présentées
         // Si l'information lue est conforme à la BDD, elle est ignorée pour ne pas surcharger l'écran
@@ -10790,12 +10792,18 @@
         });
         if (changs.length) {
           h += '<div class="scan-table-wrap">' +
-            '<div class="scan-table-titre">⚙️ <b>Touchez pour choisir :</b></div>' +
+            '<div class="scan-table-barre">' +
+              '<span class="scan-table-titre">⚙️ <b>Touchez pour choisir :</b></span>' +
+              '<div class="scan-table-actions-rapides">' +
+                '<button type="button" class="scan-btn-mini" data-a="scanGarderToutBase" data-i="' + i + '" title="Conserver toutes les données de la base">Tout en base</button>' +
+                '<button type="button" class="scan-btn-mini" data-a="scanAdopterToutFiche" data-i="' + i + '" title="Adopter toutes les nouveautés de la fiche">Tout adopter</button>' +
+              '</div>' +
+            '</div>' +
             '<table class="scan-table-comparatif">' +
               '<thead>' +
                 '<tr>' +
-                  '<th class="scan-th-col">Ancien</th>' +
-                  '<th class="scan-th-col">Nouveau</th>' +
+                  '<th class="scan-th-col">En base (conservé)</th>' +
+                  '<th class="scan-th-col">Lu sur la fiche</th>' +
                 '</tr>' +
               '</thead>' +
               '<tbody>';
@@ -10808,13 +10816,13 @@
             var labelNouveau = ficheVal ? esc(ficheVal) : '<span class="scan-val-vide">— (aucun)</span>';
 
             h += '<tr>' +
-              '<td class="scan-td-cell scan-td-ancien' + (!estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="ancien" title="Garder l\'ancien">' +
+              '<td class="scan-td-cell scan-td-ancien' + (!estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="ancien" title="Garder la valeur de la base">' +
                 '<div class="scan-td-contenu">' +
                   (!estAccepte ? '<span class="scan-td-coche">✓</span>' : '') +
                   '<span>' + labelAncien + '</span>' +
                 '</div>' +
               '</td>' +
-              '<td class="scan-td-cell scan-td-nouveau' + (estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="nouveau" title="Adopter le nouveau">' +
+              '<td class="scan-td-cell scan-td-nouveau' + (estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="nouveau" title="Adopter la valeur lue sur la fiche">' +
                 '<div class="scan-td-contenu">' +
                   (estAccepte ? '<span class="scan-td-coche">✓</span>' : '') +
                   '<span>' + labelNouveau + '</span>' +
@@ -10828,13 +10836,14 @@
       }
 
       // 4. CHAMPS MANUELS D'ÉDITION DIRECTE
+      var nomRetenu = pl.d && pl.d.nom ? pl.d.nom : (ent.nom || (ex ? ex.nom : ''));
       h += '<div class="scan-edition-rapide">' +
         (ent.transcription ? '<p class="discret scan-lu">Lu sur la photo : ' + esc(ent.transcription) + '</p>' : '') +
         '<div class="grille-2 serre">' +
-          '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(ent.nom) + '"></label>' +
-          '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' +
+          '<label class="champ"><span>' + (ex ? 'Nom retenu' : 'Nom') + '</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(nomRetenu) + '"></label>' +
+          '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone || (ex ? ex.telephone : '')) + '"></label>' +
         '</div>' +
-        (estPh ? '' : '<label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"></label>') +
+        (estPh ? '' : '<label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite || (ex ? ex.specialite : '')) + '"></label>') +
       '</div>';
 
       // 5. BOUTON ENREGISTRER CE CONTACT INDIVIDUELLEMENT
@@ -13803,6 +13812,26 @@
       });
       rendre();
     },
+    scanGarderToutBase: function (el) {
+      var f = S.ui.feuille, k = +el.dataset.i;
+      majScan(f.id, function (x) {
+        var e = x.validation.entites[k];
+        e.remplacer = { nom: false, specialite: false, telephone: false, etablissement: false };
+        e.refus = { nom: true, specialite: true, telephone: true, etablissement: true };
+      });
+      rendre();
+      toast('Toutes les mentions de la base sont conservées.', 2500);
+    },
+    scanAdopterToutFiche: function (el) {
+      var f = S.ui.feuille, k = +el.dataset.i;
+      majScan(f.id, function (x) {
+        var e = x.validation.entites[k];
+        e.remplacer = { nom: true, specialite: true, telephone: true, etablissement: true };
+        e.refus = {};
+      });
+      rendre();
+      toast('Toutes les nouveautés de la fiche sont adoptées.', 2500);
+    },
     scanBasculerJour: function (el) {
       var f = S.ui.feuille, i = +el.dataset.i, j = +el.dataset.j;
       majScan(f.id, function (x) {
@@ -14260,7 +14289,19 @@
     }
     if (f === 'scan' && S.ui.feuille && el.type !== 'checkbox') {   // 3.30.0 : champs de vérification d'une fiche photographiée
       var fS = S.ui.feuille, kS = el.dataset.k, iS = el.dataset.i;
-      majScan(fS.id, function (x) { if (iS === undefined) x.validation[kS] = el.value; else x.validation.entites[+iS][kS] = el.value; });
+      majScan(fS.id, function (x) {
+        if (iS === undefined) {
+          x.validation[kS] = el.value;
+        } else {
+          var ent = x.validation.entites[+iS];
+          ent[kS] = el.value;
+          if (ent.choix) {
+            ent.remplacer = ent.remplacer || {};
+            ent.remplacer[kS] = true;
+            if (ent.refus) delete ent.refus[kS];
+          }
+        }
+      });
     }
     if (f === 'scanEtabInput' && S.ui.feuille) {
       var iE = +el.dataset.i, valE = el.value.trim(), fE = S.ui.feuille;

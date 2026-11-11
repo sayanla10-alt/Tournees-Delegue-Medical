@@ -1,7 +1,7 @@
 {
-  "version": "3.31.18",
+  "version": "3.31.19",
   "date": "2026-11-11",
   "notes": [
-    "Pharmacies et hôpitaux de l'intérieur (hors Abidjan) : suppression définitive du faux plafonnement à 99 km, calcul des vraies distances kilométriques, référentiel officiel des centroïdes de l'intérieur et assainissement des coordonnées aberrantes."
+    "Vérification de fiche : titre épuré 'Fiche du [date]' sans widget calendrier ni duplication de date, correction de la hauteur des boutons Matin/Soir (non tronqués), clarification du choix BDD 'Garder contact en base' avec conservation par défaut du nom existant, et boutons rapides Tout en base / Tout adopter."
   ]
 }
