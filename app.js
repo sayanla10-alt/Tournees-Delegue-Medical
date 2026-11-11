@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.16';
+  var APP_VERSION = '3.31.17';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.17', ['Tableau comparatif épuré à 2 colonnes pures [Ancien | Nouveau] sans colonne mention inutile',
+                 'En-tête repensé ergonomique avec gros boutons Matin/Soir de 44px au pouce et badges de synthèse intégrés',
+                 'Filtrage strict : les données conformes à la BDD sont automatiquement ignorées pour concentrer l\'action sur les vrais changements']],
     ['3.31.16', ['Vérifier la fiche : sélecteur de date interactif intégré directement dans le titre de la feuille',
                  'Gain d\'espace vertical maximal avec suppression du bandeau date inférieur et boutons élargis sans chevauchement',
                  'Nouveaux contacts en minuscules fidèles à la charte, prévention stricte des doublons journaliers et autocomplétion sécurisée']],
@@ -10489,13 +10492,16 @@
       else identiques.push(i);
     });
 
-    // En-tête : Créneaux + Photo + Bilan des badges compacts (date déplacée dans le titre)
+    // En-tête : Créneaux larges 44px + Photo + Bilan des badges compacts
     h += '<section class="scan-tete-propre">' +
-      '<div class="scan-tete-compact-barre">' +
-        '<div class="segment scan-segment-mini" role="group" aria-label="Créneau de visite">' +
+      '<div class="scan-tete-barre-principale">' +
+        '<div class="segment scan-segment-creneaux" role="group" aria-label="Créneau de visite">' +
           '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button>' +
           '<button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button>' +
         '</div>' +
+        (x.photo && x.photo.url ? '<a class="scan-photo-btn" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener" title="Voir photo originale">' + icone('photo') + '<span>Photo</span></a>' : '') +
+      '</div>' +
+      '<div class="scan-tete-bas">' +
         '<div class="scan-bilan-badges">' +
           '<span class="scan-pill-stat"><b>' + v.entites.length + '</b> lus</span>' +
           (nouveaux.length ? '<span class="scan-pill-stat neuf"><b>' + nouveaux.length + '</b> nouveau' + (nouveaux.length > 1 ? 'x' : '') + '</span>' : '') +
@@ -10503,7 +10509,6 @@
           (doutes.length ? '<span class="scan-pill-stat doute"><b>' + doutes.length + '</b> à trancher</span>' : '') +
           (identiques.length ? '<span class="scan-pill-stat"><b>' + identiques.length + '</b> à jour</span>' : '') +
         '</div>' +
-        (x.photo && x.photo.url ? '<a class="scan-photo-btn" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener" title="Voir photo originale">' + icone('photo') + '<span>Photo</span></a>' : '') +
       '</div>' +
     '</section>';
 
@@ -10703,18 +10708,19 @@
         '</div>';
       }
 
-      // 3. TABLEAU COMPARATIF [ANCIEN | NOUVEAU] AVEC CHOIX AU CLIC
+      // 3. TABLEAU COMPARATIF [ANCIEN | NOUVEAU] PUR SANS COLONNE MENTION (LARGEUR MAXIMALE)
       if (ex) {
+        // Filtrer strictement : seules les mentions réellement différentes ou nouvelles sont présentées
+        // Si l'information lue est conforme à la BDD, elle est ignorée pour ne pas surcharger l'écran
         var changs = pl.cmp.filter(function (r) {
-          return (r.etat === 'different' || r.etat === 'ajout') && r.k !== 'programme' && r.k !== 'cr';
+          return (r.etat === 'different' || r.etat === 'ajout' || r.etat === 'nouveau-lieu') && r.k !== 'programme' && r.k !== 'cr';
         });
         if (changs.length) {
           h += '<div class="scan-table-wrap">' +
-            '<div class="scan-table-titre">⚙️ <b>Mentions différentes : touchez pour choisir</b></div>' +
+            '<div class="scan-table-titre">⚙️ <b>Touchez pour choisir :</b></div>' +
             '<table class="scan-table-comparatif">' +
               '<thead>' +
                 '<tr>' +
-                  '<th class="scan-th-champ">Mention</th>' +
                   '<th class="scan-th-col">Ancien</th>' +
                   '<th class="scan-th-col">Nouveau</th>' +
                 '</tr>' +
@@ -10724,20 +10730,18 @@
           changs.forEach(function (r) {
             var k = r.k, ficheVal = r.fiche || '', baseVal = r.base || '';
             var estAccepte = r.opt === 'remplacer' ? !!(ent.remplacer && ent.remplacer[k]) : !(ent.refus && ent.refus[k]);
-            var libChamp = k === 'telephone' ? 'Téléphone' : k === 'specialite' ? 'Spécialité' : k === 'etablissement' ? 'Établissement' : k === 'quartier' ? 'Quartier' : k === 'nom' ? 'Nom' : k === 'absence' ? 'Absence' : esc(r.champ);
 
             var labelAncien = baseVal ? esc(baseVal) : '<span class="scan-val-vide">— (aucun)</span>';
             var labelNouveau = ficheVal ? esc(ficheVal) : '<span class="scan-val-vide">— (aucun)</span>';
 
             h += '<tr>' +
-              '<td class="scan-td-champ"><b>' + libChamp + '</b></td>' +
-              '<td class="scan-td-cell scan-td-ancien' + (!estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="ancien" title="Toucher pour garder l\'ancien">' +
+              '<td class="scan-td-cell scan-td-ancien' + (!estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="ancien" title="Garder l\'ancien">' +
                 '<div class="scan-td-contenu">' +
                   (!estAccepte ? '<span class="scan-td-coche">✓</span>' : '') +
                   '<span>' + labelAncien + '</span>' +
                 '</div>' +
               '</td>' +
-              '<td class="scan-td-cell scan-td-nouveau' + (estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="nouveau" title="Toucher pour adopter le nouveau">' +
+              '<td class="scan-td-cell scan-td-nouveau' + (estAccepte ? ' retenu' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="nouveau" title="Adopter le nouveau">' +
                 '<div class="scan-td-contenu">' +
                   (estAccepte ? '<span class="scan-td-coche">✓</span>' : '') +
                   '<span>' + labelNouveau + '</span>' +
