@@ -168,7 +168,7 @@ function lireFichePhoto(body) {
   else lecture = agentReconciliationBdd_(lecture);
   journaliserFicheScannee_(auteur, photo, lecture, erreur);
   enregistrerAudit(SpreadsheetApp.getActive(), auteur, 'LECTURE_FICHE', 'Fiche', photo.id, erreur ? 'Erreur : ' + erreur : resumeLecture_(lecture));
-  if (erreur) return { ok: false, erreur: 'Lecture impossible : ' + erreur, refus: /clé|key|API_KEY|PERMISSION|403|400/i.test(erreur), photo: photo };
+  if (erreur) return { ok: false, erreur: 'Lecture impossible : ' + erreur, refus: /cl[e\u00e9]|key|API_KEY|PERMISSION|403|400/i.test(erreur), photo: photo };
   var r = { ok: true, lecture: lecture, photo: photo };
   if (cache) { try { cache.put(cleC, JSON.stringify(r), 21600); } catch (eC) {} }
   return r;
@@ -279,7 +279,8 @@ function dossierFichesScannees_() {
 }
 
 function rangerPhotoFiche_(octets, mime, auteur) {
-  var nom = Utilities.formatDate(new Date(), 'Africa/Abidjan', 'yyyy-MM-dd_HH-mm-ss') + '_' + auteur.replace(/[^\wÀ-ÿ -]+/g, '').trim().replace(/\s+/g, '-') + '.' + (mime === 'image/png' ? 'png' : 'jpg');
+  var nomAuteur = sansAccents(String(auteur || '')).replace(/[^a-zA-Z0-9 -]+/g, '').trim().replace(/\s+/g, '-');
+  var nom = Utilities.formatDate(new Date(), 'Africa/Abidjan', 'yyyy-MM-dd_HH-mm-ss') + '_' + (nomAuteur || 'scan') + '.' + (mime === 'image/png' ? 'png' : 'jpg');
   var f = dossierFichesScannees_().createFile(Utilities.newBlob(octets, mime, nom));
   return { id: f.getId(), url: f.getUrl(), nom: nom };
 }
@@ -415,7 +416,7 @@ function appelerClaude_(cle, b64, mime) {
 
 // Garde-fous sur ce que rend le modèle : types, longueurs, date au bon format, téléphones en chiffres
 // 3.31.1 : champs laissés vides par le modèle mais présents dans la transcription de la ligne : téléphone, spécialité, établissement
-var MOTS_ETAB_ = /\b(CHU|CHR|H[ôo]pital|HG|Clinique|Polyclinique|Centre|Cabinet|CSU|FSU|PMI|Maternit[ée]|Institut|Infirmerie|Dispensaire)\b[^|;\n]*/i;
+var MOTS_ETAB_ = /\b(CHU|CHR|H[o\u00f4]pital|HG|Clinique|Polyclinique|Centre|Cabinet|CSU|FSU|PMI|Maternit[e\u00e9]|Institut|Infirmerie|Dispensaire)\b[^|;\n]*/i;
 function completerDepuisTranscription_(x) {
   var t = String(x.transcription || ''); if (!t) return x;
   if (!x.telephone) { var m = t.replace(/[.\-]/g, ' ').match(/(?:\+?225\s*)?((?:0\d|\d{2})(?:\s?\d{2}){4})/); if (m) x.telephone = m[1].replace(/\s/g, ''); }
