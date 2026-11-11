@@ -3919,3 +3919,28 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .scan-erreur { border-color: var(--ambre-trait); }
 .scan-exclu { opacity: .55; }
 .scan-nom .nowrap { white-space: nowrap; }
+
+/* 3.31.4 : Vérifier la fiche : comparaison fiche / base et programme */
+.scan-nom .etiquettes { margin-top: 4px; }
+.scan-question { margin: 8px 0 0 30px; padding: 8px 10px; border: 1px solid var(--ambre-trait); border-radius: 10px; background: var(--ambre-pale); }
+.scan-question p { margin: 0 0 6px; }
+.scan-question small { display: block; color: var(--gris); font-size: 12.5px; margin-top: 2px; }
+.scan-cmp { width: calc(100% - 30px); margin: 8px 0 0 30px; border-collapse: collapse; font-size: 13px; }
+.scan-cmp th, .scan-cmp td { text-align: left; vertical-align: top; padding: 4px 6px; border-top: 1px solid var(--trait); overflow-wrap: anywhere; }
+.scan-cmp thead th { border-top: 0; color: var(--gris); font-weight: 600; font-size: 12px; padding-top: 0; }
+.scan-cmp tbody th { width: 30%; font-weight: 600; }
+.scan-cmp tbody th small { display: block; font-weight: 400; font-size: 11.5px; color: var(--gris); }
+.scan-cmp tr.diff th small { color: var(--ambre); }
+.scan-cmp tr.ajout th small { color: var(--vert); }
+.scan-cmp .case.petite { display: flex; margin: 4px 0 0; }
+.scan-idem { margin: 6px 0 0 30px; font-size: 12.5px; }
+.scan-prog { margin: 8px 0 0 30px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
+.scan-sem { display: flex; gap: 4px; }
+.scan-j { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; width: 24px; padding: 2px 0; border-radius: 6px; border: 1px solid var(--trait); }
+.scan-j.jour-fiche { border-color: var(--primaire); }
+.scan-j b { font-size: 11px; }
+.scan-j i { display: block; width: 14px; height: 5px; border-radius: 3px; background: var(--trait); }
+.scan-j i.on { background: var(--primaire); opacity: .55; }
+.scan-j i.neuf { background: var(--vert); }
+.scan-ent .scan-changes { margin-top: 6px; }
+.scan-cmp tr.tel td { white-space: nowrap; overflow-wrap: normal; font-size: 12px; }
