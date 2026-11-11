@@ -19,24 +19,22 @@ var MODELES_GEMINI_DEFAUT = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-
 var TAILLE_MAX_PHOTO = 8 * 1024 * 1024;   // octets, après décodage
 
 var CONSIGNE_LECTURE_FICHE = [
-  'Tu lis la photo d\'une fiche de visite ou d\'un rapport journalier d\'un délégué médical à Abidjan (Côte d\'Ivoire).',
-  'La fiche est le plus souvent un TABLEAU : une ligne par visite, souvent 5 à 15 lignes (médecins, sages-femmes, infirmiers, pharmacies),',
-  'chaque ligne portant un nom écrit à la main et/ou un cachet (tampon) et parfois une signature.',
-  'ÉTAPE 1 : compte toutes les lignes ou tous les cachets de visite présents sur la fiche, y compris ceux en bas de page, de travers, à moitié lisibles ou débordant sur une autre case. Mets ce nombre dans nb_lignes.',
-  'ÉTAPE 2 : rends EXACTEMENT une entrée par ligne comptée, dans l\'ordre de la fiche (numéro de ligne dans ligne). N\'en saute aucune et n\'arrête pas après la première :',
-  'une ligne dont seul le nom est lisible donne quand même une entrée (les autres champs à "") avec une confiance faible ; une ligne illisible donne une entrée avec le texte deviné et confiance 0.2.',
-  'Les médecins et autres soignants vont dans medecins, les officines dans pharmacies. Les lignes vides du tableau ne comptent pas.',
-  'Pour CHAQUE ligne, recopie d\'abord dans transcription absolument tout ce qui est écrit ou tamponné sur la ligne et dans son cachet (un cachet porte en général',
-  'le nom, la spécialité, l\'établissement, un ou deux téléphones, l\'adresse et un numéro d\'ordre), puis répartis ces informations dans les champs.',
-  'Ne laisse un champ vide que si l\'information est vraiment absente de la ligne et de son cachet. Ne mets pas de signature ni de mot illisible dans titre.',
-  'Extrais uniquement ce qui est écrit ou tamponné ; n\'invente rien. Un champ illisible ou absent vaut "".',
-  'Pour chaque soignant : titre (Dr, Pr, Prof, M., Mme, SF pour sage-femme, IDE pour infirmier) dans titre seulement, nom de famille, prénoms,',
-  'spécialité telle qu\'écrite, établissement de rattachement (hôpital, clinique, cabinet, centre de santé, souvent lisible sur le cachet), téléphone, adresse.',
-  'Pour chaque pharmacie : nom de l\'officine, adresse ou quartier, téléphone.',
-  'Date de la visite au format AAAA-MM-JJ (les dates de la fiche sont écrites jour/mois/année). Ville, commune et quartier prospectés si indiqués (en-tête de la fiche).',
-  'Téléphones ivoiriens : 10 chiffres (ex. 07 07 12 34 56) ; recopie les chiffres sans espaces ni indicatif.',
-  'source = "cachet", "manuscrit" ou "imprime" selon d\'où vient surtout l\'information ; confiance entre 0 et 1.',
-  'Mets dans remarques ce qui est utile mais ne rentre dans aucun champ (ex. commande, rupture, absence du médecin).'
+  'Tu agis en tant qu\'expert en archivistique médicale, ingénierie des données et traitement OCR avancé.',
+  'Ton objectif est d\'extraire, structurer et normaliser sans aucune perte de données l\'intégralité des informations manuscrites, imprimées et tamponnées contenues dans les fiches de "RAPPORT JOURNALIER" de Graabel Pharma à Abidjan (Côte d\'Ivoire).',
+  '',
+  'PROTOCOLE DE TRAITEMENT EN 5 ÉTAPES (SIMULATION MULTI-AGENTS INTERNE) :',
+  '1. AGENT 1 (Extraction Brute OCR) : Parcourt la fiche de haut en bas. Compte l\'intégralité des lignes ou cachets de visite (y compris bas de page, de travers, signatures avec tampon). Renseigne nb_lignes avec le décompte exact.',
+  '2. AGENT 2 (Relecture critique & Détection tampons/cachets) : Pour chaque ligne, lit attentivement l\'encre manuscrite, les cachets d\'encre (nom du praticien, spécialité, établissement, numéros d\'ordre ONMCI, téléphones) et les mentions en marge.',
+  '3. AGENT 3 (Arbitrage sans perte) : Recopie dans transcription l\'intégralité textuelle brute de la ligne et du cachet (séparés par " | "). Zéro omission.',
+  '4. AGENT 4 (Normalisation & Contrôle Métier Côte d\'Ivoire) :',
+  '   - Titres : Dr, Pr, Prof, M., Mme, SF (sage-femme), IDE (infirmier/infirmière).',
+  '   - Noms & Prénoms : Séparer nom de famille et prénoms. Préserver les particules (ex: KOUAME, COULIBALY, DIOMANDE, KOFFI).',
+  '   - Spécialités canoniques : médecine générale, pédiatrie, cardiologie, gynécologie, dermatologie, etc.',
+  '   - Établissements : Hôpital, CHU, CHR, Clinique, Polyclinique, CMS, FSU, Centre de Santé, Cabinet.',
+  '   - Téléphones CI : Format 10 chiffres (mobiles Orange/MTN/Moov 07, 05, 01 ; fixes 27/25/21). Extraire sans indicatif ni espace.',
+  '   - Communes & Quartiers d\'Abidjan : Cocody (Angré, Riviera...), Yopougon, Marcory, Plateau, Treichville, Abobo, Koumassi, Port-Bouët, Adjamé, Attécoubé, etc.',
+  '   - Pharmacies : Nom officiel de l\'officine dans pharmacies, soignants dans medecins.',
+  '5. AGENT 5 (Cross-Check & Assurance Qualité) : Vérification finale pour éviter d\'arrêter prématurément. Même une ligne partiellement lisible doit produire une entrée (avec confiance ajustée 0.2 à 0.9). Remarques utiles (rupture, commande, absence) dans remarques.'
 ].join('\n');
 
 function schemaLectureFiche_() {

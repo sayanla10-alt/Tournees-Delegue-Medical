@@ -4227,16 +4227,24 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 }
 .scan-doute-boutons {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .scan-doute-boutons button {
   flex: 1 1 0;
+  min-width: 0;
   min-height: 44px;
+  padding: 6px 4px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.25;
+  text-align: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .scan-btn-oui {
   background: var(--primaire);
@@ -4247,6 +4255,56 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   background: var(--surface);
   color: var(--texte);
   border-color: var(--trait);
+}
+
+/* 3.31.9 : Barre d'ajout et déclencheur scan ergonomique au pouce */
+.fx-ajout-barre {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+.fx-segment-types {
+  width: 100%;
+  display: flex;
+}
+.fx-segment-types button {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 12.5px;
+  padding: 8px 4px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fx-btn-scanner-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--primaire);
+  background: rgba(10, 108, 116, 0.08);
+  color: var(--primaire);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.fx-btn-scanner-hero:active {
+  background: rgba(10, 108, 116, 0.16);
+  transform: scale(0.99);
+}
+.fx-btn-scanner-hero svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: currentColor;
 }
 
 .scan-fait-ligne {
@@ -4277,3 +4335,31 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .scan-idem { margin-top: 6px; font-size: 12px; color: var(--gris); }
 .scan-detail { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--trait); }
 .scan-err { margin-top: 6px; }
+
+/* 3.31.9 : Sélecteur de quartier direct ultra-compact en cas de quartier manquant */
+.scan-alerte-quartier {
+  background: var(--ambre-pale, #FFF8E1);
+  border: 1px solid var(--ambre-trait, #FFE082);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.scan-alerte-txt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--encre);
+  line-height: 1.3;
+}
+.scan-alerte-txt small {
+  color: var(--gris);
+  font-weight: normal;
+}
+.scan-alerte-quartier .selecteur {
+  min-height: 38px;
+  padding: 6px 10px;
+  background: #fff;
+  font-size: 13px;
+}

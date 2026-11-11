@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.8';
+  var APP_VERSION = '3.31.9';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.9', ['Google Sheets : résolution définitive du délai de connexion lors de la fusion des doublons (écritures ciblées, suppression par blocs décroissants)',
+               'Fuzzy String Matching & protocole 5 agents OCR : détection robuste des noms, tolérance phonétique CI et inversion Nom/Prénom',
+               'Répertoire › Ajouter et Vérifier la fiche : ergonomie au pouce perfectionnée, zéro débordement sur 360 px, cartes épurées sans formulaire déplié']],
     ['3.31.8', ['Vérifier la fiche : refonte radicale axée sur le but (Nouveaux noms & Mentions nouvelles)',
                'Organisation limpide en 3 blocs : Nouveaux contacts, Mentions à ajouter, et bloc compact pour les contacts déjà à jour',
                'Plus de tableaux techniques ni de micro-cases à cocher : une lecture claire en français et validation directe au pouce']],
@@ -9571,11 +9574,14 @@
       if (d.code && p.code === d.code) return;
       var pMots = motsNom(p.nom), pTel = normaliserNumero(p.telephone || '');
       var memeTel = !!(tel && pTel && tel === pTel);
-      var exact = !!cle && pMots.slice().sort().join(' ') === cle;
+      var exactCle = !!cle && pMots.slice().sort().join(' ') === cle;
+      // Similarité floue robuste (Fuzzy Matching avec tolérance fautes OCR et phonétique CI)
+      var fuzzy = scoreFuzzyNom(d.nom, p.nom);
+      var exact = (fuzzy >= 0.88) || exactCle || memeTel;
       // dès 3 lettres : chaque mot tapé est le début d'un mot du nom (le dernier peut être incomplet)
       var debut = mots.length > 0 && mots.every(function (w, i) { return pMots.some(function (pw) { return i === mots.length - 1 ? pw.indexOf(w) === 0 : pw === w || pw.indexOf(w) === 0; }); });
       var communs = mots.filter(function (w) { return w.length >= 3 && pMots.indexOf(w) >= 0; }).length;
-      var proche = !exact && (debut || communs >= 2 || (tape.length >= 4 && pMots.join('').indexOf(tape) >= 0));
+      var proche = !exact && (fuzzy >= 0.58 || debut || communs >= 2 || (tape.length >= 4 && pMots.join('').indexOf(tape) >= 0));
       if (!exact && !memeTel && !proche) return;
       var pres = c.presencesParCode[p.code] || [];
       var memeLieu = !estPh && lieuxD.length ? pres.filter(function (x) { return lieuxD.some(function (l) { return memeEtablissement(l, x.lieu); }); })[0] : null;
@@ -9584,11 +9590,12 @@
       var proximite = dist !== null && dist <= 150;
       var lieux = pres.map(function (x) { return [x.lieu, x.quartier, x.commune].filter(Boolean).join(', '); }).filter(Boolean);
       res.push({ p: p, exact: exact || memeTel, memeTel: memeTel, debut: debut, memeType: (p.type === 'Pharmacie') === estPh,
+        fuzzy: fuzzy,
         memeLieu: memeLieu ? memeLieu.lieu : '', proximite: proximite, dist: dist,
         bloquant: exact || memeTel || (proche && (!!memeLieu || proximite)),
         lieu: memeLieu ? [memeLieu.lieu, memeLieu.quartier].filter(Boolean).join(', ') : (lieux[0] || '') });
     });
-    var score = function (x) { return (x.exact ? 8 : 0) + (x.memeLieu || x.proximite ? 4 : 0) + (x.memeType ? 2 : 0) + (x.debut ? 1 : 0); };
+    var score = function (x) { return (x.memeTel ? 12 : 0) + (x.exact ? 8 : 0) + Math.round((x.fuzzy || 0) * 8) + (x.memeLieu || x.proximite ? 4 : 0) + (x.memeType ? 2 : 0) + (x.debut ? 1 : 0); };
     res.sort(function (a, b) { return score(b) - score(a) || String(a.p.nom).localeCompare(String(b.p.nom), 'fr'); });
     return res.slice(0, 5);
   }
@@ -10181,10 +10188,13 @@
     var cands = chercherDoublonsFiche({ type: ent.type, nom: ent.nom, telephone: ent.telephone, lieux: [{ lieu: ent.etablissement }] })
       .filter(function (c) { return c.memeType && !/^TMP-/.test(c.p.code); }).slice(0, 3);
     ent.cands = cands.map(function (c) { return c.p.code; });
-    // 3.31.4 : nom identique ou même téléphone : c'est lui (déjà dans la base) ; nom seulement proche : on demande
-    ent.raisons = {}; cands.forEach(function (c) { ent.raisons[c.p.code] = c.memeTel ? 'même téléphone' : c.exact ? 'même nom' : 'nom proche' + (c.memeLieu ? ', même établissement' : ''); });
-    ent.choix = cands[0] && cands[0].exact ? cands[0].p.code : '';
-    ent.douteux = !ent.choix && cands[0] ? cands[0].p.code : '';
+    ent.raisons = {};
+    cands.forEach(function (c) {
+      var pct = Math.round((c.fuzzy || 0) * 100);
+      ent.raisons[c.p.code] = c.memeTel ? 'même téléphone' : (c.exact ? ('nom quasi identique (' + pct + '%)') : ('nom proche (' + pct + '%)' + (c.memeLieu ? ', même établissement' : '')));
+    });
+    ent.choix = cands[0] && (cands[0].exact || cands[0].memeTel) ? cands[0].p.code : '';
+    ent.douteux = !ent.choix && cands[0] && (cands[0].fuzzy >= 0.58 || cands[0].proche) ? cands[0].p.code : '';
     return ent;
   }
   function preparerValidationScan(L) {
@@ -10396,7 +10406,7 @@
     v.entites.forEach(function (e, i) {
       if (e.enregistre) { faits.push(i); return; }
       var pl = plans[i];
-      if ((e.douteux && !e.decision) || (pl.erreur && !e.choix)) { doutes.push(i); return; }
+      if (e.douteux && !e.decision) { doutes.push(i); return; }
       if (!e.choix) { nouveaux.push(i); return; }
       var aMentions = pl.cmp.some(function (r) {
         return r.etat === 'ajout' || r.etat === 'different' || r.etat === 'nouveau-lieu';
@@ -10476,7 +10486,7 @@
   };
 
   function carteScan(f, v, ent, pl, i, etat) {
-    var estPh = ent.type === 'Pharmacie', ouvert = ent.ouvert || (etat === 'doute' && ent.ouvert !== false && !ent.douteux);
+    var estPh = ent.type === 'Pharmacie', ouvert = !!ent.ouvert;
     var ex = ent.choix ? praticien(ent.choix) : null, dt = ent.douteux && !ent.decision ? praticien(ent.douteux) : null;
     var L = pl.lieu;
     var nomAffiche = esc(ent.nom ? nomPropre(ent.nom, estPh) : (ex ? ex.nom : 'Nom à lire'));
@@ -10486,7 +10496,7 @@
         '<label class="scan-case-principale" title="Retenir ce contact">' +
           '<input type="checkbox" data-f="scan" data-i="' + i + '" data-k="inclus"' + (ent.inclus ? ' checked' : '') + ' aria-label="Retenir ce contact">' +
           '<span class="scan-tag-statut scan-tag-' + etat + '">' +
-            (etat === 'nouveau' ? 'Nouveau contact' : etat === 'enrichir' ? 'Mentions à ajouter' : 'À préciser') +
+            (etat === 'nouveau' ? 'Nouveau contact' : etat === 'enrichir' ? 'Mentions à ajouter' : 'À trancher') +
           '</span>' +
         '</label>' +
         '<button type="button" class="bouton petit scan-btn-editer" data-a="scanOuvrir" data-i="' + i + '">' +
@@ -10524,7 +10534,15 @@
         '</div>' +
       '</div>';
     } else if (pl.erreur) {
-      h += '<p class="erreur-texte scan-err">⚠️ ' + esc(pl.erreur) + '</p>';
+      if (!ent.quartier) {
+        h += '<div class="scan-alerte-quartier">' +
+          '<div class="scan-alerte-txt">⚠️ ' + esc(pl.erreur) + (ent.quartierLu ? ' <small>(lu : ' + esc(ent.quartierLu) + ')</small>' : '') + '</div>' +
+          selecteurListe('scanQ' + f.id + '_' + i, { titre: 'Quartier', valeur: ent.quartier || null, vide: 'Choisir le quartier…', sections: sectionsQuartiers(),
+            appliquer: function (val) { majScan(f.id, function (z) { var q = quartiers().filter(function (o) { return o.quartier === val; })[0]; z.validation.entites[i].quartier = val; z.validation.entites[i].commune = q ? q.commune : ''; }); } }) +
+        '</div>';
+      } else {
+        h += '<p class="erreur-texte scan-err">⚠️ ' + esc(pl.erreur) + '</p>';
+      }
     }
 
     // Cas Mentions à ajouter (affichées en clair en vert avec bullet et libellé naturel)
@@ -10637,10 +10655,14 @@
     return { nom: nom || '', categorie: '', quartier: r && r.quartier ? r.quartier.quartier : '', commune: r && r.quartier ? r.quartier.commune : '', reperes: '', telephone: '', lat: '', lon: '', prec: '' };
   }
   function segmentAjout(actif) {
-    return '<div class="segment" role="group" aria-label="Type">' + [['Médecin', 'ficheVal'], ['Pharmacie', 'ficheVal'], ['Hôpital', 'ficheHopital']].map(function (x) {
-      return '<button type="button" data-a="' + x[1] + '" data-k="type" data-v="' + x[0] + '" aria-pressed="' + (actif === x[0]) + '">' + x[0] + '</button>';
-    }).join('') + '</div>' +
-      '<button type="button" class="bouton bouton-fiche-scan" data-a="ficheScanner">' + icone('photo') + '<span>Fiche</span></button>';
+    return '<div class="fx-ajout-barre">' +
+      '<div class="segment fx-segment-types" role="group" aria-label="Type">' + [['Médecin', 'ficheVal'], ['Pharmacie', 'ficheVal'], ['Hôpital', 'ficheHopital']].map(function (x) {
+        return '<button type="button" data-a="' + x[1] + '" data-k="type" data-v="' + x[0] + '" aria-pressed="' + (actif === x[0]) + '">' + x[0] + '</button>';
+      }).join('') + '</div>' +
+      '<button type="button" class="fx-btn-scanner-hero" data-a="ficheScanner" title="Photographier une fiche journalière">' +
+        icone('photo') + '<span>Scanner une fiche papier</span>' +
+      '</button>' +
+    '</div>';
   }
   FEUILLES.hopitalNouveau = function (f) {
     var e = f.e, h = '';

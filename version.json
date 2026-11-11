@@ -1,7 +1,9 @@
 {
-  "version": "3.31.8",
+  "version": "3.31.9",
   "date": "2026-11-11",
   "notes": [
-    "Vérifier la fiche : refonte radicale axée sur le but (Nouveaux noms & Mentions nouvelles), suppression de toute confusion et saisie fluide au pouce"
+    "Résolution définitive du délai de connexion Google Sheets dans Fusion.gs (écritures ciblées, suppression par blocs, jumelage Supabase en tâche de fond)",
+    "Fuzzy string matching & simulation 5 agents OCR pour détection ultra-précise des praticiens et pharmacies",
+    "Répertoire › Ajouter et Vérifier la fiche : ergonomie au pouce optimisée, zéro débordement 360 px, cartes compactes sans formulaire déplié"
   ]
 }

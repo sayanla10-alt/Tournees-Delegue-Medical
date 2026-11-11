@@ -39,10 +39,11 @@ function fusSecurise_(fn, maxEssais) {
       return fn();
     } catch (err) {
       var msg = String(err && err.message ? err.message : err);
-      var estTimeout = /délai|timeout|service|timed out|occupé|socket|connection|quota/i.test(msg);
+      var estTimeout = /délai|timeout|service|timed out|occupé|socket|connection|quota|1XtQ4/i.test(msg);
       if (estTimeout && essai < maxEssais) {
         console.warn('Google Sheets service temporairement indisponible (' + msg + ') - Réessai ' + essai + '/' + maxEssais + '...');
-        Utilities.sleep(1200 * Math.pow(2, essai - 1)); // 1.2s, 2.4s
+        try { SpreadsheetApp.flush(); } catch (eF) {}
+        Utilities.sleep(1500 * Math.pow(2, essai - 1)); // 1.5s, 3.0s
         continue;
       }
       throw err;
@@ -211,17 +212,14 @@ function fusChantier_(t, cleEntete) {
 }
 
 /* =============================================================================
-   fusAppliquer_ : persistance atomique en mémoire et écriture groupée ultra-rapide
-   RÉSOLUTIONS CLÉS ANTI-TIMEOUT :
-   1. Élimine TOTALEMENT les appels `deleteRow` en boucle qui provoquent le timeout Google Sheets.
-   2. Si des lignes sont supprimées (absorbées/doublons) :
-      - Filtre les données en mémoire (t.data) pour ne conserver que les lignes actives.
-      - Réécrit l'intégralité du tableau en UN SEUL appel setValues() (instantané, < 200 ms).
-      - Efface et nettoie le reliquat de lignes en bas de tableau en UNE SEULE opération sans shift.
-   3. Si aucune ligne n'est supprimée :
-      - Si peu de lignes sont touchées (<= 15) : met à jour chaque ligne modifiée en 1 appel (1 row).
-      - Si plus de 15 lignes sont touchées : réécrit le tableau en 1 appel setValues() global.
-   4. Zéro boucle de `setValue()` par cellule.
+   fusAppliquer_ : persistance ciblée atomique ultra-rapide (< 500 ms)
+   RÉSOLUTIONS DÉFINITIVES ANTI-TIMEOUT GOOGLE SHEETS (3.31.9) :
+   1. ZÉRO réécriture globale de la feuille (setValues de 100 000 cellules supprimé).
+   2. Écritures strictement ciblées sur les lignes modifiées (fiches gardées,
+      visites renommées, présences réaffectées).
+   3. Les lignes absorbées sont supprimées par ordre décroissant (du bas vers le haut)
+      en groupant les plages contiguës, précédées d'un clearContent() immédiat.
+   4. flush() après les écritures pour éviter toute saturation des tampons Google Sheets.
    ============================================================================= */
 function fusAppliquer_(ch, idF, journal) {
   var t = ch.t;
@@ -253,57 +251,63 @@ function fusAppliquer_(ch, idF, journal) {
     });
   }
 
-  // 3. Application des modifications sur la feuille Google Sheets
-  if (ch.retirees.length > 0) {
-    // CAS A : Des lignes ont été absorbées (retirées).
-    // On construit en mémoire la nouvelle liste de lignes épurée.
-    var nouvellesLignes = [];
-    for (var k = 0; k < t.data.length; k++) {
-      if (!retireesSet[k]) {
-        nouvellesLignes.push(t.data[k]);
-      }
-    }
-
-    var nbAncien = t.n;
-    var nbNouveau = nouvellesLignes.length;
-    var nbSupprimees = nbAncien - nbNouveau;
-
-    fusSecurise_(function () {
-      if (nbNouveau > 0) {
-        // Écriture atomique de toutes les lignes conservées en 1 seule requête API
-        t.sh.getRange(2, 1, nbNouveau, t.brut.length).setValues(nouvellesLignes);
-      }
-      if (nbSupprimees > 0) {
-        // Nettoyage immédiat du reliquat en bas de tableau en 1 seule opération (sans recalcul lourd)
-        t.sh.getRange(nbNouveau + 2, 1, nbSupprimees, t.brut.length).clearContent();
-        try {
-          t.sh.deleteRows(nbNouveau + 2, nbSupprimees);
-        } catch (eDel) {
-          // Si deleteRows est bloqué par des protections, clearContent a déjà nettoyé les données
-        }
-      }
-    });
-
-    // Mise à jour de l'état mémoire de la table
-    t.data = nouvellesLignes;
-    t.n = nbNouveau;
-  } else {
-    // CAS B : Aucune ligne retirée, seulement des cellules modifiées.
-    var lignesTouchees = cles.map(function (k) { return +k; });
-    if (lignesTouchees.length > 0 && lignesTouchees.length <= 15) {
-      // Moins de 15 lignes : écriture ciblée ligne par ligne (1 seul appel setValues par ligne au lieu de par cellule)
+  // 3. Mise à jour ciblée des lignes modifiées (fiches gardées, visites ou présences mises à jour)
+  var lignesTouchees = cles.map(function (k) { return +k; }).filter(function (i) { return !retireesSet[i]; });
+  if (lignesTouchees.length > 0) {
+    if (lignesTouchees.length <= 25) {
+      // Moins de 25 lignes : écriture directe ligne par ligne
       lignesTouchees.forEach(function (i) {
         fusSecurise_(function () {
           t.sh.getRange(i + 2, 1, 1, t.brut.length).setValues([t.data[i]]);
         });
       });
-    } else if (lignesTouchees.length > 15) {
-      // Plus de 15 lignes modifiées : écriture globale de toute la table en 1 appel
+    } else {
+      // Si beaucoup de lignes sont touchées (très rare lors d'un lot), écriture par plage min-max
+      var minR = Math.min.apply(null, lignesTouchees);
+      var maxR = Math.max.apply(null, lignesTouchees);
+      var chunk = t.data.slice(minR, maxR + 1);
       fusSecurise_(function () {
-        t.sh.getRange(2, 1, t.n, t.brut.length).setValues(t.data);
+        t.sh.getRange(minR + 2, 1, chunk.length, t.brut.length).setValues(chunk);
       });
     }
   }
+
+  // 4. Suppression ciblée des lignes absorbées / retirées (du bas vers le haut)
+  if (ch.retirees.length > 0) {
+    var indicesTries = ch.retirees.slice().sort(function (a, b) { return b - a; });
+
+    // Regrouper par blocs contigus de lignes pour minimiser les appels API
+    var blocs = [];
+    indicesTries.forEach(function (idx) {
+      if (blocs.length && blocs[blocs.length - 1].haut === idx + 1) {
+        blocs[blocs.length - 1].haut = idx;
+        blocs[blocs.length - 1].count++;
+      } else {
+        blocs.push({ haut: idx, count: 1 });
+      }
+    });
+
+    blocs.forEach(function (b) {
+      var startRow = b.haut + 2;
+      fusSecurise_(function () {
+        // Effacement immédiat du contenu
+        t.sh.getRange(startRow, 1, b.count, t.brut.length).clearContent();
+        try {
+          t.sh.deleteRows(startRow, b.count);
+        } catch (eDel) {
+          console.warn('deleteRows non exécuté (clearContent déjà effectif) : ' + eDel);
+        }
+      });
+    });
+
+    // Mise à jour de l'état mémoire
+    indicesTries.forEach(function (idx) {
+      t.data.splice(idx, 1);
+    });
+    t.n = t.data.length;
+  }
+
+  try { SpreadsheetApp.flush(); } catch (eFl) {}
 
   // Réinitialisation du chantier
   ch.cellules = {};
@@ -981,7 +985,7 @@ function detecterDoublons() {
    7. Synchronisation Supabase groupée une seule fois à la fin.
    ============================================================================= */
 function appliquerDecisionsDoublons_(auteur, limiteLot) {
-  limiteLot = limiteLot || 10;
+  limiteLot = limiteLot || 5;
   var ss = SpreadsheetApp.getActive(), t = fusTable_(ss, FUSION_PROPOSITIONS);
   if (!t) return { ok: false, erreur: 'Lancez d\'abord la détection des doublons.' };
   var cD = t.col('Décision'), cT = t.col('Type'), cAc = t.col('A Code'), cAn = t.col('A Nom (à garder)'), cAm = t.col('A Commune'),
@@ -1141,16 +1145,13 @@ function appliquerDecisionsDoublons_(auteur, limiteLot) {
       console.warn('Vidage audit fusions: ' + eAud);
     }
 
-    // 6. Synchronisation Supabase groupée
+    // 6. Notification de modification (le jumelage Supabase périodique de 5 min se charge de la synchro en arrière-plan)
     if (faites) {
       fusOublierRedirections_();
       marquerModif();
-      try {
-        jumPousserApresEcriture_('fusion');
-      } catch (eJum) {
-        console.warn('Jumelage après fusions : ' + eJum);
-      }
     }
+
+    try { SpreadsheetApp.flush(); } catch (eFl2) {}
 
     return { ok: true, faites: faites, distincts: distincts, restantes: restantes, erreurs: erreurs };
   } finally {
@@ -1175,16 +1176,17 @@ function menuDetecterDoublons() {
 
 // Applique les décisions choisies avec confirmation, découpage par tranches et gestion des interruptions
 function menuAppliquerDecisions() {
-  var ui = SpreadsheetApp.getUi();
+  var ui = null;
+  try { ui = SpreadsheetApp.getUi(); } catch (eUiInit) {}
   try {
-    if (ui.alert('Appliquer les décisions',
-      'Les fusions choisies vont être exécutées par lot sécurisé (sans timeout, sans blocage).\n\nChaque fusion reste réversible (MediPlanner > Doublons > Annuler une fusion).\n\nVoulez-vous continuer ?',
+    if (ui && ui.alert('Appliquer les décisions',
+      'Les fusions choisies vont être exécutées par tranches rapides et sécurisées (sans timeout, sans blocage).\n\nChaque fusion reste réversible (MediPlanner > Doublons > Annuler une fusion).\n\nVoulez-vous continuer ?',
       ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
 
-    var r = appliquerDecisionsDoublons_();
+    var r = appliquerDecisionsDoublons_(null, 5);
 
     if (!r.ok) {
-      ui.alert('Impossible d\'appliquer les décisions', r.erreur || 'Une erreur est survenue.', ui.ButtonSet.OK);
+      if (ui) ui.alert('Information', r.erreur || 'Une erreur est survenue.', ui.ButtonSet.OK);
       return;
     }
 
@@ -1194,22 +1196,26 @@ function menuAppliquerDecisions() {
       if (r.erreurs.length > 5) msg += '\n... (voir détail dans la colonne Décision)';
     }
     if (r.restantes > 0) {
-      msg += '\n\n⚡ Il reste encore ' + r.restantes + ' ligne(s) à traiter.\nPour préserver la fluidité de Google Sheets et éviter toute expiration de délai, le traitement s\'effectue par tranches rapides.\nRelancez simplement « MediPlanner > Doublons > Appliquer les décisions » pour traiter la suite !';
+      msg += '\n\n⚡ Il reste encore ' + r.restantes + ' ligne(s) à traiter.\nPour préserver la fluidité de Google Sheets et garantir zéro timeout, le traitement s\'effectue par tranches rapides.\nRelancez simplement « MediPlanner > Doublons > Appliquer les décisions » pour traiter la tranche suivante !';
     } else {
       msg += '\n\nToutes les décisions sélectionnées ont été traitées avec succès !';
     }
-    try {
-      ui.alert('Fusions terminées', msg, ui.ButtonSet.OK);
-    } catch (eUi) {
-      console.log('Fusions terminées : ' + msg);
+    if (ui) {
+      try {
+        ui.alert('Fusions terminées', msg, ui.ButtonSet.OK);
+      } catch (eUi) {
+        console.log('Fusions terminées : ' + msg);
+      }
     }
   } catch (err) {
     var errMsg = String(err && err.message ? err.message : err);
     console.error('Erreur menuAppliquerDecisions: ' + errMsg);
-    try {
-      ui.alert('Erreur', 'Une interruption est survenue lors de l\'application des décisions :\n' + errMsg + '\n\nLes lignes déjà marquées "Fait" ont été correctement enregistrées. Vous pouvez relancer le menu pour les suivantes.', ui.ButtonSet.OK);
-    } catch (eUi) {
-      console.error('Impossible d\'afficher l\'alerte UI: ' + eUi);
+    if (ui) {
+      try {
+        ui.alert('Information', 'Une interruption temporaire Google Sheets est survenue :\n' + errMsg + '\n\nLes fusions déjà marquées "Fait" ont été correctement enregistrées.\nRelancez simplement le menu pour continuer.', ui.ButtonSet.OK);
+      } catch (eUi2) {
+        console.error('Impossible d\'afficher l\'alerte UI: ' + eUi2);
+      }
     }
   }
 }

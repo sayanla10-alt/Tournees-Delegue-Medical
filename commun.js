@@ -1530,6 +1530,178 @@ function formaterTelephoneCI(n) {
   return s;   // format inconnu (numéro étranger, extension…) : laissé tel que saisi
 }
 
+/* =============================================================================
+   MOTEUR DE RAPPROCHEMENT FLOU (FUZZY LOOKUP & MATCHING)
+   Conçu pour le répertoire médical et pharmaceutique ivoirien :
+   - Distance d'édition Levenshtein normalisée
+   - Similarité par n-grammes de caractères (Sørensen-Dice)
+   - Normalisation phonétique et orthographique Côte d'Ivoire (k/c/q, ou/w, ph/f, voyelles doublées)
+   - Token-based matching insensible à l'inversion Nom / Prénom et aux particules
+   ============================================================================= */
+
+// Distance de Levenshtein (allocation 1D pour haute performance)
+function distanceLevenshtein(a, b) {
+  a = String(a || '');
+  b = String(b || '');
+  var la = a.length, lb = b.length;
+  if (!la) return lb;
+  if (!lb) return la;
+  var v0 = new Array(lb + 1), v1 = new Array(lb + 1);
+  for (var j = 0; j <= lb; j++) v0[j] = j;
+  for (var i = 0; i < la; i++) {
+    v1[0] = i + 1;
+    var ca = a.charCodeAt(i);
+    for (var k = 0; k < lb; k++) {
+      var cout = (ca === b.charCodeAt(k)) ? 0 : 1;
+      var cSub = v0[k] + cout;
+      var cIns = v0[k + 1] + 1;
+      var cDel = v1[k] + 1;
+      var min = cSub < cIns ? cSub : cIns;
+      v1[k + 1] = min < cDel ? min : cDel;
+    }
+    for (var m = 0; m <= lb; m++) v0[m] = v1[m];
+  }
+  return v1[lb];
+}
+
+// Similarité de Levenshtein normalisée entre 0.0 et 1.0
+function similariteLevenshtein(a, b) {
+  a = String(a || '');
+  b = String(b || '');
+  if (a === b) return 1.0;
+  var maxLen = Math.max(a.length, b.length);
+  if (!maxLen) return 1.0;
+  var dist = distanceLevenshtein(a, b);
+  return Math.max(0, 1.0 - (dist / maxLen));
+}
+
+// Similarité par bigrammes et trigrammes (Dice coefficient)
+function similariteTrigrammes(a, b) {
+  a = String(a || '').trim();
+  b = String(b || '').trim();
+  if (a === b) return 1.0;
+  if (a.length < 2 || b.length < 2) return similariteLevenshtein(a, b);
+
+  var nGramsA = {}, countA = 0;
+  for (var i = 0; i < a.length - 1; i++) {
+    var g = a.slice(i, i + 2);
+    nGramsA[g] = (nGramsA[g] || 0) + 1;
+    countA++;
+  }
+
+  var intersection = 0, countB = 0;
+  for (var j = 0; j < b.length - 1; j++) {
+    var bg = b.slice(j, j + 2);
+    countB++;
+    if (nGramsA[bg] && nGramsA[bg] > 0) {
+      intersection++;
+      nGramsA[bg]--;
+    }
+  }
+
+  var total = countA + countB;
+  return total ? (2.0 * intersection) / total : 0;
+}
+
+// Normalisation phonétique et orthographique des patronymes ivoiriens
+function normaliserPhonetiqueCI(s) {
+  var t = sansAccents(String(s || '')).toLowerCase();
+  // Retrait des civilités et titres médicaux usuels
+  t = t.replace(/\b(docteur|professeur|prof|dr|pr|mme|madame|monsieur|mr|m|sf|ide|pharmacien)\b\.?/gi, ' ');
+  // Caractères alphanumériques uniquement
+  t = t.replace(/[^a-z0-9]/g, ' ').trim().replace(/\s+/g, ' ');
+  // Équivalences phonétiques courantes en Côte d'Ivoire
+  t = t.replace(/ph/g, 'f');
+  t = t.replace(/qu/g, 'k');
+  t = t.replace(/q/g, 'k');
+  t = t.replace(/c([aou])/g, 'k$1');
+  t = t.replace(/c([ei])/g, 's$1');
+  t = t.replace(/c(?=[^aoueiy]|$)/g, 'k');
+  t = t.replace(/ou/g, 'w');
+  t = t.replace(/gn/g, 'n');
+  t = t.replace(/tch/g, 'ch');
+  t = t.replace(/dj/g, 'j');
+  // Réduction des consonnes doublées fréquentes (ex: kouassi -> kouasi, coulibaly -> koulibaly)
+  t = t.replace(/([bdfgklmnprstvwz])\1+/g, '$1');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+// Extraction des tokens signifiants d'un nom
+function tokensNomCI(s) {
+  var norm = normaliserPhonetiqueCI(s);
+  return norm.split(/\s+/).filter(function (w) { return w.length >= 2; });
+}
+
+// Algorithme hybride complet de Fuzzy Matching pour les noms
+// Retourne un score de 0.0 (totalement différent) à 1.0 (identique ou équivalent)
+function scoreFuzzyNom(nomA, nomB) {
+  nomA = String(nomA || '').trim();
+  nomB = String(nomB || '').trim();
+  if (!nomA || !nomB) return 0;
+  if (nomA === nomB) return 1.0;
+
+  var normA = normaliser(nomA);
+  var normB = normaliser(nomB);
+  if (normA === normB) return 1.0;
+
+  var phonA = normaliserPhonetiqueCI(nomA);
+  var phonB = normaliserPhonetiqueCI(nomB);
+  if (phonA === phonB) return 0.97;
+
+  var tokA = tokensNomCI(nomA);
+  var tokB = tokensNomCI(nomB);
+  if (!tokA.length || !tokB.length) return 0;
+
+  // Inversion exacte des tokens (ex: "KOUAME JEAN" vs "JEAN KOUAME")
+  var triA = tokA.slice().sort().join(' ');
+  var triB = tokB.slice().sort().join(' ');
+  if (triA === triB) return 0.98;
+
+  // Sous-ensemble exact de tokens (ex: "DR KOUAME JEAN BAPTISTE" vs "KOUAME JEAN")
+  var tousA_dans_B = tokA.every(function (ta) { return tokB.indexOf(ta) >= 0; });
+  var tousB_dans_A = tokB.every(function (tb) { return tokA.indexOf(tb) >= 0; });
+  if (tousA_dans_B || tousB_dans_A) {
+    var ratio = Math.min(tokA.length, tokB.length) / Math.max(tokA.length, tokB.length);
+    return Math.max(0.85, 0.75 + (0.22 * ratio));
+  }
+
+  // Similarité floue token par token (meilleur appariement)
+  var scoreCumulA = 0;
+  tokA.forEach(function (ta) {
+    var best = 0;
+    tokB.forEach(function (tb) {
+      var s = similariteLevenshtein(ta, tb);
+      if (s > best) best = s;
+    });
+    scoreCumulA += best;
+  });
+  var moyenneA = scoreCumulA / tokA.length;
+
+  var scoreCumulB = 0;
+  tokB.forEach(function (tb) {
+    var best = 0;
+    tokA.forEach(function (ta) {
+      var s = similariteLevenshtein(tb, ta);
+      if (s > best) best = s;
+    });
+    scoreCumulB += best;
+  });
+  var moyenneB = scoreCumulB / tokB.length;
+
+  var scoreTokens = (moyenneA + moyenneB) / 2.0;
+  var scoreChaine = Math.max(similariteLevenshtein(phonA, phonB), similariteTrigrammes(phonA, phonB));
+
+  // Score combiné pondéré (65% tokens, 35% chaîne phonétique)
+  var scoreFinal = (0.65 * scoreTokens) + (0.35 * scoreChaine);
+  return Math.round(scoreFinal * 100) / 100;
+}
+
+// Vérifie si deux noms matchent de façon floue
+function estNomFuzzyMatch(nomA, nomB, seuil) {
+  seuil = seuil || 0.72;
+  return scoreFuzzyNom(nomA, nomB) >= seuil;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     VERSION_DONNEES: VERSION_DONNEES, JOURS: JOURS, JOURS_CLES: JOURS_CLES, CRENEAUX: CRENEAUX, DISPOS: DISPOS,
@@ -1548,6 +1720,9 @@ if (typeof module !== 'undefined' && module.exports) {
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
     ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
-    formaterTelephoneCI: formaterTelephoneCI
+    formaterTelephoneCI: formaterTelephoneCI,
+    distanceLevenshtein: distanceLevenshtein, similariteLevenshtein: similariteLevenshtein,
+    similariteTrigrammes: similariteTrigrammes, normaliserPhonetiqueCI: normaliserPhonetiqueCI,
+    tokensNomCI: tokensNomCI, scoreFuzzyNom: scoreFuzzyNom, estNomFuzzyMatch: estNomFuzzyMatch
   };
 }
