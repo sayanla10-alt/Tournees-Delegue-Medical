@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.1';
+  var APP_VERSION = '3.31.2';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.2', ['Planifier : le jour touché dans la frise devient la période planifiée ; touchez le 12, la tournée est proposée pour le 12 (avant, elle partait sur la date gardée dans Période, par exemple aujourd\'hui)']],
     ['3.31.1', ['Fiche photographiée : toutes les lignes de la fiche sont lues (jusqu\'à 15 et plus), avec pour chacune spécialité, établissement, téléphone et adresse du cachet ; le texte lu s\'affiche sous chaque contact à vérifier ; photo envoyée en meilleure définition']],
     ['3.31.0', ['Répertoire › Ajouter : nouveau bouton Hôpital (à la place de Fiche) : on cherche d\'abord dans la base, puis on crée l\'établissement (nom officiel, catégorie, quartier, repères, téléphone, position prise devant)',
                'Fiche (photo d\'une fiche de visite) : bouton sous Médecin, Pharmacie, Hôpital, sur toute la largeur',
@@ -3810,6 +3811,15 @@
   }
   // Dates de la période (affichage) et dates travaillées (jours fériés exclus) pour le tirage
   // 3.24.23 : on ne planifie jamais un jour passé ; une semaine entamée ne garde que ses jours à venir
+  // 3.31.2 : Planifier : le jour touché dans la frise devient la période planifiée (une journée, ce jour-là).
+  // Avant, la période gardait son ancienne date (ex. « Aujourd'hui ») : on touchait le 12, la tournée partait sur le 11.
+  // À l'ouverture de Planifier, une semaine choisie dans Période reste une semaine si la frise s'ouvre dans cette semaine.
+  function jourChoisiPlanifier(d, ouverture) {
+    if (S.ui.tab !== 'semaine' || !d || d < aujourdhui()) return;
+    var p = S.params;
+    if (ouverture && p.mode === 'semaine' && lundiDe(p.dateRef) === lundiDe(d)) return;   // ouverture : une semaine choisie reste une semaine
+    p.mode = 'jour'; p.dateRef = d; LS.set('params', p);
+  }
   function dateRefValide() {
     var p = S.params, t = aujourdhui();
     if (!p.dateRef || p.dateRef < t && (p.mode === 'jour' || joursOuvres(lundiDe(p.dateRef))[4] < t)) { p.dateRef = t; LS.set('params', p); }
@@ -4695,13 +4705,7 @@
       return '<div class="page-entree"><button type="button" class="retour" data-a="fermerParams">' + icone('chevron') + 'Planifier</button>' +
         '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; touchez un critère pour l\'ajuster ou proposez directement votre tournée.</p>' + rendreParams() + '</div>';
     }
-    var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
-      '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
-      '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
-      barreCriteresPlanifier();
-    var datesF = datesPlanAvenir();
-    // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
-    // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
+    // 3.31.2 : avant la barre des critères, pour qu'elle montre déjà la bonne période
     // 3.28.58 : à l'entrée dans Planifier, la frise s'ouvre sur J+1 : sa tournée s'il en a une, sinon J+1 en blanc, prêt à planifier
     if (!S.ui.planInit) {
       S.ui.planInit = true;
@@ -4709,7 +4713,15 @@
       if (S.plan.some(function (a) { return a.date === j1; })) { S.ui.jour = j1; S.ui.planVide = null; }
       else { S.ui.planVide = j1; S.ui.jourSupprime = null; }
       if (dateRefPassee(S.params)) { S.params.dateRef = j1; LS.set('params', S.params); }
+      jourChoisiPlanifier(j1, true);   // 3.31.2 : la période suit le jour sur lequel la frise s'ouvre
     }
+    var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
+      '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
+      '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
+      barreCriteresPlanifier();
+    var datesF = datesPlanAvenir();
+    // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
+    // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
     var jSup = S.ui.jourSupprime, jVide = S.ui.planVide;
     if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
     if (jVide && (jVide < aujourdhui() || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
@@ -11790,13 +11802,14 @@
     jour: function (el) {
       if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
-      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; S.ui.planVide = null; rendre();
+      S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; S.ui.planVide = null;
+      jourChoisiPlanifier(el.dataset.v); rendre();
     },
     planVierge: function (el) {
       if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
       S.ui.planVide = el.dataset.v; S.ui.jourSupprime = null; S.ui.ouvert = null;
-      if (S.params.mode === 'jour') { S.params.dateRef = el.dataset.v; LS.set('params', S.params); }
+      jourChoisiPlanifier(el.dataset.v);
       rendre();
     },
     planifierJourSupprime: function (el) { S.ui.jourSupprime = null; S.ui.planVide = null; S.ui.jour = el.dataset.v; lancerTirage('jour'); },
