@@ -191,10 +191,12 @@ function jumLignes_(table) {
       f = jumFeuille_(FEUILLES.presences); if (!f) return null;
       tz = f.tz;
       c = { id: f.col(['IdPresence']), code: f.col(['CodeContact']), nom: f.col(['Nom']), lieu: f.col(['Lieu/Etablissement']), q: f.col(['Quartier']), co: f.col(['Commune']), z: f.col(['Zone']),
+        ter: f.col(['Territoire']), sub: f.col(['Subdivision']),
         j: JOURS_CLES.map(function (j) { return f.col([j]); }), hm: f.col(['HoraireMatin']), hs: f.col(['HoraireSoir']), la: f.col(['Latitude']), lo: f.col(['Longitude']), rep: f.col(['Repères']), se: f.col(['Secteur']), og: f.col(['OrigineGPS']) };
       f.lignes.forEach(function (l) {
         var id = jumTxt_(get(l, c.id), tz), code = jumTxt_(get(l, c.code), tz); if (!id || !code) return;
         var o = { id: id, code: code, nom: jumTxt_(get(l, c.nom), tz), lieu: jumTxt_(get(l, c.lieu), tz), quartier: jumTxt_(get(l, c.q), tz), commune: jumTxt_(get(l, c.co), tz), zone: jumTxt_(get(l, c.z), tz),
+          territoire: jumTxt_(get(l, c.ter), tz), subdivision: jumTxt_(get(l, c.sub), tz),
           horaire_matin: jumTxt_(get(l, c.hm), tz), horaire_soir: jumTxt_(get(l, c.hs), tz), lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), reperes: jumTxt_(get(l, c.rep), tz), secteur: jumTxt_(get(l, c.se), tz), origine_gps: jumTxt_(get(l, c.og), tz) };
         JOURS_CLES.forEach(function (j, k) { o[j] = jumTxt_(get(l, c.j[k]), tz); });
         o.autres = f.autres(l); out.push(o);
@@ -203,7 +205,9 @@ function jumLignes_(table) {
     case 'pharmacies':
       f = jumFeuille_(FEUILLES.pharmacies); if (!f) return null;
       tz = f.tz;
-      c = { code: f.col(['CodeContact']), nom: f.col(['Nom']), tit: f.col(['Titulaire']), q: f.col(['Quartier']), co: f.col(['Commune']), z: f.col(['Zone']), la: f.col(['Latitude']), lo: f.col(['Longitude']),
+      c = { code: f.col(['CodeContact']), nom: f.col(['Nom']), tit: f.col(['Titulaire']), q: f.col(['Quartier']), co: f.col(['Commune']), z: f.col(['Zone']),
+        ter: f.col(['Territoire']), sub: f.col(['Subdivision']), se: f.col(['Secteur']),
+        la: f.col(['Latitude']), lo: f.col(['Longitude']),
         tel: f.col(['Téléphone']), hm: f.col(['HoraireMatin']), hs: f.col(['HoraireSoir']), note: f.col(['Note']), conv: f.col(['Engagé']), der: f.col(['DateDerniereVisite']), st: f.col(['DernierStatut']),
         com: f.col(['DernierCommentaire']), nb: f.col(['NbVisites']), act: f.col(['Actif']),
         rep: f.col(['Repères']), pro: f.col(['ProchaineEtape']), src: f.col(['Source']), og: f.col(['OrigineGPS']) };
@@ -211,6 +215,7 @@ function jumLignes_(table) {
         var code = jumTxt_(get(l, c.code), tz), nom = jumTxt_(get(l, c.nom), tz); if (!code || !nom) return;
         var proVal = get(l, c.pro);
         pousser(l, { reperes: jumTxt_(get(l, c.rep), tz), prochaine: jumDate_(proVal, tz) || jumTxt_(proVal, tz), source: jumTxt_(get(l, c.src), tz), origine_gps: jumTxt_(get(l, c.og), tz), code: code, nom: nom, titulaire: jumTxt_(get(l, c.tit), tz), quartier: jumTxt_(get(l, c.q), tz), commune: jumTxt_(get(l, c.co), tz), zone: jumTxt_(get(l, c.z), tz),
+          territoire: jumTxt_(get(l, c.ter), tz), subdivision: jumTxt_(get(l, c.sub), tz), secteur: jumTxt_(get(l, c.se), tz),
           lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel), tz), horaire_matin: jumTxt_(get(l, c.hm), tz), horaire_soir: jumTxt_(get(l, c.hs), tz),
           note: jumNote_(get(l, c.note)), conventionne: jumOui_(get(l, c.conv)), derniere: jumDate_(get(l, c.der), tz), statut: jumVide_(get(l, c.st), tz), commentaire: jumVide_(get(l, c.com), tz),
           nb_visites: jumInt_(get(l, c.nb), 0), actif: jumActif_(get(l, c.act)) });
@@ -219,11 +224,14 @@ function jumLignes_(table) {
     case 'etablissements':
       f = jumFeuille_(FEUILLES.etablissements); if (!f) return null;
       tz = f.tz;
-      c = { code: f.col(['CodeEtab']), nom: f.col(['Nom']), cat: f.col(['Categorie']), co: f.col(['Commune']), q: f.col(['Quartier']), z: f.col(['Zone']), la: f.col(['Latitude']), lo: f.col(['Longitude']),
+      c = { code: f.col(['CodeEtab']), nom: f.col(['Nom']), cat: f.col(['Categorie']), co: f.col(['Commune']), q: f.col(['Quartier']), z: f.col(['Zone']),
+        ter: f.col(['Territoire']), sub: f.col(['Subdivision']), se: f.col(['Secteur']),
+        la: f.col(['Latitude']), lo: f.col(['Longitude']),
         tel: f.col(['Telephone', 'Téléphone']), rep: f.col(['Reperes', 'Repères']), pos: f.col(['Position']), og: f.col(['OrigineGPS']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code), tz), nom = jumTxt_(get(l, c.nom), tz); if (!code || !nom) return;
         pousser(l, { code: code, nom: nom, categorie: jumTxt_(get(l, c.cat), tz), commune: jumTxt_(get(l, c.co), tz), quartier: jumTxt_(get(l, c.q), tz), zone: jumTxt_(get(l, c.z), tz),
+          territoire: jumTxt_(get(l, c.ter), tz), subdivision: jumTxt_(get(l, c.sub), tz), secteur: jumTxt_(get(l, c.se), tz),
           lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel), tz), reperes: jumTxt_(get(l, c.rep), tz), position: jumTxt_(get(l, c.pos), tz), origine_gps: jumTxt_(get(l, c.og), tz) });
       });
       return out;
@@ -277,10 +285,16 @@ function jumLignes_(table) {
     case 'quartiers':
       f = jumFeuille_(FEUILLES.quartiers); if (!f) return null;
       tz = f.tz;
-      c = { co: f.col(['Commune']), q: f.col(['Quartier']), z: f.col(['Zone']), la: f.col(['Latitude', 'Lat']), lo: f.col(['Longitude', 'Lon']), se: f.col(['Secteur']) };
+      c = { ter: f.col(['Territoire']), z: f.col(['Zone']), co: f.col(['Commune']), sub: f.col(['Subdivision']),
+        q: f.col(['Quartier']), se: f.col(['Secteur']), va: f.col(['Variantes']), la: f.col(['Latitude', 'Lat']), lo: f.col(['Longitude', 'Lon']) };
+      if (c.q < 0) {
+        c = { ter: -1, co: 0, q: 1, z: 2, la: 3, lo: 4, se: 5, sub: -1, va: -1 };
+      }
       f.lignes.forEach(function (l) {
         var q = jumTxt_(get(l, c.q), tz); if (!q) return;
-        pousser(l, { commune: jumTxt_(get(l, c.co), tz), quartier: q, zone: jumTxt_(get(l, c.z), tz), lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), secteur: jumTxt_(get(l, c.se), tz) });
+        pousser(l, { territoire: jumTxt_(get(l, c.ter), tz), zone: jumTxt_(get(l, c.z), tz), commune: jumTxt_(get(l, c.co), tz),
+          subdivision: jumTxt_(get(l, c.sub), tz), quartier: q, secteur: jumTxt_(get(l, c.se), tz),
+          variantes: jumTxt_(get(l, c.va), tz), lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)) });
       });
       return out;
     case 'fiches_produits':
@@ -331,7 +345,7 @@ function jumLignes_(table) {
 var JUM_TABLES = {
   praticiens: { pk: 'code' }, presences: { pk: 'id' }, pharmacies: { pk: 'code' }, etablissements: { pk: 'code' }, visites: { pk: 'uid' },
   plannings: { cle: ['delegue', 'date', 'heure', 'code', 'id_presence'] }, rapports: { cle: ['delegue', 'date'] },
-  quartiers: { cle: ['commune', 'quartier'] }, fiches_produits: { cle: ['produit'] }, listes_reference: { cle: ['categorie', 'valeur'] },
+  quartiers: { cle: ['commune', 'quartier', 'secteur'] }, fiches_produits: { cle: ['produit'] }, listes_reference: { cle: ['categorie', 'valeur'] },
   audit_logs: { cle: ['horodatage', 'auteur', 'action', 'code', 'details'] }
 };
 
@@ -466,6 +480,7 @@ var JUM_APRES_ACTION = {
   // 3.29.0 : le journal d'audit suit avec le jumelage de 5 minutes (il ne ralentit plus chaque enregistrement)
   valider: ['visites', 'praticiens', 'pharmacies', 'plannings'], fiche: ['praticiens', 'presences', 'pharmacies'], planning: ['plannings'],
   rapport: ['rapports'], delegue: ['listes_reference'], etablissement: ['etablissements', 'presences'],
+  quartiers: ['quartiers', 'presences', 'pharmacies', 'etablissements', 'plannings'],
   fusion: ['etablissements', 'pharmacies', 'presences', 'visites', 'plannings', 'audit_logs']
 };
 // Appelée par doPost juste après l'écriture dans le Sheet : Supabase est à jour quand le téléphone reçoit la réponse
@@ -552,7 +567,7 @@ function jumSurEdition(e) {
       return;
     }
     try {
-      jumPousserApresEcriture_([table]);
+      jumPousserApresEcriture_(table === 'quartiers' ? JUM_APRES_ACTION.quartiers : [table]);
     } finally {
       if (!dejaVerrou) { try { verrou.releaseLock(); } catch (eR) {} }
     }
@@ -567,13 +582,16 @@ var JUM_RETOUR = {
     ['telephone', ['Téléphone']], ['derniere', ['DateDerniereVisite'], 'd'], ['statut', ['DernierStatut']], ['commentaire', ['DernierCommentaire']], ['nb_visites', ['NbVisites'], 'n'], ['actif', ['Actif'], 'b'],
     ['prochaine', ['ProchaineEtape'], 'd'], ['absent_du', ['AbsentDu'], 'd'], ['absent_au', ['AbsentAu'], 'd']] },
   presences: { feuille: 'presences', cle: [['id', ['IdPresence']]], cols: [['code', ['CodeContact']], ['nom', ['Nom']], ['lieu', ['Lieu/Etablissement']], ['quartier', ['Quartier']], ['commune', ['Commune']], ['zone', ['Zone']],
+    ['territoire', ['Territoire']], ['subdivision', ['Subdivision']],
     ['lundi', ['Lundi']], ['mardi', ['Mardi']], ['mercredi', ['Mercredi']], ['jeudi', ['Jeudi']], ['vendredi', ['Vendredi']], ['horaire_matin', ['HoraireMatin']], ['horaire_soir', ['HoraireSoir']],
     ['lat', ['Latitude'], 'n'], ['lon', ['Longitude'], 'n'], ['secteur', ['Secteur']], ['reperes', ['Repères']], ['origine_gps', ['OrigineGPS']]] },
   pharmacies: { feuille: 'pharmacies', cle: [['code', ['CodeContact']]], cols: [['nom', ['Nom']], ['titulaire', ['Titulaire']], ['quartier', ['Quartier']], ['commune', ['Commune']], ['zone', ['Zone']],
+    ['territoire', ['Territoire']], ['subdivision', ['Subdivision']], ['secteur', ['Secteur']],
     ['lat', ['Latitude'], 'n'], ['lon', ['Longitude'], 'n'], ['telephone', ['Téléphone']], ['horaire_matin', ['HoraireMatin']], ['horaire_soir', ['HoraireSoir']], ['note', ['Note'], 'n'], ['conventionne', ['Engagé'], 'b'],
     ['derniere', ['DateDerniereVisite'], 'd'], ['statut', ['DernierStatut']], ['commentaire', ['DernierCommentaire']], ['nb_visites', ['NbVisites'], 'n'], ['actif', ['Actif'], 'b'], ['reperes', ['Repères']],
     ['prochaine', ['ProchaineEtape'], 'd'], ['source', ['Source']], ['origine_gps', ['OrigineGPS']]] },
   etablissements: { feuille: 'etablissements', cle: [['code', ['CodeEtab']]], cols: [['nom', ['Nom']], ['categorie', ['Categorie']], ['commune', ['Commune']], ['quartier', ['Quartier']], ['zone', ['Zone']],
+    ['territoire', ['Territoire']], ['subdivision', ['Subdivision']], ['secteur', ['Secteur']],
     ['lat', ['Latitude'], 'n'], ['lon', ['Longitude'], 'n'], ['telephone', ['Telephone', 'Téléphone']], ['reperes', ['Reperes', 'Repères']], ['position', ['Position']], ['origine_gps', ['OrigineGPS']]] },
   visites: { feuille: 'hist', cle: [['uid', ['IdSync']]], cols: [['date', ['DateVisite'], 'd'], ['delegue', ['Délégué']], ['code', ['CodeContact']], ['id_presence', ['IdPresence']], ['nom', ['Nom']], ['type', ['Type']],
     ['specialite', ['Spécialité']], ['note', ['Note'], 'n'], ['commune', ['Commune']], ['quartier', ['Quartier']], ['lieu', ['Lieu/Etablissement']], ['creneau', ['Créneau']], ['statut', ['Statut']],
@@ -581,7 +599,7 @@ var JUM_RETOUR = {
     ['interlocuteur', ['Interlocuteur']], ['reactions', ['Réactions']], ['stocks', ['Stocks']], ['commande', ['Commande']], ['complements', ['Compléments']], ['suite', ['Suite']]] },
   rapports: { feuille: 'rapports', cle: [['delegue', ['Délégué']], ['date', ['Date'], 'd']], cols: [['prevues', ['Visites prévues'], 'n'], ['faites', ['Visites faites'], 'n'], ['non_faites', ['Non faites']],
     ['sans_cr', ['Sans compte rendu'], 'n'], ['synthese', ['Synthèse']], ['faits', ['Faits marquants']], ['concurrence', ['Concurrence']], ['besoins', ['Besoins']], ['km', ['Kilomètres'], 'n']] },
-  quartiers: { feuille: 'quartiers', cle: [['commune', ['Commune']], ['quartier', ['Quartier']]], cols: [['zone', ['Zone']], ['lat', ['Latitude', 'Lat'], 'n'], ['lon', ['Longitude', 'Lon'], 'n'], ['secteur', ['Secteur']]] },
+  quartiers: { feuille: 'quartiers', cle: [['commune', ['Commune']], ['quartier', ['Quartier']], ['secteur', ['Secteur']]], cols: [['territoire', ['Territoire']], ['zone', ['Zone']], ['subdivision', ['Subdivision']], ['variantes', ['Variantes']], ['lat', ['Latitude', 'Lat'], 'n'], ['lon', ['Longitude', 'Lon'], 'n']] },
   fiches_produits: { feuille: 'fiches', cle: [['produit', ['Produit']]], cols: [['gamme', ['Gamme']], ['aire', ['Aire thérapeutique']], ['dci', ['DCI et dosage']], ['classe', ['Classe']], ['indications', ['Indications']],
     ['contre_indications', ['Contre-indications']], ['posologie', ['Posologie']], ['precautions', ['Précautions et interactions']], ['effets', ['Effets indésirables']], ['arguments', ['Arguments clés']],
     ['laboratoire', ['Laboratoire']], ['sources', ['Sources']], ['actif', ['Actif'], 'b']] }

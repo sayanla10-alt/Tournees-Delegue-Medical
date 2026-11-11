@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS public.presences (
     lat DOUBLE PRECISION,                            -- Coordonnées GPS latitude
     lon DOUBLE PRECISION,                            -- Coordonnées GPS longitude
     reperes TEXT,                                    -- Repères d'accès
+    territoire TEXT,                                 -- Territoire géographique (ex: Grand Abidjan, Intérieur)
+    subdivision TEXT,                                -- Subdivision géographique / administrative
     secteur TEXT,                                    -- Secteur géographique
     origine_gps TEXT,                                -- Source des coordonnées GPS
     autres JSONB,                                    -- Colonnes additionnelles du Sheet
@@ -69,6 +71,9 @@ CREATE TABLE IF NOT EXISTS public.pharmacies (
     titulaire TEXT,                                  -- Pharmacien titulaire
     quartier TEXT,                                   -- Quartier
     commune TEXT NOT NULL,                           -- Commune
+    territoire TEXT,
+    subdivision TEXT,
+    secteur TEXT,
     zone TEXT,
     lat DOUBLE PRECISION,
     lon DOUBLE PRECISION,
@@ -101,6 +106,9 @@ CREATE TABLE IF NOT EXISTS public.etablissements (
     categorie TEXT,                                  -- CHU, HG, Polyclinique, Clinique, Cabinet
     commune TEXT NOT NULL,
     quartier TEXT,
+    territoire TEXT,
+    subdivision TEXT,
+    secteur TEXT,
     zone TEXT,
     lat DOUBLE PRECISION,
     lon DOUBLE PRECISION,
@@ -239,15 +247,17 @@ CREATE TABLE IF NOT EXISTS public.quartiers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     commune TEXT NOT NULL,
     quartier TEXT NOT NULL,
+    territoire TEXT,
+    subdivision TEXT,
     zone TEXT,
     lat DOUBLE PRECISION,
     lon DOUBLE PRECISION,
     secteur TEXT,
+    variantes TEXT,
     autres JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    maj_source TEXT,
-    CONSTRAINT unq_commune_quartier UNIQUE (commune, quartier)
+    maj_source TEXT
 );
 
 -- -------------------------------------------------------------
@@ -311,9 +321,11 @@ BEGIN
 END $$;
 
 ALTER TABLE public.praticiens     ADD COLUMN IF NOT EXISTS prochaine TEXT, ADD COLUMN IF NOT EXISTS absent_du DATE, ADD COLUMN IF NOT EXISTS absent_au DATE;
-ALTER TABLE public.presences      ADD COLUMN IF NOT EXISTS secteur TEXT, ADD COLUMN IF NOT EXISTS origine_gps TEXT;
-ALTER TABLE public.pharmacies     ADD COLUMN IF NOT EXISTS reperes TEXT, ADD COLUMN IF NOT EXISTS prochaine TEXT, ADD COLUMN IF NOT EXISTS source TEXT, ADD COLUMN IF NOT EXISTS origine_gps TEXT;
-ALTER TABLE public.etablissements ADD COLUMN IF NOT EXISTS position TEXT, ADD COLUMN IF NOT EXISTS origine_gps TEXT;
+ALTER TABLE public.presences      ADD COLUMN IF NOT EXISTS territoire TEXT, ADD COLUMN IF NOT EXISTS subdivision TEXT, ADD COLUMN IF NOT EXISTS secteur TEXT, ADD COLUMN IF NOT EXISTS origine_gps TEXT;
+ALTER TABLE public.pharmacies     ADD COLUMN IF NOT EXISTS territoire TEXT, ADD COLUMN IF NOT EXISTS subdivision TEXT, ADD COLUMN IF NOT EXISTS secteur TEXT, ADD COLUMN IF NOT EXISTS reperes TEXT, ADD COLUMN IF NOT EXISTS prochaine TEXT, ADD COLUMN IF NOT EXISTS source TEXT, ADD COLUMN IF NOT EXISTS origine_gps TEXT;
+ALTER TABLE public.etablissements ADD COLUMN IF NOT EXISTS territoire TEXT, ADD COLUMN IF NOT EXISTS subdivision TEXT, ADD COLUMN IF NOT EXISTS secteur TEXT, ADD COLUMN IF NOT EXISTS position TEXT, ADD COLUMN IF NOT EXISTS origine_gps TEXT;
+ALTER TABLE public.quartiers      ADD COLUMN IF NOT EXISTS territoire TEXT, ADD COLUMN IF NOT EXISTS subdivision TEXT, ADD COLUMN IF NOT EXISTS secteur TEXT, ADD COLUMN IF NOT EXISTS variantes TEXT;
+ALTER TABLE public.quartiers      DROP CONSTRAINT IF EXISTS unq_commune_quartier;
 ALTER TABLE public.visites        ADD COLUMN IF NOT EXISTS prochaine_etape TEXT, ADD COLUMN IF NOT EXISTS interlocuteur TEXT, ADD COLUMN IF NOT EXISTS reactions TEXT,
                                   ADD COLUMN IF NOT EXISTS stocks TEXT, ADD COLUMN IF NOT EXISTS commande TEXT, ADD COLUMN IF NOT EXISTS complements TEXT, ADD COLUMN IF NOT EXISTS suite TEXT;
 ALTER TABLE public.plannings      ADD COLUMN IF NOT EXISTS maj TEXT, ADD COLUMN IF NOT EXISTS id_arret TEXT, ADD COLUMN IF NOT EXISTS cible_depuis TEXT;
@@ -369,7 +381,11 @@ CREATE INDEX IF NOT EXISTS idx_plannings_delegue_date ON public.plannings (deleg
 CREATE INDEX IF NOT EXISTS idx_fiches_produits_gamme ON public.fiches_produits (gamme);
 CREATE INDEX IF NOT EXISTS idx_fiches_produits_actif ON public.fiches_produits (actif);
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_quartiers_uniq_hierarchie ON public.quartiers (commune, quartier, COALESCE(secteur, ''));
 CREATE INDEX IF NOT EXISTS idx_quartiers_commune ON public.quartiers (commune);
+CREATE INDEX IF NOT EXISTS idx_quartiers_territoire ON public.quartiers (territoire);
+CREATE INDEX IF NOT EXISTS idx_quartiers_subdivision ON public.quartiers (subdivision);
+CREATE INDEX IF NOT EXISTS idx_quartiers_quartier ON public.quartiers (quartier);
 CREATE INDEX IF NOT EXISTS idx_quartiers_secteur ON public.quartiers (secteur);
 
 CREATE INDEX IF NOT EXISTS idx_listes_categorie ON public.listes_reference (categorie);

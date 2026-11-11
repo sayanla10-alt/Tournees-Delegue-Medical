@@ -2,6 +2,60 @@
 // ---------------------------------------------------------------- Lecture
 // sig : empreinte des données de référence déjà présentes sur le téléphone ; si rien n'a changé,
 // seules les nouveautés (visites depuis hdepuis, tournées) sont renvoyées : moins de données mobiles.
+// Ajoute Territoire, Subdivision, Secteur si absents de CHAMPS_* (compatibilité avant/après mise à jour Commun.gs)
+function champsAvecTerritoire_(baseChamps) {
+  var res = baseChamps.slice(), vus = {};
+  res.forEach(function (c) { vus[normaliser(c[1])] = true; });
+  [['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur']].forEach(function (x) {
+    if (!vus[normaliser(x[1])]) { res.push(x); vus[normaliser(x[1])] = true; }
+  });
+  return res;
+}
+
+// Lit la feuille Quartiers par noms d'en-têtes (rétrocompatible 5/6/9 colonnes et ordre quelconque)
+function lireQuartiers_(ss) {
+  var quartiers = [];
+  var shQ = ss.getSheetByName(FEUILLES.quartiers);
+  if (!shQ || shQ.getLastRow() < 2 || shQ.getLastColumn() < 1) return quartiers;
+  var nbColsQ = shQ.getLastColumn();
+  var ent = shQ.getRange(1, 1, 1, nbColsQ).getValues()[0].map(normaliser);
+  var col = function (noms) {
+    for (var i = 0; i < noms.length; i++) {
+      var k = ent.indexOf(normaliser(noms[i]));
+      if (k >= 0) return k;
+    }
+    return -1;
+  };
+  var cTer = col(['Territoire']), cZ = col(['Zone']), cCom = col(['Commune']),
+      cSub = col(['Subdivision']), cQ = col(['Quartier']), cSec = col(['Secteur']),
+      cVar = col(['Variantes']), cLat = col(['Latitude', 'Lat']), cLon = col(['Longitude', 'Lon']);
+  if (cQ < 0) {
+    cCom = 0; cQ = 1; cZ = 2; cLat = 3; cLon = 4; cSec = nbColsQ >= 6 ? 5 : -1;
+  }
+  var txt = function (v, idx) { return (idx >= 0 && v[idx] !== undefined && v[idx] !== null) ? String(v[idx]).trim() : ''; };
+  var num = function (v, idx) {
+    if (idx < 0 || v[idx] === undefined || v[idx] === null || v[idx] === '') return 0;
+    var n = parseFloat(String(v[idx]).replace(',', '.'));
+    return isFinite(n) ? n : 0;
+  };
+  shQ.getRange(2, 1, shQ.getLastRow() - 1, nbColsQ).getValues().forEach(function (v) {
+    var q = txt(v, cQ);
+    if (!q) return;
+    quartiers.push({
+      territoire: txt(v, cTer),
+      zone: txt(v, cZ),
+      commune: txt(v, cCom),
+      subdivision: txt(v, cSub),
+      quartier: q,
+      secteur: txt(v, cSec),
+      variantes: txt(v, cVar),
+      lat: num(v, cLat),
+      lon: num(v, cLon)
+    });
+  });
+  return quartiers;
+}
+
 function lireTout(sig, hdepuis) {
   var ss = SpreadsheetApp.getActive(), tz = ss.getSpreadsheetTimeZone();
   assurerStructure(ss);
@@ -9,20 +63,13 @@ function lireTout(sig, hdepuis) {
     return p.code !== '' && p.nom !== '';
   });
   praticiens.forEach(function (p) { p.nbVisites = +p.nbVisites || 0; p.note = lireNote(p.note); });
-  var presences = lireObjets(ss.getSheetByName(FEUILLES.presences), CHAMPS_PRESENCES, tz).filter(function (p) {
+  var presences = lireObjets(ss.getSheetByName(FEUILLES.presences), champsAvecTerritoire_(CHAMPS_PRESENCES), tz).filter(function (p) {
     return p.code !== '';
   });
   var idsLus = {};   // 3.26.50 : identifiant vide ou en double -> identifiant de ligne unique (évite les lieux qui s'échangent sur le téléphone)
   presences.forEach(function (p, i) { if (p.id === '' || idsLus[String(p.id)]) p.id = 'L' + (i + 2); idsLus[String(p.id)] = true; });
 
-  var quartiers = [];
-  var shQ = ss.getSheetByName(FEUILLES.quartiers);
-  if (shQ && shQ.getLastRow() > 1) {
-    var nbColsQ = Math.max(5, shQ.getLastColumn());
-    shQ.getRange(2, 1, shQ.getLastRow() - 1, nbColsQ).getValues().forEach(function (v) {
-      if (v[1] !== '') quartiers.push({ commune: v[0], quartier: v[1], zone: v[2], lat: +v[3], lon: +v[4], secteur: v[5] ? String(v[5]).trim() : '' });
-    });
-  }
+  var quartiers = lireQuartiers_(ss);
   var historique = [];
   var shH = ss.getSheetByName(FEUILLES.hist);
   if (shH && shH.getLastRow() > 1) {
@@ -35,6 +82,7 @@ function lireTout(sig, hdepuis) {
       conventionne: ph.conventionne, telephone: ph.telephone, derniere: ph.derniere, statut: ph.statut, commentaire: ph.commentaire,
       nbVisites: +ph.nbVisites || 0, actif: ph.actif, prochaine: ph.prochaine, titulaire: ph.titulaire });
     var pr = { id: 'P-' + ph.code, code: ph.code, nom: ph.nom, lieu: ph.nom, quartier: ph.quartier, commune: ph.commune, zone: ph.zone,
+      territoire: ph.territoire || '', subdivision: ph.subdivision || '', secteur: ph.secteur || '',
       horaireMatin: ph.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: ph.horaireSoir || HORAIRES_PHARMACIE[1], lat: ph.lat, lon: ph.lon, origineGps: ph.origineGps || '' };
     JOURS_CLES.forEach(function (j) { pr[j] = 'Matin et soir'; });
     presences.push(pr);
@@ -50,9 +98,9 @@ function lireTout(sig, hdepuis) {
   var shEtab = ss.getSheetByName(FEUILLES.etablissements);
   if (shEtab && shEtab.getLastRow() >= 1 && shEtab.getLastColumn() >= 1) {
     var entEtab = shEtab.getRange(1, 1, 1, shEtab.getLastColumn()).getValues()[0].map(normaliser);
-    var champsEtab = CHAMPS_ETABLISSEMENTS.slice();
-    if (entEtab.indexOf(normaliser('Position')) >= 0) champsEtab.push(['position', 'Position']);
-    if (entEtab.indexOf(normaliser('OrigineGPS')) >= 0) champsEtab.push(['origineGps', 'OrigineGPS']);
+    var champsEtab = champsAvecTerritoire_(CHAMPS_ETABLISSEMENTS);
+    if (entEtab.indexOf(normaliser('Position')) >= 0 && !champsEtab.some(function (c) { return c[0] === 'position'; })) champsEtab.push(['position', 'Position']);
+    if (entEtab.indexOf(normaliser('OrigineGPS')) >= 0 && !champsEtab.some(function (c) { return c[0] === 'origineGps'; })) champsEtab.push(['origineGps', 'OrigineGPS']);
     ref.etablissements = lireObjets(shEtab, champsEtab, tz).filter(function (e) { return String(e.nom || '').trim() !== ''; });
   } else {
     ref.etablissements = [];
@@ -166,7 +214,7 @@ function fusionnerDelegue(ancien, nouveau) {
 }
 
 function lirePharmacies(ss, tz) {
-  return lireObjets(ss.getSheetByName(FEUILLES.pharmacies), CHAMPS_PHARMACIES, tz).filter(function (p) { return p.code !== '' && p.nom !== ''; });
+  return lireObjets(ss.getSheetByName(FEUILLES.pharmacies), champsAvecTerritoire_(CHAMPS_PHARMACIES), tz).filter(function (p) { return p.code !== '' && p.nom !== ''; });
 }
 function lireListes(ss, tz) {
   var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [], activitesPharmacie: [], produits: [] };

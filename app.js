@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.41';
+  var APP_VERSION = '3.31.42';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.42', [
+      'Territoires & Quartiers : pilotage dynamique des subdivisions, secteurs et quartiers depuis la base (Abidjan & Intérieur)',
+      'Saisie intelligente : recherche tolérante aux variantes (ex. 8eme tranche) et remplissage automatique secteur, subdivision, commune, zone, territoire et fil d\'Ariane'
+    ]],
     ['3.31.41', [
       'Planifier & Moteur : génération semaine préservée depuis Critères, critères/remplacements isolés par commune et par jour, et ordre GPS/horaire fiabilisé',
       'Synchronisation & Comptes rendus : correction des suppressions serveur, file d\'envoi résiliente et mode Express Pharmacies/boutons corrigés'
@@ -1584,13 +1588,15 @@
     var def = quartiersDefautObjets();
     if (!S.data || !S.data.quartiers || !S.data.quartiers.length) return def;
     var existants = {}, res = [];
+    function cleQ(q) {
+      var com = (typeof communeParente === 'function' ? communeParente(q.commune || '') : (q.commune || ''));
+      return [normaliser(com), normaliser(q.quartier || ''), normaliser(q.secteur || '')].join('|');
+    }
     S.data.quartiers.forEach(function (q) {
-      var cle = (q.quartier || '').trim().toLowerCase();
-      if (cle) { existants[cle] = true; res.push(q); }
+      if (q && (q.quartier || q.secteur)) { existants[cleQ(q)] = true; res.push(q); }
     });
     def.forEach(function (q) {
-      var cle = (q.quartier || '').trim().toLowerCase();
-      if (!existants[cle]) res.push(q);
+      if (!existants[cleQ(q)]) res.push(q);
     });
     return res;
   }
@@ -1627,9 +1633,32 @@
   // ------------------------------------------------------------------ Mise en forme
   var JOURS_COURTS = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'];
   var MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  var ZONES = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest', 'Zone Intérieur'];
-  // 3.24.22 : villes de l'intérieur (zone « Zone Intérieur ») : la recherche Google Maps vise la ville, pas Abidjan
-  function villeCarte(o) { return o.zone === 'Zone Intérieur' ? 'Côte d\'Ivoire' : 'Abidjan'; }
+  var ZONES = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest', 'Zone Intérieur', 'Intérieur'];
+  var _communEstTerritoireInterieur = (typeof window !== 'undefined' && typeof window.estTerritoireInterieur === 'function') ? window.estTerritoireInterieur : null;
+  var _communResoudreTerritoire = (typeof window !== 'undefined' && typeof window.resoudreTerritoire === 'function') ? window.resoudreTerritoire : null;
+  function estTerritoireInterieur(o) {
+    if (_communEstTerritoireInterieur) {
+      try { if (_communEstTerritoireInterieur(o)) return true; } catch (e) {}
+    }
+    if (!o) return false;
+    if (typeof o === 'string') {
+      var sn = normaliser(o);
+      if (sn === 'abidjan' || sn === 'grandabidjan') return false;
+      if (sn === 'interieur' || sn === 'zoneinterieur' || sn.indexOf('interieur') >= 0) return true;
+      return typeof estCommuneInterieur === 'function' ? estCommuneInterieur(o) : false;
+    }
+    var t = normaliser(o.territoire || '');
+    if (t === 'interieur' || t.indexOf('interieur') >= 0) return true;
+    if (t === 'abidjan' || t === 'grandabidjan') return false;
+    var z = normaliser(o.zone || '');
+    if (z === 'interieur' || z === 'zoneinterieur' || z.indexOf('interieur') >= 0) return true;
+    var c = normaliser(o.commune || '');
+    if (c === 'interieur' || c === 'zoneinterieur' || c.indexOf('interieur') >= 0) return true;
+    if (typeof estCommuneInterieur === 'function' && o.commune && estCommuneInterieur(o.commune)) return true;
+    return false;
+  }
+  // 3.24.22 : villes de l'intérieur (zone « Intérieur » / « Zone Intérieur ») : la recherche Google Maps vise la Côte d'Ivoire
+  function villeCarte(o) { return estTerritoireInterieur(o) ? 'Côte d\'Ivoire' : 'Abidjan'; }
 
   function esc(s) {
     var t = String(s === undefined || s === null ? '' : s).replace(/\s{2,}/g, ' ');
@@ -1724,28 +1753,294 @@
     'Abobo – Baoulé & Avocatier',
     'Abobo – Sud & Plaque'
   ];
+  function normaliserRechercheListe(s) {
+    return sansAccents(String(s || '')).toLowerCase()
+      .replace(/(\d+)\s*(?:er|re|ere|ème|eme|e)\b/g, '$1e')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+  function optionCorrespondRecherche(op, qBrut, qNorm) {
+    if (!qNorm && !String(qBrut || '').trim()) return true;
+    var champs = [
+      op.lib, op.libRecherche, op.nomCourt, op.sousTitre,
+      op.secteur, op.quartier, op.variantes, op.commune, op.subdivision
+    ].filter(Boolean).join(' ');
+    var compact = normaliser(champs);
+    if (qNorm && compact.indexOf(qNorm) >= 0) return true;
+    var normChamp = normaliserRechercheListe(champs);
+    var normChampCompact = normChamp.replace(/\s+/g, '');
+    var qRech = normaliserRechercheListe(qBrut);
+    if (!qRech) return true;
+    var qRechCompact = qRech.replace(/\s+/g, '');
+    if (normChampCompact.indexOf(qRechCompact) >= 0) return true;
+    var tokens = qRech.split(/\s+/).filter(Boolean);
+    return tokens.length > 0 && tokens.every(function (t) {
+      return normChamp.indexOf(t) >= 0 || normChampCompact.indexOf(t) >= 0;
+    });
+  }
+  function formaterResolutionTerritoire(match, qFallback, comFallback) {
+    var com = communeParente(match.commune) || match.commune || comFallback || '';
+    var estInt = estTerritoireInterieur(match);
+    var terr = String(match.territoire || '').trim() || (estInt ? 'Intérieur' : 'Abidjan');
+    var zone = String(match.zone || '').trim();
+    if (estInt && (!zone || normaliser(zone) === 'interieur')) zone = zone || 'Intérieur';
+    var sub = String(match.subdivision || '').trim().replace(/\s+-\s+/g, ' – ');
+    if (!sub && estGrandeCommune(com)) {
+      if (match.commune && match.commune !== com) sub = match.commune.replace(/\s+-\s+/g, ' – ');
+      else if (typeof zoneDeQuartier === 'function') sub = zoneDeQuartier(com, match.quartier || qFallback, '');
+    }
+    var sec = String(match.secteur || '').trim();
+    var quart = String(match.quartier || qFallback || '').trim();
+    if (/^cocody$/i.test(com) && /^centre$/i.test(quart)) quart = 'Cocody Centre';
+    return {
+      quartier: quart,
+      secteur: sec,
+      subdivision: sub,
+      commune: com,
+      zone: zone,
+      territoire: terr,
+      lat: isFinite(match.lat) && match.lat !== null ? +match.lat : null,
+      lon: isFinite(match.lon) && match.lon !== null ? +match.lon : null
+    };
+  }
+  function resoudreTerritoire(saisie, communeIndice, listeQuartiers) {
+    if (Array.isArray(communeIndice)) { listeQuartiers = communeIndice; communeIndice = ''; }
+    var qs = listeQuartiers || (typeof quartiers === 'function' ? quartiers() : []);
+    var qBrut = '', comInd = String(communeIndice || '').trim();
+    if (saisie && typeof saisie === 'object') {
+      qBrut = String(saisie.secteur || saisie.quartier || saisie.commune || '').trim();
+      if (!comInd) comInd = String(saisie.commune || '').trim();
+    } else {
+      qBrut = String(saisie || '').trim();
+    }
+    var mEnc = qBrut.match(/^(.+?)\s*(?:::|\|)\s*(.+)$/);
+    if (mEnc) {
+      if (!comInd) comInd = mEnc[1].trim();
+      qBrut = mEnc[2].trim();
+    }
+    if (!qBrut && !comInd) return null;
+    if (_communResoudreTerritoire && !Array.isArray(saisie)) {
+      try {
+        var reqExt = (typeof saisie === 'object' && saisie !== null && !mEnc)
+          ? Object.assign({}, saisie, comInd && !saisie.commune ? { commune: comInd } : {})
+          : { quartier: qBrut, secteur: qBrut, commune: comInd || '' };
+        var ext = _communResoudreTerritoire(reqExt, qs);
+        if (ext && ext.matched && (ext.quartier || ext.secteur || ext.commune)) {
+          if (!ext.territoire) ext.territoire = estTerritoireInterieur(ext) ? 'Intérieur' : 'Abidjan';
+          if (ext.territoire === 'Intérieur' && !ext.zone) ext.zone = 'Intérieur';
+          return ext;
+        }
+      } catch (e) {}
+    }
+    var qNorm = normaliser(qBrut);
+    var qRech = normaliserRechercheListe(qBrut).replace(/\s+/g, '');
+    var cParentNorm = comInd ? normaliser(communeParente(comInd)) : '';
+    var matchCommune = function (qObj) {
+      if (!cParentNorm) return true;
+      var qp = normaliser(communeParente(qObj.commune || ''));
+      return qp === cParentNorm || normaliser(qObj.commune || '') === cParentNorm || normaliser(qObj.subdivision || '') === cParentNorm;
+    };
+    var choisir = function (cands) {
+      if (!cands.length) return null;
+      if (cParentNorm) {
+        var dansCom = cands.filter(matchCommune);
+        if (dansCom.length) return dansCom[0];
+      }
+      return cands[0];
+    };
+    var trouve = null;
+    if (qNorm) {
+      trouve = choisir(qs.filter(function (q) { return q.secteur && (normaliser(q.secteur) === qNorm || (qRech && normaliserRechercheListe(q.secteur).replace(/\s+/g, '') === qRech)); }));
+      if (!trouve) {
+        trouve = choisir(qs.filter(function (q) {
+          return normaliser(q.quartier) === qNorm || (qRech && normaliserRechercheListe(q.quartier).replace(/\s+/g, '') === qRech);
+        }));
+      }
+      if (!trouve) {
+        trouve = choisir(qs.filter(function (q) {
+          if (!q.variantes) return false;
+          return String(q.variantes).split(/[,;|/]+/).some(function (v) {
+            return normaliser(v) === qNorm || (qRech && normaliserRechercheListe(v).replace(/\s+/g, '') === qRech);
+          });
+        }));
+      }
+      if (!trouve && qRech.length >= 3) {
+        var partiels = qs.filter(function (q) {
+          var qn = normaliserRechercheListe(q.quartier).replace(/\s+/g, '');
+          var sn = normaliserRechercheListe(q.secteur || '').replace(/\s+/g, '');
+          var vn = normaliserRechercheListe(q.variantes || '').replace(/\s+/g, '');
+          return (sn && sn.indexOf(qRech) >= 0) || (qn && qn.indexOf(qRech) >= 0) || (vn && vn.indexOf(qRech) >= 0);
+        });
+        partiels.sort(function (a, b) { return String(a.secteur || a.quartier || '').length - String(b.secteur || b.quartier || '').length; });
+        trouve = choisir(partiels);
+      }
+      if (!trouve) {
+        trouve = choisir(qs.filter(function (q) { return normaliser(communeParente(q.commune || '')) === qNorm; }));
+      }
+    } else if (cParentNorm) {
+      trouve = qs.filter(matchCommune)[0] || null;
+    }
+    if (trouve) return formaterResolutionTerritoire(trouve, qBrut, comInd);
+    if (typeof centroideVilleInterieur === 'function') {
+      var cv = centroideVilleInterieur(qBrut || comInd);
+      if (cv) {
+        return {
+          quartier: qBrut || cv.nom,
+          secteur: '',
+          subdivision: '',
+          commune: cv.nom,
+          zone: 'Intérieur',
+          territoire: 'Intérieur',
+          lat: cv.lat,
+          lon: cv.lon
+        };
+      }
+    }
+    return null;
+  }
+  function encodeChoixTerritoire(q) {
+    if (!q) return '';
+    var com = (typeof communeParente === 'function' ? communeParente(q.commune) : q.commune) || q.commune || '';
+    var nom = String(q.secteur || q.quartier || '').trim();
+    return com && nom ? (com + ' :: ' + nom) : (nom || com);
+  }
+  function resoudreChoixQuartier(v, communeIndice) {
+    var val = String(v || '').trim();
+    if (!val) return null;
+    var comFromVal = '', qFromVal = val;
+    var m = val.match(/^(.+?)\s*(?:::|\|)\s*(.+)$/);
+    if (m) {
+      comFromVal = m[1].trim();
+      qFromVal = m[2].trim();
+    }
+    var comUse = comFromVal || '';
+    if (!comUse && communeIndice) {
+      var qs = (typeof quartiers === 'function') ? quartiers() : [];
+      var qN = normaliser(qFromVal), cN = normaliser(communeParente(communeIndice));
+      var existeDansCom = qs.some(function (q) {
+        if (normaliser(communeParente(q.commune || '')) !== cN) return false;
+        return normaliser(q.secteur || '') === qN || normaliser(q.quartier || '') === qN;
+      });
+      if (existeDansCom) comUse = communeIndice;
+    }
+    var res = resoudreTerritoire(qFromVal, comUse);
+    if (res) return res;
+    var com = comUse || communeIndice || '';
+    var estInt = estTerritoireInterieur({ commune: com, quartier: qFromVal });
+    return {
+      quartier: qFromVal,
+      secteur: '',
+      subdivision: '',
+      commune: com,
+      zone: estInt ? 'Intérieur' : '',
+      territoire: estInt ? 'Intérieur' : (com ? 'Abidjan' : ''),
+      lat: null,
+      lon: null
+    };
+  }
+  function valeurSelecteurQuartier(quartierOuSecteur, communeIndice) {
+    var qVal = String(quartierOuSecteur || '').trim();
+    if (!qVal || /^NL$/i.test(qVal)) return '';
+    var qs = (typeof quartiers === 'function') ? quartiers() : [];
+    var qNorm = normaliser(qVal);
+    var coms = {};
+    qs.forEach(function (q) {
+      var nom = q.secteur || q.quartier || '';
+      if (normaliser(nom) === qNorm) {
+        var cp = normaliser(communeParente(q.commune || ''));
+        if (cp) coms[cp] = true;
+      }
+    });
+    if (Object.keys(coms).length > 1 && communeIndice) {
+      return encodeChoixTerritoire({ commune: communeParente(communeIndice) || communeIndice, quartier: qVal });
+    }
+    return qVal;
+  }
+  function appliquerTerritoireSurLieu(cible, res) {
+    if (!cible || !res) return cible;
+    if (res.quartier) cible.quartier = res.quartier;
+    cible.secteur = res.secteur || '';
+    cible.subdivision = res.subdivision || '';
+    if (res.commune) cible.commune = res.commune;
+    if (res.zone) cible.zone = res.zone;
+    if (res.territoire) cible.territoire = res.territoire;
+    var gpsVideOuRef = !cible.lat || !cible.lon || !isFinite(+cible.lat) || !isFinite(+cible.lon) || cible.origineGps === 'Quartier de référence';
+    if (gpsVideOuRef && isFinite(res.lat) && isFinite(res.lon) && res.lat !== null && res.lon !== null) {
+      cible.lat = res.lat;
+      cible.lon = res.lon;
+      cible.origineGps = 'Quartier de référence';
+    }
+    return cible;
+  }
+  function filArianeTerritoire(obj) {
+    if (!obj) return '';
+    var info = obj;
+    var cleQ = obj.secteur || obj.quartier;
+    if (cleQ && !/^NL$/i.test(cleQ) && (!obj.territoire || (!obj.subdivision && !estTerritoireInterieur(obj)))) {
+      var res = resoudreChoixQuartier(cleQ, obj.commune);
+      if (res) {
+        info = {
+          quartier: obj.quartier || res.quartier,
+          secteur: obj.secteur || res.secteur,
+          subdivision: obj.subdivision || res.subdivision,
+          commune: obj.commune || res.commune,
+          zone: obj.zone || res.zone,
+          territoire: obj.territoire || res.territoire
+        };
+      }
+    }
+    var estInt = estTerritoireInterieur(info);
+    var bruts = estInt
+      ? [info.commune || info.quartier, 'Intérieur']
+      : (info.secteur
+          ? [info.quartier, info.subdivision, info.commune, info.zone, info.territoire || 'Abidjan']
+          : [info.subdivision, info.commune, info.zone, info.territoire || 'Abidjan']);
+    var vus = {}, out = [];
+    bruts.forEach(function (p) {
+      var s = String(p || '').trim();
+      if (!s) return;
+      var k = normaliser(s);
+      if (!vus[k]) { vus[k] = true; out.push(s); }
+    });
+    return out.join(' · ');
+  }
+  function trierSecteurs(liste) {
+    return liste.sort(function (a, b) {
+      var ia = ORDRE_SECTEURS.indexOf(a), ib = ORDRE_SECTEURS.indexOf(b);
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      return a.localeCompare(b, 'fr');
+    });
+  }
   function secteursDeGrandeCommune(par) {
+    var qs = (typeof quartiers === 'function') ? quartiers() : [];
+    var setSub = {};
+    qs.forEach(function (q) {
+      if (communeParente(q.commune) === par) {
+        var sub = String(q.subdivision || '').trim().replace(/\s+-\s+/g, ' – ');
+        if (sub && sub !== par) setSub[sub] = true;
+      }
+    });
+    var subs = Object.keys(setSub);
+    if (subs.length) return trierSecteurs(subs);
     if (par === 'Cocody') return ['Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre'];
     if (par === 'Yopougon') return ['Yopougon – Niangon', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Centre & Mairie', 'Yopougon – Sud & Gesco'];
     if (par === 'Abobo') return ['Abobo – Nord & PK18', 'Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Sud & Plaque'];
-    var qs = (typeof quartiers === 'function') ? quartiers() : [];
     var set = {};
     qs.forEach(function (q) {
       if (communeParente(q.commune) === par && q.commune !== par) {
         set[q.commune] = true;
       }
     });
-    return Object.keys(set).sort(function (a, b) {
-      var ia = ORDRE_SECTEURS.indexOf(a), ib = ORDRE_SECTEURS.indexOf(b);
-      if (ia >= 0 && ib >= 0) return ia - ib;
-      return a.localeCompare(b, 'fr');
-    });
+    return trierSecteurs(Object.keys(set));
   }
   function communesListe() {
     var vus = {}, l = [];
     quartiers().forEach(function (q) {
       var com = communeParente(q.commune);
-      if (!vus[com]) { vus[com] = true; l.push({ commune: com, zone: q.zone }); }
+      var z = estTerritoireInterieur(q) ? 'Intérieur' : (q.zone || '');
+      if (com && !vus[com]) { vus[com] = true; l.push({ commune: com, zone: z }); }
     });
     return l.sort(function (a, b) { return ZONES.indexOf(a.zone) - ZONES.indexOf(b.zone) || a.commune.localeCompare(b.commune, 'fr'); });
   }
@@ -1940,11 +2235,11 @@
   function groupeChoix(f, o) {
     var val = valeurChemin(o.chemin), sel = o.multiple ? ensemble(val) : null;
     var ouvert = !o.repliable || !!(f.ouverts && f.ouverts[o.id]);
-    var q = normaliser((f.q && f.q[o.id]) || '');
+    var qBrut = (f.q && f.q[o.id]) || '', q = normaliser(qBrut);
     function puce(op) {
       var actif = o.multiple ? !!sel[op.v] : val === op.v;
-      var matchQ = !q || normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')).indexOf(q) >= 0;
-      var dataLib = esc(normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')));
+      var matchQ = optionCorrespondRecherche(op, qBrut, q);
+      var dataLib = esc(normaliser([op.lib, op.libRecherche, op.nomCourt, op.sousTitre, op.secteur, op.quartier, op.variantes, op.commune].filter(Boolean).join(' ')));
 
       if (op.parent) {
         var secsDuPar = (typeof secteursDeGrandeCommune === 'function') ? secteursDeGrandeCommune(op.commune) : [];
@@ -1965,9 +2260,10 @@
           (op.sousTitre ? '<small class="sec-reperes">' + esc(op.sousTitre) + '</small>' : '') +
           '</button>';
       }
+      var libAff = (q && op.libRecherche) ? op.libRecherche : op.lib;
       return '<button type="button" class="puce" data-a="choix" data-chemin="' + o.chemin + '" data-m="' + (o.multiple ? 1 : 0) + '" data-v="' + esc(op.v) +
         '" data-lib="' + dataLib + '" aria-pressed="' + actif + '"' + (!matchQ ? ' hidden' : '') + '>' +
-        esc(op.lib) + (op.n !== undefined ? '<small>' + op.n + '</small>' : '') + '</button>';
+        esc(libAff) + (op.n !== undefined ? '<small>' + op.n + '</small>' : '') + '</button>';
     }
     var nb = o.multiple ? val.length : 0;
     var totalOpts = o.sections ? o.sections.reduce(function (s, sec) { return s + sec.options.length; }, 0) : (o.options ? o.options.length : 0);
@@ -1980,11 +2276,12 @@
       (o.multiple && ouvert ? '<span class="groupe-actions"><button type="button" class="lien-action" data-a="groupeTout" data-chemin="' + o.chemin + '">Tous</button>' +
         (nb ? '<button type="button" class="lien-action" data-a="groupeAucun" data-chemin="' + o.chemin + '">Effacer</button>' : '') + '</span>' : '') + '</div>';
     // 3.27.27 : barre de recherche visible même groupe replié (Hôpitaux, Spécialités, Zone) ; taper ouvre le groupe
-    var barreRech = o.recherche ? '<div class="recherche petite">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="' + o.id + '" placeholder="Rechercher…" value="' +
+    var rechPh = o.placeholder || 'Rechercher…';
+    var barreRech = o.recherche ? '<div class="recherche petite">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="' + o.id + '" placeholder="' + esc(rechPh) + '" value="' +
       esc((f.q && f.q[o.id]) || '') + '" aria-label="Rechercher dans ' + esc(o.titre) + '"></div>' : '';
     if (!ouvert) return h + (o.rechercheVisible ? barreRech : '') + '</section>';
     if (o.aide) h += '<p class="discret groupe-aide">' + esc(o.aide) + '</p>';
-    if (o.recherche) h += '<div class="recherche petite">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="' + o.id + '" placeholder="Rechercher…" value="' +
+    if (o.recherche) h += '<div class="recherche petite">' + icone('loupe') + '<input type="search" data-f="chercheOption" data-g="' + o.id + '" placeholder="' + esc(rechPh) + '" value="' +
       esc((f.q && f.q[o.id]) || '') + '" aria-label="Rechercher dans ' + esc(o.titre) + '"></div>';
     if (o.sections) {
       // 3.25.31 : sections repliables en accordéon (zones géographiques, quartiers…)
@@ -1996,13 +2293,13 @@
       if (ouv === undefined || ouv === null) {
         if (o.multiple) {
           var secAvecSel = o.sections.filter(function (sec) {
-            return !sec.fermeeParDefaut && sec.options.some(function (op) { return sel && sel[op.v]; });
+            return sec.options.some(function (op) { return !op.entete && sel && sel[op.v]; });
           })[0];
           var premiereSecDispo = o.sections.filter(function (sec) { return !sec.fermeeParDefaut; })[0] || o.sections[0];
           ouv = secAvecSel ? secAvecSel.titre : (memo[accCle] !== undefined ? memo[accCle] : (premiereSecDispo ? premiereSecDispo.titre : ''));
         } else {
           var secAvecVal = o.sections.filter(function (sec) {
-            return !sec.fermeeParDefaut && sec.options.some(function (op) { return op.v === val; });
+            return sec.options.some(function (op) { return !op.entete && op.v === val; });
           })[0];
           var premiereSecDispo = o.sections.filter(function (sec) { return !sec.fermeeParDefaut; })[0] || o.sections[0];
           ouv = secAvecVal ? secAvecVal.titre : (memo[accCle] !== undefined ? memo[accCle] : (premiereSecDispo ? premiereSecDispo.titre : ''));
@@ -2011,9 +2308,9 @@
         f.secOuvertes[accCle] = ouv;
       }
       o.sections.forEach(function (sec) {
-        var nbSel = o.multiple ? sec.options.filter(function (op) { return sel && sel[op.v]; }).length : (sec.options.some(function (op) { return op.v === val; }) ? 1 : 0);
+        var nbSel = o.multiple ? sec.options.filter(function (op) { return !op.entete && sel && sel[op.v]; }).length : (sec.options.some(function (op) { return !op.entete && op.v === val; }) ? 1 : 0);
         var nbTot = sec.options.filter(function (op) { return !op.entete; }).length;
-        var aMatch = !q || sec.options.some(function (op) { return normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')).indexOf(q) >= 0; });
+        var aMatch = !q || sec.options.some(function (op) { return !op.entete && optionCorrespondRecherche(op, qBrut, q); });
         var ferme = q ? !aMatch : (ouv !== sec.titre);
         var ariaExp = q ? aMatch : !ferme;
 
@@ -2051,13 +2348,13 @@
           flushSimples();
           flushSecteurs();
         } else {
-                    if (q) {
+          if (q) {
             var htmlSec = '', enteteEnCours = '';
             sec.options.forEach(function (op) {
               if (op.entete) {
                 enteteEnCours = op.lib;
               } else {
-                var m = !q || normaliser(op.lib + ' ' + (op.nomCourt || '') + ' ' + (op.sousTitre || '')).indexOf(q) >= 0;
+                var m = optionCorrespondRecherche(op, qBrut, q);
                 if (m) {
                   if (enteteEnCours) {
                     htmlSec += '<div class="sous-entete-choix">' + esc(enteteEnCours) + '</div>';
@@ -2101,24 +2398,40 @@
     var secs = [];
     var qs = (typeof quartiers === 'function') ? quartiers() : [];
     var groupes = {};
-    var quartiersParSecteur = {};
+    var quartiersParSubdivision = {};
+    var secteursParSubdivision = {};
+
+    function ajouterRepere(carte, cle, val) {
+      var v = String(val || '').trim();
+      if (!v || /^NL$/i.test(v)) return;
+      carte[cle] = carte[cle] || [];
+      if (!carte[cle].some(function (x) { return normaliser(x) === normaliser(v); })) {
+        carte[cle].push(v);
+      }
+    }
 
     qs.forEach(function (q) {
-      var sec = q.commune;
-      quartiersParSecteur[sec] = quartiersParSecteur[sec] || [];
-      if (quartiersParSecteur[sec].indexOf(q.quartier) < 0) {
-        quartiersParSecteur[sec].push(q.quartier);
+      var com = String(q.commune || '').trim();
+      if (!com) return;
+      var par = communeParente(com);
+      var estInt = estTerritoireInterieur(q);
+      var z = estInt ? 'Intérieur' : (q.zone || 'Zone Autre');
+      var sub = String(q.subdivision || '').trim().replace(/\s+-\s+/g, ' – ');
+      var sec = estGrandeCommune(par)
+        ? (sub || (com !== par ? com.replace(/\s+-\s+/g, ' – ') : '') || ((typeof zoneDeQuartier === 'function') ? zoneDeQuartier(par, q.quartier, '') : par))
+        : par;
+      if (sec) {
+        ajouterRepere(secteursParSubdivision, sec, q.secteur);
+        ajouterRepere(quartiersParSubdivision, sec, q.quartier);
       }
-      var z = q.zone || 'Zone Autre';
       groupes[z] = groupes[z] || {};
-      var par = communeParente(sec);
       groupes[z][par] = groupes[z][par] || [];
-      if (groupes[z][par].indexOf(sec) < 0) {
+      if (sec && groupes[z][par].indexOf(sec) < 0) {
         groupes[z][par].push(sec);
       }
     });
 
-    // 3.26.7 : Garantir systématiquement la présence des 3 grandes communes et de leurs 4 secteurs
+    // 3.26.7 : Garantir systématiquement la présence des 3 grandes communes et de leurs subdivisions
     groupes['Zone Nord'] = groupes['Zone Nord'] || {};
     groupes['Zone Nord']['Abobo'] = secteursDeGrandeCommune('Abobo');
     groupes['Zone Est'] = groupes['Zone Est'] || {};
@@ -2144,6 +2457,18 @@
       'Abobo – Sud & Plaque': 'Sagbé · Plaque 1-2 · Anador'
     };
 
+    function reperesDeSub(sec) {
+      var liste = [];
+      (quartiersParSubdivision[sec] || []).forEach(function (x) {
+        if (!liste.some(function (y) { return normaliser(y) === normaliser(x); })) liste.push(x);
+      });
+      (secteursParSubdivision[sec] || []).forEach(function (x) {
+        if (!liste.some(function (y) { return normaliser(y) === normaliser(x); })) liste.push(x);
+      });
+      if (liste.length) return liste.slice(0, 3).join(' · ');
+      return reperesOfficiels[sec] || '';
+    }
+
     zonesOrdonnees.forEach(function (z) {
       if (!groupes[z]) return;
       var opts = [];
@@ -2155,24 +2480,19 @@
           // Commune standard non segmentée (Plateau, Adjamé, Marcory, Port-Bouët, Bingerville...)
           opts.push({ v: par, lib: par, commune: par });
         } else {
-          // Seules les 3 grandes communes (Abobo, Cocody, Yopougon) sont segmentées en 4 sous-secteurs
+          // Seules les 3 grandes communes (Abobo, Cocody, Yopougon) sont segmentées en sous-secteurs
           opts.push({ v: par, lib: par + ' (Toute la commune)', parent: true, commune: par });
-          secteurs.sort(function (a, b) {
-            var ia = ORDRE_SECTEURS.indexOf(a), ib = ORDRE_SECTEURS.indexOf(b);
-            if (ia >= 0 && ib >= 0) return ia - ib;
-            return a.localeCompare(b, 'fr');
-          }).forEach(function (sec) {
+          trierSecteurs(secteurs.slice()).forEach(function (sec) {
             var nomCourt = sec.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '');
             // Exception Cocody Centre : garder exceptionnellement Cocody Centre
             if (par === 'Cocody' && nomCourt.toLowerCase() === 'centre') {
               nomCourt = 'Cocody Centre';
             }
-            var rep = reperesOfficiels[sec] || (quartiersParSecteur[sec] || []).slice(0, 3).join(' · ');
             opts.push({
               v: sec,
               lib: sec,
               nomCourt: nomCourt,
-              sousTitre: rep,
+              sousTitre: reperesDeSub(sec),
               estSecteur: true,
               commune: par
             });
@@ -2191,7 +2511,22 @@
   function selecteurListe(id, cfg) {
     S.ui.listes[id] = cfg;
     var tout = cfg.sections ? [].concat.apply([], cfg.sections.map(function (x) { return x.options; })) : cfg.options;
-    var lib = (tout.filter(function (o) { return o[0] === cfg.valeur; })[0] || [])[1];
+    var trouve = tout.filter(function (o) { return o[0] === cfg.valeur; })[0];
+    if (!trouve && cfg.valeur && cfg.sections) {
+      var valNorm = normaliser(cfg.valeur);
+      var comNorm = cfg.commune ? normaliser(communeParente(cfg.commune)) : '';
+      trouve = tout.filter(function (o) {
+        if (o[2] === 'entete') return false;
+        var m = (o[2] && typeof o[2] === 'object') ? o[2] : {};
+        return (normaliser(m.secteur || '') === valNorm || normaliser(m.quartier || '') === valNorm) && (!comNorm || normaliser(communeParente(m.commune || '')) === comNorm);
+      })[0] || tout.filter(function (o) {
+        return o[2] !== 'entete' && o[2] && typeof o[2] === 'object' && (normaliser(o[2].secteur || '') === valNorm || normaliser(o[2].quartier || '') === valNorm);
+      })[0];
+    }
+    var lib = (trouve || [])[1];
+    if (!lib && cfg.valeur && cfg.sections && !trouve) {
+      lib = String(cfg.valeur).replace(/^.+?\s*::\s*/, '');
+    }
     return (cfg.dom ? '<input type="hidden" id="' + id + '" value="' + esc(cfg.valeur || '') + '">' : '') +
       '<button type="button" class="selecteur" data-a="listeOuvrir" data-liste="' + esc(id) + '" id="' + esc(id) + 'Btn"' + (cfg.invalide ? ' aria-invalid="true"' : '') + '>' +
       '<span>' + esc(lib || cfg.vide || 'Choisir…') + '</span><b>▾</b></button>';
@@ -2224,139 +2559,135 @@
   }
   function sectionsQuartiers() {
     var qs = quartiers();
-    var grandAbidjanComs = [
-      'Abobo', 'Adjamé', 'Anyama', 'Attécoubé', 'Bingerville',
-      'Cocody', 'Koumassi', 'Marcory', 'Plateau', 'Port-Bouët',
-      'Songon', 'Treichville', 'Yopougon'
-    ];
-    var grandAbidjanNorm = grandAbidjanComs.map(normaliser);
+    var communesParChoix = {};
+    var quartiersAvecSecteurs = {};
+    qs.forEach(function (q) {
+      var nomQ0 = (q.quartier || '').trim();
+      var nomSec0 = (q.secteur || '').trim();
+      if ((!nomQ0 || /^NL$/i.test(nomQ0)) && !nomSec0) return;
+      var com0 = (q.commune || '').trim().replace(/\s+-\s+/g, ' – ');
+      var par0 = ((typeof communeParente === 'function') ? communeParente(com0) : com0) || com0;
+      if (/^cocody$/i.test(par0) && /^centre$/i.test(nomQ0)) nomQ0 = 'Cocody Centre';
+      var lib0 = nomSec0 || nomQ0;
+      var kq = normaliser(lib0);
+      if (!kq) return;
+      communesParChoix[kq] = communesParChoix[kq] || {};
+      if (par0) communesParChoix[kq][normaliser(par0)] = true;
+      if (nomSec0 && nomQ0) quartiersAvecSecteurs[normaliser(par0) + '|' + normaliser(nomQ0)] = true;
+    });
 
     var par = {};
+    var vusParGroupe = {};
     var interieur = [];
+    var vusInt = {};
 
     qs.forEach(function (q) {
       var nomQ = (q.quartier || '').trim();
-      if (!nomQ || /^NL$/i.test(nomQ)) return;
-      var com = (q.commune || '').trim().replace(/\s*-\s*/g, ' – ');
-      var zone = (q.zone || '').trim();
-      var secBdd = (q.secteur || '').trim();
-      var estInt = zone === 'Zone Intérieur' || zone === 'Zone Interieur' ||
-                   (zone && zone.toLowerCase().indexOf('intérieur') >= 0) ||
-                   (zone && zone.toLowerCase().indexOf('interieur') >= 0) ||
-                   (com && com.toLowerCase().indexOf('intérieur') >= 0) ||
-                   (com && com.toLowerCase().indexOf('interieur') >= 0);
+      var nomSec = (q.secteur || '').trim();
+      if ((!nomQ || /^NL$/i.test(nomQ)) && !nomSec) return;
+      var com = (q.commune || '').trim().replace(/\s+-\s+/g, ' – ');
+      var comParent = ((typeof communeParente === 'function') ? communeParente(com) : com) || com;
+      if (/^cocody$/i.test(comParent) && (/^centre$/i.test(nomQ) || /^cocody centre$/i.test(nomQ))) nomQ = 'Cocody Centre';
 
-      var parent = (typeof communeParente === 'function') ? communeParente(com) : com;
-      var normParent = normaliser(parent || '');
-      if (!estInt && grandAbidjanNorm.indexOf(normParent) < 0) {
-        estInt = true;
-      }
+      var libChoix = nomSec || nomQ;
+      var estInt = estTerritoireInterieur(q);
+      var sub = String(q.subdivision || '').trim().replace(/\s+-\s+/g, ' – ');
+      var zone = String(q.zone || '').trim();
+      var terr = String(q.territoire || '').trim() || (estInt ? 'Intérieur' : 'Abidjan');
+      var estAmbigu = Object.keys(communesParChoix[normaliser(libChoix)] || {}).length > 1;
+      var val = estAmbigu ? encodeChoixTerritoire({ commune: comParent || com, quartier: nomQ, secteur: nomSec }) : libChoix;
 
       if (estInt) {
-        interieur.push({ v: nomQ, lib: nomQ + (com && com !== nomQ && !estInt ? ' (' + com + ')' : '') });
+        var libInt = (comParent && normaliser(comParent) !== normaliser(libChoix)) ? (comParent + ' — ' + libChoix) : libChoix;
+        var cleInt = normaliser(val) || normaliser(libInt);
+        if (vusInt[cleInt]) return;
+        vusInt[cleInt] = true;
+        interieur.push([val, libInt, {
+          quartier: nomQ,
+          secteur: nomSec,
+          subdivision: sub,
+          commune: comParent || com,
+          zone: zone || 'Intérieur',
+          territoire: terr,
+          variantes: q.variantes || '',
+          libComplet: libInt + ' (Intérieur)'
+        }]);
         return;
       }
 
-      // Grand Abidjan : rattachement par commune et secteur
-      var groupeTitre = com;
-      if (normParent === 'cocody') {
-        if (nomQ.toLowerCase() === 'centre' || nomQ.toLowerCase() === 'cocody centre') nomQ = 'Cocody Centre';
-        var secTitre = '';
-        if (secBdd) {
-          var sN = normaliser(secBdd);
-          if (sN.indexOf('angre') >= 0 || sN.indexOf('tranche') >= 0) secTitre = 'Cocody – Angré';
-          else if (sN.indexOf('plateau') >= 0 || sN.indexOf('vallon') >= 0 || sN.indexOf('aghien') >= 0 || sN.indexOf('attoban') >= 0) secTitre = 'Cocody – Deux Plateaux';
-          else if (sN.indexOf('riviera') >= 0 || sN.indexOf('palmeraie') >= 0 || sN.indexOf('faya') >= 0 || sN.indexOf('abatta') >= 0) secTitre = 'Cocody – Riviera';
-          else if (sN.indexOf('centre') >= 0 || sN.indexOf('jean') >= 0 || sN.indexOf('danga') >= 0 || sN.indexOf('mermoz') >= 0) secTitre = 'Cocody – Centre';
+      var groupeTitre = sub;
+      if (!groupeTitre) {
+        if (estGrandeCommune(comParent)) {
+          groupeTitre = (com && com !== comParent) ? com : ((typeof zoneDeQuartier === 'function') ? zoneDeQuartier(comParent, nomQ, '') : comParent);
+        } else {
+          groupeTitre = comParent || com || 'Abidjan';
         }
-        if (!secTitre) secTitre = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Cocody', nomQ, '') : 'Cocody – Centre';
-        groupeTitre = secTitre || 'Cocody – Centre';
-      } else if (normParent === 'yopougon') {
-        var secTitreY = '';
-        if (secBdd) {
-          var sNy = normaliser(secBdd);
-          if (sNy.indexOf('niangon') >= 0 || sNy.indexOf('verte') >= 0 || sNy.indexOf('academie') >= 0) secTitreY = 'Yopougon – Niangon';
-          else if (sNy.indexOf('maroc') >= 0 || sNy.indexOf('toit') >= 0 || sNy.indexOf('bel air') >= 0 || sNy.indexOf('sideci') >= 0) secTitreY = 'Yopougon – Maroc & Toits Rouges';
-          else if (sNy.indexOf('gesco') >= 0 || sNy.indexOf('koute') >= 0 || sNy.indexOf('port-bouet 2') >= 0 || sNy.indexOf('sable') >= 0 || sNy.indexOf('industrielle') >= 0) secTitreY = 'Yopougon – Sud & Gesco';
-          else if (sNy.indexOf('centre') >= 0 || sNy.indexOf('mairie') >= 0 || sNy.indexOf('siporex') >= 0 || sNy.indexOf('ficgayo') >= 0) secTitreY = 'Yopougon – Centre & Mairie';
-        }
-        if (!secTitreY) secTitreY = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Yopougon', nomQ, '') : 'Yopougon – Centre & Mairie';
-        groupeTitre = secTitreY || 'Yopougon – Centre & Mairie';
-      } else if (normParent === 'abobo') {
-        var secTitreA = '';
-        if (secBdd) {
-          var sNa = normaliser(secBdd);
-          if (sNa.indexOf('pk18') >= 0 || sNa.indexOf('pk 18') >= 0 || sNa.indexOf('ndotre') >= 0 || sNa.indexOf('anonkoua') >= 0 || sNa.indexOf('belle ville') >= 0) secTitreA = 'Abobo – Nord & PK18';
-          else if (sNa.indexOf('baoule') >= 0 || sNa.indexOf('avocatier') >= 0 || sNa.indexOf('clouetcha') >= 0 || sNa.indexOf('sotra') >= 0 || sNa.indexOf('abobo-te') >= 0 || sNa.indexOf('abobote') >= 0) secTitreA = 'Abobo – Baoulé & Avocatier';
-          else if (sNa.indexOf('plaque') >= 0 || sNa.indexOf('sagbe') >= 0 || sNa.indexOf('anador') >= 0 || sNa.indexOf('dokui') >= 0) secTitreA = 'Abobo – Sud & Plaque';
-          else if (sNa.indexOf('centre') >= 0 || sNa.indexOf('mairie') >= 0 || sNa.indexOf('gare') >= 0 || sNa.indexOf('samake') >= 0 || sNa.indexOf('rail') >= 0) secTitreA = 'Abobo – Centre & Mairie';
-        }
-        if (!secTitreA) secTitreA = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier('Abobo', nomQ, '') : 'Abobo – Centre & Mairie';
-        groupeTitre = secTitreA || 'Abobo – Centre & Mairie';
+      }
+      groupeTitre = (groupeTitre || 'Abidjan').replace(/\s+-\s+/g, ' – ');
+
+      vusParGroupe[groupeTitre] = vusParGroupe[groupeTitre] || {};
+      var cleOpt = normaliser(val);
+      if (vusParGroupe[groupeTitre][cleOpt]) return;
+      vusParGroupe[groupeTitre][cleOpt] = true;
+
+      var libComplet = (nomSec && nomQ && normaliser(nomSec) !== normaliser(nomQ))
+        ? (nomSec + ' (' + nomQ + ' — ' + (comParent || com) + ')')
+        : ((comParent && normaliser(comParent) !== normaliser(libChoix)) ? (libChoix + ' (' + comParent + ')') : libChoix);
+
+      par[groupeTitre] = par[groupeTitre] || { parQuartier: {}, sansSousSecteur: [] };
+      var opt = [val, libChoix, {
+        quartier: nomQ,
+        secteur: nomSec,
+        subdivision: groupeTitre,
+        commune: comParent || com,
+        zone: zone,
+        territoire: terr,
+        variantes: q.variantes || '',
+        libComplet: libComplet
+      }];
+      var aSousSec = nomQ && quartiersAvecSecteurs[normaliser(comParent) + '|' + normaliser(nomQ)];
+      if (nomSec || aSousSec) {
+        var enteteNom = nomQ || nomSec;
+        par[groupeTitre].parQuartier[enteteNom] = par[groupeTitre].parQuartier[enteteNom] || [];
+        if (!nomSec) par[groupeTitre].parQuartier[enteteNom].unshift(opt);
+        else par[groupeTitre].parQuartier[enteteNom].push(opt);
       } else {
-        groupeTitre = parent || com;
-      }
-
-      groupeTitre = groupeTitre.replace(/\s*-\s*/g, ' – ');
-      par[groupeTitre] = par[groupeTitre] || [];
-      if (!par[groupeTitre].some(function (x) { return x[0] === nomQ; })) {
-        par[groupeTitre].push([nomQ, nomQ]);
+        par[groupeTitre].sansSousSecteur.push(opt);
       }
     });
-
-    var secteursOrdreParCom = {
-      'Cocody': ['Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre'],
-      'Yopougon': ['Yopougon – Centre & Mairie', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Niangon', 'Yopougon – Sud & Gesco'],
-      'Abobo': ['Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Nord & PK18', 'Abobo – Sud & Plaque']
-    };
-
-    // 3.27.33 : Regrouper Cocody, Yopougon et Abobo sous leur commune, secteurs en sous-titres
-    ['Abobo', 'Cocody', 'Yopougon'].forEach(function (com) {
-      var opts = [];
-      var ordre = secteursOrdreParCom[com] || [];
-      ordre.forEach(function (t) {
-        if (!par[t] || !par[t].length) return;
-        par[t].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
-        var nomCourt = t.replace(com + ' – ', '');
-        opts.push(['', nomCourt, 'entete']);
-        opts = opts.concat(par[t]);
-        delete par[t];
-      });
-      if (par[com] && par[com].length) {
-        par[com].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
-        opts = opts.concat(par[com]);
-        delete par[com];
-      }
-      if (opts.length) par[com] = opts;
-    });
-
-    // 3.27.33 : Toutes les communes du Grand Abidjan classées par ordre alphabétique strict A à Z !
-    var clesAbidjan = Object.keys(par).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
 
     var sections = [];
-    clesAbidjan.forEach(function (titre) {
-      if (par[titre] && par[titre].length) {
-        if (!/^(Abobo|Cocody|Yopougon)$/.test(titre)) {
-          par[titre].sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+    Object.keys(par).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (titre) {
+      var g = par[titre];
+      var clesEntetes = Object.keys(g.parQuartier).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+      var opts = [];
+      if (clesEntetes.length) {
+        clesEntetes.forEach(function (qNom) {
+          var l = g.parQuartier[qNom].slice().sort(function (a, b) {
+            var aBase = !a[2].secteur ? -1 : 0, bBase = !b[2].secteur ? -1 : 0;
+            if (aBase !== bBase) return aBase - bBase;
+            return a[1].localeCompare(b[1], 'fr');
+          });
+          opts.push(['', qNom, 'entete']);
+          opts = opts.concat(l);
+        });
+        if (g.sansSousSecteur.length) {
+          var reste = g.sansSousSecteur.slice().sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+          opts.push(['', 'Autres quartiers', 'entete']);
+          opts = opts.concat(reste);
         }
-        sections.push({ titre: titre, options: par[titre] });
+      } else {
+        opts = g.sansSousSecteur.slice().sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
       }
+      if (opts.length) sections.push({ titre: titre, options: opts });
     });
 
-    // Villes de l'intérieur toujours en dernier et repliées par défaut
+    // Intérieur toujours en dernier et replié par défaut
     if (interieur.length) {
-      var vuInt = {};
-      var optsInt = [];
-      interieur.forEach(function (it) {
-        if (!vuInt[it.v]) {
-          vuInt[it.v] = true;
-          optsInt.push([it.v, it.lib]);
-        }
-      });
-      optsInt.sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
+      interieur.sort(function (a, b) { return a[1].localeCompare(b[1], 'fr'); });
       sections.push({
-        titre: 'Villes de l\'intérieur',
-        options: optsInt,
+        titre: 'Intérieur',
+        options: interieur,
         fermeeParDefaut: true
       });
     }
@@ -2727,6 +3058,9 @@
           quartier: pr.quartier || '',
           commune: pr.commune || '',
           zone: pr.zone || '',
+          territoire: pr.territoire || '',
+          subdivision: pr.subdivision || '',
+          secteur: pr.secteur || '',
           lundi: pr.lundi || '',
           mardi: pr.mardi || '',
           mercredi: pr.mercredi || '',
@@ -2737,7 +3071,7 @@
           lat: isFinite(pr.lat) && pr.lat !== null ? +pr.lat : null,
           lon: isFinite(pr.lon) && pr.lon !== null ? +pr.lon : null,
           reperes: pr.reperes || '',
-          secteur: pr.secteur || '', origineGps: pr.origine_gps || ''
+          origineGps: pr.origine_gps || ''
         };
       });
 
@@ -2757,7 +3091,10 @@
           nbVisites: +ph.nb_visites || 0,
           actif: (ph.actif === false || ph.actif === 'Non' || ph.actif === '0') ? 'Non' : 'Oui',
           prochaine: ph.prochaine || '',
-          titulaire: ph.titulaire || ''
+          titulaire: ph.titulaire || '',
+          territoire: ph.territoire || '',
+          subdivision: ph.subdivision || '',
+          secteur: ph.secteur || ''
         });
 
         presences.push({
@@ -2768,6 +3105,9 @@
           quartier: ph.quartier || '',
           commune: ph.commune || '',
           zone: ph.zone || '',
+          territoire: ph.territoire || '',
+          subdivision: ph.subdivision || '',
+          secteur: ph.secteur || '',
           horaireMatin: ph.horaire_matin || '08:00 - 12:30',
           horaireSoir: ph.horaire_soir || '15:00 - 19:30',
           lat: isFinite(ph.lat) && ph.lat !== null ? +ph.lat : null,
@@ -2790,6 +3130,9 @@
           commune: e.commune || '',
           quartier: e.quartier || '',
           zone: e.zone || '',
+          territoire: e.territoire || '',
+          subdivision: e.subdivision || '',
+          secteur: e.secteur || '',
           lat: isFinite(e.lat) && e.lat !== null ? +e.lat : null,
           lon: isFinite(e.lon) && e.lon !== null ? +e.lon : null,
           telephone: e.telephone || '',
@@ -2800,12 +3143,15 @@
       // 5. Quartiers
       var quartiers = rawQuartiers.map(function (q) {
         return {
+          territoire: q.territoire || '',
+          subdivision: q.subdivision || '',
+          secteur: q.secteur || '',
+          variantes: q.variantes || '',
+          zone: q.zone || '',
           commune: q.commune || '',
           quartier: q.quartier || '',
-          zone: q.zone || '',
           lat: isFinite(q.lat) && q.lat !== null ? +q.lat : null,
-          lon: isFinite(q.lon) && q.lon !== null ? +q.lon : null,
-          secteur: q.secteur || ''
+          lon: isFinite(q.lon) && q.lon !== null ? +q.lon : null
         };
       });
 
@@ -4038,8 +4384,8 @@
       (l.length ? '<datalist id="listeDelegues">' + l.map(function (n) { return '<option value="' + esc(n) + '">'; }).join('') + '</datalist>' : '') +
       '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="numWhatsapp" data-f="ident" data-k="wa" inputmode="tel" autocomplete="tel" enterkeyhint="next" placeholder="Ex. 07 07 07 07 07" value="' + esc(br.wa) + '">' +
         '<span class="aide-champ">Pour envoyer votre tournée et vos comptes rendus en un geste.</span></label>' +
-      '<div class="champ"><span>Votre quartier (facultatif)</span>' + (pret() ? selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: br.depart || null, vide: 'Choisir un quartier…', sections: sectionsQuartiers(),
-          appliquer: function (v) { (S.ui.identBrouillon || {}).depart = v; } }) :
+      '<div class="champ"><span>Votre quartier (facultatif)</span>' + (pret() ? selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: br.depart ? valeurSelecteurQuartier(br.depart, br.departCommune) : null, commune: br.departCommune, vide: 'Choisir un quartier…', sections: sectionsQuartiers(),
+          appliquer: function (v) { var res = resoudreChoixQuartier(v); if (S.ui.identBrouillon) { S.ui.identBrouillon.depart = (res && res.quartier) ? res.quartier : v; S.ui.identBrouillon.departCommune = (res && res.commune) ? res.commune : ''; } } }) :
         '<p class="discret" style="margin:4px 0 0">Disponible dès que la base est reçue ; vous pourrez aussi le choisir plus tard dans Réglages.</p>') +
         '<span class="aide-champ">Point de départ de vos tournées.</span></div>' +
       '<label class="champ"><span>WhatsApp de votre superviseur (facultatif)</span><input type="tel" id="cfgWaResp" data-f="ident" data-k="wr" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(br.wr) + '">' +
@@ -7009,7 +7355,7 @@
     var liste = S.ui.couvFiltre === 'couvertes' ? couv : (S.ui.couvFiltre === 'non' ? non : cv);
     var autresCommunes = [], interieurCommunes = [];
     liste.forEach(function (c) {
-      if (c.zone === 'Zone Intérieur' || (c.zone && c.zone.toLowerCase().indexOf('intérieur') >= 0)) {
+      if (estTerritoireInterieur(c)) {
         interieurCommunes.push(c);
       } else {
         autresCommunes.push(c);
@@ -7353,12 +7699,23 @@
         A.lat = g0.lat; A.lon = g0.lon; A.src = 'gps'; A.prec = g0.prec;
         A.quartier = r0 && r0.quartier ? r0.quartier.quartier : '';
         A.commune = r0 && r0.quartier ? r0.quartier.commune : '';
+        if (A.quartier) {
+          var res0 = resoudreChoixQuartier(A.quartier, A.commune);
+          if (res0) {
+            A.secteur = res0.secteur || '';
+            A.subdivision = res0.subdivision || '';
+            A.commune = res0.commune || A.commune;
+            A.zone = res0.zone || '';
+            A.territoire = res0.territoire || '';
+          }
+        }
         A.label = A.quartier ? A.quartier + ' (ma position)' : 'Ma position';
         LS.set('autour', A);
       } else if (S.config && S.config.depart) {
-        var qDef = quartiers().filter(function (x) { return x.quartier === S.config.depart; })[0];
-        if (qDef) {
+        var qDef = resoudreChoixQuartier(S.config.depart, S.config.departCommune);
+        if (qDef && isFinite(qDef.lat) && isFinite(qDef.lon)) {
           A.lat = qDef.lat; A.lon = qDef.lon; A.quartier = qDef.quartier; A.commune = qDef.commune;
+          A.secteur = qDef.secteur || ''; A.subdivision = qDef.subdivision || ''; A.zone = qDef.zone || ''; A.territoire = qDef.territoire || '';
           A.label = qDef.quartier; A.src = 'gps_init';
           LS.set('autour', A);
         }
@@ -7380,28 +7737,36 @@
       icone('cible') + '<span>' + esc(txtGps) + '</span></button>';
 
     // 3.29.7 : le quartier où je suis (position GPS) s'affiche aussi dans « Ou choisir un quartier »
-    var valQuartier = ((A.src === 'quartier' || estGps) && A.quartier && !S.ui.attentePosition) ? A.quartier : '';
+    var valQuartier = ((A.src === 'quartier' || estGps) && (A.secteur || A.quartier) && !S.ui.attentePosition) ? (A.secteur || A.quartier) : '';
     var libelleQuartier = valQuartier || (S.ui.attentePosition ? 'Recherche de votre quartier…' : 'Choisir un autre quartier…');
+    var arianeAutour = valQuartier ? filArianeTerritoire(A) : '';
     var blocSelecteurQuartier = '<div class="champ"><span>Ou choisir un quartier</span>' + selecteurListe('autourQuartier', {
       titre: 'Choisir un quartier',
-      valeur: valQuartier || null,
+      valeur: valQuartier ? valeurSelecteurQuartier(valQuartier, A.commune) : null,
+      commune: A.commune,
       vide: libelleQuartier,
       sections: sectionsQuartiers(),
       appliquer: function (v) {
-        var q = quartiers().filter(function (x) { return x.quartier === v; })[0];
-        if (q) {
-          S.ui.autour.lat = q.lat;
-          S.ui.autour.lon = q.lon;
-          S.ui.autour.label = q.quartier;
-          S.ui.autour.quartier = q.quartier;
-          S.ui.autour.commune = q.commune;
+        var res = resoudreChoixQuartier(v);
+        if (res && (res.quartier || res.secteur)) {
+          if (isFinite(res.lat) && isFinite(res.lon) && res.lat !== null && res.lon !== null) {
+            S.ui.autour.lat = res.lat;
+            S.ui.autour.lon = res.lon;
+          }
+          S.ui.autour.label = res.secteur || res.quartier;
+          S.ui.autour.quartier = res.quartier || '';
+          S.ui.autour.secteur = res.secteur || '';
+          S.ui.autour.subdivision = res.subdivision || '';
+          S.ui.autour.commune = res.commune || '';
+          S.ui.autour.zone = res.zone || '';
+          S.ui.autour.territoire = res.territoire || '';
           S.ui.autour.src = 'quartier';
           S.ui.autour.prec = null;
           LS.set('autour', S.ui.autour);
           rendre();
         }
       }
-    }) + '</div>';
+    }) + (arianeAutour ? '<span class="aide-champ">' + esc(arianeAutour) + '</span>' : '') + '</div>';
 
     var blocRayon = '<div class="champ" style="margin:0"><span>Rayon</span>' + segment('Rayon', 'autourRayon', RAYONS.map(function (r) { return [String(r), String(r).replace('.', ',') + ' km']; }), String(A.rayon), 'margin:0') + '</div>';
 
@@ -9221,7 +9586,7 @@
     h += volet('profil', 'Mon profil', esc(c.delegue || 'Votre nom, WhatsApp, quartier'),
       champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)') +
       '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
-      '<div class="champ"><span>Mon quartier (départ des tournées)</span>' + selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: c.depart || '', vide: 'Choisir un quartier…', sections: sectionsQuartiers() }) + '</div>' +
+      '<div class="champ"><span>Mon quartier (départ des tournées)</span>' + selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: c.depart ? valeurSelecteurQuartier(c.depart, c.departCommune) : '', commune: c.departCommune, vide: 'Choisir un quartier…', sections: sectionsQuartiers() }) + '</div>' +
       '<label class="champ"><span>WhatsApp de mon superviseur</span><input type="tel" id="cfgWaResp" inputmode="tel" placeholder="Facultatif" value="' + esc(c.waResp || '') + '"></label>' +
       '<button class="bouton bouton-plein bouton-large" type="button" data-a="enregistrerMoi">Enregistrer</button>');
     // 2. Préférences : s'appliquent tout de suite
@@ -10323,10 +10688,24 @@
     return { corps: h, pied: piedQuestion('data-a="planifierProchainesOui"' + (f.sel ? '' : ' disabled'), 'Ajouter') };
   };
   FEUILLES.listeChoix = function (f) {
-    var cfg = S.ui.listes[f.id] || {}, n = 0;
-    var map = function (l) { return l.map(function (o) { if (o[2] === 'entete') return { entete: true, v: '', lib: o[1] }; n++; return { v: o[0], lib: o[1] }; }); };
+    var cfg = S.ui.listes[f.id] || {}, n = 0, aMetaQuartier = false;
+    var map = function (l) {
+      return l.map(function (o) {
+        if (o[2] === 'entete') return { entete: true, v: '', lib: o[1] };
+        n++;
+        var meta = (o[2] && typeof o[2] === 'object') ? o[2] : null;
+        if (meta && (meta.quartier || meta.variantes || meta.secteur)) aMetaQuartier = true;
+        return meta ? {
+          v: o[0], lib: o[1], libRecherche: meta.libComplet || '',
+          secteur: meta.secteur || '', quartier: meta.quartier || '',
+          variantes: meta.variantes || '', commune: meta.commune || '',
+          subdivision: meta.subdivision || ''
+        } : { v: o[0], lib: o[1] };
+      });
+    };
     var o = { id: 'l', titre: 'Un seul choix', chemin: 'sel', recherche: true, accordeon: String(f.id).replace(/\d+$/, '') };
     if (cfg.sections) o.sections = cfg.sections.map(function (x) { return { titre: x.titre, options: map(x.options), fermeeParDefaut: !!x.fermeeParDefaut }; }); else o.options = map(cfg.options || []);
+    if (aMetaQuartier) o.placeholder = 'Rechercher (quartier, secteur, variante)…';
     if (n <= 8) o.recherche = false;
     return groupeChoix(f, o);
   };
@@ -10770,13 +11149,25 @@
     }).join('') + '</ul>';
   }
   function lieuVide(estPharma) {
-    return { id: '', lieu: '', quartier: '', jours: [0, 1, 2, 3, 4].map(function () { return { matin: true, soir: true }; }),
+    return { id: '', lieu: '', quartier: '', secteur: '', subdivision: '', commune: '', zone: '', territoire: '',
+             jours: [0, 1, 2, 3, 4].map(function () { return { matin: true, soir: true }; }),
              horaireMatin: REGLAGES_MOTEUR.horaireMatinDefaut, horaireSoir: REGLAGES_MOTEUR.horaireSoirDefaut, lat: '', lon: '' };
   }
   // 3.27.33 : origine d'une position relevée avec le téléphone (colonne OrigineGPS)
   function origineTerrain(prec) {
     var d = new Date();
     return 'Terrain' + (isFinite(prec) ? ' ± ' + Math.round(prec) + ' m' : '') + ', ' + pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
+  }
+  function enrichirMetadonneesTerritoire(cible) {
+    if (!cible || !cible.quartier || /^NL$/i.test(cible.quartier)) return cible;
+    var res = resoudreChoixQuartier(cible.quartier, cible.commune);
+    if (!res) return cible;
+    if (!cible.secteur && res.secteur) cible.secteur = res.secteur;
+    if (!cible.subdivision && res.subdivision) cible.subdivision = res.subdivision;
+    if (!cible.commune && res.commune) cible.commune = res.commune;
+    if (!cible.zone && res.zone) cible.zone = res.zone;
+    if (!cible.territoire && res.territoire) cible.territoire = res.territoire;
+    return cible;
   }
   function brouillonFiche(code) {
     if (!code) {
@@ -10790,6 +11181,7 @@
           l0.lon = S.ui.posGps.lon;
           l0.prec = S.ui.posGps.prec;
           l0.origineGps = origineTerrain(S.ui.posGps.prec);
+          enrichirMetadonneesTerritoire(l0);
         }
       }
       return { code: '', type: 'Médecin', nom: '', telephone: '', specialite: '', autreSpec: '', note: 1, conventionne: 'Non', actif: 'Oui', lieux: [l0] };
@@ -10799,20 +11191,29 @@
     var lieux = fusionnerLieux((S.data.presences || []).filter(function (x) { return x.code === code; })).map(function (x) {
       var lieuVal = x.lieu || (estPh ? p.nom || '' : '');
       if (!estPh && lieuVal && normaliser(lieuVal) === normaliser(p.nom)) lieuVal = '';
-      return { id: x.id, lieu: lieuVal, quartier: x.quartier || p.quartier || '', jours: JOURS_CLES.map(function (j) { return lireDispo(x[j]); }),
-               horaireMatin: horaireNormalise(x.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut),
-               horaireSoir: horaireNormalise(x.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut),
-               lat: x.lat || p.lat || '', lon: x.lon || p.lon || '', commune: x.commune || p.commune || '', zone: x.zone || p.zone || '', reperes: x.reperes || '', origineGps: x.origineGps || '' };
+      return enrichirMetadonneesTerritoire({
+        id: x.id, lieu: lieuVal, quartier: x.quartier || p.quartier || '',
+        secteur: x.secteur || p.secteur || '', subdivision: x.subdivision || p.subdivision || '',
+        commune: x.commune || p.commune || '', zone: x.zone || p.zone || '', territoire: x.territoire || p.territoire || '',
+        jours: JOURS_CLES.map(function (j) { return lireDispo(x[j]); }),
+        horaireMatin: horaireNormalise(x.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut),
+        horaireSoir: horaireNormalise(x.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut),
+        lat: x.lat || p.lat || '', lon: x.lon || p.lon || '', reperes: x.reperes || '', origineGps: x.origineGps || ''
+      });
     });
     if (!lieux.length) {
       var lDef = lieuVide(estPh);
       lDef.lieu = estPh ? (p.nom || '') : '';
       lDef.quartier = p.quartier || '';
       lDef.commune = p.commune || '';
+      lDef.secteur = p.secteur || '';
+      lDef.subdivision = p.subdivision || '';
+      lDef.territoire = p.territoire || '';
       lDef.lat = p.lat || '';
       lDef.lon = p.lon || '';
       lDef.horaireMatin = horaireNormalise(p.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut);
       lDef.horaireSoir = horaireNormalise(p.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
+      enrichirMetadonneesTerritoire(lDef);
       lieux = [lDef];
     }
     return { code: code, type: estPh ? 'Pharmacie' : 'Médecin', nom: p.nom || '', telephone: String(p.telephone || ''),
@@ -10852,6 +11253,7 @@
           }
         }
       }
+      enrichirMetadonneesTerritoire(l);
     });
   }
   // Erreurs d'une étape : { champ: message }
@@ -11105,8 +11507,11 @@
   // Fiche (brouillon) qui sera enregistrée pour une entité, et la liste lisible de ce qui change
   function lieuScan(ent, v, wd) {
     var estPh = ent.type === 'Pharmacie', l = lieuVide(estPh);
-    l.lieu = estPh ? ent.nom : ent.etablissement; l.quartier = ent.quartier; l.commune = ent.commune; l.reperes = ent.adresse || '';
+    l.lieu = estPh ? ent.nom : ent.etablissement; l.quartier = ent.quartier; l.commune = ent.commune;
+    l.secteur = ent.secteur || ''; l.subdivision = ent.subdivision || ''; l.zone = ent.zone || ''; l.territoire = ent.territoire || '';
+    l.reperes = ent.adresse || '';
     l.lat = ent.lat || ''; l.lon = ent.lon || ''; l.origineGps = '';
+    enrichirMetadonneesTerritoire(l);
     l.jours = l.jours.map(function () { return { matin: false, soir: false }; });
     if (wd >= 0 && wd <= 4) l.jours[wd] = { matin: !!v.matin, soir: !!v.soir };
     return l;
@@ -11532,23 +11937,25 @@
         h += '</div>';
       } else {
         // Pour les pharmacies
+        var arianeScanPh = (ent.secteur || ent.quartier) ? filArianeTerritoire(ent) : '';
         h += '<div class="scan-bloc-presence-hopital">' +
           (!ent.quartier ? (
             '<div class="scan-hopital-question">📍 <b>Quartier de l\'officine :</b></div>' +
             selecteurListe('scanQ' + f.id + '_' + i, {
               titre: 'Quartier',
-              valeur: ent.quartier || null,
+              valeur: valeurSelecteurQuartier(ent.secteur || ent.quartier, ent.commune) || null,
+              commune: ent.commune,
               vide: 'Choisir le quartier…',
               sections: sectionsQuartiers(),
               appliquer: function (val) {
                 majScan(f.id, function (z) {
-                  var q = quartiers().filter(function (o) { return o.quartier === val; })[0];
-                  z.validation.entites[i].quartier = val;
-                  z.validation.entites[i].commune = q ? q.commune : '';
+                  var entZ = z.validation.entites[i];
+                  var res = resoudreChoixQuartier(val);
+                  appliquerTerritoireSurLieu(entZ, res);
                 });
               }
             })
-          ) : '<div class="scan-hopital-cascade">📍 <b>' + esc(ent.quartier) + '</b>' + (ent.commune ? ' (' + esc(ent.commune) + ')' : '') + '</div>') +
+          ) : '<div class="scan-hopital-cascade">📍 <b>' + esc(ent.secteur || ent.quartier) + '</b>' + (arianeScanPh ? ' · <span class="discret">' + esc(arianeScanPh) + '</span>' : (ent.commune ? ' (' + esc(ent.commune) + ')' : '')) + '</div>') +
         '</div>';
       }
 
@@ -11730,7 +12137,8 @@
   }
   function brouillonHopital(nom) {
     var g = gpsFrais(), r = g ? Moteur.quartierLePlusProche(g.lat, g.lon, quartiers()) : null;
-    return { nom: nom || '', categorie: '', quartier: r && r.quartier ? r.quartier.quartier : '', commune: r && r.quartier ? r.quartier.commune : '', reperes: '', telephone: '', lat: '', lon: '', prec: '' };
+    var hop = { nom: nom || '', categorie: '', quartier: r && r.quartier ? r.quartier.quartier : '', commune: r && r.quartier ? r.quartier.commune : '', secteur: '', subdivision: '', zone: '', territoire: '', reperes: '', telephone: '', lat: '', lon: '', prec: '' };
+    return enrichirMetadonneesTerritoire(hop);
   }
   function segmentAjout(actif) {
     return '<div class="fx-ajout-barre">' +
@@ -11751,12 +12159,13 @@
         '<button type="button" class="fx-creer" data-a="hopCreer"><span class="fx-plus">' + icone('plus') + '</span><span><b>Créer <span id="hopCreerNom">' + esc(String(e.nom || '').trim() || 'un établissement') + '</span></b><small>Catégorie, quartier et position ensuite</small></span></button>';
       return { corps: h };
     }
+    var arianeHop = filArianeTerritoire(e);
     h += champFiche('hnom', 'Nom de l\'établissement *', '<input type="text" data-f="hop" data-k="nom" value="' + esc(e.nom) + '"' + attrInvalide(f, 'hnom') + '>', f, true) +
       '<div class="champ"><span>Catégorie *</span><div class="puces">' + CATEGORIES_ETAB.map(function (c) {
         return '<button type="button" class="puce" data-a="hopVal" data-k="categorie" data-v="' + esc(c) + '" aria-pressed="' + (e.categorie === c) + '">' + esc(c) + '</button>';
       }).join('') + '</div><span class="erreur" id="err-hcat">' + esc(f.err.hcat || '') + '</span></div>' +
-      champFiche('hquartier', 'Quartier *', selecteurListe('hopQuartier', { titre: 'Quartier', valeur: e.quartier || null, vide: 'Choisir…', invalide: !!f.err.hquartier, sections: sectionsQuartiers(),
-        appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'hopitalNouveau') { var q = quartiers().filter(function (x) { return x.quartier === v; })[0]; fe.e.quartier = v; fe.e.commune = q ? q.commune : ''; delete fe.err.hquartier; } } }), f, true, e.commune ? 'Commune : ' + esc(e.commune) : '') +
+      champFiche('hquartier', 'Quartier *', selecteurListe('hopQuartier', { titre: 'Quartier', valeur: valeurSelecteurQuartier(e.secteur || e.quartier, e.commune) || null, commune: e.commune, vide: 'Choisir…', invalide: !!f.err.hquartier, sections: sectionsQuartiers(),
+        appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'hopitalNouveau') { var res = resoudreChoixQuartier(v); appliquerTerritoireSurLieu(fe.e, res); delete fe.err.hquartier; } } }), f, true, arianeHop ? esc(arianeHop) : '') +
       champFiche('hrep', 'Repères', '<input type="text" data-f="hop" data-k="reperes" value="' + esc(e.reperes) + '" placeholder="Rue, carrefour, en face de…">', f, false) +
       champFiche('htel', 'Téléphone', '<input type="tel" data-f="hop" data-k="telephone" value="' + esc(e.telephone) + '" placeholder="Standard ou accueil">', f, false) +
       '<div class="fx-carte"><div class="fx-carte-t"><b>Position</b>' + (e.lat ? '<span class="fx-tag ok">' + icone('cible') + 'GPS' + (e.prec ? ' ± ' + e.prec + ' m' : '') + '</span>' : '<span class="fx-tag">Pas de GPS</span>') + '</div>' +
@@ -11854,10 +12263,10 @@
       '<div class="grille-2 serre">' + champQuartier(f, l, i) +
       champFiche('rep' + i, 'Repères', '<input type="text" data-f="fiche" data-k="reperes" data-i="' + i + '" placeholder="Rue, carrefour…" value="' + esc(l.reperes || '') + '">', f, false) + '</div>';
   }
-  function champQuartier(f, l, i, avecCommune) {
-    var q = avecCommune ? quartiers().filter(function (x) { return x.quartier === l.quartier; })[0] : null;
-    return champFiche('quartier' + i, 'Quartier *', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: l.quartier, vide: 'Choisir…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
-      appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche') { fe.d.lieux[i].quartier = v; delete fe.err['quartier' + i]; } } }), f, true, q ? 'Commune : ' + esc(q.commune) : '');
+  function champQuartier(f, l, i) {
+    var ariane = filArianeTerritoire(l);
+    return champFiche('quartier' + i, 'Quartier *', selecteurListe('ficheQuartier' + i, { titre: 'Quartier', valeur: valeurSelecteurQuartier(l.secteur || l.quartier, l.commune), commune: l.commune, vide: 'Choisir…', invalide: !!f.err['quartier' + i], sections: sectionsQuartiers(),
+      appliquer: function (v) { var fe = S.ui.feuille; if (fe && fe.type === 'fiche' && fe.d && fe.d.lieux[i]) { var res = resoudreChoixQuartier(v); appliquerTerritoireSurLieu(fe.d.lieux[i], res); delete fe.err['quartier' + i]; } } }), f, true, ariane ? esc(ariane) : '');
   }
   function ficheOuEtQuand(f, d, estPh) {
     var h = '', g = gpsFrais(), l0 = d.lieux[0];
@@ -11892,7 +12301,7 @@
       var coul = COULEURS_LIEUX[i % COULEURS_LIEUX.length], vide = String(l.lieu || '').trim().length < 2, estOuvert = i === ouvert || (vide && ouvert < 0) || !!(f.err['lieu' + i] || f.err['quartier' + i] || f.err['hm' + i] || f.err['hs' + i]);
       h += '<div class="fx-lieu">' +
         '<button type="button" class="fx-lieu-n" data-a="' + (estOuvert ? 'ficheReplierLieu' : 'ficheOuvrirLieu') + '" data-i="' + i + '" aria-expanded="' + estOuvert + '">' +
-          '<span class="fx-pt" style="background:' + coul + '"></span><b>' + esc(vide ? 'Lieu ' + (i + 1) + ' à renseigner' : abregerHopital(l.lieu)) + '</b><small>' + esc(l.quartier || '') + '</small>' + icone('chevron') + '</button>' +
+          '<span class="fx-pt" style="background:' + coul + '"></span><b>' + esc(vide ? 'Lieu ' + (i + 1) + ' à renseigner' : abregerHopital(l.lieu)) + '</b><small>' + esc(l.secteur || l.quartier || '') + '</small>' + icone('chevron') + '</button>' +
         grilleSemaine(f, d, i, coul, conf);
       var resume = f.planningSeul && !vide && l.quartier && !f.err['lieu' + i] && !f.err['quartier' + i];
       if (estOuvert) h += '<div class="fx-detail">' + (resume ? '<p class="discret" style="margin:0 0 4px"><b>' + esc(l.lieu) + '</b> · ' + esc([l.quartier, l.commune].filter(Boolean).join(', ')) + '</p>' : champsLieu(f, d, l, i)) + horairesLieu(f, l, i) +
@@ -11952,7 +12361,8 @@
     var ex = S.data.praticiens.filter(function (x) { return x.code === pr.code; })[0];
     if (ex) Object.keys(pr).forEach(function (k) { ex[k] = pr[k]; });
     else S.data.praticiens.push(Object.assign({ derniere: '', statut: '', commentaire: '', nbVisites: 0 }, pr));
-    S.data.presences = S.data.presences.filter(function (x) { return x.code !== pr.code; }).concat(pres.map(function (x) { return Object.assign({}, x); }));
+    var presNorm = (pres || []).map(function (x) { return enrichirMetadonneesTerritoire(Object.assign({}, x)); });
+    S.data.presences = S.data.presences.filter(function (x) { return x.code !== pr.code; }).concat(presNorm);
     ctxCache.data = null;
   }
   function enregistrerFiche(d) {
@@ -11997,11 +12407,34 @@
                absentDu: d.absentDu || '', absentAu: d.absentAu || '' };
     var idsVus = {};   // 3.26.50 : deux lieux ne partagent jamais le même identifiant
     var pres = d.lieux.map(function (l) {
-      var q = quartiers().filter(function (x) { return x.quartier === l.quartier; })[0] || {};
+      var cleQ = l.secteur || l.quartier;
+      var res = cleQ ? resoudreChoixQuartier(cleQ, l.commune) : null;
+      var q = (res && (res.quartier || res.secteur)) ? res : (quartiers().filter(function (x) { return x.quartier === l.quartier; })[0] || {});
       if (l.id && idsVus[String(l.id)]) l.id = ''; if (l.id) idsVus[String(l.id)] = true;
-      var o = { id: l.id || 'TMP' + Math.random().toString(36).slice(2, 8), code: code, nom: pr.nom, lieu: String(l.lieu).trim(), quartier: l.quartier,
-                commune: q.commune || l.commune || '', zone: q.zone || l.zone || '', horaireMatin: String(l.horaireMatin || '').trim(), horaireSoir: String(l.horaireSoir || '').trim(),
-                lat: l.lat || '', lon: l.lon || '', reperes: String(l.reperes || '').trim(), origineGps: l.lat ? String(l.origineGps || '') : '' };
+      var comVal = l.commune || q.commune || '';
+      var zoneVal = l.zone || q.zone || '';
+      var terrVal = l.territoire || q.territoire || (estTerritoireInterieur({ commune: comVal, zone: zoneVal, territoire: l.territoire }) ? 'Intérieur' : (comVal ? 'Abidjan' : ''));
+      var latVal = l.lat || (q.lat || '');
+      var lonVal = l.lon || (q.lon || '');
+      var origVal = l.lat ? String(l.origineGps || '') : (latVal ? 'Quartier de référence' : '');
+      var o = {
+        id: l.id || 'TMP' + Math.random().toString(36).slice(2, 8),
+        code: code,
+        nom: pr.nom,
+        lieu: String(l.lieu).trim(),
+        quartier: q.quartier || l.quartier,
+        secteur: l.secteur || q.secteur || '',
+        subdivision: l.subdivision || q.subdivision || '',
+        commune: comVal,
+        zone: zoneVal,
+        territoire: terrVal,
+        horaireMatin: String(l.horaireMatin || '').trim(),
+        horaireSoir: String(l.horaireSoir || '').trim(),
+        lat: latVal,
+        lon: lonVal,
+        reperes: String(l.reperes || '').trim(),
+        origineGps: origVal
+      };
       JOURS_CLES.forEach(function (j, k) { o[j] = ecrireDispo(l.jours[k]); });
       return o;
     });
@@ -14131,8 +14564,9 @@
       if (w && !normaliserNumero(w)) { toast('Numéro WhatsApp non reconnu. Exemple : 07 07 07 07 07.'); return; }
       if (wr && !normaliserNumero(wr)) { toast('Numéro du superviseur non reconnu. Exemple : 07 07 07 07 07.'); return; }
       var dep = ($('cfgDepart') || {}).value || (S.ui.identBrouillon || {}).depart || '';
+      var resDep = dep ? resoudreChoixQuartier(dep) : null;
       S.config.delegue = n; S.config.whatsapp = normaliserNumero(w) || ''; S.config.waResp = normaliserNumero(wr) || '';
-      if (dep) S.config.depart = dep;
+      if (dep) { S.config.depart = (resDep && resDep.quartier) ? resDep.quartier : dep; S.config.departCommune = (resDep && resDep.commune) ? resDep.commune : ''; }
       S.ui.identBrouillon = null;
       LS.set('config', S.config); S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); publierPlan();
       toast('Bienvenue ' + n + '.'); inscrireDelegue(n);
@@ -14144,8 +14578,11 @@
       if (w && !normaliserNumero(w)) { toast('Numéro WhatsApp non reconnu. Exemple : 07 07 07 07 07.'); return; }
       var wr = (($('cfgWaResp') || {}).value || '').trim();
       if (wr && !normaliserNumero(wr)) { toast('Numéro du responsable non reconnu. Exemple : 07 07 07 07 07.'); return; }
+      var depVal = $('cfgDepart').value;
+      var resDep = depVal ? resoudreChoixQuartier(depVal) : null;
+      var depQ = (resDep && resDep.quartier) ? resDep.quartier : depVal;
       var ancien = moi(), avant = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '', S.config.waResp || '']);
-      S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); if ($('cfgWaWeb')) S.config.waWeb = $('cfgWaWeb').checked; S.config.depart = $('cfgDepart').value; S.config.waResp = normaliserNumero(wr);
+      S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); if ($('cfgWaWeb')) S.config.waWeb = $('cfgWaWeb').checked; S.config.depart = depQ; S.config.departCommune = (resDep && resDep.commune) ? resDep.commune : ''; S.config.waResp = normaliserNumero(wr);
       var apres = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '', S.config.waResp || '']);
       LS.set('config', S.config); rendre(); toast(avant === apres ? 'Aucune modification : vos réglages sont inchangés.' : 'Réglages enregistrés.');
       inscrireDelegue(n);
@@ -14759,9 +15196,13 @@
       var f = S.ui.feuille; if (!f || !navigator.geolocation) { toast('Localisation indisponible.'); return; }
       mesurePourLieu(function (p) {
         var fe = S.ui.feuille && S.ui.feuille.type === 'hopitalNouveau' ? S.ui.feuille : f;
-        fe.e.lat = +p.lat.toFixed(6); fe.e.lon = +p.lon.toFixed(6); fe.e.prec = p.prec;
+        fe.e.lat = +p.lat.toFixed(6); fe.e.lon = +p.lon.toFixed(6); fe.e.prec = p.prec; fe.e.origineGps = origineTerrain(p.prec);
         var r = Moteur.quartierLePlusProche(fe.e.lat, fe.e.lon, quartiers());
-        if (r && r.quartier) { fe.e.quartier = r.quartier.quartier; fe.e.commune = r.quartier.commune; delete fe.err.hquartier; }
+        if (r && r.quartier) {
+          var resQ = resoudreTerritoire(r.quartier.quartier, r.quartier.commune);
+          appliquerTerritoireSurLieu(fe.e, resQ || r.quartier);
+          delete fe.err.hquartier;
+        }
         S.ui.feuille = fe; rendre(); toast('Position prise (± ' + p.prec + ' m).');
       }, function () { toast('Position indisponible. Autorisez la localisation.'); });
     },
@@ -14776,8 +15217,12 @@
       })[0];
       if (dbl) err.hnom = 'Déjà dans la base : ' + dbl.nom;
       if (Object.keys(err).length) { f.err = err; rendre(); toast(dbl ? 'Cet établissement existe déjà.' : 'Complétez les champs signalés.'); return; }
-      var q = quartiers().filter(function (x) { return x.quartier === e.quartier; })[0] || {};
-      var com = q.commune || e.commune || '', zone = q.zone || '', rep = String(e.reperes || '').trim(), tel = formaterTelephoneCI(e.telephone) || String(e.telephone || '').trim();
+      var q = resoudreChoixQuartier(e.quartier, e.commune) || {};
+      var com = e.commune || q.commune || '', zone = e.zone || q.zone || '', sec = e.secteur || q.secteur || '', sub = e.subdivision || q.subdivision || '';
+      var terr = e.territoire || q.territoire || (estTerritoireInterieur({ commune: com, zone: zone, territoire: e.territoire }) ? 'Intérieur' : (com ? 'Abidjan' : ''));
+      var latVal = e.lat || (q.lat || ''), lonVal = e.lon || (q.lon || '');
+      var origVal = e.lat ? (e.prec ? origineTerrain(e.prec) : (e.origineGps || '')) : (latVal ? 'Quartier de référence' : '');
+      var rep = String(e.reperes || '').trim(), tel = formaterTelephoneCI(e.telephone) || String(e.telephone || '').trim();
       S.data = S.data || {};
       S.data.etablissements = S.data.etablissements || [];
       if (f.edition) {
@@ -14785,24 +15230,25 @@
         var etabEx = S.data.etablissements.filter(function (x) { return (e.code && x.code === e.code) || normaliser(x.nom) === normaliser(cibleNom); })[0];
         if (etabEx) {
           etabEx.nom = e.nom; etabEx.categorie = e.categorie; etabEx.quartier = e.quartier; etabEx.commune = com;
-          etabEx.zone = zone; etabEx.reperes = rep; etabEx.telephone = tel;
-          if (e.lat && e.lon) { etabEx.lat = e.lat; etabEx.lon = e.lon; }
+          etabEx.zone = zone; etabEx.secteur = sec; etabEx.subdivision = sub; etabEx.territoire = terr; etabEx.reperes = rep; etabEx.telephone = tel;
+          if (latVal && lonVal) { etabEx.lat = latVal; etabEx.lon = lonVal; }
         } else {
-          S.data.etablissements.push({ code: e.code || ('TMP-ETAB-' + Date.now().toString(36).toUpperCase()), nom: e.nom, categorie: e.categorie, quartier: e.quartier, commune: com, zone: zone, reperes: rep, telephone: tel, lat: e.lat || '', lon: e.lon || '' });
+          S.data.etablissements.push({ code: e.code || ('TMP-ETAB-' + Date.now().toString(36).toUpperCase()), nom: e.nom, categorie: e.categorie, quartier: e.quartier, commune: com, zone: zone, secteur: sec, subdivision: sub, territoire: terr, reperes: rep, telephone: tel, lat: latVal, lon: lonVal });
         }
         ((S.data && S.data.presences) || []).forEach(function (pr) {
           if (normaliser(pr.lieu || '') === normaliser(cibleNom)) {
             pr.lieu = e.nom; pr.quartier = e.quartier; pr.commune = com; pr.zone = zone;
+            pr.secteur = sec; pr.subdivision = sub; pr.territoire = terr;
             if (rep) pr.reperes = rep;
-            if (e.lat && e.lon) { pr.lat = e.lat; pr.lon = e.lon; }
+            if (latVal && lonVal) { pr.lat = latVal; pr.lon = lonVal; }
           }
         });
         S.ui.hopOuvert = normaliser(e.nom);
         ctxCache.data = null; sauver();
         if (!S.config.demo && connecte()) {
-          var payloadMaj = { nom: e.nom, ancienNom: cibleNom, categorie: e.categorie, quartier: e.quartier, commune: com, zone: zone, reperes: rep, telephone: tel, auteur: moi() };
+          var payloadMaj = { nom: e.nom, ancienNom: cibleNom, categorie: e.categorie, quartier: e.quartier, commune: com, zone: zone, secteur: sec, subdivision: sub, territoire: terr, reperes: rep, telephone: tel, auteur: moi() };
           if (e.code) payloadMaj.code = e.code;
-          if (e.lat && e.lon) { payloadMaj.lat = e.lat; payloadMaj.lon = e.lon; if (e.prec) payloadMaj.originegps = origineTerrain(e.prec); }
+          if (latVal && lonVal) { payloadMaj.lat = latVal; payloadMaj.lon = lonVal; if (origVal) payloadMaj.originegps = origVal; }
           apiPost('etablissement', payloadMaj).then(function () { synchroniser(true); }).catch(function (errM) { signalerErreur('maj établissement', errM, { nom: e.nom }); });
         }
         S.ui.feuille = null; rendre();
@@ -14810,9 +15256,9 @@
         return;
       }
       var x = { uid: 'E-' + Date.now().toString(36), code: 'TMP-ETAB-' + Date.now().toString(36).toUpperCase(), nom: e.nom, categorie: e.categorie, quartier: e.quartier,
-        commune: com, zone: zone, reperes: rep, telephone: tel,
-        lat: e.lat || '', lon: e.lon || '', originegps: e.lat ? origineTerrain(e.prec) : '', auteur: moi() };
-      S.data.etablissements.push({ code: x.code, nom: x.nom, categorie: x.categorie, quartier: x.quartier, commune: x.commune, zone: x.zone, reperes: x.reperes, telephone: x.telephone, lat: x.lat, lon: x.lon });
+        commune: com, zone: zone, secteur: sec, subdivision: sub, territoire: terr, reperes: rep, telephone: tel,
+        lat: latVal, lon: lonVal, originegps: origVal, auteur: moi() };
+      S.data.etablissements.push({ code: x.code, nom: x.nom, categorie: x.categorie, quartier: x.quartier, commune: x.commune, zone: x.zone, secteur: x.secteur, subdivision: x.subdivision, territoire: x.territoire, reperes: x.reperes, telephone: x.telephone, lat: x.lat, lon: x.lon });
       ctxCache.data = null; sauver();
       if (!S.config.demo) { LS.set('etabsEnAttente', LS.get('etabsEnAttente', []).concat([x])); envoyerEtabsEnAttente(); }
       S.ui.feuille = null; rendre();
@@ -14917,7 +15363,10 @@
         e.etablissement = etab;
         var can = trouverEtablissementBDD(etab, '', '');
         if (can) {
-          if (can.quartier) { e.quartier = can.quartier; e.commune = can.commune || e.commune; }
+          if (can.quartier) {
+            var resCan = resoudreChoixQuartier(can.quartier, can.commune || e.commune);
+            appliquerTerritoireSurLieu(e, resCan || can);
+          }
           if (can.lat) { e.lat = can.lat; e.lon = can.lon; }
         }
       });
@@ -15000,7 +15449,7 @@
       var cat = etabBase.categorie || (/^CHU\b/i.test(e.nom) ? 'CHU' : (/^CHR\b/i.test(e.nom) ? 'CHR' : (/polyclinique/i.test(e.nom) ? 'Polyclinique' : (/clinique/i.test(e.nom) ? 'Clinique Privée' : 'Centre Médical'))));
       S.ui.feuille = {
         type: 'hopitalNouveau', titre: 'Modifier ' + e.nom, pleine: true, cherche: false, edition: true, ancienNom: e.nom,
-        e: { code: etabBase.code || '', nom: e.nom, categorie: cat, quartier: e.quartier || etabBase.quartier || '', commune: e.commune || etabBase.commune || '', reperes: e.reperes || etabBase.reperes || '', telephone: e.telephone || etabBase.telephone || '', lat: isFinite(e.lat) ? e.lat : '', lon: isFinite(e.lon) ? e.lon : '', prec: '' },
+        e: enrichirMetadonneesTerritoire({ code: etabBase.code || '', nom: e.nom, categorie: cat, quartier: e.quartier || etabBase.quartier || '', commune: e.commune || etabBase.commune || '', secteur: etabBase.secteur || '', subdivision: etabBase.subdivision || '', zone: etabBase.zone || '', territoire: etabBase.territoire || '', reperes: e.reperes || etabBase.reperes || '', telephone: e.telephone || etabBase.telephone || '', lat: isFinite(e.lat) ? e.lat : '', lon: isFinite(e.lon) ? e.lon : '', prec: '' }),
         err: {}
       };
       rendre();
@@ -15102,9 +15551,10 @@
     },
     ficheChoixQuartier: function (el) {
       var f = S.ui.feuille, i = +el.dataset.i; if (!f || f.type !== 'fiche' || !f.d.lieux[i]) return;
-      var q = quartiers().filter(function (x) { return x.quartier === el.dataset.v; })[0];
-      f.d.lieux[i].quartier = el.dataset.v; if (q) f.d.lieux[i].commune = q.commune; delete f.err['quartier' + i];
-      rendre(); toast('Quartier : ' + el.dataset.v + (q ? ', ' + q.commune : '') + '.');
+      var res = resoudreChoixQuartier(el.dataset.v);
+      appliquerTerritoireSurLieu(f.d.lieux[i], res || { quartier: el.dataset.v });
+      delete f.err['quartier' + i];
+      rendre(); toast('Quartier : ' + (f.d.lieux[i].secteur || f.d.lieux[i].quartier) + (f.d.lieux[i].commune ? ', ' + f.d.lieux[i].commune : '') + '.');
     },
     ficheAjouterLieu: function () {
       var f = S.ui.feuille;
@@ -15150,11 +15600,11 @@
         delete f.err['quartier' + i];
       }
       if (cVal) l.commune = cVal;
-      if (!l.commune && l.quartier) {
-        var qObj = quartiers().filter(function (q) { return normaliser(q.quartier) === normaliser(l.quartier); })[0];
-        if (qObj && qObj.commune) l.commune = qObj.commune;
-      }
       if (latVal && lonVal) { l.lat = latVal; l.lon = lonVal; }
+      if (l.quartier) {
+        var resLieu = resoudreChoixQuartier(l.quartier, l.commune);
+        if (resLieu) appliquerTerritoireSurLieu(l, resLieu);
+      }
       rendre(); toast('Établissement repris : ' + e.lieu + (l.quartier ? ' (' + l.quartier + ')' : '') + '.');
     },
     ficheGps: function (el) {
@@ -15182,8 +15632,8 @@
           l.lat = pCapt.lat; l.lon = pCapt.lon; l.prec = pCapt.prec; l.origineGps = origineTerrain(pCapt.prec);
           var r = Moteur.quartierLePlusProche(l.lat, l.lon, quartiers());
           if (r && r.quartier) {
-            l.quartier = r.quartier.quartier;
-            l.commune = r.quartier.commune;
+            var resG = resoudreTerritoire(r.quartier.quartier, r.quartier.commune);
+            appliquerTerritoireSurLieu(l, resG || r.quartier);
             if (S.ui.feuille && S.ui.feuille.err) delete S.ui.feuille.err['quartier' + idx];
           }
           rendre();
@@ -15204,8 +15654,8 @@
               lSauve.lat = pCapt.lat; lSauve.lon = pCapt.lon; lSauve.prec = pCapt.prec; lSauve.origineGps = origineTerrain(pCapt.prec);
               var r = Moteur.quartierLePlusProche(lSauve.lat, lSauve.lon, quartiers());
               if (r && r.quartier) {
-                lSauve.quartier = r.quartier.quartier;
-                lSauve.commune = r.quartier.commune;
+                var resGS = resoudreTerritoire(r.quartier.quartier, r.quartier.commune);
+                appliquerTerritoireSurLieu(lSauve, resGS || r.quartier);
                 if (S.ui.feuille.err) delete S.ui.feuille.err['quartier' + idx];
               }
               rendre();
@@ -16183,5 +16633,7 @@
   // Accès pour les tests automatisés
   window.__tournees = { S: S, ctx: ctx, actualiserLieux: actualiserLieux, texteProgramme: texteProgramme, texteRapport: texteRapport, urlWhatsapp: urlWhatsapp, normaliserNumero: normaliserNumero,
                         supprimerJourPlanifie: supprimerJourPlanifie, demanderSuppressionJour: demanderSuppressionJour,
-                        version: APP_VERSION, sauver: sauver, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre, distMoi: distMoi };
+                        version: APP_VERSION, sauver: sauver, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre, distMoi: distMoi,
+                        resoudreTerritoire: resoudreTerritoire, resoudreChoixQuartier: resoudreChoixQuartier, sectionsCommunes: sectionsCommunes, sectionsQuartiers: sectionsQuartiers,
+                        secteursDeGrandeCommune: secteursDeGrandeCommune, estTerritoireInterieur: estTerritoireInterieur, villeCarte: villeCarte, filArianeTerritoire: filArianeTerritoire };
 })();

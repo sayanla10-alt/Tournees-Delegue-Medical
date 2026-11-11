@@ -102,7 +102,10 @@
           nbVisites: +ph.nb_visites || 0,
           actif: (ph.actif === false || ph.actif === 'Non' || ph.actif === '0') ? 'Non' : 'Oui',
           prochaine: ph.prochaine || '',
-          titulaire: ph.titulaire || ''
+          titulaire: ph.titulaire || '',
+          territoire: ph.territoire || '',
+          subdivision: ph.subdivision || '',
+          secteur: ph.secteur || ''
         });
       });
 
@@ -125,6 +128,8 @@
           lat: isFinite(pr.lat) && pr.lat !== null ? +pr.lat : null,
           lon: isFinite(pr.lon) && pr.lon !== null ? +pr.lon : null,
           reperes: pr.reperes || '',
+          territoire: pr.territoire || '',
+          subdivision: pr.subdivision || '',
           secteur: pr.secteur || '',
           origineGps: pr.origine_gps || ''
         };

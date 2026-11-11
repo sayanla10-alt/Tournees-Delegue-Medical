@@ -317,6 +317,246 @@ function enregistrerErreursApp(b) {
   return { ok: true };
 }
 
+// Ajoute Territoire, Subdivision, Secteur si absents de CHAMPS_* (compatibilité avant/après mise à jour Commun.gs)
+function champsEcrAvecTerritoire_(baseChamps) {
+  var res = baseChamps.slice(), vus = {};
+  res.forEach(function (c) { vus[normaliser(c[1])] = true; });
+  [['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur']].forEach(function (x) {
+    if (!vus[normaliser(x[1])]) { res.push(x); vus[normaliser(x[1])] = true; }
+  });
+  return res;
+}
+
+// Déduit Territoire et Zone d'une commune quand une ligne n'est pas trouvée dans Quartiers
+function territoireEtZoneDeCommune_(commune) {
+  var c = String(commune || '').trim();
+  if (!c) return { territoire: '', zone: '', commune: '' };
+  var comPar = typeof communeParente === 'function' ? communeParente(c) : c;
+  var k = normaliser(comPar);
+  var zonesAbj = {
+    abobo: 'Zone Nord', anyama: 'Zone Nord',
+    cocody: 'Zone Est', bingerville: 'Zone Est', brofodoume: 'Zone Est',
+    yopougon: 'Zone Ouest', songon: 'Zone Ouest',
+    plateau: 'Zone Centre', adjame: 'Zone Centre', attecoube: 'Zone Centre',
+    treichville: 'Zone Sud', marcory: 'Zone Sud', koumassi: 'Zone Sud', portbouet: 'Zone Sud'
+  };
+  var nomsAbj = {
+    abobo: 'Abobo', anyama: 'Anyama', cocody: 'Cocody', bingerville: 'Bingerville', brofodoume: 'Brofodoumé',
+    yopougon: 'Yopougon', songon: 'Songon', plateau: 'Plateau', adjame: 'Adjamé',
+    attecoube: 'Attécoubé', treichville: 'Treichville', marcory: 'Marcory',
+    koumassi: 'Koumassi', portbouet: 'Port-Bouët'
+  };
+  if (zonesAbj[k]) return { territoire: 'Abidjan', zone: zonesAbj[k], commune: nomsAbj[k] || comPar };
+  if (typeof estCommuneGrandAbidjan === 'function' && estCommuneGrandAbidjan(comPar)) {
+    return { territoire: 'Abidjan', zone: '', commune: comPar };
+  }
+  if (typeof estCommuneInterieur === 'function' && estCommuneInterieur(comPar)) {
+    return { territoire: 'Intérieur', zone: 'Intérieur', commune: comPar };
+  }
+  return { territoire: '', zone: '', commune: comPar };
+}
+
+// Lit toutes les lignes de la feuille Quartiers par noms d'en-têtes (tolérant 5, 6 ou 9 colonnes)
+function referentielQuartiers_(ss) {
+  ss = ss || SpreadsheetApp.getActive();
+  var out = [];
+  var shQ = ss ? ss.getSheetByName(FEUILLES.quartiers) : null;
+  if (shQ && shQ.getLastRow() > 1 && shQ.getLastColumn() >= 1) {
+    var nc = shQ.getLastColumn();
+    var ent = shQ.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
+    var col = function (noms) {
+      for (var i = 0; i < noms.length; i++) {
+        var k = ent.indexOf(normaliser(noms[i]));
+        if (k >= 0) return k;
+      }
+      return -1;
+    };
+    var cTer = col(['Territoire']), cZ = col(['Zone']), cCom = col(['Commune']),
+        cSub = col(['Subdivision']), cQ = col(['Quartier']), cSec = col(['Secteur']),
+        cVar = col(['Variantes']), cLat = col(['Latitude', 'Lat']), cLon = col(['Longitude', 'Lon']);
+    if (cQ < 0) {
+      cCom = 0; cQ = 1; cZ = 2; cLat = 3; cLon = 4; cSec = nc >= 6 ? 5 : -1;
+    }
+    var txt = function (r, i) { return (i >= 0 && r[i] !== undefined && r[i] !== null) ? String(r[i]).trim() : ''; };
+    var num = function (r, i) {
+      if (i < 0 || r[i] === undefined || r[i] === null || r[i] === '') return '';
+      var n = parseFloat(String(r[i]).replace(',', '.'));
+      return isFinite(n) ? n : '';
+    };
+    shQ.getRange(2, 1, shQ.getLastRow() - 1, nc).getValues().forEach(function (r) {
+      var q = txt(r, cQ), s = txt(r, cSec), comRaw = txt(r, cCom);
+      if (!q && !s && !comRaw) return;
+      var com = typeof communeParente === 'function' ? communeParente(comRaw) : comRaw;
+      var sub = txt(r, cSub);
+      if (!sub && comRaw && com && normaliser(comRaw) !== normaliser(com)) sub = comRaw;
+      var tzInfo = territoireEtZoneDeCommune_(com);
+      var ter = txt(r, cTer) || tzInfo.territoire;
+      var z = txt(r, cZ) || tzInfo.zone;
+      if (ter === 'Intérieur' && (!z || normaliser(z) === 'zoneinterieur')) z = 'Intérieur';
+      out.push({
+        territoire: ter,
+        zone: z,
+        commune: tzInfo.commune || com,
+        subdivision: sub,
+        quartier: q,
+        secteur: s,
+        variantes: txt(r, cVar),
+        lat: num(r, cLat),
+        lon: num(r, cLon)
+      });
+    });
+  }
+  if (!out.length && typeof quartiersDefautObjets === 'function') {
+    out = quartiersDefautObjets().map(function (q) {
+      var comPar = typeof communeParente === 'function' ? communeParente(q.commune) : q.commune;
+      var sub = (q.commune && normaliser(q.commune) !== normaliser(comPar)) ? q.commune : '';
+      var tzInfo = territoireEtZoneDeCommune_(comPar);
+      return {
+        territoire: tzInfo.territoire || 'Abidjan',
+        zone: q.zone || tzInfo.zone,
+        commune: tzInfo.commune || comPar,
+        subdivision: sub,
+        quartier: q.quartier || '',
+        secteur: q.secteur || '',
+        variantes: '',
+        lat: q.lat,
+        lon: q.lon
+      };
+    });
+  }
+  return out;
+}
+
+// Résolution territoriale unifiée avec délégation vers resoudreTerritoire (Commun.gs) et secours local
+function resoudreTerritoireFallback_(entree, refQ) {
+  entree = entree || {};
+  var inTer = String(entree.territoire || '').trim();
+  var inZ = String(entree.zone || '').trim();
+  var inComRaw = String(entree.commune || '').trim();
+  var inCom = typeof communeParente === 'function' ? communeParente(inComRaw) : inComRaw;
+  var inSub = String(entree.subdivision || '').trim();
+  if (!inSub && inComRaw && inCom && normaliser(inComRaw) !== normaliser(inCom)) inSub = inComRaw;
+  var inQ = String(entree.quartier || '').trim();
+  var inSec = String(entree.secteur || '').trim();
+  var inLieu = String(entree.lieu || '').trim();
+  var comNorm = normaliser(inCom), qNorm = normaliser(inQ), secNorm = normaliser(inSec), lieuNorm = normaliser(inLieu);
+
+  var meilleurs = [], candidats = refQ || [];
+  var correspondCom = function (q) { return !comNorm || normaliser(q.commune) === comNorm; };
+  var variantesDe = function (q) {
+    return String(q.variantes || '').split(/[,;|\/]+/).map(function (x) { return normaliser(x); }).filter(Boolean);
+  };
+
+  if (qNorm && secNorm) {
+    meilleurs = candidats.filter(function (q) { return correspondCom(q) && normaliser(q.quartier) === qNorm && normaliser(q.secteur) === secNorm; });
+    if (!meilleurs.length && comNorm) {
+      meilleurs = candidats.filter(function (q) { return normaliser(q.quartier) === qNorm && normaliser(q.secteur) === secNorm; });
+    }
+  }
+  if (!meilleurs.length && secNorm) {
+    meilleurs = candidats.filter(function (q) { return correspondCom(q) && normaliser(q.secteur) === secNorm; });
+    if (!meilleurs.length && comNorm) {
+      meilleurs = candidats.filter(function (q) { return normaliser(q.secteur) === secNorm; });
+    }
+  }
+  if (!meilleurs.length && qNorm) {
+    meilleurs = candidats.filter(function (q) { return correspondCom(q) && normaliser(q.quartier) === qNorm && !q.secteur; });
+    if (!meilleurs.length) {
+      meilleurs = candidats.filter(function (q) { return correspondCom(q) && normaliser(q.quartier) === qNorm; });
+    }
+    if (!meilleurs.length) {
+      meilleurs = candidats.filter(function (q) {
+        return correspondCom(q) && (normaliser(q.secteur) === qNorm || normaliser(q.quartier + ' ' + q.secteur) === qNorm || variantesDe(q).indexOf(qNorm) >= 0);
+      });
+    }
+    if (!meilleurs.length && comNorm) {
+      meilleurs = candidats.filter(function (q) {
+        return normaliser(q.quartier) === qNorm || normaliser(q.secteur) === qNorm ||
+          normaliser(q.quartier + ' ' + q.secteur) === qNorm || variantesDe(q).indexOf(qNorm) >= 0;
+      });
+    }
+  }
+  if (!meilleurs.length && lieuNorm) {
+    var trouves = [];
+    candidats.forEach(function (q) {
+      if (!correspondCom(q)) return;
+      var cleSec = normaliser(q.secteur), cleQ = normaliser(q.quartier), vars = variantesDe(q);
+      if (cleSec && cleSec.length >= 4 && lieuNorm.indexOf(cleSec) >= 0) trouves.push({ q: q, len: cleSec.length + 20 });
+      else if (vars.some(function (v) { return v.length >= 4 && lieuNorm.indexOf(v) >= 0; })) trouves.push({ q: q, len: 30 });
+      else if (cleQ && cleQ.length >= 4 && lieuNorm.indexOf(cleQ) >= 0) trouves.push({ q: q, len: cleQ.length });
+    });
+    if (trouves.length) {
+      trouves.sort(function (a, b) { return b.len - a.len; });
+      meilleurs = [trouves[0].q];
+    }
+  }
+
+  if (meilleurs.length) {
+    var m = meilleurs[0];
+    var tzM = territoireEtZoneDeCommune_(m.commune);
+    return {
+      territoire: m.territoire || tzM.territoire || inTer,
+      zone: m.zone || tzM.zone || inZ,
+      commune: m.commune || inCom,
+      subdivision: m.subdivision || inSub,
+      quartier: m.quartier || inQ,
+      secteur: m.secteur || inSec,
+      lat: m.lat,
+      lon: m.lon
+    };
+  }
+  var tzDef = territoireEtZoneDeCommune_(inCom);
+  var subDef = inSub;
+  if (!subDef && tzDef.commune && typeof zoneDeQuartier === 'function') {
+    subDef = zoneDeQuartier(tzDef.commune, inQ, inLieu);
+  }
+  var cenInt = (tzDef.territoire === 'Intérieur' && typeof centroideVilleInterieur === 'function') ? centroideVilleInterieur(tzDef.commune || inQ) : null;
+  return {
+    territoire: inTer || tzDef.territoire,
+    zone: inZ || tzDef.zone,
+    commune: tzDef.commune || inCom,
+    subdivision: subDef,
+    quartier: inQ,
+    secteur: inSec,
+    lat: cenInt ? cenInt.lat : '',
+    lon: cenInt ? cenInt.lon : ''
+  };
+}
+
+function resoudreTerritoireEcriture_(entree, refQ) {
+  if (!refQ || !refQ.length) refQ = referentielQuartiers_(null);
+  var res = (typeof resoudreTerritoire === 'function')
+    ? resoudreTerritoire(entree, refQ)
+    : resoudreTerritoireFallback_(entree, refQ);
+  res = res || {};
+  var out = {
+    territoire: String(res.territoire || entree.territoire || '').trim(),
+    zone: String(res.zone || entree.zone || '').trim(),
+    commune: String(res.commune || (typeof communeParente === 'function' ? communeParente(entree.commune || '') : entree.commune || '')).trim(),
+    subdivision: String(res.subdivision || entree.subdivision || '').trim(),
+    quartier: String(res.quartier || entree.quartier || '').trim(),
+    secteur: String(res.secteur || entree.secteur || '').trim(),
+    lat: res.lat,
+    lon: res.lon
+  };
+  if (out.territoire === 'Intérieur' && !out.zone) out.zone = 'Intérieur';
+  if ((!isFinite(nombre6(out.lat)) || !isFinite(nombre6(out.lon))) && refQ && refQ.length) {
+    var cN = normaliser(out.commune), qN = normaliser(out.quartier), sN = normaliser(out.secteur);
+    var match = refQ.filter(function (q) {
+      return (!cN || normaliser(q.commune) === cN) && (!qN || normaliser(q.quartier) === qN) && (!sN || normaliser(q.secteur) === sN);
+    })[0] || refQ.filter(function (q) {
+      return (!cN || normaliser(q.commune) === cN) && qN && normaliser(q.quartier) === qN;
+    })[0];
+    if (match && isFinite(nombre6(match.lat)) && isFinite(nombre6(match.lon))) {
+      out.lat = match.lat; out.lon = match.lon;
+    } else if (out.territoire === 'Intérieur' && typeof centroideVilleInterieur === 'function') {
+      var ci = centroideVilleInterieur(out.commune || out.quartier);
+      if (ci) { out.lat = ci.lat; out.lon = ci.lon; }
+    }
+  }
+  return out;
+}
+
 function enregistrerFiche(b, dejaVerrouille) {
   b = b || {};
   var p = b.praticien || {}, lieux = fusRedirigerFiche_(b.praticien || {}, Array.isArray(b.presences) ? b.presences : []);
@@ -372,14 +612,11 @@ function enregistrerFiche(b, dejaVerrouille) {
     shP.getRange(rangP, 1, 1, entP.length).setValues([valeurs]);
 
     // --- Presences : lieux du praticien remplacés (mêmes lignes réutilisées, identifiants conservés)
-    var refQ = {};
-    var shQ = ss.getSheetByName(FEUILLES.quartiers);
-    if (shQ && shQ.getLastRow() > 1) {
-      shQ.getRange(2, 1, shQ.getLastRow() - 1, 3).getValues().forEach(function (v) { refQ[normaliser(v[1])] = v; });
-    }
+    var refQ = referentielQuartiers_(ss);
+    var champsR = champsEcrAvecTerritoire_(CHAMPS_PRESENCES);
     var entR = shR.getRange(1, 1, 1, shR.getLastColumn()).getValues()[0].map(normaliser);
-    var posR = CHAMPS_PRESENCES.map(function (c) { return entR.indexOf(normaliser(c[1])); });
-    var rCode = posR[indexChamp(CHAMPS_PRESENCES, 'code')], rId = posR[indexChamp(CHAMPS_PRESENCES, 'id')];
+    var posR = champsR.map(function (c) { return entR.indexOf(normaliser(c[1])); });
+    var rCode = posR[indexChamp(champsR, 'code')], rId = posR[indexChamp(champsR, 'id')];
     var nR = Math.max(shR.getLastRow() - 1, 0);
     var dataR = nR ? shR.getRange(2, 1, nR, entR.length).getValues() : [];
     var mesLignes = [], maxId = 0, anciensCode = String(p.code || '');
@@ -395,14 +632,16 @@ function enregistrerFiche(b, dejaVerrouille) {
     if (rattache) {
       // lieux déjà connus conservés ; même établissement : jours cumulés sur la ligne existante
       var fusionDispo = function (a, b) { var t = String(a || '') + ' ' + String(b || ''), m = /matin/i.test(t), so = /soir/i.test(t); return m && so ? 'Matin et soir' : (m ? 'Matin' : (so ? 'Soir' : '')); };
-      var exist = mesLignes.map(function (i) { var l = dataR[i], o = {}; CHAMPS_PRESENCES.forEach(function (c, k) { if (posR[k] >= 0) o[c[0]] = l[posR[k]]; }); return o; });
+      var exist = mesLignes.map(function (i) { var l = dataR[i], o = {}; champsR.forEach(function (c, k) { if (posR[k] >= 0) o[c[0]] = l[posR[k]]; }); return o; });
       lieux = lieux.slice();
       lieux.forEach(function (x) {
         var e = exist.filter(function (o) { return !o._pris && normaliser(o.lieu) === normaliser(x.lieu); })[0];
         if (!e) return;
         e._pris = true; x.id = e.id;
         JOURS_CLES.forEach(function (j) { x[j] = fusionDispo(e[j], x[j]); });
-        ['quartier', 'reperes', 'lat', 'lon', 'origineGps', 'horaireMatin', 'horaireSoir'].forEach(function (k) { if ((x[k] === undefined || x[k] === '') && e[k] !== '') x[k] = e[k]; });
+        ['territoire', 'zone', 'commune', 'subdivision', 'quartier', 'secteur', 'reperes', 'lat', 'lon', 'origineGps', 'horaireMatin', 'horaireSoir'].forEach(function (k) {
+          if ((x[k] === undefined || x[k] === '') && e[k] !== '') x[k] = e[k];
+        });
       });
       exist.forEach(function (o) { if (!o._pris) lieux.push(o); });
     }
@@ -419,15 +658,26 @@ function enregistrerFiche(b, dejaVerrouille) {
       idsPris[String(id)] = true;
       lignesId.push(String(id));
       if (idBrut && /^TMP/i.test(idBrut)) ids[idBrut] = id;
-      var q = refQ[normaliser(x.quartier)] || ['', '', ''];
+      var resT = resoudreTerritoireEcriture_({
+        territoire: x.territoire || '',
+        zone: x.zone || '',
+        commune: x.commune || '',
+        subdivision: x.subdivision || '',
+        quartier: x.quartier || '',
+        secteur: x.secteur || '',
+        lieu: x.lieu || ''
+      }, refQ);
       var o = {
         id: id,
         code: code,
         nom: texteCellule_(nom),
         lieu: texteCellule_(x.lieu || ''),
-        quartier: texteCellule_(x.quartier || ''),
-        commune: texteCellule_(q[0] || x.commune || ''),
-        zone: texteCellule_(q[2] || x.zone || ''),
+        territoire: texteCellule_(resT.territoire || x.territoire || ''),
+        zone: texteCellule_(resT.zone || x.zone || ''),
+        commune: texteCellule_(resT.commune || x.commune || ''),
+        subdivision: texteCellule_(resT.subdivision || x.subdivision || ''),
+        quartier: texteCellule_(resT.quartier || x.quartier || ''),
+        secteur: texteCellule_(resT.secteur || x.secteur || ''),
         horaireMatin: texteCellule_(x.horaireMatin || ''),
         horaireSoir: texteCellule_(x.horaireSoir || ''),
         lat: x.lat === undefined ? '' : x.lat,
@@ -435,27 +685,29 @@ function enregistrerFiche(b, dejaVerrouille) {
         reperes: texteCellule_(x.reperes || ''),
         origineGps: texteCellule_(x.origineGps || '')
       };
-      // 3.9.0 : pas de position prise sur place ? on cherche l'établissement sur Google Maps (Abidjan)
+      // 3.9.0 : pas de position prise sur place ? on cherche l'établissement sur Google Maps (Abidjan), sinon centroïde quartier
       var latTest = nombre6(o.lat), lonTest = nombre6(o.lon);
       if (!isFinite(latTest) || !isFinite(lonTest) || latTest === 0 || lonTest === 0) {
-        var g = geocoderLieu(String(x.lieu || ''), String(x.quartier || ''), String(q[0] || x.commune || ''));
+        var g = geocoderLieu(String(x.lieu || ''), String(o.quartier || ''), String(o.commune || ''));
         if (g && isFinite(nombre6(g.lat)) && isFinite(nombre6(g.lon))) {
           o.lat = g.lat; o.lon = g.lon; o.origineGps = 'Google Maps'; coords[id] = g;
+        } else if (isFinite(nombre6(resT.lat)) && isFinite(nombre6(resT.lon)) && nombre6(resT.lat) !== 0 && nombre6(resT.lon) !== 0) {
+          o.lat = nombre6(resT.lat); o.lon = nombre6(resT.lon); o.origineGps = o.origineGps || 'Centroïde quartier'; coords[id] = { lat: o.lat, lon: o.lon };
         }
       }
       // 3.27.33 : positions à 6 décimales ; origine conservée si la position n'a pas bougé (valide lat & lon avec isFinite)
       var lat6 = nombre6(o.lat), lon6 = nombre6(o.lon);
       if (isFinite(lat6) && isFinite(lon6)) { o.lat = lat6; o.lon = lon6; }
       else { o.lat = ''; o.lon = ''; }
-      var iEx = ligneParId[String(id)], kO = posR[indexChamp(CHAMPS_PRESENCES, 'origineGps')];
+      var iEx = ligneParId[String(id)], kO = posR[indexChamp(champsR, 'origineGps')];
       if (!o.origineGps && iEx !== undefined && kO >= 0 && o.lat !== '' && o.lon !== '' &&
-          Math.abs(nombre6(dataR[iEx][posR[indexChamp(CHAMPS_PRESENCES, 'lat')]]) - o.lat) < 0.00001 &&
-          Math.abs(nombre6(dataR[iEx][posR[indexChamp(CHAMPS_PRESENCES, 'lon')]]) - o.lon) < 0.00001) {
+          Math.abs(nombre6(dataR[iEx][posR[indexChamp(champsR, 'lat')]]) - o.lat) < 0.00001 &&
+          Math.abs(nombre6(dataR[iEx][posR[indexChamp(champsR, 'lon')]]) - o.lon) < 0.00001) {
         o.origineGps = texteCellule_(dataR[iEx][kO] || '');
       }
       JOURS_CLES.forEach(function (j) { o[j] = texteCellule_(x[j] || ''); });
       var v = entR.map(function () { return ''; });
-      CHAMPS_PRESENCES.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
+      champsR.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
       return v;
     });
     // 1) lieux déjà en base : réécrits sur leur propre ligne ; 2) lieux nouveaux : sur les lignes libérées, sinon ajoutés ;
@@ -476,7 +728,7 @@ function enregistrerFiche(b, dejaVerrouille) {
       (b.supprimerPresences !== false && Array.isArray(b.presences) && b.presences.length > 0);
     if (libres.length && autoriserSuppression) {
       libres.sort(function (a, b) { return b - a; }).forEach(function (i) {
-        var ancLieu = dataR[i] ? dataR[i][posR[indexChamp(CHAMPS_PRESENCES, 'lieu')]] : 'Lieu';
+        var ancLieu = dataR[i] ? dataR[i][posR[indexChamp(champsR, 'lieu')]] : 'Lieu';
         enregistrerAudit(ss, auteur, 'SUPPRESSION_PRESENCE', 'Presence', code, 'Suppression lieu: ' + ancLieu);
         shR.deleteRow(i + 2);
       });
@@ -494,11 +746,12 @@ function nombre6(x) { var n = parseFloat(String(x === undefined || x === null ? 
 // Pharmacie créée ou modifiée depuis l'application (feuille Pharmacies)
 function enregistrerPharmacie(ss, p, lieu, auteur) {
   var sh = ss.getSheetByName(FEUILLES.pharmacies), tz = ss.getSpreadsheetTimeZone();
+  var champsPh = champsEcrAvecTerritoire_(CHAMPS_PHARMACIES);
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
-  var pos = CHAMPS_PHARMACIES.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+  var pos = champsPh.map(function (c) { return ent.indexOf(normaliser(c[1])); });
   var n = Math.max(sh.getLastRow() - 1, 0), data = n ? sh.getRange(2, 1, n, ent.length).getValues() : [];
-  var cCode = pos[indexChamp(CHAMPS_PHARMACIES, 'code')], cNom = pos[indexChamp(CHAMPS_PHARMACIES, 'nom')], cQuart = pos[indexChamp(CHAMPS_PHARMACIES, 'quartier')];
-  var code = String(p.code || ''), ligne = -1, max = 1000, nomNorm = normaliser(p.nom), quartNorm = normaliser(lieu.quartier);
+  var cCode = pos[indexChamp(champsPh, 'code')], cNom = pos[indexChamp(champsPh, 'nom')], cQuart = pos[indexChamp(champsPh, 'quartier')];
+  var code = String(p.code || ''), ligne = -1, max = 1000, nomNorm = normaliser(p.nom), quartNorm = normaliser(lieu.quartier || lieu.secteur);
   data.forEach(function (l, i) {
     var m = String(l[cCode]).match(/^PHA-(\d+)$/); if (m && +m[1] > max) max = +m[1];
     if (code && String(l[cCode]) === code) ligne = i;
@@ -507,20 +760,46 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
     }
   });
   if (ligne < 0) code = 'PHA-' + (max + 1);
-  var q = {};
-  var shQ = ss.getSheetByName(FEUILLES.quartiers);
-  if (shQ && shQ.getLastRow() > 1) shQ.getRange(2, 1, shQ.getLastRow() - 1, 3).getValues().forEach(function (v) { if (normaliser(v[1]) === normaliser(lieu.quartier)) q = { commune: v[0], zone: v[2] }; });
+  var refQ = referentielQuartiers_(ss);
   var v = ligne >= 0 ? data[ligne].slice() : ent.map(function () { return ''; });
-  var kQuart = pos[indexChamp(CHAMPS_PHARMACIES, 'quartier')];
-  var kCom = pos[indexChamp(CHAMPS_PHARMACIES, 'commune')];
-  var kHM = pos[indexChamp(CHAMPS_PHARMACIES, 'horaireMatin')];
-  var kHS = pos[indexChamp(CHAMPS_PHARMACIES, 'horaireSoir')];
-  var kTel = pos[indexChamp(CHAMPS_PHARMACIES, 'telephone')];
-  var kLaP = pos[indexChamp(CHAMPS_PHARMACIES, 'lat')], kLoP = pos[indexChamp(CHAMPS_PHARMACIES, 'lon')];
+  var kTer = pos[indexChamp(champsPh, 'territoire')];
+  var kZ = pos[indexChamp(champsPh, 'zone')];
+  var kCom = pos[indexChamp(champsPh, 'commune')];
+  var kSub = pos[indexChamp(champsPh, 'subdivision')];
+  var kQuart = pos[indexChamp(champsPh, 'quartier')];
+  var kSec = pos[indexChamp(champsPh, 'secteur')];
+  var kHM = pos[indexChamp(champsPh, 'horaireMatin')];
+  var kHS = pos[indexChamp(champsPh, 'horaireSoir')];
+  var kTel = pos[indexChamp(champsPh, 'telephone')];
+  var kLaP = pos[indexChamp(champsPh, 'lat')], kLoP = pos[indexChamp(champsPh, 'lon')];
 
-  var quartIn = String(lieu.quartier || '').trim();
-  var comIn = String(q.commune || lieu.commune || '').trim();
-  var zoneIn = String(q.zone || lieu.zone || '').trim();
+  var aEntreeGeo = !!(lieu.territoire || lieu.zone || lieu.commune || lieu.subdivision || lieu.quartier || lieu.secteur ||
+    p.territoire || p.zone || p.commune || p.subdivision || p.quartier || p.secteur);
+  var srcGeo = aEntreeGeo ? {
+    territoire: lieu.territoire || p.territoire || '',
+    zone: lieu.zone || p.zone || '',
+    commune: lieu.commune || p.commune || '',
+    subdivision: lieu.subdivision || p.subdivision || '',
+    quartier: lieu.quartier || p.quartier || '',
+    secteur: lieu.secteur || p.secteur || '',
+    lieu: p.nom || ''
+  } : (ligne >= 0 ? {
+    territoire: kTer >= 0 ? String(v[kTer] || '') : '',
+    zone: kZ >= 0 ? String(v[kZ] || '') : '',
+    commune: kCom >= 0 ? String(v[kCom] || '') : '',
+    subdivision: kSub >= 0 ? String(v[kSub] || '') : '',
+    quartier: kQuart >= 0 ? String(v[kQuart] || '') : '',
+    secteur: kSec >= 0 ? String(v[kSec] || '') : '',
+    lieu: p.nom || ''
+  } : { lieu: p.nom || '' });
+  var resT = resoudreTerritoireEcriture_(srcGeo, refQ);
+
+  var terIn = String(resT.territoire || '').trim();
+  var zoneIn = String(resT.zone || '').trim();
+  var comIn = String(resT.commune || '').trim();
+  var subIn = String(resT.subdivision || '').trim();
+  var quartIn = String(resT.quartier || '').trim();
+  var secIn = String(resT.secteur || '').trim();
   var hmIn = String(lieu.horaireMatin || '').trim();
   var hsIn = String(lieu.horaireSoir || '').trim();
 
@@ -532,12 +811,12 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
     conventionne: estConventionne(p.conventionne) ? 'Oui' : 'Non',
     actif: normaliser(p.actif) === 'non' ? 'Non' : 'Oui'
   };
-  if (quartIn) modif.quartier = texteCellule_(quartIn);
-  else if (ligne < 0) modif.quartier = '';
-  if (comIn) modif.commune = texteCellule_(comIn);
-  else if (ligne < 0) modif.commune = '';
-  if (zoneIn) modif.zone = texteCellule_(zoneIn);
-  else if (ligne < 0) modif.zone = '';
+  if (terIn) modif.territoire = texteCellule_(terIn); else if (ligne < 0) modif.territoire = '';
+  if (zoneIn) modif.zone = texteCellule_(zoneIn); else if (ligne < 0) modif.zone = '';
+  if (comIn) modif.commune = texteCellule_(comIn); else if (ligne < 0) modif.commune = '';
+  if (subIn) modif.subdivision = texteCellule_(subIn); else if (ligne < 0) modif.subdivision = '';
+  if (quartIn) modif.quartier = texteCellule_(quartIn); else if (ligne < 0) modif.quartier = '';
+  if (secIn) modif.secteur = texteCellule_(secIn); else if (ligne < 0) modif.secteur = '';
   if (hmIn) modif.horaireMatin = texteCellule_(hmIn);
   else if (ligne < 0 || kHM < 0 || !String(v[kHM] || '').trim()) modif.horaireMatin = HORAIRES_PHARMACIE[0];
   if (hsIn) modif.horaireSoir = texteCellule_(hsIn);
@@ -561,11 +840,21 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
     if (g && isFinite(nombre6(g.lat)) && isFinite(nombre6(g.lon))) {
       modif.lat = nombre6(g.lat); modif.lon = nombre6(g.lon); modif.origineGps = 'Google Maps';
       var quartActuel = modif.quartier !== undefined ? modif.quartier : (kQuart >= 0 ? String(v[kQuart] || '') : '');
-      if ((!quartActuel || quartActuel === 'NL') && g.quartier) modif.quartier = texteCellule_(g.quartier);
+      if ((!quartActuel || quartActuel === 'NL') && g.quartier) {
+        var resG = resoudreTerritoireEcriture_({ commune: comGeo, quartier: g.quartier, lieu: p.nom || '' }, refQ);
+        modif.quartier = texteCellule_(resG.quartier || g.quartier);
+        if (!modif.secteur && resG.secteur) modif.secteur = texteCellule_(resG.secteur);
+        if (!modif.subdivision && resG.subdivision) modif.subdivision = texteCellule_(resG.subdivision);
+        if (!modif.commune && resG.commune) modif.commune = texteCellule_(resG.commune);
+        if (!modif.zone && resG.zone) modif.zone = texteCellule_(resG.zone);
+        if (!modif.territoire && resG.territoire) modif.territoire = texteCellule_(resG.territoire);
+      }
+    } else if (isFinite(nombre6(resT.lat)) && isFinite(nombre6(resT.lon)) && nombre6(resT.lat) !== 0 && nombre6(resT.lon) !== 0) {
+      modif.lat = nombre6(resT.lat); modif.lon = nombre6(resT.lon); modif.origineGps = 'Centroïde quartier';
     }
   }
   if (ligne < 0) { modif.nbVisites = 0; modif.source = 'Application'; }
-  CHAMPS_PHARMACIES.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
+  champsPh.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
   var rangPh = ligne >= 0 ? ligne + 2 : sh.getLastRow() + 1;
   if (kTel >= 0) sh.getRange(rangPh, kTel + 1).setNumberFormat('@');
   sh.getRange(rangPh, 1, 1, ent.length).setValues([v]);
@@ -586,10 +875,12 @@ function enregistrerEtablissement(b) {
     var ss = SpreadsheetApp.getActive();
     assurerStructure(ss);
     var sh = ss.getSheetByName(FEUILLES.etablissements);
+    var champsE = champsEcrAvecTerritoire_(CHAMPS_ETABLISSEMENTS);
+    if (!champsE.some(function (c) { return c[0] === 'origineGps'; })) champsE.push(['origineGps', 'OrigineGPS']);
     var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
-    var pos = CHAMPS_ETABLISSEMENTS.map(function (c) { return ent.indexOf(normaliser(c[1])); });
+    var pos = champsE.map(function (c) { return ent.indexOf(normaliser(c[1])); });
     var n = Math.max(sh.getLastRow() - 1, 0), data = n ? sh.getRange(2, 1, n, ent.length).getValues() : [];
-    var cCode = pos[indexChamp(CHAMPS_ETABLISSEMENTS, 'code')], cNom = pos[indexChamp(CHAMPS_ETABLISSEMENTS, 'nom')];
+    var cCode = pos[indexChamp(champsE, 'code')], cNom = pos[indexChamp(champsE, 'nom')];
     var code = String(b.code || ''), ligne = -1, max = 0, nomNorm = normaliser(nom);
     data.forEach(function (l, i) {
       var c = String(l[cCode]);
@@ -603,31 +894,61 @@ function enregistrerEtablissement(b) {
     if (ligne < 0 && (!code || /^TMP-/i.test(code))) {
       code = 'ETAB-' + numeroCode(max + 1);
     }
+    var refQ = referentielQuartiers_(ss);
     var v = ligne >= 0 ? data[ligne].slice() : ent.map(function () { return ''; });
+    var resT = resoudreTerritoireEcriture_({
+      territoire: b.territoire || '',
+      zone: b.zone || '',
+      commune: b.commune || '',
+      subdivision: b.subdivision || '',
+      quartier: b.quartier || '',
+      secteur: b.secteur || '',
+      lieu: nom
+    }, refQ);
     var modif = {
       code: code,
       nom: texteCellule_(nom),
       categorie: texteCellule_(b.categorie || ''),
-      commune: texteCellule_(b.commune || ''),
-      quartier: texteCellule_(b.quartier || ''),
-      zone: texteCellule_(b.zone || ''),
+      territoire: texteCellule_(resT.territoire || b.territoire || ''),
+      zone: texteCellule_(resT.zone || b.zone || ''),
+      commune: texteCellule_(resT.commune || b.commune || ''),
+      subdivision: texteCellule_(resT.subdivision || b.subdivision || ''),
+      quartier: texteCellule_(resT.quartier || b.quartier || ''),
+      secteur: texteCellule_(resT.secteur || b.secteur || ''),
       telephone: preparerTelephone_(b.telephone || ''),
       reperes: texteCellule_(b.reperes || '')
     };
+    var kLaE = pos[indexChamp(champsE, 'lat')], kLoE = pos[indexChamp(champsE, 'lon')];
+    var latExE = (ligne >= 0 && kLaE >= 0) ? nombre6(v[kLaE]) : NaN;
+    var lonExE = (ligne >= 0 && kLoE >= 0) ? nombre6(v[kLoE]) : NaN;
+    var gpsExEValide = isFinite(latExE) && isFinite(lonExE) && latExE !== 0 && lonExE !== 0;
+
     if (b.lat !== undefined && b.lon !== undefined && b.lat !== '' && b.lon !== '') {
       var latE = nombre6(b.lat), lonE = nombre6(b.lon);
-      if (isFinite(latE) && isFinite(lonE)) {
+      if (isFinite(latE) && isFinite(lonE) && latE !== 0 && lonE !== 0) {
         modif.lat = latE;
         modif.lon = lonE;
       }
     }
-    CHAMPS_ETABLISSEMENTS.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
+    if ((modif.lat === undefined || modif.lon === undefined) && !gpsExEValide) {
+      var gE = typeof geocoderLieu === 'function' ? geocoderLieu(nom, modif.quartier, modif.commune) : null;
+      if (gE && isFinite(nombre6(gE.lat)) && isFinite(nombre6(gE.lon))) {
+        modif.lat = nombre6(gE.lat);
+        modif.lon = nombre6(gE.lon);
+        modif.origineGps = 'Google Maps';
+      } else if (isFinite(nombre6(resT.lat)) && isFinite(nombre6(resT.lon)) && nombre6(resT.lat) !== 0 && nombre6(resT.lon) !== 0) {
+        modif.lat = nombre6(resT.lat);
+        modif.lon = nombre6(resT.lon);
+        modif.origineGps = 'Centroïde quartier';
+      }
+    }
+    champsE.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
     var rangE = ligne >= 0 ? ligne + 2 : sh.getLastRow() + 1;
-    var cTelE = pos[indexChamp(CHAMPS_ETABLISSEMENTS, 'telephone')];
+    var cTelE = pos[indexChamp(champsE, 'telephone')];
     if (cTelE >= 0) sh.getRange(rangE, cTelE + 1).setNumberFormat('@');
     sh.getRange(rangE, 1, 1, ent.length).setValues([v]);
 
-    // Cascade GPS et quartier vers la feuille Presences si lat/lon modifiés
+    // Cascade GPS et territoire/quartier vers la feuille Presences si lat/lon modifiés
     var cascades = 0;
     if (isFinite(modif.lat) && isFinite(modif.lon) && modif.lat) {
       var shR = ss.getSheetByName(FEUILLES.presences);
@@ -636,8 +957,12 @@ function enregistrerEtablissement(b) {
         var cLieu = entR.indexOf(normaliser('Lieu/Etablissement'));
         var cLatR = entR.indexOf(normaliser('Latitude'));
         var cLonR = entR.indexOf(normaliser('Longitude'));
-        var cQuartR = entR.indexOf(normaliser('Quartier'));
+        var cTerR = entR.indexOf(normaliser('Territoire'));
+        var cZonR = entR.indexOf(normaliser('Zone'));
         var cComR = entR.indexOf(normaliser('Commune'));
+        var cSubR = entR.indexOf(normaliser('Subdivision'));
+        var cQuartR = entR.indexOf(normaliser('Quartier'));
+        var cSecR = entR.indexOf(normaliser('Secteur'));
         if (cLieu >= 0 && cLatR >= 0 && cLonR >= 0) {
           var nR = shR.getLastRow() - 1;
           var valR = shR.getRange(2, 1, nR, entR.length).getValues();
@@ -646,8 +971,12 @@ function enregistrerEtablissement(b) {
             if (normaliser(row[cLieu]) === nomNorm) {
               row[cLatR] = modif.lat;
               row[cLonR] = modif.lon;
-              if (modif.quartier && cQuartR >= 0 && (!row[cQuartR] || normaliser(row[cQuartR]) === 'nl')) row[cQuartR] = modif.quartier;
+              if (modif.territoire && cTerR >= 0 && !row[cTerR]) row[cTerR] = modif.territoire;
+              if (modif.zone && cZonR >= 0 && !row[cZonR]) row[cZonR] = modif.zone;
               if (modif.commune && cComR >= 0 && (!row[cComR] || normaliser(row[cComR]) === 'nl')) row[cComR] = modif.commune;
+              if (modif.subdivision && cSubR >= 0 && !row[cSubR]) row[cSubR] = modif.subdivision;
+              if (modif.quartier && cQuartR >= 0 && (!row[cQuartR] || normaliser(row[cQuartR]) === 'nl')) row[cQuartR] = modif.quartier;
+              if (modif.secteur && cSecR >= 0 && !row[cSecR]) row[cSecR] = modif.secteur;
               cascades++;
               modifR = true;
             }

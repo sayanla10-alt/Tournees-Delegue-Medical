@@ -47,8 +47,14 @@ var CHAMPS_PRATICIENS = [
 var CHAMPS_PRESENCES = [
   ['id', 'IdPresence'], ['code', 'CodeContact'], ['nom', 'Nom'], ['lieu', 'Lieu/Etablissement'],
   ['quartier', 'Quartier'], ['commune', 'Commune'], ['zone', 'Zone'],
+  ['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur'],
   ['lundi', 'Lundi'], ['mardi', 'Mardi'], ['mercredi', 'Mercredi'], ['jeudi', 'Jeudi'], ['vendredi', 'Vendredi'],
   ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS']
+];
+
+var CHAMPS_QUARTIERS = [
+  ['territoire', 'Territoire'], ['zone', 'Zone'], ['commune', 'Commune'], ['subdivision', 'Subdivision'],
+  ['quartier', 'Quartier'], ['secteur', 'Secteur'], ['variantes', 'Variantes'], ['lat', 'Latitude'], ['lon', 'Longitude']
 ];
 
 // 3.26.54 : règle unique de position d'un lieu. Latitude / longitude lues avec virgule ou point ;
@@ -78,7 +84,8 @@ var CHAMPS_HIST = [
 // matin et soir ; les colonnes de suivi portent les mêmes noms que dans Praticiens.
 var CHAMPS_PHARMACIES = [
   ['code', 'CodeContact'], ['nom', 'Nom'], ['titulaire', 'Titulaire'], ['quartier', 'Quartier'], ['commune', 'Commune'],
-  ['zone', 'Zone'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['horaireMatin', 'HoraireMatin'],
+  ['zone', 'Zone'], ['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur'],
+  ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['horaireMatin', 'HoraireMatin'],
   ['horaireSoir', 'HoraireSoir'], ['note', 'Note'], ['conventionne', 'Engagé'], ['derniere', 'DateDerniereVisite'],
   ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'], ['nbVisites', 'NbVisites'], ['actif', 'Actif'],
   ['prochaine', 'ProchaineEtape'], ['source', 'Source'], ['origineGps', 'OrigineGPS']
@@ -87,8 +94,8 @@ var CHAMPS_PHARMACIES = [
 // Répertoire des hôpitaux et établissements de santé (CHU, Cliniques, FSU COM, Centres Médicaux, etc.)
 var CHAMPS_ETABLISSEMENTS = [
   ['code', 'CodeEtab'], ['nom', 'Nom'], ['categorie', 'Categorie'], ['commune', 'Commune'],
-  ['quartier', 'Quartier'], ['zone', 'Zone'], ['lat', 'Latitude'], ['lon', 'Longitude'],
-  ['telephone', 'Téléphone'], ['reperes', 'Repères']
+  ['quartier', 'Quartier'], ['zone', 'Zone'], ['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur'],
+  ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['reperes', 'Repères']
 ];
 var HORAIRES_PHARMACIE = ['08:00-12:30', '15:00-20:00'];
 var ACTIVITES_DEFAUT = ['Routine', 'Présentation', 'Échantillons', 'Cadeaux', 'EPU', 'Staff', 'Réunion', 'Déjeuner', 'Garde', 'Dépistage', 'Autre'];
@@ -111,145 +118,162 @@ var CHAMPS_PLAN = [
   ['maj', 'MiseAJour'], ['uid', 'IdArret'], ['depuis', 'CibleDepuis']
 ];
 
-// Commune, Quartier, Zone, Latitude, Longitude (coordonnées approximatives)
-// Découpage en 4 secteurs pour les grandes communes (Abobo, Cocody, Yopougon) et communes du Grand Abidjan
+// Territoire, Zone, Commune, Subdivision, Quartier, Secteur, Variantes, Latitude, Longitude
+// Hiérarchie spatiale complète du Grand Abidjan (subdivisions pour Abobo, Cocody, Yopougon)
 var QUARTIERS_DEFAUT = [
-  // Abobo (Zone Nord) - 4 secteurs
-  ['Abobo – Nord & PK18', 'PK 18', 'Zone Nord', 5.455, -4.050],
-  ['Abobo – Nord & PK18', 'N\'Dotré', 'Zone Nord', 5.475, -4.045],
-  ['Abobo – Nord & PK18', 'Anonkoua Kouté', 'Zone Nord', 5.435, -4.047],
-  ['Abobo – Nord & PK18', 'Belle Ville', 'Zone Nord', 5.460, -4.040],
-  ['Abobo – Nord & PK18', 'Biabou', 'Zone Nord', 5.435, -4.005],
-  ['Abobo – Nord & PK18', 'Akeikoi', 'Zone Nord', 5.450, -4.015],
+  // Abobo (Zone Nord) - 4 subdivisions
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Nord & PK18', 'PK 18', '', 'PK18, Abobo PK18, Abobo Nord', 5.455, -4.050],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Nord & PK18', 'N\'Dotré', '', 'Ndotre, Ndotré', 5.475, -4.045],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Nord & PK18', 'Anonkoua Kouté', '', 'Anonkoua, Anokoi', 5.435, -4.047],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Nord & PK18', 'Belle Ville', '', 'Belleville', 5.460, -4.040],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Nord & PK18', 'Biabou', '', '', 5.435, -4.005],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Nord & PK18', 'Akeikoi', '', 'Akekoi', 5.450, -4.015],
 
-  ['Abobo – Centre & Mairie', 'Samaké', 'Zone Nord', 5.4155, -4.0072],
-  ['Abobo – Centre & Mairie', 'Gare', 'Zone Nord', 5.418, -4.020],
-  ['Abobo – Centre & Mairie', 'Mairie', 'Zone Nord', 5.4162, -4.0159],
-  ['Abobo – Centre & Mairie', 'Derrière rails', 'Zone Nord', 5.416, -4.017],
-  ['Abobo – Centre & Mairie', 'Habitat', 'Zone Nord', 5.422, -4.022],
-  ['Abobo – Centre & Mairie', 'Banco', 'Zone Nord', 5.410, -4.028],
-  ['Abobo – Centre & Mairie', 'Marché', 'Zone Nord', 5.417, -4.021],
-  ['Abobo – Centre & Mairie', 'Gendarmerie', 'Zone Nord', 5.414, -4.015],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Centre & Mairie', 'Samaké', '', 'Samake', 5.4155, -4.0072],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Centre & Mairie', 'Gare', '', 'Abobo Gare', 5.418, -4.020],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Centre & Mairie', 'Mairie', '', 'Abobo Mairie, Abobo Centre', 5.4162, -4.0159],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Centre & Mairie', 'Derrière rails', '', 'Derriere rails, Derriere rail', 5.416, -4.017],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Centre & Mairie', 'Habitat', '', 'Abobo Habitat', 5.422, -4.022],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Centre & Mairie', 'Banco', '', '', 5.410, -4.028],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Centre & Mairie', 'Marché', '', 'Abobo Marche, Grand Marché Abobo', 5.417, -4.021],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Centre & Mairie', 'Gendarmerie', '', 'Abobo Gendarmerie', 5.414, -4.015],
 
-  ['Abobo – Baoulé & Avocatier', 'Abobo Baoulé', 'Zone Nord', 5.431, -3.996],
-  ['Abobo – Baoulé & Avocatier', 'Avocatier', 'Zone Nord', 5.439, -4.024],
-  ['Abobo – Baoulé & Avocatier', 'Clouetcha', 'Zone Nord', 5.425, -4.025],
-  ['Abobo – Baoulé & Avocatier', 'Dépôt SOTRA', 'Zone Nord', 5.430, -4.030],
-  ['Abobo – Baoulé & Avocatier', 'Abobo-Té', 'Zone Nord', 5.438, -4.012],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Baoulé & Avocatier', 'Abobo Baoulé', '', 'Baoule, Abobo Baoule', 5.431, -3.996],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Baoulé & Avocatier', 'Avocatier', '', '', 5.439, -4.024],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Baoulé & Avocatier', 'Clouetcha', '', '', 5.425, -4.025],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Baoulé & Avocatier', 'Dépôt SOTRA', '', 'Depot SOTRA, SOTRA Abobo', 5.430, -4.030],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Baoulé & Avocatier', 'Abobo-Té', '', 'Abobo Te, Abobote', 5.438, -4.012],
 
-  ['Abobo – Sud & Plaque', 'Plaque 1 & 2', 'Zone Nord', 5.405, -4.018],
-  ['Abobo – Sud & Plaque', 'Anador', 'Zone Nord', 5.410, -4.022],
-  ['Abobo – Sud & Plaque', 'Sagbé', 'Zone Nord', 5.408, -4.010],
-  ['Abobo – Sud & Plaque', 'Houphouët-Boigny', 'Zone Nord', 5.412, -4.015],
-  ['Abobo – Sud & Plaque', 'Dokui', 'Zone Nord', 5.395, -4.010],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Sud & Plaque', 'Plaque 1 & 2', '', 'Plaque, Plaque 1, Plaque 2', 5.405, -4.018],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Sud & Plaque', 'Anador', '', '', 5.410, -4.022],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Sud & Plaque', 'Sagbé', '', 'Sagbe, Abobo Sagbe', 5.408, -4.010],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Sud & Plaque', 'Houphouët-Boigny', '', 'Houphouet Boigny, Abobo Sud', 5.412, -4.015],
+  ['Abidjan', 'Zone Nord', 'Abobo', 'Abobo – Sud & Plaque', 'Dokui', '', 'Plateau Dokui', 5.395, -4.010],
 
-  // Cocody (Zone Est) - 4 secteurs
-  ['Cocody – Angré', 'Angré', 'Zone Est', 5.398, -3.985],
-  ['Cocody – Angré', '7e & 8e Tranche', 'Zone Est', 5.385, -3.992],
-  ['Cocody – Angré', 'CHU Angré', 'Zone Est', 5.4010, -3.9574],
-  ['Cocody – Angré', 'Djorobité', 'Zone Est', 5.415, -3.965],
-  ['Cocody – Angré', 'Mahou', 'Zone Est', 5.390, -3.995],
-  ['Cocody – Angré', 'Château d\'Eau', 'Zone Est', 5.395, -3.982],
-  ['Cocody – Angré', 'Besakoi', 'Zone Est', 5.410, -3.970],
+  // Cocody (Zone Est) - 4 subdivisions enrichies
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', '', 'Angre', 5.398, -3.985],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', '7e Tranche', '7eme tranche, 7ème tranche, Angré 7e Tranche, 7e & 8e Tranche, 7e et 8e Tranche', 5.388, -3.990],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', '8e Tranche', '8eme tranche, 8ème tranche, Angré 8e Tranche', 5.385, -3.992],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', '9e Tranche', '9eme tranche, 9ème tranche, Angré 9e Tranche', 5.392, -3.986],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', '22e Arrondissement', '22eme arrondissement, 22ème arrondissement, 22e, Angré 22e', 5.394, -3.988],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'CHU Angré', 'CHU d\'Angré, CHU d Angre, Angré CHU, Centre Hospitalier Universitaire d\'Angré', 5.4010, -3.9574],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Djorobité', 'Djorobite, Djorogobité, Djorogobite, Angré Djorobité', 5.415, -3.965],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Djibi', 'Angré Djibi, Djibi 1, Djibi 2', 5.404, -3.968],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Mahou', 'Angré Mahou', 5.390, -3.995],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Château', 'Chateau, Château d\'Eau, Chateau d\'Eau, Angré Château', 5.395, -3.982],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Besakoi', 'Bessakoi, Angré Besakoi', 5.410, -3.970],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'CNPS', 'Angré CNPS, Carrefour CNPS', 5.397, -3.984],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Arcades', 'Les Arcades, Angré Arcades', 5.391, -3.989],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Caféier', 'Cafeier, Caféiers, Les Caféiers, Angré Caféier', 5.396, -3.983],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Petro Ivoire', 'Pétro Ivoire, PetroIvoire, Angré Petro Ivoire', 5.393, -3.987],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Soleil', 'Cité Soleil, Angré Soleil', 5.402, -3.980],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Star', 'Cité Star, Star 1, Star 2, Star 8, Star 9, Angré Star', 5.399, -3.978],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Nouveau Horizon', 'Nouvel Horizon, Angré Nouveau Horizon', 5.400, -3.981],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Angré', 'Angré', 'Oscar', 'Les Oscars, Les Oscards, Angré Oscar', 5.394, -3.985],
 
-  ['Cocody – Deux Plateaux', 'Deux Plateaux', 'Zone Est', 5.366, -3.998],
-  ['Cocody – Deux Plateaux', 'Vallons', 'Zone Est', 5.370, -3.990],
-  ['Cocody – Deux Plateaux', 'Aghien', 'Zone Est', 5.375, -3.985],
-  ['Cocody – Deux Plateaux', 'ENA', 'Zone Est', 5.360, -4.005],
-  ['Cocody – Deux Plateaux', 'Attoban', 'Zone Est', 5.370, -3.965],
-  ['Cocody – Deux Plateaux', 'Sainte-Cécile', 'Zone Est', 5.362, -3.992],
-  ['Cocody – Deux Plateaux', 'Latrille', 'Zone Est', 5.368, -4.002],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', '', '2 Plateaux, II Plateaux, 2Pltx', 5.366, -3.998],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', 'Vallons', 'Les Vallons, Deux Plateaux Vallons, 2 Plateaux Vallons', 5.370, -3.990],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', 'Aghien', 'Deux Plateaux Aghien, 2 Plateaux Aghien', 5.375, -3.985],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', 'ENA', 'Deux Plateaux ENA, Carrefour ENA', 5.360, -4.005],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', 'Attoban', 'Deux Plateaux Attoban, 2 Plateaux Attoban', 5.370, -3.965],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', 'Sainte-Cécile', 'Sainte Cécile, Ste Cécile, Ste-Cécile, Deux Plateaux Sainte-Cécile', 5.362, -3.992],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', 'Latrille', 'Boulevard Latrille, Bd Latrille, Deux Plateaux Latrille', 5.368, -4.002],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', 'Palmas', 'Las Palmas, Deux Plateaux Las Palmas', 5.364, -3.996],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Deux Plateaux', 'Deux Plateaux', 'SOCOCE', 'Deux Plateaux SOCOCE, Sococe 2 Plateaux', 5.365, -3.999],
 
-  ['Cocody – Riviera', 'Riviera 2', 'Zone Est', 5.355, -3.965],
-  ['Cocody – Riviera', 'Riviera 3', 'Zone Est', 5.362, -3.952],
-  ['Cocody – Riviera', 'Riviera Golf', 'Zone Est', 5.336, -3.962],
-  ['Cocody – Riviera', 'Palmeraie', 'Zone Est', 5.373, -3.948],
-  ['Cocody – Riviera', 'Faya', 'Zone Est', 5.386, -3.925],
-  ['Cocody – Riviera', 'Anono', 'Zone Est', 5.335, -3.955],
-  ['Cocody – Riviera', 'M\'badon', 'Zone Est', 5.340, -3.935],
-  ['Cocody – Riviera', 'Akouédo', 'Zone Est', 5.365, -3.920],
-  ['Cocody – Riviera', 'Abatta', 'Zone Est', 5.370, -3.910],
-  ['Cocody – Riviera', 'Bonoumin', 'Zone Est', 5.360, -3.960],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', '', 'La Riviera, Riviera 1', 5.355, -3.960],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Riviera 2', 'Riviera II, R2', 5.355, -3.965],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Riviera 3', 'Riviera III, R3, Riviera 4, Riviera IV, CIAD', 5.362, -3.952],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Riviera Golf', 'Golf, Le Golf', 5.336, -3.962],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Palmeraie', 'Riviera Palmeraie, La Palmeraie', 5.373, -3.948],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Faya', 'Riviera Faya, Carrefour Faya', 5.386, -3.925],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Anono', 'Riviera Anono', 5.335, -3.955],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'M\'Badon', 'Mbadon, M\'badon, Riviera M\'Badon', 5.340, -3.935],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Akouédo', 'Akouedo, Riviera Akouédo', 5.365, -3.920],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Abatta', 'Riviera Abatta', 5.370, -3.910],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Bonoumin', 'Riviera Bonoumin', 5.360, -3.960],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Riviera', 'Riviera', 'Cité Marina', 'Cite Marina, Marina, Riviera Cité Marina', 5.358, -3.958],
 
-  ['Cocody – Centre', 'Cocody Centre', 'Zone Est', 5.342, -3.995],
-  ['Cocody – Centre', 'Saint-Jean', 'Zone Est', 5.3373, -4.0035],
-  ['Cocody – Centre', 'Danga', 'Zone Est', 5.341, -4.009],
-  ['Cocody – Centre', 'CHU Cocody', 'Zone Est', 5.3444, -3.9939],
-  ['Cocody – Centre', 'Mermoz', 'Zone Est', 5.338, -4.005],
-  ['Cocody – Centre', 'Blockhauss', 'Zone Est', 5.328, -4.000],
-  ['Cocody – Centre', 'Ambassades', 'Zone Est', 5.332, -4.010],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Centre', 'Cocody Centre', '', 'Centre Cocody', 5.342, -3.995],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Centre', 'Cocody Centre', 'Saint-Jean', 'Saint Jean, St Jean, St-Jean', 5.3373, -4.0035],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Centre', 'Cocody Centre', 'Danga', 'Cocody Danga', 5.341, -4.009],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Centre', 'Cocody Centre', 'CHU Cocody', 'CHU de Cocody, Centre Hospitalier Universitaire de Cocody', 5.3444, -3.9939],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Centre', 'Cocody Centre', 'Mermoz', 'Jean Mermoz, Cocody Mermoz', 5.338, -4.005],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Centre', 'Cocody Centre', 'Blockhauss', 'Blokhauss, Blockhaus, Cocody Blockhauss', 5.328, -4.000],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Centre', 'Cocody Centre', 'Ambassades', 'Quartier des Ambassades, Cocody Ambassades', 5.332, -4.010],
+  ['Abidjan', 'Zone Est', 'Cocody', 'Cocody – Centre', 'Cocody Centre', 'Vieux Cocody', 'Lycée Technique, Cannebière, Université Cocody', 5.340, -3.998],
 
-  // Yopougon (Zone Ouest) - 4 secteurs
-  ['Yopougon – Niangon', 'Niangon Nord', 'Zone Ouest', 5.335, -4.105],
-  ['Yopougon – Niangon', 'Niangon Sud', 'Zone Ouest', 5.325, -4.100],
-  ['Yopougon – Niangon', 'Académie', 'Zone Ouest', 5.320, -4.095],
-  ['Yopougon – Niangon', 'Lokoua', 'Zone Ouest', 5.328, -4.090],
-  ['Yopougon – Niangon', 'Cité Verte', 'Zone Ouest', 5.324, -4.090],
-  ['Yopougon – Niangon', 'Lubafrique', 'Zone Ouest', 5.322, -4.092],
-  ['Yopougon – Niangon', 'Texaco', 'Zone Ouest', 5.326, -4.098],
+  // Yopougon (Zone Ouest) - 4 subdivisions
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Niangon', 'Niangon Nord', '', 'Niangon', 5.335, -4.105],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Niangon', 'Niangon Sud', '', '', 5.325, -4.100],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Niangon', 'Académie', '', 'Academie', 5.320, -4.095],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Niangon', 'Lokoua', '', '', 5.328, -4.090],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Niangon', 'Cité Verte', '', 'Cite Verte', 5.324, -4.090],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Niangon', 'Lubafrique', '', '', 5.322, -4.092],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Niangon', 'Texaco', '', '', 5.326, -4.098],
 
-  ['Yopougon – Maroc & Toits Rouges', 'Maroc', 'Zone Ouest', 5.344, -4.092],
-  ['Yopougon – Maroc & Toits Rouges', 'Toits Rouges', 'Zone Ouest', 5.351, -4.086],
-  ['Yopougon – Maroc & Toits Rouges', 'Bel Air', 'Zone Ouest', 5.348, -4.080],
-  ['Yopougon – Maroc & Toits Rouges', 'Sideci', 'Zone Ouest', 5.342, -4.082],
-  ['Yopougon – Maroc & Toits Rouges', 'Ananeraie', 'Zone Ouest', 5.350, -4.095],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Maroc & Toits Rouges', 'Maroc', '', 'Yopougon Maroc', 5.344, -4.092],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Maroc & Toits Rouges', 'Toits Rouges', '', 'Toit Rouge', 5.351, -4.086],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Maroc & Toits Rouges', 'Bel Air', '', 'Yopougon Bel Air', 5.348, -4.080],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Maroc & Toits Rouges', 'Sideci', '', '', 5.342, -4.082],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Maroc & Toits Rouges', 'Ananeraie', '', '', 5.350, -4.095],
 
-  ['Yopougon – Centre & Mairie', 'Siporex', 'Zone Ouest', 5.3556, -4.0792],
-  ['Yopougon – Centre & Mairie', 'Mairie', 'Zone Ouest', 5.3435, -4.0718],
-  ['Yopougon – Centre & Mairie', 'CHU Yopougon', 'Zone Ouest', 5.3584, -4.0897],
-  ['Yopougon – Centre & Mairie', 'Saint-André', 'Zone Ouest', 5.340, -4.070],
-  ['Yopougon – Centre & Mairie', 'Keneya', 'Zone Ouest', 5.343, -4.065],
-  ['Yopougon – Centre & Mairie', 'Wassakara', 'Zone Ouest', 5.345, -4.075],
-  ['Yopougon – Centre & Mairie', 'Ficgayo', 'Zone Ouest', 5.339, -4.065],
-  ['Yopougon – Centre & Mairie', 'Nouveau Bureau', 'Zone Ouest', 5.346, -4.072],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Centre & Mairie', 'Siporex', '', '', 5.3556, -4.0792],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Centre & Mairie', 'Mairie', '', 'Yopougon Mairie, Yopougon Centre', 5.3435, -4.0718],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Centre & Mairie', 'CHU Yopougon', '', 'CHU de Yopougon, Quartier Hôpital', 5.3584, -4.0897],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Centre & Mairie', 'Saint-André', '', 'Saint Andre, St André', 5.340, -4.070],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Centre & Mairie', 'Keneya', '', '', 5.343, -4.065],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Centre & Mairie', 'Wassakara', '', '', 5.345, -4.075],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Centre & Mairie', 'Ficgayo', '', '', 5.339, -4.065],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Centre & Mairie', 'Nouveau Bureau', '', '', 5.346, -4.072],
 
-  ['Yopougon – Sud & Gesco', 'Port-Bouët 2', 'Zone Ouest', 5.338, -4.062],
-  ['Yopougon – Sud & Gesco', 'Selmer', 'Zone Ouest', 5.346, -4.068],
-  ['Yopougon – Sud & Gesco', 'Sicogi', 'Zone Ouest', 5.336, -4.076],
-  ['Yopougon – Sud & Gesco', 'Kouté', 'Zone Ouest', 5.330, -4.065],
-  ['Yopougon – Sud & Gesco', 'Gesco', 'Zone Ouest', 5.370, -4.110],
-  ['Yopougon – Sud & Gesco', 'Zone Industrielle', 'Zone Ouest', 5.360, -4.090],
-  ['Yopougon – Sud & Gesco', 'Millionnaire', 'Zone Ouest', 5.340, -4.080],
-  ['Yopougon – Sud & Gesco', 'Sable', 'Zone Ouest', 5.335, -4.075],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Sud & Gesco', 'Port-Bouët 2', '', 'Port Bouet 2', 5.338, -4.062],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Sud & Gesco', 'Selmer', '', '', 5.346, -4.068],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Sud & Gesco', 'Sicogi', '', 'Yopougon Sicogi', 5.336, -4.076],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Sud & Gesco', 'Kouté', '', 'Koute, Yopougon Kouté', 5.330, -4.065],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Sud & Gesco', 'Gesco', '', '', 5.370, -4.110],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Sud & Gesco', 'Zone Industrielle', '', 'Zone Industrielle Yopougon, ZI Yopougon', 5.360, -4.090],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Sud & Gesco', 'Millionnaire', '', '', 5.340, -4.080],
+  ['Abidjan', 'Zone Ouest', 'Yopougon', 'Yopougon – Sud & Gesco', 'Sable', '', 'Yopougon Sable', 5.335, -4.075],
 
   // Autres communes d'Abidjan
-  ['Plateau', 'Plateau Centre', 'Zone Centre', 5.322, -4.018],
-  ['Plateau', 'Indénié', 'Zone Centre', 5.340, -4.014],
+  ['Abidjan', 'Zone Centre', 'Plateau', '', 'Plateau Centre', '', '', 5.322, -4.018],
+  ['Abidjan', 'Zone Centre', 'Plateau', '', 'Indénié', '', 'Indenie', 5.340, -4.014],
 
-  ['Adjamé', 'Adjamé Liberté', 'Zone Centre', 5.357, -4.022],
-  ['Adjamé', 'Williamsville', 'Zone Centre', 5.374, -4.013],
-  ['Adjamé', '220 Logements', 'Zone Centre', 5.363, -4.030],
-  ['Adjamé', 'Paillet', 'Zone Centre', 5.378, -4.015],
-  ['Adjamé', 'Mirador', 'Zone Centre', 5.360, -4.025],
+  ['Abidjan', 'Zone Centre', 'Adjamé', '', 'Adjamé Liberté', '', 'Adjame Liberte', 5.357, -4.022],
+  ['Abidjan', 'Zone Centre', 'Adjamé', '', 'Williamsville', '', '', 5.374, -4.013],
+  ['Abidjan', 'Zone Centre', 'Adjamé', '', '220 Logements', '', '220 Lgtts', 5.363, -4.030],
+  ['Abidjan', 'Zone Centre', 'Adjamé', '', 'Paillet', '', '', 5.378, -4.015],
+  ['Abidjan', 'Zone Centre', 'Adjamé', '', 'Mirador', '', '', 5.360, -4.025],
 
-  ['Attécoubé', 'Santé', 'Zone Centre', 5.338, -4.042],
-  ['Attécoubé', 'Locodjro', 'Zone Centre', 5.342, -4.058],
+  ['Abidjan', 'Zone Centre', 'Attécoubé', '', 'Santé', '', 'Attecoube Sante', 5.338, -4.042],
+  ['Abidjan', 'Zone Centre', 'Attécoubé', '', 'Locodjro', '', '', 5.342, -4.058],
 
-  ['Treichville', 'Arras', 'Zone Sud', 5.302, -4.011],
-  ['Treichville', 'Avenue 8', 'Zone Sud', 5.305, -4.008],
-  ['Treichville', 'Biafra', 'Zone Sud', 5.296, -4.001],
+  ['Abidjan', 'Zone Sud', 'Treichville', '', 'Arras', '', '', 5.302, -4.011],
+  ['Abidjan', 'Zone Sud', 'Treichville', '', 'Avenue 8', '', '', 5.305, -4.008],
+  ['Abidjan', 'Zone Sud', 'Treichville', '', 'Biafra', '', '', 5.296, -4.001],
 
-  ['Marcory', 'Zone 4', 'Zone Sud', 5.289, -3.985],
-  ['Marcory', 'Biétry', 'Zone Sud', 5.278, -3.973],
-  ['Marcory', 'Marcory Résidentiel', 'Zone Sud', 5.298, -3.991],
-  ['Marcory', 'Anoumabo', 'Zone Sud', 5.304, -3.978],
+  ['Abidjan', 'Zone Sud', 'Marcory', '', 'Zone 4', '', 'Zone 4C, Marcory Zone 4', 5.289, -3.985],
+  ['Abidjan', 'Zone Sud', 'Marcory', '', 'Biétry', '', 'Bietry', 5.278, -3.973],
+  ['Abidjan', 'Zone Sud', 'Marcory', '', 'Marcory Résidentiel', '', 'Marcory Residentiel', 5.298, -3.991],
+  ['Abidjan', 'Zone Sud', 'Marcory', '', 'Anoumabo', '', '', 5.304, -3.978],
 
-  ['Koumassi', 'Remblais', 'Zone Sud', 5.300, -3.955],
-  ['Koumassi', 'Koumassi Sicogi', 'Zone Sud', 5.292, -3.944],
-  ['Koumassi', 'Grand Campement', 'Zone Sud', 5.286, -3.934],
+  ['Abidjan', 'Zone Sud', 'Koumassi', '', 'Remblais', '', 'Koumassi Remblais', 5.300, -3.955],
+  ['Abidjan', 'Zone Sud', 'Koumassi', '', 'Koumassi Sicogi', '', '', 5.292, -3.944],
+  ['Abidjan', 'Zone Sud', 'Koumassi', '', 'Grand Campement', '', '', 5.286, -3.934],
 
-  ['Port-Bouët', 'Port-Bouët Centre', 'Zone Sud', 5.255, -3.930],
-  ['Port-Bouët', 'Vridi', 'Zone Sud', 5.258, -4.002],
-  ['Port-Bouët', 'Gonzagueville', 'Zone Sud', 5.246, -3.882],
+  ['Abidjan', 'Zone Sud', 'Port-Bouët', '', 'Port-Bouët Centre', '', 'Port Bouet Centre', 5.255, -3.930],
+  ['Abidjan', 'Zone Sud', 'Port-Bouët', '', 'Vridi', '', 'Vridi Cité', 5.258, -4.002],
+  ['Abidjan', 'Zone Sud', 'Port-Bouët', '', 'Gonzagueville', '', '', 5.246, -3.882],
 
-  ['Bingerville', 'Bingerville Centre', 'Zone Est', 5.355, -3.886],
-  ['Bingerville', 'Akandjé', 'Zone Est', 5.372, -3.905],
+  ['Abidjan', 'Zone Est', 'Bingerville', '', 'Bingerville Centre', '', '', 5.355, -3.886],
+  ['Abidjan', 'Zone Est', 'Bingerville', '', 'Akandjé', '', 'Akandje', 5.372, -3.905],
 
-  ['Anyama', 'Anyama Centre', 'Zone Nord', 5.495, -4.052],
-  ['Anyama', 'Ebimpé', 'Zone Nord', 5.470, -4.075],
+  ['Abidjan', 'Zone Nord', 'Anyama', '', 'Anyama Centre', '', '', 5.495, -4.052],
+  ['Abidjan', 'Zone Nord', 'Anyama', '', 'Ebimpé', '', 'Ebimpe', 5.470, -4.075],
 
-  ['Songon', 'Songon Agban', 'Zone Ouest', 5.312, -4.255],
-  ['Songon', "Songon M'Bratté", 'Zone Ouest', 5.330, -4.230]
+  ['Abidjan', 'Zone Ouest', 'Songon', '', 'Songon Agban', '', '', 5.312, -4.255],
+  ['Abidjan', 'Zone Ouest', 'Songon', '', "Songon M'Bratté", '', 'Songon Mbratte', 5.330, -4.230]
 ];
 
 // Paramètres du moteur (ajustables)
@@ -981,10 +1005,18 @@ var VILLES_INTERIEUR_CI = {
   'sakassou': { nom: 'Sakassou', lat: 7.45472, lon: -5.29278, zone: 'Zone Intérieur' }
 };
 
+var ZONE_COMMUNE_ABIDJAN = {
+  abobo: 'Zone Nord', anyama: 'Zone Nord',
+  adjame: 'Zone Centre', attecoube: 'Zone Centre', plateau: 'Zone Centre',
+  cocody: 'Zone Est', bingerville: 'Zone Est', brofodoume: 'Zone Est',
+  koumassi: 'Zone Sud', marcory: 'Zone Sud', portbouet: 'Zone Sud', treichville: 'Zone Sud',
+  yopougon: 'Zone Ouest', songon: 'Zone Ouest'
+};
+
 function estCommuneGrandAbidjan(c) {
   if (!c) return false;
   var s = sansAccents(String(c)).toLowerCase().trim();
-  return /^(abobo|adjame|attecoube|cocody|koumassi|marcory|plateau|port[- ]bouet|treichville|yopougon|bingerville|anyama|songon)\b/i.test(s);
+  return /^(abobo|adjame|attecoube|cocody|koumassi|marcory|plateau|port[- ]bouet|treichville|yopougon|bingerville|anyama|songon|brofodoume)\b/i.test(s);
 }
 
 function estCommuneInterieur(c) {
@@ -992,6 +1024,29 @@ function estCommuneInterieur(c) {
   var s = sansAccents(String(c)).toLowerCase().trim();
   if (!s || s === 'abidjan' || estCommuneGrandAbidjan(s)) return false;
   return true;
+}
+
+function estTerritoireInterieur(v) {
+  if (!v) return false;
+  if (typeof v === 'string') {
+    var sn = normaliser(v);
+    if (!sn) return false;
+    if (sn === 'interieur' || sn === 'zoneinterieur' || sn.indexOf('interieur') >= 0) return true;
+    if (sn === 'abidjan' || estCommuneGrandAbidjan(v)) return false;
+    return !!centroideVilleInterieur(v);
+  }
+  if (typeof v === 'object') {
+    var t = v.territoire ? normaliser(v.territoire) : '';
+    if (t === 'interieur' || t === 'zoneinterieur' || t.indexOf('interieur') >= 0) return true;
+    if (t === 'abidjan') return false;
+    var z = v.zone ? normaliser(v.zone) : '';
+    if (z && (z === 'interieur' || z === 'zoneinterieur' || z.indexOf('interieur') >= 0)) return true;
+    if (v.commune) {
+      if (estCommuneGrandAbidjan(v.commune)) return false;
+      if (estCommuneInterieur(v.commune)) return true;
+    }
+  }
+  return false;
 }
 
 function estCoordonneeAbidjan(c) {
@@ -1296,16 +1351,77 @@ function distanceKm(a, b) {
   return vol * detour;
 }
 
-function quartiersDefautObjets() {
-  return QUARTIERS_DEFAUT.map(function (q) {
-    var com = q[0], sec = q[5] || '';
-    if (!sec && com.indexOf(' \u2013') >= 0) {
-      sec = com.replace(/^[^\s\u2013\-]+\s*[\u2013\-]\s*/, '');
-    } else if (!sec && com.indexOf(' - ') >= 0) {
-      sec = com.replace(/^[^\s-]+\s*-\s*/, '');
+function normaliserLigneQuartier(q) {
+  var territoire = '', zone = '', commune = '', subdivision = '', quartier = '', secteur = '', variantes = '', lat = null, lon = null;
+  if (Array.isArray(q)) {
+    if (q.length >= 8) {
+      territoire = String(q[0] || '').trim();
+      zone = String(q[1] || '').trim();
+      commune = String(q[2] || '').trim();
+      subdivision = String(q[3] || '').trim();
+      quartier = String(q[4] || '').trim();
+      secteur = String(q[5] || '').trim();
+      variantes = String(q[6] || '').trim();
+      lat = (q[7] !== '' && q[7] !== null && q[7] !== undefined && isFinite(+q[7])) ? +q[7] : null;
+      lon = (q[8] !== '' && q[8] !== null && q[8] !== undefined && isFinite(+q[8])) ? +q[8] : null;
+    } else {
+      var rawCom = String(q[0] || '').trim();
+      quartier = String(q[1] || '').trim();
+      zone = String(q[2] || '').trim();
+      lat = (q[3] !== '' && q[3] !== null && q[3] !== undefined && isFinite(+q[3])) ? +q[3] : null;
+      lon = (q[4] !== '' && q[4] !== null && q[4] !== undefined && isFinite(+q[4])) ? +q[4] : null;
+      secteur = q[5] ? String(q[5]).trim() : '';
+      var parArr = communeParente(rawCom);
+      if (parArr && parArr !== rawCom && /^(abobo|cocody|yopougon)$/i.test(parArr)) {
+        commune = parArr;
+        subdivision = rawCom;
+      } else {
+        commune = rawCom;
+      }
     }
-    return { commune: q[0], quartier: q[1], zone: q[2], lat: q[3], lon: q[4], secteur: sec };
-  });
+  } else if (q && typeof q === 'object') {
+    territoire = String(q.territoire || '').trim();
+    zone = String(q.zone || '').trim();
+    commune = String(q.commune || '').trim();
+    subdivision = String(q.subdivision || '').trim();
+    quartier = String(q.quartier || '').trim();
+    secteur = String(q.secteur || '').trim();
+    variantes = String(q.variantes || '').trim();
+    lat = (q.lat !== '' && q.lat !== null && q.lat !== undefined && isFinite(+q.lat)) ? +q.lat : null;
+    lon = (q.lon !== '' && q.lon !== null && q.lon !== undefined && isFinite(+q.lon)) ? +q.lon : null;
+    var parObj = communeParente(commune);
+    if (parObj && parObj !== commune && /^(abobo|cocody|yopougon)$/i.test(parObj)) {
+      if (!subdivision) subdivision = commune;
+      commune = parObj;
+    }
+  }
+  if (!territoire) {
+    territoire = estTerritoireInterieur({ zone: zone, commune: commune }) ? 'Intérieur' : 'Abidjan';
+  } else if (normaliser(territoire).indexOf('interieur') >= 0) {
+    territoire = 'Intérieur';
+  } else if (normaliser(territoire) === 'abidjan') {
+    territoire = 'Abidjan';
+  }
+  if (territoire === 'Intérieur') {
+    if (!zone || normaliser(zone) === 'zoneinterieur' || normaliser(zone) === 'interieur') zone = '';
+  } else if (!zone && commune) {
+    zone = ZONE_COMMUNE_ABIDJAN[normaliser(commune)] || '';
+  }
+  return {
+    territoire: territoire,
+    zone: zone,
+    commune: commune,
+    subdivision: subdivision,
+    quartier: quartier,
+    secteur: secteur,
+    variantes: variantes,
+    lat: lat,
+    lon: lon
+  };
+}
+
+function quartiersDefautObjets() {
+  return QUARTIERS_DEFAUT.map(normaliserLigneQuartier);
 }
 
 // ---------------------------------------------------------------- Générateur pseudo-aléatoire
@@ -1333,9 +1449,10 @@ function genererBaseFictive(dateRefIso, options) {
 
   var Q = quartiersDefautObjets();
   var parNom = {};
-  Q.forEach(function (q, i) { parNom[q.quartier] = i; });
+  Q.forEach(function (q, i) { if (parNom[q.quartier] === undefined || !q.secteur) parNom[q.quartier] = i; });
   var pool = [];
   Q.forEach(function (q, i) {
+    if (q.territoire === 'Intérieur') return;
     var w = (q.commune === 'Cocody' || q.commune === 'Plateau') ? 3 :
             (['Marcory', 'Yopougon', 'Treichville', 'Adjamé', 'Koumassi'].indexOf(q.commune) >= 0 ? 2 : 1);
     for (var k = 0; k < w; k++) pool.push(i);
@@ -1385,7 +1502,9 @@ function genererBaseFictive(dateRefIso, options) {
     var idx = isFinite(qi) ? ((Math.floor(qi) % Q.length) + Q.length) % Q.length : 0;
     var q = Q[idx] || Q[0];   // 3.26.50 : index hors liste (démo) ramené dans la liste
     var p = { id: presences.length + 1, code: code, nom: nom, lieu: lieu, quartier: q.quartier,
-              commune: q.commune, zone: q.zone, horaireMatin: hM, horaireSoir: hS, lat: '', lon: '' };
+              commune: q.commune, zone: q.zone, territoire: q.territoire || 'Abidjan',
+              subdivision: q.subdivision || '', secteur: q.secteur || '',
+              horaireMatin: hM, horaireSoir: hS, lat: '', lon: '' };
     JOURS_CLES.forEach(function (j, i) { p[j] = ecrireDispo(grille[i]); });
     presences.push(p);
   }
@@ -1671,10 +1790,304 @@ var ZONES_GRANDES_COMMUNES = {
   ]
 };
 
-function zoneDeQuartier(commune, quartier, lieu) {
+function resoudreTerritoire(input, listeQuartiers) {
+  if (input === null || input === undefined) return null;
+  var estChaine = typeof input === 'string';
+  var rawStr = estChaine ? input.trim() : '';
+  if (estChaine && !rawStr) return null;
+
+  var inSecteur = estChaine ? rawStr : String(input.secteur || '').trim();
+  var inQuartier = estChaine ? rawStr : String(input.quartier || '').trim();
+  if (/^(nl|non localise|non localisé)$/i.test(inQuartier)) inQuartier = '';
+  var inLieu = estChaine ? rawStr : String(input.lieu || '').trim();
+  var rawCom = estChaine ? '' : String(input.commune || '').trim();
+  var inSubdiv = estChaine ? '' : String(input.subdivision || '').trim();
+  var inZone = estChaine ? '' : String(input.zone || '').trim();
+  var inTerr = estChaine ? '' : String(input.territoire || '').trim();
+
+  var inCom = rawCom;
+  if (rawCom) {
+    var parRaw = communeParente(rawCom);
+    if (parRaw && parRaw !== rawCom && /^(abobo|cocody|yopougon)$/i.test(parRaw)) {
+      if (!inSubdiv) inSubdiv = rawCom;
+      inCom = parRaw;
+    }
+  }
+  if (!inSecteur && !inQuartier && !inLieu && !inCom && !inSubdiv && !inZone && !inTerr) return null;
+
+  var src = (listeQuartiers && listeQuartiers.length) ? listeQuartiers : quartiersDefautObjets();
+  var qs = [];
+  for (var si = 0; si < src.length; si++) {
+    if (src[si]) qs.push(normaliserLigneQuartier(src[si]));
+  }
+
+  var inComNorm = normaliser(inCom);
+  if (inComNorm === 'abidjan') inComNorm = '';
+  var inSubNorm = normaliser(inSubdiv);
+  var inLieuNorm = normaliser(inLieu);
+  var comExplicite = !!inComNorm;
+  var comEstInterieur = comExplicite && !estCommuneGrandAbidjan(inCom);
+
+  function normEspaces(s) {
+    return sansAccents(String(s || '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+  function listeVariantes(v) {
+    if (!v) return [];
+    return String(v).split(/[,;]/).map(function (x) { return x.trim(); }).filter(Boolean);
+  }
+  function compatibleCommune(q) {
+    if (!comExplicite) return true;
+    return normaliser(q.commune) === inComNorm;
+  }
+  function construireResultat(q, matched, qOverride, secOverride) {
+    var terr = q.territoire || (estTerritoireInterieur(q) ? 'Intérieur' : 'Abidjan');
+    return {
+      territoire: terr,
+      zone: terr === 'Intérieur' ? '' : (q.zone || ''),
+      commune: q.commune || '',
+      subdivision: q.subdivision || '',
+      quartier: qOverride !== undefined ? qOverride : (q.quartier || ''),
+      secteur: secOverride !== undefined ? secOverride : (q.secteur || ''),
+      lat: q.lat !== undefined ? q.lat : null,
+      lon: q.lon !== undefined ? q.lon : null,
+      matched: !!matched
+    };
+  }
+
+  // 1) Match exact normalisé sur secteur ou sur n'importe quel élément de variantes
+  var essaisStep1 = [];
+  var nInSec = normaliser(inSecteur);
+  var nInQua = normaliser(inQuartier);
+  if (nInSec) essaisStep1.push({ norm: nInSec, depuisSecteur: true });
+  if (nInQua && nInQua !== nInSec) essaisStep1.push({ norm: nInQua, depuisSecteur: false });
+
+  if (essaisStep1.length) {
+    var best1 = null, best1Score = -1;
+    for (var i1 = 0; i1 < qs.length; i1++) {
+      var q1 = qs[i1];
+      if (!compatibleCommune(q1)) continue;
+      var q1SecNorm = normaliser(q1.secteur);
+      var q1ComNorm = normaliser(q1.commune);
+      var q1SubNorm = normaliser(q1.subdivision);
+      var vars1 = listeVariantes(q1.variantes).map(normaliser);
+
+      for (var e1 = 0; e1 < essaisStep1.length; e1++) {
+        var ess = essaisStep1[e1];
+        var matchSec = !!(q1SecNorm && q1SecNorm === ess.norm);
+        var matchVar = !matchSec && vars1.indexOf(ess.norm) >= 0;
+        if (!matchSec && !matchVar) continue;
+
+        var sc1 = 0;
+        if (inSubNorm && q1SubNorm === inSubNorm) sc1 += 100;
+        if (inComNorm && q1ComNorm === inComNorm) sc1 += 50;
+        if (inLieuNorm && q1ComNorm && q1ComNorm.length >= 4 && inLieuNorm.indexOf(q1ComNorm) >= 0) sc1 += 20;
+        if (matchSec) sc1 += 10;
+        if (ess.depuisSecteur) sc1 += 5;
+        if (!q1.secteur) sc1 += 2;
+        if (sc1 > best1Score) {
+          best1Score = sc1;
+          best1 = q1;
+        }
+      }
+    }
+    if (best1) return construireResultat(best1, true);
+  }
+
+  // 2) Match exact normalisé sur quartier
+  if (nInQua) {
+    var best2 = null, best2Score = -1;
+    for (var i2 = 0; i2 < qs.length; i2++) {
+      var q2 = qs[i2];
+      if (!compatibleCommune(q2)) continue;
+      if (normaliser(q2.quartier) !== nInQua) continue;
+
+      var q2ComNorm = normaliser(q2.commune);
+      var q2SubNorm = normaliser(q2.subdivision);
+      var sc2 = 0;
+      if (inSubNorm && q2SubNorm === inSubNorm) sc2 += 100;
+      if (inComNorm && q2ComNorm === inComNorm) sc2 += 50;
+      if (inLieuNorm && q2ComNorm && q2ComNorm.length >= 4 && inLieuNorm.indexOf(q2ComNorm) >= 0) sc2 += 20;
+      if (inLieuNorm && q2SubNorm && q2SubNorm.length >= 4 && inLieuNorm.indexOf(q2SubNorm) >= 0) sc2 += 15;
+      if (!q2.secteur) sc2 += 10;
+      if (sc2 > best2Score) {
+        best2Score = sc2;
+        best2 = q2;
+      }
+    }
+    if (best2) return construireResultat(best2, true);
+  }
+
+  // 3) Match partiel >= 4 caractères dans lieu (trié par longueur décroissante, priorisant commune)
+  if (inLieuNorm) {
+    var lieuPad = ' ' + normEspaces(inLieu) + ' ';
+    var candidats3 = [];
+    for (var i3 = 0; i3 < qs.length; i3++) {
+      var q3 = qs[i3];
+      if (!compatibleCommune(q3)) continue;
+      var termes3 = [];
+      if (q3.secteur) termes3.push({ txt: q3.secteur, prio: 3 });
+      listeVariantes(q3.variantes).forEach(function (v) { termes3.push({ txt: v, prio: 2 }); });
+      if (q3.quartier) termes3.push({ txt: q3.quartier, prio: 1 });
+
+      for (var t3 = 0; t3 < termes3.length; t3++) {
+        var tm = termes3[t3];
+        var tmNorm = normaliser(tm.txt);
+        if (tmNorm.length < 4) continue;
+        var tmEsp = normEspaces(tm.txt);
+        var matchMot = !!(tmEsp && lieuPad.indexOf(' ' + tmEsp + ' ') >= 0);
+        var matchColle = !matchMot && tmNorm.length >= 5 && inLieuNorm.indexOf(tmNorm) >= 0;
+        if (!matchMot && !matchColle) continue;
+
+        var q3ComNorm = normaliser(q3.commune);
+        var q3SubNorm = normaliser(q3.subdivision);
+        var sc3 = 0;
+        if (inSubNorm && q3SubNorm === inSubNorm) sc3 += 1000;
+        if (inComNorm && q3ComNorm === inComNorm) sc3 += 500;
+        if (matchMot) sc3 += 100;
+        candidats3.push({
+          q: q3,
+          len: tmNorm.length,
+          score: sc3,
+          prio: tm.prio,
+          sansSec: !q3.secteur ? 1 : 0,
+          idx: i3
+        });
+      }
+    }
+    if (candidats3.length) {
+      candidats3.sort(function (a, b) {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.len !== a.len) return b.len - a.len;
+        if (b.prio !== a.prio) return b.prio - a.prio;
+        if (b.sansSec !== a.sansSec) return b.sansSec - a.sansSec;
+        return a.idx - b.idx;
+      });
+      return construireResultat(candidats3[0].q, true);
+    }
+  }
+
+  // 4) Repli commune via COMMUNES_GRAND_ABIDJAN / VILLES_INTERIEUR_CI
+  if (inSubNorm) {
+    for (var i4s = 0; i4s < qs.length; i4s++) {
+      if (normaliser(qs[i4s].subdivision) === inSubNorm) {
+        return construireResultat(qs[i4s], true, inQuartier || '', inSecteur && inSecteur !== inQuartier ? inSecteur : '');
+      }
+    }
+  }
+
+  var comMatchAbj = '';
+  for (var ca = 0; ca < COMMUNES_GRAND_ABIDJAN.length; ca++) {
+    var nomC = COMMUNES_GRAND_ABIDJAN[ca];
+    if (inComNorm && inComNorm === normaliser(nomC)) { comMatchAbj = nomC; break; }
+  }
+  var cibleCom = inCom || (estChaine ? rawStr : '') || inLieu;
+  if (!comMatchAbj && !comExplicite && cibleCom) {
+    var ciblePad = ' ' + normEspaces(cibleCom) + ' ';
+    for (var cb = 0; cb < COMMUNES_GRAND_ABIDJAN.length; cb++) {
+      var nomC2 = COMMUNES_GRAND_ABIDJAN[cb];
+      if (ciblePad.indexOf(' ' + normEspaces(nomC2) + ' ') >= 0) { comMatchAbj = nomC2; break; }
+    }
+  }
+  if (comMatchAbj) {
+    var zoneAbj = ZONE_COMMUNE_ABIDJAN[normaliser(comMatchAbj)] || inZone || '';
+    var sumLat = 0, sumLon = 0, cntCoord = 0;
+    for (var qa = 0; qa < qs.length; qa++) {
+      if (normaliser(qs[qa].commune) === normaliser(comMatchAbj)) {
+        if (!zoneAbj && qs[qa].zone) zoneAbj = qs[qa].zone;
+        if (isFinite(qs[qa].lat) && qs[qa].lat !== null && isFinite(qs[qa].lon) && qs[qa].lon !== null) {
+          sumLat += qs[qa].lat; sumLon += qs[qa].lon; cntCoord++;
+        }
+      }
+    }
+    return {
+      territoire: 'Abidjan',
+      zone: zoneAbj,
+      commune: comMatchAbj,
+      subdivision: inSubdiv || '',
+      quartier: (estChaine && normaliser(rawStr) === normaliser(comMatchAbj)) ? '' : (inQuartier || ''),
+      secteur: (inSecteur && inSecteur !== inQuartier) ? inSecteur : '',
+      lat: cntCoord ? Math.round((sumLat / cntCoord) * 1e5) / 1e5 : null,
+      lon: cntCoord ? Math.round((sumLon / cntCoord) * 1e5) / 1e5 : null,
+      matched: true
+    };
+  }
+
+  var vInt = centroideVilleInterieur(inCom || (estChaine ? rawStr : '') || inLieu);
+  if (vInt) {
+    return {
+      territoire: 'Intérieur',
+      zone: '',
+      commune: vInt.nom,
+      subdivision: '',
+      quartier: (estChaine && normaliser(rawStr) === normaliser(vInt.nom)) ? '' : (inQuartier || ''),
+      secteur: (inSecteur && inSecteur !== inQuartier) ? inSecteur : '',
+      lat: vInt.lat,
+      lon: vInt.lon,
+      matched: true
+    };
+  }
+
+  if (comEstInterieur || estTerritoireInterieur({ territoire: inTerr, zone: inZone, commune: inCom })) {
+    return {
+      territoire: 'Intérieur',
+      zone: '',
+      commune: inCom || '',
+      subdivision: '',
+      quartier: inQuartier || '',
+      secteur: (inSecteur && inSecteur !== inQuartier) ? inSecteur : '',
+      lat: null,
+      lon: null,
+      matched: false
+    };
+  }
+
+  if (estTerritoireInterieur(rawStr) || normaliser(inTerr) === 'interieur') {
+    return {
+      territoire: 'Intérieur',
+      zone: '',
+      commune: '',
+      subdivision: '',
+      quartier: '',
+      secteur: '',
+      lat: null,
+      lon: null,
+      matched: true
+    };
+  }
+
+  if (normaliser(rawStr) === 'abidjan' || normaliser(inTerr) === 'abidjan') {
+    return {
+      territoire: 'Abidjan',
+      zone: inZone || '',
+      commune: '',
+      subdivision: '',
+      quartier: inQuartier || '',
+      secteur: '',
+      lat: null,
+      lon: null,
+      matched: true
+    };
+  }
+
+  return null;
+}
+
+function zoneDeQuartier(commune, quartier, lieu, listeQuartiers) {
+  var r = resoudreTerritoire({ commune: commune, quartier: quartier, secteur: quartier, lieu: lieu }, listeQuartiers);
+  if (r && r.subdivision) return r.subdivision;
+
   var comNorm = normaliser(commune || '');
   var comCle = (comNorm.indexOf('cocody') >= 0 ? 'Cocody' : (comNorm.indexOf('yopougon') >= 0 ? 'Yopougon' : (comNorm.indexOf('abobo') >= 0 ? 'Abobo' : '')));
   if (!comCle || !ZONES_GRANDES_COMMUNES[comCle]) return '';
+
+  // Ne retombe sur ZONES_GRANDES_COMMUNES que si listeQuartiers ne contient aucune subdivision pour cette commune
+  var src = (listeQuartiers && listeQuartiers.length) ? listeQuartiers : quartiersDefautObjets();
+  var cleNorm = normaliser(comCle);
+  for (var idxQ = 0; idxQ < src.length; idxQ++) {
+    var qn = normaliserLigneQuartier(src[idxQ]);
+    if (normaliser(qn.commune) === cleNorm && qn.subdivision) return '';
+  }
+
   // 3.28.23 : mots entiers, le quartier d'abord, puis le nom du lieu (« Pharmacie » ne contient plus « cie »,
   // « Plateau Dokui » ne passe plus pour Abobo-Té à cause de « te »)
   var zones = ZONES_GRANDES_COMMUNES[comCle];
@@ -1715,71 +2128,60 @@ function communeParente(nom) {
 }
 
 function secteurDeQuartier(quartier, lieu, commune, listeQuartiers) {
-  var qs = listeQuartiers || (typeof quartiers === 'function' ? quartiers() : (typeof quartiersDefautObjets === 'function' ? quartiersDefautObjets() : []));
-  if (!qs || !qs.length) return commune || '';
-  var comParent = commune ? normaliser(communeParente(commune)) : '';
-  var candidats = comParent
-    ? qs.filter(function (q) { return normaliser(communeParente(q.commune)) === comParent; })
-    : qs;
-  var qNorm = normaliser(quartier || '');
-  var lNorm = normaliser(lieu || '');
-  if (qNorm) {
-    var exacts = [];
-    for (var i = 0; i < candidats.length; i++) {
-      if (normaliser(candidats[i].quartier) === qNorm) exacts.push(candidats[i]);
-    }
-    if (exacts.length === 1) return exacts[0].commune;
-    if (exacts.length > 1) {
-      if (lNorm) {
-        for (var k = 0; k < exacts.length; k++) {
-          var cpEx = normaliser(communeParente(exacts[k].commune));
-          if (cpEx && lNorm.indexOf(cpEx) >= 0) return exacts[k].commune;
-        }
-      }
-      if (!comParent) return commune || '';
-      return exacts[0].commune;
-    }
-  }
-  if (lNorm) {
-    var partiels = [];
-    for (var j = 0; j < candidats.length; j++) {
-      var qn = normaliser(candidats[j].quartier);
-      if (qn && qn.length >= 3 && lNorm.indexOf(qn) >= 0) partiels.push(candidats[j]);
-    }
-    if (partiels.length === 1) return partiels[0].commune;
-    if (partiels.length > 1) {
-      partiels.sort(function (a, b) { return normaliser(b.quartier).length - normaliser(a.quartier).length; });
-      for (var p = 0; p < partiels.length; p++) {
-        var cpP = normaliser(communeParente(partiels[p].commune));
-        if (cpP && lNorm.indexOf(cpP) >= 0) return partiels[p].commune;
-      }
-      var meme = partiels.every(function (x) { return x.commune === partiels[0].commune; });
-      if (meme || comParent) return partiels[0].commune;
-      return commune || '';
-    }
+  var r = resoudreTerritoire({ quartier: quartier, secteur: quartier, lieu: lieu, commune: commune }, listeQuartiers);
+  if (r) {
+    if (r.subdivision) return r.subdivision;
+    if (r.commune) return r.commune;
+    if (r.secteur) return r.secteur;
+    if (r.quartier) return r.quartier;
   }
   return commune || '';
 }
 
 function communeCorrespondante(c, dans, listeQuartiers) {
   if (!dans) return true;
+  if (!c) return false;
   var com = c.commune || '';
-  if (dans[com] || dans[com + ' (Toute la commune)']) return true;
+  var sub = c.subdivision || '';
+  var sec = c.secteur || '';
+  var qua = c.quartier || '';
+  if (sub && dans[sub]) return true;
+  if (com && (dans[com] || dans[com + ' (Toute la commune)'])) return true;
   var par = communeParente(com);
   if (par && (dans[par] || dans[par + ' (Toute la commune)'])) return true;
-  // 3.26.63 : commune connue = seule référence (un lieu du Plateau ne passe plus pour Cocody à cause d'un mot de son nom)
-  if (com) {
-    var z = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier(com, c.quartier, c.lieu || '') : '';
-    return !!(z && dans[z]);
-  }
-  var sec = secteurDeQuartier(c.quartier, c.lieu, com, listeQuartiers);
+  if (qua && dans[qua]) return true;
   if (sec && dans[sec]) return true;
-  if (sec) {
-    var secPar = communeParente(sec);
-    if (secPar && (dans[secPar] || dans[secPar + ' (Toute la commune)'])) return true;
+  if (c.zone && dans[c.zone]) return true;
+  if (c.territoire && dans[c.territoire]) return true;
+
+  var r = resoudreTerritoire(c, listeQuartiers);
+  if (r) {
+    if (!com || normaliser(com) === 'abidjan') {
+      if (r.subdivision && dans[r.subdivision]) return true;
+      if (r.commune && (dans[r.commune] || dans[r.commune + ' (Toute la commune)'])) return true;
+      var rPar = communeParente(r.commune);
+      if (rPar && (dans[rPar] || dans[rPar + ' (Toute la commune)'])) return true;
+      if (r.quartier && dans[r.quartier]) return true;
+      if (r.secteur && dans[r.secteur]) return true;
+      if (r.zone && dans[r.zone]) return true;
+      if (r.territoire && dans[r.territoire]) return true;
+    } else {
+      var rComNorm = normaliser(communeParente(r.commune));
+      if (!rComNorm || rComNorm === normaliser(par)) {
+        if (r.subdivision && dans[r.subdivision]) return true;
+        if (r.quartier && dans[r.quartier]) return true;
+        if (r.secteur && dans[r.secteur]) return true;
+        if (r.zone && dans[r.zone]) return true;
+        if (r.territoire && dans[r.territoire]) return true;
+      }
+    }
   }
-  var zone = (typeof zoneDeQuartier === 'function') ? zoneDeQuartier(com, c.quartier, c.lieu) : '';
-  if (zone && dans[zone]) return true;
+
+  if (com) {
+    var z = zoneDeQuartier(com, qua, c.lieu || '', listeQuartiers);
+    if (z && dans[z]) return true;
+  }
+  if ((dans['Intérieur'] || dans['Zone Intérieur']) && estTerritoireInterieur(r || c)) return true;
   return false;
 }
 
@@ -2004,7 +2406,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     VERSION_DONNEES: VERSION_DONNEES, JOURS: JOURS, JOURS_CLES: JOURS_CLES, CRENEAUX: CRENEAUX, DISPOS: DISPOS,
     STATUTS_DEFAUT: STATUTS_DEFAUT, CHAMPS_PRATICIENS: CHAMPS_PRATICIENS, CHAMPS_PRESENCES: CHAMPS_PRESENCES,
-    CHAMPS_HIST: CHAMPS_HIST, CHAMPS_PLAN: CHAMPS_PLAN, QUARTIERS_DEFAUT: QUARTIERS_DEFAUT,
+    CHAMPS_QUARTIERS: CHAMPS_QUARTIERS, CHAMPS_HIST: CHAMPS_HIST, CHAMPS_PLAN: CHAMPS_PLAN, QUARTIERS_DEFAUT: QUARTIERS_DEFAUT,
     REGLAGES_MOTEUR: REGLAGES_MOTEUR, sansAccents: sansAccents, normaliser: normaliser, pad2: pad2,
     isoVersJours: isoVersJours, joursVersIso: joursVersIso, ajouterJours: ajouterJours,
     jourSemaineIndex: jourSemaineIndex, lundiDe: lundiDe, nomJour: nomJour, joursOuvres: joursOuvres,
@@ -2017,9 +2419,9 @@ if (typeof module !== 'undefined' && module.exports) {
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm, distanceVol: distanceVol,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
-    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
+    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, resoudreTerritoire: resoudreTerritoire, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
     COMMUNES_GRAND_ABIDJAN: COMMUNES_GRAND_ABIDJAN, VILLES_INTERIEUR_CI: VILLES_INTERIEUR_CI,
-    estCommuneGrandAbidjan: estCommuneGrandAbidjan, estCommuneInterieur: estCommuneInterieur,
+    estCommuneGrandAbidjan: estCommuneGrandAbidjan, estCommuneInterieur: estCommuneInterieur, estTerritoireInterieur: estTerritoireInterieur,
     estCoordonneeAbidjan: estCoordonneeAbidjan, centroideVilleInterieur: centroideVilleInterieur, trouverEtablissementRef: trouverEtablissementRef,
     formaterTelephoneCI: formaterTelephoneCI,
     distanceLevenshtein: distanceLevenshtein, similariteLevenshtein: similariteLevenshtein,

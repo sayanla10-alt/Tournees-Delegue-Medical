@@ -907,20 +907,55 @@ function scoreCandidatGeo_(nomCible, nomCand, telCible, htmlCand, titulaireCible
   return Math.round(best * 100) / 100;
 }
 
-// Quartiers de référence (feuille Quartiers : Commune | Quartier | Zone | Latitude | Longitude)
+// Quartiers de référence (lecture dynamique par en-têtes : Territoire | Zone | Commune | Subdivision | Quartier | Secteur | Variantes | Latitude | Longitude)
+function lireQuartiersRefGeo_(shQ) {
+  var out = [];
+  if (!shQ || shQ.getLastRow() < 2 || shQ.getLastColumn() < 1) return out;
+  var nc = shQ.getLastColumn();
+  var ent = shQ.getRange(1, 1, 1, nc).getValues()[0].map(normGeo_);
+  var col = function (noms) {
+    for (var i = 0; i < noms.length; i++) {
+      var k = ent.indexOf(normGeo_(noms[i]));
+      if (k >= 0) return k;
+    }
+    return -1;
+  };
+  var cTer = col(['Territoire']), cZ = col(['Zone']), cCom = col(['Commune']),
+      cSub = col(['Subdivision']), cQ = col(['Quartier']), cSec = col(['Secteur']),
+      cVar = col(['Variantes']), cLat = col(['Latitude', 'Lat']), cLon = col(['Longitude', 'Lon']);
+  if (cQ < 0) {
+    cCom = 0; cQ = 1; cZ = 2; cLat = 3; cLon = 4; cSec = nc >= 6 ? 5 : -1;
+  }
+  var txt = function (v, i) { return (i >= 0 && v[i] !== undefined && v[i] !== null) ? String(v[i]).trim() : ''; };
+  shQ.getRange(2, 1, shQ.getLastRow() - 1, nc).getValues().forEach(function (v) {
+    var q = txt(v, cQ);
+    if (!q) return;
+    var lat = cLat >= 0 ? parseFloat(String(v[cLat]).replace(',', '.')) : NaN;
+    var lon = cLon >= 0 ? parseFloat(String(v[cLon]).replace(',', '.')) : NaN;
+    out.push({
+      territoire: txt(v, cTer),
+      zone: txt(v, cZ),
+      commune: txt(v, cCom),
+      subdivision: txt(v, cSub),
+      quartier: q,
+      secteur: txt(v, cSec),
+      variantes: txt(v, cVar),
+      lat: lat,
+      lon: lon
+    });
+  });
+  return out;
+}
+
 function chargerRefQuartiersGeo_() {
   var parCommune = {}, centres = {};
   try {
     var shQ = SpreadsheetApp.getActive().getSheetByName(GEO_FEUILLE_QUARTIERS);
-    if (shQ && shQ.getLastRow() > 1) {
-      shQ.getRange(2, 1, shQ.getLastRow() - 1, 5).getValues().forEach(function (v) {
-        var lat = parseFloat(String(v[3]).replace(',', '.')), lon = parseFloat(String(v[4]).replace(',', '.'));
-        if (isNaN(lat) || isNaN(lon)) return;
-        var q = { commune: String(v[0]).trim(), quartier: String(v[1]).trim(), lat: lat, lon: lon };
-        var ck = normGeo_(q.commune);
-        (parCommune[ck] = parCommune[ck] || []).push(q);
-      });
-    }
+    lireQuartiersRefGeo_(shQ).forEach(function (q) {
+      if (isNaN(q.lat) || isNaN(q.lon)) return;
+      var ck = normGeo_(q.commune);
+      (parCommune[ck] = parCommune[ck] || []).push(q);
+    });
     Object.keys(parCommune).forEach(function (ck) {
       var l = parCommune[ck], sLat = 0, sLon = 0;
       l.forEach(function (x) { sLat += x.lat; sLon += x.lon; });
@@ -944,7 +979,11 @@ function resoudreQuartierGeoloc_(lat, lon, commune, addrText, origQuartier, ref)
   var ck = normGeo_(commune), addrNorm = ' ' + normGeo_(addrText) + ' ';
   var listeQ = (ref && ref.parCommune[ck]) || [];
   for (var i = 0; i < listeQ.length; i++) {
+    var sn = normGeo_(listeQ[i].secteur);
     var qn = normGeo_(listeQ[i].quartier);
+    if (sn.length >= 3 && addrNorm.indexOf(' ' + sn + ' ') >= 0) {
+      return listeQ[i].quartier + ' ' + listeQ[i].secteur;
+    }
     if (qn.length >= 3 && addrNorm.indexOf(' ' + qn + ' ') >= 0) return listeQ[i].quartier;
   }
   var cleanAddr = String(addrText || '')
@@ -1364,13 +1403,18 @@ function auditerGeolocBase() {
   var shQ = ss.getSheetByName(GEO_FEUILLE_QUARTIERS);
 
   var centresQuartiers = {};
-  if (shQ && shQ.getLastRow() >= 2) {
-    var vQ = shQ.getRange(2, 1, shQ.getLastRow() - 1, 5).getValues();
-    vQ.forEach(function (r) {
-      var nQ = normGeo_(r[1]);
-      if (nQ) centresQuartiers[nQ] = { lat: parseFloat(String(r[3]).replace(',', '.')), lon: parseFloat(String(r[4]).replace(',', '.')) };
-    });
-  }
+  lireQuartiersRefGeo_(shQ).forEach(function (q) {
+    if (isNaN(q.lat) || isNaN(q.lon)) return;
+    var pt = { lat: q.lat, lon: q.lon };
+    var nQ = normGeo_(q.quartier);
+    if (nQ && !centresQuartiers[nQ]) centresQuartiers[nQ] = pt;
+    if (q.secteur) {
+      var nQS = normGeo_(q.quartier + ' ' + q.secteur);
+      if (nQS) centresQuartiers[nQS] = pt;
+      var nS = normGeo_(q.secteur);
+      if (nS && !centresQuartiers[nS]) centresQuartiers[nS] = pt;
+    }
+  });
 
   var lignesAudit = [];
   var stats = { total: 0, precis: 0, centroides: 0, manquants: 0 };

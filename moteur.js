@@ -39,26 +39,72 @@ var Moteur = (function () {
   // data : { praticiens, presences, quartiers }
   function preparer(data) {
     var idxQ = {}, ambiguQ = {}, parQ = {}, parAmbiguQ = {};
-    (data.quartiers || []).forEach(function (q) {
-      var kq = bas(q.quartier), kc = bas(q.commune);
-      if (!kq) return;
-      if (kc) idxQ[kc + '|' + kq] = q;
+    var normIdxQ = {}, normAmbiguQ = {}, normParQ = {}, normParAmbiguQ = {};
+    function extraireVariantes(v) {
+      if (!v) return [];
+      if (Array.isArray(v)) return v;
+      return String(v).split(/[;,|\n]+/);
+    }
+    function ajouterIndexQ(q, nom, prioritaire) {
+      var k = bas(nom);
+      if (!k) return;
+      var kc = bas(q.commune), ks = bas(q.subdivision);
       var kp = typeof communeParente === 'function' ? bas(communeParente(q.commune)) : kc;
+      if (kc) {
+        var ck = kc + '|' + k;
+        if (prioritaire || !idxQ[ck]) idxQ[ck] = q;
+      }
+      if (ks && ks !== kc) {
+        var sk = ks + '|' + k;
+        if (prioritaire || !idxQ[sk]) idxQ[sk] = q;
+      }
       if (kp && kp !== kc) {
-        var kpk = kp + '|' + kq;
+        var kpk = kp + '|' + k;
         if (!parAmbiguQ[kpk]) {
-          if (parQ[kpk]) { delete parQ[kpk]; parAmbiguQ[kpk] = true; }
-          else parQ[kpk] = q;
+          if (parQ[kpk] && parQ[kpk] !== q) { delete parQ[kpk]; parAmbiguQ[kpk] = true; }
+          else if (prioritaire || !parQ[kpk]) parQ[kpk] = q;
         }
       }
-      if (!ambiguQ[kq]) {
-        if (idxQ[kq]) {
-          delete idxQ[kq];
-          ambiguQ[kq] = true;
+      if (!ambiguQ[k]) {
+        if (idxQ[k] && idxQ[k] !== q) {
+          delete idxQ[k];
+          ambiguQ[k] = true;
         } else {
-          idxQ[kq] = q;
+          idxQ[k] = q;
         }
       }
+      var nk = cleNorm(nom), nkc = cleNorm(q.commune), nks = cleNorm(q.subdivision);
+      var nkp = typeof communeParente === 'function' ? cleNorm(communeParente(q.commune)) : nkc;
+      if (!nk) return;
+      if (nkc) {
+        var nck = nkc + '|' + nk;
+        if (prioritaire || !normIdxQ[nck]) normIdxQ[nck] = q;
+      }
+      if (nks && nks !== nkc) {
+        var nsk = nks + '|' + nk;
+        if (prioritaire || !normIdxQ[nsk]) normIdxQ[nsk] = q;
+      }
+      if (nkp && nkp !== nkc) {
+        var nkpk = nkp + '|' + nk;
+        if (!normParAmbiguQ[nkpk]) {
+          if (normParQ[nkpk] && normParQ[nkpk] !== q) { delete normParQ[nkpk]; normParAmbiguQ[nkpk] = true; }
+          else if (prioritaire || !normParQ[nkpk]) normParQ[nkpk] = q;
+        }
+      }
+      if (!normAmbiguQ[nk]) {
+        if (normIdxQ[nk] && normIdxQ[nk] !== q) {
+          delete normIdxQ[nk];
+          normAmbiguQ[nk] = true;
+        } else {
+          normIdxQ[nk] = q;
+        }
+      }
+    }
+    (data.quartiers || []).forEach(function (q) {
+      if (!q) return;
+      ajouterIndexQ(q, q.quartier, true);
+      if (q.secteur) ajouterIndexQ(q, q.secteur, false);
+      extraireVariantes(q.variantes).forEach(function (v) { ajouterIndexQ(q, v, false); });
     });
     var prat = {};
     (data.praticiens || []).forEach(function (p) {
@@ -100,34 +146,84 @@ var Moteur = (function () {
       if (!p) return;
       var prCopy = Object.assign({}, pr, { id: prId });
       (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(prCopy);
-      var kq = bas(pr.quartier), kc = bas(pr.commune);
-      var kp = typeof communeParente === 'function' ? bas(communeParente(pr.commune)) : kc;
-      var q = kq ? (
-        (kc && idxQ[kc + '|' + kq]) ||
-        (kp && (idxQ[kp + '|' + kq] || parQ[kp + '|' + kq])) ||
-        ((!kc || kc === 'abidjan') ? idxQ[kq] : null)
-      ) : null;
-      var qCoord = coordObj(q);
+      var kc = bas(pr.commune), kp = typeof communeParente === 'function' ? bas(communeParente(pr.commune)) : kc;
+      var nkc = cleNorm(pr.commune), nkp = typeof communeParente === 'function' ? cleNorm(communeParente(pr.commune)) : nkc;
+      function chercherQ(nom) {
+        var k = bas(nom);
+        if (k) {
+          var trouve = (kc && idxQ[kc + '|' + k]) ||
+            (kp && (idxQ[kp + '|' + k] || parQ[kp + '|' + k])) ||
+            ((!kc || kc === 'abidjan') ? idxQ[k] : null);
+          if (trouve) return trouve;
+        }
+        var nk = cleNorm(nom);
+        if (!nk) return null;
+        return (nkc && normIdxQ[nkc + '|' + nk]) ||
+          (nkp && (normIdxQ[nkp + '|' + nk] || normParQ[nkp + '|' + nk])) ||
+          ((!nkc || nkc === 'abidjan') ? normIdxQ[nk] : null) ||
+          null;
+      }
+      var q = null;
+      if (pr.secteur && pr.quartier) {
+        var qSec = chercherQ(pr.secteur);
+        if (qSec && (bas(qSec.quartier) === bas(pr.quartier) || bas(qSec.secteur) === bas(pr.secteur))) q = qSec;
+      }
+      if (!q) q = chercherQ(pr.quartier) || chercherQ(pr.secteur);
+      var ter = null;
+      if (typeof resoudreTerritoire === 'function') {
+        var entreeTer = {
+          commune: pr.commune || '', quartier: pr.quartier || '', secteur: pr.secteur || '',
+          subdivision: pr.subdivision || '', lieu: pr.lieu || ''
+        };
+        try {
+          ter = resoudreTerritoire(entreeTer, data.quartiers);
+          if (!ter || typeof ter !== 'object' || String(ter.commune) === '[object Object]' ||
+              (!ter.territoire && !ter.subdivision && !ter.commune && !ter.quartier && !ter.secteur && !ter.zone)) {
+            var ter2 = resoudreTerritoire(pr.commune, pr.quartier, pr.lieu, data.quartiers);
+            if (ter2 && typeof ter2 === 'object' && String(ter2.commune) !== '[object Object]') ter = ter2;
+            else if (ter && String(ter.commune) === '[object Object]') ter = null;
+          }
+        } catch (e) {
+          try {
+            var ter3 = resoudreTerritoire(pr.commune, pr.quartier, pr.lieu, data.quartiers);
+            if (ter3 && typeof ter3 === 'object') ter = ter3;
+          } catch (e2) { ter = null; }
+        }
+      }
+      if (!q && ter) q = ter.q || (coordObj(ter) ? ter : null);
+      var territoireRes = (ter && ter.territoire) || (q && q.territoire) || pr.territoire || '';
+      var communeRes = (ter && ter.commune) || (q && q.commune) || pr.commune || '';
+      var subdivisionRes = (ter && ter.subdivision) || (q && q.subdivision) || pr.subdivision || '';
+      var quartierRes = (ter && ter.quartier) || (q && q.quartier) || pr.quartier || '';
+      var secteurRes = (ter && ter.secteur) || (q && q.secteur) || pr.secteur || '';
+      var zoneRes = (ter && ter.zone) || (q && q.zone) || pr.zone || '';
+      var qCoord = coordObj(q) || coordObj(ter) || (ter && coordObj(ter.q)) || null;
       var coord = lireCoord(pr);
-      if (coord && typeof estCommuneInterieur === 'function' && estCommuneInterieur(pr.commune) && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(coord)) {
+      var estInt = (typeof estCommuneInterieur === 'function' && estCommuneInterieur(communeRes)) ||
+        cleNorm(territoireRes) === 'interieur' || cleNorm(zoneRes).indexOf('interieur') >= 0;
+      if (coord && estInt && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(coord)) {
         coord = null;
       }
       // 3.31.36 : validation cartographique : si une table de référence vérifiée existe ou si le GPS diverge
       // de > 3,5 km du quartier déclaré dans le Grand Abidjan, corriger la position aberrante
       var refLieu = typeof trouverEtablissementRef === 'function' ? trouverEtablissementRef(pr.lieu) : null;
       var refCoord = coordObj(refLieu);
-      if (refCoord && refCompatibleCommune(pr.commune, refLieu)) {
+      if (refCoord && refCompatibleCommune(communeRes, refLieu) &&
+          !(estInt && (!refLieu || !refLieu.commune || cleNorm(refLieu.commune) !== cleNorm(communeRes)))) {
         if (!coord || distanceVol(coord, refCoord) > 1.5) coord = refCoord;
-      } else if (coord && qCoord && typeof estCommuneGrandAbidjan === 'function' && estCommuneGrandAbidjan(pr.commune)) {
+      } else if (coord && qCoord && !estInt && typeof estCommuneGrandAbidjan === 'function' && estCommuneGrandAbidjan(communeRes)) {
         if (distanceVol(coord, qCoord) > 3.5) {
-          var ke = cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '');
-          var ce = etabCoords[ke];
+          var ke = cleNorm(pr.lieu || '') + '|' + cleNorm(communeRes || '');
+          var ce = etabCoords[ke] || etabCoords[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')];
           if (ce && distanceVol(ce, qCoord) <= 3.5) coord = { lat: ce.lat, lon: ce.lon };
           else coord = { lat: qCoord.lat, lon: qCoord.lon, approx: true };
         }
       }
       if (!coord) {
-        coord = qCoord ? { lat: qCoord.lat, lon: qCoord.lon, approx: true } : (typeof centroideVilleInterieur === 'function' ? (centroideVilleInterieur(pr.commune) || centroideVilleInterieur(pr.quartier)) : null);
+        coord = qCoord ? { lat: qCoord.lat, lon: qCoord.lon, approx: true } :
+          (typeof centroideVilleInterieur === 'function'
+            ? (centroideVilleInterieur(communeRes) || centroideVilleInterieur(quartierRes) || centroideVilleInterieur(pr.commune) || centroideVilleInterieur(pr.quartier))
+            : null);
         if (coord && !coord.approx) coord = { lat: coord.lat, lon: coord.lon, approx: true };
       }
       var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
@@ -138,8 +234,10 @@ var Moteur = (function () {
           if (!x[1]) return;
           var c = {
             cle: prId + '|' + j + '|' + x[0], idPresence: prId, code: pr.code, jourIdx: j, jour: JOURS[j],
-            creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu, quartier: pr.quartier, reperes: pr.reperes || '',
-            commune: pr.commune || (q && q.commune) || '', zone: pr.zone || (q && q.zone) || '', coord: coord, prat: p,
+            creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu,
+            territoire: territoireRes, subdivision: subdivisionRes,
+            quartier: quartierRes, secteur: secteurRes,
+            reperes: pr.reperes || '', commune: communeRes, zone: zoneRes, coord: coord, prat: p,
             fiab: fiab, fiabTexte: st && st.n >= 3 ? st.ok + '/' + st.n : ''
           };
           parJour[j].push(c);
@@ -150,8 +248,8 @@ var Moteur = (function () {
     Object.keys(parCode).forEach(function (k) {
       parCode[k].sort(function (a, b) { return a.jourIdx - b.jourIdx || a.debut - b.debut; });
     });
-    return { prat: prat, parJour: parJour, parCode: parCode, presencesParCode: presencesParCode, idxQ: idxQ,
-             quartiers: data.quartiers || [], feries: feries };
+    return { prat: prat, parJour: parJour, parCode: parCode, presencesParCode: presencesParCode,
+             idxQ: idxQ, parQ: parQ, ambiguQ: ambiguQ, quartiers: data.quartiers || [], feries: feries };
   }
 
   function creneauParCle(ctx, cle) {
@@ -176,7 +274,8 @@ var Moteur = (function () {
       uid: uid(), date: date, jour: c.jour, creneau: c.creneau, cle: c.cle, idPresence: c.idPresence,
       debut: minutesVersHeure(c.debut), fin: minutesVersHeure(c.fin), heure: minutesVersHeure(c.debut),
       code: p.code, nom: p.nom, type: p.type, specialite: p.specialite, note: p.note, conventionne: p.conv ? 'Oui' : 'Non',
-      lieu: c.lieu, quartier: c.quartier, reperes: c.reperes || '', commune: c.commune, zone: c.zone,
+      lieu: c.lieu, quartier: c.quartier, secteur: c.secteur || '', subdivision: c.subdivision || '',
+      reperes: c.reperes || '', commune: c.commune, zone: c.zone, territoire: c.territoire || '',
       lat: c.coord ? c.coord.lat : null, lon: c.coord ? c.coord.lon : null,
       derniere: p.derniere || '', joursEcoules: joursEcoules(p.derniere, date), score: scoreDe(p, date),
       prochaine: p.prochaine || '', fiab: c.fiab === undefined ? 1 : c.fiab, fiabTexte: c.fiabTexte || '',
@@ -441,13 +540,37 @@ var Moteur = (function () {
     if (!reste.length) return mots.join('');   // « Cocody Centre », « Plateau » : le nom entier
     return reste[0] === 'centre' ? mots.join('') : reste[0];
   }
-  function cleQuartier(it) { var a = it.a, k = cleSecteur(a.quartier, a.commune); return k ? k + '|' + cleNorm(a.commune) : cleEtablissement(it); }
-  // 3.28.23 : secteur de la tournée : sous-secteur des grandes communes (« Abobo – Nord & PK18 »), sinon la commune
-  function nomSecteurTournee(a) {
-    var z = typeof zoneDeQuartier === 'function' ? zoneDeQuartier(a.commune, a.quartier, a.lieu) : '';
-    return z || a.commune || a.quartier || '';
+  function cleQuartier(it) {
+    var a = it.a;
+    var comBase = typeof communeParente === 'function' ? communeParente(a.commune) : a.commune;
+    var qRef = a.quartier || a.secteur || '';
+    if (a.secteur && cleNorm(a.quartier) === cleNorm(comBase)) qRef = a.secteur;
+    var k = cleSecteur(qRef, comBase);
+    return k ? k + '|' + cleNorm(comBase) : cleEtablissement(it);
   }
-  function cleSecteurTournee(it) { var k = cleNorm(nomSecteurTournee(it.a)); return k || cleQuartier(it); }
+  // 3.28.23 : secteur de la tournée : subdivision issue de Quartiers (sinon sous-secteur des grandes communes, sinon commune)
+  function nomSecteurTournee(a, quartiers) {
+    if (!a) return '';
+    if (a.subdivision) return a.subdivision;
+    var qNom = a.quartier || a.secteur || '';
+    if (quartiers && quartiers.length && qNom) {
+      var kc = bas(a.commune), kp = typeof communeParente === 'function' ? bas(communeParente(a.commune)) : kc;
+      var kq = bas(qNom), ks = bas(a.secteur);
+      for (var i = 0; i < quartiers.length; i++) {
+        var q = quartiers[i];
+        if (!q || !q.subdivision) continue;
+        var qkc = bas(q.commune), qkp = typeof communeParente === 'function' ? bas(communeParente(q.commune)) : qkc;
+        if (kc && qkc !== kc && qkp !== kp) continue;
+        if ((kq && (bas(q.quartier) === kq || bas(q.secteur) === kq)) ||
+            (ks && (bas(q.quartier) === ks || bas(q.secteur) === ks))) {
+          return q.subdivision;
+        }
+      }
+    }
+    var z = typeof zoneDeQuartier === 'function' ? zoneDeQuartier(a.commune, qNom, a.lieu, quartiers) : '';
+    return z || a.commune || a.quartier || a.secteur || '';
+  }
+  function cleSecteurTournee(it, quartiers) { var k = cleNorm(nomSecteurTournee(it.a, quartiers)); return k || cleQuartier(it); }
   function regrouper(route, depart) {
     if (route.length < 3 || route.some(function (it) { return it.fixe; })) return route;   // visites déjà faites : ordre réel gardé
     var ref = simuler(route), finRef = ref.debuts.length ? Math.max.apply(null, ref.debuts) : 0;
@@ -508,7 +631,7 @@ var Moteur = (function () {
     ctx.parJour[j].forEach(function (c) {
       if (utilises && utilises[c.code]) return;
       if (o.exclus && o.exclus[c.code]) return;
-      if (dans && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans) : dans[c.commune])) return;
+      if (dans && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans, ctx.quartiers) : dans[c.commune])) return;
       if (o.accepte && !o.accepte(c.prat)) return;
       if (absentLe(c.prat, date)) return;
       if (joursEcoules(c.prat.derniere, date) < (o.delai || 0)) return;
@@ -609,7 +732,7 @@ var Moteur = (function () {
         route.forEach(function (it) {
           dansRoute[it.a.code] = true;
           routeQ[cleQuartier(it)] = true;
-          routeZ[cleSecteurTournee(it)] = true;
+          routeZ[cleSecteurTournee(it, ctx.quartiers)] = true;
         });
         var curMatin = route.filter(function (it) { return creneauDeItem(it) === 'Matin'; }).length;
         var curSoir = route.length - curMatin;
@@ -627,7 +750,7 @@ var Moteur = (function () {
           }
           // Cohésion de zone : on complète les quartiers/secteurs déjà entamés plutôt que de faire des allers-retours
           var bonusZone = route.length
-            ? (routeQ[cleQuartier(cd.it)] ? 45 : (routeZ[cleSecteurTournee(cd.it)] ? 25 : 0))
+            ? (routeQ[cleQuartier(cd.it)] ? 45 : (routeZ[cleSecteurTournee(cd.it, ctx.quartiers)] ? 25 : 0))
             : (densite[cd.a.code] || 0);
           var penRarete = o.autreDispos ? -12 * (o.autreDispos[cd.a.code] || 0) : 0;
           for (var i = 0; i <= route.length; i++) {
@@ -677,7 +800,7 @@ var Moteur = (function () {
       var l = p.communesPour ? p.communesPour(d) : null;
       if (!l || !l.length) return true;
       var dans = {}; l.forEach(function (x) { dans[x] = true; });
-      return typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans) : !!dans[c.commune];
+      return typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans, ctx.quartiers) : !!dans[c.commune];
     }
     (p.imposes || []).forEach(function (im) {
       if (utilises[im.code]) return;
@@ -835,18 +958,30 @@ var Moteur = (function () {
   function couverture(ctx, dates, mesArrets, arretsEquipe) {
     var jours = {};
     dates.forEach(function (d) { var j = jourSemaineIndex(d); if (!isNaN(j) && j >= 0 && j < 5) jours[j] = d; });
-    var communes = {}, ordreZones = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest', 'Zone Intérieur'];
-    ctx.quartiers.forEach(function (q) {
-      if (!communes[q.commune]) communes[q.commune] = { commune: q.commune, zone: q.zone, moi: 0, equipe: {}, dispo: {}, prioritaires: {} };
+    var communes = {}, ordreZones = ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest', 'Intérieur', 'Zone Intérieur'];
+    function rangZone(z) {
+      if (z === 'Intérieur' || z === 'Zone Intérieur') return 5;
+      var idx = ordreZones.indexOf(z);
+      return idx >= 0 ? idx : ordreZones.length;
+    }
+    function trouverCommuneCouv(nom) {
+      if (!nom) return null;
+      if (communes[nom]) return communes[nom];
+      var par = typeof communeParente === 'function' ? communeParente(nom) : '';
+      return par && communes[par] ? communes[par] : null;
+    }
+    (ctx.quartiers || []).forEach(function (q) {
+      if (!q || !q.commune) return;
+      if (!communes[q.commune]) communes[q.commune] = { commune: q.commune, zone: q.zone || '', moi: 0, equipe: {}, dispo: {}, prioritaires: {} };
     });
-    mesArrets.forEach(function (a) { if (communes[a.commune]) communes[a.commune].moi++; });
-    arretsEquipe.forEach(function (a) {
-      var c = communes[a.commune]; if (!c) return;
+    (mesArrets || []).forEach(function (a) { var c = trouverCommuneCouv(a.commune); if (c) c.moi++; });
+    (arretsEquipe || []).forEach(function (a) {
+      var c = trouverCommuneCouv(a.commune); if (!c) return;
       c.equipe[a.delegue] = (c.equipe[a.delegue] || 0) + 1;
     });
     Object.keys(jours).forEach(function (j) {
       ctx.parJour[j].forEach(function (cr) {
-        var c = communes[cr.commune]; if (!c) return;
+        var c = trouverCommuneCouv(cr.commune); if (!c) return;
         c.dispo[cr.code] = true;
         if (cr.prat.note === 3 && joursEcoules(cr.prat.derniere, jours[j]) >= R.cadence[3]) c.prioritaires[cr.code] = true;
       });
@@ -857,7 +992,7 @@ var Moteur = (function () {
                nbEquipe: Object.keys(c.equipe).reduce(function (s, n) { return s + c.equipe[n]; }, 0),
                dispo: Object.keys(c.dispo).length, prioritaires: Object.keys(c.prioritaires).length };
     }).sort(function (a, b) {
-      return ordreZones.indexOf(a.zone) - ordreZones.indexOf(b.zone) || a.commune.localeCompare(b.commune, 'fr');
+      return rangZone(a.zone) - rangZone(b.zone) || a.commune.localeCompare(b.commune, 'fr');
     });
   }
 
@@ -893,7 +1028,8 @@ var Moteur = (function () {
   return {
     preparer: preparer, creneauParCle: creneauParCle, arretDepuisCreneau: arretDepuisCreneau, scoreDe: scoreDe,
     simuler: simuler, ordonnerJour: ordonnerJour, planifierJour: planifierJour, genererPlanning: genererPlanning,
-    autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur, nomSecteurTournee: nomSecteurTournee,
+    autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur,
+    cleQuartier: cleQuartier, cleSecteurTournee: cleSecteurTournee, nomSecteurTournee: nomSecteurTournee,
     estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid, evaluerInsertion: evaluerInsertion
   };
 })();

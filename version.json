@@ -1,9 +1,8 @@
 {
-  "version": "3.31.41",
+  "version": "3.31.42",
   "date": "2026-11-11",
   "notes": [
-    "Hors ligne : icône adaptative et polices mises en cache de secours si le téléchargement initial échoue",
-    "Migration : bascule automatique et nettoyage des anciens caches « Tournées »",
-    "Démarrage : garde-fou écran blanc renforcé (erreurs échappées, promesses non gérées et rechargement propre)"
+    "Territoires & Quartiers : pilotage dynamique des subdivisions, secteurs et quartiers depuis la base (Abidjan & Intérieur)",
+    "Saisie intelligente : recherche tolérante aux variantes (ex. 8eme tranche) et remplissage automatique secteur, subdivision, commune, zone, territoire et fil d'Ariane"
   ]
 }
