@@ -1,7 +1,9 @@
 {
-  "version": "3.31.23",
+  "version": "3.31.34",
   "date": "2026-11-11",
   "notes": [
-    "Architecture multi-agents hiérarchisée : 2 agents d'extraction spatiale et manuscrite (1A, 1B), 2 agents spécialisés dans les cachets et tampons baveux (2A, 2B), 1 agent arbitre d'extraction (Agent 3), suivis des agents de réconciliation BDD et de validation métier."
+    "Planifier : stabilisation totale du défilement de la frise (suppression des clics parasites lors du balayage tactile)",
+    "Planifier : affichage immédiat et stable des visites du bas lors des animations de date",
+    "Planifier : barre flottante d'actions immunisée contre les cassures de positionnement"
   ]
 }

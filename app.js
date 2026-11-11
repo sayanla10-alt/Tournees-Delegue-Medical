@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.33';
+  var APP_VERSION = '3.31.34';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.34', ['Planifier : stabilisation totale du défilement de la frise (suppression des clics parasites lors du balayage tactile)',
+                 'Planifier : affichage immédiat et stable des visites du bas lors des animations de date (plus aucune disparition)',
+                 'Planifier : barre flottante d\'actions immunisée contre les cassures de positionnement sticky']],
     ['3.31.33', ['Planifier : persistance absolue des propositions générées (protection anti-effacement lors de la synchronisation serveur)']],
     ['3.31.32', ['Planifier : le badge Brouillon / Confirmé monte tout en haut à droite du titre pour gagner une ligne d\'affichage',
                  'Planifier : correction définitive de la sélection de date (planifier sur le 12 ne bascule plus jamais sur le 11)',
@@ -3462,14 +3465,18 @@
     var v = $('vue'), cle = tab + '|' + (S.ui.rechOuverte ? 1 : 0) + '|' + (S.ui.voirParams ? 1 : 0) + '|' + dCour;
     var nouvelEcran = cle !== S.ui.cleVue;
     if (nouvelEcran) {
-      void v.offsetWidth; v.classList.add('vue-entre');
-      if (dateAvant && dCour && dateAvant !== dCour && (tab === 'jour' || tab === 'semaine')) {
+      var memeOnglet = S.ui.ongletAnime === tab;
+      var changementJour = memeOnglet && dateAvant && dCour && dateAvant !== dCour && (tab === 'jour' || tab === 'semaine');
+      void v.offsetWidth;
+      if (!changementJour) v.classList.add('vue-entre');
+      if (changementJour) {
         v.classList.add(dCour > dateAvant ? 'jour-glisse-d' : 'jour-glisse-g');
       }
       S.ui.cleVue = cle;
-      // 3.24.0 : les cartes, lignes et indicateurs arrivent l'un après l'autre (cascade)
-      v.querySelectorAll('.arret, .ligne-plan, .liste > .element, .kpi, .ligne-gamme, .tuile, .bj-jour').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 14)); });
-      if (!reduireAnimations()) compterChiffres(v);
+      // 3.31.34 : Indexation séparée de la frise et du contenu pour éviter que 85 jours de frise retardent les visites du bas
+      v.querySelectorAll('.bj-jour').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 6)); });
+      v.querySelectorAll('.arret, .ligne-plan, .liste > .element, .kpi, .ligne-gamme, .tuile').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 10)); });
+      if (!reduireAnimations() && !changementJour) compterChiffres(v);
     }
     // la prochaine visite du jour respire (anneau qui pulse sur la ligne du temps)
     var t = aujourdhui(), now = minutesMaintenant(), proch = S.plan.filter(function (x) { return x.date === t && !x.statut && (heureVersMinutes(x.heure) === null || heureVersMinutes(x.heure) >= now - 20); })[0];
@@ -3743,15 +3750,54 @@
         actif = false;
         el.classList.remove('en-glisse');
         if (!bouge) { el.classList.remove('anim-scroll'); return; }
-        el.__bloqueClic = Date.now() + 180;
+        el.__bloqueClic = Date.now() + 250;
         var cible = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, el.scrollLeft + vx * 220));
         glisserHorizontal(el, el.scrollLeft, cible, 340);
       }
       el.addEventListener('pointerup', fin);
       el.addEventListener('pointercancel', fin);
       el.addEventListener('pointerleave', fin);
+
+      // 3.31.34 : Support tactile anti-clic parasite lors du balayage de la frise sur smartphone
+      var touchStartX = 0, touchStartY = 0, touchBouge = false;
+      el.addEventListener('touchstart', function (e) {
+        if (!e.touches || e.touches.length !== 1) return;
+        if (el.__animId) { cancelAnimationFrame(el.__animId); el.__animId = null; }
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchBouge = false;
+      }, { passive: true });
+      el.addEventListener('touchmove', function (e) {
+        if (!e.touches || e.touches.length !== 1) return;
+        var cx = e.touches[0].clientX, cy = e.touches[0].clientY;
+        var dx = Math.abs(cx - touchStartX), dy = Math.abs(cy - touchStartY);
+        if (!touchBouge && dx > 8 && dx > dy) {
+          touchBouge = true;
+          el.__bloqueClic = Date.now() + 450;
+        }
+        if (touchBouge) {
+          el.__bloqueClic = Date.now() + 450;
+        }
+      }, { passive: true });
+      el.addEventListener('touchend', function () {
+        if (touchBouge) {
+          el.__bloqueClic = Date.now() + 450;
+          setTimeout(function () { touchBouge = false; }, 450);
+        }
+      }, { passive: true });
+      el.addEventListener('touchcancel', function () {
+        if (touchBouge) {
+          el.__bloqueClic = Date.now() + 450;
+          touchBouge = false;
+        }
+      }, { passive: true });
+
       el.addEventListener('click', function (e) {
-        if (el.__bloqueClic && Date.now() < el.__bloqueClic) { e.stopPropagation(); e.preventDefault(); }
+        if (el.__bloqueClic && Date.now() < el.__bloqueClic) {
+          e.stopPropagation();
+          e.preventDefault();
+          if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        }
       }, true);
     });
   }
@@ -3775,6 +3821,8 @@
   function rendreSiPossible() {
     var a = document.activeElement;
     if (a && (($('vue').contains(a)) || $('feuille').contains(a)) && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) { afficherEntete(); afficherBarre(); return; }
+    // 3.31.34 : Ne jamais écraser une proposition locale en attente d'acceptation dans Planifier
+    if (S.ui.tab === 'semaine' && S.ui.aAccepter) { afficherEntete(); afficherBarre(); return; }
     rendre();
   }
   var VUES = {};
@@ -4837,6 +4885,7 @@
     var jSup = S.ui.jourSupprime, jVide = S.ui.planVide;
     if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
     if (jVide && (jVide < aujourdhui() || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
+    if (S.ui.jour && S.plan.some(function (a) { return a.date === S.ui.jour; })) { jVide = S.ui.planVide = null; jSup = S.ui.jourSupprime = null; }
     var jourActif = S.ui.jour || jVide || jSup;
     if (!jourActif || jourActif < aujourdhui()) {
       choisirJour(datesF);
@@ -12551,14 +12600,16 @@
     },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) {
-      if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
-      var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
+      var b = el && el.parentNode;
+      if ((el && el.__bloqueClic && Date.now() < el.__bloqueClic) || (b && b.__bloqueClic && Date.now() < b.__bloqueClic)) return;
+      if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
       S.ui.jour = el.dataset.v; S.ui.jourVue = null; S.ui.ouvert = null; S.ui.jourSupprime = null; S.ui.planVide = null;
       jourChoisiPlanifier(el.dataset.v); rendre();
     },
     planVierge: function (el) {
-      if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
-      var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
+      var b = el && el.parentNode;
+      if ((el && el.__bloqueClic && Date.now() < el.__bloqueClic) || (b && b.__bloqueClic && Date.now() < b.__bloqueClic)) return;
+      if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
       S.ui.planVide = el.dataset.v; S.ui.jour = el.dataset.v; S.ui.jourSupprime = null; S.ui.ouvert = null;
       jourChoisiPlanifier(el.dataset.v);
       rendre();
@@ -12575,7 +12626,9 @@
     },
     jourAujourdhui: function () { allerAuJour(aujourdhui()); },
     jourAller: function (el) {
-      var b = el.parentNode; if (b) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
+      var b = el && el.parentNode;
+      if ((el && el.__bloqueClic && Date.now() < el.__bloqueClic) || (b && b.__bloqueClic && Date.now() < b.__bloqueClic)) return;
+      if (b) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
       allerAuJour(el.dataset.v);
     },
     jourSemaine: function (el) { allerAuJour(ajouterJours(lundiDe(jourAffiche()), 7 * +el.dataset.v)); },

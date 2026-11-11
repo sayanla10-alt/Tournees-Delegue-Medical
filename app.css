@@ -1789,6 +1789,16 @@ details.avance h3 { margin-top: 18px; }
   box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
   margin: 8px -10px 12px;
   border-radius: var(--r, 8px);
+  animation: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+#vue.vue-entre > .barre-plan-actions-flottante,
+#vue.jour-glisse-d .barre-plan-actions-flottante,
+#vue.jour-glisse-g .barre-plan-actions-flottante {
+  animation: none !important;
+  transform: none !important;
+  opacity: 1 !important;
 }
 
 /* 3.21.0 : filtre Qui / Quand (Bilan, Équipe) */
@@ -2057,13 +2067,23 @@ details.avance h3 { margin-top: 18px; }
   will-change: transform;
 }
 .bj-jour:active, .bp-produit:active, .jours .jour:active { transform: scale(.93); }
-@keyframes glisseJourDroite { from { opacity: .45; transform: translateX(18px); } to { opacity: 1; transform: none; } }
-@keyframes glisseJourGauche { from { opacity: .45; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@keyframes glisseJourDroite { from { opacity: .7; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+@keyframes glisseJourGauche { from { opacity: .7; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
 #vue.jour-glisse-d .synthese-jour, #vue.jour-glisse-d .maintenant, #vue.jour-glisse-d .ligne, #vue.jour-glisse-d .tete-jour-plan, #vue.jour-glisse-d .bandeau-prog {
-  animation: glisseJourDroite .26s cubic-bezier(.22, 1, .36, 1) both;
+  animation: glisseJourDroite .22s cubic-bezier(.22, 1, .36, 1) both;
 }
 #vue.jour-glisse-g .synthese-jour, #vue.jour-glisse-g .maintenant, #vue.jour-glisse-g .ligne, #vue.jour-glisse-g .tete-jour-plan, #vue.jour-glisse-g .bandeau-prog {
-  animation: glisseJourGauche .26s cubic-bezier(.22, 1, .36, 1) both;
+  animation: glisseJourGauche .22s cubic-bezier(.22, 1, .36, 1) both;
+}
+/* 3.31.34 : Données du bas stables et immédiatement visibles quand la frise défile */
+.plan-jour, .plan-jour .ligne-plan {
+  opacity: 1 !important;
+}
+#vue.jour-glisse-d .plan-jour .ligne-plan,
+#vue.jour-glisse-g .plan-jour .ligne-plan {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 /* 3.25.25 : adaptation stricte aux écrans mobiles, alignement des champs voisins, accordéons Gamme/Famille et barre de critères Planifier */
