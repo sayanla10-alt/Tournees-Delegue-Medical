@@ -2038,9 +2038,8 @@
     });
     return l.sort(function (a, b) { return ZONES.indexOf(a.zone) - ZONES.indexOf(b.zone) || a.commune.localeCompare(b.commune, 'fr'); });
   }
-  // Condensation intelligente des communes et secteurs :
-  // 1. Si tous les secteurs d'une grande commune sont sélectionnés -> affiche uniquement le nom de la commune (ex: Cocody)
-  // 2. Si seuls certains secteurs sont sélectionnés -> affiche uniquement le nom du secteur sans répéter la commune (ex: Deux Plateaux, Riviera)
+  // Condensation des communes et subdivisions :
+  // Toute sélection totale ou partielle de subdivisions d'Abobo, Cocody ou Yopougon s'affiche sous le nom de la commune parente (Abobo, Cocody, Yopougon).
   function condenserCommunesEtSecteurs(liste) {
     if (!liste || !liste.length) return '';
     var grandes = ['Abobo', 'Cocody', 'Yopougon'];
@@ -2061,7 +2060,9 @@
         if (secsParGrande[par] && secsParGrande[par].indexOf(str) >= 0) {
           compteParGrande[par]++;
         } else if (str === par || str === par + ' (Toute la commune)') {
-          compteParGrande[par] = (secsParGrande[par] || []).length;
+          compteParGrande[par] = Math.max(1, (secsParGrande[par] || []).length);
+        } else {
+          compteParGrande[par]++;
         }
       }
     });
@@ -2069,30 +2070,23 @@
     var resultats = [];
     var grandesTraitees = {};
 
-    // 1. Pour les grandes communes dont TOUS les secteurs sont sélectionnés -> juste le nom de la commune (ex: Cocody)
+    // 1. Grandes communes dont au moins une subdivision (tout ou partie) est sélectionnée -> juste le nom de la commune
     grandes.forEach(function (g) {
-      var nbTot = (secsParGrande[g] || []).length;
-      if (nbTot > 0 && compteParGrande[g] >= nbTot) {
+      if (compteParGrande[g] > 0) {
         resultats.push(g);
         grandesTraitees[g] = true;
       }
     });
 
-    // 2. Pour les autres éléments :
-    var qs = (typeof quartiers === 'function') ? quartiers() : [];
+    // 2. Autres communes standard :
     liste.forEach(function (x) {
       if (!x) return;
       var str = String(x).trim();
       var par = (typeof communeParente === 'function') ? communeParente(str, qs) : '';
       if (grandesTraitees[par]) return;
 
-      // Si c'est un sous-secteur individuel d'une grande commune, on retire le préfixe redondant
       var nomAffiche = str.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '')
                           .replace(/\s*\(Toute la commune\)$/i, '');
-      // Exception Cocody Centre : "souvent Cocody Centre est seulement écrit Centre, ça prête à confusion, garder exceptionnellement Cocody Centre"
-      if (par === 'Cocody' && nomAffiche.toLowerCase() === 'centre') {
-        nomAffiche = 'Cocody Centre';
-      }
       if (resultats.indexOf(nomAffiche) < 0) {
         resultats.push(nomAffiche);
       }
