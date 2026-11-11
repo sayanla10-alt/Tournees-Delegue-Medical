@@ -4363,3 +4363,142 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   background: #fff;
   font-size: 13px;
 }
+
+/* 3.31.10 : Vérifier la fiche - Cartes pliables / dépliables ergonomiques */
+.scan-carte-haut-pliable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  min-height: 44px;
+}
+.scan-carte-haut-gauche {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.scan-carte-nom-compact {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--encre);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.scan-btn-bascule {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--gris);
+  padding: 8px;
+  min-width: 32px;
+  cursor: pointer;
+}
+.scan-carte-sous-compact {
+  font-size: 12.5px;
+  color: var(--gris);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scan-corps-deplie {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--trait);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.scan-arbitrage-fuzzy {
+  background: var(--ambre-pale, #FFF8E1);
+  border: 1px solid var(--ambre-trait, #FFE082);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.scan-fuzzy-titre {
+  font-size: 12.5px;
+  color: var(--ambre, #D97706);
+  margin-bottom: 4px;
+}
+.scan-fuzzy-existant {
+  font-size: 13.5px;
+  color: var(--encre);
+  margin-bottom: 8px;
+  line-height: 1.35;
+}
+.scan-segment-choix {
+  margin-bottom: 0 !important;
+}
+.scan-segment-choix button {
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.scan-bloc-hopital {
+  background: var(--fond-champ, #F7FAFA);
+  border: 1px solid var(--trait);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.scan-hopital-label {
+  font-size: 13px;
+  color: var(--encre);
+  margin-bottom: 6px;
+}
+.scan-hopital-cascade {
+  font-size: 12px;
+  color: var(--primaire, #0A6C74);
+  margin-top: 5px;
+  font-weight: 500;
+}
+.scan-propositions-champs {
+  background: #fff;
+  border: 1px solid var(--trait);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scan-propositions-titre {
+  font-size: 12.5px;
+  color: var(--encre);
+}
+.scan-champ-arbitrage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.scan-champ-nom {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gris);
+}
+.scan-segment-champ {
+  margin-bottom: 0 !important;
+}
+.scan-segment-champ button {
+  min-height: 34px;
+  font-size: 12px;
+  padding: 4px 6px;
+  white-space: normal !important;
+  line-height: 1.2;
+}
+.scan-carte-presence {
+  font-size: 13px;
+  color: var(--encre);
+  background: var(--vert-pale, #E8F5E9);
+  border: 1px solid var(--vert-trait, #C8E6C9);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.scan-edition-rapide {
+  padding-top: 6px;
+}
+

@@ -1,9 +1,7 @@
 {
-  "version": "3.31.9",
+  "version": "3.31.10",
   "date": "2026-11-11",
   "notes": [
-    "Résolution définitive du délai de connexion Google Sheets dans Fusion.gs (écritures ciblées, suppression par blocs, jumelage Supabase en tâche de fond)",
-    "Fuzzy string matching & simulation 5 agents OCR pour détection ultra-précise des praticiens et pharmacies",
-    "Répertoire › Ajouter et Vérifier la fiche : ergonomie au pouce optimisée, zéro débordement 360 px, cartes compactes sans formulaire déplié"
+    "Vérifier la fiche : pliage/dépliage compact, arbitrage fuzzy match ancien/nouveau, choix hôpital en cascade et validation granulaire champ par champ."
   ]
 }

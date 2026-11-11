@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.9';
+  var APP_VERSION = '3.31.10';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.10', ['Vérifier la fiche : ergonomie pliable/dépliable haute densité, cartes ultra-compactes au pouce',
+                 'Rapprochement Fuzzy Match avec arbitrage direct : « Modifier l\'ancien » ou « Créer nouveau »',
+                 'Logique hôpital-centrique : sélection rapide de l\'établissement avec cascade automatique du quartier, de la commune et du GPS',
+                 'Validation granulaire champ par champ : micro-arbitrage tactile pour chaque mention (téléphone, spécialité, lieu)']],
     ['3.31.9', ['Google Sheets : résolution définitive du délai de connexion lors de la fusion des doublons (écritures ciblées, suppression par blocs décroissants)',
                'Fuzzy String Matching & protocole 5 agents OCR : détection robuste des noms, tolérance phonétique CI et inversion Nom/Prénom',
                'Répertoire › Ajouter et Vérifier la fiche : ergonomie au pouce perfectionnée, zéro débordement sur 360 px, cartes épurées sans formulaire déplié']],
@@ -2052,6 +2056,32 @@
     return (cfg.dom ? '<input type="hidden" id="' + id + '" value="' + esc(cfg.valeur || '') + '">' : '') +
       '<button type="button" class="selecteur" data-a="listeOuvrir" data-liste="' + esc(id) + '" id="' + esc(id) + 'Btn"' + (cfg.invalide ? ' aria-invalid="true"' : '') + '>' +
       '<span>' + esc(lib || cfg.vide || 'Choisir…') + '</span><b>▾</b></button>';
+  }
+  function sectionsEtablissements() {
+    var etabs = etablissementsConnus();
+    var groupes = {}, interieur = [];
+    etabs.forEach(function (e) {
+      var nom = (e.lieu || '').trim(); if (!nom) return;
+      var com = (e.commune || '').trim().replace(/\s*-\s*/g, ' – ') || 'Autres établissements';
+      var q = (e.quartier || '').trim();
+      var label = nom + (q ? ' (' + q + ')' : '');
+      if (com.indexOf('Intérieur') >= 0 || com.indexOf('Interieur') >= 0) {
+        interieur.push([nom, label]);
+      } else {
+        if (!groupes[com]) groupes[com] = [];
+        groupes[com].push([nom, label]);
+      }
+    });
+    var secs = [];
+    Object.keys(groupes).sort(function (a, b) { return a.localeCompare(b, 'fr'); }).forEach(function (com) {
+      groupes[com].sort(function (a, b) { return a[0].localeCompare(b[0], 'fr'); });
+      secs.push({ titre: com, options: groupes[com] });
+    });
+    if (interieur.length) {
+      interieur.sort(function (a, b) { return a[0].localeCompare(b[0], 'fr'); });
+      secs.push({ titre: 'Zone Intérieur', options: interieur });
+    }
+    return secs;
   }
   function sectionsQuartiers() {
     var qs = quartiers();
@@ -10487,95 +10517,152 @@
 
   function carteScan(f, v, ent, pl, i, etat) {
     var estPh = ent.type === 'Pharmacie', ouvert = !!ent.ouvert;
-    var ex = ent.choix ? praticien(ent.choix) : null, dt = ent.douteux && !ent.decision ? praticien(ent.douteux) : null;
+    var ex = ent.choix ? praticien(ent.choix) : null;
+    var dt = ent.douteux && !ent.decision ? praticien(ent.douteux) : null;
+    var cand1 = (ent.cands && ent.cands[0]) ? praticien(ent.cands[0]) : null;
     var L = pl.lieu;
     var nomAffiche = esc(ent.nom ? nomPropre(ent.nom, estPh) : (ex ? ex.nom : 'Nom à lire'));
 
-    var h = '<section class="scan-carte-but ' + etat + (ent.inclus ? '' : ' exclu') + '">' +
-      '<div class="scan-carte-haut">' +
-        '<label class="scan-case-principale" title="Retenir ce contact">' +
+    // Indicateur de statut
+    var tagLib = etat === 'nouveau' ? 'Nouveau contact' : etat === 'enrichir' ? 'Mentions à ajouter' : 'À trancher';
+
+    var h = '<section class="scan-carte-but ' + etat + (ent.inclus ? '' : ' exclu') + (ouvert ? ' scan-carte-ouverte' : ' scan-carte-pliee') + '">';
+
+    // TÊTE COMPACTE CLIQUABLE (Plier / Déplier)
+    h += '<div class="scan-carte-haut-pliable" data-a="scanOuvrir" data-i="' + i + '" title="Toucher pour ' + (ouvert ? 'replier' : 'déplier') + '">' +
+      '<div class="scan-carte-haut-gauche">' +
+        '<label class="scan-case-principale" title="Retenir ce contact" onclick="event.stopPropagation()">' +
           '<input type="checkbox" data-f="scan" data-i="' + i + '" data-k="inclus"' + (ent.inclus ? ' checked' : '') + ' aria-label="Retenir ce contact">' +
-          '<span class="scan-tag-statut scan-tag-' + etat + '">' +
-            (etat === 'nouveau' ? 'Nouveau contact' : etat === 'enrichir' ? 'Mentions à ajouter' : 'À trancher') +
-          '</span>' +
+          '<span class="scan-tag-statut scan-tag-' + etat + '">' + tagLib + '</span>' +
         '</label>' +
-        '<button type="button" class="bouton petit scan-btn-editer" data-a="scanOuvrir" data-i="' + i + '">' +
-          (ouvert ? 'Fermer' : 'Modifier') +
-        '</button>' +
-      '</div>';
+        '<div class="scan-carte-nom-compact">' + nomAffiche + '</div>' +
+      '</div>' +
+      '<button type="button" class="scan-btn-bascule" aria-expanded="' + ouvert + '" aria-label="' + (ouvert ? 'Replier' : 'Déplier') + '">' +
+        (ouvert ? '▲' : '▼') +
+      '</button>' +
+    '</div>';
 
-    // Nom principal
-    h += '<div class="scan-carte-nom">' + nomAffiche + '</div>';
-
-    // Sous-titre contexte
+    // SOUS-TITRE RÉSUMÉ (Toujours visible pour repérer immédiatement le contexte)
     if (ex) {
       var baseInfos = [ex.specialite, (L && L.lieu) || '', ex.telephone].filter(Boolean).join(' · ');
-      h += '<div class="scan-carte-sous">Déjà dans votre base : <b>' + esc(baseInfos || 'Enregistré') + '</b></div>';
+      h += '<div class="scan-carte-sous-compact">Déjà en base : <b>' + esc(baseInfos || 'Enregistré') + '</b></div>';
     } else {
-      var nouvInfos = [ent.specialite, (L && L.lieu) || ent.etablissement, ent.quartier].filter(Boolean).join(' · ');
-      if (nouvInfos) h += '<div class="scan-carte-sous">' + esc(nouvInfos) + '</div>';
+      var etabNom = (L && L.lieu) || ent.etablissement || '';
+      var nouvInfos = [ent.specialite, etabNom, ent.quartier].filter(Boolean).join(' · ');
+      if (nouvInfos) h += '<div class="scan-carte-sous-compact">' + esc(nouvInfos) + '</div>';
     }
 
-    if (ent.telephone) {
-      h += '<div class="scan-carte-tel">📞 ' + esc(ent.telephone) + '</div>';
-    }
+    // CONTENU DÉPLIÉ (ou affiché si décision / information manquante requise)
+    if (ouvert || dt || (pl.erreur && !ent.etablissement && !ent.quartier)) {
+      h += '<div class="scan-corps-deplie">';
 
-    // Cas Homonyme à trancher
-    if (dt) {
-      var prs = (ctx().presencesParCode[dt.code] || []).map(function (x) { return x.lieu; }).filter(Boolean).slice(0, 2).join(', ');
-      h += '<div class="scan-doute-bloc">' +
-        '<div class="scan-doute-question">' +
-          'Ce nom correspond-il à votre contact existant :<br>' +
-          '<b>' + esc(dt.nom) + '</b> (' + esc([dt.specialite, prs, dt.telephone].filter(Boolean).join(' · ') || 'Même nom') + ') ?' +
-        '</div>' +
-        '<div class="scan-doute-boutons">' +
-          '<button type="button" class="bouton bouton-plein scan-btn-oui" data-a="scanDecision" data-i="' + i + '" data-v="oui">✓ Oui, c\'est lui</button>' +
-          '<button type="button" class="bouton scan-btn-non" data-a="scanDecision" data-i="' + i + '" data-v="non">+ Non, nouveau</button>' +
-        '</div>' +
-      '</div>';
-    } else if (pl.erreur) {
-      if (!ent.quartier) {
-        h += '<div class="scan-alerte-quartier">' +
-          '<div class="scan-alerte-txt">⚠️ ' + esc(pl.erreur) + (ent.quartierLu ? ' <small>(lu : ' + esc(ent.quartierLu) + ')</small>' : '') + '</div>' +
-          selecteurListe('scanQ' + f.id + '_' + i, { titre: 'Quartier', valeur: ent.quartier || null, vide: 'Choisir le quartier…', sections: sectionsQuartiers(),
-            appliquer: function (val) { majScan(f.id, function (z) { var q = quartiers().filter(function (o) { return o.quartier === val; })[0]; z.validation.entites[i].quartier = val; z.validation.entites[i].commune = q ? q.commune : ''; }); } }) +
+      // 1. BLOC ARBITRAGE FUZZY MATCH (Modifier l'ancien OU Créer nouveau)
+      var contactFuzzy = dt || (ex && cand1 && ex.code === cand1.code ? cand1 : null) || (cand1 && !ex ? cand1 : null);
+      if (contactFuzzy) {
+        var raisonFuzzy = (ent.raisons && ent.raisons[contactFuzzy.code]) || 'Nom très ressemblant';
+        var prs = (ctx().presencesParCode[contactFuzzy.code] || []).map(function (x) { return x.lieu; }).filter(Boolean).slice(0, 2).join(', ');
+        var estChoisiAncien = ent.choix === contactFuzzy.code;
+
+        h += '<div class="scan-arbitrage-fuzzy">' +
+          '<div class="scan-fuzzy-titre">🔍 <b>Ressemblance détectée</b> (' + esc(raisonFuzzy) + ')</div>' +
+          '<div class="scan-fuzzy-existant">' +
+            '<b>' + esc(contactFuzzy.nom) + '</b> · ' + esc([contactFuzzy.specialite, prs, contactFuzzy.telephone].filter(Boolean).join(' · ') || 'Enregistré') +
+          '</div>' +
+          '<div class="segment scan-segment-choix" role="group" aria-label="Action doublon">' +
+            '<button type="button" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="ancien" data-code="' + esc(contactFuzzy.code) + '" aria-pressed="' + estChoisiAncien + '">' +
+              'Modifier l\'ancien' +
+            '</button>' +
+            '<button type="button" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="nouveau" aria-pressed="' + (!ent.choix) + '">' +
+              'Créer nouveau' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      }
+
+      // 2. CHOIX DE L'HÔPITAL / CLINIQUE DE RENCONTRE (Hôpital-Centrique)
+      if (!estPh) {
+        h += '<div class="scan-bloc-hopital">' +
+          '<div class="scan-hopital-label">🏥 <b>Où avez-vous rencontré ce médecin ?</b></div>' +
+          selecteurListe('scanEtab' + f.id + '_' + i, {
+            titre: 'Hôpital ou clinique',
+            valeur: ent.etablissement || null,
+            vide: 'Choisir l\'hôpital / la clinique…',
+            sections: sectionsEtablissements(),
+            appliquer: function (nomEtab) {
+              majScan(f.id, function (z) {
+                var e = z.validation.entites[i];
+                e.etablissement = nomEtab;
+                var can = trouverEtablissementBDD(nomEtab, '', '');
+                if (can) {
+                  if (can.quartier) { e.quartier = can.quartier; e.commune = can.commune || e.commune; }
+                  if (can.lat) { e.lat = can.lat; e.lon = can.lon; }
+                }
+              });
+            }
+          }) +
+          (ent.quartier ? '<div class="scan-hopital-cascade">📍 Quartier hérité : <b>' + esc(ent.quartier) + '</b>' + (ent.commune ? ' (' + esc(ent.commune) + ')' : '') + '</div>' : '') +
         '</div>';
       } else {
-        h += '<p class="erreur-texte scan-err">⚠️ ' + esc(pl.erreur) + '</p>';
-      }
-    }
-
-    // Cas Mentions à ajouter (affichées en clair en vert avec bullet et libellé naturel)
-    if (etat === 'enrichir') {
-      var lignes = pl.cmp.filter(function (r) { return r.etat !== 'identique' && r.etat !== 'base'; });
-      if (lignes.length) {
-        h += '<div class="scan-nouveautes-encart">';
-        lignes.forEach(function (r) {
-          var m = formaterMentionScan(r, pl);
-          h += '<div class="scan-nouveaute-ligne">' +
-            '<span class="scan-plus-bulle">+</span>' +
-            '<div class="scan-nouveaute-txt">' + esc(m.lib) + ' : <b>' + m.val + '</b></div>' +
+        // Pour les pharmacies : choix du quartier si absent
+        if (!ent.quartier) {
+          h += '<div class="scan-bloc-hopital">' +
+            '<div class="scan-hopital-label">📍 <b>Quartier de l\'officine</b></div>' +
+            selecteurListe('scanQ' + f.id + '_' + i, {
+              titre: 'Quartier',
+              valeur: ent.quartier || null,
+              vide: 'Choisir le quartier…',
+              sections: sectionsQuartiers(),
+              appliquer: function (val) {
+                majScan(f.id, function (z) {
+                  var q = quartiers().filter(function (o) { return o.quartier === val; })[0];
+                  z.validation.entites[i].quartier = val;
+                  z.validation.entites[i].commune = q ? q.commune : '';
+                });
+              }
+            }) +
           '</div>';
-        });
-        h += '</div>';
+        }
       }
-    } else if (etat === 'nouveau' && pl.prog && v.date) {
-      h += '<div class="scan-carte-sous" style="margin-top:6px">📅 Présence : <b>' + nomJour(v.date) + ' ' + (v.matin && v.soir ? 'matin et soir' : v.matin ? 'matin' : 'soir') + '</b> ' + semaineScan(pl.prog) + '</div>';
-    }
 
-    // Saisie dépliée pour modification manuelle
-    if (ouvert) {
-      h += '<div class="scan-detail">' +
+      // 3. PROPOSITION DES CHANGEMENTS CHAMP PAR CHAMP (Micro-arbitrage tactile)
+      if (ex) {
+        var changs = pl.cmp.filter(function (r) { return r.etat === 'different' || r.etat === 'ajout'; });
+        if (changs.length) {
+          h += '<div class="scan-propositions-champs">' +
+            '<div class="scan-propositions-titre">⚙️ <b>Changements proposés sur ce contact :</b></div>';
+          changs.forEach(function (r) {
+            var k = r.k, ficheVal = esc(r.fiche || ''), baseVal = esc(r.base || '');
+            var estAccepte = r.opt === 'remplacer' ? !!(ent.remplacer && ent.remplacer[k]) : !(ent.refus && ent.refus[k]);
+            var libChamp = k === 'telephone' ? 'Téléphone' : k === 'specialite' ? 'Spécialité' : k === 'etablissement' ? 'Établissement' : k === 'quartier' ? 'Quartier' : esc(r.champ);
+
+            h += '<div class="scan-champ-arbitrage">' +
+              '<div class="scan-champ-nom">' + libChamp + '</div>' +
+              '<div class="segment scan-segment-champ" role="group">' +
+                (baseVal ? '<button type="button" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="ancien" aria-pressed="' + (!estAccepte) + '">Garder : ' + baseVal + '</button>' : '') +
+                '<button type="button" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(k) + '" data-val="nouveau" aria-pressed="' + estAccepte + '">' + (baseVal ? 'Adopter : ' : '+ Ajouter : ') + ficheVal + '</button>' +
+              '</div>' +
+            '</div>';
+          });
+          h += '</div>';
+        }
+      }
+
+      // 4. PRÉSENCE ET COMPTE RENDU
+      if (pl.prog && v.date) {
+        h += '<div class="scan-carte-presence">📅 Présence enregistrée : <b>' + nomJour(v.date) + ' ' + (v.matin && v.soir ? 'matin et soir' : v.matin ? 'matin' : 'soir') + '</b> ' + semaineScan(pl.prog) + '</div>';
+      }
+
+      // 5. CHAMPS MANUELS D'ÉDITION DIRECTE
+      h += '<div class="scan-edition-rapide">' +
         (ent.transcription ? '<p class="discret scan-lu">Lu sur la photo : ' + esc(ent.transcription) + '</p>' : '') +
-        '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(ent.nom) + '"></label>' +
-        (estPh ? '' : '<label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"></label>' +
-          '<label class="champ"><span>Établissement</span><input type="text" data-f="scan" data-i="' + i + '" data-k="etablissement" value="' + esc(ent.etablissement) + '"></label>') +
-        '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' +
-        '<div class="champ"><span>Quartier' + (ent.quartierLu && !ent.quartier ? ' (lu : ' + esc(ent.quartierLu) + ')' : '') + '</span>' + selecteurListe('scanQ' + f.id + '_' + i, { titre: 'Quartier', valeur: ent.quartier || null, vide: 'Choisir…', sections: sectionsQuartiers(),
-          appliquer: function (val) { majScan(f.id, function (z) { var q = quartiers().filter(function (o) { return o.quartier === val; })[0]; z.validation.entites[i].quartier = val; z.validation.entites[i].commune = q ? q.commune : ''; }); } }) + '</div>' +
-        '<p class="fx-sec">Correspond à</p><div class="puces">' +
-          '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="" aria-pressed="' + !ent.choix + '">Nouveau contact</button>' +
-          ent.cands.map(function (c) { var p = praticien(c) || {}; return '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="' + esc(c) + '" aria-pressed="' + (ent.choix === c) + '">' + esc(p.nom || c) + (p.specialite && !estPh ? ' <small>' + esc(abrSpec(p.specialite)) + '</small>' : '') + '</button>'; }).join('') + '</div></div>';
+        '<div class="grille-2 serre">' +
+          '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(ent.nom) + '"></label>' +
+          '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' +
+        '</div>' +
+        (estPh ? '' : '<label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"></label>') +
+      '</div>';
+
+      h += '</div>'; // fin scan-corps-deplie
     }
 
     return h + '</section>';
@@ -13456,8 +13543,58 @@
         sauverScans(scans().filter(function (x) { return x.id !== id; })); S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre();
       }, function () { S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre(); }, null, true);
     },
-    scanDecision: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k]; e.decision = el.dataset.v; e.choix = el.dataset.v === 'oui' ? e.douteux : ''; e.remplacer = {}; e.refus = {}; }); rendre(); },
-    scanOuvrir: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k], pl = planScan(e, x.validation), ouv = e.ouvert || (!!pl.erreur && e.inclus && e.ouvert !== false); e.ouvert = !ouv; }); rendre(); },
+    scanDecision: function (el) {
+      var f = S.ui.feuille, k = +el.dataset.i;
+      majScan(f.id, function (x) {
+        var e = x.validation.entites[k];
+        e.decision = el.dataset.v;
+        e.choix = el.dataset.v === 'oui' ? e.douteux : '';
+        e.remplacer = {};
+        e.refus = {};
+        e.ouvert = true; // Déplier automatiquement pour permettre d'ajuster les détails
+      });
+      rendre();
+    },
+    scanBasculerChoix: function (el) {
+      var f = S.ui.feuille, k = +el.dataset.i, mode = el.dataset.mode;
+      majScan(f.id, function (x) {
+        var e = x.validation.entites[k];
+        if (mode === 'ancien') {
+          e.choix = el.dataset.code || (e.cands && e.cands[0]) || e.douteux || '';
+          e.decision = 'oui';
+        } else {
+          e.choix = '';
+          e.decision = 'non';
+        }
+        e.remplacer = {};
+        e.refus = {};
+      });
+      rendre();
+    },
+    scanChangerPuce: function (el) {
+      var f = S.ui.feuille, k = +el.dataset.i, champ = el.dataset.champ, val = el.dataset.val;
+      majScan(f.id, function (x) {
+        var e = x.validation.entites[k];
+        e.remplacer = e.remplacer || {};
+        e.refus = e.refus || {};
+        if (val === 'nouveau') {
+          e.remplacer[champ] = true;
+          delete e.refus[champ];
+        } else {
+          e.remplacer[champ] = false;
+          e.refus[champ] = true;
+        }
+      });
+      rendre();
+    },
+    scanOuvrir: function (el) {
+      var f = S.ui.feuille, k = +el.dataset.i;
+      majScan(f.id, function (x) {
+        var e = x.validation.entites[k];
+        e.ouvert = !e.ouvert;
+      });
+      rendre();
+    },
     scanChoix: function (el) { var f = S.ui.feuille; majScan(f.id, function (x) { var e = x.validation.entites[+el.dataset.i]; e.choix = el.dataset.v; e.remplacer = {}; if (e.douteux) e.decision = el.dataset.v === e.douteux ? 'oui' : 'non'; }); rendre(); },
     scanToggleInclus: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k]; e.inclus = !e.inclus; }); rendre(); },
     scanCreneau: function (el) { var f = S.ui.feuille, k = el.dataset.v; majScan(f.id, function (x) { x.validation[k] = !x.validation[k]; if (!x.validation.matin && !x.validation.soir) x.validation[k === 'matin' ? 'soir' : 'matin'] = true; }); rendre(); },
