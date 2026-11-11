@@ -388,7 +388,7 @@ function jumSyncTable_(table, rows, tout) {   // tout = true : toutes les lignes
   jumParLots_(avecId, 400, function (lot) { jumOk_(jumPostLots_(table + '?on_conflict=id', lot, 'resolution=merge-duplicates,return=minimal'), 'Mise à jour ' + table); });
   jumParLots_(sansId, 400, function (lot) { jumOk_(jumPostLots_(table, lot, 'return=minimal'), 'Ajout ' + table); });
   var aSuppr2 = existants.map(function (e) { return e.id; }).filter(function (id) { return !garde[id]; });
-  jumParLots_(aSuppr2, 80, function (lot) { jumOk_(jumReq_('delete', table + '?id=' + encodeURIComponent(jumIn_(lot))), 'Suppression ' + table); });
+  jumParLots_(aSuppr2, 25, function (lot) { jumOk_(jumReq_('delete', table + '?id=' + encodeURIComponent(jumIn_(lot))), 'Suppression ' + table); });
   n.envoyees = rows.length; n.supprimees = aSuppr2.length; n.total = rows.length;
   return n;
 }
