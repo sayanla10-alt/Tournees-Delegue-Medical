@@ -5801,20 +5801,17 @@
       (manques.length ? ' ; ' + manques.length + ' praticien' + (manques.length > 1 ? 's' : '') + ' absent' + (manques.length > 1 ? 's' : '') + ' ce jour-là (non repris)' : '') + '.', 5000);
   }
 
-  // Médecin déjà prévu par un collègue la même semaine : question « Le remplacer ? » sans répéter le badge déjà affiché au-dessus
+  // Médecin déjà prévu par un collègue la même semaine : un seul couple compact Remplacer / Supprimer sans phrase redondante
   function conflitArret(a) {
     if (a.etat === 'valide' || a.statut || a.conflitOk || S.config.demo) return null;
     var l = cibleParCollegues(a.code, a.date);
     return l.length ? l[0] : null;
   }
-  function questionConflit(a, cf) {
-    var dejaBadge = !!etiquetteCollegues(a.code, a.date);
-    var texte = dejaBadge
-      ? 'Le remplacer par un autre praticien ?'
-      : ('Aussi prévu par <b>' + esc(cf.delegue) + '</b> le ' + dateFr(cf.date) + '. Le remplacer par un autre praticien ?');
-    return '<div class="conflit"><p>' + texte + '</p>' +
-      '<div class="rangee"><button class="bouton petit bouton-plein" type="button" data-a="conflitRemplacer" data-uid="' + a.uid + '">Remplacer</button>' +
-      '<button class="bouton petit danger-doux" type="button" data-a="retirerPlan" data-uid="' + a.uid + '">Supprimer</button></div></div>';
+  function questionConflit(a) {
+    return '<div class="actions-carte-orange"><div class="rangee">' +
+      '<button class="bouton petit bouton-plein" type="button" data-a="conflitRemplacer" data-uid="' + a.uid + '">Remplacer</button>' +
+      '<button class="bouton petit danger-doux" type="button" data-a="retirerPlan" data-uid="' + a.uid + '">Supprimer</button>' +
+      '</div></div>';
   }
   // Candidats pour remplacer une visite : présents ce jour-là, hors tournée, non prévus par un collègue, selon les critères de la tournée ;
   // ceux du même établissement d'abord (+ bonus), ceux qui s'insèrent sans retard, puis par priorité et proximité du lieu remplacé
@@ -6268,6 +6265,7 @@
     // Carte orange appliquée STRICTEMENT si hors des zones ciblées par les filtres
     var classeOrange = horsZone ? ' ancien' : '';
     var cf = conflitArret(a);
+    var avecActionsBas = (horsZone && !verrou && !a.statut) || !!cf;
 
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + classeOrange + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
@@ -6288,14 +6286,9 @@
             '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
         '</div>' +
       '</div>' +
-      (e ? '<button type="button" class="lp-etiquettes-btn" data-a="voirVisite" data-uid="' + a.uid + '"><span class="etiquettes">' + e + '</span></button>' : '') +
-      // Sous les cartes oranges sans conflit collègue : un seul couple Remplacer / Supprimer (jamais doublonné au-dessus du bloc conflit)
-      (horsZone && !verrou && !a.statut && !cf ?
-        '<div class="actions-carte-orange"><div class="rangee">' +
-          '<button type="button" class="bouton petit bouton-plein" data-a="conflitRemplacer" data-uid="' + a.uid + '">Remplacer</button>' +
-          '<button type="button" class="bouton petit danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '">Supprimer</button>' +
-        '</div></div>' : '') +
-      (cf ? questionConflit(a, cf) : '') +
+      (e ? '<button type="button" class="lp-etiquettes-btn' + (avecActionsBas ? ' centre' : '') + '" data-a="voirVisite" data-uid="' + a.uid + '"><span class="etiquettes">' + e + '</span></button>' : '') +
+      // Un seul couple compact Remplacer / Supprimer collé juste sous les étiquettes centrées
+      (avecActionsBas ? questionConflit(a) : '') +
       '</li>';
   }
 

@@ -1264,12 +1264,13 @@ body.avec-barre main { padding-bottom: 90px; }
 
 .lp-bas { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; margin-top: 2px; }
 .lp-details-btn { flex: 1; min-width: 0; text-align: left; border: 0; background: none; padding: 0; color: inherit; font-size: 12.5px; cursor: pointer; }
-.lp-details-btn .bloc-texte { margin: 0; line-height: 1.35; color: var(--gris); }
+.lp-details-btn .bloc-texte { margin: 0; line-height: 1.3; color: var(--gris); }
 .lp-details-btn .etiquettes { margin-top: 4px; }
 .lp-etiquettes-btn { flex-basis: 100%; display: block; width: 100%; text-align: left; border: 0; background: none; padding: 0; color: inherit; cursor: pointer; }
-.lp-etiquettes-btn .etiquettes { margin-top: 3px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; align-items: center; }
+.lp-etiquettes-btn .etiquettes { margin-top: 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; align-items: center; }
+.lp-etiquettes-btn.centre .etiquettes { justify-content: center; }
 .lp-etiquettes-btn .etiquettes::-webkit-scrollbar { display: none; }
-.lp-etiquettes-btn .etiquette { flex: 0 0 auto; font-size: 11px; padding: 2px 6px; min-height: 20px; }
+.lp-etiquettes-btn .etiquette { flex: 0 0 auto; font-size: 11px; padding: 1px 6px; min-height: 19px; }
 
 .lp-actions { flex: none; display: flex; align-items: center; gap: 4px; }
 .lp-garder { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; padding: 5px 4px; border: 1px solid var(--trait); border-radius: 9px; background: var(--papier); color: var(--gris); }
@@ -3903,29 +3904,32 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 /* 3.28.55 : frise de Planifier sans jour à venir planifié : 5 prochains jours en cartes blanches */
 .bj-jour.bj-vierge:not([aria-pressed="true"]) { background: var(--papier) !important; border-color: var(--trait) !important; color: var(--encre) !important; }
 
-/* 3.29.3 : visite reprise hors des communes choisies : carte ambre, prioritaire sur le vert des visites faites */
-.ligne-plan.ancien, .ligne-plan.ancien.gardee { background: var(--ambre-pale); opacity: 1; padding: 7px 8px; }
-.ligne-plan.ancien .lp-details-btn .etiquettes { margin-top: 3px; }
+/* 3.29.3 : visite reprise hors des communes choisies : carte ambre, même compacité que les cartes blanches et vertes */
+.ligne-plan.ancien, .ligne-plan.ancien.gardee { background: var(--ambre-pale); opacity: 1; padding: 7px 8px; gap: 4px 6px; }
+.ligne-plan.ancien .lp-droite { gap: 1px; }
+.ligne-plan.ancien .lp-bas { margin-top: 1px; }
+.ligne-plan.ancien .lp-details-btn .bloc-texte { font-size: 12px; line-height: 1.25; }
+.ligne-plan.ancien .lp-details-btn .etiquettes { margin-top: 2px; }
 :root .arret.ancien .arret-carte, :root .arret.ancien.fait .arret-carte, :root .arret.ancien.fait-attente .arret-carte,
 :root[data-theme] .arret.ancien.fait .arret-carte, :root[data-theme] .arret.ancien.fait-attente .arret-carte,
 :root:not([data-theme="clair"]) .arret.ancien.fait .arret-carte, :root:not([data-theme="clair"]) .arret.ancien.fait-attente .arret-carte { background: var(--ambre-pale); border-color: var(--ambre-trait); }
 .etiquette.ambre { color: var(--ambre); background: var(--papier); border-color: var(--ambre-trait); }
 
-/* Actions des cartes oranges hors communes ciblées (Planifier) : boutons centrés, compacts, sans étirement */
+/* Actions des cartes oranges / conflits (Planifier) : boutons compacts rapprochés juste sous les étiquettes */
 .actions-carte-orange {
   flex-basis: 100%;
-  margin: 5px 0 0;
+  margin: 2px 0 0;
 }
 .actions-carte-orange .rangee {
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 .actions-carte-orange .rangee > .bouton {
   flex: 0 0 auto;
-  min-width: 110px;
-  min-height: 34px;
-  font-size: 13.5px;
-  padding: 0 16px;
+  min-width: 98px;
+  min-height: 29px;
+  font-size: 12.5px;
+  padding: 0 13px;
 }
 
 /* =============================================================================
