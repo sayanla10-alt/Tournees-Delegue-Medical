@@ -356,15 +356,31 @@ var Moteur = (function () {
     });
 
     var max = o.maxJour || 8;
+    // 3.31.32 : Équilibrage intelligent Matin / Soir (ex: 4 matin, 4 soir sur 8 visites)
+    // tout en respectant strictement les plages de consultation réelles des praticiens.
+    var targetMatin = Math.ceil(max / 2), targetSoir = max - targetMatin;
     function passe(avecRejetes) {
       while (route.length < max) {
         var dansRoute = {};
         route.forEach(function (it) { dansRoute[it.a.code] = true; });
+        var curMatin = route.filter(function (it) { return it.a.creneau === 'Matin' || it.tot < 780; }).length;
+        var curSoir = route.length - curMatin;
         var base = simuler(route).nbRetards, options = [];
         cands.forEach(function (cd) {
           if (dansRoute[cd.a.code] || (cd.rejete && !avecRejetes)) return;
+          var cren = cd.a.creneau || (cd.it.tot < 780 ? 'Matin' : 'Soir');
+          var bonusEquilibre = 0;
+          if (cren === 'Matin' && curMatin < targetMatin) {
+            bonusEquilibre = (curSoir > curMatin) ? 60 : 25;
+          } else if (cren === 'Soir' && curSoir < targetSoir) {
+            bonusEquilibre = (curMatin > curSoir) ? 60 : 25;
+          } else if (cren === 'Matin' && curMatin >= targetMatin && curSoir < targetSoir) {
+            bonusEquilibre = -35;
+          } else if (cren === 'Soir' && curSoir >= targetSoir && curMatin < targetMatin) {
+            bonusEquilibre = -35;
+          }
           for (var i = 0; i <= route.length; i++) {
-            options.push({ v: cd.score - R.penaliteKm * delta(route, i, cd.it, depart), cd: cd, i: i });
+            options.push({ v: cd.score + bonusEquilibre - R.penaliteKm * delta(route, i, cd.it, depart), cd: cd, i: i });
           }
         });
         if (!options.length) return;

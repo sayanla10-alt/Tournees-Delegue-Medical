@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.31';
+  var APP_VERSION = '3.31.32';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.32', ['Planifier : le badge Brouillon / Confirmé monte tout en haut à droite du titre pour gagner une ligne d\'affichage',
+                 'Planifier : correction définitive de la sélection de date (planifier sur le 12 ne bascule plus jamais sur le 11)',
+                 'Moteur : équilibrage intelligent et harmonieux Matin / Soir (ex: 4 matin, 4 soir) dans le respect strict des horaires des praticiens']],
     ['3.31.23', ['Architecture multi-agents hiérarchisée : 2 agents d\'extraction spatiale/manuscrite (1A, 1B), 2 agents cachets/tampons (2A, 2B)',
                  'Agent 3 arbitre les extractions et confronte les sources pour éliminer les ambiguïtés et faux positifs',
                  'Agents 4 et 5 réconcilient avec la BDD et tranchent en faveur des médecins réels de la base (ex: Kouabenan Rosine)']],
@@ -3901,14 +3904,17 @@
   }
   // Dates de la période (affichage) et dates travaillées (jours fériés exclus) pour le tirage
   // 3.24.23 : on ne planifie jamais un jour passé ; une semaine entamée ne garde que ses jours à venir
-  // 3.31.2 : Planifier : le jour touché dans la frise devient la période planifiée (une journée, ce jour-là).
-  // Avant, la période gardait son ancienne date (ex. « Aujourd'hui ») : on touchait le 12, la tournée partait sur le 11.
-  // À l'ouverture de Planifier, une semaine choisie dans Période reste une semaine si la frise s'ouvre dans cette semaine.
+  // 3.31.2 & 3.31.32 : Planifier : le jour touché dans la frise devient la période planifiée (une journée, ce jour-là).
+  // S.ui.jour et S.params.dateRef sont strictement synchronisés pour éviter toute bascule sur aujourd'hui.
   function jourChoisiPlanifier(d, ouverture) {
     if (S.ui.tab !== 'semaine' || !d || d < aujourdhui()) return;
     var p = S.params;
-    if (ouverture && p.mode === 'semaine' && lundiDe(p.dateRef) === lundiDe(d)) return;   // ouverture : une semaine choisie reste une semaine
+    if (ouverture && p.mode === 'semaine' && lundiDe(p.dateRef) === lundiDe(d)) {
+      S.ui.jour = d;
+      return;
+    }
     p.mode = 'jour'; p.dateRef = d; LS.set('params', p);
+    S.ui.jour = d;
   }
   function dateRefValide() {
     var p = S.params, t = aujourdhui();
@@ -4078,8 +4084,9 @@
     return change;
   }
   function choisirJour(dates) {
+    var t = aujourdhui();
+    if (S.ui.jour && S.ui.jour >= t) return;   // 3.31.32 : préserve la date choisie par l'utilisateur (ex: 12 même si pas encore de visites)
     if (!S.ui.jour || dates.indexOf(S.ui.jour) < 0) {
-      var t = aujourdhui();
       S.ui.jour = dates.indexOf(t) >= 0 ? t : (dates.filter(function (d) { return d >= t; })[0] || dates[0]);
     }
   }
@@ -4813,26 +4820,36 @@
       return '<div class="page-entree"><button type="button" class="retour" data-a="fermerParams">' + icone('chevron') + 'Planifier</button>' +
         '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; touchez un critère pour l\'ajuster ou proposez directement votre tournée.</p>' + rendreParams() + '</div>';
     }
-    // 3.31.2 : avant la barre des critères, pour qu'elle montre déjà la bonne période
-    // 3.28.58 : à l'entrée dans Planifier, la frise s'ouvre sur J+1 : sa tournée s'il en a une, sinon J+1 en blanc, prêt à planifier
+    // 3.31.2 & 3.31.32 : avant la barre des critères, pour qu'elle montre déjà la bonne période
+    // à l'entrée dans Planifier, la frise s'ouvre sur J+1 : sa tournée s'il en a une, sinon J+1 en blanc, prêt à planifier
     if (!S.ui.planInit) {
       S.ui.planInit = true;
       var j1 = prochainJourOuvre(ajouterJours(aujourdhui(), 1));
-      if (S.plan.some(function (a) { return a.date === j1; })) { S.ui.jour = j1; S.ui.planVide = null; }
+      S.ui.jour = j1;
+      if (S.plan.some(function (a) { return a.date === j1; })) { S.ui.planVide = null; }
       else { S.ui.planVide = j1; S.ui.jourSupprime = null; }
-      if (dateRefPassee(S.params)) { S.params.dateRef = j1; LS.set('params', S.params); }
-      jourChoisiPlanifier(j1, true);   // 3.31.2 : la période suit le jour sur lequel la frise s'ouvre
+      S.params.dateRef = j1; S.params.mode = 'jour'; LS.set('params', S.params);
     }
-    var h = '<div class="tete-vue"><h2 class="titre-vue">Planifier</h2>' +
-      '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
-      '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
-      barreCriteresPlanifier();
     var datesF = datesPlanAvenir();
     // 3.28.31 : journée supprimée par appui long : l'écran reste sur ce jour, vide, au lieu de sauter
     // sur la journée suivante (qui laissait croire que le programme supprimé était toujours là)
     var jSup = S.ui.jourSupprime, jVide = S.ui.planVide;
     if (jSup && (jSup < aujourdhui() || S.plan.some(function (a) { return a.date === jSup; }))) jSup = S.ui.jourSupprime = null;
     if (jVide && (jVide < aujourdhui() || S.plan.some(function (a) { return a.date === jVide; }))) jVide = S.ui.planVide = null;
+    var jourActif = S.ui.jour || jVide || jSup;
+    if (!jourActif || jourActif < aujourdhui()) {
+      choisirJour(datesF);
+      jourActif = S.ui.jour;
+    }
+    // 3.31.32 : Le badge Confirmé / Brouillon monte sur la ligne du titre à droite de Planifier pour économiser une ligne
+    var etatHaut = '';
+    if (jourActif && S.plan.some(function (a) { return a.date === jourActif; })) {
+      etatHaut = jourConfirme(jourActif) ? '<span class="etiquette ok">Confirmé' + (S.jours[jourActif] && S.jours[jourActif].modifieLe ? ', mod.' : '') + '</span>' : '<span class="etiquette alerte">Brouillon</span>';
+    }
+    var h = '<div class="tete-vue"><div style="display:flex;align-items:center;gap:8px"><h2 class="titre-vue" style="margin:0">Planifier</h2>' + etatHaut + '</div>' +
+      '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
+      '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
+      barreCriteresPlanifier();
     if (jSup || jVide) {
       var jx = jSup || jVide;
       return h + frisePlanifier(datesF, null) +
@@ -4879,8 +4896,7 @@
     h += '<div class="tete-jour-plan"><div class="bilan-jour">' +
       '<div class="bj-ligne1"><b>' + majuscule(JOURS_COURTS[jourSemaineIndex(d)]) + ' ' + d.slice(8) + ' ' + MOIS_ABREGES[+d.slice(5, 7) - 1] + '.</b> · ' + duJour.length + ' visite' + (duJour.length > 1 ? 's' : '') +
       (comJour.length ? ' · <span class="bj-communes">' + esc(comJour.join(', ')) + '</span>' : '') + '</div>' +
-      '<div class="discret details-plan">' + details + '</div></div>' +
-      '<div class="tete-jour-droite">' + etat + '</div></div>';
+      '<div class="discret details-plan">' + details + '</div></div></div>';
     h += '<ul class="plan-jour">' + rendreGroupesPlan(duJour) + '</ul>';
     var actionsPlan = '';
     if (enAttente) {
@@ -11514,7 +11530,7 @@
     }
     (horsZone ? Promise.resolve() : avantTirage()).then(function () {
       var periode = datesPeriode();
-      var cible = portee === 'jour' ? [S.ui.jour] : periode;
+      var cible = (portee === 'jour' || (portee === 'nouveau' && p.mode === 'jour' && p.dateRef)) ? [p.dateRef || S.ui.jour] : periode;
       // 3.28.35 : planification du jour même : on garde ce que Journée montrait avant, pour demander à l'acceptation
       // s'il faut remplacer la journée déjà planifiée ou la garder
       memoriserJourMeme(cible);
@@ -11601,8 +11617,11 @@
       var touches = {}; r.arrets.forEach(function (a) { if (!heuresGardees[a.uid] && !(a.etat === 'valide' || a.corrige)) touches[a.date] = true; });
       if (portee === 'jour') { mettreBrouillon(cible); S.ui.aAccepter = cible[0]; }
       else mettreBrouillon(Object.keys(touches));
-      S.ui.voirParams = false; S.ui.ouvert = null;
-      if (portee === 'nouveau') { S.ui.jour = cible.filter(function (d) { return S.plan.some(function (a) { return a.date === d; }); })[0] || null; S.ui.aAccepter = null; S.ui.tab = 'semaine'; window.scrollTo(0, 0); }
+      S.ui.voirParams = false; S.ui.ouvert = null; S.ui.planVide = null; S.ui.jourSupprime = null;
+      if (portee === 'nouveau') {
+        S.ui.jour = (cible.filter(function (d) { return S.plan.some(function (a) { return a.date === d; }); })[0]) || cible[0] || null;
+        S.ui.aAccepter = null; S.ui.tab = 'semaine'; window.scrollTo(0, 0);
+      }
       sauver(); rendre(); publierPlan(true);
       if (portee === 'jour') setTimeout(function () { centrerElement(document.querySelector('.bandeau-prog.accepter')); }, 60);
       var nG = Object.keys(heuresGardees).length, nN = r.arrets.length - nG;
@@ -12521,7 +12540,14 @@
     retirerPlan: function (el) { var aG = arret(el.dataset.uid); if (aG && vraiStatut(aG.statut) && S.ui.tab === 'semaine') { toast('Visite déjà renseignée : cette action n\'est plus possible.'); return; } ACTIONS.retirer(el); if (S.ui.feuille && (S.ui.feuille.type === 'visitePlan' || S.ui.feuille.type === 'remplacer')) S.ui.feuille = null; rendre(); },
     voirDansJournee: function (el) { S.ui.feuille = null; S.ui.tab = 'jour'; S.ui.ouvert = el.dataset.uid; rendre(); },
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; chercherMaPosition(); rendre(); window.scrollTo(0, 0); },
-    generer: function () { lancerTirage('nouveau'); },
+    generer: function () {
+      if (S.ui.tab === 'semaine' && S.ui.jour && S.ui.jour >= aujourdhui()) {
+        S.params.mode = 'jour';
+        S.params.dateRef = S.ui.jour;
+        LS.set('params', S.params);
+      }
+      lancerTirage('nouveau');
+    },
     tirage: function (el) { lancerTirage(el.dataset.v); },
     jour: function (el) {
       if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
@@ -12532,7 +12558,7 @@
     planVierge: function (el) {
       if (el && el.__bloqueClic && Date.now() < el.__bloqueClic) return;
       var b = el.parentNode; if (b && b.classList.contains('bj-jours')) S.ui.bjDepart = el.getBoundingClientRect().left - b.getBoundingClientRect().left;
-      S.ui.planVide = el.dataset.v; S.ui.jourSupprime = null; S.ui.ouvert = null;
+      S.ui.planVide = el.dataset.v; S.ui.jour = el.dataset.v; S.ui.jourSupprime = null; S.ui.ouvert = null;
       jourChoisiPlanifier(el.dataset.v);
       rendre();
     },
