@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.38';
+  var APP_VERSION = '3.31.39';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.39', ['Planifier : boutons Remplacer / Supprimer sous les cartes oranges ajustés à largeur compacte et centrés']],
     ['3.31.38', ['Planifier : cartes oranges allégées et centrées (boutons Remplacer / Supprimer sur le modèle des cartes collègues, punaise Garder et croix conservées, suppression du texte redondant)',
                  'Planifier : les anciennes visites supprimées ou remplacées restent définitivement effacées et ne reviennent plus après synchronisation ni recalcul',
                  'Planifier : un tirage sur de nouvelles communes ne réinjecte plus d\'anciennes visites hors zone']],

@@ -1,9 +1,8 @@
 {
-  "version": "3.31.38",
+  "version": "3.31.39",
   "date": "2026-11-11",
   "notes": [
-    "Planifier : cartes oranges plus compactes sans texte redondant, boutons Remplacer / Supprimer centrés à parité comme sur les cartes collègues, et boutons Garder / Retirer conservés",
-    "Planifier : les anciennes visites effacées ou remplacées sont mémorisées supprimées et ne reviennent plus après synchro ni recalcul",
-    "Planifier : les tirages sur de nouvelles communes ne réinjectent plus les anciennes visites hors zone"
+    "Planifier : boutons Remplacer / Supprimer sous les cartes oranges rendus plus étroits et centrés",
+    "Planifier : suppression définitive des anciennes visites effacées et blocage des anciens noms hors zone au recalcul"
   ]
 }

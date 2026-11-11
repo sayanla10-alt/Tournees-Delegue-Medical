@@ -3907,18 +3907,21 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 :root:not([data-theme="clair"]) .arret.ancien.fait .arret-carte, :root:not([data-theme="clair"]) .arret.ancien.fait-attente .arret-carte { background: var(--ambre-pale); border-color: var(--ambre-trait); }
 .etiquette.ambre { color: var(--ambre); background: var(--papier); border-color: var(--ambre-trait); }
 
-/* Actions des cartes oranges hors communes ciblées (Planifier) : même gabarit centré que .conflit .rangee */
+/* Actions des cartes oranges hors communes ciblées (Planifier) : boutons centrés, compacts, sans étirement */
 .actions-carte-orange {
   flex-basis: 100%;
   margin: 5px 0 0;
 }
 .actions-carte-orange .rangee {
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
 }
 .actions-carte-orange .rangee > .bouton {
+  flex: 0 0 auto;
+  min-width: 110px;
   min-height: 34px;
   font-size: 13.5px;
-  padding: 0 10px;
+  padding: 0 16px;
 }
 
 /* =============================================================================
