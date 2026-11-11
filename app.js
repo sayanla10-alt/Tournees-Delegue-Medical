@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.39';
+  var APP_VERSION = '3.31.40';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.40', [
+      'Planifier : plafond exact par jour respecté (jamais plus de visites que le filtre choisi)',
+      'Planifier : une journée ou visite supprimée ne réapparaît plus au prochain tirage'
+    ]],
     ['3.31.39', ['Planifier : boutons Remplacer / Supprimer sous les cartes oranges ajustés à largeur compacte et centrés']],
     ['3.31.38', ['Planifier : cartes oranges allégées et centrées (boutons Remplacer / Supprimer sur le modèle des cartes collègues, punaise Garder et croix conservées, suppression du texte redondant)',
                  'Planifier : les anciennes visites supprimées ou remplacées restent définitivement effacées et ne reviennent plus après synchronisation ni recalcul',
@@ -4215,7 +4219,7 @@
       var estBrouillonLocal = S.ui.aAccepter === d || (S.jours[d] && S.jours[d].etat === 'proposition') || (S.ui.avantTirage && S.ui.avantTirage.date === d);
       if (aValide || estBrouillonLocal) return;
       var supVis = visitesSupprimeesJour(d);
-      var srvActifs = (srvParDate[d] || []).filter(function (p) { return p.code && p.code !== CODE_JOUR_SUPPRIME && !supVis[p.code]; });
+      var srvActifs = (srvParDate[d] || []).filter(function (p) { return p.code && p.code !== CODE_JOUR_SUPPRIME && p.programme !== PROG_SUPPRIME && !supVis[p.code]; });
       if (!srvActifs.length) return;   // 3.31.35 : ne jamais vider une tournée locale tant que le serveur n'a rien à mettre à la place
       var codesActuels = visitesJour.map(function (a) { return a.code; }).slice().sort().join(',');
       var codesServeur = srvActifs.map(function (p) { return p.code; }).slice().sort().join(',');
@@ -4312,14 +4316,33 @@
   function sansSuppressions(l) { return (l || []).filter(function (p) { return !estSuppressionPlanning(p); }); }
   function suppressionsDe(l, ancien) { return l ? l.filter(estSuppressionPlanning) : ((ancien && ancien.suppressions) || []); }
   function suppressionsServeur() {
-    var jours = {}, visites = {};
+    var jours = {}, joursMaj = {}, visites = {}, visitesMaj = {};
     ((S.data && S.data.suppressions) || []).forEach(function (p) {
       if (!p.delegue || !estMoi(p.delegue)) return;
-      if (p.code === CODE_JOUR_SUPPRIME) jours[p.date] = true; else (visites[p.date] = visites[p.date] || {})[p.code] = true;
+      var maj = p.maj ? String(p.maj) : '';
+      if (p.code === CODE_JOUR_SUPPRIME) {
+        jours[p.date] = true;
+        if (!joursMaj[p.date] || (maj && maj > joursMaj[p.date])) joursMaj[p.date] = maj;
+      } else {
+        (visites[p.date] = visites[p.date] || {})[p.code] = true;
+        var vm = visitesMaj[p.date] = visitesMaj[p.date] || {};
+        if (!vm[p.code] || (maj && maj > vm[p.code])) vm[p.code] = maj;
+      }
     });
-    // Si la table Plannings contient des visites actives pour cette date, une ancienne marque « Supprimé » ne l'efface pas
+    // Si la table Plannings contient des visites actives PLUS RÉCENTES que la suppression, elles prévalent ;
+    // d'anciennes lignes « Validé » datant d'avant « Journée supprimée » restent neutralisées.
     ((S.data && S.data.plannings) || []).forEach(function (p) {
-      if (p.delegue && estMoi(p.delegue) && p.code && p.code !== CODE_JOUR_SUPPRIME && jours[p.date]) delete jours[p.date];
+      if (!p.delegue || !estMoi(p.delegue) || !p.code || p.code === CODE_JOUR_SUPPRIME) return;
+      if (p.programme === PROG_SUPPRIME) return;
+      var maj = p.maj ? String(p.maj) : '';
+      if (jours[p.date]) {
+        var supMaj = joursMaj[p.date] || '';
+        if ((!supMaj || (maj && maj > supMaj)) && !joursRetires()[p.date]) delete jours[p.date];
+      }
+      if (visites[p.date] && visites[p.date][p.code]) {
+        var vMaj = (visitesMaj[p.date] && visitesMaj[p.date][p.code]) || '';
+        if ((!vMaj || (maj && maj > vMaj)) && !visitesSupprimeesJour(p.date)[p.code]) delete visites[p.date][p.code];
+      }
     });
     return { jours: jours, visites: visites };
   }
@@ -5354,9 +5377,19 @@
   function supprimerJourPlanifie(date) {
     // 3.28.28 : les visites déjà faites (compte rendu) restent ; tout le reste de la journée est effacé,
     // y compris l'ancienne tournée gardée du serveur, qui ne revient plus
+    var arch = LS.get('archives', {});
+    var codesSuppr = {};
+    S.plan.forEach(function (x) { if (x.date === date && !x.statut && x.code) codesSuppr[x.code] = true; });
+    ((S.data && S.data.plannings) || []).forEach(function (x) { if (x.date === date && x.delegue && estMoi(x.delegue) && !vraiStatut(x.statut) && x.code && x.code !== CODE_JOUR_SUPPRIME) codesSuppr[x.code] = true; });
+    ((arch[date] && (Array.isArray(arch[date]) ? arch[date] : arch[date].arrets)) || []).forEach(function (x) { if (!x.statut && x.code) codesSuppr[x.code] = true; });
+    Object.keys(codesSuppr).forEach(function (c) {
+      marquerVisiteSupprimee(date, c);
+      refuser(c, date);
+      S.rejetes[c] = true;
+    });
     S.plan = S.plan.filter(function (x) { return x.date !== date || x.statut; });
     if (S.data && S.data.plannings) S.data.plannings = S.data.plannings.filter(function (x) { return !(x.date === date && x.delegue && estMoi(x.delegue) && !vraiStatut(x.statut)); });
-    var arch = LS.get('archives', {}); if (arch[date]) { delete arch[date]; LS.set('archives', arch); }
+    if (arch[date]) { delete arch[date]; LS.set('archives', arch); }
     var resteFaites = S.plan.some(function (x) { return x.date === date; });
     if (!resteFaites) delete S.jours[date];
     var rt = LS.get('joursRetires', {});
@@ -5375,6 +5408,7 @@
       if (S.params.mode === 'jour') { S.params.dateRef = date; LS.set('params', S.params); }
     }
     S.ui.ouvert = null;
+    S.ui.aPublier = true; LS.set('aPublier', true);
     marquerModifie();
     sauver();
     rendre();
@@ -11916,6 +11950,37 @@
     return n + ' sur ' + maxJ + ' : ' + nb.tous + ' praticien' + (nb.tous > 1 ? 's' : '') + ' présent' + (nb.tous > 1 ? 's' : '') + ' ce jour dans vos critères' + (l.length ? ', dont ' + l.join(', ') : '') +
       (libre > n ? ' ; les autres ont des heures de présence qui ne s\'enchaînent pas sans retard.' : '.') + ' Élargissez les communes ou les spécialités pour en avoir ' + maxJ + '.';
   }
+  function plafonnerArretsMaxJour(liste, maxJ) {
+    var m = Math.max(1, +maxJ || 8), parDate = {}, ordre = [];
+    (liste || []).forEach(function (a) {
+      if (!a || !a.date) return;
+      if (!parDate[a.date]) { parDate[a.date] = []; ordre.push(a.date); }
+      parDate[a.date].push(a);
+    });
+    var res = [];
+    ordre.forEach(function (d) {
+      var duJ = parDate[d];
+      var faits = duJ.filter(function (a) { return !!a.statut; });
+      var planifies = duJ.filter(function (a) { return !a.statut; });
+      if (planifies.length > Math.max(0, m - faits.length)) {
+        planifies.sort(function (a, b) {
+          var pa = (a.impose || a.etape || a.rdv) ? 0 : 1;
+          var pb = (b.impose || b.etape || b.rdv) ? 0 : 1;
+          if (pa !== pb) return pa - pb;
+          var ga = (a.garde || a.corrige) ? 0 : 1;
+          var gb = (b.garde || b.corrige) ? 0 : 1;
+          if (ga !== gb) return ga - gb;
+          var za = dansCommunesDu(a, d) ? 0 : 1;
+          var zb = dansCommunesDu(b, d) ? 0 : 1;
+          if (za !== zb) return za - zb;
+          return (-(+a.note || 0)) - (-(+b.note || 0));
+        });
+        planifies = planifies.slice(0, Math.max(0, m - faits.length));
+      }
+      Array.prototype.push.apply(res, faits.concat(planifies));
+    });
+    return res;
+  }
   function lancerTirage(portee, force, horsZone) {
     var p = S.params;
     if (p.mode === 'jour' && jourSemaineIndex(p.dateRef) > 4) { toast('Choisissez un jour de semaine.'); return; }
@@ -11987,20 +12052,22 @@
           return garder;
         });
       }
+      var maxJ = +p.maxJour || 8;
+      conserves = plafonnerArretsMaxJour(conserves, maxJ);
       // agenda : les autres jours restent ; un praticien déjà prévu à quelques jours d'écart n'est pas repris
       var horsCible = S.plan.filter(function (a) { return cible.indexOf(a.date) < 0; });
       var exclus = p.eviterCollegues !== false ? exclusCollegues(cible) : exclusValides(cible), ecart = Math.max(+p.delai || 0, 5);
       horsCible.forEach(function (a) { if (cible.some(function (d) { return Math.abs(joursEcoules(a.date, d)) < ecart; })) exclus[a.code] = true; });
       cible.forEach(function (d) { Object.keys(refusesActuels(d).codes).forEach(function (c) { exclus[c] = true; }); });   // 3.26.94 : retirés à la main : jamais reproposés
       var optsTirage = {
-        dates: cible, communesPour: communesPour, maxJour: +p.maxJour || 8, delai: +p.delai || 0,
+        dates: cible, communesPour: communesPour, maxJour: maxJ, delai: +p.delai || 0,
         exclus: exclus, rejetes: S.rejetes, conserves: conserves, imposes: S.imposes.concat(rdvProchaines(cible)), depart: departCoord(), accepte: filtreCibles(cible.length === 1 ? cible[0] : null)
       };
       var r = Moteur.genererPlanning(ctx(), optsTirage);
       // 3.28.31 : un recalcul ne propose jamais moins de visites que demandé quand c'est possible :
       // si les nouveaux venus ne laissent pas la place, on refait le tirage en reprenant aussi
       // les médecins de la liste précédente (jamais ceux retirés par la croix)
-      var maxJ = +p.maxJour || 8, manque = function (res) { return cible.some(function (d) { return res.arrets.filter(function (a) { return a.date === d; }).length < maxJ; }); };
+      var manque = function (res) { return cible.some(function (d) { return res.arrets.filter(function (a) { return a.date === d; }).length < maxJ; }); };
       if (Object.keys(S.rejetes).length && manque(r)) {
         var r2 = Moteur.genererPlanning(ctx(), Object.assign({}, optsTirage, { rejetes: {} }));
         if (r2.arrets.length > r.arrets.length) r = r2;
@@ -12024,7 +12091,14 @@
           }
         }
       }
+      r.arrets = plafonnerArretsMaxJour(r.arrets, maxJ);
       r.arrets.forEach(function (a) { if (heuresGardees[a.uid]) a.heure = heuresGardees[a.uid]; });
+      var rtPlan = LS.get('joursRetires', {}), rtMod = false;
+      r.arrets.forEach(function (a) {
+        demarquerVisiteSupprimee(a.date, a.code);
+        if (rtPlan[a.date]) { delete rtPlan[a.date]; rtMod = true; }
+      });
+      if (rtMod) LS.set('joursRetires', rtPlan);
       S.plan = horsCible.concat(r.arrets);
       trierPlan();
       // nouvelle tournée : seule sa période est remplacée dans la base, les autres jours publiés restent

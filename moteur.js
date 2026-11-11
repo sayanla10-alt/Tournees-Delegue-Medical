@@ -458,8 +458,25 @@ var Moteur = (function () {
   function planifierJour(ctx, date, o, utilises) {
     var j = jourSemaineIndex(date);
     var depart = o.depart ? { coord: o.depart } : null;
+    var maxFixes = o.maxJour || 8;
+    var rawFixes = (o.fixes || []).slice();
+    var faitsFixes = rawFixes.filter(function (a) { return !!a.statut; });
+    var planFixes = rawFixes.filter(function (a) { return !a.statut; });
+    if (planFixes.length > Math.max(0, maxFixes - faitsFixes.length)) {
+      planFixes.sort(function (a, b) {
+        var pa = (a.impose || a.etape || a.rdv) ? 0 : 1;
+        var pb = (b.impose || b.etape || b.rdv) ? 0 : 1;
+        if (pa !== pb) return pa - pb;
+        var ga = a.garde ? 0 : 1;
+        var gb = b.garde ? 0 : 1;
+        if (ga !== gb) return ga - gb;
+        if ((b.score || 0) !== (a.score || 0)) return (b.score || 0) - (a.score || 0);
+        return item(a).tot - item(b).tot;
+      });
+      planFixes = planFixes.slice(0, Math.max(0, maxFixes - faitsFixes.length));
+    }
     var route = [];
-    (o.fixes || []).slice().sort(function (a, b) { return item(a).tot - item(b).tot; })
+    faitsFixes.concat(planFixes).sort(function (a, b) { return item(a).tot - item(b).tot; })
       .forEach(function (a) { route = insererAuMieux(route, item(a), depart); });
     if (j > 4 || (ctx.feries && ctx.feries[date])) return finaliser(route, depart);
 

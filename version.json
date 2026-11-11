@@ -1,8 +1,8 @@
 {
-  "version": "3.31.39",
+  "version": "3.31.40",
   "date": "2026-11-11",
   "notes": [
-    "Planifier : boutons Remplacer / Supprimer sous les cartes oranges rendus plus étroits et centrés",
-    "Planifier : suppression définitive des anciennes visites effacées et blocage des anciens noms hors zone au recalcul"
+    "Planifier : plafond exact par jour respecté (jamais plus de visites que le filtre choisi)",
+    "Planifier : une journée ou visite supprimée ne réapparaît plus au prochain tirage"
   ]
 }
