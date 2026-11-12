@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.43';
+  var APP_VERSION = '3.31.44';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.44', [
+      'Planifier (Communes ciblées) : affichage de Abobo, Cocody ou Yopougon dès qu\'une ou plusieurs subdivisions sont choisies, et filtrage corrigé sur les subdivisions dynamiques'
+    ]],
     ['3.31.43', [
       'Google Sheets & Supabase : formules de recherche dynamiques liées à l\'onglet Quartiers pour répercuter chaque modification de secteur ou quartier sur les fiches et en base',
       'Planifier : cartes épurées sans doublon (« Hors communes choisies » et « Prévu par … » alignés sur une seule ligne, bloc unique Remplacer / Supprimer)'
@@ -4527,7 +4530,7 @@
   }
   function dansCommunesDu(a, d) {
     var l = communesPour(d);
-    return !l || !l.length || communeCorrespondante(a, ensemble(l));
+    return !l || !l.length || communeCorrespondante(a, ensemble(l), quartiers());
   }
   function departCoord() {
     var dep = String((S.config && S.config.depart) || '').trim();
@@ -8131,7 +8134,7 @@
       if (f.conv === 'oui' && !p.conv) return false;
       if (f.conv === 'non' && p.conv) return false;
       var lieux = c.presencesParCode[p.code] || [];
-      if (f.communes.length && !lieux.some(function (x) { return typeof communeCorrespondante === 'function' ? communeCorrespondante(x, co) : co[x.commune]; })) return false;
+      if (f.communes.length && !lieux.some(function (x) { return typeof communeCorrespondante === 'function' ? communeCorrespondante(x, co, quartiers()) : co[x.commune]; })) return false;
       if (f.visite !== 'tous') {
         // 3.29.0 : date de dernière visite précalculée une fois par code (historique + file d'envoi), au lieu d'un parcours par praticien
         var derDate = derniereVisiteDe(p);
@@ -8539,7 +8542,7 @@
     var now = minutesMaintenant(), ferie = estFerie(t);
     return hopitauxRepertoire(!!q).filter(function (e) {
       if (f.categories && f.categories.length && !cat[e.cat]) return false;
-      if (f.communes && f.communes.length && !communeCorrespondante(e, co)) return false;
+      if (f.communes && f.communes.length && !communeCorrespondante(e, co, quartiers())) return false;
       if (f.gps && f.gps !== 'tous') {
         var aGps = isFinite(e.lat) && isFinite(e.lon) && e.lat !== 0 && !e.approx;
         if (f.gps === 'oui' && !aGps) return false;
@@ -8719,7 +8722,7 @@
       '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
         (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
-          var ok = function (x) { return aF && communeCorrespondante(x, coF); };
+          var ok = function (x) { return aF && communeCorrespondante(x, coF, quartiers()); };
           var tri = lieux.slice().sort(function (x, y) { return (ok(y) ? 1 : 0) - (ok(x) ? 1 : 0); }), vus = {};
           return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
             .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() +
@@ -8922,7 +8925,7 @@
     var rangBase = new Map(); lieux.forEach(function (pr, i) { rangBase.set(pr, i); });   // couleur selon l'ordre de la base, pas selon le tri
     // 3.26.63 : avec un filtre de communes, le lieu de la commune choisie apparaît en premier
     var coG = ensemble(S.ui.filtres && S.ui.filtres.communes || []);
-    if (Object.keys(coG).length) lieux = lieux.slice().sort(function (x, y) { return (communeCorrespondante(y, coG) ? 1 : 0) - (communeCorrespondante(x, coG) ? 1 : 0); });
+    if (Object.keys(coG).length) lieux = lieux.slice().sort(function (x, y) { return (communeCorrespondante(y, coG, quartiers()) ? 1 : 0) - (communeCorrespondante(x, coG, quartiers()) ? 1 : 0); });
     var couleurLieu = function (pr) { return COULEURS_GRILLE[(rangBase.get(pr) || 0) % COULEURS_GRILLE.length]; };
     if (!lieux.length) {
       return '<div class="bloc-presences" style="margin:8px 0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">' +
@@ -10180,7 +10183,7 @@
     var crit = (communesPour(d) || []).slice(), ens = ensemble(crit), l = crit.slice();
     donneesJour(d, true).concat(arretsHorsJour(d)).forEach(function (a) {
       if (!a.commune || l.indexOf(a.commune) >= 0) return;
-      if (crit.length && communeCorrespondante(a, ens)) return;
+      if (crit.length && communeCorrespondante(a, ens, quartiers())) return;
       l.push(a.commune);
     });
     return l;
@@ -10198,7 +10201,7 @@
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
-      if (dans[cr.code] || ex[cr.code] || (Object.keys(com).length && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(cr, com) : com[cr.commune])) || (filtre && !filtre(p)) || absentLe(p, d)) return;
+      if (dans[cr.code] || ex[cr.code] || (Object.keys(com).length && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(cr, com, quartiers()) : com[cr.commune])) || (filtre && !filtre(p)) || absentLe(p, d)) return;
       if (S.ui.typeAjout && (S.ui.typeAjout === 'Pharmacie') !== (p.type === 'Pharmacie')) return;
       if (mots.length) {
         var txt = normaliser([p.nom, p.specialite, cr.lieu, cr.quartier, cr.commune].join(' '));
@@ -10404,7 +10407,7 @@
     var groupes = {}, ordre = [];
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat; if (!p || p.type !== 'Pharmacie' || absentLe(p, d) || ex[p.code]) return;
-      if (!communeCorrespondante(cr, com)) return;
+      if (!communeCorrespondante(cr, com, quartiers())) return;
       if (z.moment === 'Matin' || z.moment === 'Soir') { if (cr.creneau !== z.moment) return; }
       else if (z.moment === 'maintenant' && (now < cr.debut || now > cr.fin)) return;
       var k = (cr.quartier || cr.commune || 'Autres') + ' · ' + (cr.commune || '');

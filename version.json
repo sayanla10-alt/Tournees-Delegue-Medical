@@ -1,8 +1,7 @@
 {
-  "version": "3.31.43",
-  "date": "2026-11-11",
+  "version": "3.31.44",
+  "date": "2026-11-12",
   "notes": [
-    "Google Sheets & Supabase : formules de recherche dynamiques liées à l'onglet Quartiers pour répercuter chaque modification de secteur ou quartier sur les fiches et en base",
-    "Planifier : cartes épurées sans doublon (« Hors communes choisies » et « Prévu par … » alignés sur une seule ligne, bloc unique Remplacer / Supprimer)"
+    "Planifier (Communes ciblées) : affichage de Abobo, Cocody ou Yopougon dès qu'une ou plusieurs subdivisions sont choisies, et filtrage corrigé sur les subdivisions dynamiques"
   ]
 }

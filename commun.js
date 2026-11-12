@@ -2157,12 +2157,19 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   var r = resoudreTerritoire(c, listeQuartiers);
   var subRes = (r && r.matched && r.subdivision) ? r.subdivision : sub;
   var subNormTiret = function (v) { return String(v || '').trim().replace(/\s+-\s+/g, ' – '); };
+  var dansKeys = Object.keys(dans);
   var matchDans = function (v) {
     if (!v) return false;
     var t = subNormTiret(v);
-    return !!(dans[v] || dans[t]);
+    if (dans[v] || dans[t]) return true;
+    var nv = normaliser(v);
+    if (!nv) return false;
+    for (var i = 0; i < dansKeys.length; i++) {
+      if (dans[dansKeys[i]] && normaliser(dansKeys[i]) === nv) return true;
+    }
+    return false;
   };
-  if (matchDans(subRes) || (!r && matchDans(sub))) return true;
+  if (matchDans(sub) || matchDans(subRes)) return true;
   if (com && (dans[com] || dans[com + ' (Toute la commune)'])) return true;
   var par = communeParente(com, listeQuartiers);
   if (par && (dans[par] || dans[par + ' (Toute la commune)'])) return true;
