@@ -162,8 +162,12 @@ function jumHoro_(v, tz) {
   } catch (e) {}
   return null;
 }
-// téléphone tel quel (colonnes Supabase en texte libre depuis 3.28.11)
-function jumTel_(v, tz) { return jumTxt_(v, tz); }
+// 3.31.53 : téléphone normalisé au format '+225 XX XX XX XX XX'
+function jumTel_(v, tz) {
+  var s = jumTxt_(v, tz);
+  if (!s) return '';
+  return (typeof formaterTelephoneCI === 'function' ? formaterTelephoneCI(s) : s) || s;
+}
 function jumVide_(v, tz) { var s = jumTxt_(v, tz); return s === '' ? null : s; }
 
 // Chaque table : lignes du Sheet converties au format Supabase
@@ -652,7 +656,9 @@ function jumVersSheet_(v, type) {
   if (type === 'b') return v === true || v === 'true' ? 'Oui' : 'Non';
   if (type === 'n') { var n = Number(v); return isFinite(n) ? n : ''; }
   if (type === 'd') { var iso = jumDate_(v); return iso ? Utilities.parseDate(iso, jumTz_(), 'yyyy-MM-dd') : ''; }
-  return String(v);
+  var s = String(v);
+  if (/^\+/.test(s)) return "'" + s;
+  return s;
 }
 function jumCleSheet_(v, type) { return type === 'd' ? (jumDate_(v) || '') : jumTxt_(v); }
 

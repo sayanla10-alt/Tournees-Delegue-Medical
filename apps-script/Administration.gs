@@ -1502,19 +1502,46 @@ function onEdit(e) {
     if (nom === FEUILLES.praticiens) {
       var cCode = ent.indexOf(normaliser('CodeContact')) + 1, cNom = ent.indexOf(normaliser('Nom')) + 1;
       var cType = ent.indexOf(normaliser('Type')) + 1, cActif = ent.indexOf(normaliser('Actif')) + 1;
+      var cTelP = ent.indexOf(normaliser('Téléphone')) + 1;
       var max = { MED: 0, PHA: 0 };
       sh.getRange(2, cCode, Math.max(sh.getLastRow() - 1, 1), 1).getValues().forEach(function (v) {
         var m = String(v[0]).match(/^(MED|PHA)-(\d+)$/);
         if (m && +m[2] > max[m[1]]) max[m[1]] = +m[2];
       });
       for (var r = rStart; r <= rEnd; r++) {
-        if (sh.getRange(r, cNom).getValue() === '' || sh.getRange(r, cCode).getValue() !== '') continue;
-        var pre = sh.getRange(r, cType).getValue() === 'Pharmacie' ? 'PHA' : 'MED';
+        var valNomP = String(sh.getRange(r, cNom).getValue() || '').trim();
+        var valTypeP = cType > 0 ? String(sh.getRange(r, cType).getValue() || '').trim() : 'Médecin';
+        if (valNomP && typeof normaliserTitrePraticien === 'function' && c0 <= cNom && cNom <= cEnd) {
+          var nomNormP = normaliserTitrePraticien(valNomP, valTypeP);
+          if (nomNormP && nomNormP !== valNomP) sh.getRange(r, cNom).setValue(nomNormP);
+        }
+        if (cTelP > 0 && c0 <= cTelP && cTelP <= cEnd && typeof formaterTelephoneCI === 'function') {
+          var valTelP = String(sh.getRange(r, cTelP).getValue() || '').trim();
+          var telFmtP = formaterTelephoneCI(valTelP);
+          if (telFmtP) {
+            sh.getRange(r, cTelP).setNumberFormat('@');
+            sh.getRange(r, cTelP).setValue("'" + telFmtP);
+          }
+        }
+        if (valNomP === '' || sh.getRange(r, cCode).getValue() !== '') continue;
+        var pre = valTypeP === 'Pharmacie' ? 'PHA' : 'MED';
         max[pre]++;
         sh.getRange(r, cCode).setValue(pre + '-' + numeroCode(max[pre]));
         if (cActif && sh.getRange(r, cActif).getValue() === '') sh.getRange(r, cActif).setValue('Oui');
       }
     } else if (nom === FEUILLES.presences || nom === FEUILLES.pharmacies || nom === FEUILLES.etablissements) {
+      var cTelG = ent.indexOf(normaliser('Téléphone')) + 1;
+      if (cTelG <= 0) cTelG = ent.indexOf(normaliser('Telephone')) + 1;
+      if (cTelG > 0 && c0 <= cTelG && cTelG <= cEnd && typeof formaterTelephoneCI === 'function') {
+        for (var rt = rStart; rt <= rEnd; rt++) {
+          var vTelG = String(sh.getRange(rt, cTelG).getValue() || '').trim();
+          var fTelG = formaterTelephoneCI(vTelG);
+          if (fTelG) {
+            sh.getRange(rt, cTelG).setNumberFormat('@');
+            sh.getRange(rt, cTelG).setValue("'" + fTelG);
+          }
+        }
+      }
       var cTer = ent.indexOf(normaliser('Territoire')) + 1, cZ = ent.indexOf(normaliser('Zone')) + 1;
       var cCom = ent.indexOf(normaliser('Commune')) + 1, cSub = ent.indexOf(normaliser('Subdivision')) + 1;
       var cQ = ent.indexOf(normaliser('Quartier')) + 1, cSec = ent.indexOf(normaliser('Secteur')) + 1;
@@ -1584,6 +1611,115 @@ function onEdit(e) {
   } catch (err) {
     // Une erreur de saisie ne doit jamais bloquer le Sheet
   }
+}
+
+// 3.31.53 : Normalise en lot tous les titres de praticiens (Ide / Infirmier -> IDE, Sf / Sage-femme -> SAG)
+// et tous les numéros de téléphone ('+225 XX XX XX XX XX) sur Praticiens, Presences, Pharmacies et Etablissements
+function normaliserTitresEtTelephonesBDD() {
+  var ss = SpreadsheetApp.getActive();
+  var bilan = { titres: 0, telephones: 0 };
+  var mapNoms = {};
+
+  var shP = ss.getSheetByName(FEUILLES.praticiens);
+  if (shP && shP.getLastRow() >= 2 && shP.getLastColumn() >= 1) {
+    var nrP = shP.getLastRow() - 1, ncP = shP.getLastColumn();
+    var entP = shP.getRange(1, 1, 1, ncP).getValues()[0].map(normaliser);
+    var cCodeP = entP.indexOf(normaliser('CodeContact')), cNomP = entP.indexOf(normaliser('Nom'));
+    var cTypeP = entP.indexOf(normaliser('Type')), cTelP = entP.indexOf(normaliser('Téléphone'));
+    if (cTelP < 0) cTelP = entP.indexOf(normaliser('Telephone'));
+    var valsP = shP.getRange(2, 1, nrP, ncP).getValues();
+    var modNomP = false, modTelP = false;
+    var colNomP = cNomP >= 0 ? valsP.map(function (r) { return [r[cNomP]]; }) : null;
+    var colTelP = cTelP >= 0 ? valsP.map(function (r) { return [r[cTelP]]; }) : null;
+
+    for (var i = 0; i < nrP; i++) {
+      var code = cCodeP >= 0 ? String(valsP[i][cCodeP] || '').trim() : '';
+      var type = cTypeP >= 0 ? String(valsP[i][cTypeP] || '').trim() : 'Médecin';
+      if (cNomP >= 0) {
+        var nomBrut = String(valsP[i][cNomP] || '').trim();
+        if (nomBrut && typeof normaliserTitrePraticien === 'function') {
+          var nomPropreP = normaliserTitrePraticien(nomBrut, type);
+          if (nomPropreP && nomPropreP !== nomBrut) {
+            colNomP[i][0] = nomPropreP;
+            modNomP = true;
+            bilan.titres++;
+          }
+          if (code) mapNoms[code] = nomPropreP || nomBrut;
+        }
+      }
+      if (cTelP >= 0) {
+        var telBrut = String(valsP[i][cTelP] || '').trim();
+        if (telBrut && typeof formaterTelephoneCI === 'function') {
+          var telFmt = formaterTelephoneCI(telBrut);
+          if (telFmt) {
+            colTelP[i][0] = "'" + telFmt;
+            modTelP = true;
+            if (telFmt !== telBrut) bilan.telephones++;
+          }
+        }
+      }
+    }
+    if (modNomP && cNomP >= 0) shP.getRange(2, cNomP + 1, nrP, 1).setValues(colNomP);
+    if (cTelP >= 0) {
+      shP.getRange(2, cTelP + 1, nrP, 1).setNumberFormat('@');
+      if (modTelP) shP.getRange(2, cTelP + 1, nrP, 1).setValues(colTelP);
+    }
+  }
+
+  // Répercuter les noms corrigés dans Presences
+  var shR = ss.getSheetByName(FEUILLES.presences);
+  if (shR && shR.getLastRow() >= 2 && shR.getLastColumn() >= 1) {
+    var nrR = shR.getLastRow() - 1, ncR = shR.getLastColumn();
+    var entR = shR.getRange(1, 1, 1, ncR).getValues()[0].map(normaliser);
+    var cCodeR = entR.indexOf(normaliser('CodeContact')), cNomR = entR.indexOf(normaliser('Nom'));
+    if (cNomR >= 0) {
+      var valsR = shR.getRange(2, 1, nrR, ncR).getValues();
+      var colNomR = valsR.map(function (r) { return [r[cNomR]]; });
+      var modNomR = false;
+      for (var ir = 0; ir < nrR; ir++) {
+        var codeR = cCodeR >= 0 ? String(valsR[ir][cCodeR] || '').trim() : '';
+        var nomActR = String(valsR[ir][cNomR] || '').trim();
+        var cibleNomR = (codeR && mapNoms[codeR]) || (nomActR && typeof normaliserTitrePraticien === 'function' ? normaliserTitrePraticien(nomActR, 'Médecin') : nomActR);
+        if (cibleNomR && cibleNomR !== nomActR) {
+          colNomR[ir][0] = cibleNomR;
+          modNomR = true;
+        }
+      }
+      if (modNomR) shR.getRange(2, cNomR + 1, nrR, 1).setValues(colNomR);
+    }
+  }
+
+  // Normaliser les téléphones dans Pharmacies et Etablissements
+  [FEUILLES.pharmacies, FEUILLES.etablissements].forEach(function (nomF) {
+    var shF = ss.getSheetByName(nomF);
+    if (!shF || shF.getLastRow() < 2 || shF.getLastColumn() < 1) return;
+    var nrF = shF.getLastRow() - 1, ncF = shF.getLastColumn();
+    var entF = shF.getRange(1, 1, 1, ncF).getValues()[0].map(normaliser);
+    var cTelF = entF.indexOf(normaliser('Téléphone'));
+    if (cTelF < 0) cTelF = entF.indexOf(normaliser('Telephone'));
+    if (cTelF < 0) return;
+    var colTelF = shF.getRange(2, cTelF + 1, nrF, 1).getValues();
+    var modTelF = false;
+    for (var k = 0; k < nrF; k++) {
+      var tBrut = String(colTelF[k][0] || '').trim();
+      if (tBrut && typeof formaterTelephoneCI === 'function') {
+        var tFmt = formaterTelephoneCI(tBrut);
+        if (tFmt) {
+          colTelF[k][0] = "'" + tFmt;
+          modTelF = true;
+          if (tFmt !== tBrut) bilan.telephones++;
+        }
+      }
+    }
+    shF.getRange(2, cTelF + 1, nrF, 1).setNumberFormat('@');
+    if (modTelF) shF.getRange(2, cTelF + 1, nrF, 1).setValues(colTelF);
+  });
+
+  SpreadsheetApp.flush();
+  if (typeof jumPousserApresEcriture_ === 'function') {
+    try { jumPousserApresEcriture_(['praticiens', 'presences', 'pharmacies', 'etablissements']); } catch (eJ) {}
+  }
+  return bilan;
 }
 
 // ---------------------------------------------------------------- 3.25.26 : géolocalisation précise

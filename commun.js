@@ -2234,15 +2234,15 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   return false;
 }
 
-// 3.27.44 : Formatage strict du numéro de téléphone en Côte d'Ivoire (+225 07 47 27 55 38)
+// 3.27.44 / 3.31.53 : Formatage strict du numéro de téléphone en Côte d'Ivoire (+225 07 07 76 85 93)
 function formaterTelephoneCI(n) {
   if (!n) return '';
-  var s = String(n).trim();
+  var s = String(n).replace(/^'+/, '').trim();
   if (!s) return '';
   // 3.28.15 : plusieurs numéros (« a / b », « a ; b », « a, b ») : chacun mis en forme, l'ordre est conservé
   var parts = s.split(/\s*[\/;,|]\s*|\s+(?:ou|et)\s+/i).filter(function (x) { return /\d/.test(x); });
   if (parts.length > 1) return parts.map(formaterTelephoneCI).join(' / ');
-  if (/^\+/.test(s) && !/^\+\s*225(?:\D|$)/.test(s)) return s;
+  if (/^\+/.test(s) && !/^\+\s*225/.test(s)) return s;
   var d = s.replace(/\D/g, '');
   if (d.indexOf('00225') === 0 && (d.length === 13 || d.length === 15 || (d.length === 14 && /^[0157]/.test(d.slice(5))))) {
     d = d.slice(5);
@@ -2257,6 +2257,26 @@ function formaterTelephoneCI(n) {
     return '+225 ' + d.slice(0, 2) + ' ' + d.slice(2, 4) + ' ' + d.slice(4, 6) + ' ' + d.slice(6, 8);
   }
   return s;   // format inconnu (numéro étranger, extension…) : laissé tel que saisi
+}
+
+// 3.31.53 : Normalisation des titres de praticiens : Infirmier -> IDE, Sage-femme -> SAG (jamais "Ide" ou "Sf")
+function normaliserTitrePraticien(nom, type) {
+  var n = String(nom || '').trim().replace(/\s+/g, ' ');
+  if (n.length < 2) return n;
+  if (type === 'Pharmacie') {
+    if (/^(pharmacie|phcie|pharma)\b\.?\s*/i.test(n)) return n.replace(/^(pharmacie|phcie|pharma)\b\.?\s*/i, 'Pharmacie ').trim();
+    return 'Pharmacie ' + n;
+  }
+  var mIde = n.match(/^(?:ide|infirmi[eè]re?|inf)\b\.?\s*/i);
+  if (mIde) return ('IDE ' + n.slice(mIde[0].length)).trim();
+  var mSag = n.match(/^(?:sage[\s\-]*femme|sag|sf)\b\.?\s*/i);
+  if (mSag) return ('SAG ' + n.slice(mSag[0].length)).trim();
+  var mDr = n.match(/^(docteur|dr|pr|professeur|prof)\b\.?\s*/i);
+  if (mDr) {
+    var t = /^d/i.test(mDr[1]) ? 'Dr' : 'Pr';
+    return (t + ' ' + n.slice(mDr[0].length)).trim();
+  }
+  return 'Dr ' + n;
 }
 
 /* =============================================================================
@@ -2336,7 +2356,7 @@ function similariteTrigrammes(a, b) {
 function normaliserPhonetiqueCI(s) {
   var t = sansAccents(String(s || '')).toLowerCase();
   // Retrait des civilités, titres médicaux et statuts matrimoniaux usuels
-  t = t.replace(/\b(docteur|professeur|prof|dr|pr|mme|madame|monsieur|mr|m|sf|ide|pharmacien|epse|epouse|nee)\b\.?/gi, ' ');
+  t = t.replace(/\b(docteur|professeur|prof|dr|pr|mme|madame|monsieur|mr|m|sf|sag|sage\s*femme|ide|infirmier|infirmiere|inf|pharmacien|epse|epouse|nee)\b\.?/gi, ' ');
   // Caractères alphanumériques uniquement
   t = t.replace(/[^a-z0-9]/g, ' ').trim().replace(/\s+/g, ' ');
   // Équivalences phonétiques courantes en Côte d'Ivoire
@@ -2472,7 +2492,7 @@ if (typeof module !== 'undefined' && module.exports) {
     COMMUNES_GRAND_ABIDJAN: COMMUNES_GRAND_ABIDJAN, VILLES_INTERIEUR_CI: VILLES_INTERIEUR_CI,
     estCommuneGrandAbidjan: estCommuneGrandAbidjan, estCommuneInterieur: estCommuneInterieur, estTerritoireInterieur: estTerritoireInterieur,
     estCoordonneeAbidjan: estCoordonneeAbidjan, centroideVilleInterieur: centroideVilleInterieur, trouverEtablissementRef: trouverEtablissementRef,
-    formaterTelephoneCI: formaterTelephoneCI,
+    formaterTelephoneCI: formaterTelephoneCI, normaliserTitrePraticien: normaliserTitrePraticien,
     distanceLevenshtein: distanceLevenshtein, similariteLevenshtein: similariteLevenshtein,
     similariteTrigrammes: similariteTrigrammes, normaliserPhonetiqueCI: normaliserPhonetiqueCI,
     tokensNomCI: tokensNomCI, scoreFuzzyNom: scoreFuzzyNom, estNomFuzzyMatch: estNomFuzzyMatch

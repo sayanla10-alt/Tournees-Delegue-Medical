@@ -22,12 +22,11 @@ function texteCellule_(val, max) {
   return neutraliserFormule_(borneTexte_(val, max));
 }
 
-// Formate un numéro CI (+225 ...) et neutralise toute valeur non téléphonique suspecte
+// Formate un numéro CI (+225 07 07 76 85 93) et préfixe d'une apostrophe pour que Google Sheets conserve le '+' sans erreur #ERROR!
 function preparerTelephone_(tel) {
   var f = formaterTelephoneCI(tel || '');
   if (!f) return '';
-  if (/^\+\d{2,3}(?:[\s\-\/]?\d{2,}){2,}(?:\s*\/\s*\+\d{2,3}(?:[\s\-\/]?\d{2,}){2,})*$/.test(f)) return borneTexte_(f, 500);
-  return texteCellule_(f, 500);
+  return texteCellule_(borneTexte_(f, 500), 500);
 }
 
 // Valide strictement une date ISO YYYY-MM-DD (calendrier réel)
@@ -561,9 +560,11 @@ function enregistrerFiche(b, dejaVerrouille) {
   b = b || {};
   var p = b.praticien || {}, lieux = fusRedirigerFiche_(b.praticien || {}, Array.isArray(b.presences) ? b.presences : []);
   var auteur = String(b.auteur || p.auteur || 'Délégué');
+  var type = p.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin';
   var nom = String(p.nom || '').trim();
   if (nom.length < 3) return { ok: false, erreur: 'Nom du praticien manquant.' };
-  var type = p.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin';
+  if (typeof normaliserTitrePraticien === 'function') nom = normaliserTitrePraticien(nom, type);
+  p.nom = nom;
   var lock = dejaVerrouille ? null : verrouiller();
   try {
     var ss = SpreadsheetApp.getActive();

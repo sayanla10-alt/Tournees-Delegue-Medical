@@ -1,7 +1,7 @@
 {
-  "version": "3.31.52",
+  "version": "3.31.53",
   "date": "2026-11-12",
   "notes": [
-    "Quartiers en direct : toute modification d'un secteur, quartier, subdivision ou commune dans l'onglet Quartiers se répercute immédiatement sur les établissements, présences, pharmacies et tournées planifiées dès la synchronisation (sans nécessiter de MAJ)"
+    "Titres et téléphones normalisés : infirmier en « IDE », sage-femme en « SAG » (au lieu de « Ide » / « Sf »), et numéros de téléphone au format « +225 07 07 76 85 93 » (avec « '+225 » dans le Google Sheet)"
   ]
 }

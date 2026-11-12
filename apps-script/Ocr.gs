@@ -435,7 +435,7 @@ function completerDepuisTranscription_(x) {
 }
 function titreCourt_(v) {
   var k = sansAccents(String(v || '')).toLowerCase().replace(/[^a-z]/g, '');
-  return /^(dr|docteur)/.test(k) ? 'Dr' : /^(pr|prof|professeur)/.test(k) ? 'Pr' : /^(mme|madame)$/.test(k) ? 'Mme' : /^(m|mr|monsieur)$/.test(k) ? 'M.' : /^(sf|sagefemme)$/.test(k) ? 'SF' : /^(ide|infirmier|infirmiere)$/.test(k) ? 'IDE' : '';
+  return /^(dr|docteur)/.test(k) ? 'Dr' : /^(pr|prof|professeur)/.test(k) ? 'Pr' : /^(mme|madame)$/.test(k) ? 'Mme' : /^(m|mr|monsieur)$/.test(k) ? 'M.' : /^(sag|sf|sagefemme)/.test(k) ? 'SAG' : /^(ide|infirmier|infirmiere|inf)/.test(k) ? 'IDE' : '';
 }
 var MOTS_PARASITES_OCR_ = /^(?:vu|visa|ras|r\.a\.s|signature|signe|conge|absent|annule|rapport|delegue|graabel|pharma|echantillon|bon)\b/i;
 function nettoyerLecture_(l) {
@@ -453,10 +453,11 @@ function nettoyerLecture_(l) {
     medecins: ((l && l.medecins) || []).slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
       x = completerDepuisTranscription_({ transcription: s(x.transcription, 600), titre: x.titre, nom: x.nom, prenoms: x.prenoms, specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
         telephone: tel(x.telephone), adresse: x.adresse, quartier: x.quartier, commune: x.commune, source: x.source, confiance: x.confiance });
-      var netNom = s(x.nom, 80).replace(/^(?:dr|docteur|pr|prof|professeur|m\.|mme|mlle)\b\.?\s*/i, '').trim();
-      var netPrenoms = s(x.prenoms, 80).replace(/^(?:dr|docteur|pr|prof|professeur|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+      var netNom = s(x.nom, 80).replace(/^(?:dr|docteur|pr|prof|professeur|ide|infirmi[eè]re?|inf|sage[\s\-]*femme|sag|sf|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+      var netPrenoms = s(x.prenoms, 80).replace(/^(?:dr|docteur|pr|prof|professeur|ide|infirmi[eè]re?|inf|sage[\s\-]*femme|sag|sf|m\.|mme|mlle)\b\.?\s*/i, '').trim();
       if (netNom && netPrenoms && netNom.toLowerCase() === netPrenoms.toLowerCase()) netPrenoms = '';
-      return { transcription: x.transcription, titre: titreCourt_(x.titre), nom: netNom, prenoms: netPrenoms, specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
+      var titreFinal = titreCourt_(x.titre) || titreCourt_(x.specialite);
+      return { transcription: x.transcription, titre: titreFinal, nom: netNom, prenoms: netPrenoms, specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
                telephone: tel(x.telephone), adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), source: s(x.source, 12), confiance: conf(x.confiance) };
     }).filter(function (x) { return x.nom && !MOTS_PARASITES_OCR_.test(x.nom); }),
     pharmacies: ((l && l.pharmacies) || []).slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {

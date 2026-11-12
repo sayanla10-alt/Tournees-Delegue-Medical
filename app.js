@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.52';
+  var APP_VERSION = '3.31.53';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.53', [
+      'Titres et téléphones normalisés : infirmier en « IDE », sage-femme en « SAG » (au lieu de « Ide » / « Sf »), et numéros de téléphone au format « +225 07 07 76 85 93 » (avec « \'+225 » dans le Google Sheet)'
+    ]],
     ['3.31.52', [
       'Quartiers en direct : toute modification d\'un secteur, quartier, subdivision ou commune dans l\'onglet Quartiers se répercute immédiatement sur les établissements, présences, pharmacies et tournées planifiées dès la synchronisation (sans nécessiter de MAJ)'
     ]],
@@ -11448,12 +11451,16 @@
   }
   // 3.27.4 : « Dr » ajouté si le nom du médecin n'a pas de titre ; « Pharmacie » si le nom de l'officine ne le dit pas
   function nomAvecTitre(nom, type) {
+    if (typeof normaliserTitrePraticien === 'function') return normaliserTitrePraticien(nom, type);
     var n = String(nom || '').trim().replace(/\s+/g, ' '); if (n.length < 2) return n;
     if (type === 'Pharmacie') {
       if (/^(pharmacie|phcie|pharma)\b\.?\s*/i.test(n)) return n.replace(/^(pharmacie|phcie|pharma)\b\.?\s*/i, 'Pharmacie ').trim();
       return 'Pharmacie ' + n;
     }
-    if (/^(ide|sag|sf|inf)\b/i.test(n)) return n;   // 3.27.19 : infirmiers (IDE) et sages-femmes (SAG) gardent leur titre
+    var mIde = n.match(/^(?:ide|infirmi[eè]re?|inf)\b\.?\s*/i);
+    if (mIde) return ('IDE ' + n.slice(mIde[0].length)).trim();
+    var mSag = n.match(/^(?:sage[\s\-]*femme|sag|sf)\b\.?\s*/i);
+    if (mSag) return ('SAG ' + n.slice(mSag[0].length)).trim();
     var m = n.match(/^(docteur|dr|pr|professeur|prof)\b\.?\s*/i);
     if (m) { var t = /^d/i.test(m[1]) ? 'Dr' : 'Pr'; return (t + ' ' + n.slice(m[0].length)).trim(); }
     return 'Dr ' + n;
@@ -11552,13 +11559,17 @@
   // ---- rapprochement avec la base
   function nomScan(x, estPh) {
     if (estPh) { var n = nomPropre(x.nom, true); return /^(pharmacie|phcie|grande pharmacie)\b/i.test(n) ? n.replace(/^phcie\b/i, 'Pharmacie') : 'Pharmacie ' + n; }
-    var t = /^p(r|rof)\.?$/i.test(String(x.titre || '').trim()) ? 'Pr' : (/^(m|mme|mlle|m\.)$/i.test(String(x.titre || '').trim()) ? '' : 'Dr');
-    var netNom = String(x.nom || '').replace(/^(?:dr|docteur|pr|prof|professeur|m\.|mme|mlle)\b\.?\s*/i, '').trim();
-    var netPrenoms = String(x.prenoms || '').replace(/^(?:dr|docteur|pr|prof|professeur|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+    var titreBrut = String(x.titre || '').trim(), specBrut = String(x.specialite || '').trim();
+    var t = /^p(r|rof)\.?$/i.test(titreBrut) ? 'Pr'
+      : (/^(?:ide|infirmi[eè]re?|inf)\b/i.test(titreBrut) || /^(?:ide|infirmi[eè]re?|inf)\b/i.test(specBrut) ? 'IDE'
+      : (/^(?:sage[\s\-]*femme|sag|sf)\b/i.test(titreBrut) || /^(?:sage[\s\-]*femme|sag|sf)\b/i.test(specBrut) ? 'SAG'
+      : (/^(m|mme|mlle|m\.)$/i.test(titreBrut) ? '' : 'Dr')));
+    var netNom = String(x.nom || '').replace(/^(?:dr|docteur|pr|prof|professeur|ide|infirmi[eè]re?|inf|sage[\s\-]*femme|sag|sf|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+    var netPrenoms = String(x.prenoms || '').replace(/^(?:dr|docteur|pr|prof|professeur|ide|infirmi[eè]re?|inf|sage[\s\-]*femme|sag|sf|m\.|mme|mlle)\b\.?\s*/i, '').trim();
     netNom = netNom.replace(/\b(?:md|ces|phd|ordre\s*n[°o]?\s*\d+)\b.*$/i, '').trim();
     netPrenoms = netPrenoms.replace(/\b(?:md|ces|phd|ordre\s*n[°o]?\s*\d+)\b.*$/i, '').trim();
     if (netNom && netPrenoms && netNom.toLowerCase() === netPrenoms.toLowerCase()) netPrenoms = '';
-    return [t, nomPropre(netNom), nomPropre(netPrenoms)].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    return nomAvecTitre([t, nomPropre(netNom), nomPropre(netPrenoms)].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim(), 'Médecin');
   }
   function quartierScan(q, commune) {
     var nq = normaliser(q || ''), nc = normaliser(commune || ''); if (!nq && !nc) return null;
@@ -12170,16 +12181,25 @@
       '</button>';
     }).join('') + '</div>';
   }
-  // 3.31.4 : noms lus en majuscules (« KOUASSI AYA ») écrits comme dans la base (« Kouassi Aya »)
+  // 3.31.4 / 3.31.53 : noms lus en majuscules (« KOUASSI AYA ») écrits comme dans la base (« Kouassi Aya ») ; IDE et SAG toujours en majuscules
   function nomPropre(t, estPh) {
     var petits = { de: 1, des: 1, du: 1, la: 1, le: 1, les: 1, et: 1, d: 1, l: 1, en: 1, au: 1, aux: 1 };
-    return String(t || '').replace(/\s+/g, ' ').trim().split(' ').map(function (w, k) {
+    var s = String(t || '').replace(/\s+/g, ' ').trim();
+    if (!estPh) {
+      if (/^(?:ide|infirmi[eè]re?|inf)\b\.?\s+/i.test(s)) s = s.replace(/^(?:ide|infirmi[eè]re?|inf)\b\.?\s+/i, 'IDE ');
+      else if (/^(?:sage[\s\-]*femme|sag|sf)\b\.?\s+/i.test(s)) s = s.replace(/^(?:sage[\s\-]*femme|sag|sf)\b\.?\s+/i, 'SAG ');
+    }
+    return s.split(' ').map(function (w, k) {
       if (/^[A-Z]\.?$/.test(w)) return w;   // initiale « B. »
-      if (/^(dr|pr|ide|sf|m\.|mme)$/i.test(w) && k === 0) return w.length <= 3 && /^(ide|sf)$/i.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      if (k === 0 && !estPh) {
+        if (/^(ide|inf)$/i.test(w)) return 'IDE';
+        if (/^(sag|sf)$/i.test(w)) return 'SAG';
+        if (/^(dr|pr|m\.|mme)$/i.test(w)) return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      }
       var lw = w.toLowerCase();
       if (estPh && k > 0 && petits[lw.replace(/['’]$/, '')]) return lw;
       if (w !== w.toUpperCase() && w !== w.toLowerCase()) return w;   // casse déjà mêlée (« N'Za ») : gardée
-      return lw.replace(/(^|[-'’])([a-zà-ÿ])/g, function (m, s, c) { return s + c.toUpperCase(); });
+      return lw.replace(/(^|[-'’])([a-zà-ÿ])/g, function (m, s2, c) { return s2 + c.toUpperCase(); });
     }).join(' ');
   }
   // 3.31.5 : enregistre un contact (indice) ou tous ceux qui sont prêts (null) ; la fiche est close quand il n'en reste plus
@@ -12516,6 +12536,7 @@
     if (!code) code = 'TMP-' + Date.now().toString(36).toUpperCase();
     var telFmt = formaterTelephoneCI(d.telephone);
     if (telFmt) d.telephone = telFmt;
+    d.nom = nomAvecTitre(d.nom, d.type);
     var pr = { code: code, type: d.type, nom: String(d.nom).trim(), telephone: telFmt || String(d.telephone || '').trim(),
                specialite: d.type === 'Pharmacie' ? 'Pharmacien' : (d.specialite === '__autre' ? String(d.autreSpec).trim() : d.specialite),
                note: +d.note, conventionne: d.conventionne, actif: d.actif === 'Non' ? 'Non' : 'Oui',
@@ -16112,6 +16133,8 @@
           if (el.dataset.opt === 'remplacer') o.remplacer[kk] = valC; else o.refus[kk] = !valC;
         } else if (kC.indexOf('remplacer.') === 0) o.remplacer[kC.slice(10)] = valC; else o[kC] = valC;
         if (kC === 'specialite' && iC !== undefined) o.specialite = specialiteCanonique(valC) || valC;
+        if (kC === 'telephone' && iC !== undefined) o.telephone = formaterTelephoneCI(valC) || valC;
+        if (kC === 'nom' && iC !== undefined) o.nom = nomAvecTitre(valC, o.type);
       });
       rendre();
     }
@@ -16151,6 +16174,10 @@
     if (k === 'telephone' && change) {
       var telFmt = formaterTelephoneCI(v);
       if (telFmt) { v = telFmt; el.value = telFmt; }
+    }
+    if (k === 'nom' && change && String(v || '').trim().length >= 2) {
+      v = nomAvecTitre(v, d.type);
+      el.value = v;
     }
     if (i !== undefined) d.lieux[+i][k] = v; else d[k] = v;
     if (!change) return;
