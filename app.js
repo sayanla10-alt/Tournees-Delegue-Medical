@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.46';
+  var APP_VERSION = '3.31.47';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.47', [
+      'Performance (Planifier) : indexation unique du référentiel Quartiers et filtrage préalable par immeubles (établissements/pharmacies) avant sélection des praticiens disponibles'
+    ]],
     ['3.31.46', [
       'Planifier (Communes ciblées) : correction de communeParente() pour que toute subdivision personnalisée (ex. Sogefia – Plaque) s\'affiche uniquement sous Abobo / Cocody / Yopougon dans le filtre'
     ]],

@@ -1815,11 +1815,7 @@ function resoudreTerritoire(input, listeQuartiers) {
   }
   if (!inSecteur && !inQuartier && !inLieu && !inCom && !inSubdiv && !inZone && !inTerr) return null;
 
-  var src = (listeQuartiers && listeQuartiers.length) ? listeQuartiers : quartiersDefautObjets();
-  var qs = [];
-  for (var si = 0; si < src.length; si++) {
-    if (src[si]) qs.push(normaliserLigneQuartier(src[si]));
-  }
+  var qs = _obtenirQuartiersIndexes(listeQuartiers).qs;
 
   var inComNorm = normaliser(inCom);
   if (inComNorm === 'abidjan') inComNorm = '';
@@ -2113,6 +2109,28 @@ function zoneDeQuartier(commune, quartier, lieu, listeQuartiers) {
   return zones[zones.length - 1].nom;
 }
 
+var _geoCacheQ = { src: null, len: -1, qs: null, subToCom: null };
+function _obtenirQuartiersIndexes(listeQuartiers) {
+  var src = (listeQuartiers && listeQuartiers.length) ? listeQuartiers : quartiersDefautObjets();
+  if (_geoCacheQ.src === src && _geoCacheQ.len === src.length && _geoCacheQ.qs) {
+    return _geoCacheQ;
+  }
+  var qs = [];
+  var subToCom = {};
+  for (var i = 0; i < src.length; i++) {
+    var row = src[i];
+    if (!row) continue;
+    var qn = normaliserLigneQuartier(row);
+    qs.push(qn);
+    if (qn.subdivision && qn.commune) {
+      var nsub = normaliser(qn.subdivision);
+      if (nsub && !subToCom[nsub]) subToCom[nsub] = communeParente(qn.commune);
+    }
+  }
+  _geoCacheQ = { src: src, len: src.length, qs: qs, subToCom: subToCom };
+  return _geoCacheQ;
+}
+
 function communeParente(nom, listeQuartiers) {
   if (!nom) return '';
   var s = String(nom).trim();
@@ -2125,13 +2143,9 @@ function communeParente(nom, listeQuartiers) {
     if (p === 'yopougon') return 'Yopougon';
   }
   if (listeQuartiers && listeQuartiers.length) {
-    var ns = normaliser(s);
-    for (var i = 0; i < listeQuartiers.length; i++) {
-      var q = listeQuartiers[i];
-      if (q && q.subdivision && normaliser(q.subdivision) === ns && q.commune) {
-        return communeParente(q.commune);
-      }
-    }
+    var idx = _obtenirQuartiersIndexes(listeQuartiers);
+    var hit = idx.subToCom[normaliser(s)];
+    if (hit) return hit;
   }
   return s;
 }
@@ -2154,22 +2168,24 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   var sub = c.subdivision || '';
   var sec = c.secteur || '';
   var qua = c.quartier || '';
-  var r = resoudreTerritoire(c, listeQuartiers);
-  var subRes = (r && r.matched && r.subdivision) ? r.subdivision : sub;
   var subNormTiret = function (v) { return String(v || '').trim().replace(/\s+-\s+/g, ' – '); };
   var dansKeys = Object.keys(dans);
+  var dansNorm = {};
+  for (var di = 0; di < dansKeys.length; di++) {
+    var dk = dansKeys[di];
+    if (dans[dk]) {
+      var ndk = normaliser(dk);
+      if (ndk) dansNorm[ndk] = true;
+    }
+  }
   var matchDans = function (v) {
     if (!v) return false;
     var t = subNormTiret(v);
     if (dans[v] || dans[t]) return true;
     var nv = normaliser(v);
-    if (!nv) return false;
-    for (var i = 0; i < dansKeys.length; i++) {
-      if (dans[dansKeys[i]] && normaliser(dansKeys[i]) === nv) return true;
-    }
-    return false;
+    return !!(nv && dansNorm[nv]);
   };
-  if (matchDans(sub) || matchDans(subRes)) return true;
+  if (matchDans(sub)) return true;
   if (com && (dans[com] || dans[com + ' (Toute la commune)'])) return true;
   var par = communeParente(com, listeQuartiers);
   if (par && (dans[par] || dans[par + ' (Toute la commune)'])) return true;
@@ -2177,20 +2193,23 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   if (sec && dans[sec]) return true;
   if (c.zone && dans[c.zone]) return true;
   if (c.territoire && dans[c.territoire]) return true;
+
+  var r = resoudreTerritoire(c, listeQuartiers);
   if (r) {
+    if (r.matched && r.subdivision && matchDans(r.subdivision)) return true;
     if (!com || normaliser(com) === 'abidjan') {
-      if (r.subdivision && dans[r.subdivision]) return true;
+      if (r.subdivision && matchDans(r.subdivision)) return true;
       if (r.commune && (dans[r.commune] || dans[r.commune + ' (Toute la commune)'])) return true;
-      var rPar = communeParente(r.commune);
+      var rPar = communeParente(r.commune, listeQuartiers);
       if (rPar && (dans[rPar] || dans[rPar + ' (Toute la commune)'])) return true;
       if (r.quartier && dans[r.quartier]) return true;
       if (r.secteur && dans[r.secteur]) return true;
       if (r.zone && dans[r.zone]) return true;
       if (r.territoire && dans[r.territoire]) return true;
     } else {
-      var rComNorm = normaliser(communeParente(r.commune));
+      var rComNorm = normaliser(communeParente(r.commune, listeQuartiers));
       if (!rComNorm || rComNorm === normaliser(par)) {
-        if (r.subdivision && dans[r.subdivision]) return true;
+        if (r.subdivision && matchDans(r.subdivision)) return true;
         if (r.quartier && dans[r.quartier]) return true;
         if (r.secteur && dans[r.secteur]) return true;
         if (r.zone && dans[r.zone]) return true;

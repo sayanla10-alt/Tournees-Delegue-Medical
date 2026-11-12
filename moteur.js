@@ -125,15 +125,26 @@ var Moteur = (function () {
     var feries = {};
     (data.feries && data.feries.length ? data.feries : FERIES_DEFAUT).forEach(function (d) { feries[d] = true; });
     var parJour = [[], [], [], [], []], parCode = {}, presencesParCode = {};
-    var etabCoords = {};
+    var etabCoords = {}, immeubles = {}, etabParCle = {}, etabParNom = {};
     (data.etablissements || []).forEach(function (e) {
       var ke = cleNorm(e.nom || '') + '|' + cleNorm(e.commune || '');
+      var kn = cleNorm(e.nom || '');
       var co = lireCoord(e);
       if (ke && co) {
         var refE = typeof trouverEtablissementRef === 'function' ? trouverEtablissementRef(e.nom) : null;
         var refEC = coordObj(refE);
         if (refEC && refCompatibleCommune(e.commune, refE) && distanceVol(co, refEC) > 1.5) co = refEC;
         etabCoords[ke] = co;
+      }
+      if (ke) {
+        var immE = {
+          cle: ke, nom: e.nom || '', territoire: e.territoire || '', zone: e.zone || '',
+          commune: e.commune || '', subdivision: e.subdivision || '',
+          quartier: e.quartier || '', secteur: e.secteur || '', coord: co || null
+        };
+        etabParCle[ke] = immE;
+        immeubles[ke] = immE;
+        if (kn) etabParNom[kn] = (etabParNom[kn] === undefined) ? immE : false;
       }
     });
     var idsVus = {};
@@ -228,13 +239,23 @@ var Moteur = (function () {
       }
       var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
       var st = (origId !== undefined && origId !== '' ? stats[String(origId)] : null) || stats[String(prId)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
+      var kePr = cleNorm(pr.lieu || '') + '|' + cleNorm(communeRes || pr.commune || '');
+      var etabPr = etabParCle[kePr] || etabParCle[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')] || (etabParNom[cleNorm(pr.lieu || '')] || null);
+      var cleImm = (etabPr && etabPr.cle) || (cleNorm(pr.lieu || '') + '|' + cleNorm(communeRes || pr.commune || '') + '|' + cleNorm(quartierRes || pr.quartier || ''));
+      if (!immeubles[cleImm]) {
+        immeubles[cleImm] = {
+          cle: cleImm, nom: pr.lieu || '', territoire: territoireRes, zone: zoneRes,
+          commune: communeRes, subdivision: subdivisionRes,
+          quartier: quartierRes, secteur: secteurRes, coord: coord
+        };
+      }
       JOURS_CLES.forEach(function (cle, j) {
         var d = lireDispo(pr[cle]);
         [['Matin', d.matin, hM], ['Soir', d.soir, hS]].forEach(function (x) {
           if (!x[1]) return;
           var c = {
             cle: prId + '|' + j + '|' + x[0], idPresence: prId, code: pr.code, jourIdx: j, jour: JOURS[j],
-            creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu,
+            creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu, cleImmeuble: cleImm,
             territoire: territoireRes, subdivision: subdivisionRes,
             quartier: quartierRes, secteur: secteurRes,
             reperes: pr.reperes || '', commune: communeRes, zone: zoneRes, coord: coord, prat: p,
@@ -249,7 +270,7 @@ var Moteur = (function () {
       parCode[k].sort(function (a, b) { return a.jourIdx - b.jourIdx || a.debut - b.debut; });
     });
     return { prat: prat, parJour: parJour, parCode: parCode, presencesParCode: presencesParCode,
-             idxQ: idxQ, parQ: parQ, ambiguQ: ambiguQ, quartiers: data.quartiers || [], feries: feries };
+             immeubles: immeubles, idxQ: idxQ, parQ: parQ, ambiguQ: ambiguQ, quartiers: data.quartiers || [], feries: feries };
   }
 
   function creneauParCle(ctx, cle) {
@@ -274,7 +295,7 @@ var Moteur = (function () {
       uid: uid(), date: date, jour: c.jour, creneau: c.creneau, cle: c.cle, idPresence: c.idPresence,
       debut: minutesVersHeure(c.debut), fin: minutesVersHeure(c.fin), heure: minutesVersHeure(c.debut),
       code: p.code, nom: p.nom, type: p.type, specialite: p.specialite, note: p.note, conventionne: p.conv ? 'Oui' : 'Non',
-      lieu: c.lieu, quartier: c.quartier, secteur: c.secteur || '', subdivision: c.subdivision || '',
+      lieu: c.lieu, cleImmeuble: c.cleImmeuble || '', quartier: c.quartier, secteur: c.secteur || '', subdivision: c.subdivision || '',
       reperes: c.reperes || '', commune: c.commune, zone: c.zone, territoire: c.territoire || '',
       lat: c.coord ? c.coord.lat : null, lon: c.coord ? c.coord.lon : null,
       derniere: p.derniere || '', joursEcoules: joursEcoules(p.derniere, date), score: scoreDe(p, date),
@@ -630,16 +651,39 @@ var Moteur = (function () {
 
   // ------------------------------------------------------------------ Construction d'une journée
   // Candidats éligibles pour une date donnée (réutilisé par genererPlanning pour estimer la charge)
+  function filtrerImmeubles(ctx, communes, cache) {
+    if (!communes || !communes.length || !ctx.immeubles) return null;
+    var cle = communes.join('|');
+    if (cache && cache[cle]) return cache[cle];
+    var dans = {};
+    communes.forEach(function (c) { dans[c] = true; });
+    var ok = {};
+    var cles = Object.keys(ctx.immeubles);
+    for (var i = 0; i < cles.length; i++) {
+      var k = cles[i];
+      var imm = ctx.immeubles[k];
+      var match = typeof communeCorrespondante === 'function' ? communeCorrespondante(imm, dans, ctx.quartiers) : !!dans[imm.commune];
+      if (match) ok[k] = true;
+    }
+    if (cache) cache[cle] = ok;
+    return ok;
+  }
+
   function candidatsJour(ctx, date, o, utilises) {
     var j = jourSemaineIndex(date);
     if (isNaN(j) || j < 0 || j > 4 || (ctx.feries && ctx.feries[date])) return [];
+    var immOk = o.immeublesOk || (o.communes && o.communes.length && ctx.immeubles ? filtrerImmeubles(ctx, o.communes, o._immCache) : null);
     var dans = null;
-    if (o.communes && o.communes.length) { dans = {}; o.communes.forEach(function (c) { dans[c] = true; }); }
+    if (!immOk && o.communes && o.communes.length) { dans = {}; o.communes.forEach(function (c) { dans[c] = true; }); }
     var out = [];
     ctx.parJour[j].forEach(function (c) {
       if (utilises && utilises[c.code]) return;
       if (o.exclus && o.exclus[c.code]) return;
-      if (dans && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans, ctx.quartiers) : dans[c.commune])) return;
+      if (immOk) {
+        if (!immOk[c.cleImmeuble]) return;
+      } else if (dans && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans, ctx.quartiers) : dans[c.commune])) {
+        return;
+      }
       if (o.accepte && !o.accepte(c.prat)) return;
       if (absentLe(c.prat, date)) return;
       if (joursEcoules(c.prat.derniere, date) < (o.delai || 0)) return;
@@ -718,14 +762,35 @@ var Moteur = (function () {
       return { a: a, it: item(a), score: a.score * (0.5 + 0.5 * a.fiab), rejete: !!(o.rejetes && o.rejetes[c.code]) };
     });
 
+    // Pré-calcul unique par immeuble des clés quartier/secteur (évite de rescanner 472 quartiers à chaque étape)
+    var cleQImm = {}, cleZImm = {};
+    cands.forEach(function (cd) {
+      var ki = cd.a.cleImmeuble || cd.a.code;
+      if (cleQImm[ki] === undefined) {
+        cleQImm[ki] = cleQuartier(cd.it);
+        cleZImm[ki] = cleSecteurTournee(cd.it, ctx.quartiers);
+      }
+      cd.cleQ = cleQImm[ki];
+      cd.cleZ = cleZImm[ki];
+    });
+
     // Densité géographique autour de chaque candidat pour éviter d'ancrer la journée sur un point isolé
-    var densite = {};
+    var densite = {}, distCache = {};
+    function distImmeubles(cdA, cdB) {
+      var kA = cdA.a.cleImmeuble || cdA.a.code, kB = cdB.a.cleImmeuble || cdB.a.code;
+      if (kA === kB) return 0;
+      var pair = kA < kB ? (kA + '|' + kB) : (kB + '|' + kA);
+      if (distCache[pair] !== undefined) return distCache[pair];
+      var d = dist(cdA.it, cdB.it);
+      distCache[pair] = d;
+      return d;
+    }
     cands.forEach(function (cd) {
       if (densite[cd.a.code] !== undefined) return;
       var vus = {}, n = 0;
       cands.forEach(function (autre) {
         if (autre.a.code === cd.a.code || vus[autre.a.code]) return;
-        var d = dist(cd.it, autre.it);
+        var d = distImmeubles(cd, autre);
         if (d !== null && d <= 2.5) { vus[autre.a.code] = true; n++; }
       });
       densite[cd.a.code] = Math.min(6, n) * 8;
@@ -758,7 +823,7 @@ var Moteur = (function () {
           }
           // Cohésion de zone : on complète les quartiers/secteurs déjà entamés plutôt que de faire des allers-retours
           var bonusZone = route.length
-            ? (routeQ[cleQuartier(cd.it)] ? 45 : (routeZ[cleSecteurTournee(cd.it, ctx.quartiers)] ? 25 : 0))
+            ? (routeQ[cd.cleQ] ? 45 : (routeZ[cd.cleZ] ? 25 : 0))
             : (densite[cd.a.code] || 0);
           var penRarete = o.autreDispos ? -12 * (o.autreDispos[cd.a.code] || 0) : 0;
           for (var i = 0; i <= route.length; i++) {
@@ -855,10 +920,11 @@ var Moteur = (function () {
     }
 
     // Répartition équilibrée de la charge sur l'ensemble des jours ouvrés de la période
+    var immCache = {};
     var ouverts = p.dates.filter(function (d) { var j = jourSemaineIndex(d); return !isNaN(j) && j >= 0 && j <= 4 && !(ctx.feries && ctx.feries[d]); });
     var codesParJour = {}, poolUnique = {}, nbDisposCode = {};
     ouverts.forEach(function (d) {
-      var opts = { communes: p.communesPour ? p.communesPour(d) : null, delai: p.delai, exclus: p.exclus, accepte: p.accepte };
+      var opts = { communes: p.communesPour ? p.communesPour(d) : null, _immCache: immCache, delai: p.delai, exclus: p.exclus, accepte: p.accepte };
       var cs = candidatsJour(ctx, d, opts, utilises);
       var vus = {};
       cs.forEach(function (c) { vus[c.code] = true; poolUnique[c.code] = true; });
@@ -906,7 +972,7 @@ var Moteur = (function () {
         });
       }
       parDate[d] = planifierJour(ctx, d, {
-        communes: p.communesPour ? p.communesPour(d) : null, maxJour: maxJ, targetJour: ciblesJour[d] !== undefined ? ciblesJour[d] : maxJ,
+        communes: p.communesPour ? p.communesPour(d) : null, _immCache: immCache, maxJour: maxJ, targetJour: ciblesJour[d] !== undefined ? ciblesJour[d] : maxJ,
         delai: p.delai, exclus: p.exclus, rejetes: p.rejetes, autreDispos: autreDispos,
         fixes: fixes[d], depart: p.depart, accepte: p.accepte
       }, utilises);
