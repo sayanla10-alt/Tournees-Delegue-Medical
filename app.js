@@ -1,4 +1,4 @@
-/* =============================================================================
+﻿/* =============================================================================
    app.js : interface de MediPlanner
    - Données en cache sur le téléphone : tout fonctionne hors ligne
    - Visites, fiches praticiens et tournées envoyées au Google Sheet dès que possible
@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.54';
+  var APP_VERSION = '3.31.55';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.55', ['Notifications « Conflit de programme » : vos propres visites ne sont plus signalées comme prévues par un collègue ; seuls les autres délégués sont cités']],
     ['3.31.54', [
       'Enregistrement des pharmacies et hôpitaux : toute pharmacie créée ou modifiée depuis le téléphone est systématiquement orientée vers l\'onglet Pharmacies (jamais dans Etablissements ou Praticiens), et les hôpitaux vers l\'onglet Etablissements'
     ]],
@@ -3340,16 +3341,18 @@
 
   // ------------------------------------------------------------------ Équipe
   function moi() { return String(S.config.delegue || '').trim(); }
-  function estMoi(nom) { return String(nom || '').trim().toLowerCase() === moi().toLowerCase(); }
+  // 3.31.55 : comparaison robuste du nom du délégué (accents, casse, espaces multiples ou insécables)
+  function cleDelegue(n) { return normaliser(String(n || '').replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim()); }
+  function estMoi(nom) { var m = cleDelegue(moi()); return !!m && cleDelegue(nom) === m; }
   var _colCache = { plannings: null, moi: null, liste: [], parSemCode: {} };
   function _obtenirColleguesIndex() {
     var pls = (S.data && S.data.plannings) || [];
     var m = moi();
     if (_colCache.plannings === pls && _colCache.moi === m) return _colCache;
     var liste = [], parSemCode = {};
-    for (var i = 0; i < pls.length; i++) {
+    for (var i = 0; m && i < pls.length; i++) {   // 3.31.55 : sans nom de délégué, aucun « collègue » (sinon mes propres visites passaient pour celles d'un autre)
       var p = pls[i];
-      if (!p || !p.delegue || estMoi(p.delegue)) continue;
+      if (!p || !p.delegue || estMoi(p.delegue) || p.programme === 'Supprimé' || !p.code || p.code === '-') continue;
       liste.push(p);
       var k = lundiDe(p.date) + '|' + p.code;
       (parSemCode[k] = parSemCode[k] || []).push(p);
@@ -13536,7 +13539,7 @@
     if (!pret()) return;
     var t = aujourdhui(), dem = ajouterJours(t, 1);
     S.plan.filter(function (a) { return a.date === t || a.date === dem; }).forEach(function (a) {
-      var cf = conflitArret(a); if (cf) notifier('conflit-' + a.uid, 'Conflit de programme', a.nom + ' est aussi prévu par ' + cf.delegue + ' le ' + dateFr(cf.date) + '.');
+      var cf = conflitArret(a); if (cf && !estMoi(cf.delegue)) notifier('conflit-' + a.uid, 'Conflit de programme', a.nom + ' est aussi prévu par ' + cf.delegue + ' le ' + dateFr(cf.date) + '.');
     });
   }
   function alerteProximite(forcer) {

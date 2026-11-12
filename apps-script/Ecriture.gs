@@ -181,10 +181,11 @@ function publierPlanning(b) {
     var nbCol = CHAMPS_PLAN.length, n = Math.max(sh.getLastRow() - 1, 0);
     var iDel = indexChamp(CHAMPS_PLAN, 'delegue'), iDate = indexChamp(CHAMPS_PLAN, 'date'), iCode = indexChamp(CHAMPS_PLAN, 'code');
     var iProg = indexChamp(CHAMPS_PLAN, 'programme'), iDepuis = indexChamp(CHAMPS_PLAN, 'depuis');
-    var garde = [], moi = delegue.toLowerCase(), mesDepuis = {};
+    var cleDel = function (x) { return normaliser(nomDelegue(String(x || '').replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim())); };
+    var garde = [], moi = cleDel(delegue), mesDepuis = {};
     if (n) {
       sh.getRange(2, 1, n, nbCol).getDisplayValues().forEach(function (l) {
-        var d = versIso(l[iDate], tz), qui = String(l[iDel]).trim().toLowerCase();
+        var d = versIso(l[iDate], tz), qui = cleDel(l[iDel]);
         if (!qui) return;
         // Conserve l'historique complet de toute l'équipe ; seule la période [debut, fin] du délégué courant est remplacée
         if (qui === moi && d && d >= b.debut && d <= b.fin) {
@@ -217,7 +218,7 @@ function publierPlanning(b) {
     // Conflits : même praticien ciblé plus tôt par un autre délégué la même semaine
     var autres = {};
     garde.forEach(function (l) {
-      if (String(l[iDel]).trim().toLowerCase() === moi) return;
+      if (cleDel(l[iDel]) === moi) return;
       if (l[iProg] === 'Supprimé') return;   // 3.29.0 : journée ou visite supprimée par un collègue : pas un conflit
       var d = versIso(l[iDate], tz);
       if (!d) return;

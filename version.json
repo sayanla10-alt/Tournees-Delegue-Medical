@@ -1,5 +1,5 @@
-{
-  "version": "3.31.54",
+﻿{
+  "version": "3.31.55",
   "date": "2026-11-12",
   "notes": [
     "Enregistrement des pharmacies et hôpitaux : toute pharmacie créée ou modifiée depuis le téléphone est systématiquement orientée vers l'onglet Pharmacies (jamais dans Etablissements ou Praticiens), et les hôpitaux vers l'onglet Etablissements"
