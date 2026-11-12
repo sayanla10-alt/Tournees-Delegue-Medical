@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.47';
+  var APP_VERSION = '3.31.48';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.48', [
+      'Performance (Répertoire) : mise en cache des hôpitaux/compteurs d\'annuaire, indexation des tournées collègues et tri Intl.Collator(\'fr\') réutilisé'
+    ]],
     ['3.31.47', [
       'Performance (Planifier) : indexation unique du référentiel Quartiers et filtrage préalable par immeubles (établissements/pharmacies) avant sélection des praticiens disponibles'
     ]],
@@ -3317,13 +3320,26 @@
   // ------------------------------------------------------------------ Équipe
   function moi() { return String(S.config.delegue || '').trim(); }
   function estMoi(nom) { return String(nom || '').trim().toLowerCase() === moi().toLowerCase(); }
-  function arretsCollegues() {
-    return ((S.data && S.data.plannings) || []).filter(function (p) { return p.delegue && !estMoi(p.delegue); });
+  var _colCache = { plannings: null, moi: null, liste: [], parSemCode: {} };
+  function _obtenirColleguesIndex() {
+    var pls = (S.data && S.data.plannings) || [];
+    var m = moi();
+    if (_colCache.plannings === pls && _colCache.moi === m) return _colCache;
+    var liste = [], parSemCode = {};
+    for (var i = 0; i < pls.length; i++) {
+      var p = pls[i];
+      if (!p || !p.delegue || estMoi(p.delegue)) continue;
+      liste.push(p);
+      var k = lundiDe(p.date) + '|' + p.code;
+      (parSemCode[k] = parSemCode[k] || []).push(p);
+    }
+    _colCache = { plannings: pls, moi: m, liste: liste, parSemCode: parSemCode };
+    return _colCache;
   }
+  function arretsCollegues() { return _obtenirColleguesIndex().liste; }
   // Collègues ayant prévu ce praticien la même semaine que la date donnée
   function cibleParCollegues(code, date) {
-    var l = lundiDe(date);
-    return arretsCollegues().filter(function (p) { return p.code === code && lundiDe(p.date) === l; });
+    return _obtenirColleguesIndex().parSemCode[lundiDe(date) + '|' + code] || [];
   }
   function etiquetteCollegues(code, date) {
     var l = cibleParCollegues(code, date);
@@ -8143,7 +8159,7 @@
     return x > d ? x : d;
   }
   function filtrerPraticiens(f, texte) {
-    var t = aujourdhui(), c = ctx(), q = normaliser(texte || '');
+    var t = aujourdhui(), c = ctx(), q = normaliser(texte || ''), qRef = quartiers();
     var sp = ensemble((f.specialites || []).map(specialiteCanonique)), co = ensemble(f.communes), po = ensemble(f.potentiels);
     return Object.keys(c.prat).map(function (k) { return c.prat[k]; }).filter(function (p) {
       // 3.29.0 : « Médecins » = tous les prescripteurs hors officines (médecins, infirmiers, sages-femmes), comme le compteur de l'annuaire
@@ -8154,7 +8170,7 @@
       if (f.conv === 'oui' && !p.conv) return false;
       if (f.conv === 'non' && p.conv) return false;
       var lieux = c.presencesParCode[p.code] || [];
-      if (f.communes.length && !lieux.some(function (x) { return typeof communeCorrespondante === 'function' ? communeCorrespondante(x, co, quartiers()) : co[x.commune]; })) return false;
+      if (f.communes.length && !lieux.some(function (x) { return typeof communeCorrespondante === 'function' ? communeCorrespondante(x, co, qRef) : co[x.commune]; })) return false;
       if (f.visite !== 'tous') {
         // 3.29.0 : date de dernière visite précalculée une fois par code (historique + file d'envoi), au lieu d'un parcours par praticien
         var derDate = derniereVisiteDe(p);
@@ -8205,13 +8221,25 @@
                          ['visite', 'revoir', 'À revoir'], ['visite', 'jamais', 'Jamais visité'], ['conv', 'oui', 'Engagés']];
   function estRapide(k, v) { return FILTRES_RAPIDES.some(function (x) { return x[0] === k && x[1] === v; }); }
   function filtreRapideActif(f, k, v) { return Array.isArray(f[k]) ? f[k].indexOf(v) >= 0 : f[k] === v; }
+  var _collatorFr = (typeof Intl !== 'undefined' && Intl.Collator) ? new Intl.Collator('fr') : null;
   function trierPraticiens(liste, tri) {
     var t = aujourdhui();
+    if (tri === 'priorite' || tri === 'potentiel' || tri === 'retard' || tri === 'score') {
+      var je = {}, sc = {};
+      for (var i = 0; i < liste.length; i++) {
+        var p = liste[i], j = joursEcoules(p.derniere, t);
+        je[p.code] = j;
+        if (tri === 'score') sc[p.code] = calcScore(p.note, j, p.statut);
+      }
+      return liste.sort(function (a, b) {
+        if (tri === 'priorite' || tri === 'potentiel') return b.note - a.note || je[b.code] - je[a.code];
+        if (tri === 'retard') return je[b.code] - je[a.code] || b.note - a.note;
+        return sc[b.code] - sc[a.code];
+      });
+    }
     return liste.sort(function (a, b) {
-      if (tri === 'priorite' || tri === 'potentiel') return b.note - a.note || joursEcoules(b.derniere, t) - joursEcoules(a.derniere, t);
-      if (tri === 'retard') return joursEcoules(b.derniere, t) - joursEcoules(a.derniere, t) || b.note - a.note;
-      if (tri === 'score') return calcScore(b.note, joursEcoules(b.derniere, t), b.statut) - calcScore(a.note, joursEcoules(a.derniere, t), a.statut);
-      return String(a.nom || '').localeCompare(String(b.nom || ''), 'fr');
+      var na = String(a.nom || ''), nb = String(b.nom || '');
+      return _collatorFr ? _collatorFr.compare(na, nb) : na.localeCompare(nb, 'fr');
     });
   }
 
@@ -8501,12 +8529,17 @@
 
   // 3.27.30 : Répertoire en trois annuaires (Médecins, Pharmacies, Hôpitaux) ; point de retour : avant-repertoire-annuaires
   S.ui.annuaire = LS.get('annuaire', '') === 'hop' ? 'hop' : '';
+  var _annuaireCache = { data: null, nM: 0, nP: 0 };
+  var _hopCache = { data: null, sansVides: null, avecVides: null };
   function selecteurAnnuaire(f) {
-    var prat = ctx().prat, nM = 0, nP = 0;
-    Object.keys(prat).forEach(function (k) { if (prat[k].type === 'Pharmacie') nP++; else nM++; });
+    if (_annuaireCache.data !== S.data) {
+      var prat = ctx().prat, nM = 0, nP = 0;
+      Object.keys(prat).forEach(function (k) { if (prat[k].type === 'Pharmacie') nP++; else nM++; });
+      _annuaireCache = { data: S.data, nM: nM, nP: nP };
+    }
     var actif = S.ui.annuaire === 'hop' ? 'hop' : (f.type === 'Pharmacie' ? 'ph' : (f.type === 'Médecin' ? 'med' : ''));
     var b = function (v, lib, n) { return '<button type="button" data-a="annuaire" data-v="' + v + '" aria-pressed="' + (actif === v) + '"><b>' + lib + '</b> <span class="sa-n">' + n + '</span></button>'; };
-    return '<div class="selecteur-annuaire" role="group" aria-label="Annuaire">' + b('med', 'Médecins', nM) + b('ph', 'Pharmacies', nP) + b('hop', 'Hôpitaux', hopitauxRepertoire().length) + '</div>';
+    return '<div class="selecteur-annuaire" role="group" aria-label="Annuaire">' + b('med', 'Médecins', _annuaireCache.nM) + b('ph', 'Pharmacies', _annuaireCache.nP) + b('hop', 'Hôpitaux', hopitauxRepertoire().length) + '</div>';
   }
   // établissements (onglet Etablissements) où au moins un médecin est présent, avec leurs médecins
   function categorieHopital(nom) {
@@ -8517,7 +8550,10 @@
     return 'centre';
   }
   function hopitauxRepertoire(avecVides) {   // 3.31.0 : avecVides : aussi les établissements de la base sans médecin (recherche)
-    var c = ctx(), par = {}, l = [];
+    if (_hopCache.data !== S.data) _hopCache = { data: S.data, sansVides: null, avecVides: null };
+    if (avecVides && _hopCache.avecVides) return _hopCache.avecVides.slice();
+    if (!avecVides && _hopCache.sansVides) return _hopCache.sansVides.slice();
+    var c = ctx(), par = {}, l = [], lAvecVides = [];
     ((S.data && S.data.etablissements) || []).forEach(function (e) {
       var nom = String(e.nom || '').trim(), k = normaliser(nom); if (!k || par[k]) return;
       par[k] = { cle: k, nom: nom, cat: categorieHopital(nom), commune: e.commune || '', quartier: e.quartier || '', reperes: e.reperes || '', telephone: e.telephone || '',
@@ -8549,20 +8585,25 @@
         var cv = centroideVilleInterieur(it.commune) || centroideVilleInterieur(it.quartier);
         if (cv) { it.lat = cv.lat; it.lon = cv.lon; it.approx = true; }
       }
-      if ((it.pres.length || avecVides) && !cabinet(it.nom)) l.push(it);
+      if (!cabinet(it.nom)) {
+        lAvecVides.push(it);
+        if (it.pres.length) l.push(it);
+      }
     });
-    return l;
+    _hopCache.sansVides = l;
+    _hopCache.avecVides = lAvecVides;
+    return (avecVides ? lAvecVides : l).slice();
   }
   function filtrerHopitaux(f, rech) {
     f = f || S.ui.filtresHop || FILTRES_HOP_VIDES;
     var q = normaliser(rech !== undefined ? rech : (S.ui.rechHop || ''));
-    var co = ensemble(f.communes || []), cat = ensemble(f.categories || []);
+    var co = ensemble(f.communes || []), cat = ensemble(f.categories || []), qRef = quartiers();
     var sp = ensemble((f.specialites || []).map(specialiteCanonique));
     var t = aujourdhui(), jA = jourSemaineIndex(t), debutMois = t.slice(0, 8) + '01', c = ctx();
     var now = minutesMaintenant(), ferie = estFerie(t);
     return hopitauxRepertoire(!!q).filter(function (e) {
       if (f.categories && f.categories.length && !cat[e.cat]) return false;
-      if (f.communes && f.communes.length && !communeCorrespondante(e, co, quartiers())) return false;
+      if (f.communes && f.communes.length && !communeCorrespondante(e, co, qRef)) return false;
       if (f.gps && f.gps !== 'tous') {
         var aGps = isFinite(e.lat) && isFinite(e.lon) && e.lat !== 0 && !e.approx;
         if (f.gps === 'oui' && !aGps) return false;
@@ -8782,8 +8823,13 @@
     var f = S.ui.filtres, t = aujourdhui(), c = ctx();
     var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
     // la fiche ouverte (par exemple juste créée) reste en tête de liste
-    var io = liste.map(function (p) { return p.code; }).indexOf(S.ui.contactOuvert);
-    if (io > 0 && S.ui.contactEnTete === S.ui.contactOuvert) liste.unshift(liste.splice(io, 1)[0]);
+    var io = -1;
+    if (S.ui.contactOuvert) {
+      for (var ii = 0; ii < liste.length; ii++) {
+        if (liste[ii].code === S.ui.contactOuvert) { io = ii; break; }
+      }
+      if (io > 0 && S.ui.contactEnTete === S.ui.contactOuvert) liste.unshift(liste.splice(io, 1)[0]);
+    }
     // 3.19.0 : les critères s'ouvrent sur une page à part (même onglet) ; dès les résultats affichés, ils disparaissent
     // au profit d'une phrase (nombre de praticiens et critères appliqués) et de « Tout effacer »
     if (S.ui.rechOuverte) {

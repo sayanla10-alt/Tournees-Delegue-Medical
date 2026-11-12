@@ -1,7 +1,7 @@
 {
-  "version": "3.31.47",
+  "version": "3.31.48",
   "date": "2026-11-12",
   "notes": [
-    "Performance (Planifier) : indexation unique du référentiel Quartiers et filtrage préalable par immeubles (établissements/pharmacies) avant sélection des praticiens disponibles"
+    "Performance (Répertoire) : mise en cache des hôpitaux/compteurs d'annuaire, indexation des tournées collègues et tri Intl.Collator('fr') réutilisé"
   ]
 }
