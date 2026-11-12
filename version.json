@@ -1,7 +1,8 @@
 {
-  "version": "3.31.44",
+  "version": "3.31.45",
   "date": "2026-11-12",
   "notes": [
-    "Planifier (Communes ciblées) : affichage de Abobo, Cocody ou Yopougon dès qu'une ou plusieurs subdivisions sont choisies, et filtrage corrigé sur les subdivisions dynamiques"
+    "Planifier : rétablissement des séparateurs par secteur dans la liste de tournée et passage de quartiers() au moteur d'affichage",
+    "Planifier (Communes ciblées) : affichage du nom de commune (Abobo, Cocody, Yopougon) même en sélection partielle de subdivisions"
   ]
 }

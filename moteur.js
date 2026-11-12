@@ -567,8 +567,16 @@ var Moteur = (function () {
         }
       }
     }
+    if (typeof resoudreTerritoire === 'function') {
+      var rT = resoudreTerritoire(a, quartiers);
+      if (rT && rT.subdivision) return rT.subdivision;
+    }
     var z = typeof zoneDeQuartier === 'function' ? zoneDeQuartier(a.commune, qNom, a.lieu, quartiers) : '';
-    return z || a.commune || a.quartier || a.secteur || '';
+    if (z) return z;
+    if (typeof estGrandeCommune === 'function' && estGrandeCommune(a.commune) && qNom && bas(qNom) !== bas(a.commune)) {
+      return a.commune + ' – ' + qNom;
+    }
+    return a.commune || a.quartier || a.secteur || '';
   }
   function cleSecteurTournee(it, quartiers) { var k = cleNorm(nomSecteurTournee(it.a, quartiers)); return k || cleQuartier(it); }
   function regrouper(route, depart) {

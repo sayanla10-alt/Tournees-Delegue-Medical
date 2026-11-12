@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.44';
+  var APP_VERSION = '3.31.45';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.45', [
+      'Planifier : rétablissement des séparateurs par secteur dans la liste de tournée et passage de quartiers() au moteur d\'affichage',
+      'Planifier (Communes ciblées) : affichage du nom de commune (Abobo, Cocody, Yopougon) même en sélection partielle de subdivisions'
+    ]],
     ['3.31.44', [
       'Planifier (Communes ciblées) : affichage de Abobo, Cocody ou Yopougon dès qu\'une ou plusieurs subdivisions sont choisies, et filtrage corrigé sur les subdivisions dynamiques'
     ]],
@@ -6218,7 +6222,7 @@
     });
     var blocs = [], dernier = null;
     tri.forEach(function (a) {
-      var nom = Moteur.nomSecteurTournee(a), k = normaliser(nom) || ('u|' + a.uid);
+      var nom = Moteur.nomSecteurTournee(a, quartiers()), k = normaliser(nom) || ('u|' + a.uid);
       if (!dernier || dernier.cle !== k) {
         dernier = { cle: k, nom: nom, l: [] };
         blocs.push(dernier);
