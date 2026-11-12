@@ -1,8 +1,7 @@
 {
-  "version": "3.31.45",
+  "version": "3.31.46",
   "date": "2026-11-12",
   "notes": [
-    "Planifier : rétablissement des séparateurs par secteur dans la liste de tournée et passage de quartiers() au moteur d'affichage",
-    "Planifier (Communes ciblées) : affichage du nom de commune (Abobo, Cocody, Yopougon) même en sélection partielle de subdivisions"
+    "Planifier (Communes ciblées) : correction de communeParente() pour que toute subdivision personnalisée (ex. Sogefia – Plaque) s'affiche uniquement sous Abobo / Cocody / Yopougon dans le filtre"
   ]
 }

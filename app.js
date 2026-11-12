@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.45';
+  var APP_VERSION = '3.31.46';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.46', [
+      'Planifier (Communes ciblées) : correction de communeParente() pour que toute subdivision personnalisée (ex. Sogefia – Plaque) s\'affiche uniquement sous Abobo / Cocody / Yopougon dans le filtre'
+    ]],
     ['3.31.45', [
       'Planifier : rétablissement des séparateurs par secteur dans la liste de tournée et passage de quartiers() au moteur d\'affichage',
       'Planifier (Communes ciblées) : affichage du nom de commune (Abobo, Cocody, Yopougon) même en sélection partielle de subdivisions'
@@ -1725,7 +1728,7 @@
     var s = normaliser(nom);
     return s.indexOf('abobo') === 0 || s.indexOf('cocody') === 0 || s.indexOf('yopougon') === 0;
   }
-  function communeParente(nom) {
+  function communeParente(nom, listeQuartiers) {
     if (!nom) return '';
     var s = String(nom).trim();
     var m = s.match(/^(Abobo|Cocody|Yopougon)\b/i);
@@ -1734,6 +1737,16 @@
       if (p === 'abobo') return 'Abobo';
       if (p === 'cocody') return 'Cocody';
       if (p === 'yopougon') return 'Yopougon';
+    }
+    var qs = (listeQuartiers && listeQuartiers.length) ? listeQuartiers : ((typeof quartiers === 'function') ? quartiers() : []);
+    if (qs && qs.length) {
+      var ns = normaliser(s);
+      for (var i = 0; i < qs.length; i++) {
+        var q = qs[i];
+        if (q && q.subdivision && normaliser(q.subdivision) === ns && q.commune) {
+          return communeParente(q.commune);
+        }
+      }
     }
     return s;
   }
