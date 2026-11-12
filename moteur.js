@@ -698,6 +698,11 @@ var Moteur = (function () {
     var totalCible = targetMatin + targetSoir;
     var tM = route.length < totalCible ? Math.ceil(route.length / 2) : targetMatin;
     var tS = route.length < totalCible ? route.length - tM : targetSoir;
+    var candsParCode = {};
+    for (var ci = 0; ci < cands.length; ci++) {
+      var cc = cands[ci], codeC = cc.a.code;
+      (candsParCode[codeC] = candsParCode[codeC] || []).push(cc);
+    }
     for (var step = 0; step < route.length; step++) {
       var curM = route.filter(function (it) { return creneauDeItem(it) === 'Matin'; }).length;
       var curS = route.length - curM;
@@ -709,7 +714,7 @@ var Moteur = (function () {
       for (var i = 0; i < route.length; i++) {
         var it = route[i], a = it.a;
         if (it.fixe || a.impose || a.garde || a.rdv || a.statut || a.etat === 'valide' || creneauDeItem(it) !== sur) continue;
-        var alt = cands.filter(function (cd) { return cd.a.code === a.code && cd.a.creneau === cibleCren; })
+        var alt = (candsParCode[a.code] || []).filter(function (cd) { return cd.a.creneau === cibleCren; })
           .sort(function (x, y) { return (x.a.idPresence === a.idPresence ? 0 : 1) - (y.a.idPresence === a.idPresence ? 0 : 1); })[0];
         if (!alt) continue;
         var essai = route.slice();
@@ -774,27 +779,32 @@ var Moteur = (function () {
       cd.cleZ = cleZImm[ki];
     });
 
-    // Densité géographique autour de chaque candidat pour éviter d'ancrer la journée sur un point isolé
-    var densite = {}, distCache = {};
-    function distImmeubles(cdA, cdB) {
-      var kA = cdA.a.cleImmeuble || cdA.a.code, kB = cdB.a.cleImmeuble || cdB.a.code;
-      if (kA === kB) return 0;
-      var pair = kA < kB ? (kA + '|' + kB) : (kB + '|' + kA);
-      if (distCache[pair] !== undefined) return distCache[pair];
-      var d = dist(cdA.it, cdB.it);
-      distCache[pair] = d;
-      return d;
+    // Densité géographique par immeuble (avec arrêt anticipé dès le plafond de 6 voisins)
+    var densite = {}, noeudsMap = {}, noeuds = [];
+    for (var ni = 0; ni < cands.length; ni++) {
+      var nc = cands[ni], ki = nc.a.cleImmeuble || nc.a.code;
+      var nd = noeudsMap[ki];
+      if (!nd) { nd = noeudsMap[ki] = { it: nc.it, codes: {}, nCodes: 0 }; noeuds.push(nd); }
+      if (!nd.codes[nc.a.code]) { nd.codes[nc.a.code] = true; nd.nCodes++; }
     }
-    cands.forEach(function (cd) {
-      if (densite[cd.a.code] !== undefined) return;
-      var vus = {}, n = 0;
-      cands.forEach(function (autre) {
-        if (autre.a.code === cd.a.code || vus[autre.a.code]) return;
-        var d = distImmeubles(cd, autre);
-        if (d !== null && d <= 2.5) { vus[autre.a.code] = true; n++; }
-      });
-      densite[cd.a.code] = Math.min(6, n) * 8;
-    });
+    for (var ia = 0; ia < noeuds.length; ia++) {
+      var nA = noeuds[ia], totalVoisins = nA.nCodes - 1;
+      if (totalVoisins < 6) {
+        for (var ib = 0; ib < noeuds.length; ib++) {
+          if (ia === ib) continue;
+          var dN = dist(nA.it, noeuds[ib].it);
+          if (dN !== null && dN <= 2.5) {
+            totalVoisins += noeuds[ib].nCodes;
+            if (totalVoisins >= 6) break;
+          }
+        }
+      }
+      var scoreDens = Math.min(6, totalVoisins) * 8;
+      var codesA = Object.keys(nA.codes);
+      for (var ic = 0; ic < codesA.length; ic++) {
+        if (densite[codesA[ic]] === undefined) densite[codesA[ic]] = scoreDens;
+      }
+    }
 
     var cibleJour = Math.min(max, Math.max(route.length, o.targetJour !== undefined && o.targetJour !== null ? o.targetJour : max));
     var targetMatin = Math.ceil(cibleJour / 2), targetSoir = cibleJour - targetMatin;
@@ -809,38 +819,83 @@ var Moteur = (function () {
         });
         var curMatin = route.filter(function (it) { return creneauDeItem(it) === 'Matin'; }).length;
         var curSoir = route.length - curMatin;
-        var base = simuler(route).nbRetards, options = [];
-        cands.forEach(function (cd) {
-          if (dansRoute[cd.a.code] || (cd.rejete && !avecRejetes)) return;
-          var cren = creneauDeItem(cd.it);
-          var bonusEquilibre = 0;
-          if (cren === 'Matin') {
-            if (curMatin < targetMatin) bonusEquilibre = (curSoir >= targetSoir) ? 120 : (curSoir > curMatin ? 65 : 25);
-            else if (curSoir < targetSoir) bonusEquilibre = -160;
-          } else {
-            if (curSoir < targetSoir) bonusEquilibre = (curMatin >= targetMatin) ? 120 : (curMatin > curSoir ? 65 : 25);
-            else if (curMatin < targetMatin) bonusEquilibre = -160;
+        var base = simuler(route).nbRetards;
+        var deltaImm = {}, top = [], TOP_K = 32, minTopV = -Infinity, minTopIdx = 0;
+        var evalCands = function (collectAll) {
+          var allOpts = collectAll ? [] : null;
+          for (var ci = 0; ci < cands.length; ci++) {
+            var cd = cands[ci];
+            if (dansRoute[cd.a.code] || (cd.rejete && !avecRejetes)) continue;
+            var cren = creneauDeItem(cd.it);
+            var bonusEquilibre = 0;
+            if (cren === 'Matin') {
+              if (curMatin < targetMatin) bonusEquilibre = (curSoir >= targetSoir) ? 120 : (curSoir > curMatin ? 65 : 25);
+              else if (curSoir < targetSoir) bonusEquilibre = -160;
+            } else {
+              if (curSoir < targetSoir) bonusEquilibre = (curMatin >= targetMatin) ? 120 : (curMatin > curSoir ? 65 : 25);
+              else if (curMatin < targetMatin) bonusEquilibre = -160;
+            }
+            // Cohésion de zone : on complète les quartiers/secteurs déjà entamés plutôt que de faire des allers-retours
+            var bonusZone = route.length
+              ? (routeQ[cd.cleQ] ? 45 : (routeZ[cd.cleZ] ? 25 : 0))
+              : (densite[cd.a.code] || 0);
+            var penRarete = o.autreDispos ? -12 * (o.autreDispos[cd.a.code] || 0) : 0;
+            var baseScore = cd.score + bonusEquilibre + bonusZone + penRarete;
+            var ki = cd.a.cleImmeuble || '';
+            var dCache = ki ? (deltaImm[ki] || (deltaImm[ki] = [])) : null;
+            for (var i = 0; i <= route.length; i++) {
+              var dKm;
+              if (dCache) {
+                dKm = dCache[i];
+                if (dKm === undefined) { dKm = delta(route, i, cd.it, depart); dCache[i] = dKm; }
+              } else {
+                dKm = delta(route, i, cd.it, depart);
+              }
+              var v = baseScore - R.penaliteKm * dKm;
+              if (collectAll) {
+                allOpts.push({ v: v, cd: cd, i: i });
+              } else if (top.length < TOP_K) {
+                top.push({ v: v, cd: cd, i: i });
+                if (top.length === TOP_K) {
+                  minTopV = top[0].v; minTopIdx = 0;
+                  for (var ti = 1; ti < TOP_K; ti++) {
+                    if (top[ti].v < minTopV) { minTopV = top[ti].v; minTopIdx = ti; }
+                  }
+                }
+              } else if (v > minTopV) {
+                top[minTopIdx] = { v: v, cd: cd, i: i };
+                minTopV = top[0].v; minTopIdx = 0;
+                for (var tj = 1; tj < TOP_K; tj++) {
+                  if (top[tj].v < minTopV) { minTopV = top[tj].v; minTopIdx = tj; }
+                }
+              }
+            }
           }
-          // Cohésion de zone : on complète les quartiers/secteurs déjà entamés plutôt que de faire des allers-retours
-          var bonusZone = route.length
-            ? (routeQ[cd.cleQ] ? 45 : (routeZ[cd.cleZ] ? 25 : 0))
-            : (densite[cd.a.code] || 0);
-          var penRarete = o.autreDispos ? -12 * (o.autreDispos[cd.a.code] || 0) : 0;
-          for (var i = 0; i <= route.length; i++) {
-            var v = cd.score + bonusEquilibre + bonusZone + penRarete - R.penaliteKm * delta(route, i, cd.it, depart);
-            options.push({ v: v, cd: cd, i: i });
-          }
-        });
-        if (!options.length) return;
-        options.sort(function (x, y) { return y.v - x.v; });
+          return allOpts;
+        };
+        evalCands(false);
+        if (!top.length) return;
+        top.sort(function (x, y) { return y.v - x.v; });
         var pris = false, triedByCren = {};
-        for (var k = 0; k < options.length; k++) {
-          var op = options[k], cr = creneauDeItem(op.cd.it);
+        for (var k = 0; k < top.length; k++) {
+          var op = top[k], cr = creneauDeItem(op.cd.it);
           if ((triedByCren[cr] || 0) >= 6000) continue;
           triedByCren[cr] = (triedByCren[cr] || 0) + 1;
           var essai = route.slice(0, op.i).concat([op.cd.it], route.slice(op.i));
           var s = simuler(essai);
           if (!s.retards[op.i] && s.nbRetards <= base) { route = essai; pris = true; break; }
+        }
+        if (!pris && top.length === TOP_K) {
+          var options = evalCands(true);
+          options.sort(function (x, y) { return y.v - x.v; });
+          for (var k2 = 0; k2 < options.length; k2++) {
+            var op2 = options[k2], cr2 = creneauDeItem(op2.cd.it);
+            if ((triedByCren[cr2] || 0) >= 6000) continue;
+            triedByCren[cr2] = (triedByCren[cr2] || 0) + 1;
+            var essai2 = route.slice(0, op2.i).concat([op2.cd.it], route.slice(op2.i));
+            var s2 = simuler(essai2);
+            if (!s2.retards[op2.i] && s2.nbRetards <= base) { route = essai2; pris = true; break; }
+          }
         }
         if (!pris) return;
       }

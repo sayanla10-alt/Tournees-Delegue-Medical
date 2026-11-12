@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.48';
+  var APP_VERSION = '3.31.49';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.49', [
+      'Performance (Moteur) : cache delta par immeuble et sélection Top-K sans tri global dans passe(), indexation dans equilibrerCreneaux()',
+      'Répertoire : bandeau « Fiches photographiées » réduit à 1 s et étendu sur toute la largeur'
+    ]],
     ['3.31.48', [
       'Performance (Répertoire) : mise en cache des hôpitaux/compteurs d\'annuaire, indexation des tournées collègues et tri Intl.Collator(\'fr\') réutilisé'
     ]],
@@ -12166,8 +12170,14 @@
   }
   function demarrerFlashScans() {
     if (!scansEnCours().length) { S.ui.flashScans = 0; return; }
-    S.ui.flashScans = Date.now() + 7500;
-    setTimeout(function () { if (Date.now() >= S.ui.flashScans) { S.ui.flashScans = 0; rendreSiPossible(); } }, 7600);
+    S.ui.flashScans = Date.now() + 1000;
+    setTimeout(function () {
+      if (Date.now() >= S.ui.flashScans) {
+        S.ui.flashScans = 0;
+        var el = document.querySelector('.bandeau-scans');
+        if (el) el.remove();
+      }
+    }, 1050);
   }
   function bandeauScans() {
     var l = scansEnCours(); if (!l.length || !S.ui.flashScans || Date.now() >= S.ui.flashScans) return '';
