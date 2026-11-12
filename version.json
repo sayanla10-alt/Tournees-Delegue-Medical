@@ -1,8 +1,8 @@
 {
-  "version": "3.31.49",
+  "version": "3.31.50",
   "date": "2026-11-12",
   "notes": [
-    "Performance (Moteur) : cache delta par immeuble et sélection Top-K sans tri global dans passe(), indexation dans equilibrerCreneaux()",
-    "Répertoire : bandeau « Fiches photographiées » réduit à 1 s et étendu sur toute la largeur"
+    "Performance : suppression du double archiverPlan() dans sauver(), option sansData sur recalculs de tournée, pré-formatage des heures dans preparer() et tri _collatorFr sur Hôpitaux",
+    "Répertoire › Hôpitaux : affichage harmonisé de la phrase de comptage/critères au-dessus de « Réinitialiser les filtres » comme pour Médecins et Pharmacies"
   ]
 }

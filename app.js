@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.49';
+  var APP_VERSION = '3.31.50';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.50', [
+      'Performance : suppression du double archiverPlan() dans sauver(), option sansData sur recalculs de tournée, pré-formatage des heures dans preparer() et tri _collatorFr sur Hôpitaux',
+      'Répertoire › Hôpitaux : affichage harmonisé de la phrase de comptage/critères au-dessus de « Réinitialiser les filtres » comme pour Médecins et Pharmacies'
+    ]],
     ['3.31.49', [
       'Performance (Moteur) : cache delta par immeuble et sélection Top-K sans tri global dans passe(), indexation dans equilibrerCreneaux()',
       'Répertoire : bandeau « Fiches photographiées » réduit à 1 s et étendu sur toute la largeur'
@@ -1558,9 +1562,9 @@
     Object.keys(sec).sort().reverse().slice(7).forEach(function (d) { delete sec[d]; });
     LS.set('secours', sec);
   }
-  function sauver() {
-    archiverPlan(); nettoyerAgenda(); try { copieSecours(); } catch (e) { /* stockage plein : la sauvegarde n'empêche pas l'enregistrement */ }
-    LS.set('config', S.config); LS.set('data', S.data); LS.set('plan', S.plan); LS.set('etatsJours', S.jours);
+  function sauver(sansData) {
+    nettoyerAgenda(); try { copieSecours(); } catch (e) { /* stockage plein : la sauvegarde n'empêche pas l'enregistrement */ }
+    LS.set('config', S.config); if (!sansData) LS.set('data', S.data); LS.set('plan', S.plan); LS.set('etatsJours', S.jours);
     LS.set('params', S.params); LS.set('queue', S.queue); LS.set('imposes', S.imposes); LS.set('rejetes', S.rejetes);
     LS.set('fiches', S.fiches); LS.set('deadLetter', S.deadLetter);
     archiverPlan();
@@ -4697,7 +4701,7 @@
     LS.set('agendaImporte', true);
     if (!n) return 0;
     LS.set('horsPlan', S.horsPlan || []);
-    trierPlan(); sauver();
+    trierPlan(); sauver(true);
     return n;
   }
   // 3.27.41 : mise à jour dynamique du planning depuis la feuille Plannings du serveur
@@ -8646,14 +8650,15 @@
   }
   function trierHopitaux(l, tri, g) {
     var t = aujourdhui(), jA = jourSemaineIndex(t);
+    var cmpNom = function (a, b) { return _collatorFr ? _collatorFr.compare(a.nom, b.nom) : a.nom.localeCompare(b.nom, 'fr'); };
     l.forEach(function (e) {
       e.d = g && isFinite(e.lat) ? distanceVol(g, { lat: e.lat, lon: e.lon }) : null;
       e._ici = jA <= 4 ? e.pres.filter(function (x) { return !!(x[JOURS_CLES[jA]] || ''); }).length : 0;
     });
-    if (tri === 'proximite') return l.sort(function (a, b) { return (a.d !== null ? a.d : 999999) - (b.d !== null ? b.d : 999999) || a.nom.localeCompare(b.nom, 'fr'); });
-    if (tri === 'presents') return l.sort(function (a, b) { return b._ici - a._ici || b.pres.length - a.pres.length || a.nom.localeCompare(b.nom, 'fr'); });
-    if (tri === 'medecins') return l.sort(function (a, b) { return b.pres.length - a.pres.length || b._ici - a._ici || a.nom.localeCompare(b.nom, 'fr'); });
-    return l.sort(function (a, b) { return a.nom.localeCompare(b.nom, 'fr'); });
+    if (tri === 'proximite') return l.sort(function (a, b) { return (a.d !== null ? a.d : 999999) - (b.d !== null ? b.d : 999999) || cmpNom(a, b); });
+    if (tri === 'presents') return l.sort(function (a, b) { return b._ici - a._ici || b.pres.length - a.pres.length || cmpNom(a, b); });
+    if (tri === 'medecins') return l.sort(function (a, b) { return b.pres.length - a.pres.length || b._ici - a._ici || cmpNom(a, b); });
+    return l.sort(cmpNom);
   }
   function hopFiltresActifs(f) {
     return !!(
@@ -8683,8 +8688,9 @@
     var resumeEtapes = aFiltresHop ? etapesFiltresHop(f).map(function (e) {
       return e.id === 'ordre' ? (tri !== 'nom' ? 'tri par ' + e.resume().toLowerCase() : '') : e.resume();
     }).filter(function (x) { return x && x !== 'Toutes' && x !== 'Tous'; }) : [];
+    var phraseHop = (l.length ? l.length + ' établissement' + (l.length > 1 ? 's' : '') : 'Aucun établissement') + (resumeEtapes.length ? ' · ' + resumeEtapes.join(' · ') : '');
     h += '<div class="bandeau-criteres-rep">' +
-      (aFiltresHop ? '<p class="phrase-criteres">' + esc(l.length + ' établissement' + (l.length > 1 ? 's' : '') + (resumeEtapes.length ? ' · ' + resumeEtapes.join(' · ') : '')) + '</p>' : '') +
+      '<p class="phrase-criteres">' + esc(phraseHop) + '</p>' +
       '<div class="centre-reinit-rep">' +
         (aFiltresHop
           ? '<button type="button" class="bouton-reinit-rep" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
@@ -8700,7 +8706,7 @@
     l.slice(0, S.ui.limite).forEach(function (e) {
       var ouvert = S.ui.hopOuvert === e.cle;
       var vus = e.pres.filter(function (x) { var p = c.prat[x.code]; return p && p.derniere && p.derniere >= debutMois; }).length;
-      var ici = e.pres.filter(function (x) { return jA <= 4 && (x[JOURS_CLES[jA]] || ''); }).length;
+      var ici = e._ici;
 
       var aGpsHop = isFinite(e.lat) && isFinite(e.lon) && e.lat !== 0, clGps = aGpsHop ? 'gps-ok' : 'gps-non';
 
@@ -12661,7 +12667,7 @@
       Array.prototype.push.apply(arretsRemplaces, plafonnerArretsMaxJour(r.arrets, maxJ));
     });
     S.plan = reste.filter(function (a) { return d.indexOf(a.date) < 0; }).concat(arretsRemplaces);
-    trierPlan(); sauver();
+    trierPlan(); sauver(true);
     return Object.keys(touches).length;
   }
 

@@ -238,6 +238,8 @@ var Moteur = (function () {
         if (coord && !coord.approx) coord = { lat: coord.lat, lon: coord.lon, approx: true };
       }
       var hM = lireHoraire(pr.horaireMatin, R.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, R.horaireSoirDefaut);
+      var hMStr0 = minutesVersHeure(hM[0]), hMStr1 = minutesVersHeure(hM[1]);
+      var hSStr0 = minutesVersHeure(hS[0]), hSStr1 = minutesVersHeure(hS[1]);
       var st = (origId !== undefined && origId !== '' ? stats[String(origId)] : null) || stats[String(prId)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
       var kePr = cleNorm(pr.lieu || '') + '|' + cleNorm(communeRes || pr.commune || '');
       var etabPr = etabParCle[kePr] || etabParCle[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')] || (etabParNom[cleNorm(pr.lieu || '')] || null);
@@ -251,11 +253,11 @@ var Moteur = (function () {
       }
       JOURS_CLES.forEach(function (cle, j) {
         var d = lireDispo(pr[cle]);
-        [['Matin', d.matin, hM], ['Soir', d.soir, hS]].forEach(function (x) {
+        [['Matin', d.matin, hM, hMStr0, hMStr1], ['Soir', d.soir, hS, hSStr0, hSStr1]].forEach(function (x) {
           if (!x[1]) return;
           var c = {
             cle: prId + '|' + j + '|' + x[0], idPresence: prId, code: pr.code, jourIdx: j, jour: JOURS[j],
-            creneau: x[0], debut: x[2][0], fin: x[2][1], lieu: pr.lieu, cleImmeuble: cleImm,
+            creneau: x[0], debut: x[2][0], fin: x[2][1], debutStr: x[3], finStr: x[4], lieu: pr.lieu, cleImmeuble: cleImm,
             territoire: territoireRes, subdivision: subdivisionRes,
             quartier: quartierRes, secteur: secteurRes,
             reperes: pr.reperes || '', commune: communeRes, zone: zoneRes, coord: coord, prat: p,
@@ -293,7 +295,7 @@ var Moteur = (function () {
     var p = c.prat;
     return {
       uid: uid(), date: date, jour: c.jour, creneau: c.creneau, cle: c.cle, idPresence: c.idPresence,
-      debut: minutesVersHeure(c.debut), fin: minutesVersHeure(c.fin), heure: minutesVersHeure(c.debut),
+      debut: c.debutStr || minutesVersHeure(c.debut), fin: c.finStr || minutesVersHeure(c.fin), heure: c.debutStr || minutesVersHeure(c.debut),
       code: p.code, nom: p.nom, type: p.type, specialite: p.specialite, note: p.note, conventionne: p.conv ? 'Oui' : 'Non',
       lieu: c.lieu, cleImmeuble: c.cleImmeuble || '', quartier: c.quartier, secteur: c.secteur || '', subdivision: c.subdivision || '',
       reperes: c.reperes || '', commune: c.commune, zone: c.zone, territoire: c.territoire || '',
