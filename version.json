@@ -1,8 +1,7 @@
 {
-  "version": "3.31.51",
+  "version": "3.31.52",
   "date": "2026-11-12",
   "notes": [
-    "Répertoire › Hôpitaux : ajout systématique de « · tri nom » (et des autres tris) dans la phrase au-dessus de « Réinitialiser les filtres », comme pour Médecins et Pharmacies",
-    "Répertoire : durée du bandeau bleu « Fiches photographiées » passée à 2 s"
+    "Quartiers en direct : toute modification d'un secteur, quartier, subdivision ou commune dans l'onglet Quartiers se répercute immédiatement sur les établissements, présences, pharmacies et tournées planifiées dès la synchronisation (sans nécessiter de MAJ)"
   ]
 }

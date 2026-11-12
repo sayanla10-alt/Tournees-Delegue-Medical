@@ -1359,29 +1359,56 @@ function propagerQuartiersSurFiches_(ss, lignesEditees, opts) {
   var ancienNorm = opts.ancienLibelle ? normaliser(opts.ancienLibelle) : '';
   var bilan = { presences: 0, pharmacies: 0, etablissements: 0, plannings: 0, total: 0, tablesModifiees: [] };
 
-  // 1) Si un nom clé (Secteur ou Quartier) a été renommé dans Quartiers, répercuter sur les clés statiques (sans écraser les formules)
+  // 1) Si un nom clé (Secteur ou Quartier) a été renommé ou modifié dans Quartiers, répercuter sur les clés statiques et colonnes liées (sans écraser les formules)
   [FEUILLES.presences, FEUILLES.pharmacies, FEUILLES.etablissements].forEach(function (nomF) {
-    if (!ancienNorm || !cibles || cibles.length !== 1) return;
+    if (!cibles || !cibles.length) return;
     var shF = ss.getSheetByName(nomF);
     if (!shF || shF.getLastRow() < 2 || shF.getLastColumn() < 1) return;
     var nF = shF.getLastRow() - 1, ncF = shF.getLastColumn();
     var entF = shF.getRange(1, 1, 1, ncF).getValues()[0].map(normaliser);
     var cQF = entF.indexOf(normaliser('Quartier')), cSecF = entF.indexOf(normaliser('Secteur'));
-    if (cQF >= 0) {
-      var vQ = shF.getRange(2, cQF + 1, nF, 1).getValues(), fQ = shF.getRange(2, cQF + 1, nF, 1).getFormulas();
-      for (var iq = 0; iq < nF; iq++) {
-        if (!fQ[iq][0] && normaliser(vQ[iq][0]) === ancienNorm && cibles[0].quartier) {
-          shF.getRange(iq + 2, cQF + 1).setValue(cibles[0].quartier);
+    var cComF = entF.indexOf(normaliser('Commune')), cSubF = entF.indexOf(normaliser('Subdivision'));
+    var cZoneF = entF.indexOf(normaliser('Zone')), cTerrF = entF.indexOf(normaliser('Territoire'));
+    var valsF = shF.getRange(2, 1, nF, ncF).getValues();
+    var formsF = shF.getRange(2, 1, nF, ncF).getFormulas();
+    var nbModF = 0;
+    for (var ir = 0; ir < nF; ir++) {
+      var vQNorm = cQF >= 0 ? normaliser(valsF[ir][cQF]) : '';
+      var vSNorm = cSecF >= 0 ? normaliser(valsF[ir][cSecF]) : '';
+      var cibleMatch = null;
+      for (var ic = 0; ic < cibles.length; ic++) {
+        var cb = cibles[ic];
+        var cbQ = normaliser(cb.quartier), cbS = normaliser(cb.secteur);
+        if (ancienNorm && cibles.length === 1 && (vQNorm === ancienNorm || vSNorm === ancienNorm)) {
+          cibleMatch = cb; break;
         }
+        if (cbS && vSNorm === cbS) { cibleMatch = cb; break; }
+        if (cbQ && vQNorm === cbQ && (!cbS || !vSNorm || vSNorm === cbS)) { cibleMatch = cb; break; }
+      }
+      if (!cibleMatch) continue;
+      if (cQF >= 0 && !formsF[ir][cQF] && cibleMatch.quartier && valsF[ir][cQF] !== cibleMatch.quartier) {
+        shF.getRange(ir + 2, cQF + 1).setValue(cibleMatch.quartier); nbModF++;
+      }
+      if (cSecF >= 0 && !formsF[ir][cSecF] && cibleMatch.secteur && (vSNorm === ancienNorm || !vSNorm) && valsF[ir][cSecF] !== cibleMatch.secteur) {
+        shF.getRange(ir + 2, cSecF + 1).setValue(cibleMatch.secteur); nbModF++;
+      }
+      if (cComF >= 0 && !formsF[ir][cComF] && cibleMatch.commune && valsF[ir][cComF] !== cibleMatch.commune) {
+        shF.getRange(ir + 2, cComF + 1).setValue(cibleMatch.commune); nbModF++;
+      }
+      if (cSubF >= 0 && !formsF[ir][cSubF] && cibleMatch.subdivision !== undefined && valsF[ir][cSubF] !== cibleMatch.subdivision) {
+        shF.getRange(ir + 2, cSubF + 1).setValue(cibleMatch.subdivision); nbModF++;
+      }
+      if (cZoneF >= 0 && !formsF[ir][cZoneF] && cibleMatch.zone !== undefined && valsF[ir][cZoneF] !== cibleMatch.zone) {
+        shF.getRange(ir + 2, cZoneF + 1).setValue(cibleMatch.zone); nbModF++;
+      }
+      if (cTerrF >= 0 && !formsF[ir][cTerrF] && cibleMatch.territoire && valsF[ir][cTerrF] !== cibleMatch.territoire) {
+        shF.getRange(ir + 2, cTerrF + 1).setValue(cibleMatch.territoire); nbModF++;
       }
     }
-    if (cSecF >= 0) {
-      var vS = shF.getRange(2, cSecF + 1, nF, 1).getValues(), fS = shF.getRange(2, cSecF + 1, nF, 1).getFormulas();
-      for (var isc = 0; isc < nF; isc++) {
-        if (!fS[isc][0] && normaliser(vS[isc][0]) === ancienNorm && cibles[0].secteur) {
-          shF.getRange(isc + 2, cSecF + 1).setValue(cibles[0].secteur);
-        }
-      }
+    if (nbModF > 0) {
+      var cleB = nomF === FEUILLES.presences ? 'presences' : (nomF === FEUILLES.pharmacies ? 'pharmacies' : 'etablissements');
+      bilan[cleB] = (bilan[cleB] || 0) + nbModF;
+      bilan.total += nbModF;
     }
   });
 

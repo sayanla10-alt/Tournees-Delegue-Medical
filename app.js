@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.51';
+  var APP_VERSION = '3.31.52';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.52', [
+      'Quartiers en direct : toute modification d\'un secteur, quartier, subdivision ou commune dans l\'onglet Quartiers se répercute immédiatement sur les établissements, présences, pharmacies et tournées planifiées dès la synchronisation (sans nécessiter de MAJ)'
+    ]],
     ['3.31.51', [
       'Répertoire › Hôpitaux : ajout systématique de « · tri nom » (et des autres tris) dans la phrase au-dessus de « Réinitialiser les filtres », comme pour Médecins et Pharmacies',
       'Répertoire : durée du bandeau bleu « Fiches photographiées » passée à 2 s'
@@ -3485,22 +3488,30 @@
     var c = ctx(), t = aujourdhui(), n = 0;
     S.plan.forEach(function (a) {
       var p = c.prat[a.code]; if (!p) return;
-      // 3.27.10 : nom, spécialité, potentiel et engagement corrigés dans la base : repris sur toutes les visites
+      var cr = creneauDe(a.code, a.date, a.idPresence, a.creneau);
+      var crOk = cr && (!a.idPresence || String(cr.idPresence) === String(a.idPresence));
+      // 3.27.10 / 3.31.52 : nom, spécialité, potentiel, engagement et territoire/quartier/secteur/repères de la base repris sur toutes les visites
       if (a.date < t || a.statut || a.etat === 'valide') {
-        var av = JSON.stringify([a.nom, a.specialite, a.note]);
+        var av = JSON.stringify([a.nom, a.specialite, a.note, a.quartier, a.secteur, a.subdivision, a.commune, a.zone, a.territoire, a.reperes]);
         a.nom = p.nom; a.specialite = p.specialite; a.note = p.note; a.conventionne = p.conv ? 'Oui' : 'Non';
-        if (JSON.stringify([a.nom, a.specialite, a.note]) !== av) n++;
+        if (a.date >= t && crOk) {
+          a.quartier = cr.quartier; a.secteur = cr.secteur || ''; a.subdivision = cr.subdivision || '';
+          a.commune = cr.commune; a.zone = cr.zone; a.territoire = cr.territoire || '';
+          a.reperes = cr.reperes || ''; a.cleImmeuble = cr.cleImmeuble || a.cleImmeuble || '';
+        }
+        if (JSON.stringify([a.nom, a.specialite, a.note, a.quartier, a.secteur, a.subdivision, a.commune, a.zone, a.territoire, a.reperes]) !== av) n++;
         return;
       }
-      var avant = JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.reperes, a.commune, a.lat, a.lon, a.debut, a.fin]);
+      var avant = JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.secteur, a.subdivision, a.reperes, a.commune, a.zone, a.territoire, a.lat, a.lon, a.debut, a.fin]);
       a.nom = p.nom; a.specialite = p.specialite; a.note = p.note; a.conventionne = p.conv ? 'Oui' : 'Non';
-      var cr = creneauDe(a.code, a.date, a.idPresence, a.creneau);
-      if (cr && (!a.idPresence || String(cr.idPresence) === String(a.idPresence))) {
-        a.lieu = cr.lieu; a.quartier = cr.quartier; a.commune = cr.commune; a.zone = cr.zone; a.reperes = cr.reperes || '';
+      if (crOk) {
+        a.lieu = cr.lieu; a.quartier = cr.quartier; a.secteur = cr.secteur || ''; a.subdivision = cr.subdivision || '';
+        a.commune = cr.commune; a.zone = cr.zone; a.territoire = cr.territoire || '';
+        a.reperes = cr.reperes || ''; a.cleImmeuble = cr.cleImmeuble || a.cleImmeuble || '';
         if (cr.coord && !cr.coord.approx) { a.lat = cr.coord.lat; a.lon = cr.coord.lon; }
-        a.debut = minutesVersHeure(cr.debut); a.fin = minutesVersHeure(cr.fin);
+        a.debut = cr.debutStr || minutesVersHeure(cr.debut); a.fin = cr.finStr || minutesVersHeure(cr.fin);
       }
-      if (JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.reperes, a.commune, a.lat, a.lon, a.debut, a.fin]) !== avant) n++;
+      if (JSON.stringify([a.nom, a.specialite, a.note, a.conventionne, a.lieu, a.quartier, a.secteur, a.subdivision, a.reperes, a.commune, a.zone, a.territoire, a.lat, a.lon, a.debut, a.fin]) !== avant) n++;
     });
     if (n) { LS.set('plan', S.plan); }
     return n;
@@ -8565,16 +8576,20 @@
     if (_hopCache.data !== S.data) _hopCache = { data: S.data, sansVides: null, avecVides: null };
     if (avecVides && _hopCache.avecVides) return _hopCache.avecVides.slice();
     if (!avecVides && _hopCache.sansVides) return _hopCache.sansVides.slice();
-    var c = ctx(), par = {}, l = [], lAvecVides = [];
+    var c = ctx(), par = {}, l = [], lAvecVides = [], qRef = quartiers();
     ((S.data && S.data.etablissements) || []).forEach(function (e) {
       var nom = String(e.nom || '').trim(), k = normaliser(nom); if (!k || par[k]) return;
-      par[k] = { cle: k, nom: nom, cat: categorieHopital(nom), commune: e.commune || '', quartier: e.quartier || '', reperes: e.reperes || '', telephone: e.telephone || '',
+      par[k] = { cle: k, nom: nom, cat: categorieHopital(nom), territoire: e.territoire || '', zone: e.zone || '',
+        commune: e.commune || '', subdivision: e.subdivision || '', quartier: e.quartier || '', secteur: e.secteur || '',
+        reperes: e.reperes || '', telephone: e.telephone || '',
         lat: parseFloat(String(e.lat || '').replace(',', '.')), lon: parseFloat(String(e.lon || '').replace(',', '.')), codes: {}, pres: [] };
     });
     ((S.data && S.data.presences) || []).forEach(function (x) {
       var p = c.prat[x.code]; if (!p || p.type === 'Pharmacie') return;
       var k = normaliser(x.lieu || ''); if (!k) return;
-      var e = par[k] || (par[k] = { cle: k, nom: String(x.lieu).trim(), cat: categorieHopital(x.lieu), commune: x.commune || '', quartier: x.quartier || '', reperes: x.reperes || '', telephone: '', lat: NaN, lon: NaN, codes: {}, pres: [] });
+      var e = par[k] || (par[k] = { cle: k, nom: String(x.lieu).trim(), cat: categorieHopital(x.lieu), territoire: x.territoire || '', zone: x.zone || '',
+        commune: x.commune || '', subdivision: x.subdivision || '', quartier: x.quartier || '', secteur: x.secteur || '',
+        reperes: x.reperes || '', telephone: '', lat: NaN, lon: NaN, codes: {}, pres: [] });
       if (!isFinite(e.lat) && aCoord(x)) { var co = lireCoord(x); e.lat = co.lat; e.lon = co.lon; }
       if (!e.codes[x.code]) { e.codes[x.code] = true; e.pres.push(x); }
     });
@@ -8582,6 +8597,25 @@
     var cabinet = function (nom) { var x = sansAccents(nom).toLowerCase(); return /cabinet/.test(x) && /\b(dr|docteur|pr|prive)\b/.test(x); };
     Object.keys(par).forEach(function (k) {
       var it = par[k];
+      if (typeof resoudreTerritoire === 'function') {
+        try {
+          var terH = resoudreTerritoire({
+            commune: it.commune || '', subdivision: it.subdivision || '',
+            quartier: it.quartier || '', secteur: it.secteur || '', lieu: it.nom || ''
+          }, qRef);
+          if (terH && typeof terH === 'object') {
+            if (terH.territoire) it.territoire = terH.territoire;
+            if (terH.zone) it.zone = terH.zone;
+            if (terH.commune) it.commune = terH.commune;
+            if (terH.subdivision) it.subdivision = terH.subdivision;
+            if (terH.quartier) it.quartier = terH.quartier;
+            if (terH.secteur) it.secteur = terH.secteur;
+            if (!isFinite(it.lat) && isFinite(terH.lat) && isFinite(terH.lon)) {
+              it.lat = terH.lat; it.lon = terH.lon; it.approx = true;
+            }
+          }
+        } catch (errH) {}
+      }
       if (typeof trouverEtablissementRef === 'function') {
         var ref = trouverEtablissementRef(it.nom);
         if (ref && isFinite(ref.lat) && (!isFinite(it.lat) || !isFinite(it.lon) || distanceVol({ lat: it.lat, lon: it.lon }, ref) > 1.5)) {

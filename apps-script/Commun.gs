@@ -1858,10 +1858,10 @@ function resoudreTerritoire(input, listeQuartiers) {
   if (nInQua && nInQua !== nInSec) essaisStep1.push({ norm: nInQua, depuisSecteur: false });
 
   if (essaisStep1.length) {
-    var best1 = null, best1Score = -1;
+    var best1 = null, best1Score = -1, best1Global = null, best1GlobalScore = -1;
     for (var i1 = 0; i1 < qs.length; i1++) {
       var q1 = qs[i1];
-      if (!compatibleCommune(q1)) continue;
+      var okCom1 = compatibleCommune(q1);
       var q1SecNorm = normaliser(q1.secteur);
       var q1ComNorm = normaliser(q1.commune);
       var q1SubNorm = normaliser(q1.subdivision);
@@ -1880,21 +1880,25 @@ function resoudreTerritoire(input, listeQuartiers) {
         if (matchSec) sc1 += 10;
         if (ess.depuisSecteur) sc1 += 5;
         if (!q1.secteur) sc1 += 2;
-        if (sc1 > best1Score) {
+        if (okCom1 && sc1 > best1Score) {
           best1Score = sc1;
           best1 = q1;
         }
+        if (sc1 > best1GlobalScore) {
+          best1GlobalScore = sc1;
+          best1Global = q1;
+        }
       }
     }
-    if (best1) return construireResultat(best1, true);
+    if (best1 || best1Global) return construireResultat(best1 || best1Global, true);
   }
 
   // 2) Match exact normalisé sur quartier
   if (nInQua) {
-    var best2 = null, best2Score = -1;
+    var best2 = null, best2Score = -1, best2Global = null, best2GlobalScore = -1;
     for (var i2 = 0; i2 < qs.length; i2++) {
       var q2 = qs[i2];
-      if (!compatibleCommune(q2)) continue;
+      var okCom2 = compatibleCommune(q2);
       if (normaliser(q2.quartier) !== nInQua) continue;
 
       var q2ComNorm = normaliser(q2.commune);
@@ -1905,12 +1909,16 @@ function resoudreTerritoire(input, listeQuartiers) {
       if (inLieuNorm && q2ComNorm && q2ComNorm.length >= 4 && inLieuNorm.indexOf(q2ComNorm) >= 0) sc2 += 20;
       if (inLieuNorm && q2SubNorm && q2SubNorm.length >= 4 && inLieuNorm.indexOf(q2SubNorm) >= 0) sc2 += 15;
       if (!q2.secteur) sc2 += 10;
-      if (sc2 > best2Score) {
+      if (okCom2 && sc2 > best2Score) {
         best2Score = sc2;
         best2 = q2;
       }
+      if (sc2 > best2GlobalScore) {
+        best2GlobalScore = sc2;
+        best2Global = q2;
+      }
     }
-    if (best2) return construireResultat(best2, true);
+    if (best2 || best2Global) return construireResultat(best2 || best2Global, true);
   }
 
   // 3) Match partiel >= 4 caractères dans lieu (trié par longueur décroissante, priorisant commune)

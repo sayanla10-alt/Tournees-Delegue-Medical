@@ -127,22 +127,40 @@ var Moteur = (function () {
     var parJour = [[], [], [], [], []], parCode = {}, presencesParCode = {};
     var etabCoords = {}, immeubles = {}, etabParCle = {}, etabParNom = {};
     (data.etablissements || []).forEach(function (e) {
-      var ke = cleNorm(e.nom || '') + '|' + cleNorm(e.commune || '');
+      var terE = null;
+      if (typeof resoudreTerritoire === 'function') {
+        try {
+          terE = resoudreTerritoire({
+            commune: e.commune || '', subdivision: e.subdivision || '',
+            quartier: e.quartier || '', secteur: e.secteur || '', lieu: e.nom || ''
+          }, data.quartiers);
+        } catch (errE) { terE = null; }
+      }
+      var eTerr = (terE && terE.territoire) || e.territoire || '';
+      var eZone = (terE && terE.zone) || e.zone || '';
+      var eCom = (terE && terE.commune) || e.commune || '';
+      var eSub = (terE && terE.subdivision) || e.subdivision || '';
+      var eQua = (terE && terE.quartier) || e.quartier || '';
+      var eSec = (terE && terE.secteur) || e.secteur || '';
+      var keOrig = cleNorm(e.nom || '') + '|' + cleNorm(e.commune || '');
+      var ke = cleNorm(e.nom || '') + '|' + cleNorm(eCom || e.commune || '');
       var kn = cleNorm(e.nom || '');
-      var co = lireCoord(e);
+      var co = lireCoord(e) || coordObj(terE);
       if (ke && co) {
         var refE = typeof trouverEtablissementRef === 'function' ? trouverEtablissementRef(e.nom) : null;
         var refEC = coordObj(refE);
-        if (refEC && refCompatibleCommune(e.commune, refE) && distanceVol(co, refEC) > 1.5) co = refEC;
+        if (refEC && refCompatibleCommune(eCom || e.commune, refE) && distanceVol(co, refEC) > 1.5) co = refEC;
         etabCoords[ke] = co;
+        if (keOrig) etabCoords[keOrig] = co;
       }
       if (ke) {
         var immE = {
-          cle: ke, nom: e.nom || '', territoire: e.territoire || '', zone: e.zone || '',
-          commune: e.commune || '', subdivision: e.subdivision || '',
-          quartier: e.quartier || '', secteur: e.secteur || '', coord: co || null
+          cle: ke, nom: e.nom || '', territoire: eTerr, zone: eZone,
+          commune: eCom, subdivision: eSub,
+          quartier: eQua, secteur: eSec, coord: co || null
         };
         etabParCle[ke] = immE;
+        if (keOrig) etabParCle[keOrig] = immE;
         immeubles[ke] = immE;
         if (kn) etabParNom[kn] = (etabParNom[kn] === undefined) ? immE : false;
       }
@@ -202,12 +220,15 @@ var Moteur = (function () {
         }
       }
       if (!q && ter) q = ter.q || (coordObj(ter) ? ter : null);
-      var territoireRes = (ter && ter.territoire) || (q && q.territoire) || pr.territoire || '';
-      var communeRes = (ter && ter.commune) || (q && q.commune) || pr.commune || '';
-      var subdivisionRes = (ter && ter.subdivision) || (q && q.subdivision) || pr.subdivision || '';
-      var quartierRes = (ter && ter.quartier) || (q && q.quartier) || pr.quartier || '';
-      var secteurRes = (ter && ter.secteur) || (q && q.secteur) || pr.secteur || '';
-      var zoneRes = (ter && ter.zone) || (q && q.zone) || pr.zone || '';
+      var kePrInit = cleNorm(pr.lieu || '') + '|' + cleNorm((ter && ter.commune) || (q && q.commune) || pr.commune || '');
+      var etabPr = etabParCle[kePrInit] || etabParCle[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')] || (etabParNom[cleNorm(pr.lieu || '')] || null);
+      var terMatched = !!(ter && ter.matched);
+      var territoireRes = (terMatched && ter.territoire) || (etabPr && etabPr.territoire) || (ter && ter.territoire) || (q && q.territoire) || pr.territoire || '';
+      var communeRes = (terMatched && ter.commune) || (etabPr && etabPr.commune) || (ter && ter.commune) || (q && q.commune) || pr.commune || '';
+      var subdivisionRes = (terMatched && ter.subdivision) || (etabPr && etabPr.subdivision) || (ter && ter.subdivision) || (q && q.subdivision) || pr.subdivision || '';
+      var quartierRes = (terMatched && ter.quartier) || (etabPr && etabPr.quartier) || (ter && ter.quartier) || (q && q.quartier) || pr.quartier || '';
+      var secteurRes = (terMatched && ter.secteur) || (etabPr && etabPr.secteur) || (ter && ter.secteur) || (q && q.secteur) || pr.secteur || '';
+      var zoneRes = (terMatched && ter.zone) || (etabPr && etabPr.zone) || (ter && ter.zone) || (q && q.zone) || pr.zone || '';
       var qCoord = coordObj(q) || coordObj(ter) || (ter && coordObj(ter.q)) || null;
       var coord = lireCoord(pr);
       var estInt = (typeof estCommuneInterieur === 'function' && estCommuneInterieur(communeRes)) ||
@@ -242,7 +263,7 @@ var Moteur = (function () {
       var hSStr0 = minutesVersHeure(hS[0]), hSStr1 = minutesVersHeure(hS[1]);
       var st = (origId !== undefined && origId !== '' ? stats[String(origId)] : null) || stats[String(prId)], fiab = st && st.n >= 3 ? st.ok / st.n : 1;
       var kePr = cleNorm(pr.lieu || '') + '|' + cleNorm(communeRes || pr.commune || '');
-      var etabPr = etabParCle[kePr] || etabParCle[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')] || (etabParNom[cleNorm(pr.lieu || '')] || null);
+      if (!etabPr) etabPr = etabParCle[kePr] || etabParCle[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')] || (etabParNom[cleNorm(pr.lieu || '')] || null);
       var cleImm = (etabPr && etabPr.cle) || (cleNorm(pr.lieu || '') + '|' + cleNorm(communeRes || pr.commune || '') + '|' + cleNorm(quartierRes || pr.quartier || ''));
       if (!immeubles[cleImm]) {
         immeubles[cleImm] = {
