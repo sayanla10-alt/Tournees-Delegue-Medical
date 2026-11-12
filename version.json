@@ -1,8 +1,8 @@
 {
-  "version": "3.31.50",
+  "version": "3.31.51",
   "date": "2026-11-12",
   "notes": [
-    "Performance : suppression du double archiverPlan() dans sauver(), option sansData sur recalculs de tournée, pré-formatage des heures dans preparer() et tri _collatorFr sur Hôpitaux",
-    "Répertoire › Hôpitaux : affichage harmonisé de la phrase de comptage/critères au-dessus de « Réinitialiser les filtres » comme pour Médecins et Pharmacies"
+    "Répertoire › Hôpitaux : ajout systématique de « · tri nom » (et des autres tris) dans la phrase au-dessus de « Réinitialiser les filtres », comme pour Médecins et Pharmacies",
+    "Répertoire : durée du bandeau bleu « Fiches photographiées » passée à 2 s"
   ]
 }

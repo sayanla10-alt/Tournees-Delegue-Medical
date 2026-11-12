@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.50';
+  var APP_VERSION = '3.31.51';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.51', [
+      'Répertoire › Hôpitaux : ajout systématique de « · tri nom » (et des autres tris) dans la phrase au-dessus de « Réinitialiser les filtres », comme pour Médecins et Pharmacies',
+      'Répertoire : durée du bandeau bleu « Fiches photographiées » passée à 2 s'
+    ]],
     ['3.31.50', [
       'Performance : suppression du double archiverPlan() dans sauver(), option sansData sur recalculs de tournée, pré-formatage des heures dans preparer() et tri _collatorFr sur Hôpitaux',
       'Répertoire › Hôpitaux : affichage harmonisé de la phrase de comptage/critères au-dessus de « Réinitialiser les filtres » comme pour Médecins et Pharmacies'
@@ -8685,9 +8689,11 @@
         : '<button class="bouton bouton-modifier-rep desactive" type="button" data-a="modifierHopitalActif" style="opacity:.45" title="Touchez d\'abord un hôpital dans la liste">' + icone('crayon') + '<span>Modifier</span></button>') +
       '</div>' + bandeauScans();
     var aFiltresHop = hopFiltresActifs(f) || !!(S.ui.rechHop && String(S.ui.rechHop).trim()) || tri !== 'nom';
-    var resumeEtapes = aFiltresHop ? etapesFiltresHop(f).map(function (e) {
-      return e.id === 'ordre' ? (tri !== 'nom' ? 'tri par ' + e.resume().toLowerCase() : '') : e.resume();
-    }).filter(function (x) { return x && x !== 'Toutes' && x !== 'Tous'; }) : [];
+    var ltHop = { nom: 'tri nom', proximite: 'tri proximité', presents: 'tri présents', medecins: 'tri médecins' };
+    var resumeEtapes = etapesFiltresHop(f).map(function (e) {
+      return e.id === 'ordre' ? (l.length > 1 ? (ltHop[tri] || ('tri ' + e.resume().toLowerCase())) : '') : e.resume();
+    }).filter(function (x) { return x && x !== 'Toutes' && x !== 'Tous'; });
+    if (S.ui.rechHop && String(S.ui.rechHop).trim()) resumeEtapes.unshift('« ' + String(S.ui.rechHop).trim() + ' »');
     var phraseHop = (l.length ? l.length + ' établissement' + (l.length > 1 ? 's' : '') : 'Aucun établissement') + (resumeEtapes.length ? ' · ' + resumeEtapes.join(' · ') : '');
     h += '<div class="bandeau-criteres-rep">' +
       '<p class="phrase-criteres">' + esc(phraseHop) + '</p>' +
@@ -12176,14 +12182,14 @@
   }
   function demarrerFlashScans() {
     if (!scansEnCours().length) { S.ui.flashScans = 0; return; }
-    S.ui.flashScans = Date.now() + 1000;
+    S.ui.flashScans = Date.now() + 2000;
     setTimeout(function () {
       if (Date.now() >= S.ui.flashScans) {
         S.ui.flashScans = 0;
         var el = document.querySelector('.bandeau-scans');
         if (el) el.remove();
       }
-    }, 1050);
+    }, 2050);
   }
   function bandeauScans() {
     var l = scansEnCours(); if (!l.length || !S.ui.flashScans || Date.now() >= S.ui.flashScans) return '';
