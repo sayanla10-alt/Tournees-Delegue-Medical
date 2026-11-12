@@ -1577,12 +1577,8 @@ function onEdit(e) {
         SpreadsheetApp.flush();
       }
     } else if (nom === FEUILLES.quartiers) {
-      var lignesEditees = [];
-      for (var rq = rStart; rq <= rEnd; rq++) lignesEditees.push(rq);
-      var opts = (nb === 1 && e.range.getNumColumns() === 1 && e.oldValue)
-        ? { ancienLibelle: e.oldValue, seulementPlanningsFuturs: false }
-        : { seulementPlanningsFuturs: true };
-      propagerQuartiersSurFiches_(ss, lignesEditees, opts);
+      // 3.31.52 : la propagation et la synchronisation Supabase sont gérées par le déclencheur installable
+      // jumSurEdition (Jumelage.gs) sous LockService pour éviter la double exécution et le délai expiré de 30s du onEdit simple
       SpreadsheetApp.flush();
     }
   } catch (err) {

@@ -569,20 +569,32 @@ function jumSurEdition(e) {
     }
     try {
       if (table === 'quartiers') {
+        // 3.31.52 : 1) Pousser et diffuser immédiatement la table quartiers pour mise à jour temps réel dans l'app (< 2 s)
+        SpreadsheetApp.flush();
+        jumPousserApresEcriture_(['quartiers']);
+        // 2) Répercuter rapidement les valeurs sur les fiches et plannings futurs (sans redéployer les 1800 formules)
+        var tablesLiees = ['presences', 'pharmacies', 'etablissements', 'plannings'];
         try {
           var shAct = e.range.getSheet();
           if (shAct && shAct.getName() === FEUILLES.quartiers && typeof propagerQuartiersSurFiches_ === 'function') {
             var r0q = Math.max(2, e.range.getRow()), r1q = r0q + e.range.getNumRows() - 1;
             var lq = []; for (var iq = r0q; iq <= r1q; iq++) lq.push(iq);
             var optsQ = (e.range.getNumRows() === 1 && e.range.getNumColumns() === 1 && e.oldValue)
-              ? { ancienLibelle: e.oldValue, seulementPlanningsFuturs: false }
+              ? { ancienLibelle: e.oldValue, seulementPlanningsFuturs: true }
               : { seulementPlanningsFuturs: true };
-            propagerQuartiersSurFiches_(SpreadsheetApp.getActive(), lq, optsQ);
+            var bilanQ = propagerQuartiersSurFiches_(SpreadsheetApp.getActive(), lq, optsQ);
+            if (bilanQ && Array.isArray(bilanQ.tablesModifiees)) {
+              tablesLiees = bilanQ.tablesModifiees.slice();
+              if (bilanQ.plannings > 0 && tablesLiees.indexOf('plannings') < 0) tablesLiees.push('plannings');
+            }
           }
         } catch (ePr) {}
+        SpreadsheetApp.flush();
+        if (tablesLiees.length) jumPousserApresEcriture_(tablesLiees);
+      } else {
+        SpreadsheetApp.flush();
+        jumPousserApresEcriture_([table]);
       }
-      SpreadsheetApp.flush();
-      jumPousserApresEcriture_(table === 'quartiers' ? JUM_APRES_ACTION.quartiers : [table]);
     } finally {
       if (!dejaVerrou) { try { verrou.releaseLock(); } catch (eR) {} }
     }
