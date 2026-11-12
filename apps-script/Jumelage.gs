@@ -483,7 +483,7 @@ function jumMemoriserLignes_(table, rows) {
 var JUM_APRES_ACTION = {
   // 3.29.0 : le journal d'audit suit avec le jumelage de 5 minutes (il ne ralentit plus chaque enregistrement)
   valider: ['visites', 'praticiens', 'pharmacies', 'plannings'], fiche: ['praticiens', 'presences', 'pharmacies'], planning: ['plannings'],
-  rapport: ['rapports'], delegue: ['listes_reference'], etablissement: ['etablissements', 'presences'],
+  rapport: ['rapports'], delegue: ['listes_reference'], etablissement: ['etablissements', 'pharmacies', 'presences'],
   quartiers: ['quartiers', 'presences', 'pharmacies', 'etablissements', 'plannings'],
   fusion: ['etablissements', 'pharmacies', 'presences', 'visites', 'plannings', 'audit_logs']
 };

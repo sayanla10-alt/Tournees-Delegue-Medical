@@ -1722,6 +1722,192 @@ function normaliserTitresEtTelephonesBDD() {
   return bilan;
 }
 
+// 3.31.54 : Détecte et transfère vers l'onglet Pharmacies toutes les pharmacies qui ont été écrites par erreur
+// dans l'onglet Etablissements (ou Praticiens/Presences), puis supprime les lignes mal placées et synchronise Supabase.
+function migrerPharmaciesDepuisEtablissementsBDD() {
+  var ss = SpreadsheetApp.getActive();
+  assurerStructure(ss);
+  var bilan = { depuisEtablissements: 0, depuisPraticiens: 0, presencesRetirees: 0, codesMigres: [] };
+  var shE = ss.getSheetByName(FEUILLES.etablissements);
+  var shPh = ss.getSheetByName(FEUILLES.pharmacies);
+  if (!shPh) return bilan;
+
+  // 1) Scanner l'onglet Etablissements
+  if (shE && shE.getLastRow() >= 2 && shE.getLastColumn() >= 1) {
+    var nrE = shE.getLastRow() - 1, ncE = shE.getLastColumn();
+    var entE = shE.getRange(1, 1, 1, ncE).getValues()[0].map(normaliser);
+    var colE = function (noms) {
+      for (var i = 0; i < noms.length; i++) {
+        var idx = entE.indexOf(normaliser(noms[i]));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
+    var cCodeE = colE(['CodeEtab', 'CodeContact', 'Code']), cNomE = colE(['Nom']);
+    var cCatE = colE(['Categorie', 'Catégorie']), cTerE = colE(['Territoire']), cZoneE = colE(['Zone']);
+    var cComE = colE(['Commune']), cSubE = colE(['Subdivision']), cQuartE = colE(['Quartier']), cSecE = colE(['Secteur']);
+    var cLatE = colE(['Latitude', 'Lat']), cLonE = colE(['Longitude', 'Lon']);
+    var cTelE = colE(['Telephone', 'Téléphone']), cRepE = colE(['Reperes', 'Repères']), cOrigE = colE(['OrigineGPS']);
+
+    var valsE = shE.getRange(2, 1, nrE, ncE).getValues();
+    var lignesSupprE = [];
+
+    for (var ie = 0; ie < nrE; ie++) {
+      var rE = valsE[ie];
+      var codeE = cCodeE >= 0 ? String(rE[cCodeE] || '').trim() : '';
+      var nomE = cNomE >= 0 ? String(rE[cNomE] || '').trim() : '';
+      var catE = cCatE >= 0 ? String(rE[cCatE] || '').trim() : '';
+      if (!nomE) continue;
+      var estPhE = (typeof estNomPharmacie === 'function' && estNomPharmacie(nomE)) ||
+                   normaliser(catE) === 'pharmacie' ||
+                   /^PHA-/i.test(codeE);
+      if (!estPhE) continue;
+
+      var nomPhNorm = typeof normaliserTitrePraticien === 'function' ? normaliserTitrePraticien(nomE, 'Pharmacie') : nomE;
+      var pPh = {
+        code: /^PHA-/i.test(codeE) ? codeE : '',
+        type: 'Pharmacie',
+        nom: nomPhNorm,
+        telephone: cTelE >= 0 ? String(rE[cTelE] || '').trim() : '',
+        note: 1,
+        conventionne: 'Non',
+        actif: 'Oui',
+        territoire: cTerE >= 0 ? String(rE[cTerE] || '').trim() : '',
+        zone: cZoneE >= 0 ? String(rE[cZoneE] || '').trim() : '',
+        commune: cComE >= 0 ? String(rE[cComE] || '').trim() : '',
+        subdivision: cSubE >= 0 ? String(rE[cSubE] || '').trim() : '',
+        quartier: cQuartE >= 0 ? String(rE[cQuartE] || '').trim() : '',
+        secteur: cSecE >= 0 ? String(rE[cSecE] || '').trim() : '',
+        reperes: cRepE >= 0 ? String(rE[cRepE] || '').trim() : ''
+      };
+      var lieuPh = {
+        lieu: nomPhNorm,
+        territoire: pPh.territoire,
+        zone: pPh.zone,
+        commune: pPh.commune,
+        subdivision: pPh.subdivision,
+        quartier: pPh.quartier,
+        secteur: pPh.secteur,
+        reperes: pPh.reperes,
+        lat: cLatE >= 0 ? rE[cLatE] : '',
+        lon: cLonE >= 0 ? rE[cLonE] : '',
+        origineGps: cOrigE >= 0 ? String(rE[cOrigE] || '').trim() : '',
+        horaireMatin: HORAIRES_PHARMACIE[0],
+        horaireSoir: HORAIRES_PHARMACIE[1]
+      };
+      var resPh = enregistrerPharmacie(ss, pPh, lieuPh, 'Migration BDD');
+      lignesSupprE.push(ie + 2);
+      bilan.depuisEtablissements++;
+      bilan.codesMigres.push({ ancien: codeE, nom: nomPhNorm, nouveau: resPh && resPh.code });
+    }
+
+    for (var ke = lignesSupprE.length - 1; ke >= 0; ke--) {
+      shE.deleteRow(lignesSupprE[ke]);
+    }
+  }
+
+  // 2) Scanner l'onglet Praticiens (au cas où une pharmacie a été enregistrée comme Médecin dans Praticiens/Presences)
+  var shP = ss.getSheetByName(FEUILLES.praticiens);
+  var shR = ss.getSheetByName(FEUILLES.presences);
+  if (shP && shP.getLastRow() >= 2 && shP.getLastColumn() >= 1) {
+    var nrP = shP.getLastRow() - 1, ncP = shP.getLastColumn();
+    var entP = shP.getRange(1, 1, 1, ncP).getValues()[0].map(normaliser);
+    var cCodeP = entP.indexOf(normaliser('CodeContact')), cNomP = entP.indexOf(normaliser('Nom'));
+    var cTypeP = entP.indexOf(normaliser('Type')), cSpecP = entP.indexOf(normaliser('Spécialité'));
+    var cTelP = entP.indexOf(normaliser('Téléphone'));
+    if (cTelP < 0) cTelP = entP.indexOf(normaliser('Telephone'));
+    var cNoteP = entP.indexOf(normaliser('Note')), cConvP = entP.indexOf(normaliser('Engagé'));
+    var cActifP = entP.indexOf(normaliser('Actif'));
+
+    var valsP = shP.getRange(2, 1, nrP, ncP).getValues();
+    var codesPratPh = {};
+    var lignesSupprP = [];
+
+    // Charger les présences pour récupérer quartier/commune/GPS éventuels
+    var presParCode = {};
+    if (shR && shR.getLastRow() >= 2 && shR.getLastColumn() >= 1) {
+      var nrR = shR.getLastRow() - 1, ncR = shR.getLastColumn();
+      var entR = shR.getRange(1, 1, 1, ncR).getValues()[0].map(normaliser);
+      var cCodeR = entR.indexOf(normaliser('CodeContact')), cQuartR = entR.indexOf(normaliser('Quartier'));
+      var cComR = entR.indexOf(normaliser('Commune')), cSecR = entR.indexOf(normaliser('Secteur'));
+      var cLatR = entR.indexOf(normaliser('Latitude')), cLonR = entR.indexOf(normaliser('Longitude'));
+      var cRepR = entR.indexOf(normaliser('Repères')), cOrigR = entR.indexOf(normaliser('OrigineGPS'));
+      var valsR = shR.getRange(2, 1, nrR, ncR).getValues();
+      for (var ir = 0; ir < nrR; ir++) {
+        var cdR = cCodeR >= 0 ? String(valsR[ir][cCodeR] || '').trim() : '';
+        if (cdR && !presParCode[cdR]) {
+          presParCode[cdR] = {
+            quartier: cQuartR >= 0 ? String(valsR[ir][cQuartR] || '').trim() : '',
+            commune: cComR >= 0 ? String(valsR[ir][cComR] || '').trim() : '',
+            secteur: cSecR >= 0 ? String(valsR[ir][cSecR] || '').trim() : '',
+            lat: cLatR >= 0 ? valsR[ir][cLatR] : '',
+            lon: cLonR >= 0 ? valsR[ir][cLonR] : '',
+            reperes: cRepR >= 0 ? String(valsR[ir][cRepR] || '').trim() : '',
+            origineGps: cOrigR >= 0 ? String(valsR[ir][cOrigR] || '').trim() : ''
+          };
+        }
+      }
+    }
+
+    for (var ip = 0; ip < nrP; ip++) {
+      var rP = valsP[ip];
+      var codeP = cCodeP >= 0 ? String(rP[cCodeP] || '').trim() : '';
+      var nomP = cNomP >= 0 ? String(rP[cNomP] || '').trim() : '';
+      var typeP = cTypeP >= 0 ? String(rP[cTypeP] || '').trim() : '';
+      var specP = cSpecP >= 0 ? String(rP[cSpecP] || '').trim() : '';
+      if (!nomP) continue;
+      var estPhP = typeP === 'Pharmacie' || /^PHA-/i.test(codeP) || normaliser(specP) === 'pharmacien' ||
+                   (typeof estNomPharmacie === 'function' && estNomPharmacie(nomP));
+      if (!estPhP) continue;
+
+      var nomPhP = typeof normaliserTitrePraticien === 'function' ? normaliserTitrePraticien(nomP, 'Pharmacie') : nomP;
+      var prInfo = presParCode[codeP] || {};
+      var resP = enregistrerPharmacie(ss, {
+        code: /^PHA-/i.test(codeP) ? codeP : '',
+        type: 'Pharmacie',
+        nom: nomPhP,
+        telephone: cTelP >= 0 ? String(rP[cTelP] || '').trim() : '',
+        note: cNoteP >= 0 ? rP[cNoteP] : 1,
+        conventionne: cConvP >= 0 ? String(rP[cConvP] || 'Non') : 'Non',
+        actif: cActifP >= 0 ? String(rP[cActifP] || 'Oui') : 'Oui'
+      }, prInfo, 'Migration BDD');
+      if (codeP) codesPratPh[codeP] = true;
+      lignesSupprP.push(ip + 2);
+      bilan.depuisPraticiens++;
+      bilan.codesMigres.push({ ancien: codeP, nom: nomPhP, nouveau: resP && resP.code });
+    }
+
+    for (var kp = lignesSupprP.length - 1; kp >= 0; kp--) {
+      shP.deleteRow(lignesSupprP[kp]);
+    }
+
+    if (Object.keys(codesPratPh).length && shR && shR.getLastRow() >= 2) {
+      var nrR2 = shR.getLastRow() - 1, ncR2 = shR.getLastColumn();
+      var entR2 = shR.getRange(1, 1, 1, ncR2).getValues()[0].map(normaliser);
+      var cCodeR2 = entR2.indexOf(normaliser('CodeContact'));
+      if (cCodeR2 >= 0) {
+        var valsR2 = shR.getRange(2, cCodeR2 + 1, nrR2, 1).getValues();
+        for (var kr = nrR2 - 1; kr >= 0; kr--) {
+          var cd2 = String(valsR2[kr][0] || '').trim();
+          if (codesPratPh[cd2]) {
+            shR.deleteRow(kr + 2);
+            bilan.presencesRetirees++;
+          }
+        }
+      }
+    }
+  }
+
+  SpreadsheetApp.flush();
+  if (typeof synchroniserSupabase === 'function') {
+    try { synchroniserSupabase(true); } catch (eS) {}
+  } else if (typeof jumPousserApresEcriture_ === 'function') {
+    try { jumPousserApresEcriture_(['pharmacies', 'etablissements', 'praticiens', 'presences']); } catch (eJ2) {}
+  }
+  Logger.log('MIGRATION_PHARMACIES ' + JSON.stringify(bilan));
+  return bilan;
+}
+
 // ---------------------------------------------------------------- 3.25.26 : géolocalisation précise
 // geocoderLieu, testerGeocodage5Pharmacies, completerGeolocPharmacies et les formules GEOCODE_GOOGLE / GET_LAT_LONG / PLACE
 // sont dans le fichier Geolocalisation.gs (à coller à côté de Code.gs et Commun.gs).

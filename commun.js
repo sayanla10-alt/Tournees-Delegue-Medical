@@ -2259,12 +2259,25 @@ function formaterTelephoneCI(n) {
   return s;   // format inconnu (numéro étranger, extension…) : laissé tel que saisi
 }
 
-// 3.31.53 : Normalisation des titres de praticiens : Infirmier -> IDE, Sage-femme -> SAG (jamais "Ide" ou "Sf")
+// 3.31.54 : Détection fiable d'un nom d'officine de pharmacie (évite qu'une pharmacie soit classée en Médecin ou Établissement/Hôpital)
+function estNomPharmacie(nom) {
+  var s = sansAccents(String(nom || '').replace(/^'+/, '').trim()).toLowerCase();
+  s = s.replace(/^(?:dr|docteur|pr|prof|professeur|ide|sag|sf|m\.|mme|mlle)\b\.?\s*/i, '');
+  return /^(?:grande\s+|nouvelle\s+)?(?:pharmacie|phcie|pharma|officine)\b/.test(s);
+}
+
+// 3.31.53 / 3.31.54 : Normalisation des titres de praticiens : Infirmier -> IDE, Sage-femme -> SAG, Pharmacie -> Pharmacie (sans Dr)
 function normaliserTitrePraticien(nom, type) {
   var n = String(nom || '').trim().replace(/\s+/g, ' ');
   if (n.length < 2) return n;
-  if (type === 'Pharmacie') {
-    if (/^(pharmacie|phcie|pharma)\b\.?\s*/i.test(n)) return n.replace(/^(pharmacie|phcie|pharma)\b\.?\s*/i, 'Pharmacie ').trim();
+  if (type === 'Pharmacie' || estNomPharmacie(n)) {
+    n = n.replace(/^(?:dr|docteur|pr|prof|professeur|ide|infirmi[eè]re?|inf|sage[\s\-]*femme|sag|sf|m\.|mme|mlle)\b\.?\s*/i, '').trim();
+    if (/^(?:grande\s+|nouvelle\s+)pharmacie\b/i.test(n)) {
+      return n.replace(/^(grande|nouvelle)\s+pharmacie\b\s*/i, function (_, adj) {
+        return adj.charAt(0).toUpperCase() + adj.slice(1).toLowerCase() + ' Pharmacie ';
+      }).trim();
+    }
+    if (/^(pharmacie|phcie|pharma|officine)\b\.?\s*/i.test(n)) return n.replace(/^(pharmacie|phcie|pharma|officine)\b\.?\s*/i, 'Pharmacie ').trim();
     return 'Pharmacie ' + n;
   }
   var mIde = n.match(/^(?:ide|infirmi[eè]re?|inf)\b\.?\s*/i);
@@ -2492,7 +2505,7 @@ if (typeof module !== 'undefined' && module.exports) {
     COMMUNES_GRAND_ABIDJAN: COMMUNES_GRAND_ABIDJAN, VILLES_INTERIEUR_CI: VILLES_INTERIEUR_CI,
     estCommuneGrandAbidjan: estCommuneGrandAbidjan, estCommuneInterieur: estCommuneInterieur, estTerritoireInterieur: estTerritoireInterieur,
     estCoordonneeAbidjan: estCoordonneeAbidjan, centroideVilleInterieur: centroideVilleInterieur, trouverEtablissementRef: trouverEtablissementRef,
-    formaterTelephoneCI: formaterTelephoneCI, normaliserTitrePraticien: normaliserTitrePraticien,
+    formaterTelephoneCI: formaterTelephoneCI, estNomPharmacie: estNomPharmacie, normaliserTitrePraticien: normaliserTitrePraticien,
     distanceLevenshtein: distanceLevenshtein, similariteLevenshtein: similariteLevenshtein,
     similariteTrigrammes: similariteTrigrammes, normaliserPhonetiqueCI: normaliserPhonetiqueCI,
     tokensNomCI: tokensNomCI, scoreFuzzyNom: scoreFuzzyNom, estNomFuzzyMatch: estNomFuzzyMatch

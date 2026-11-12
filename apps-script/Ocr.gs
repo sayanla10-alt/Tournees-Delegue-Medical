@@ -447,10 +447,29 @@ function nettoyerLecture_(l) {
     var m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/.exec(s(l && l.date_visite, 12));
     date = m ? (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2) : '';
   }
+  var rawMed = [], rawPh = ((l && l.pharmacies) || []).slice();
+  ((l && l.medecins) || []).slice(0, 40).forEach(function (x) {
+    var nomComplet = [x && x.nom, x && x.prenoms].filter(Boolean).join(' ').trim();
+    if ((typeof estNomPharmacie === 'function' && estNomPharmacie(nomComplet)) || normaliser(x && x.specialite) === 'pharmacien') {
+      rawPh.push({
+        ligne: x.ligne,
+        transcription: x.transcription,
+        nom: nomComplet || x.etablissement,
+        adresse: x.adresse,
+        quartier: x.quartier,
+        commune: x.commune,
+        telephone: x.telephone,
+        source: x.source,
+        confiance: x.confiance
+      });
+    } else {
+      rawMed.push(x);
+    }
+  });
   return {
     nb_lignes: Math.max(0, Math.min(60, Math.round(+(l && l.nb_lignes) || 0))),
     date_visite: date, ville: s(l && l.ville, 60), commune: s(l && l.commune, 60), quartier: s(l && l.quartier, 80),
-    medecins: ((l && l.medecins) || []).slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
+    medecins: rawMed.sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
       x = completerDepuisTranscription_({ transcription: s(x.transcription, 600), titre: x.titre, nom: x.nom, prenoms: x.prenoms, specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
         telephone: tel(x.telephone), adresse: x.adresse, quartier: x.quartier, commune: x.commune, source: x.source, confiance: x.confiance });
       var netNom = s(x.nom, 80).replace(/^(?:dr|docteur|pr|prof|professeur|ide|infirmi[eè]re?|inf|sage[\s\-]*femme|sag|sf|m\.|mme|mlle)\b\.?\s*/i, '').trim();
@@ -460,7 +479,7 @@ function nettoyerLecture_(l) {
       return { transcription: x.transcription, titre: titreFinal, nom: netNom, prenoms: netPrenoms, specialite: s(x.specialite, 80), etablissement: s(x.etablissement, 120),
                telephone: tel(x.telephone), adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), source: s(x.source, 12), confiance: conf(x.confiance) };
     }).filter(function (x) { return x.nom && !MOTS_PARASITES_OCR_.test(x.nom); }),
-    pharmacies: ((l && l.pharmacies) || []).slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
+    pharmacies: rawPh.slice(0, 40).sort(function (a, b) { return (+a.ligne || 99) - (+b.ligne || 99); }).map(function (x) {
       var tP = completerDepuisTranscription_({ transcription: s(x.transcription, 600), telephone: tel(x.telephone) });
       var netNomPh = s(x.nom, 120);
       return { transcription: tP.transcription, nom: netNomPh, adresse: s(x.adresse, 160), quartier: s(x.quartier, 80), commune: s(x.commune, 60), telephone: tP.telephone, source: s(x.source, 12), confiance: conf(x.confiance) };

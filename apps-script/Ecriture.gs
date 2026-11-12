@@ -560,9 +560,11 @@ function enregistrerFiche(b, dejaVerrouille) {
   b = b || {};
   var p = b.praticien || {}, lieux = fusRedirigerFiche_(b.praticien || {}, Array.isArray(b.presences) ? b.presences : []);
   var auteur = String(b.auteur || p.auteur || 'Délégué');
-  var type = p.type === 'Pharmacie' ? 'Pharmacie' : 'Médecin';
   var nom = String(p.nom || '').trim();
   if (nom.length < 3) return { ok: false, erreur: 'Nom du praticien manquant.' };
+  var estPh = p.type === 'Pharmacie' || /^PHA-/i.test(String(p.code || '')) || normaliser(p.specialite) === 'pharmacien' || (typeof estNomPharmacie === 'function' && estNomPharmacie(nom));
+  var type = estPh ? 'Pharmacie' : 'Médecin';
+  p.type = type;
   if (typeof normaliserTitrePraticien === 'function') nom = normaliserTitrePraticien(nom, type);
   p.nom = nom;
   var lock = dejaVerrouille ? null : verrouiller();
@@ -819,6 +821,7 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   var secIn = String(resT.secteur || '').trim();
   var hmIn = String(lieu.horaireMatin || '').trim();
   var hsIn = String(lieu.horaireSoir || '').trim();
+  var repIn = String(lieu.reperes || p.reperes || '').trim();
 
   var modif = {
     code: code,
@@ -834,6 +837,7 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   if (subIn) modif.subdivision = texteCellule_(subIn); else if (ligne < 0) modif.subdivision = '';
   if (quartIn) modif.quartier = texteCellule_(quartIn); else if (ligne < 0) modif.quartier = '';
   if (secIn) modif.secteur = texteCellule_(secIn); else if (ligne < 0) modif.secteur = '';
+  if (repIn) modif.reperes = texteCellule_(repIn); else if (ligne < 0) modif.reperes = '';
   if (hmIn) modif.horaireMatin = texteCellule_(hmIn);
   else if (ligne < 0 || kHM < 0 || !String(v[kHM] || '').trim()) modif.horaireMatin = HORAIRES_PHARMACIE[0];
   if (hsIn) modif.horaireSoir = texteCellule_(hsIn);
@@ -890,6 +894,44 @@ function enregistrerEtablissement(b) {
   if (b.code) b.code = fusSuivre_(R.codes, b.code);
   var nom = fusNomLieu_(R, String(b.nom || '').trim(), b.commune);
   if (nom.length < 2) return { ok: false, erreur: 'Nom de l\'établissement manquant.' };
+  // 3.31.54 : Garde-fou strict — toute pharmacie envoyée par erreur via l'action etablissement est redirigée vers l'onglet Pharmacies
+  if (b.type === 'Pharmacie' || /^PHA-/i.test(String(b.code || '')) || normaliser(b.categorie) === 'pharmacie' || (typeof estNomPharmacie === 'function' && estNomPharmacie(nom))) {
+    var nomPh = typeof normaliserTitrePraticien === 'function' ? normaliserTitrePraticien(nom, 'Pharmacie') : nom;
+    return enregistrerFiche({
+      auteur: String(b.auteur || 'Délégué'),
+      praticien: {
+        code: /^PHA-/i.test(String(b.code || '')) ? String(b.code) : '',
+        type: 'Pharmacie',
+        nom: nomPh,
+        telephone: b.telephone || '',
+        note: b.note || 1,
+        conventionne: b.conventionne || 'Non',
+        actif: 'Oui',
+        territoire: b.territoire || '',
+        zone: b.zone || '',
+        commune: b.commune || '',
+        subdivision: b.subdivision || '',
+        quartier: b.quartier || '',
+        secteur: b.secteur || '',
+        reperes: b.reperes || ''
+      },
+      presences: [{
+        lieu: nomPh,
+        territoire: b.territoire || '',
+        zone: b.zone || '',
+        commune: b.commune || '',
+        subdivision: b.subdivision || '',
+        quartier: b.quartier || '',
+        secteur: b.secteur || '',
+        reperes: b.reperes || '',
+        lat: b.lat,
+        lon: b.lon,
+        origineGps: b.originegps || b.origineGps || '',
+        horaireMatin: HORAIRES_PHARMACIE[0],
+        horaireSoir: HORAIRES_PHARMACIE[1]
+      }]
+    });
+  }
   var lock = verrouiller();
   try {
     var ss = SpreadsheetApp.getActive();

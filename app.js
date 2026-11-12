@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.53';
+  var APP_VERSION = '3.31.54';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.54', [
+      'Enregistrement des pharmacies et hôpitaux : toute pharmacie créée ou modifiée depuis le téléphone est systématiquement orientée vers l\'onglet Pharmacies (jamais dans Etablissements ou Praticiens), et les hôpitaux vers l\'onglet Etablissements'
+    ]],
     ['3.31.53', [
       'Titres et téléphones normalisés : infirmier en « IDE », sage-femme en « SAG » (au lieu de « Ide » / « Sf »), et numéros de téléphone au format « +225 07 07 76 85 93 » (avec « \'+225 » dans le Google Sheet)'
     ]],
@@ -8582,6 +8585,7 @@
     var c = ctx(), par = {}, l = [], lAvecVides = [], qRef = quartiers();
     ((S.data && S.data.etablissements) || []).forEach(function (e) {
       var nom = String(e.nom || '').trim(), k = normaliser(nom); if (!k || par[k]) return;
+      if ((typeof estNomPharmacie === 'function' && estNomPharmacie(nom)) || /^PHA-/i.test(String(e.code || '')) || normaliser(e.categorie) === 'pharmacie') return;
       par[k] = { cle: k, nom: nom, cat: categorieHopital(nom), territoire: e.territoire || '', zone: e.zone || '',
         commune: e.commune || '', subdivision: e.subdivision || '', quartier: e.quartier || '', secteur: e.secteur || '',
         reperes: e.reperes || '', telephone: e.telephone || '',
@@ -8590,6 +8594,7 @@
     ((S.data && S.data.presences) || []).forEach(function (x) {
       var p = c.prat[x.code]; if (!p || p.type === 'Pharmacie') return;
       var k = normaliser(x.lieu || ''); if (!k) return;
+      if (typeof estNomPharmacie === 'function' && estNomPharmacie(x.lieu)) return;
       var e = par[k] || (par[k] = { cle: k, nom: String(x.lieu).trim(), cat: categorieHopital(x.lieu), territoire: x.territoire || '', zone: x.zone || '',
         commune: x.commune || '', subdivision: x.subdivision || '', quartier: x.quartier || '', secteur: x.secteur || '',
         reperes: x.reperes || '', telephone: '', lat: NaN, lon: NaN, codes: {}, pres: [] });
@@ -11283,7 +11288,8 @@
   }
   function brouillonFiche(code) {
     if (!code) {
-      var l0 = lieuVide(false);
+      var typeInit = (S.ui && S.ui.annuaire !== 'hop' && S.ui.filtres && S.ui.filtres.type === 'Pharmacie') ? 'Pharmacie' : 'Médecin';
+      var l0 = lieuVide(typeInit === 'Pharmacie');
       if (S.ui.posGps && isFinite(S.ui.posGps.lat)) {
         var rq = Moteur.quartierLePlusProche(S.ui.posGps.lat, S.ui.posGps.lon, quartiers());
         if (rq && rq.quartier) {
@@ -11296,7 +11302,7 @@
           enrichirMetadonneesTerritoire(l0);
         }
       }
-      return { code: '', type: 'Médecin', nom: '', telephone: '', specialite: '', autreSpec: '', note: 1, conventionne: 'Non', actif: 'Oui', lieux: [l0] };
+      return { code: '', type: typeInit, nom: '', telephone: '', specialite: typeInit === 'Pharmacie' ? 'Pharmacien' : '', autreSpec: '', note: 1, conventionne: 'Non', actif: 'Oui', lieux: [l0] };
     }
     var p = (S.data.praticiens || []).filter(function (x) { return x.code === code; })[0] || {};
     var estPh = p.type === 'Pharmacie' || /^PHA-/i.test(code);
@@ -12258,8 +12264,14 @@
   var CATEGORIES_ETAB = ['CHU', 'CHR', 'Hôpital Général', 'Hôpital Spécialisé', 'Clinique Privée', 'Polyclinique', 'Centre Médical', 'CSU / Dispensaire', 'FSU COM', 'Maternité / PMI', 'Institut Spécialisé', 'Cabinet Médical'];
   function etabsBase() {
     var vus = {}, l = [];
-    ((S.data && S.data.etablissements) || []).forEach(function (e) { var k = normaliser(e.nom || ''); if (k && !vus[k]) { vus[k] = 1; l.push({ nom: e.nom, quartier: e.quartier || '', commune: e.commune || '', code: e.code || '' }); } });
-    etablissementsConnus().forEach(function (e) { var k = normaliser(e.lieu || ''); if (k && !vus[k]) { vus[k] = 1; l.push({ nom: e.lieu, quartier: e.quartier || '', commune: e.commune || '', code: e.code || '' }); } });
+    ((S.data && S.data.etablissements) || []).forEach(function (e) {
+      if ((typeof estNomPharmacie === 'function' && estNomPharmacie(e.nom)) || /^PHA-/i.test(String(e.code || '')) || normaliser(e.categorie) === 'pharmacie') return;
+      var k = normaliser(e.nom || ''); if (k && !vus[k]) { vus[k] = 1; l.push({ nom: e.nom, quartier: e.quartier || '', commune: e.commune || '', code: e.code || '' }); }
+    });
+    etablissementsConnus().forEach(function (e) {
+      if (typeof estNomPharmacie === 'function' && estNomPharmacie(e.lieu)) return;
+      var k = normaliser(e.lieu || ''); if (k && !vus[k]) { vus[k] = 1; l.push({ nom: e.lieu, quartier: e.quartier || '', commune: e.commune || '', code: e.code || '' }); }
+    });
     return l;
   }
   function doublonsHopital(nom) {
@@ -12501,6 +12513,9 @@
     ctxCache.data = null;
   }
   function enregistrerFiche(d) {
+    if (d.type !== 'Pharmacie' && ((typeof estNomPharmacie === 'function' && estNomPharmacie(d.nom)) || d.specialite === 'Pharmacien' || /^PHA-/i.test(String(d.code || '')))) {
+      d.type = 'Pharmacie';
+    }
     synchroniserDefautsFiche(d);
     // 3.25.34 : Vérification et normalisation officielle des hôpitaux pour éviter fautes et doublons en BDD
     if (d.type !== 'Pharmacie' && Array.isArray(d.lieux)) {
@@ -15320,6 +15335,20 @@
     hopCreer: function () {
       var f = S.ui.feuille; if (!f) return;
       if (String(f.e.nom || '').trim().length < 3) { f.err = { hnom: 'Nom de l\'établissement manquant' }; rendre(); toast('Tapez le nom de l\'établissement.'); return; }
+      if (typeof estNomPharmacie === 'function' && estNomPharmacie(f.e.nom)) {
+        var nomPh = nomAvecTitre(f.e.nom, 'Pharmacie');
+        var dPh = brouillonFiche('');
+        dPh.type = 'Pharmacie';
+        dPh.nom = nomPh;
+        if (f.e.quartier) dPh.lieux[0].quartier = f.e.quartier;
+        if (f.e.commune) dPh.lieux[0].commune = f.e.commune;
+        if (f.e.lat && f.e.lon) { dPh.lieux[0].lat = f.e.lat; dPh.lieux[0].lon = f.e.lon; dPh.lieux[0].prec = f.e.prec || ''; dPh.lieux[0].origineGps = f.e.origineGps || ''; }
+        synchroniserDefautsFiche(dPh);
+        S.ui.feuille = { type: 'fiche', titre: nomPh, pleine: true, etape: 0, cherche: false, nouveau: true, lieuOuvert: 0, d: dPh, err: {} };
+        rendre();
+        toast('Officine détectée : basculée en fiche Pharmacie.');
+        return;
+      }
       var can = canonicaliserEtablissement(f.e.nom, f.e.quartier, f.e.commune);
       if (can) { f.e.nom = can.lieu; if (can.quartier) { f.e.quartier = can.quartier; f.e.commune = can.commune; } if (can.lat) { f.e.lat = can.lat; f.e.lon = can.lon; } }
       f.cherche = false; f.titre = 'Nouvel établissement'; f.err = {}; rendre();
@@ -15345,20 +15374,45 @@
     hopEnregistrer: function () {
       var f = S.ui.feuille, e = f.e, err = {};
       e.nom = String(e.nom || '').trim();
+      var estPhHop = typeof estNomPharmacie === 'function' && estNomPharmacie(e.nom);
       if (e.nom.length < 3) err.hnom = 'Nom de l\'établissement manquant';
-      if (!e.categorie) err.hcat = 'Choisissez la catégorie';
+      if (!estPhHop && !e.categorie) err.hcat = 'Choisissez la catégorie';
       if (!e.quartier) err.hquartier = 'Choisissez le quartier';
-      var dbl = doublonsHopital(e.nom).filter(function (x) {
-        return normaliser(x.nom) === normaliser(e.nom) && (!f.edition || normaliser(x.nom) !== normaliser(f.ancienNom || ''));
-      })[0];
-      if (dbl) err.hnom = 'Déjà dans la base : ' + dbl.nom;
-      if (Object.keys(err).length) { f.err = err; rendre(); toast(dbl ? 'Cet établissement existe déjà.' : 'Complétez les champs signalés.'); return; }
+      if (!estPhHop) {
+        var dbl = doublonsHopital(e.nom).filter(function (x) {
+          return normaliser(x.nom) === normaliser(e.nom) && (!f.edition || normaliser(x.nom) !== normaliser(f.ancienNom || ''));
+        })[0];
+        if (dbl) err.hnom = 'Déjà dans la base : ' + dbl.nom;
+      }
+      if (Object.keys(err).length) { f.err = err; rendre(); toast(err.hnom && /^Déjà/.test(err.hnom) ? 'Cet établissement existe déjà.' : 'Complétez les champs signalés.'); return; }
       var q = resoudreChoixQuartier(e.quartier, e.commune) || {};
       var com = e.commune || q.commune || '', zone = e.zone || q.zone || '', sec = e.secteur || q.secteur || '', sub = e.subdivision || q.subdivision || '';
       var terr = e.territoire || q.territoire || (estTerritoireInterieur({ commune: com, zone: zone, territoire: e.territoire }) ? 'Intérieur' : (com ? 'Abidjan' : ''));
       var latVal = e.lat || (q.lat || ''), lonVal = e.lon || (q.lon || '');
       var origVal = e.lat ? (e.prec ? origineTerrain(e.prec) : (e.origineGps || '')) : (latVal ? 'Quartier de référence' : '');
       var rep = String(e.reperes || '').trim(), tel = formaterTelephoneCI(e.telephone) || String(e.telephone || '').trim();
+      if (estPhHop) {
+        var nomPhE = nomAvecTitre(e.nom, 'Pharmacie');
+        var dPhE = brouillonFiche('');
+        dPhE.type = 'Pharmacie';
+        dPhE.nom = nomPhE;
+        dPhE.telephone = tel;
+        dPhE.specialite = 'Pharmacien';
+        dPhE.lieux = [enrichirMetadonneesTerritoire({
+          id: '', lieu: nomPhE, quartier: e.quartier, commune: com, zone: zone, secteur: sec, subdivision: sub, territoire: terr,
+          reperes: rep, lat: latVal, lon: lonVal, origineGps: origVal,
+          horaireMatin: HORAIRES_PHARMACIE[0], horaireSoir: HORAIRES_PHARMACIE[1],
+          jours: [0, 1, 2, 3, 4].map(function () { return { matin: true, soir: true }; })
+        })];
+        var codePh = enregistrerFiche(dPhE);
+        if (S.data && Array.isArray(S.data.etablissements)) {
+          S.data.etablissements = S.data.etablissements.filter(function (x) { return normaliser(x.nom) !== normaliser(e.nom) && normaliser(x.nom) !== normaliser(nomPhE); });
+        }
+        S.ui.feuille = null; S.ui.annuaire = ''; S.ui.filtres.type = 'Pharmacie'; S.ui.contactOuvert = codePh; S.ui.contactEnTete = codePh; S.ui.tab = 'praticiens'; rendre();
+        toast(nomPhE + ' enregistrée dans l\'onglet Pharmacies' + (S.config.demo ? '.' : (navigator.onLine ? ', envoi à la BDD…' : ', envoi dès le retour du réseau.')));
+        if (!S.config.demo) synchroniser(true);
+        return;
+      }
       S.data = S.data || {};
       S.data.etablissements = S.data.etablissements || [];
       if (f.edition) {
@@ -15526,6 +15580,7 @@
     ficheCreer: function () {
       var f = S.ui.feuille; if (!f) return;
       if (String(f.d.nom || '').trim().length < 2) { f.err = { nom: 'Indiquez le nom (2 caractères min.).' }; rendre(); focusErreur(); return; }
+      if (f.d.type !== 'Pharmacie' && typeof estNomPharmacie === 'function' && estNomPharmacie(f.d.nom)) f.d.type = 'Pharmacie';
       f.d.nom = nomAvecTitre(f.d.nom, f.d.type); if (f.d.type === 'Pharmacie') f.d.lieux[0].lieu = f.d.nom;
       f.cherche = false; f.err = {}; f.etape = 0; f.lieuOuvert = 0; synchroniserDefautsFiche(f.d); rendre();
     },
@@ -15540,7 +15595,10 @@
     // 3.27.4 : « Suivant » vérifie d'abord l'étape en cours
     ficheSuivant: function (el) {
       var f = S.ui.feuille; if (!f) return;
-      if (f.etape === 0 && String(f.d.nom || '').trim().length >= 2) { f.d.nom = nomAvecTitre(f.d.nom, f.d.type); if (f.d.type === 'Pharmacie') f.d.lieux[0].lieu = f.d.nom; }
+      if (f.etape === 0 && String(f.d.nom || '').trim().length >= 2) {
+        if (f.d.type !== 'Pharmacie' && typeof estNomPharmacie === 'function' && estNomPharmacie(f.d.nom)) f.d.type = 'Pharmacie';
+        f.d.nom = nomAvecTitre(f.d.nom, f.d.type); if (f.d.type === 'Pharmacie') f.d.lieux[0].lieu = f.d.nom;
+      }
       var e = erreursEtape(f.d, f.etape);
       if (Object.keys(e).length) { f.err = e; rendre(); focusErreur(); toast('Complétez les champs signalés.'); return; }
       ACTIONS.ficheAller(el);
@@ -15827,7 +15885,8 @@
     ficheEnregistrer: function () {
       var f = S.ui.feuille;
       var nomInit = f.initial ? JSON.parse(f.initial).nom : null;
-      if (String(f.d.nom || '').trim().length >= 2 && f.d.nom !== nomInit) { f.d.nom = nomAvecTitre(f.d.nom, f.d.type); if (f.d.type === 'Pharmacie') f.d.lieux[0].lieu = f.d.nom; }
+      if (f.d.type !== 'Pharmacie' && typeof estNomPharmacie === 'function' && estNomPharmacie(f.d.nom)) f.d.type = 'Pharmacie';
+      if (String(f.d.nom || '').trim().length >= 2 && (f.d.nom !== nomInit || f.d.type === 'Pharmacie')) { f.d.nom = nomAvecTitre(f.d.nom, f.d.type); if (f.d.type === 'Pharmacie') f.d.lieux[0].lieu = f.d.nom; }
       synchroniserDefautsFiche(f.d);
       for (var i = 0; i < 2; i++) {
         var e = erreursEtape(f.d, i);
@@ -16176,6 +16235,10 @@
       if (telFmt) { v = telFmt; el.value = telFmt; }
     }
     if (k === 'nom' && change && String(v || '').trim().length >= 2) {
+      if (d.type !== 'Pharmacie' && typeof estNomPharmacie === 'function' && estNomPharmacie(v)) {
+        d.type = 'Pharmacie';
+        synchroniserDefautsFiche(d);
+      }
       v = nomAvecTitre(v, d.type);
       el.value = v;
     }
