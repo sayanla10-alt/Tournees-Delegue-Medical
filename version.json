@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.84",
+  "version": "3.31.85",
   "date": "2026-11-15",
   "notes": [
-    "Vérifier la fiche, « Ajuster » compact : lieu de visite en liste déroulante, planning et choix Base / Fiche sur une ligne ; établissement absent de la base signalé et créé"
+    "Écran de mise à jour : les nouveautés restent affichées sans décompte automatique (l'écran ne saute plus tout seul)"
   ]
 }

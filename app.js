@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.84';
+  var APP_VERSION = '3.31.85';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.85', ['Écran de mise à jour : les nouveautés restent affichées sans décompte automatique (l\'écran ne saute plus tout seul)']],
     ['3.31.84', ['Vérifier la fiche, « Ajuster » compact : lieu de visite dans une liste déroulante, planning et choix Base / Fiche sur une ligne chacun ; un établissement absent de la base est signalé et créé']],
     ['3.31.83', ['Vérifier la fiche épuré : chaque contact tient en une ligne (ce qui sera fait, en clair) avec un interrupteur « Intégrer » ; les noms proches se tranchent en un geste (Même personne / Nouveau contact) ; les réglages fins sont sous « Ajuster »']],
     ['3.31.82', ['Mises à jour : correction du double bandeau de mise à jour (une seule confirmation suffit désormais)']],
@@ -17180,8 +17181,9 @@
     LS.set('versionVue', APP_VERSION);
   })();
   if (S.ui.lancement) {
-    S.ui.lancementAuto = true;
-    S.ui.lancementFin = Date.now() + 1000 * (S.ui.nouveautes && S.ui.nouveautes.length ? DELAI_LANCEMENT_NOUVEAUTES : DELAI_LANCEMENT);
+    var aNouveautes = !!(S.ui.nouveautes && S.ui.nouveautes.length);
+    S.ui.lancementAuto = !aNouveautes;
+    S.ui.lancementFin = Date.now() + 1000 * (aNouveautes ? DELAI_LANCEMENT_NOUVEAUTES : DELAI_LANCEMENT);
   }
   // 3.24.5 : « Pharmacie » abrégé en « Phcie » à l'écran seulement (cartes, listes, feuilles, messages).
   // On ne touche qu'aux textes affichés : ni les valeurs des champs, ni les attributs, ni les données,
