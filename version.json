@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.71",
+  "version": "3.31.72",
   "date": "2026-11-15",
   "notes": [
-    "Tirage & Recalculer : la mémoire des tirages est limitée à la journée/période ciblée et se réinitialise dès que la date ou un critère change"
+    "+ Ajouter (Planifier) : ouverture allégée (50 cartes initiales) et affichage des médecins prévus par un collègue avec leur étiquette informative au lieu de les masquer"
   ]
 }

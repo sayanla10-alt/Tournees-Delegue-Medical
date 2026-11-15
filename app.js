@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.71';
+  var APP_VERSION = '3.31.72';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.72', ['+ Ajouter (Planifier) : ouverture allégée (50 cartes initiales) et affichage des médecins prévus par un collègue avec leur étiquette informative au lieu de les masquer']],
     ['3.31.71', ['Tirage & Recalculer : la mémoire des tirages est limitée à la journée/période ciblée et se réinitialise dès que la date ou un critère change']],
     ['3.31.70', ['Tirage & Recalculer : la mémoire persistante des médecins non retenus est réinitialisée automatiquement si vous modifiez vos critères de planification']],
     ['3.31.69', ['Tirage & Recalculer : mémoire persistante des tirages précédents (les médecins proposés mais non retenus restent évités aux tirages suivants pour explorer tout le vivier, même après confirmation ou rechargement)']],
@@ -10501,30 +10502,31 @@
       champRechercheLibre('rechCommunes', q) + '<div id="resCommunes">' + resultatsCommunes(q) + '</div>';
   };
   function resultatsCommunes(q) {
-    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesAjout(d)), filtre = filtreAjout(), ex = exclusCollegues([d]);
+    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesAjout(d)), avecCom = Object.keys(com).length > 0, qs = quartiers(), filtre = filtreAjout();
     var mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
-      if (dans[cr.code] || ex[cr.code] || (Object.keys(com).length && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(cr, com, quartiers()) : com[cr.commune])) || (filtre && !filtre(p)) || absentLe(p, d)) return;
+      if (dans[cr.code] || (filtre && !filtre(p)) || absentLe(p, d)) return;
       if (S.ui.typeAjout && (S.ui.typeAjout === 'Pharmacie') !== (p.type === 'Pharmacie')) return;
       if (mots.length) {
         var txt = normaliser([p.nom, p.specialite, cr.lieu, cr.quartier, cr.commune].join(' '));
         if (!mots.every(function (m) { return txt.indexOf(m) >= 0; })) return;
       }
+      if (avecCom && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(cr, com, qs) : com[cr.commune])) return;
       var x = { cr: cr, score: Moteur.scoreDe(p, d) };
       if (!vus[cr.code] || x.score > vus[cr.code].score) vus[cr.code] = x;
     });
     // 3.25.8 : position connue (GPS récent ou Autour de moi) : du plus proche au plus loin
     var pos = positionActuelle();
     Object.keys(vus).forEach(function (k) { vus[k].dist = pos && vus[k].cr.coord ? distanceVol(pos, vus[k].cr.coord) : null; vus[k].approx = !!(vus[k].cr.coord && vus[k].cr.coord.approx); });
-    // 3.28.38 : depuis Planifier (+ Ajouter), liste complète par ordre alphabétique ; dans Journée, du plus proche au plus loin
+    // 3.28.38 / 3.31.72 : depuis Planifier (+ Ajouter), affichage allégé (50 cartes au repos, 100 sur recherche) par ordre alphabétique
     var alpha = S.ui.tab === 'semaine', nomTri = function (x) { return sansAccents(nomSansType(x.cr.prat.nom || '')).toLowerCase().replace(/^(dr|pr|ide|sage[- ]femme|mme|mlle|m)\.?\s+/, ''); };
     var tous = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) {
       if (alpha) return nomTri(x).localeCompare(nomTri(y), 'fr');
       return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score;
-    }), l = tous.slice(0, alpha ? 400 : (mots.length ? 60 : 30));
-    if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là' + (Object.keys(com).length ? ' dans ' + esc(libelleCommunes(Object.keys(com))) : '') + ', selon vos critères.') + '</p>';
+    }), l = tous.slice(0, alpha ? (mots.length ? 100 : 50) : (mots.length ? 60 : 30));
+    if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là' + (avecCom ? ' dans ' + esc(libelleCommunes(Object.keys(com))) : '') + ', selon vos critères.') + '</p>';
     return (mots.length ? '<p class="discret">' + tous.length + ' résultat' + (tous.length > 1 ? 's' : '') + '.</p>' : '') +
       '<ul class="liste">' + l.map(function (x) {
         var cr = x.cr, p = cr.prat, st = '', details = cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d));
@@ -10542,11 +10544,14 @@
           if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) m.push(secteur);
           st = m.join(' · ');
         }
+        var etCol = etiquetteCollegues(p.code, d);
         return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
           '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
-          '<span class="discret bloc-texte">' + details + '</span></button></li>';
-      }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : précisez la recherche.</p>' : '');
+          '<span class="discret bloc-texte">' + details + '</span>' +
+          (etCol ? '<span class="etiquettes">' + etCol + '</span>' : '') +
+          '</button></li>';
+      }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : tapez un nom ou précisez la recherche.</p>' : '');
   }
   // 3.27.42 : « Tout le répertoire » (+ Médecin / + Pharmacie) : tous les médecins ou pharmacies de la BDD,
   // affichés indépendamment des autres filtres appliqués au moment de la recherche
