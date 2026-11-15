@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.68';
+  var APP_VERSION = '3.31.69';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.69', ['Tirage & Recalculer : mémoire persistante des tirages précédents (les médecins proposés mais non retenus restent évités aux tirages suivants pour explorer tout le vivier, même après confirmation ou rechargement)']],
     ['3.31.68', ['Recalculer : rotation complète de tout le vivier disponible sans tourner en rond (les épinglés restent, les inédits passent toujours avant ceux déjà proposés)']],
     ['3.31.67', ['Planifier : boutons « Remplacer » et « Supprimer » ajoutés sous les RDV reportés pour absence, avec libellé centré']],
     ['3.31.66', ['Planifier : le quartier modifié d\'un établissement dans le Sheet s\'affiche immédiatement dans la liste proposée (lecture directe depuis Etablissements/Presences, comme pour les repères)']],
@@ -6248,7 +6249,14 @@
     var avantJours = {};
     dates.forEach(function (d) { avantJours[d] = S.jours[d] ? JSON.parse(JSON.stringify(S.jours[d])) : { etat: 'proposition', valideLe: '', modifieLe: '' }; });
     var avantAAccepter = S.ui.aAccepter;
-    confirmerJours(dates); S.ui.aAccepter = null; S.ui.avantTirage = null; S.rejetes = {}; S.ui.rejetesCle = null;
+    // 3.31.69 : les médecins retenus dans la tournée confirmée sont retirés de S.rejetes,
+    // mais ceux qui avaient été proposés sans être retenus restent mémorisés pour les prochains tirages
+    dates.forEach(function (d) {
+      S.plan.forEach(function (a) {
+        if (a.date === d && S.rejetes[a.code] && S.rejetes[a.code] !== true) delete S.rejetes[a.code];
+      });
+    });
+    confirmerJours(dates); S.ui.aAccepter = null; S.ui.avantTirage = null;
     S.ui.flashTexte = dates.length === 1 ? majuscule(dateLongue(dates[0])) + ' confirmé' : dates.length + ' jours confirmés';
     sauver(); publierPlan(true);
     S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée ✓', dates: dates, avantJours: avantJours, avantAAccepter: avantAAccepter, depuisChoix: !!depuisChoix, retourAction: 'annulerConfirmation' };
@@ -13093,21 +13101,11 @@
       } else {
         S.ui.avantTirage = null;
       }
-      // 3.31.68 : rotation complète du vivier au recalcul : on incrémente le compteur de propositions
-      // pour chaque médecin non épinglé au lieu d'effacer la mémoire à chaque clic (fini l'effet ping-pong).
-      // La mémoire ne repart à zéro que si vous changez de date/critères ou si vous acceptez la tournée.
-      var cleSessionRej = JSON.stringify([
-        portee,
-        cible,
-        cible.map(function (d) {
-          var pd = paramsDuJour(d);
-          return [communesPour(d) || [], pd.typeCibles || 'medecins', pd.specialites || [], pd.potentiels || [], +pd.maxJour || 8, pd.delai, pd.eviterCollegues !== false];
-        })
-      ]);
-      if (S.ui.rejetesCle !== cleSessionRej) {
-        S.rejetes = {};
-        S.ui.rejetesCle = cleSessionRej;
-      }
+      // 3.31.69 : mémoire persistante des tirages déjà effectués :
+      // on conserve S.rejetes d'un tirage à l'autre (même après confirmation ou rechargement) afin d'éviter
+      // les médecins proposés mais non retenus et d'explorer tout le vivier disponible.
+      // Seuls les médecins retenus (épinglés / imposés / validés) ne sont pas pénalisés.
+      S.rejetes = S.rejetes || {};
       if (portee === 'jour' || portee === 'semaine') {
         S.plan.forEach(function (a) {
           if (cible.indexOf(a.date) >= 0 && !a.garde && !a.impose && a.etat !== 'valide' && !a.corrige) {

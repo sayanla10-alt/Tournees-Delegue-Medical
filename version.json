@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.68",
+  "version": "3.31.69",
   "date": "2026-11-15",
   "notes": [
-    "Recalculer : rotation complète de tout le vivier disponible sans tourner en rond (les épinglés restent, les inédits passent toujours avant ceux déjà proposés)"
+    "Tirage & Recalculer : mémoire persistante des tirages précédents (les médecins proposés mais non retenus restent évités aux tirages suivants pour explorer tout le vivier, même après confirmation ou rechargement)"
   ]
 }
