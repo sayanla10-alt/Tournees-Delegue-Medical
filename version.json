@@ -2,6 +2,7 @@
   "version": "3.31.60",
   "date": "2026-11-15",
   "notes": [
-    "Source unique des lieux : Etablissements, Pharmacies et Quartiers ; Présences n'est plus lu pour la commune, le quartier, les repères ni le GPS"
+    "Base allégée : zone, territoire, subdivision et secteur des hôpitaux et pharmacies viennent tous de l'onglet Quartiers",
+    "Repères des pharmacies enregistrés ; lieux reliés aussi par leur alias"
   ]
 }
