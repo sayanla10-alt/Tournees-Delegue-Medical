@@ -4919,7 +4919,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 /* 3.31.63 : bandeau « Déjà planifié » touchable et détail des visites (garder ou remplacer) */
 button.bandeau.deja-planifie { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
 button.bandeau.deja-planifie:active { filter: brightness(.97); }
-.deja-voir { display: flex; align-items: center; gap: 4px; margin-top: 6px; font-weight: 600; color: var(--primaire); }
+.deja-voir { display: flex; align-items: center; gap: 4px; margin-top: 2px; font-weight: 600; color: var(--primaire); }
 .deja-voir svg { width: 16px; height: 16px; transform: rotate(-90deg); color: var(--primaire); }
 .dp-jour { margin: 14px 0 6px; font-size: 15px; }
 .dp-jour small { font-weight: 400; color: var(--gris); }
@@ -4934,3 +4934,5 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .dp-raison { color: var(--primaire) !important; font-weight: 600; }
 .dp-raison.rdv { color: var(--bleu) !important; }
 .dp-note { font-style: italic; white-space: normal; }
+.dp-raison.report { color: var(--ambre, #a86a00) !important; }
+.dp-raison.rappel { color: var(--ambre, #a86a00) !important; }

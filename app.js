@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.64';
+  var APP_VERSION = '3.31.65';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.65', ['« Déjà planifié » ne montre plus que vos RDV : pris par vous, reportés ou à rappeler ; les visites proposées par le tirage restent dans la liste proposée', 'Bandeau plus court : « Voir plus en détail »']],
     ['3.31.64', ['Planifier, bandeau « Déjà planifié » : pour chaque visite, la raison au lieu du lieu : RDV pris le (date du compte rendu), confirmé ou non, avec l\'annotation du compte rendu ; prioritaire ou visite ajoutée à la main ; ou proposition du tirage avec la dernière visite']],
     ['3.31.63', ['Planifier : chaque groupe porte le nom exact de la subdivision de l\'onglet Quartiers (Angré, Riviera, Deux Plateaux, Cocody Centre…), affiché même quand la journée tient dans une seule subdivision', 'Planifier : le bandeau bleu « Déjà planifié » se touche : il montre les visites déjà prévues et permet de garder ou de remplacer chacune ; les visites remplacées sont aussitôt reproposées par le tirage']],
     ['3.31.62', ['Listes déroulantes des quartiers complètes (Cocody : 69 quartiers, Triangle compris)', 'Planifier : groupes par subdivision affichés comme avant (Cocody Centre, Cocody – Angré, Riviera…)', 'Tirage : onglet Quartiers vérifié juste avant, sans attente', 'Présences : lieux reliés aux pharmacies par leur code, nouveaux lieux créés avec un code ETAB, spécialité et téléphone tirés de la fiche du praticien']],
@@ -4618,12 +4619,11 @@
   }
   // 3.31.63 : le bandeau se touche : il ouvre le détail des visites déjà planifiées, à garder ou à remplacer
   function bandeauDejaPlanifie(dates) {
-    var l = dates.map(function (d) { return { d: d, n: donneesJour(d).length }; }).filter(function (x) { return x.n; });
+    var l = dates.map(function (d) { return { d: d, n: rdvDejaPlanifies(d).length }; }).filter(function (x) { return x.n; });
     if (!l.length) return '';
-    return '<button type="button" class="bandeau info deja-planifie" data-a="dejaPlanifieOuvrir">' + icone('calendrier') + '<p><b>Déjà planifié</b><br>' +
-      l.map(function (x) { return majuscule(dateCourte(x.d)) + ' : ' + x.n + ' visite' + (x.n > 1 ? 's' : ''); }).join('<br>') +
-      '<br><span class="discret">Ces visites restent en place ; seuls les créneaux libres seront complétés.</span>' +
-      '<span class="deja-voir">Voir le détail, garder ou remplacer ' + icone('chevron') + '</span></p></button>';
+    return '<button type="button" class="bandeau info deja-planifie" data-a="dejaPlanifieOuvrir">' + icone('calendrier') + '<p><b>Déjà planifié</b> : ' +
+      l.map(function (x) { return majuscule(dateCourte(x.d)) + ', ' + x.n + ' RDV'; }).join(' ; ') +
+      '<span class="deja-voir">Voir plus en détail ' + icone('chevron') + '</span></p></button>';
   }
   function prochainFerie() {
     var t = aujourdhui(), l = feries().filter(function (d) { return d >= t; }).sort();
@@ -9182,8 +9182,8 @@
 
   // 3.31.63 : détail des visites déjà planifiées sur la période (bandeau bleu de Planifier) : pour chacune, garder ou remplacer.
   // Une visite faite (compte rendu) reste. Remplacer : la visite est retirée et le tirage complète les créneaux libérés.
-  // 3.31.64 : pourquoi une visite est déjà planifiée : RDV (pris quand, par quel compte rendu, confirmé ou non),
-  // prioritaire ajouté à la main, visite inopinée, ou proposition du tirage (avec la dernière visite) ; le lieu n'y est plus
+  // 3.31.65 : « Déjà planifié » = les RDV pris par le délégué lui-même (compte rendu ou ajout à la main), les RDV reportés
+  // et les RDV à rappeler. Les visites proposées par le tirage n'y figurent pas : elles restent dans la liste proposée.
   function raisonVisitePlanifiee(a, d) {
     var jm = function (x) { return x ? dateCourte(String(x).slice(0, 10)) : ''; };
     var hist = ((S.data && S.data.historique) || []).filter(function (v) { return v.code === a.code; })
@@ -9191,45 +9191,43 @@
     var im = (S.imposes || []).filter(function (x) { return x.code === a.code && (!x.date || x.date === d); })[0];
     var dRdv = a.rdvDate || d;
     var src = hist.filter(function (v) { var pv = String(v.prochaine || '').slice(0, 10); return pv && (pv === dRdv || pv === d); })[0];
-    if (a.etape || src) {
-      var t = 'RDV' + (a.rdvDate && a.rdvDate !== d ? ' du ' + jm(a.rdvDate) + ', reporté' : '');
-      var pris = a.rdvPrisLe || (src && src.date);
-      if (pris) t += ' pris le ' + jm(pris);
-      if (src && (src.rdvConfirme || /^RDV confirmé/i.test(src.suite || ''))) t += ', confirmé';
-      if (src && src.statut) t += ' (visite : ' + src.statut + ')';
-      return { rdv: true, texte: t, note: src ? String(src.commentaire || src.suite || '').trim() : '' };
-    }
-    if (im || a.impose || a.inopinee) {
-      var rt = (im && im.rdv) || a.rdv || '';
-      return { rdv: !!rt, texte: rt ? 'RDV ' + rt + ', ajouté à la main' : (a.inopinee || (im && im.force) ? 'Visite ajoutée à la main' : 'Prioritaire, ajouté à la main'), note: '' };
-    }
-    var der = hist.filter(function (v) { return String(v.date || '').slice(0, 10) < d && v.statut; })[0];
-    return { rdv: false, texte: 'Proposé par le tirage · ' + (der ? 'dernière visite le ' + jm(der.date) + ' (' + der.statut + ')' : 'jamais visité'),
-      note: der && der.commentaire ? String(der.commentaire).trim() : '' };
+    var note = src ? String(src.commentaire || '').trim() : '';
+    var suite = src ? String(src.suite || '') : '';
+    var pris = a.rdvPrisLe || (src && src.date) || '';
+    if (a.rdvDate && a.rdvDate !== d) return { type: 'report', texte: 'RDV du ' + jm(a.rdvDate) + ' reporté' + (pris ? ' (pris le ' + jm(pris) + ')' : ''), note: note };
+    if (src && /^Rappel/i.test(suite)) return { type: 'rappel', texte: 'RDV à rappeler' + (pris ? ' (noté le ' + jm(pris) + ')' : ''), note: note || suite.replace(/^Rappel\s*:\s*/i, '') };
+    if (src && src.statut && estKo(src.statut)) return { type: 'report', texte: 'RDV reporté' + (pris ? ' le ' + jm(pris) : '') + ' (' + src.statut + ')', note: note };
+    if (a.etape || src) return { type: 'rdv', texte: 'RDV pris le ' + (jm(pris) || '?') + ((src && (src.rdvConfirme || /^RDV confirmé/i.test(suite))) ? ', confirmé' : ''), note: note };
+    var rt = (im && im.rdv) || a.rdv || '';
+    if (rt) return { type: 'rdv', texte: 'RDV ' + rt + ', pris à la main', note: '' };
+    return { type: 'tirage', texte: '', note: '' };
+  }
+  function rdvDejaPlanifies(d) {
+    return donneesJour(d).filter(function (a) { return raisonVisitePlanifiee(a, d).type !== 'tirage'; });
   }
   FEUILLES.dejaPlanifie = function (f) {
     var choix = f.choix || {}, nbR = 0, corps = '';
     (f.dates || []).forEach(function (d) {
-      var l = donneesJour(d).slice().sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
+      var l = rdvDejaPlanifies(d).sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
       if (!l.length) return;
-      corps += '<h4 class="dp-jour">' + esc(majuscule(dateCourte(d))) + ' <small>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</small></h4><ul class="dp-liste">';
+      corps += '<h4 class="dp-jour">' + esc(majuscule(dateCourte(d))) + ' <small>' + l.length + ' RDV</small></h4><ul class="dp-liste">';
       l.forEach(function (a) {
         var k = d + '|' + a.code, faite = !!vraiStatut(a.statut), rempl = !faite && choix[k] === 'remplacer';
         if (rempl) nbR++;
         var r = raisonVisitePlanifiee(a, d);
         corps += '<li class="dp-visite' + (rempl ? ' dp-rempl' : '') + '"><div class="dp-info"><b>' + (a.heure ? '<span class="dp-heure">' + esc(a.heure) + '</span> ' : '') + esc(a.nom) + '</b>' +
           (a.specialite ? '<small>' + esc(a.specialite) + '</small>' : '') +
-          '<small class="dp-raison' + (r.rdv ? ' rdv' : '') + '">' + esc(r.texte) + '</small>' + (r.note ? '<small class="dp-note">« ' + esc(r.note) + ' »</small>' : '') + '</div>' +
+          '<small class="dp-raison ' + r.type + '">' + esc(r.texte) + '</small>' + (r.note ? '<small class="dp-note">« ' + esc(r.note) + ' »</small>' : '') + '</div>' +
           (faite ? '<span class="etiquette ok">' + esc(a.statut) + '</span>'
             : '<div class="puces dp-puces"><button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="garder" aria-pressed="' + !rempl + '">Garder</button>' +
               '<button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="remplacer" aria-pressed="' + rempl + '">Remplacer</button></div>') + '</li>';
       });
       corps += '</ul>';
     });
-    if (!corps) corps = '<p class="discret">Aucune visite planifiée sur cette période.</p>';
-    else corps = '<p class="discret" style="margin:0 0 8px">Touchez « Remplacer » pour les visites à changer : elles sont retirées et le tirage propose d\'autres praticiens à leur place. Les visites faites restent.</p>' + corps;
+    if (!corps) corps = '<p class="discret">Aucun RDV pris, reporté ou à rappeler sur cette période.</p>';
+    else corps = '<p class="discret" style="margin:0 0 8px">Vos RDV pris, reportés ou à rappeler. « Remplacer » : le RDV est retiré et le tirage propose un autre praticien à sa place.</p>' + corps;
     var pied = '<button class="bouton" type="button" data-a="dejaToutGarder">Tout garder</button>' +
-      '<button class="bouton bouton-plein" type="button" data-a="dejaAppliquer"' + (nbR ? '' : ' disabled') + '>' + icone('relancer') + (nbR ? 'Remplacer ' + nbR + ' visite' + (nbR > 1 ? 's' : '') : 'Remplacer') + '</button>';
+      '<button class="bouton bouton-plein" type="button" data-a="dejaAppliquer"' + (nbR ? '' : ' disabled') + '>' + icone('relancer') + (nbR ? 'Remplacer ' + nbR + ' RDV' : 'Remplacer') + '</button>';
     return { corps: corps, pied: pied };
   };
   FEUILLES.rappels = feuilleRappels;
@@ -14214,7 +14212,7 @@
     },
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; chercherMaPosition(); rendre(); window.scrollTo(0, 0); },
     dejaPlanifieOuvrir: function () {
-      S.ui.feuille = { type: 'dejaPlanifie', titre: 'Visites déjà planifiées', pleine: true, dates: datesPeriode().filter(function (d) { return donneesJour(d).length; }), choix: {} };
+      S.ui.feuille = { type: 'dejaPlanifie', titre: 'RDV déjà planifiés', pleine: true, dates: datesPeriode().filter(function (d) { return rdvDejaPlanifies(d).length; }), choix: {} };
       rendre();
     },
     dejaChoix: function (el) {
@@ -14229,7 +14227,7 @@
       if (!cles.length) return;
       var noms = [];
       cles.forEach(function (k) { var d = k.split('|')[0], c = k.slice(d.length + 1); var a = donneesJour(d).filter(function (x) { return x.code === c; })[0]; if (a) noms.push(a.nom + ' (' + dateCourte(d) + ')'); });
-      confirmerPuis('Remplacer des visites', 'Remplacer ' + (cles.length > 1 ? 'ces ' + cles.length + ' visites' : 'cette visite') + ' : ' + esc(noms.join(', ')) + ' ?<br><span class="discret">Elles sont retirées de la tournée et le tirage propose d\'autres praticiens à leur place.</span>', 'Remplacer', function () {
+      confirmerPuis('Remplacer des RDV', 'Remplacer ' + (cles.length > 1 ? 'ces ' + cles.length + ' RDV' : 'ce RDV') + ' : ' + esc(noms.join(', ')) + ' ?<br><span class="discret">Ils sont retirés de la tournée et le tirage propose d\'autres praticiens à leur place.</span>', 'Remplacer', function () {
         var dates = {};
         cles.forEach(function (k) {
           var d = k.split('|')[0], c = k.slice(d.length + 1);
@@ -14238,6 +14236,7 @@
           S.plan = S.plan.filter(function (x) { return !(x.date === d && x.code === c); });
           S.imposes = S.imposes.filter(function (im) { return !(im.code === c && im.date === d); });
           S.rejetes[c] = true; refuser(c, d); marquerVisiteSupprimee(d, c); dates[d] = true;
+          var ig = LS.get('rdvIgnores', {}); ig[c + '|' + d] = true; if (a.rdvDate) ig[c + '|' + a.rdvDate] = true; LS.set('rdvIgnores', ig);   // le RDV n'est plus replacé d'office
         });
         Object.keys(dates).forEach(function (d) { reordonner(d); });
         S.ui.feuille = null; S.ui.aPublier = true; LS.set('aPublier', true); marquerModifie(); sauver();

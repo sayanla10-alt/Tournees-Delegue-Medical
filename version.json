@@ -1,7 +1,8 @@
 ﻿{
-  "version": "3.31.64",
+  "version": "3.31.65",
   "date": "2026-11-15",
   "notes": [
-    "Planifier, « Déjà planifié » : chaque visite dit pourquoi elle est là : RDV pris le (date), confirmé ou non, avec l'annotation du compte rendu ; ajout à la main ; ou proposition du tirage avec la dernière visite"
+    "« Déjà planifié » : seulement vos RDV (pris par vous, reportés, à rappeler) ; les propositions du tirage restent dans la liste proposée",
+    "Bandeau plus court : « Voir plus en détail »"
   ]
 }
