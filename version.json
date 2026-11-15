@@ -1,8 +1,7 @@
 ﻿{
-  "version": "3.31.60",
+  "version": "3.31.61",
   "date": "2026-11-15",
   "notes": [
-    "Base allégée : zone, territoire, subdivision et secteur des hôpitaux et pharmacies viennent tous de l'onglet Quartiers",
-    "Repères des pharmacies enregistrés ; lieux reliés aussi par leur alias"
+    "Planifier : regroupement par subdivision tiré de l'onglet Quartiers, quels que soient les noms (Angré, Riviera, Abobo Nord…), y compris subdivisions créées, renommées ou supprimées"
   ]
 }

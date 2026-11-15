@@ -113,6 +113,7 @@ function jumFeuille_(nom) {
       var o = null;
       for (var j = 0; j < nc; j++) {
         if (utilisees[j] || !String(brut[j] || '').trim()) continue;
+        if (normaliser(brut[j]) === normaliser('Liste_Quartiers_Dynamique')) continue;   // colonne calculée (liste déroulante)
         var v = l[j]; if (v === '' || v === null || v === undefined) continue;
         (o = o || {})[String(brut[j]).trim()] = v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd HH:mm') : v;
       }
@@ -735,9 +736,15 @@ function jumAppliquerSupabaseSousVerrou_() {
         var cle = R.cle.map(function (c) { return jumCleSheet_(o[c[0]], c[2]); }).join('|');
         var i = index[cle], ligne = i !== undefined ? data[i].slice() : ent.map(function () { return ''; });
         if (i === undefined) R.cle.forEach(function (c, j) { ligne[kCle[j]] = jumVersSheet_(o[c[0]], c[2]); });
-        R.cols.forEach(function (c) { var k = colDe(c[1]); if (k >= 0 && o.hasOwnProperty(c[0])) ligne[k] = jumVersSheet_(o[c[0]], c[2]); });
-        if (o.autres && typeof o.autres === 'object') Object.keys(o.autres).forEach(function (h) { var k = colDe([h]); if (k >= 0) ligne[k] = o.autres[h]; });
-        if (i !== undefined) { sh.getRange(i + 2, 1, 1, nc).setValues([ligne]); data[i] = ligne; bilan.modifiees++; }
+        var ecrits = {};
+        R.cols.forEach(function (c) { var k = colDe(c[1]); if (k >= 0 && o.hasOwnProperty(c[0])) { ligne[k] = jumVersSheet_(o[c[0]], c[2]); ecrits[k] = 1; } });
+        if (o.autres && typeof o.autres === 'object') Object.keys(o.autres).forEach(function (h) { if (normaliser(h) === normaliser('Liste_Quartiers_Dynamique')) return; var k = colDe([h]); if (k >= 0) { ligne[k] = o.autres[h]; ecrits[k] = 1; } });
+        if (i !== undefined) {
+          // 3.31.61 : les formules de la ligne (liste dynamique des quartiers…) restent des formules
+          var fRet = sh.getRange(i + 2, 1, 1, nc).getFormulas()[0];
+          var aEcrire = ligne.map(function (x, k) { return fRet[k] && !ecrits[k] ? fRet[k] : x; });
+          sh.getRange(i + 2, 1, 1, nc).setValues([aEcrire]); data[i] = ligne; bilan.modifiees++;
+        }
         else { sh.getRange(sh.getLastRow() + 1, 1, 1, nc).setValues([ligne]); data.push(ligne); index[cle] = data.length - 1; bilan.ajoutees++; }
         faites.push(o);
       } catch (e) { bilan.erreurs++; console.warn('Retour ' + table + ' : ' + e); }

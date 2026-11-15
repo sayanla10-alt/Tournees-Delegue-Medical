@@ -625,9 +625,14 @@ var Moteur = (function () {
   // Un quartier homonyme d'une autre commune (Djibi d'Abobo, Sideci de Yopougon) reste dans sa commune.
   // Communes sans subdivision (Marcory, Adjamé, Plateau…) : comme avant (grands secteurs de Marcory, sinon le quartier).
   var QUARTIERS_MOTEUR = null, CACHE_CLE_Z = {};
-  function definirQuartiersMoteur(l) { if (l !== QUARTIERS_MOTEUR) { QUARTIERS_MOTEUR = l && l.length ? l : null; CACHE_CLE_Z = {}; } }
+  function definirQuartiersMoteur(l) { if (l !== QUARTIERS_MOTEUR) { QUARTIERS_MOTEUR = l && l.length ? l : null; CACHE_CLE_Z = {}; } if (l && l.length && typeof definirQuartiersCourants === 'function') definirQuartiersCourants(l); }
   function resoudreSub_(commune, quartier, secteur) {
     try {
+      // règle unique (commun.js) : quartier connu, quartier qui nomme une subdivision (« Deux Plateaux », « Riviera »)
+      if (typeof territoireDuLieu === 'function' && quartier) {
+        var tl = territoireDuLieu(commune || '', quartier, QUARTIERS_MOTEUR || undefined);
+        if (tl && tl.subdivision) return { sub: tl.subdivision, com: tl.commune || '' };
+      }
       var t = resoudreTerritoire({ commune: commune || '', quartier: quartier || '', secteur: secteur || '', subdivision: '', lieu: '' }, QUARTIERS_MOTEUR || undefined);
       if (t && t.matched && t.subdivision) return { sub: t.subdivision, com: t.commune || '' };
     } catch (e) {}
@@ -681,7 +686,16 @@ var Moteur = (function () {
   // 3.28.23 : secteur de la tournée : subdivision issue de Quartiers (sinon sous-secteur des grandes communes, sinon commune)
   function nomSecteurTournee(a, quartiers) {
     if (!a) return '';
-    if (a.subdivision) return a.subdivision;
+    // 3.31.61 : la subdivision vient de l'onglet Quartiers au moment de l'affichage (nom renommé, créé ou supprimé
+    // pris en compte, même pour une tournée enregistrée avant le changement)
+    if (typeof territoireDuLieu === 'function' && (a.quartier || a.secteur)) {
+      var lq = (quartiers && quartiers.length) ? quartiers : (QUARTIERS_MOTEUR || undefined);
+      var tl = territoireDuLieu(a.commune || '', a.quartier || a.secteur, lq);
+      if (tl && tl.subdivision) return tl.subdivision;
+    }
+    // subdivision portée par l'arrêt : seulement si elle existe encore dans l'onglet
+    var lqs = (quartiers && quartiers.length) ? quartiers : QUARTIERS_MOTEUR;
+    if (a.subdivision && (!lqs || lqs.some(function (q) { return q && bas(q.subdivision) === bas(a.subdivision); }))) return a.subdivision;
     var qNom = a.quartier || a.secteur || '';
     if (quartiers && quartiers.length && qNom) {
       var kc = bas(a.commune), kp = typeof communeParente === 'function' ? bas(communeParente(a.commune)) : kc;
@@ -698,7 +712,7 @@ var Moteur = (function () {
       }
     }
     if (typeof resoudreTerritoire === 'function') {
-      var rT = resoudreTerritoire(a, quartiers);
+      var rT = resoudreTerritoire(Object.assign({}, a, { subdivision: '' }), quartiers);
       if (rT && rT.subdivision) return rT.subdivision;
     }
     var z = typeof zoneDeQuartier === 'function' ? zoneDeQuartier(a.commune, qNom, a.lieu, quartiers) : '';

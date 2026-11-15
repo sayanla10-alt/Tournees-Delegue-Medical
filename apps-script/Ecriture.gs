@@ -736,6 +736,7 @@ function enregistrerFiche(b, dejaVerrouille) {
           if (cEtLon >= 0) vEt[cEtLon] = lonT6;
           if (cEtOrig >= 0) vEt[cEtOrig] = texteCellule_(x.origineGps || '');
           shEtRef.getRange(newEtRow, 1, 1, entEtRef.length).setValues([vEt]);
+          try { listeQuartiersParLigne_(shEtRef, [newEtRow]); } catch (eLq) {}
           if (typeof deployerFormulesTerritoire_ === 'function') {
             try { deployerFormulesTerritoire_(ss, [FEUILLES.etablissements], [newEtRow]); } catch (eFEtN) {}
           }
@@ -988,6 +989,7 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   var rangPh = ligne >= 0 ? ligne + 2 : sh.getLastRow() + 1;
   if (kTel >= 0) sh.getRange(rangPh, kTel + 1).setNumberFormat('@');
   sh.getRange(rangPh, 1, 1, ent.length).setValues([garderFormulesLigne_(sh, rangPh, v, champsPh, pos, modif)]);
+  if (ligne < 0) { try { listeQuartiersParLigne_(sh, [rangPh]); } catch (eLq) {} }
   if (typeof deployerFormulesTerritoire_ === 'function') {
     try { deployerFormulesTerritoire_(ss, [FEUILLES.pharmacies], [rangPh]); } catch (eFPh) {}
   }
@@ -1120,6 +1122,7 @@ function enregistrerEtablissement(b) {
     var cTelE = pos[indexChamp(champsE, 'telephone')];
     if (cTelE >= 0) sh.getRange(rangE, cTelE + 1).setNumberFormat('@');
     sh.getRange(rangE, 1, 1, ent.length).setValues([garderFormulesLigne_(sh, rangE, v, champsE, pos, modif)]);
+    if (ligne < 0) { try { listeQuartiersParLigne_(sh, [rangE]); } catch (eLq) {} }
     if (typeof deployerFormulesTerritoire_ === 'function') {
       try { deployerFormulesTerritoire_(ss, [FEUILLES.etablissements], [rangE]); } catch (eFEt) {}
     }

@@ -2095,8 +2095,17 @@ function subdivisionNommeeDansQuartier(commune, quartier, listeQuartiers) {
   for (var i = 0; i < l.length; i++) {
     var r = l[i]; if (!r || !r.subdivision || vus[r.subdivision] || normaliser(r.commune) !== kc) continue;
     vus[r.subdivision] = true;
-    var nom = normaliser(String(r.subdivision).split(/[–-]/).slice(1).join(' ')).replace(/s$/, '');
-    if (nom && nom !== kc && kq.indexOf(nom) >= 0) return r.subdivision;
+    // nom de la subdivision tel qu'écrit dans l'onglet (« Angré », « Deux Plateaux », « Abobo Nord ») ou, s'il est
+    // préfixé par la commune (« Cocody – Angré »), sans ce préfixe ; jamais le seul nom de la commune
+    var brut = String(r.subdivision), parties = brut.split(/\s+[–-]\s+/);
+    var noms = [normaliser(brut)];
+    if (parties.length > 1) noms.push(normaliser(parties.slice(1).join(' ')));
+    var sansCom = normaliser(brut.replace(new RegExp('^\\s*' + String(r.commune).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), ''));
+    if (sansCom.length >= 4) noms.push(sansCom);
+    for (var j = 0; j < noms.length; j++) {
+      var nom = noms[j].replace(/s$/, '');
+      if (nom && nom.length >= 4 && nom !== kc && kq.indexOf(nom) >= 0) return r.subdivision;
+    }
   }
   return '';
 }
@@ -2130,6 +2139,7 @@ function territoireDuLieu(commune, quartier, listeQuartiers, cache) {
 // Pose territoire / zone / subdivision / secteur sur chaque lieu d'une liste (établissements, pharmacies, présences).
 function poserTerritoireLieux(liste, listeQuartiers) {
   var cache = {};
+  if (listeQuartiers && listeQuartiers.length) definirQuartiersCourants(listeQuartiers);
   (liste || []).forEach(function (o) {
     if (!o) return;
     var t = territoireDuLieu(o.commune, o.quartier, listeQuartiers, cache);
@@ -2205,9 +2215,26 @@ function _obtenirQuartiersIndexes(listeQuartiers) {
   return _geoCacheQ;
 }
 
+// 3.31.61 : référentiel courant (onglet Quartiers chargé) : subdivision -> commune, pour les appels sans liste
+// (moteur, serveur). Rempli par definirQuartiersCourants (Moteur.preparer, poserTerritoireLieux).
+var SUB_VERS_COMMUNE = null, SUB_SRC = null;
+function definirQuartiersCourants(liste) {
+  if (!liste || !liste.length || liste === SUB_SRC) return;
+  var m = {};
+  for (var i = 0; i < liste.length; i++) {
+    var r = liste[i]; if (!r || typeof r !== 'object') continue;
+    var sub = String(r.subdivision || '').trim(), com = String(r.commune || '').trim();
+    if (sub && com && normaliser(sub) !== normaliser(com)) m[normaliser(sub)] = com;
+  }
+  SUB_VERS_COMMUNE = m; SUB_SRC = liste;
+}
 function communeParente(nom, listeQuartiers) {
   if (!nom) return '';
   var s = String(nom).trim();
+  if (SUB_VERS_COMMUNE && !(listeQuartiers && listeQuartiers.length)) {
+    var hc = SUB_VERS_COMMUNE[normaliser(s)];
+    if (hc) return hc;
+  }
   // Seules les 3 grandes communes sont segmentées en sous-secteurs
   var m = s.match(/^(Abobo|Cocody|Yopougon)\b/i);
   if (m) {
@@ -2567,7 +2594,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm, distanceVol: distanceVol,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
-    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, resoudreTerritoire: resoudreTerritoire, territoireDuLieu: territoireDuLieu, poserTerritoireLieux: poserTerritoireLieux, subdivisionNommeeDansQuartier: subdivisionNommeeDansQuartier, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
+    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, resoudreTerritoire: resoudreTerritoire, definirQuartiersCourants: definirQuartiersCourants, territoireDuLieu: territoireDuLieu, poserTerritoireLieux: poserTerritoireLieux, subdivisionNommeeDansQuartier: subdivisionNommeeDansQuartier, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
     COMMUNES_GRAND_ABIDJAN: COMMUNES_GRAND_ABIDJAN, VILLES_INTERIEUR_CI: VILLES_INTERIEUR_CI,
     estCommuneGrandAbidjan: estCommuneGrandAbidjan, estCommuneInterieur: estCommuneInterieur, estTerritoireInterieur: estTerritoireInterieur,
     estCoordonneeAbidjan: estCoordonneeAbidjan, centroideVilleInterieur: centroideVilleInterieur, trouverEtablissementRef: trouverEtablissementRef,

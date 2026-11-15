@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.60';
+  var APP_VERSION = '3.31.61';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.61', ['Planifier : communes segmentées et subdivisions lues dans l\'onglet Quartiers (plus aucun nom écrit en dur) : un nom de subdivision changé, ajouté ou supprimé s\'applique tout de suite', 'Quartier qui porte le nom d\'une subdivision (« Deux Plateaux », « Riviera ») rangé dans cette subdivision']],
     ['3.31.60', ['Base allégée : Etablissements et Pharmacies n\'ont plus de colonnes Zone, Territoire, Subdivision ni Secteur (ni Position) ; ces informations viennent toutes de l\'onglet Quartiers, par la même règle sur le serveur et dans l\'application', 'Repères des pharmacies lus et enregistrés', 'Quartier homonyme d\'une autre commune : le lieu reste dans sa commune']],
     ['3.31.59', ['Source unique des lieux : l\'application ne lit plus dans Présences la commune, le quartier, la zone, la subdivision, le secteur, les repères ni la position GPS ; le lieu d\'un médecin vient d\'Etablissements, celui d\'une pharmacie de Pharmacies, le territoire (zone, subdivision, secteur) de Quartiers ; un changement dans l\'un de ces onglets se voit partout']],
     ['3.31.58', ['Secteurs : chaque arrêt est rangé dans la subdivision de l\'onglet Quartiers (Cocody – Angré, Riviera, Deux Plateaux, Centre ; Abobo – Nord, Centre, Sud ; Yopougon…) retrouvée depuis sa commune et son quartier : 8e Tranche, Djibi, Château, Oscar(s) vont avec Angré ; Palmeraie, Bonoumin, Riviera Golf avec Riviera ; Vallon(s), Latrille avec Deux Plateaux ; Blockhauss, Danga, Mermoz avec Cocody – Centre',
@@ -1806,21 +1807,33 @@
     return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
   }
   function estKo(statut) { return statut && !Moteur.estVisite(statut, statuts()); }
+  // 3.31.61 : une commune « segmentée » est une commune qui a au moins une subdivision dans l'onglet Quartiers
+  // (Abobo, Cocody, Yopougon aujourd'hui) : liste recalculée dès que l'onglet change (subdivision créée, renommée, supprimée)
+  var GRANDES_CACHE = { q: null, l: [] };
+  function echapRegex(t) { return String(t || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  function grandesCommunes() {
+    var src = (S.data && S.data.quartiers) || null;
+    if (GRANDES_CACHE.q === src && GRANDES_CACHE.l.length) return GRANDES_CACHE.l;
+    var qs = (typeof quartiers === 'function') ? quartiers() : [];
+    var vus = {}, l = [];
+    qs.forEach(function (q) {
+      if (!q || !String(q.subdivision || '').trim() || !q.commune) return;
+      var c = String(q.commune).trim(); if (!vus[normaliser(c)]) { vus[normaliser(c)] = true; l.push(c); }
+    });
+    if (!l.length) l = ['Abobo', 'Cocody', 'Yopougon'];
+    GRANDES_CACHE = { q: src, l: l };
+    return l;
+  }
   function estGrandeCommune(nom) {
     if (!nom) return false;
     var s = normaliser(nom);
-    return s.indexOf('abobo') === 0 || s.indexOf('cocody') === 0 || s.indexOf('yopougon') === 0;
+    return grandesCommunes().some(function (g) { var n = normaliser(g); return s === n || s.indexOf(n) === 0; });
   }
   function communeParente(nom, listeQuartiers) {
     if (!nom) return '';
     var s = String(nom).trim();
-    var m = s.match(/^(Abobo|Cocody|Yopougon)\b/i);
-    if (m) {
-      var p = m[1].toLowerCase();
-      if (p === 'abobo') return 'Abobo';
-      if (p === 'cocody') return 'Cocody';
-      if (p === 'yopougon') return 'Yopougon';
-    }
+    var ns0 = normaliser(s), gr = grandesCommunes();
+    for (var gi = 0; gi < gr.length; gi++) { var gn = normaliser(gr[gi]); if (ns0 === gn || (ns0.indexOf(gn) === 0 && /^\s*[-–—\s]/.test(s.slice(gr[gi].length)))) return gr[gi]; }
     var qs = (listeQuartiers && listeQuartiers.length) ? listeQuartiers : ((typeof quartiers === 'function') ? quartiers() : []);
     if (qs && qs.length) {
       var ns = normaliser(s);
@@ -1833,23 +1846,7 @@
     }
     return s;
   }
-  var ORDRE_SECTEURS = [
-    // 1. Cocody
-    'Cocody – Angré',
-    'Cocody – Deux Plateaux',
-    'Cocody – Riviera',
-    'Cocody – Centre',
-    // 2. Yopougon
-    'Yopougon – Niangon',
-    'Yopougon – Maroc & Toits Rouges',
-    'Yopougon – Centre & Mairie',
-    'Yopougon – Sud & Gesco',
-    // 3. Abobo
-    'Abobo – Nord & PK18',
-    'Abobo – Centre & Mairie',
-    'Abobo – Baoulé & Avocatier',
-    'Abobo – Sud & Plaque'
-  ];
+  var ORDRE_SECTEURS = [];   // 3.31.61 : plus de noms écrits en dur, subdivisions de l'onglet Quartiers triées par nom
   function normaliserRechercheListe(s) {
     return sansAccents(String(s || '')).toLowerCase()
       .replace(/(\d+)\s*(?:er|re|ere|ème|eme|e)\b/g, '$1e')
@@ -2121,9 +2118,6 @@
     });
     var subs = Object.keys(setSub);
     if (subs.length) return trierSecteurs(subs);
-    if (par === 'Cocody') return ['Cocody – Angré', 'Cocody – Deux Plateaux', 'Cocody – Riviera', 'Cocody – Centre'];
-    if (par === 'Yopougon') return ['Yopougon – Niangon', 'Yopougon – Maroc & Toits Rouges', 'Yopougon – Centre & Mairie', 'Yopougon – Sud & Gesco'];
-    if (par === 'Abobo') return ['Abobo – Nord & PK18', 'Abobo – Centre & Mairie', 'Abobo – Baoulé & Avocatier', 'Abobo – Sud & Plaque'];
     var set = {};
     qs.forEach(function (q) {
       if (communeParente(q.commune) === par && q.commune !== par) {
@@ -2145,7 +2139,7 @@
   // Toute sélection totale ou partielle de subdivisions d'Abobo, Cocody ou Yopougon s'affiche sous le nom de la commune parente (Abobo, Cocody, Yopougon).
   function condenserCommunesEtSecteurs(liste) {
     if (!liste || !liste.length) return '';
-    var grandes = ['Abobo', 'Cocody', 'Yopougon'];
+    var grandes = grandesCommunes().slice();
     var secsParGrande = {};
     grandes.forEach(function (g) {
       secsParGrande[g] = (typeof secteursDeGrandeCommune === 'function') ? secteursDeGrandeCommune(g) : [];
@@ -2188,7 +2182,7 @@
       var par = (typeof communeParente === 'function') ? communeParente(str, qs) : '';
       if (grandesTraitees[par]) return;
 
-      var nomAffiche = str.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '')
+      var nomAffiche = str.replace(new RegExp('^(' + grandesCommunes().map(echapRegex).join('|') + ')\\s*[-–—]\\s*', 'i'), '')
                           .replace(/\s*\(Toute la commune\)$/i, '');
       if (resultats.indexOf(nomAffiche) < 0) {
         resultats.push(nomAffiche);
@@ -2525,30 +2519,17 @@
     });
 
     // 3.26.7 : Garantir systématiquement la présence des 3 grandes communes et de leurs subdivisions
-    groupes['Zone Nord'] = groupes['Zone Nord'] || {};
-    groupes['Zone Nord']['Abobo'] = secteursDeGrandeCommune('Abobo');
-    groupes['Zone Est'] = groupes['Zone Est'] || {};
-    groupes['Zone Est']['Cocody'] = secteursDeGrandeCommune('Cocody');
-    groupes['Zone Ouest'] = groupes['Zone Ouest'] || {};
-    groupes['Zone Ouest']['Yopougon'] = secteursDeGrandeCommune('Yopougon');
+    grandesCommunes().forEach(function (g) {
+      var qz = qs.filter(function (q) { return normaliser(communeParente(q.commune)) === normaliser(g); })[0];
+      var zg = qz ? (estTerritoireInterieur(qz) ? 'Intérieur' : (qz.zone || 'Zone Autre')) : 'Zone Autre';
+      groupes[zg] = groupes[zg] || {};
+      groupes[zg][g] = secteursDeGrandeCommune(g);
+    });
 
     var zonesOrdonnees = ZONES.slice();
     Object.keys(groupes).forEach(function (z) { if (zonesOrdonnees.indexOf(z) < 0) zonesOrdonnees.push(z); });
 
-    var reperesOfficiels = {
-      'Cocody – Angré': 'Angré · 7e/8e tranche · CHU',
-      'Cocody – Deux Plateaux': 'Vallons · Aghien · Attoban',
-      'Cocody – Riviera': 'Riviera 2-4 · Palmeraie · Faya',
-      'Cocody – Centre': 'Saint-Jean · Danga · CHU · Mermoz',
-      'Yopougon – Niangon': 'Nord · Sud · Académie · Cité Verte',
-      'Yopougon – Maroc & Toits Rouges': 'Maroc · Toits Rouges · Sideci',
-      'Yopougon – Centre & Mairie': 'CHU · Saint-André · Siporex',
-      'Yopougon – Sud & Gesco': 'Port-Bouët 2 · Selmer · Gesco',
-      'Abobo – Nord & PK18': 'PK 18 · N\'Dotré · Belle Ville',
-      'Abobo – Centre & Mairie': 'Samaké · Gare · Mairie · Habitat',
-      'Abobo – Baoulé & Avocatier': 'Abobo Baoulé · Avocatier · SOTRA',
-      'Abobo – Sud & Plaque': 'Sagbé · Plaque 1-2 · Anador'
-    };
+    var reperesOfficiels = {};   // 3.31.61 : repères d'une subdivision = ses quartiers dans l'onglet Quartiers
 
     function reperesDeSub(sec) {
       var liste = [];
@@ -2576,7 +2557,7 @@
           // Seules les 3 grandes communes (Abobo, Cocody, Yopougon) sont segmentées en sous-secteurs
           opts.push({ v: par, lib: par + ' (Toute la commune)', parent: true, commune: par });
           trierSecteurs(secteurs.slice()).forEach(function (sec) {
-            var nomCourt = sec.replace(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*/i, '');
+            var nomCourt = sec.replace(new RegExp('^' + echapRegex(par) + '\\s*[-–—]\\s*', 'i'), '');
             // Exception Cocody Centre : garder exceptionnellement Cocody Centre
             if (par === 'Cocody' && nomCourt.toLowerCase() === 'centre') {
               nomCourt = 'Cocody Centre';

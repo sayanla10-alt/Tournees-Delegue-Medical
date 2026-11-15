@@ -472,6 +472,11 @@ function deployerListesValidationTerritoire_(ss) {
     champsGeo.forEach(function (lib) {
       var cDest = ent.indexOf(normaliser(lib)) + 1;
       var cSrc = colQ(lib);
+      if (lib === 'Quartier' && cDest > 0 && ent.indexOf(normaliser('Liste_Quartiers_Dynamique')) >= 0 && sh.getLastRow() >= 2) {
+        var rgs = []; for (var rq = 2; rq <= sh.getLastRow(); rq++) rgs.push(rq);
+        listeQuartiersParLigne_(sh, rgs);
+        return;
+      }
       if (cDest > 0 && cSrc > 0) {
         var lettre = lettreColonne_(cSrc);
         var plageSrc = shQ.getRange(lettre + '2:' + lettre + maxRowQ);
@@ -481,6 +486,61 @@ function deployerListesValidationTerritoire_(ss) {
       }
     });
   });
+}
+
+// 3.31.60 : liste déroulante du Quartier filtrée par commune. La colonne « Liste_Quartiers_Dynamique » d'une ligne
+// étale (formule) les quartiers de sa commune ; la liste du Quartier de CETTE ligne lit cette plage. Google Sheets
+// n'accepte ni INDIRECT ni référence relative dans une liste déroulante : une règle par ligne.
+// 3.31.61 : à lancer depuis l'éditeur (ou le menu) : listes déroulantes Commune et Quartier d'Etablissements et de
+// Pharmacies tirées de l'onglet Quartiers. Commune : toutes les communes de l'onglet ; Quartier : les quartiers de la
+// commune de la ligne (colonne « Liste_Quartiers_Dynamique »), et tout l'onglet sur les lignes vides.
+function reparerListesQuartiers() {
+  var ss = SpreadsheetApp.getActive(), shQ = ss.getSheetByName(FEUILLES.quartiers || 'Quartiers');
+  if (!shQ) return 'Onglet Quartiers absent';
+  var entQ = shQ.getRange(1, 1, 1, shQ.getLastColumn()).getValues()[0].map(normaliser);
+  var cCom = entQ.indexOf(normaliser('Commune')) + 1, cQ = entQ.indexOf(normaliser('Quartier')) + 1;
+  var bilan = [];
+  [FEUILLES.etablissements, FEUILLES.pharmacies].forEach(function (nomF) {
+    var sh = ss.getSheetByName(nomF); if (!sh || sh.getLastRow() < 2) return;
+    var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+    var cC = ent.indexOf(normaliser('Commune')) + 1, cQd = ent.indexOf(normaliser('Quartier')) + 1, der = sh.getLastRow();
+    var fin = Math.max(sh.getMaxRows(), der + 1);
+    if (cC > 0 && cCom > 0) sh.getRange(2, cC, fin - 1, 1).setDataValidation(SpreadsheetApp.newDataValidation()
+      .requireValueInRange(shQ.getRange(2, cCom, shQ.getMaxRows() - 1, 1), true).setAllowInvalid(true).build());
+    var rgs = []; for (var r = 2; r <= der; r++) rgs.push(r);
+    var n = listeQuartiersParLigne_(sh, rgs);
+    if (cQd > 0 && cQ > 0 && fin > der) sh.getRange(der + 1, cQd, fin - der, 1).setDataValidation(SpreadsheetApp.newDataValidation()
+      .requireValueInRange(shQ.getRange(2, cQ, shQ.getMaxRows() - 1, 1), true).setAllowInvalid(true).build());
+    bilan.push(nomF + ' : ' + n + ' lignes');
+  });
+  return bilan.join(' ; ');
+}
+
+function listeQuartiersParLigne_(sh, rangs) {
+  if (!sh || !rangs || !rangs.length || sh.getLastColumn() < 1) return 0;
+  var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  var cL = ent.indexOf(normaliser('Liste_Quartiers_Dynamique')), cQ = ent.indexOf(normaliser('Quartier'));
+  if (cL < 0 || cQ < 0) return 0;
+  var largeur = Math.max(1, Math.min(52, sh.getMaxColumns() - cL));
+  var modele = sh.getRange(2, cL + 1).getFormulaR1C1();
+  var rs = rangs.filter(function (r) { return r >= 2; }).sort(function (a, b) { return a - b; });
+  if (!rs.length) return 0;
+  var r0 = rs[0], r1 = rs[rs.length - 1];
+  // formule de la colonne dynamique posée là où elle manque (lignes ajoutées)
+  if (modele) {
+    var fl = sh.getRange(r0, cL + 1, r1 - r0 + 1, 1).getFormulas();
+    rs.forEach(function (r) { if (!fl[r - r0][0]) sh.getRange(r, cL + 1).setFormulaR1C1(modele); });
+  }
+  // une règle par ligne, écrites d'un bloc
+  var regles = sh.getRange(r0, cQ + 1, r1 - r0 + 1, 1).getDataValidations(), voulu = {};
+  rs.forEach(function (r) { voulu[r] = true; });
+  for (var r = r0; r <= r1; r++) {
+    if (!voulu[r]) continue;
+    regles[r - r0][0] = SpreadsheetApp.newDataValidation()
+      .requireValueInRange(sh.getRange(r, cL + 1, 1, largeur), true).setAllowInvalid(true).build();
+  }
+  sh.getRange(r0, cQ + 1, r1 - r0 + 1, 1).setDataValidations(regles);
+  return rs.length;
 }
 
 function ecrireListes(ss) {
