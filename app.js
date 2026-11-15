@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.75';
+  var APP_VERSION = '3.31.76';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.76', ['Recherche par nom : correction du tri de pertinence (les noms commençant par le mot cherché passent désormais bien en premier, avant ceux qui le contiennent en 2e/3e position)']],
     ['3.31.75', ['+ Ajouter : onglet « Compatibles » passé en vert (cohérent avec « Hors filtre » ambre)']],
     ['3.31.74', ['+ Ajouter : deux onglets « Compatibles » et « Hors filtre » avec compteurs, et tri par pertinence sur les recherches par nom (début du nom prioritaire)']],
     ['3.31.73', ['+ Ajouter (Planifier) : lors d\'une recherche par nom, toutes les fiches correspondantes s\'affichent désormais (compatibles en haut, puis « Hors filtre » centré en dessous avec la raison précise)']],
@@ -10504,14 +10505,17 @@
       '<button type="button" class="bouton petit" data-a="ajouterTourneeChoix" data-v="position" style="flex:none;white-space:nowrap">' + icone('cible') + 'Près de moi</button></div>' +
       champRechercheLibre('rechCommunes', q) + '<div id="resCommunes">' + resultatsCommunes(q) + '</div>';
   };
-  function nomSansTitre(nom) {
-    return normaliser(nomSansType(nom || '')).replace(/^(dr|pr|ide|sage[- ]femme|mme|mlle|m|pharmacie)\.?\s+/, '');
+  function propreMots(s) {
+    return sansAccents(String(s || '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   }
-  function scorePertinenceNom(p, qNorm, mots) {
-    if (!qNorm || !mots || !mots.length) return 0;
+  function nomSansTitre(nom) {
+    return propreMots(nomSansType(nom || '')).replace(/^(dr|pr|ide|sage femme|mme|mlle|m|pharmacie)\s+/, '').trim();
+  }
+  function scorePertinenceNom(p, qClean, mots) {
+    if (!qClean || !mots || !mots.length) return 0;
     var np = nomSansTitre(p && p.nom);
     if (!np) return 0;
-    if (np.indexOf(qNorm) === 0) return 4;
+    if (np.indexOf(qClean) === 0) return 4;
     var motsNom = np.split(/\s+/).filter(Boolean);
     if (mots.length === 1) {
       if (motsNom.some(function (w) { return w.indexOf(mots[0]) === 0; })) return 3;
@@ -10537,8 +10541,8 @@
   }
   function resultatsCommunes(q) {
     var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), com = ensemble(communesAjout(d)), avecCom = Object.keys(com).length > 0, qs = quartiers(), filtre = filtreAjout();
-    var qNorm = normaliser(q || '');
-    var mots = qNorm ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    var qClean = propreMots(q || '');
+    var mots = qClean ? qClean.split(/\s+/).filter(Boolean) : [];
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
     (ctx().parJour[j] || []).forEach(function (cr) {
       var p = cr.prat;
@@ -10549,7 +10553,7 @@
         if (!mots.every(function (m) { return txt.indexOf(m) >= 0; })) return;
       }
       if (avecCom && !(typeof communeCorrespondante === 'function' ? communeCorrespondante(cr, com, qs) : com[cr.commune])) return;
-      var x = { cr: cr, score: Moteur.scoreDe(p, d), pert: scorePertinenceNom(p, qNorm, mots) };
+      var x = { cr: cr, score: Moteur.scoreDe(p, d), pert: scorePertinenceNom(p, qClean, mots) };
       if (!vus[cr.code] || x.score > vus[cr.code].score) vus[cr.code] = x;
     });
     // 3.25.8 : position connue (GPS récent ou Autour de moi) : du plus proche au plus loin
@@ -10600,7 +10604,7 @@
           });
           raison = comDiff ? ('Hors filtre · ' + (crJour[0].commune || 'Autre zone')) : 'Hors filtre · Spécialité / ★';
         }
-        horsFiltre.push({ p: p, pres: pres, crJour: crJour, raison: raison, gris: gris, cleJour: cleJour, pert: scorePertinenceNom(p, qNorm, mots) });
+        horsFiltre.push({ p: p, pres: pres, crJour: crJour, raison: raison, gris: gris, cleJour: cleJour, pert: scorePertinenceNom(p, qClean, mots) });
       });
       horsFiltre.sort(function (a, b) {
         if (b.pert !== a.pert) return b.pert - a.pert;
@@ -10687,8 +10691,8 @@
     if (t === 'Médecin') tousPrat = tousPrat.filter(function (p) { return p.type !== 'Pharmacie'; });
     else if (t === 'Pharmacie') tousPrat = tousPrat.filter(function (p) { return p.type === 'Pharmacie'; });
 
-    var qNorm = normaliser(q || '');
-    var mots = qNorm ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    var qClean = propreMots(q || '');
+    var mots = qClean ? qClean.split(/\s+/).filter(Boolean) : [];
     var dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; }));
     var pos = positionActuelle();
     var cCtx = ctx();
@@ -10718,7 +10722,7 @@
           }
         });
       }
-      return { p: p, dist: minD, approx: approx, pert: scorePertinenceNom(p, qNorm, mots) };
+      return { p: p, dist: minD, approx: approx, pert: scorePertinenceNom(p, qClean, mots) };
     });
 
     avecDist.sort(function (x, y) {

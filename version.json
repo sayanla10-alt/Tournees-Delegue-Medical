@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.75",
+  "version": "3.31.76",
   "date": "2026-11-15",
   "notes": [
-    "+ Ajouter : onglet « Compatibles » passé en vert (cohérent avec « Hors filtre » ambre)"
+    "Recherche par nom : correction du tri de pertinence (les noms commençant par le mot cherché passent désormais bien en premier, avant ceux qui le contiennent en 2e/3e position)"
   ]
 }
