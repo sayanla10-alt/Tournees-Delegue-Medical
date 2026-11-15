@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.87';
+  var APP_VERSION = '3.31.88';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.88', ['Journée : ajout de la 4e icône « à vol d\'oiseau » (distance directe sans détour routier) après distance route, à pied et en voiture']],
     ['3.31.87', ['Écran d\'accueil : ne se relance plus plusieurs fois pendant le chargement initial ou la synchronisation']],
     ['3.31.86', ['Vérifier la fiche réorganisé par importance : d\'abord les noms à vérifier (une question, Oui / Non), puis les nouveaux contacts, puis les mises à jour en un mot (Téléphone, Planning + jeu.) ; le détail s\'ouvre en touchant la ligne ; seul ce qui manque est demandé', 'Répertoire › Ajouter : « Scanner une fiche » et « Photo déjà prise » côte à côte, pour reprendre la photo d\'un compte rendu déjà prise (galerie ou dossiers du téléphone)']],
     ['3.31.85', ['Écran de mise à jour : les nouveautés restent affichées sans décompte automatique (l\'écran ne saute plus tout seul)']],
@@ -1810,13 +1811,17 @@
     return '<div class="sj-taux"><div class="progression" role="progressbar" aria-label="Réalisé" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + p + '"><i style="width:' + p + '%"></i></div>' +
       '<b class="' + (p >= 100 ? 'complet' : '') + '">' + p + ' %</b><small>' + faites + '/' + prevues + ' réalisée' + (faites > 1 ? 's' : '') + ' · ' + pr + ' % renseignée' + (pr > 1 ? 's' : '') + '</small></div>';
   }
-  // 3.23.2 : trajet en symboles : distance, minutes à pied, minutes en voiture (vol d'oiseau x détour routier)
+  // 3.23.2 / 3.31.88 : trajet en symboles : distance route, à pied, en voiture, et distance directe à vol d'oiseau (non multipliée par 1,6)
   function trajetMini(kmVol, minVoiture) {
     var route = kmVol * REGLAGES_MOTEUR.detourRoutier, pied = Math.max(1, Math.round(route / 4.8 * 60));
-    var dist = route < 1 ? Math.max(10, Math.round(route * 100) * 10) + ' m' : (Math.round(route * 10) / 10).toLocaleString('fr-FR') + ' km';
+    var fmtDist = function (k) { return k < 1 ? Math.max(10, Math.round(k * 100) * 10) + ' m' : (Math.round(k * 10) / 10).toLocaleString('fr-FR') + ' km'; };
+    var dist = fmtDist(route), distVol = fmtDist(kmVol);
     var duree = function (m) { return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + pad2(m % 60); };
-    return '<span class="trajet-mini" role="img" aria-label="' + dist + ', ' + duree(pied) + ' à pied, ' + duree(Math.max(1, minVoiture)) + ' en voiture">' +
-      '<span>' + icone('route') + dist + '</span><span>' + icone('pieton') + duree(pied) + '</span><span>' + icone('voiture') + duree(Math.max(1, minVoiture)) + '</span></span>';
+    return '<span class="trajet-mini" role="img" aria-label="' + dist + ', ' + duree(pied) + ' à pied, ' + duree(Math.max(1, minVoiture)) + ' en voiture, ' + distVol + ' à vol d\'oiseau">' +
+      '<span title="Distance route">' + icone('route') + dist + '</span>' +
+      '<span title="À pied">' + icone('pieton') + duree(pied) + '</span>' +
+      '<span title="En voiture">' + icone('voiture') + duree(Math.max(1, minVoiture)) + '</span>' +
+      '<span title="À vol d\'oiseau">' + icone('vol') + distVol + '</span></span>';
   }
   function km(n) {
     if (n === null || n === undefined || !isFinite(n)) return '';
@@ -16745,6 +16750,7 @@
       sms: '<path d="M4 5h16v11H9l-5 4V5Z"/><path d="M8 9.5h8M8 12.5h5"/>',
       waze: '<path d="M12 3 20 20l-8-4-8 4 8-17Z"/>',
       route: '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M8 18h6a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7h6"/>',
+      vol: '<circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="6" r="2.2"/><path d="M7.6 16.4 16.4 7.6" stroke-dasharray="2.4 2.2"/>',
       filtre: '<path d="M4 6h16M7 12h10M10 18h4"/>',
       chevron: '<path d="m6 9 6 6 6-6"/>',
       calendrier: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',

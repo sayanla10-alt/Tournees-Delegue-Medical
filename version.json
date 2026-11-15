@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.87",
+  "version": "3.31.88",
   "date": "2026-11-15",
   "notes": [
-    "Écran d'accueil : ne se relance plus plusieurs fois pendant le chargement initial ou la synchronisation"
+    "Journée : ajout de la 4e icône « à vol d'oiseau » (distance directe sans détour routier) après distance route, à pied et en voiture"
   ]
 }
