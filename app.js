@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.78';
+  var APP_VERSION = '3.31.79';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.79', ['« Déjà planifié » : le dernier commentaire laissé sur chaque praticien, daté, sous le RDV']],
     ['3.31.78', ['Uniformisation : le tri par pertinence (début du nom prioritaire) s\'applique désormais partout (Répertoire, Autour de moi, Remplacer, + Ajouter, Tout le répertoire)']],
     ['3.31.77', ['Planifier : changer le nombre de visites par jour ne réintègre plus les médecins retirés avec la croix']],
     ['3.31.76', ['Recherche par nom : correction du tri de pertinence (les noms commençant par le mot cherché passent désormais bien en premier, avant ceux qui le contiennent en 2e/3e position)']],
@@ -9262,6 +9263,12 @@
     if (rt) return { type: 'rdv', texte: 'RDV ' + rt + ', pris à la main', note: '' };
     return { type: 'tirage', texte: '', note: '' };
   }
+  // 3.31.66 : dernier commentaire laissé sur ce praticien (tous comptes rendus), daté
+  function dernierCommentaire(code) {
+    var v = ((S.data && S.data.historique) || []).filter(function (x) { return x.code === code && String(x.commentaire || '').trim(); })
+      .sort(function (x, y) { return String(y.date || '').localeCompare(String(x.date || '')); })[0];
+    return v ? { date: String(v.date || '').slice(0, 10), texte: String(v.commentaire).trim(), statut: v.statut || '' } : null;
+  }
   function rdvDejaPlanifies(d) {
     return donneesJour(d).filter(function (a) { return raisonVisitePlanifiee(a, d).type !== 'tirage'; });
   }
@@ -9277,7 +9284,8 @@
         var r = raisonVisitePlanifiee(a, d);
         corps += '<li class="dp-visite' + (rempl ? ' dp-rempl' : '') + '"><div class="dp-info"><b>' + (a.heure ? '<span class="dp-heure">' + esc(a.heure) + '</span> ' : '') + esc(a.nom) + '</b>' +
           (a.specialite ? '<small>' + esc(a.specialite) + '</small>' : '') +
-          '<small class="dp-raison ' + r.type + '">' + esc(r.texte) + '</small>' + (r.note ? '<small class="dp-note">« ' + esc(r.note) + ' »</small>' : '') + '</div>' +
+          '<small class="dp-raison ' + r.type + '">' + esc(r.texte) + '</small>' + (r.note ? '<small class="dp-note">« ' + esc(r.note) + ' »</small>' : '') +
+          (function () { var dc = dernierCommentaire(a.code); return dc && dc.texte !== r.note ? '<small class="dp-dernier"><b>Dernier commentaire' + (dc.date ? ' (' + esc(dateCourte(dc.date)) + ')' : '') + ' :</b> ' + esc(dc.texte) + '</small>' : ''; })() + '</div>' +
           (faite ? '<span class="etiquette ok">' + esc(a.statut) + '</span>'
             : '<div class="puces dp-puces"><button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="garder" aria-pressed="' + !rempl + '">Garder</button>' +
               '<button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="remplacer" aria-pressed="' + rempl + '">Remplacer</button></div>') + '</li>';

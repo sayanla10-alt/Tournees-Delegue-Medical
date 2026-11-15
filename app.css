@@ -4945,3 +4945,5 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .dp-note { font-style: italic; white-space: normal; }
 .dp-raison.report { color: var(--ambre, #a86a00) !important; }
 .dp-raison.rappel { color: var(--ambre, #a86a00) !important; }
+.dp-dernier { white-space: normal; color: var(--encre, inherit) !important; }
+.dp-dernier b { display: inline; font-weight: 600; }

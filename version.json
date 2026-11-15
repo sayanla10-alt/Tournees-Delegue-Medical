@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.78",
+  "version": "3.31.79",
   "date": "2026-11-15",
   "notes": [
-    "Uniformisation : le tri par pertinence (début du nom prioritaire) s'applique désormais partout (Répertoire, Autour de moi, Remplacer, + Ajouter, Tout le répertoire)"
+    "« Déjà planifié » : dernier commentaire laissé sur chaque praticien, daté, sous le RDV"
   ]
 }
