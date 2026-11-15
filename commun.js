@@ -1852,12 +1852,43 @@ function resoudreTerritoire(input, listeQuartiers) {
     };
   }
 
-  // 1) Match exact normalisé sur secteur ou sur n'importe quel élément de variantes
-  var essaisStep1 = [];
+  // 1) Priorité au match exact normalisé sur Quartier (nInQua) s'il est renseigné
   var nInSec = normaliser(inSecteur);
   var nInQua = normaliser(inQuartier);
-  if (nInSec) essaisStep1.push({ norm: nInSec, depuisSecteur: true });
-  if (nInQua && nInQua !== nInSec) essaisStep1.push({ norm: nInQua, depuisSecteur: false });
+
+  if (nInQua) {
+    var best2 = null, best2Score = -1, best2Global = null, best2GlobalScore = -1;
+    for (var i2 = 0; i2 < qs.length; i2++) {
+      var q2 = qs[i2];
+      var okCom2 = compatibleCommune(q2);
+      if (normaliser(q2.quartier) !== nInQua) continue;
+
+      var q2ComNorm = normaliser(q2.commune);
+      var q2SubNorm = normaliser(q2.subdivision);
+      var sc2 = 0;
+      if (inSubNorm && q2SubNorm === inSubNorm) sc2 += 100;
+      if (inComNorm && q2ComNorm === inComNorm) sc2 += 50;
+      if (inLieuNorm && q2ComNorm && q2ComNorm.length >= 4 && inLieuNorm.indexOf(q2ComNorm) >= 0) sc2 += 20;
+      if (inLieuNorm && q2SubNorm && q2SubNorm.length >= 4 && inLieuNorm.indexOf(q2SubNorm) >= 0) sc2 += 15;
+      if (nInSec && normaliser(q2.secteur) === nInSec) sc2 += 12;
+      else if (!q2.secteur) sc2 += 10;
+      if (okCom2 && sc2 > best2Score) {
+        best2Score = sc2;
+        best2 = q2;
+      }
+      if (sc2 > best2GlobalScore) {
+        best2GlobalScore = sc2;
+        best2Global = q2;
+      }
+    }
+    if (best2) return construireResultat(best2, true);
+    if (best2Global && !comExplicite) return construireResultat(best2Global, true);
+  }
+
+  // 2) Match exact normalisé sur secteur ou sur n'importe quel élément de variantes (nInQua d'abord, puis nInSec)
+  var essaisStep1 = [];
+  if (nInQua) essaisStep1.push({ norm: nInQua, depuisSecteur: false });
+  if (nInSec && nInSec !== nInQua) essaisStep1.push({ norm: nInSec, depuisSecteur: true });
 
   if (essaisStep1.length) {
     var best1 = null, best1Score = -1, best1Global = null, best1GlobalScore = -1;
@@ -1876,6 +1907,7 @@ function resoudreTerritoire(input, listeQuartiers) {
         if (!matchSec && !matchVar) continue;
 
         var sc1 = 0;
+        if (!ess.depuisSecteur) sc1 += 150;
         if (inSubNorm && q1SubNorm === inSubNorm) sc1 += 100;
         if (inComNorm && q1ComNorm === inComNorm) sc1 += 50;
         if (inLieuNorm && q1ComNorm && q1ComNorm.length >= 4 && inLieuNorm.indexOf(q1ComNorm) >= 0) sc1 += 20;
@@ -1897,38 +1929,9 @@ function resoudreTerritoire(input, listeQuartiers) {
     if (best1) return construireResultat(best1, true);
     if (best1Global && !comExplicite) return construireResultat(best1Global, true);
   }
-
-  // 2) Match exact normalisé sur quartier
-  if (nInQua) {
-    var best2 = null, best2Score = -1, best2Global = null, best2GlobalScore = -1;
-    for (var i2 = 0; i2 < qs.length; i2++) {
-      var q2 = qs[i2];
-      var okCom2 = compatibleCommune(q2);
-      if (normaliser(q2.quartier) !== nInQua) continue;
-
-      var q2ComNorm = normaliser(q2.commune);
-      var q2SubNorm = normaliser(q2.subdivision);
-      var sc2 = 0;
-      if (inSubNorm && q2SubNorm === inSubNorm) sc2 += 100;
-      if (inComNorm && q2ComNorm === inComNorm) sc2 += 50;
-      if (inLieuNorm && q2ComNorm && q2ComNorm.length >= 4 && inLieuNorm.indexOf(q2ComNorm) >= 0) sc2 += 20;
-      if (inLieuNorm && q2SubNorm && q2SubNorm.length >= 4 && inLieuNorm.indexOf(q2SubNorm) >= 0) sc2 += 15;
-      if (!q2.secteur) sc2 += 10;
-      if (okCom2 && sc2 > best2Score) {
-        best2Score = sc2;
-        best2 = q2;
-      }
-      if (sc2 > best2GlobalScore) {
-        best2GlobalScore = sc2;
-        best2Global = q2;
-      }
-    }
-    if (best2) return construireResultat(best2, true);
-    if (best2Global && !comExplicite) return construireResultat(best2Global, true);
-  }
   // 3.31.58 : rien dans la commune indiquée : dernier recours, l'homonyme d'une autre commune (comportement d'avant)
-  if (comExplicite && typeof best1Global !== 'undefined' && best1Global && !inLieuNorm) return construireResultat(best1Global, true);
   if (comExplicite && typeof best2Global !== 'undefined' && best2Global && !inLieuNorm) return construireResultat(best2Global, true);
+  if (comExplicite && typeof best1Global !== 'undefined' && best1Global && !inLieuNorm) return construireResultat(best1Global, true);
 
   // 3) Match partiel >= 4 caractères dans lieu (trié par longueur décroissante, priorisant commune)
   if (inLieuNorm) {

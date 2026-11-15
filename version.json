@@ -1,8 +1,8 @@
 ﻿{
-  "version": "3.31.65",
+  "version": "3.31.66",
   "date": "2026-11-15",
   "notes": [
-    "« Déjà planifié » : seulement vos RDV (pris par vous, reportés, à rappeler) ; les propositions du tirage restent dans la liste proposée",
-    "Bandeau plus court : « Voir plus en détail »"
+    "Planifier : toute modification du Quartier d'un hôpital dans l'onglet Etablissements s'affiche immédiatement dans la liste proposée (lecture directe depuis Etablissements/Presences, comme pour les repères)",
+    "Secteurs de tournée (cleZoneSecteur) : rattachement direct à la colonne Subdivision de l'onglet Quartiers"
   ]
 }

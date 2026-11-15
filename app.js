@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.65';
+  var APP_VERSION = '3.31.66';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.66', ['Planifier : le quartier modifié d\'un établissement dans le Sheet s\'affiche immédiatement dans la liste proposée (lecture directe depuis Etablissements/Presences, comme pour les repères)']],
     ['3.31.65', ['« Déjà planifié » ne montre plus que vos RDV : pris par vous, reportés ou à rappeler ; les visites proposées par le tirage restent dans la liste proposée', 'Bandeau plus court : « Voir plus en détail »']],
     ['3.31.64', ['Planifier, bandeau « Déjà planifié » : pour chaque visite, la raison au lieu du lieu : RDV pris le (date du compte rendu), confirmé ou non, avec l\'annotation du compte rendu ; prioritaire ou visite ajoutée à la main ; ou proposition du tirage avec la dernière visite']],
     ['3.31.63', ['Planifier : chaque groupe porte le nom exact de la subdivision de l\'onglet Quartiers (Angré, Riviera, Deux Plateaux, Cocody Centre…), affiché même quand la journée tient dans une seule subdivision', 'Planifier : le bandeau bleu « Déjà planifié » se touche : il montre les visites déjà prévues et permet de garder ou de remplacer chacune ; les visites remplacées sont aussitôt reproposées par le tirage']],
@@ -3171,10 +3172,10 @@
           lieu: (et && et.nom) || pr.lieu || '',
           quartier: (et && et.quartier) || pr.quartier || '',
           commune: (et && et.commune) || pr.commune || '',
-          zone: (et && et.zone) || pr.zone || '',
-          territoire: (et && et.territoire) || pr.territoire || '',
-          subdivision: (et && et.subdivision) || pr.subdivision || '',
-          secteur: (et && et.secteur) || pr.secteur || '',
+          zone: (et && et.quartier) ? (et.zone || '') : ((et && et.zone) || pr.zone || ''),
+          territoire: (et && et.quartier) ? (et.territoire || '') : ((et && et.territoire) || pr.territoire || ''),
+          subdivision: (et && et.quartier) ? (et.subdivision || '') : ((et && et.subdivision) || pr.subdivision || ''),
+          secteur: (et && et.quartier) ? (et.secteur || '') : ((et && et.secteur) || pr.secteur || ''),
           lundi: pr.lundi || '',
           mardi: pr.mardi || '',
           mercredi: pr.mercredi || '',
@@ -6310,33 +6311,57 @@
     return s.replace(/\s{2,}/g, ' ').trim();
   }
 
-  // 3.27.22 / 3.31.56 : repères du lieu (Etablissements ou Presences), toujours à jour même sur les visites déjà planifiées
-  function reperesDe(a) {
+  // 3.27.22 / 3.31.66 : quartier, commune et repères du lieu (Etablissements ou Presences), toujours à jour même sur les visites déjà planifiées
+  function trouverPresenceEtEtabPlan_(a) {
+    if (!a) return { pr: null, et: null };
     var id = String(a.idPresence || ''), l = (S.data && S.data.presences) || [];
     var pr = id ? l.filter(function (x) { return String(x.id) === id; })[0] : null;
     if (!pr && a.code && a.lieu) pr = l.filter(function (x) { return x.code === a.code && normaliser(x.lieu) === normaliser(a.lieu); })[0];
-    var r = pr && pr.reperes ? String(pr.reperes).trim() : '';
-    if (!r && a.lieu) {
-      var et = ((S.data && S.data.etablissements) || []).filter(function (e) { return normaliser(e.nom) === normaliser(a.lieu); })[0];
-      if (et && et.reperes) r = String(et.reperes).trim();
+    var nomLieu = (pr && pr.lieu) || a.lieu || '';
+    var et = null;
+    if (nomLieu) {
+      var lEt = (S.data && S.data.etablissements) || [];
+      var refEt = pr && pr.refEtab ? String(pr.refEtab).trim() : '';
+      if (refEt) et = lEt.filter(function (e) { return String(e.code || '').trim() === refEt; })[0] || null;
+      if (!et) et = lEt.filter(function (e) { return normaliser(e.nom) === normaliser(nomLieu); })[0] || null;
     }
-    if (!r && a.reperes) r = String(a.reperes).trim();
-    // anciennes visites : repères déjà écrits dans le quartier, pas de redite
-    return r && normaliser(a.quartier || '').indexOf(normaliser(r)) < 0 ? r : '';
+    return { pr: pr, et: et };
   }
-  // 3.25.36 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour (abrégé), Secteur réel et distance
+  function quartierDe(a) {
+    var pe = trouverPresenceEtEtabPlan_(a);
+    if (pe.et && pe.et.quartier) return String(pe.et.quartier).trim();
+    if (pe.pr && pe.pr.quartier) return String(pe.pr.quartier).trim();
+    return a && a.quartier ? String(a.quartier).trim() : '';
+  }
+  function communeDe(a) {
+    var pe = trouverPresenceEtEtabPlan_(a);
+    if (pe.et && pe.et.commune) return String(pe.et.commune).trim();
+    if (pe.pr && pe.pr.commune) return String(pe.pr.commune).trim();
+    return a && a.commune ? String(a.commune).trim() : '';
+  }
+  function reperesDe(a) {
+    var pe = trouverPresenceEtEtabPlan_(a);
+    var r = (pe.et && pe.et.reperes) ? String(pe.et.reperes).trim() : '';
+    if (!r && pe.pr && pe.pr.reperes) r = String(pe.pr.reperes).trim();
+    if (!r && a.reperes) r = String(a.reperes).trim();
+    var qAct = quartierDe(a);
+    // anciennes visites : repères déjà écrits dans le quartier, pas de redite
+    return r && normaliser(qAct).indexOf(normaliser(r)) < 0 ? r : '';
+  }
+  // 3.25.36 / 3.31.66 : Médecin dans Planifier -> Spécialité, Hôpital où on le voit ce jour (abrégé), Quartier/Secteur réel à jour et distance
   function infosMedecinPlan(a) {
     var pObj = (typeof praticien === 'function' && praticien(a.code)) || {};
     var lieuBrut = a.lieu || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lieu) || '';
     var hopital = abregerHopital(lieuBrut);
-    var qBrut = a.quartier || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].quartier) || '';
-    var comBrut = a.commune || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].commune) || '';
+    var qBrut = quartierDe(a) || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].quartier) || '';
+    var comBrut = communeDe(a) || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].commune) || '';
     var coord = a.coord || (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lat ? { lat: +pObj.lieux[0].lat, lon: +pObj.lieux[0].lon } : null);
     var secteur = nomSecteur(qBrut, comBrut, coord);
     var morceaux = [];
     if (a.specialite) morceaux.push(abrSpec(a.specialite));
     if (hopital) morceaux.push(hopital);
-    if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) morceaux.push(secteur);
+    var secSimpleCommuneDansHop = hopital && normaliser(secteur) === normaliser(comBrut) && hopital.toLowerCase().indexOf(secteur.toLowerCase()) >= 0;
+    if (secteur && !secSimpleCommuneDansHop) morceaux.push(secteur);
     var rep = reperesDe(a); if (rep) morceaux.push(rep);
     var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || coord) : null;
     if (c && pos) {
@@ -6346,12 +6371,12 @@
     return morceaux.join(' · ');
   }
 
-  // 3.26.35 : Pharmacie dans Planifier -> Localisation sans doublon + distance GPS en km (identique aux médecins)
+  // 3.26.35 / 3.31.66 : Pharmacie dans Planifier -> Localisation sans doublon + distance GPS en km (identique aux médecins)
   function infosPharmaciePlan(a) {
     var pObj = (typeof praticien === 'function' && praticien(a.code)) || {};
     var pCoord = (pObj.lieux && pObj.lieux[0] && pObj.lieux[0].lat) ? { lat: +pObj.lieux[0].lat, lon: +pObj.lieux[0].lon } : (pObj.lat && pObj.lon ? { lat: +pObj.lat, lon: +pObj.lon } : null);
     var pos = gpsFrais(), c = pos ? (coordPrecise(a) || coordArret(a) || a.coord || pCoord) : null;
-    var base = infosSansDoublon(a, [a.lieu, a.quartier, reperesDe(a), a.commune]);
+    var base = infosSansDoublon(a, [a.lieu, quartierDe(a), reperesDe(a), communeDe(a)]);
     if (c && pos) {
       var d = distanceVol(pos, c);
       return (base ? base + ' · ' : '') + distMoi(d, c && c.approx);
@@ -6372,7 +6397,9 @@
     });
     var blocs = [], dernier = null;
     tri.forEach(function (a) {
-      var nom = Moteur.nomSecteurTournee(a, quartiers()), k = normaliser(nom) || ('u|' + a.uid);
+      var qLive = quartierDe(a), comLive = communeDe(a);
+      var aLive = (qLive && qLive !== a.quartier) ? Object.assign({}, a, { quartier: qLive, commune: comLive || a.commune, secteur: '', subdivision: '' }) : a;
+      var nom = Moteur.nomSecteurTournee(aLive, quartiers()), k = normaliser(nom) || ('u|' + a.uid);
       if (!dernier || dernier.cle !== k) {
         dernier = { cle: k, nom: libelleSecteurPlan(nom), l: [] };
         blocs.push(dernier);
