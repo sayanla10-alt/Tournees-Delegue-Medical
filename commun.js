@@ -49,7 +49,8 @@ var CHAMPS_PRESENCES = [
   ['quartier', 'Quartier'], ['commune', 'Commune'], ['zone', 'Zone'],
   ['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur'],
   ['lundi', 'Lundi'], ['mardi', 'Mardi'], ['mercredi', 'Mercredi'], ['jeudi', 'Jeudi'], ['vendredi', 'Vendredi'],
-  ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS']
+  ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS'],
+  ['refEtab', 'Ref_CodeEtab']   // 3.31.62 : clé du lieu (Etablissements CodeEtab, ou Pharmacies CodeContact)
 ];
 
 var CHAMPS_QUARTIERS = [

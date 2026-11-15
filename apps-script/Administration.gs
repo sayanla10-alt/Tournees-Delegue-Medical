@@ -521,7 +521,21 @@ function listeQuartiersParLigne_(sh, rangs) {
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   var cL = ent.indexOf(normaliser('Liste_Quartiers_Dynamique')), cQ = ent.indexOf(normaliser('Quartier'));
   if (cL < 0 || cQ < 0) return 0;
-  var largeur = Math.max(1, Math.min(52, sh.getMaxColumns() - cL));
+  // largeur = plus grand nombre de quartiers d'une commune (+ marge) : aucune omission dans la liste
+  var shQ = SpreadsheetApp.getActive().getSheetByName(FEUILLES.quartiers || 'Quartiers'), maxQ = 0;
+  if (shQ && shQ.getLastRow() > 1) {
+    var eQ = shQ.getRange(1, 1, 1, shQ.getLastColumn()).getValues()[0].map(normaliser);
+    var iC = eQ.indexOf(normaliser('Commune'));
+    if (iC >= 0) {
+      var nb = {};
+      shQ.getRange(2, iC + 1, shQ.getLastRow() - 1, 1).getValues().forEach(function (l) {
+        var c = String(l[0] || '').trim(); if (c) { nb[c] = (nb[c] || 0) + 1; if (nb[c] > maxQ) maxQ = nb[c]; }
+      });
+    }
+  }
+  var largeur = Math.max(150, maxQ + 50);
+  var manque = cL + largeur - sh.getMaxColumns();
+  if (manque > 0) sh.insertColumnsAfter(sh.getMaxColumns(), manque);
   var modele = sh.getRange(2, cL + 1).getFormulaR1C1();
   var rs = rangs.filter(function (r) { return r >= 2; }).sort(function (a, b) { return a - b; });
   if (!rs.length) return 0;

@@ -662,6 +662,7 @@ function enregistrerFiche(b, dejaVerrouille) {
     var champsR = champsEcrAvecTerritoire_(CHAMPS_PRESENCES);
     var entR = shR.getRange(1, 1, 1, shR.getLastColumn()).getValues()[0].map(normaliser);
     var cRefEtabR = entR.indexOf(normaliser('Ref_CodeEtab'));
+    var cSpecR = entR.indexOf(normaliser('Spécialité')), cStatR = entR.indexOf(normaliser('Statut_Praticien')), cTelR = entR.indexOf(normaliser('Téléphone'));
     var posR = champsR.map(function (c) { return entR.indexOf(normaliser(c[1])); });
     var rCode = posR[indexChamp(champsR, 'code')], rId = posR[indexChamp(champsR, 'id')];
     var nR = Math.max(shR.getLastRow() - 1, 0);
@@ -716,14 +717,18 @@ function enregistrerFiche(b, dejaVerrouille) {
         secteur: (etabMatch && etabMatch.secteur) || x.secteur || '',
         lieu: (etabMatch && etabMatch.nom) || x.lieu || ''
       }, refQ);
-      if (estGpsTerrain && shEtRef) {
-        var latT6 = nombre6(x.lat), lonT6 = nombre6(x.lon);
-        if (etabMatch && etabMatch.row) {
+      // 3.31.62 : un lieu inconnu d'Etablissements y est TOUJOURS créé (nouvel identifiant ETAB-nnn), avec ou sans GPS de
+      // terrain : chaque présence est rattachée à un établissement par Ref_CodeEtab (plus de lieu orphelin)
+      var lieuNouveau = !etabMatch && shEtRef && cEtNom >= 0 && String(x.lieu || '').trim().length >= 2 && !/^NL$/i.test(String(x.lieu || '').trim());
+      if ((estGpsTerrain || lieuNouveau) && shEtRef) {
+        var latT6 = estGpsTerrain ? nombre6(x.lat) : (isFinite(nombre6(x.lat)) && nombre6(x.lat) !== 0 ? nombre6(x.lat) : '');
+        var lonT6 = estGpsTerrain ? nombre6(x.lon) : (isFinite(nombre6(x.lon)) && nombre6(x.lon) !== 0 ? nombre6(x.lon) : '');
+        if (etabMatch && etabMatch.row && estGpsTerrain) {
           etabMatch.lat = latT6; etabMatch.lon = lonT6;
           if (cEtLat >= 0) shEtRef.getRange(etabMatch.row, cEtLat + 1).setValue(latT6);
           if (cEtLon >= 0) shEtRef.getRange(etabMatch.row, cEtLon + 1).setValue(lonT6);
           if (cEtOrig >= 0) shEtRef.getRange(etabMatch.row, cEtOrig + 1).setValue(texteCellule_(x.origineGps || ''));
-        } else if (String(x.lieu || '').trim().length >= 2 && cEtNom >= 0) {
+        } else if (lieuNouveau) {
           var newEtCode = 'ETAB-' + numeroCode(++maxEtNum);
           var newEtRow = shEtRef.getLastRow() + 1;
           var vEt = entEtRef.map(function () { return ''; });
@@ -793,6 +798,11 @@ function enregistrerFiche(b, dejaVerrouille) {
       var v = entR.map(function () { return ''; });
       champsR.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
       if (cRefEtabR >= 0 && etabMatch && etabMatch.code) v[cRefEtabR] = etabMatch.code;
+      else if (cRefEtabR >= 0) v[cRefEtabR] = x.refEtab || (iEx !== undefined ? dataR[iEx][cRefEtabR] : '') || '';   // lieu tenu par une pharmacie (PHA-…)
+      // 3.31.62 : colonnes recopiées de Praticiens (lecture du tableur) tenues à jour à chaque enregistrement
+      if (cSpecR >= 0) v[cSpecR] = valeurs[posP[indexChamp(CHAMPS_PRATICIENS, 'specialite')]] || '';
+      if (cStatR >= 0) v[cStatR] = valeurs[posP[indexChamp(CHAMPS_PRATICIENS, 'actif')]] || 'Oui';
+      if (cTelR >= 0) { var tP = valeurs[posP[indexChamp(CHAMPS_PRATICIENS, 'telephone')]]; v[cTelR] = tP ? texteCellule_(tP) : ''; }
       return v;
     });
     // 1) lieux déjà en base : réécrits sur leur propre ligne ; 2) lieux nouveaux : sur les lignes libérées, sinon ajoutés ;

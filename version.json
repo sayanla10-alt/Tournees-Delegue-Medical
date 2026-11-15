@@ -1,7 +1,9 @@
 ﻿{
-  "version": "3.31.61",
+  "version": "3.31.62",
   "date": "2026-11-15",
   "notes": [
-    "Planifier : regroupement par subdivision tiré de l'onglet Quartiers, quels que soient les noms (Angré, Riviera, Abobo Nord…), y compris subdivisions créées, renommées ou supprimées"
+    "Listes déroulantes des quartiers complètes dans Etablissements et Pharmacies (Triangle compris)",
+    "Planifier : groupes par subdivision affichés comme avant, avec les nouveaux noms",
+    "Présences harmonisées avec Etablissements, Pharmacies, Quartiers et Praticiens"
   ]
 }

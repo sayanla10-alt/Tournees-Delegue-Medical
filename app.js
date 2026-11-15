@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.61';
+  var APP_VERSION = '3.31.62';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.62', ['Listes déroulantes des quartiers complètes (Cocody : 69 quartiers, Triangle compris)', 'Planifier : groupes par subdivision affichés comme avant (Cocody Centre, Cocody – Angré, Riviera…)', 'Tirage : onglet Quartiers vérifié juste avant, sans attente', 'Présences : lieux reliés aux pharmacies par leur code, nouveaux lieux créés avec un code ETAB, spécialité et téléphone tirés de la fiche du praticien']],
     ['3.31.61', ['Planifier : communes segmentées et subdivisions lues dans l\'onglet Quartiers (plus aucun nom écrit en dur) : un nom de subdivision changé, ajouté ou supprimé s\'applique tout de suite', 'Quartier qui porte le nom d\'une subdivision (« Deux Plateaux », « Riviera ») rangé dans cette subdivision']],
     ['3.31.60', ['Base allégée : Etablissements et Pharmacies n\'ont plus de colonnes Zone, Territoire, Subdivision ni Secteur (ni Position) ; ces informations viennent toutes de l\'onglet Quartiers, par la même règle sur le serveur et dans l\'application', 'Repères des pharmacies lus et enregistrés', 'Quartier homonyme d\'une autre commune : le lieu reste dans sa commune']],
     ['3.31.59', ['Source unique des lieux : l\'application ne lit plus dans Présences la commune, le quartier, la zone, la subdivision, le secteur, les repères ni la position GPS ; le lieu d\'un médecin vient d\'Etablissements, celui d\'une pharmacie de Pharmacies, le territoire (zone, subdivision, secteur) de Quartiers ; un changement dans l\'un de ces onglets se voit partout']],
@@ -1701,10 +1702,21 @@
       String(e.alias || '').split(/\s*[;,]\s*/).forEach(function (a) { var na = normaliser(a); if (na && !parNom[na]) parNom[na] = e; });
     });
     (data.praticiens || []).forEach(function (p) { if (p.type === 'Pharmacie') pharma[p.code] = true; });
-    var orphelins = {};
+    var orphelins = {}, phaCode = {}, phaNom = {};
+    // 1. pharmacies (lieu tiré de Pharmacies) ; elles servent aussi de lieu à un médecin qui y consulte (Ref_CodeEtab = PHA-…)
     data.presences.forEach(function (pr) {
-      if (pharma[pr.code]) { poserTerritoire(pr, Q); pr.sourceLieu = 'pharmacies'; return; }   // lieu déjà tiré de Pharmacies
-      var et = (pr.refEtab && parCode[String(pr.refEtab).trim()]) || parNom[normaliser(pr.lieu)] || null;
+      if (!pharma[pr.code]) return;
+      poserTerritoire(pr, Q); pr.sourceLieu = 'pharmacies';
+      var lieuPh = { code: pr.code, nom: pr.lieu || '', commune: pr.commune, quartier: pr.quartier, territoire: pr.territoire, zone: pr.zone, subdivision: pr.subdivision,
+        secteur: pr.secteur, reperes: pr.reperes, lat: pr.lat, lon: pr.lon, origineGps: pr.origineGps };
+      if (pr.code && !phaCode[pr.code]) phaCode[pr.code] = lieuPh;
+      var nph = normaliser(pr.lieu); if (nph && !phaNom[nph]) phaNom[nph] = lieuPh;
+    });
+    // 2. médecins : établissement par sa clé (Ref_CodeEtab), sinon par son nom ou un alias, sinon pharmacie
+    data.presences.forEach(function (pr) {
+      if (pharma[pr.code]) return;
+      var ref = String(pr.refEtab || '').trim(), nl = normaliser(pr.lieu);
+      var et = (ref && (parCode[ref] || phaCode[ref])) || parNom[nl] || phaNom[nl] || null;
       if (!et) { poserTerritoire(pr, Q); pr.sourceLieu = 'presences'; if (pr.lieu) orphelins[pr.lieu] = (orphelins[pr.lieu] || 0) + 1; return; }
       pr.refEtab = et.code || pr.refEtab || '';
       pr.lieu = et.nom; pr.commune = et.commune || ''; pr.quartier = et.quartier || '';
@@ -6345,6 +6357,17 @@
 
   // 3.31.36 : liste fidèle à l'ordre chronologique du TSP (sans jamais remonter un arrêt du soir avant un arrêt du matin) ;
   // un titre de secteur n'apparaît que lors d'un véritable changement de secteur le long du parcours
+  // 3.31.62 : titre de secteur comme avant (« Cocody – Angré », « Yopougon – Niangon »), avec les noms de subdivision de
+  // l'onglet Quartiers : la commune est ajoutée devant une subdivision qui ne la nomme pas déjà (« Cocody Centre » reste tel quel)
+  function libelleSecteurPlan(nom, commune) {
+    var n = String(nom || '').trim(); if (!n) return n;
+    var par = communeParente(commune || '') || '';
+    if (!par || !estGrandeCommune(par)) {
+      var parSub = communeParente(n); if (parSub && normaliser(parSub) !== normaliser(n)) par = parSub; else return n;
+    }
+    if (normaliser(n) === normaliser(par) || normaliser(n).indexOf(normaliser(par)) === 0) return n;
+    return par + ' – ' + n;
+  }
   function rendreGroupesPlan(l) {
     var tri = l.slice().sort(function (a, b) {
       var ha = heureVersMinutes(a.heure), hb = heureVersMinutes(b.heure);
@@ -6355,7 +6378,7 @@
     tri.forEach(function (a) {
       var nom = Moteur.nomSecteurTournee(a, quartiers()), k = normaliser(nom) || ('u|' + a.uid);
       if (!dernier || dernier.cle !== k) {
-        dernier = { cle: k, nom: nom, l: [] };
+        dernier = { cle: k, nom: libelleSecteurPlan(nom, a.commune), l: [] };
         blocs.push(dernier);
       }
       dernier.l.push(a);
@@ -12854,8 +12877,41 @@
 
   function avantTirage() {
     if (!connecte() || !navigator.onLine) return Promise.resolve();
-    toast('Vérification des tournées de l\'équipe…', 2000);
-    return Promise.race([rafraichirEquipe(), new Promise(function (r) { setTimeout(r, 8000); })]);
+    toast('Vérification des tournées de l\'équipe et des quartiers…', 2000);
+    return Promise.all([
+      Promise.race([rafraichirEquipe(), new Promise(function (r) { setTimeout(r, 8000); })]),
+      verifierQuartiersAvantTirage()
+    ]);
+  }
+  // 3.31.62 : avant un tirage, l'onglet Quartiers est-il toujours le même ? Une seule petite requête (nombre de lignes et
+  // dernière modification, 2,5 s au plus) ; s'il a changé, seuls les quartiers sont relus et le moteur est recalculé.
+  // Hors ligne, lent ou en erreur : on tire avec les quartiers en mémoire, sans bloquer.
+  var MARQUEUR_QUARTIERS = '';
+  function verifierQuartiersAvantTirage() {
+    var source = (S.config && S.config.bddSource) || 'supabase';
+    if (source !== 'supabase' || typeof fetch !== 'function') return Promise.resolve();
+    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 2500) : null;
+    var h = supabaseHeaders_(false); h.Prefer = 'count=exact';
+    var opts = { headers: h, cache: 'no-store' }; if (ctrl) opts.signal = ctrl.signal;
+    return fetch(SUPABASE_CONFIG.url + '/rest/v1/quartiers?select=updated_at&order=updated_at.desc&limit=1', opts).then(function (r) {
+      if (!r.ok) throw new Error('Supabase ' + r.status);
+      return r.json().then(function (j) { return String((r.headers.get('content-range') || '').split('/')[1] || '') + '@' + ((j && j[0] && j[0].updated_at) || ''); });
+    }).then(function (m) {
+      if (timer) clearTimeout(timer);
+      if (!MARQUEUR_QUARTIERS && S.data && S.data.marqueurSb) MARQUEUR_QUARTIERS = String(S.data.marqueurSb).split('|')[MARQUEUR_TABLES.indexOf('quartiers')] || '';
+      if (m === MARQUEUR_QUARTIERS && S.data && S.data.quartiers && S.data.quartiers.length) return;
+      return Promise.race([supabaseGetTout_('quartiers?select=*&order=commune,quartier,secteur'), new Promise(function (r) { setTimeout(function () { r(null); }, 4000); })]).then(function (raw) {
+        if (!raw || !raw.length) return;
+        MARQUEUR_QUARTIERS = m;
+        var qs = raw.map(function (q) {
+          return { territoire: q.territoire || '', subdivision: q.subdivision || '', secteur: q.secteur || '', variantes: q.variantes || '', zone: q.zone || '',
+            commune: q.commune || '', quartier: q.quartier || '', lat: isFinite(q.lat) && q.lat !== null ? +q.lat : null, lon: isFinite(q.lon) && q.lon !== null ? +q.lon : null };
+        });
+        S.data = Object.assign({}, S.data, { quartiers: qs });   // nouvel objet : lieux et moteur recalculés au prochain ctx()
+        toast('Quartiers mis à jour avant le tirage.', 2000);
+      });
+    }).catch(function () { if (timer) clearTimeout(timer); });
   }
 
   // horsZone : réponse à la question sur les visites déjà prévues hors des communes choisies ('garder' | 'retirer')
