@@ -617,29 +617,35 @@ function enregistrerFiche(b, dejaVerrouille) {
 
     // --- Presences : lieux du praticien remplacés (mêmes lignes réutilisées, identifiants conservés)
     var refQ = referentielQuartiers_(ss);
-    var etabParNom = {};
+    var etabParNom = {}, maxEtNum = 0, entEtRef = [], cEtCode = -1, cEtNom = -1, cEtRep = -1, cEtAlias = -1, cEtCom = -1, cEtQuart = -1, cEtSec = -1, cEtLat = -1, cEtLon = -1, cEtOrig = -1, cEtPos = -1, cEtZone = -1, cEtTer = -1, cEtSub = -1;
     var shEtRef = ss.getSheetByName(FEUILLES.etablissements);
-    if (shEtRef && shEtRef.getLastRow() > 1) {
-      var entEtRef = shEtRef.getRange(1, 1, 1, shEtRef.getLastColumn()).getValues()[0].map(normaliser);
-      var cEtCode = entEtRef.indexOf(normaliser('CodeEtab'));
-      var cEtNom = entEtRef.indexOf(normaliser('Nom'));
-      var cEtRep = entEtRef.indexOf(normaliser('Reperes'));
+    if (shEtRef && shEtRef.getLastColumn() >= 1) {
+      entEtRef = shEtRef.getRange(1, 1, 1, shEtRef.getLastColumn()).getValues()[0].map(normaliser);
+      cEtCode = entEtRef.indexOf(normaliser('CodeEtab'));
+      cEtNom = entEtRef.indexOf(normaliser('Nom'));
+      cEtRep = entEtRef.indexOf(normaliser('Reperes'));
       if (cEtRep < 0) cEtRep = entEtRef.indexOf(normaliser('Repères'));
-      var cEtAlias = entEtRef.indexOf(normaliser('Alias'));
-      var cEtCom = entEtRef.indexOf(normaliser('Commune'));
-      var cEtQuart = entEtRef.indexOf(normaliser('Quartier'));
-      var cEtSec = entEtRef.indexOf(normaliser('Secteur'));
-      var cEtLat = entEtRef.indexOf(normaliser('Latitude'));
-      var cEtLon = entEtRef.indexOf(normaliser('Longitude'));
-      var cEtOrig = entEtRef.indexOf(normaliser('OrigineGPS'));
-      var cEtPos = entEtRef.indexOf(normaliser('Position'));
-      if (cEtNom >= 0) {
+      cEtAlias = entEtRef.indexOf(normaliser('Alias'));
+      cEtCom = entEtRef.indexOf(normaliser('Commune'));
+      cEtQuart = entEtRef.indexOf(normaliser('Quartier'));
+      cEtSec = entEtRef.indexOf(normaliser('Secteur'));
+      cEtZone = entEtRef.indexOf(normaliser('Zone'));
+      cEtTer = entEtRef.indexOf(normaliser('Territoire'));
+      cEtSub = entEtRef.indexOf(normaliser('Subdivision'));
+      cEtLat = entEtRef.indexOf(normaliser('Latitude'));
+      cEtLon = entEtRef.indexOf(normaliser('Longitude'));
+      cEtOrig = entEtRef.indexOf(normaliser('OrigineGPS'));
+      cEtPos = entEtRef.indexOf(normaliser('Position'));
+      if (cEtNom >= 0 && shEtRef.getLastRow() > 1) {
         shEtRef.getRange(2, 1, shEtRef.getLastRow() - 1, entEtRef.length).getValues().forEach(function (lEt, idxEt) {
+          var codeEt = cEtCode >= 0 ? String(lEt[cEtCode] || '').trim() : '';
+          var mEt = codeEt.match(/^ETAB-(\d+)$/i);
+          if (mEt && +mEt[1] > maxEtNum) maxEtNum = +mEt[1];
           var nomEt = String(lEt[cEtNom] || '').trim();
           if (!nomEt) return;
           var infoEt = {
             row: idxEt + 2,
-            code: cEtCode >= 0 ? String(lEt[cEtCode] || '').trim() : '',
+            code: codeEt,
             nom: nomEt,
             reperes: cEtRep >= 0 ? String(lEt[cEtRep] || '').trim() : '',
             commune: cEtCom >= 0 ? String(lEt[cEtCom] || '').trim() : '',
@@ -691,7 +697,7 @@ function enregistrerFiche(b, dejaVerrouille) {
       });
       exist.forEach(function (o) { if (!o._pris) lieux.push(o); });
     }
-    var ids = {}, coords = {};
+    var ids = {}, coords = {}, etabsGpsMaj = [];
     // 3.26.50 : une correction écrase la ligne existante du lieu (même identifiant) ; une nouvelle ligne seulement pour un nouveau lieu.
     // Identifiants dédoublonnés : un même IdPresence ne peut plus être donné à deux lieux.
     var ligneParId = {}, idsPris = {};
@@ -706,14 +712,6 @@ function enregistrerFiche(b, dejaVerrouille) {
       if (idBrut && /^TMP/i.test(idBrut)) ids[idBrut] = id;
       var etabMatch = etabParNom[normaliser(x.lieu || '')] || null;
       var estGpsTerrain = /terrain|repertoire hopital/i.test(String(x.origineGps || '')) && isFinite(nombre6(x.lat)) && isFinite(nombre6(x.lon)) && nombre6(x.lat) !== 0 && nombre6(x.lon) !== 0;
-      if (estGpsTerrain && etabMatch && shEtRef && etabMatch.row) {
-        var latT6 = nombre6(x.lat), lonT6 = nombre6(x.lon);
-        etabMatch.lat = latT6; etabMatch.lon = lonT6;
-        if (cEtLat >= 0) shEtRef.getRange(etabMatch.row, cEtLat + 1).setValue(latT6);
-        if (cEtLon >= 0) shEtRef.getRange(etabMatch.row, cEtLon + 1).setValue(lonT6);
-        if (cEtOrig >= 0) shEtRef.getRange(etabMatch.row, cEtOrig + 1).setValue(texteCellule_(x.origineGps || ''));
-        if (cEtPos >= 0) shEtRef.getRange(etabMatch.row, cEtPos + 1).setValue(latT6.toFixed(6) + ', ' + lonT6.toFixed(6));
-      }
       var resT = resoudreTerritoireEcriture_({
         territoire: x.territoire || '',
         zone: x.zone || '',
@@ -723,6 +721,43 @@ function enregistrerFiche(b, dejaVerrouille) {
         secteur: (etabMatch && etabMatch.secteur) || x.secteur || '',
         lieu: (etabMatch && etabMatch.nom) || x.lieu || ''
       }, refQ);
+      if (estGpsTerrain && shEtRef) {
+        var latT6 = nombre6(x.lat), lonT6 = nombre6(x.lon);
+        if (etabMatch && etabMatch.row) {
+          etabMatch.lat = latT6; etabMatch.lon = lonT6;
+          if (cEtLat >= 0) shEtRef.getRange(etabMatch.row, cEtLat + 1).setValue(latT6);
+          if (cEtLon >= 0) shEtRef.getRange(etabMatch.row, cEtLon + 1).setValue(lonT6);
+          if (cEtOrig >= 0) shEtRef.getRange(etabMatch.row, cEtOrig + 1).setValue(texteCellule_(x.origineGps || ''));
+          if (cEtPos >= 0) shEtRef.getRange(etabMatch.row, cEtPos + 1).setValue(latT6.toFixed(6) + ', ' + lonT6.toFixed(6));
+        } else if (String(x.lieu || '').trim().length >= 2 && cEtNom >= 0) {
+          var newEtCode = 'ETAB-' + numeroCode(++maxEtNum);
+          var newEtRow = shEtRef.getLastRow() + 1;
+          var vEt = entEtRef.map(function () { return ''; });
+          if (cEtCode >= 0) vEt[cEtCode] = newEtCode;
+          vEt[cEtNom] = texteCellule_(x.lieu || '');
+          if (cEtRep >= 0 && x.reperes) vEt[cEtRep] = texteCellule_(x.reperes);
+          if (cEtCom >= 0) vEt[cEtCom] = texteCellule_(resT.commune || x.commune || '');
+          if (cEtQuart >= 0) vEt[cEtQuart] = texteCellule_(resT.quartier || x.quartier || '');
+          if (cEtSec >= 0) vEt[cEtSec] = texteCellule_(resT.secteur || x.secteur || '');
+          if (cEtZone >= 0) vEt[cEtZone] = texteCellule_(resT.zone || x.zone || '');
+          if (cEtTer >= 0) vEt[cEtTer] = texteCellule_(resT.territoire || x.territoire || '');
+          if (cEtSub >= 0) vEt[cEtSub] = texteCellule_(resT.subdivision || x.subdivision || '');
+          if (cEtLat >= 0) vEt[cEtLat] = latT6;
+          if (cEtLon >= 0) vEt[cEtLon] = lonT6;
+          if (cEtOrig >= 0) vEt[cEtOrig] = texteCellule_(x.origineGps || '');
+          if (cEtPos >= 0) vEt[cEtPos] = latT6.toFixed(6) + ', ' + lonT6.toFixed(6);
+          shEtRef.getRange(newEtRow, 1, 1, entEtRef.length).setValues([vEt]);
+          if (typeof deployerFormulesTerritoire_ === 'function') {
+            try { deployerFormulesTerritoire_(ss, [FEUILLES.etablissements], [newEtRow]); } catch (eFEtN) {}
+          }
+          etabMatch = { row: newEtRow, code: newEtCode, nom: String(x.lieu || '').trim(), reperes: String(x.reperes || '').trim(), commune: resT.commune || x.commune || '', quartier: resT.quartier || x.quartier || '', secteur: resT.secteur || x.secteur || '', lat: latT6, lon: lonT6, origineGps: String(x.origineGps || '') };
+          etabParNom[normaliser(x.lieu || '')] = etabMatch;
+        }
+        if (etabMatch) {
+          etabMatch.origineGps = String(x.origineGps || '');
+          etabsGpsMaj.push(etabMatch);
+        }
+      }
       var repFinal = (etabMatch && etabMatch.reperes) ? etabMatch.reperes : (x.reperes || '');
       var latFinal = estGpsTerrain ? nombre6(x.lat) : ((etabMatch && etabMatch.lat !== '' && etabMatch.lat !== undefined) ? etabMatch.lat : (x.lat === undefined ? '' : x.lat));
       var lonFinal = estGpsTerrain ? nombre6(x.lon) : ((etabMatch && etabMatch.lon !== '' && etabMatch.lon !== undefined) ? etabMatch.lon : (x.lon === undefined ? '' : x.lon));
@@ -808,6 +843,25 @@ function enregistrerFiche(b, dejaVerrouille) {
         enregistrerAudit(ss, auteur, 'SUPPRESSION_PRESENCE', 'Presence', code, 'Suppression lieu: ' + ancLieu);
         shR.deleteRow(i + 2);
       });
+    }
+    if (etabsGpsMaj.length && shR.getLastRow() > 1) {
+      var rLieuC = posR[indexChamp(champsR, 'lieu')], rLatC = posR[indexChamp(champsR, 'lat')], rLonC = posR[indexChamp(champsR, 'lon')], rOrigC = posR[indexChamp(champsR, 'origineGps')];
+      if (rLieuC >= 0 && rLatC >= 0 && rLonC >= 0) {
+        var allR = shR.getRange(2, 1, shR.getLastRow() - 1, entR.length).getValues();
+        etabsGpsMaj.forEach(function (etM) {
+          var nEtM = normaliser(etM.nom);
+          allR.forEach(function (rw, idxRw) {
+            var memeEt = (cRefEtabR >= 0 && etM.code && String(rw[cRefEtabR] || '').trim() === etM.code) || normaliser(rw[rLieuC]) === nEtM;
+            if (memeEt) {
+              var rnRw = idxRw + 2;
+              shR.getRange(rnRw, rLatC + 1).setValue(etM.lat);
+              shR.getRange(rnRw, rLonC + 1).setValue(etM.lon);
+              if (rOrigC >= 0 && etM.origineGps) shR.getRange(rnRw, rOrigC + 1).setValue(texteCellule_(etM.origineGps));
+              if (cRefEtabR >= 0 && etM.code && !rw[cRefEtabR]) shR.getRange(rnRw, cRefEtabR + 1).setValue(etM.code);
+            }
+          });
+        });
+      }
     }
     enregistrerAudit(ss, auteur, ligne >= 0 ? (rattache ? 'RATTACHEMENT_FICHE' : 'MODIFICATION_FICHE') : 'CREATION_FICHE', type, code, nom + ' (' + lieux.length + ' lieu(x))');
     return { ok: true, code: code, ancien: String(p.code || ''), ids: ids, coords: coords };

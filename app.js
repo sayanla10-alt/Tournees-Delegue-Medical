@@ -12622,6 +12622,41 @@
       return o;
     });
     appliquerFiche(pr, pres);
+    if (d.type !== 'Pharmacie' && S.data) {
+      pres.forEach(function (o) {
+        if (!o.lieu || !o.lat || !o.lon || !/terrain|repertoire hopital/i.test(String(o.origineGps || ''))) return;
+        var nomL = normaliser(o.lieu);
+        var etEx = (S.data.etablissements || []).filter(function (e) { return normaliser(e.nom) === nomL; })[0];
+        if (etEx) {
+          etEx.lat = +o.lat; etEx.lon = +o.lon; etEx.origineGps = o.origineGps;
+          if (!etEx.quartier && o.quartier) etEx.quartier = o.quartier;
+          if (!etEx.commune && o.commune) etEx.commune = o.commune;
+        } else if (S.data.etablissements) {
+          S.data.etablissements.push({
+            code: 'TMP-ETAB-' + Date.now().toString(36).toUpperCase(),
+            nom: o.lieu,
+            categorie: '',
+            commune: o.commune || '',
+            quartier: o.quartier || '',
+            zone: o.zone || '',
+            territoire: o.territoire || '',
+            subdivision: o.subdivision || '',
+            secteur: o.secteur || '',
+            lat: +o.lat,
+            lon: +o.lon,
+            telephone: '',
+            reperes: o.reperes || '',
+            origineGps: o.origineGps || ''
+          });
+        }
+        (S.data.presences || []).forEach(function (px) {
+          if (normaliser(px.lieu) === nomL) {
+            px.lat = +o.lat; px.lon = +o.lon; px.origineGps = o.origineGps;
+          }
+        });
+      });
+      ctxCache.data = null;
+    }
     if (!S.config.demo) {
       S.fiches = S.fiches.filter(function (f) { return f.praticien.code !== code; }).concat([{ praticien: pr, presences: pres }]);
     }
