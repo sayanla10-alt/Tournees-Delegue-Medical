@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.77';
+  var APP_VERSION = '3.31.78';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.78', ['Uniformisation : le tri par pertinence (début du nom prioritaire) s\'applique désormais partout (Répertoire, Autour de moi, Remplacer, + Ajouter, Tout le répertoire)']],
     ['3.31.77', ['Planifier : changer le nombre de visites par jour ne réintègre plus les médecins retirés avec la croix']],
     ['3.31.76', ['Recherche par nom : correction du tri de pertinence (les noms commençant par le mot cherché passent désormais bien en premier, avant ceux qui le contiennent en 2e/3e position)']],
     ['3.31.75', ['+ Ajouter : onglet « Compatibles » passé en vert (cohérent avec « Hors filtre » ambre)']],
@@ -7848,7 +7849,8 @@
     return { date: A.date || prochainJourOuvre(aujourdhui()), minute: heureVersMinutes(A.heure) };
   }
   function resultatsAutourLibre(q) {
-    var mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    var qClean = propreMots(q || '');
+    var mots = qClean ? qClean.split(/\s+/).filter(Boolean) : [];
     S.ui.resAutourLibre = [];
     if (!mots.length) return '';
     var A = S.ui.autour, m = momentAutour(), date = m.date;
@@ -7862,7 +7864,12 @@
       var txt = normaliser([p.nom, p.specialite, c.lieu, c.quartier, c.commune].join(' '));
       return mots.every(function (w) { return txt.indexOf(w) >= 0; });
     });
-    if (!avecPos) l.sort(function (a, b) { return b.score - a.score; });
+    l.forEach(function (x) { x._pert = scorePertinenceNom(x.c.prat, qClean, mots); });
+    l.sort(function (a, b) {
+      if (b._pert !== a._pert) return b._pert - a._pert;
+      if (!avecPos) return b.score - a.score;
+      return (a.dist || 0) - (b.dist || 0);
+    });
     l = l.slice(0, 30); S.ui.resAutourLibre = l;
     if (!l.length) return '<p class="discret">Aucun praticien présent le ' + dateFr(date) + ' ne correspond, selon vos filtres.</p>';
     return '<p class="discret">' + l.length + (l.length === 30 ? '+' : '') + ' résultat' + (l.length > 1 ? 's' : '') + ', ' + dateLongue(date) + (avecPos ? ', du plus proche au plus loin' : '') + '.</p>' +
@@ -8387,8 +8394,13 @@
   function estRapide(k, v) { return FILTRES_RAPIDES.some(function (x) { return x[0] === k && x[1] === v; }); }
   function filtreRapideActif(f, k, v) { return Array.isArray(f[k]) ? f[k].indexOf(v) >= 0 : f[k] === v; }
   var _collatorFr = (typeof Intl !== 'undefined' && Intl.Collator) ? new Intl.Collator('fr') : null;
-  function trierPraticiens(liste, tri) {
+  function trierPraticiens(liste, tri, q) {
     var t = aujourdhui();
+    var qClean = propreMots(q || ''), mots = qClean ? qClean.split(/\s+/).filter(Boolean) : [];
+    var pert = {};
+    if (mots.length) {
+      for (var k = 0; k < liste.length; k++) pert[liste[k].code] = scorePertinenceNom(liste[k], qClean, mots);
+    }
     if (tri === 'priorite' || tri === 'potentiel' || tri === 'retard' || tri === 'score') {
       var je = {}, sc = {};
       for (var i = 0; i < liste.length; i++) {
@@ -8397,13 +8409,15 @@
         if (tri === 'score') sc[p.code] = calcScore(p.note, j, p.statut);
       }
       return liste.sort(function (a, b) {
+        if (mots.length && pert[b.code] !== pert[a.code]) return pert[b.code] - pert[a.code];
         if (tri === 'priorite' || tri === 'potentiel') return b.note - a.note || je[b.code] - je[a.code];
         if (tri === 'retard') return je[b.code] - je[a.code] || b.note - a.note;
         return sc[b.code] - sc[a.code];
       });
     }
     return liste.sort(function (a, b) {
-      var na = String(a.nom || ''), nb = String(b.nom || '');
+      if (mots.length && pert[b.code] !== pert[a.code]) return pert[b.code] - pert[a.code];
+      var na = nomSansTitre(a.nom), nb = nomSansTitre(b.nom);
       return _collatorFr ? _collatorFr.compare(na, nb) : na.localeCompare(nb, 'fr');
     });
   }
@@ -9015,7 +9029,7 @@
   }
   VUES.praticiens = function () {
     var f = S.ui.filtres, t = aujourdhui(), c = ctx();
-    var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri);
+    var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri, S.ui.recherche);
     // la fiche ouverte (par exemple juste créée) reste en tête de liste
     var io = -1;
     if (S.ui.contactOuvert) {
@@ -10236,14 +10250,19 @@
   };
 
   function listeCandidatsRemplacementHtml(f, candidats, q) {
-    var mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    var qClean = propreMots(q || '');
+    var mots = qClean ? qClean.split(/\s+/).filter(Boolean) : [];
     var l = candidats;
     if (mots.length) {
       l = l.filter(function (x) {
         var p = x.cr.prat;
         var txt = normaliser([p.nom, p.specialite, x.cr.lieu, x.cr.quartier, x.cr.commune].join(' '));
         return mots.every(function (m) { return txt.indexOf(m) >= 0; });
-      });
+      }).map(function (x, idx) {
+        return { x: x, idx: idx, pert: scorePertinenceNom(x.cr.prat, qClean, mots) };
+      }).sort(function (a, b) {
+        return b.pert - a.pert || a.idx - b.idx;
+      }).map(function (o) { return o.x; });
     }
     var a = arret(f.uid), phA = a && estPharmacie(a);
     if (!l.length) {
@@ -10420,7 +10439,7 @@
   // 3.25.0 : recherche libre (nom, spécialité, établissement, quartier, commune) parmi les praticiens présents ce jour-là,
   // selon les filtres de la tournée, dès les premières lettres
   function resultatsAjout(q) {
-    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), mots = normaliser(q || '') ? sansAccents(q).toLowerCase().split(/\s+/).map(normaliser).filter(Boolean) : [];
+    var d = S.ui.dateAjout || S.ui.jour, j = jourSemaineIndex(d), qClean = propreMots(q || ''), mots = qClean ? qClean.split(/\s+/).filter(Boolean) : [];
     if (!mots.length) return '';
     if (j > 4) return '<p class="discret">Aucun praticien présent le week-end.</p>';
     var filtre = filtreAjout(), dans = ensemble(S.plan.filter(function (a) { return a.date === d; }).map(function (a) { return a.code; })), vus = {};
@@ -10430,10 +10449,13 @@
       if (S.ui.typeAjout && (S.ui.typeAjout === 'Pharmacie') !== (p.type === 'Pharmacie')) return;
       var txt = normaliser([p.nom, p.specialite, cr.lieu, cr.quartier, cr.commune].join(' '));
       if (!mots.every(function (m) { return txt.indexOf(m) >= 0; })) return;
-      var x = { cr: cr, score: Moteur.scoreDe(p, d) };
+      var x = { cr: cr, score: Moteur.scoreDe(p, d), pert: scorePertinenceNom(p, qClean, mots) };
       if (!vus[cr.code] || x.score > vus[cr.code].score) vus[cr.code] = x;
     });
-    var l = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) { return y.score - x.score; }).slice(0, 30);
+    var l = Object.keys(vus).map(function (k) { return vus[k]; }).sort(function (x, y) {
+      if (y.pert !== x.pert) return y.pert - x.pert;
+      return y.score - x.score;
+    }).slice(0, 30);
     if (!l.length) return '<p class="discret">Aucun praticien présent le ' + dateFr(d) + ' ne correspond, selon vos filtres.</p>';
     return '<ul class="liste">' + l.map(function (x) {
       var cr = x.cr, p = cr.prat, st = '';
