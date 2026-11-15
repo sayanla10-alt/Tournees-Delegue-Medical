@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.5';
+  var APP_VERSION = '3.31.6';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.6', ['Vérifier la fiche plus compact et utilisable d\'une main : date et présence sur une ligne ; cartes sans tableau (case, champ, valeur lue, valeur de la base, chaque ligne se touche en entier) ; plus aucun texte qui déborde ; boutons larges en bas de carte']],
     ['3.31.5', ['Vérifier la fiche : chaque changement proposé (spécialité, téléphone, établissement, quartier, programme, absence, compte rendu) a sa case : coché, il est appliqué ; une valeur différente de la base n\'est prise que si vous la cochez',
                'Chaque contact a son bouton « Enregistrer ce contact » ; « Tout enregistrer » enregistre ceux qui sont prêts ; les contacts enregistrés passent dans « Enregistrés »']],
     ['3.31.4', ['Vérifier la fiche : chaque contact dit s\'il est nouveau dans la base, déjà dans la base (même nom, même téléphone) ou s\'il ressemble à un contact existant (question « Même personne ? ») ; tableau fiche / base champ par champ (nom, spécialité, téléphone, établissement, quartier : identique, ajouté, différent, avec « prendre la fiche ») ; programme de la semaine sur le lieu, le jour de la fiche coché (mardi pour une fiche du 10 novembre)',
@@ -10327,79 +10328,82 @@
     var plans = v.entites.map(function (ent) { return planScan(ent, v); });
     var etat = function (i) { var e = v.entites[i]; return e.enregistre ? 'fait' : !e.inclus ? 'exclu' : plans[i].erreur ? 'erreur' : e.choix ? 'existant' : 'nouveau'; };
     var n = { erreur: 0, nouveau: 0, existant: 0, exclu: 0, fait: 0 }; v.entites.forEach(function (e, i) { n[etat(i)]++; });
-    // en-tête
-    h += '<section class="bloc compact scan-tete">' +
-      '<div class="grille-2 serre"><label class="champ"><span>Date de la visite' + (v.dateLue ? '' : ' (non lue)') + '</span><input type="date" data-f="scan" data-k="date" value="' + esc(v.date) + '"></label>' +
-      '<div class="champ"><span>Présence ce jour</span><div class="segment" role="group">' +
-        '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button><button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button></div></div></div>' +
-      (x.photo && x.photo.url ? '<a class="discret scan-photo" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">' + icone('photo') + 'Voir la photo</a>' : '') + '</section>';
+    // en-tête compact : date et présence sur une ligne
+    h += '<div class="sc-entete"><label class="sc-date"><span>Visite du' + (v.dateLue ? '' : ' (date non lue)') + '</span><input type="date" data-f="scan" data-k="date" value="' + esc(v.date) + '"></label>' +
+      '<div class="segment sc-creneaux" role="group" aria-label="Présence ce jour">' +
+        '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button><button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button></div></div>';
     if (!v.entites.length) return h + '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, à plat et bien éclairée.</div>';
     // résumé
-    h += '<p class="scan-resume"><b>' + v.entites.length + ' contact' + (v.entites.length > 1 ? 's' : '') + ' lu' + (v.entites.length > 1 ? 's' : '') + '</b>' +
+    h += '<p class="sc-resume"><b>' + v.entites.length + ' contact' + (v.entites.length > 1 ? 's' : '') + ' lu' + (v.entites.length > 1 ? 's' : '') + '</b>' +
       [n.erreur ? n.erreur + ' à compléter' : '', n.nouveau ? n.nouveau + ' nouveau' + (n.nouveau > 1 ? 'x' : '') : '', n.existant ? n.existant + ' déjà dans la base' : '', n.exclu ? n.exclu + ' non retenu' + (n.exclu > 1 ? 's' : '') : '', n.fait ? n.fait + ' enregistré' + (n.fait > 1 ? 's' : '') : '']
-        .filter(Boolean).map(function (t) { return ' · ' + t; }).join('') + '</p>';
+        .filter(Boolean).map(function (t) { return ' · ' + t; }).join('') +
+      (x.photo && x.photo.url ? ' · <a href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">photo</a>' : '') + '</p>';
     var groupes = [['erreur', 'À compléter'], ['nouveau', 'Nouveaux contacts'], ['existant', 'Déjà dans la base'], ['exclu', 'Non retenus'], ['fait', 'Enregistrés']];
     groupes.forEach(function (g) {
       var idx = v.entites.map(function (e, i) { return i; }).filter(function (i) { return etat(i) === g[0]; });
       if (!idx.length) return;
-      h += '<p class="fx-sec scan-groupe">' + g[1] + ' (' + idx.length + ')</p>';
+      h += '<p class="sc-groupe">' + g[1] + ' (' + idx.length + ')</p>';
       idx.forEach(function (i) { h += carteScan(f, v, v.entites[i], plans[i], i, g[0]); });
     });
-    if (v.remarques) h += '<p class="discret scan-remarques"><b>Autres informations lues :</b> ' + esc(v.remarques) + '</p>';
+    if (v.remarques) h += '<p class="sc-idem sc-remarques"><b>Autres informations lues :</b> ' + esc(v.remarques) + '</p>';
     var ok = n.nouveau + n.existant;
     return { corps: h, pied: '<div class="rangee"><button class="bouton" type="button" data-a="fermerFeuille">Plus tard</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="scanEnregistrer"' + (ok ? '' : ' disabled') + '>' + icone('valider') + 'Tout enregistrer' + (ok ? ' (' + ok + ')' : '') + '</button></div>' };
   };
+  // 3.31.6 : carte compacte, utilisable d'une main : case à gauche (grande zone), nom en entier, état en une puce ;
+  // les changements sont une liste de lignes à toucher (case + champ + valeur lue + valeur de la base), sans tableau ;
+  // « Enregistrer ce contact » sur toute la largeur en bas de la carte.
   function carteScan(f, v, ent, pl, i, etat) {
-    var estPh = ent.type === 'Pharmacie', ouvert = ent.ouvert || (etat === 'erreur' && ent.ouvert !== false && !ent.douteux);
+    var estPh = ent.type === 'Pharmacie', ouvert = !!ent.ouvert;
     var ex = ent.choix ? praticien(ent.choix) : null, dt = ent.douteux && !ent.decision ? praticien(ent.douteux) : null;
-    var statut = ex ? '<span class="etiquette ok">Dans la base' + (ent.raisons && ent.raisons[ent.choix] ? ' (' + esc(ent.raisons[ent.choix]) + ')' : '') + '</span>'
-      : dt ? '<span class="etiquette ambre">Ressemble à un contact de la base</span>' : '<span class="etiquette">Nouveau dans la base</span>';
-    var h = '<section class="bloc compact scan-ent scan-' + etat + '">' +
-      '<div class="scan-ligne1"><label class="case scan-case"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="inclus"' + (ent.inclus ? ' checked' : '') + ' aria-label="Retenir ce contact"></label>' +
-        '<div class="scan-nom"><b>' + esc(ent.nom || 'Nom à lire') + '</b><div class="etiquettes">' + statut +
-          (ent.confiance !== undefined && ent.confiance < 0.6 ? '<span class="etiquette alerte">Lecture incertaine</span>' : '') + '</div></div>' +
-        '<button type="button" class="bouton petit" data-a="scanOuvrir" data-i="' + i + '">' + (ouvert ? 'Fermer' : 'Modifier') + '</button></div>';
-    if (ent.enregistre) return h.replace('<button type="button" class="bouton petit" data-a="scanOuvrir" data-i="' + i + '">' + (ouvert ? 'Fermer' : 'Modifier') + '</button>', '') + '<p class="scan-fait">' + icone('valider') + 'Enregistré</p></section>';
-    if (!ent.inclus) return h + '</section>';
-    // nom proche : la question d'abord
+    var puce = ent.enregistre ? '<span class="sc-puce ok">' + icone('valider') + 'Enregistré</span>'
+      : ex ? '<span class="sc-puce ok">Dans la base</span><span class="sc-raison">' + esc((ent.raisons && ent.raisons[ent.choix]) || '') + '</span>'
+      : dt ? '<span class="sc-puce ambre">À vérifier</span><span class="sc-raison">nom proche d\'un contact</span>'
+      : '<span class="sc-puce">Nouveau</span><span class="sc-raison">absent de la base</span>';
+    var h = '<section class="sc-carte scan-' + etat + '">' +
+      '<div class="sc-tete">' +
+        (ent.enregistre ? '<span class="sc-case-vide"></span>' : '<label class="sc-case"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="inclus"' + (ent.inclus ? ' checked' : '') + ' aria-label="Retenir ce contact"></label>') +
+        '<div class="sc-id"><b>' + esc(ent.nom || 'Nom à lire') + '</b><div class="sc-puces">' + puce +
+          (ent.confiance !== undefined && ent.confiance < 0.6 && !ent.enregistre ? '<span class="sc-puce alerte">Lecture incertaine</span>' : '') + '</div></div>' +
+        (ent.enregistre || !ent.inclus ? '' : '<button type="button" class="sc-ouvrir" data-a="scanOuvrir" data-i="' + i + '" aria-expanded="' + ouvert + '" aria-label="' + (ouvert ? 'Fermer' : 'Modifier') + '">' + icone(ouvert ? 'fermer' : 'crayon') + '</button>') +
+      '</div>';
+    if (ent.enregistre || !ent.inclus) return h + '</section>';
     if (dt) {
       var prs = (ctx().presencesParCode[dt.code] || []).map(function (x) { return x.lieu; }).filter(Boolean).slice(0, 2).join(', ');
-      h += '<div class="scan-question"><p><b>Même personne que ' + esc(dt.nom) + ' ?</b><small>' + esc([dt.specialite, prs, dt.telephone].filter(Boolean).join(' · ') || 'Aucune autre information') + ' · ' + esc(ent.raisons[dt.code] || 'nom proche') + '</small></p>' +
-        '<div class="rangee"><button type="button" class="bouton petit" data-a="scanDecision" data-i="' + i + '" data-v="oui">Oui, c\'est lui</button>' +
-        '<button type="button" class="bouton petit" data-a="scanDecision" data-i="' + i + '" data-v="non">Non, nouveau contact</button></div></div>';
-    } else if (pl.erreur) h += '<p class="erreur-texte scan-err">' + esc(pl.erreur) + '</p>';
-    // 3.31.5 : changements proposés, chacun à valider (case cochée = appliqué)
-    var lib = { identique: 'identique', ajout: 'à ajouter', different: 'différent', nouveau: '', 'nouveau-lieu': 'lieu à ajouter', base: '' };
+      h += '<div class="sc-question"><p>Même personne que <b>' + esc(dt.nom) + '</b> ?</p><small>' + esc([dt.specialite, prs, dt.telephone].filter(Boolean).join(' · ')) + '</small>' +
+        '<div class="sc-2btn"><button type="button" class="bouton" data-a="scanDecision" data-i="' + i + '" data-v="oui">Oui, c\'est lui</button>' +
+        '<button type="button" class="bouton" data-a="scanDecision" data-i="' + i + '" data-v="non">Non, nouveau</button></div></div>';
+    } else if (pl.erreur) h += '<p class="sc-err">' + esc(pl.erreur) + '</p>';
+    var tag = { ajout: 'à ajouter', different: 'différent', 'nouveau-lieu': 'nouveau lieu', nouveau: '' };
     var lignes = pl.cmp.filter(function (r) { return r.etat !== 'identique' && r.etat !== 'base'; });
     var idem = pl.cmp.filter(function (r) { return r.etat === 'identique'; }).map(function (r) { return r.champ.toLowerCase(); });
     if (lignes.length) {
-      h += '<p class="fx-sec scan-titre-chg">' + (ex ? 'Changements proposés : cochez ceux à appliquer' : 'Informations du nouveau contact') + '</p>' +
-        '<table class="scan-cmp"><thead><tr><th></th><th>Fiche</th>' + (ex ? '<th>Base</th>' : '') + '</tr></thead><tbody>' + lignes.map(function (r) {
-        var cl = (r.etat === 'different' ? 'diff' : 'ajout') + (r.actif ? '' : ' refuse') + (r.k === 'telephone' ? ' tel' : '');
-        var cb = r.opt ? '<input type="checkbox" class="scan-ok" data-f="scan" data-i="' + i + '" data-k="appliquer.' + r.k + '" data-opt="' + r.opt + '"' + (r.actif ? ' checked' : '') + ' aria-label="Appliquer : ' + esc(r.champ) + '"> ' : '';
-        var fiche = esc(r.fiche || '·');
-        if (r.k === 'programme' && pl.prog) fiche += semaineScan(pl.prog);
-        return '<tr class="' + cl + '"><th><label>' + cb + esc(r.champ) + '</label>' + (lib[r.etat] ? '<small>' + lib[r.etat] + '</small>' : '') + '</th><td>' + fiche + '</td>' + (ex ? '<td>' + esc(r.base || '·') + '</td>' : '') + '</tr>';
-      }).join('') + '</tbody></table>';
+      h += '<ul class="sc-chg">' + lignes.map(function (r) {
+        var val = '<span class="sc-txt"><span class="sc-champ">' + esc(r.champ) + (tag[r.etat] ? ' <em class="' + (r.etat === 'different' ? 'diff' : '') + '">' + tag[r.etat] + '</em>' : '') + '</span>' +
+          '<span class="sc-val' + (r.k === 'telephone' ? ' nowrap' : '') + '">' + esc(r.fiche || '·') + '</span>' +
+          (ex && r.base ? '<span class="sc-base' + (r.k === 'telephone' ? ' nowrap' : '') + '">Base : ' + esc(r.base) + '</span>' : '') +
+          (r.k === 'programme' && pl.prog ? semaineScan(pl.prog) : '') + '</span>';
+        if (!r.opt) return '<li class="sc-ligne fixe"><span class="sc-point"></span>' + val + '</li>';
+        return '<li><label class="sc-ligne' + (r.actif ? '' : ' refuse') + '"><input type="checkbox" data-f="scan" data-i="' + i + '" data-k="appliquer.' + r.k + '" data-opt="' + r.opt + '"' + (r.actif ? ' checked' : '') + '>' + val + '</label></li>';
+      }).join('') + '</ul>';
     }
-    if (idem.length) h += '<p class="discret scan-idem">Identique à la base : ' + esc(idem.join(', ')) + '</p>';
+    if (idem.length) h += '<p class="sc-idem">Identique à la base : ' + esc(idem.join(', ')) + '</p>';
     var autres = pl.changes.filter(function (c) { return typeof c === 'string'; });
-    if (autres.length && !pl.erreur) h += '<ul class="scan-changes">' + autres.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + '</ul>';
+    if (autres.length && !pl.erreur) h += '<p class="sc-idem">' + autres.map(esc).join(' · ') + '</p>';
     if (ouvert) {
-      h += '<div class="scan-detail">' +
-        (ent.transcription ? '<p class="discret scan-lu">Lu : ' + esc(ent.transcription) + '</p>' : '') +
+      h += '<div class="sc-detail">' +
+        (ent.transcription ? '<p class="sc-lu">Lu : ' + esc(ent.transcription) + '</p>' : '') +
         '<label class="champ"><span>Nom</span><input type="text" data-f="scan" data-i="' + i + '" data-k="nom" value="' + esc(ent.nom) + '"></label>' +
         (estPh ? '' : '<label class="champ"><span>Spécialité</span><input type="text" data-f="scan" data-i="' + i + '" data-k="specialite" value="' + esc(ent.specialite) + '"></label>' +
           '<label class="champ"><span>Établissement</span><input type="text" data-f="scan" data-i="' + i + '" data-k="etablissement" value="' + esc(ent.etablissement) + '"></label>') +
-        '<label class="champ"><span>Téléphone</span><input type="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' +
+        '<label class="champ"><span>Téléphone</span><input type="tel" inputmode="tel" data-f="scan" data-i="' + i + '" data-k="telephone" value="' + esc(ent.telephone) + '"></label>' +
         '<div class="champ"><span>Quartier' + (ent.quartierLu && !ent.quartier ? ' (lu : ' + esc(ent.quartierLu) + ')' : '') + '</span>' + selecteurListe('scanQ' + f.id + '_' + i, { titre: 'Quartier', valeur: ent.quartier || null, vide: 'Choisir…', sections: sectionsQuartiers(),
           appliquer: function (val) { majScan(f.id, function (z) { var q = quartiers().filter(function (o) { return o.quartier === val; })[0]; z.validation.entites[i].quartier = val; z.validation.entites[i].commune = q ? q.commune : ''; }); } }) + '</div>' +
         '<p class="fx-sec">Correspond à</p><div class="puces">' +
           '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="" aria-pressed="' + !ent.choix + '">Nouveau contact</button>' +
-          ent.cands.map(function (c) { var p = praticien(c) || {}; return '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="' + esc(c) + '" aria-pressed="' + (ent.choix === c) + '">' + esc(p.nom || c) + (p.specialite && !estPh ? ' <small>' + esc(abrSpec(p.specialite)) + '</small>' : '') + '</button>'; }).join('') + '</div></div>';
+          ent.cands.map(function (c) { var p = praticien(c) || {}; return '<button type="button" class="puce" data-a="scanChoix" data-i="' + i + '" data-v="' + esc(c) + '" aria-pressed="' + (ent.choix === c) + '">' + esc(p.nom || c) + '</button>'; }).join('') + '</div></div>';
     }
-    h += '<div class="scan-pied-ent"><button type="button" class="bouton petit bouton-plein" data-a="scanEnregistrerUn" data-i="' + i + '"' + (pl.erreur ? ' disabled' : '') + '>' + icone('valider') + 'Enregistrer ce contact</button></div>';
+    h += '<button type="button" class="bouton bouton-plein sc-enreg" data-a="scanEnregistrerUn" data-i="' + i + '"' + (pl.erreur ? ' disabled' : '') + '>' + icone('valider') + 'Enregistrer ce contact</button>';
     return h + '</section>';
   }
   function semaineScan(prog) {
@@ -13275,7 +13279,7 @@
       }, function () { S.ui.feuille = { type: 'ficheScan', titre: 'Fiches photographiées', pleine: true }; rendre(); }, null, true);
     },
     scanDecision: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k]; e.decision = el.dataset.v; e.choix = el.dataset.v === 'oui' ? e.douteux : ''; e.remplacer = {}; e.refus = {}; }); rendre(); },
-    scanOuvrir: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k], pl = planScan(e, x.validation), ouv = e.ouvert || (!!pl.erreur && e.inclus && e.ouvert !== false); e.ouvert = !ouv; }); rendre(); },
+    scanOuvrir: function (el) { var f = S.ui.feuille, k = +el.dataset.i; majScan(f.id, function (x) { var e = x.validation.entites[k]; e.ouvert = !e.ouvert; }); rendre(); },
     scanChoix: function (el) { var f = S.ui.feuille; majScan(f.id, function (x) { var e = x.validation.entites[+el.dataset.i]; e.choix = el.dataset.v; e.remplacer = {}; if (e.douteux) e.decision = el.dataset.v === e.douteux ? 'oui' : 'non'; }); rendre(); },
     scanCreneau: function (el) { var f = S.ui.feuille, k = el.dataset.v; majScan(f.id, function (x) { x.validation[k] = !x.validation[k]; if (!x.validation.matin && !x.validation.soir) x.validation[k === 'matin' ? 'soir' : 'matin'] = true; }); rendre(); },
     scanEnregistrer: function () { enregistrerScan(null); },
