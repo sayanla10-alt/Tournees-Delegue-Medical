@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.83';
+  var APP_VERSION = '3.31.84';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.84', ['Vérifier la fiche, « Ajuster » compact : lieu de visite dans une liste déroulante, planning et choix Base / Fiche sur une ligne chacun ; un établissement absent de la base est signalé et créé']],
     ['3.31.83', ['Vérifier la fiche épuré : chaque contact tient en une ligne (ce qui sera fait, en clair) avec un interrupteur « Intégrer » ; les noms proches se tranchent en un geste (Même personne / Nouveau contact) ; les réglages fins sont sous « Ajuster »']],
     ['3.31.82', ['Mises à jour : correction du double bandeau de mise à jour (une seule confirmation suffit désormais)']],
     ['3.31.81', ['Vérifier la fiche : mise en page allégée et harmonisée (photo dans la ligne de bilan, « Autre établissement » discret, planning de la semaine sous l\'hôpital de visite)']],
@@ -12301,6 +12302,7 @@
         if (choixChangementScan(ent, r) !== 'fiche') return;
         var lib = { nom: 'Nom', telephone: 'Tél.', specialite: 'Spécialité', etablissement: 'Nouveau lieu', quartier: 'Quartier', absence: 'Absence' }[r.k] || r.champ;
         var court = function (t) { return r.k === 'telephone' ? String(t || '').replace(/^\+225\s*/, '') : t; };
+        if (r.k === 'etablissement' && !trouverEtablissementBDD(r.fiche, '', '')) { l.push('Nouveau lieu ' + r.fiche + ' (établissement absent de la base, créé)'); return; }
         l.push(r.k === 'absence' ? r.fiche : lib + ' ' + court(r.fiche) + (r.base && r.k !== 'etablissement' ? ' (avant : ' + court(r.base) + ')' : ''));
       });
     }
@@ -12363,35 +12365,33 @@
         '<button type="button" class="bouton bouton-plein vf-large" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="nouveau">Non, ' + (estPh ? 'nouvelle pharmacie' : 'nouveau contact') + '</button></div>';
     } else if (cl === 'changement') {
       changementsScan(ent, pl).forEach(function (r) {
-        var c = choixChangementScan(ent, r);
-        h += '<div class="vf-q"><p class="vf-champ">' + esc(CHAMPS_CHANGEMENT_SCAN[r.k]) + (r.etat === 'ajout' ? ' <small>(absent de la base)</small>' : r.etat === 'nouveau-lieu' ? ' <small>(nouveau lieu)</small>' : '') + '</p>' +
-          '<p class="vf-vals">Fiche : <b>' + esc(r.fiche || '(vide)') + '</b>' + (r.base ? '<br>Base : <s>' + esc(r.base) + '</s>' : '') + '</p>' +
-          '<div class="vf-boutons">' +
-            '<button type="button" class="bouton' + (c === 'base' ? ' bouton-plein' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(r.k) + '" data-val="ancien" aria-pressed="' + (c === 'base') + '">' + (r.base ? 'Garder la base' : 'Ne pas ajouter') + '</button>' +
-            '<button type="button" class="bouton' + (c === 'fiche' ? ' bouton-plein' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(r.k) + '" data-val="nouveau" aria-pressed="' + (c === 'fiche') + '">' + (r.base ? 'Prendre la fiche' : 'Ajouter') + '</button>' +
-          '</div></div>';
+        var c = choixChangementScan(ent, r), court = function (t) { return r.k === 'telephone' ? String(t || '').replace(/^\+225\s*/, '') : t; };
+        var lib = { nom: 'Nom', telephone: 'Tél.', specialite: 'Spéc.', etablissement: 'Lieu', quartier: 'Quartier', absence: 'Absence' }[r.k] || r.champ;
+        h += '<div class="vf-reglage"><span class="vf-lib">' + esc(lib) + '</span><div class="vf-choix"><span class="vf-val"><b>' + esc(court(r.fiche) || '(vide)') + '</b>' + (r.base ? '<small>avant : ' + esc(court(r.base)) + '</small>' : '') + '</span>' +
+          '<div class="segment vf-mini" role="group"><button type="button" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(r.k) + '" data-val="ancien" aria-pressed="' + (c === 'base') + '">' + (r.base ? 'Base' : 'Non') + '</button>' +
+          '<button type="button" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(r.k) + '" data-val="nouveau" aria-pressed="' + (c === 'fiche') + '">Fiche</button></div></div></div>';
       });
       if (!estPh) h += blocLieuScan(f, ent, pl, i, ex);
       if (ent.decision === 'oui') h += '<p class="vf-lien"><button type="button" class="lien" data-a="scanRevoirProche" data-i="' + i + '">Ce n\'est pas la même personne</button></p>';
     } else {
       if (ent.decision === 'non') h += '<p class="vf-lien">Nom proche écarté · <button type="button" class="lien" data-a="scanRevoirProche" data-i="' + i + '">revoir</button></p>';
       h += editionScan(f, ent, pl, i, estPh);
-      if (ent.inclus && !estPh && pl.prog && pl.prog.lieu) h += '<div class="vf-q"><p class="vf-champ">Planning de la semaine à ' + esc(pl.prog.lieu) + '</p>' + semaineScan(pl.prog, i) + '</div>';
+      if (ent.inclus && !estPh && pl.prog && pl.prog.lieu) h += '<div class="vf-reglage"><span class="vf-lib">Planning</span>' + semaineScan(pl.prog, i) + '</div>';
     }
     return h;
   }
   // 3.31.80 : lieu de la visite confirmé (lieux connus du médecin, ou autre établissement de la base) et planning de la semaine sur ce lieu
   function blocLieuScan(f, ent, pl, i, ex) {
+    // 3.31.84 : compact : « Visité à » + liste déroulante sur une ligne, puis le planning de la semaine sur une ligne
     var L = pl.lieu, actuel = (L && L.lieu) || ent.etablissement || '';
     var lieux = ((ex && ex.lieux) || []).map(function (l) { return l.lieu; }).filter(function (x, k, t) { return x && t.indexOf(x) === k; });
     if (actuel && !lieux.some(function (x) { return memeEtablissement(x, actuel); })) lieux.push(actuel);
-    var h = '<div class="vf-q"><p class="vf-champ">Visité à</p><div class="vf-lieux">' + lieux.map(function (x) {
-      var on = memeEtablissement(x, actuel);
-      return '<button type="button" class="puce" data-a="scanChoisirHopital" data-i="' + i + '" data-etab="' + esc(x) + '" aria-pressed="' + on + '">' + esc(x) + '</button>';
-    }).join('') + '</div><p class="vf-lien"><button type="button" class="lien" data-a="scanAutreLieu" data-i="' + i + '">' + (ent.autreLieu ? 'Fermer' : 'Autre établissement') + '</button></p>';
-    if (ent.autreLieu) h += '<input type="text" class="scan-input-hopital" data-f="scanEtabInput" data-i="' + i + '" placeholder="Premières lettres de l\'établissement…" autocomplete="off"><div id="scanSuggEtab_' + i + '" class="scan-sugg-etabs"></div>';
-    if (pl.prog && pl.prog.lieu) h += '<p class="vf-champ vf-sep">Planning de la semaine</p>' + semaineScan(pl.prog, i);
-    return h + '</div>';
+    var h = '<div class="vf-reglage"><span class="vf-lib">Visité à</span><select class="vf-select" data-f="scanLieuSel" data-i="' + i + '" aria-label="Lieu de la visite">' +
+      lieux.map(function (x) { return '<option value="' + esc(x) + '"' + (memeEtablissement(x, actuel) && !ent.autreLieu ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') +
+      '<option value="__autre"' + (ent.autreLieu ? ' selected' : '') + '>Autre établissement…</option></select></div>';
+    if (ent.autreLieu) h += '<div class="vf-reglage"><span class="vf-lib"></span><div><input type="text" class="scan-input-hopital" data-f="scanEtabInput" data-i="' + i + '" placeholder="Premières lettres…" autocomplete="off"><div id="scanSuggEtab_' + i + '" class="scan-sugg-etabs"></div></div></div>';
+    if (pl.prog && pl.prog.lieu) h += '<div class="vf-reglage"><span class="vf-lib">Planning</span>' + semaineScan(pl.prog, i) + '</div>';
+    return h;
   }
   // champs à corriger d'un nouveau contact : nom, téléphone, spécialité, lieu d'exercice (établissements de la base), quartier
   function editionScan(f, ent, pl, i, estPh) {
@@ -16570,6 +16570,11 @@
   });
   document.addEventListener('change', function (e) {
     var el = e.target, f = el.dataset && el.dataset.f;
+    if (f === 'scanLieuSel' && S.ui.feuille) {   // 3.31.84 : lieu de la visite choisi dans la liste
+      if (el.value === '__autre') { var fA = S.ui.feuille, kA = +el.dataset.i; majScan(fA.id, function (x) { x.validation.entites[kA].autreLieu = true; }); rendre(); }
+      else ACTIONS.scanChoisirHopital({ dataset: { i: el.dataset.i, etab: el.value } });
+      return;
+    }
     if (f === 'param') {
       var k = el.dataset.k, dPrec = S.params.dateRef || S.ui.jour;
       S.params[k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? +el.value : el.value);

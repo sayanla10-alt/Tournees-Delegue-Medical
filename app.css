@@ -5026,3 +5026,18 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .vf2-switch span { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
 .vf2-switch[aria-checked="true"] { background: var(--primaire); }
 .vf2-switch[aria-checked="true"] span { transform: translateX(20px); }
+
+/* 3.31.84 : réglages compacts sous « Ajuster » (lieu de visite, planning) */
+.vf-reglage { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 8px; margin-top: 8px; }
+.vf-lib { font-size: 13px; color: var(--gris); font-weight: 600; }
+.vf-select { width: 100%; min-height: 38px; padding: 4px 30px 4px 10px; font: inherit; font-size: 14px; }
+.vf-reglage .scan-sem-barre { gap: 4px; }
+.vf-reglage .scan-sem-btn { padding: 4px 0; border-radius: 7px; }
+.vf2-detail { border-top: 1px dashed var(--trait, #e3e8e9); padding-top: 2px; }
+.vf-choix { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vf-val { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; font-size: 14px; }
+.vf-val small { color: var(--gris); font-size: 12.5px; }
+.vf-mini { flex: 0 0 auto; }
+.vf-mini button { min-height: 32px; padding: 0 10px; font-size: 13px; }
+.vf-mini button { white-space: nowrap; flex: 0 0 auto; }
+.vf2-ajuster { margin-top: 4px; }

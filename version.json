@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.83",
+  "version": "3.31.84",
   "date": "2026-11-15",
   "notes": [
-    "Vérifier la fiche épuré : une ligne par contact avec un interrupteur « Intégrer », noms proches en un geste, réglages fins sous « Ajuster »"
+    "Vérifier la fiche, « Ajuster » compact : lieu de visite en liste déroulante, planning et choix Base / Fiche sur une ligne ; établissement absent de la base signalé et créé"
   ]
 }
