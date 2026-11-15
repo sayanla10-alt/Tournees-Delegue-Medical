@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.72';
+  var APP_VERSION = '3.31.73';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.73', ['+ Ajouter (Planifier) : lors d\'une recherche par nom, toutes les fiches correspondantes s\'affichent désormais (compatibles en haut, puis « Hors filtre » centré en dessous avec la raison précise)']],
     ['3.31.72', ['+ Ajouter (Planifier) : ouverture allégée (50 cartes initiales) et affichage des médecins prévus par un collègue avec leur étiquette informative au lieu de les masquer']],
     ['3.31.71', ['Tirage & Recalculer : la mémoire des tirages est limitée à la journée/période ciblée et se réinitialise dès que la date ou un critère change']],
     ['3.31.70', ['Tirage & Recalculer : la mémoire persistante des médecins non retenus est réinitialisée automatiquement si vous modifiez vos critères de planification']],
@@ -10526,8 +10527,57 @@
       if (alpha) return nomTri(x).localeCompare(nomTri(y), 'fr');
       return pos ? (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0) || y.score - x.score : y.score - x.score;
     }), l = tous.slice(0, alpha ? (mots.length ? 100 : 50) : (mots.length ? 60 : 30));
-    if (!l.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' » parmi ces praticiens.' : 'Aucun autre praticien présent ce jour-là' + (avecCom ? ' dans ' + esc(libelleCommunes(Object.keys(com))) : '') + ', selon vos critères.') + '</p>';
-    return (mots.length ? '<p class="discret">' + tous.length + ' résultat' + (tous.length > 1 ? 's' : '') + '.</p>' : '') +
+
+    // 3.31.73 : dès 2 caractères tapés, afficher aussi toutes les fiches du répertoire qui matchent
+    // mais ne répondent pas aux critères du jour, sous une section dédiée « Hors filtre »
+    var horsFiltre = [];
+    if (mots.length && String(q || '').trim().length >= 2) {
+      var cCtx = ctx();
+      var tousPrat = (S.data && S.data.praticiens) || [];
+      tousPrat.forEach(function (p) {
+        if (!p || !p.code || vus[p.code]) return;
+        if (S.ui.typeAjout && (S.ui.typeAjout === 'Pharmacie') !== (p.type === 'Pharmacie')) return;
+        var pres = cCtx.presencesParCode[p.code] || [];
+        var lieuxTxt = pres.map(function (pr) { return [pr.lieu, pr.quartier, pr.commune].join(' '); }).join(' ');
+        var txt = normaliser([p.nom, p.specialite, p.titulaire, lieuxTxt].join(' '));
+        if (!mots.every(function (m) { return txt.indexOf(m) >= 0; })) return;
+        var crTous = cCtx.parCode[p.code] || [];
+        var crJour = crTous.filter(function (cr) { return cr.jourIdx === j; });
+        var raison = '', gris = false, cleJour = '';
+        if (dans[p.code]) {
+          var ar = S.plan.filter(function (a) { return a.date === d && a.code === p.code; })[0];
+          raison = 'Déjà dans la tournée' + (ar && ar.heure ? ' · ' + ar.heure : '');
+          gris = true;
+        } else if (absentLe(p, d)) {
+          raison = 'Hors filtre · Absent(e)';
+        } else if (!crJour.length) {
+          var jPres = [];
+          crTous.forEach(function (cr) {
+            var jc = JOURS_COURTS[cr.jourIdx];
+            if (jc && jPres.indexOf(jc) < 0) jPres.push(jc);
+          });
+          raison = jPres.length
+            ? ('Hors filtre · Pas présent(e) le ' + JOURS_COURTS[j] + ' (' + jPres.join(', ') + ')')
+            : 'Hors filtre · Sans horaire';
+        } else {
+          cleJour = crJour[0].cle || '';
+          var comDiff = avecCom && !crJour.some(function (cr) {
+            return typeof communeCorrespondante === 'function' ? communeCorrespondante(cr, com, qs) : com[cr.commune];
+          });
+          raison = comDiff ? ('Hors filtre · ' + (crJour[0].commune || 'Autre zone')) : 'Hors filtre · Spécialité / ★';
+        }
+        horsFiltre.push({ p: p, pres: pres, crJour: crJour, raison: raison, gris: gris, cleJour: cleJour });
+      });
+      horsFiltre.sort(function (a, b) {
+        return sansAccents(nomSansType(a.p.nom || '')).toLowerCase().replace(/^(dr|pr|ide|sage[- ]femme|mme|mlle|m)\.?\s+/, '')
+          .localeCompare(sansAccents(nomSansType(b.p.nom || '')).toLowerCase().replace(/^(dr|pr|ide|sage[- ]femme|mme|mlle|m)\.?\s+/, ''), 'fr');
+      });
+      if (horsFiltre.length > 40) horsFiltre = horsFiltre.slice(0, 40);
+    }
+
+    if (!l.length && !horsFiltre.length) return '<p class="discret">' + (mots.length ? 'Aucun résultat pour « ' + esc(q) + ' ».' : 'Aucun autre praticien présent ce jour-là' + (avecCom ? ' dans ' + esc(libelleCommunes(Object.keys(com))) : '') + ', selon vos critères.') + '</p>';
+
+    var htmlCompat = l.length ? ((horsFiltre.length ? '<div class="titre-sec-ajout">Compatibles ce jour (' + tous.length + ')</div>' : (mots.length ? '<p class="discret">' + tous.length + ' résultat' + (tous.length > 1 ? 's' : '') + '.</p>' : '')) +
       '<ul class="liste">' + l.map(function (x) {
         var cr = x.cr, p = cr.prat, st = '', details = cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d));
         if (p.type === 'Pharmacie') {
@@ -10549,9 +10599,24 @@
           '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
           '<span class="discret bloc-texte">' + details + '</span>' +
-          (etCol ? '<span class="etiquettes">' + etCol + '</span>' : '') +
+          (etCol ? '<span class="etiquettes centre">' + etCol + '</span>' : '') +
           '</button></li>';
-      }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : tapez un nom ou précisez la recherche.</p>' : '');
+      }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : tapez un nom ou précisez la recherche.</p>' : '')) : '';
+
+    var htmlHors = horsFiltre.length ? ('<div class="titre-sec-ajout hors">Hors filtre (' + horsFiltre.length + ')</div>' +
+      '<ul class="liste">' + horsFiltre.map(function (h) {
+        var p = h.p, pr0 = h.pres[0] || {};
+        var hopital = p.type === 'Pharmacie' ? '' : abregerHopital(pr0.lieu || '');
+        var com0 = pr0.commune || '';
+        var st = [p.type === 'Pharmacie' ? '' : p.specialite, hopital, com0 && (!hopital || hopital.toLowerCase().indexOf(com0.toLowerCase()) < 0) ? com0 : ''].filter(Boolean).join(' · ');
+        return '<li class="element hors-filtre' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterHorsFiltre" data-code="' + esc(p.code) + '" data-cle="' + esc(h.cleJour) + '" data-raison="' + esc(h.raison) + '">' +
+          '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
+          (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
+          '<span class="etiquettes centre"><span class="etiquette ' + (h.gris ? '' : 'ambre') + '">' + esc(h.raison) + '</span></span>' +
+          '</button></li>';
+      }).join('') + '</ul>') : '';
+
+    return htmlCompat + htmlHors;
   }
   // 3.27.42 : « Tout le répertoire » (+ Médecin / + Pharmacie) : tous les médecins ou pharmacies de la BDD,
   // affichés indépendamment des autres filtres appliqués au moment de la recherche
@@ -14623,6 +14688,18 @@
       var retourAjout = function () { S.ui.feuille = el.dataset.r === 'recherche' && fAvant ? fAvant : { type: 'ajouterCommunes', titre: (S.ui.typeAjout ? 'Selon mes filtres, ' : 'Communes du ') + dateCourte(d), pleine: true }; rendre(); };
       confirmerPuis('Ajouter à la tournée', 'Ajouter <b>' + esc(c.prat.nom) + '</b> (' + esc(c.lieu) + ', ' + c.creneau.toLowerCase() + ') au ' + dateFr(d) + ' ?', 'Ajouter',
         function () { ajouterArret(c, d); rendre(); }, retourAjout);
+    },
+    ajouterHorsFiltre: function (el) {
+      var code = el.dataset.code, cle = el.dataset.cle, raison = el.dataset.raison || 'Hors filtre';
+      var d = S.ui.dateAjout || S.ui.jour;
+      var c = cle ? Moteur.creneauParCle(ctx(), cle) : null;
+      if (c) {
+        confirmerPuis('Praticien hors filtre', '<b>' + esc(c.prat.nom) + '</b> (' + esc(raison) + '). L\'ajouter quand même au ' + dateFr(d) + ' ?', 'Ajouter',
+          function () { ajouterArret(c, d); rendre(); },
+          function () { ACTIONS.voirContact({ dataset: { v: code } }); });
+        return;
+      }
+      ACTIONS.voirContact({ dataset: { v: code } });
     },
     ajouterToutPrat: function (el) {
       var code = el.dataset.code, d = S.ui.dateAjout || S.ui.jour || aujourdhui(), p = ctx().prat[code];

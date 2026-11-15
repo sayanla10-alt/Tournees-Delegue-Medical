@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.72",
+  "version": "3.31.73",
   "date": "2026-11-15",
   "notes": [
-    "+ Ajouter (Planifier) : ouverture allégée (50 cartes initiales) et affichage des médecins prévus par un collègue avec leur étiquette informative au lieu de les masquer"
+    "+ Ajouter (Planifier) : lors d'une recherche par nom, toutes les fiches correspondantes s'affichent désormais (compatibles en haut, puis « Hors filtre » centré en dessous avec la raison précise)"
   ]
 }
