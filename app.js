@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.58';
+  var APP_VERSION = '3.31.59';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.59', ['Source unique des lieux : l\'application ne lit plus dans Présences la commune, le quartier, la zone, la subdivision, le secteur, les repères ni la position GPS ; le lieu d\'un médecin vient d\'Etablissements, celui d\'une pharmacie de Pharmacies, le territoire (zone, subdivision, secteur) de Quartiers ; un changement dans l\'un de ces onglets se voit partout']],
     ['3.31.58', ['Secteurs : chaque arrêt est rangé dans la subdivision de l\'onglet Quartiers (Cocody – Angré, Riviera, Deux Plateaux, Centre ; Abobo – Nord, Centre, Sud ; Yopougon…) retrouvée depuis sa commune et son quartier : 8e Tranche, Djibi, Château, Oscar(s) vont avec Angré ; Palmeraie, Bonoumin, Riviera Golf avec Riviera ; Vallon(s), Latrille avec Deux Plateaux ; Blockhauss, Danga, Mermoz avec Cocody – Centre',
                'Un quartier qui porte le même nom dans deux communes (Djibi d\'Abobo et de Cocody, Sideci de Yopougon et de Cocody) reste dans sa propre commune ; Anador et Dokui ne forment plus un secteur à part dans Abobo',
                'Quartier d\'un hôpital modifié dans Etablissements : pris en compte aussitôt dans Planifier (le secteur resté de l\'ancien quartier ne le ramène plus) ; dans le classeur, le Secteur de la ligne suit le nouveau quartier']],
@@ -1665,8 +1666,76 @@
   // Contexte du moteur, reconstruit seulement quand les données changent
   var ctxCache = { data: null, ctx: null };
   function ctx() {
-    if (ctxCache.data !== S.data) ctxCache = { data: S.data, ctx: Moteur.preparer(Object.assign({}, S.data, { feries: feries() })) };
+    if (ctxCache.data !== S.data) { irriguerLieux(S.data); ctxCache = { data: S.data, ctx: Moteur.preparer(Object.assign({}, S.data, { feries: feries() })) }; }
     return ctxCache.ctx;
+  }
+  // 3.31.59 : SOURCE UNIQUE des informations de lieu. L'application ne lit plus dans Présences la commune, le quartier,
+  // la zone, le territoire, la subdivision, le secteur, les repères ni la position GPS d'un lieu :
+  //   - lieu d'un médecin (nom, commune, quartier, repères, GPS et son origine) : onglet Etablissements, retrouvé par
+  //     Ref_CodeEtab, sinon par le nom du lieu ;
+  //   - lieu d'une pharmacie : onglet Pharmacies ;
+  //   - territoire, zone, subdivision, secteur : onglet Quartiers, retrouvés depuis la commune et le quartier du lieu.
+  // Une présence dont le lieu n'existe pas dans Etablissements garde ses propres valeurs et est signalée (lieuxOrphelins).
+  // Appelée à chaque recalcul du contexte : une modification d'Etablissements, Pharmacies ou Quartiers (base, temps réel
+  // ou saisie dans l'application) se répercute partout.
+  var TERR_CACHE = { q: null, m: {} };
+  function territoireDe(commune, quartier, Q) {
+    if (TERR_CACHE.q !== Q) TERR_CACHE = { q: Q, m: {} };
+    var k = normaliser(commune) + '|' + normaliser(quartier);
+    if (TERR_CACHE.m[k] !== undefined) return TERR_CACHE.m[k];
+    var t = null;
+    if (quartier && typeof resoudreTerritoire === 'function') {
+      try { t = resoudreTerritoire({ commune: commune || '', quartier: quartier, secteur: '', subdivision: '', lieu: '' }, Q && Q.length ? Q : undefined); } catch (e) { t = null; }
+      if (t && !t.matched) t = { territoire: t.territoire, zone: t.zone, commune: t.commune, subdivision: '', secteur: '', partiel: true };   // quartier inconnu de l'onglet Quartiers : seule la commune est sûre
+      // quartier absent de l'onglet mais qui nomme une subdivision de sa commune (« Deux Plateaux », « Angré CHU Angré »,
+      // « Riviera Riviera 2 ») : on reprend cette subdivision
+      if (t && !t.subdivision) { var sm = subdivisionNommee(t.commune || commune, quartier, Q); if (sm) t = Object.assign({}, t, { subdivision: sm }); }
+    }
+    TERR_CACHE.m[k] = t;
+    return t;
+  }
+  function subdivisionNommee(commune, quartier, Q) {
+    var l = Q && Q.length ? Q : (typeof quartiersDefautObjets === 'function' ? quartiersDefautObjets() : []);
+    var kc = normaliser(commune), kq = normaliser(quartier), vus = {};
+    if (!kc || !kq) return '';
+    for (var i = 0; i < l.length; i++) {
+      var r = l[i]; if (!r || !r.subdivision || vus[r.subdivision] || normaliser(r.commune) !== kc) continue;
+      vus[r.subdivision] = true;
+      var nom = normaliser(String(r.subdivision).split(/[–-]/).slice(1).join(' ')).replace(/s$/, '');
+      if (nom && nom !== kc && kq.indexOf(nom) >= 0) return r.subdivision;
+    }
+    return '';
+  }
+  function poserTerritoire(o, Q) {
+    var t = territoireDe(o.commune, o.quartier, Q);
+    if (t) {
+      o.territoire = t.territoire || o.territoire || ''; o.zone = t.zone || o.zone || ''; o.subdivision = t.subdivision || ''; o.secteur = t.secteur || '';
+      if (!o.commune && t.commune) o.commune = t.commune;
+    } else { o.subdivision = ''; o.secteur = ''; }
+  }
+  function irriguerLieux(data) {
+    if (!data || !data.presences) return;
+    var Q = data.quartiers, parCode = {}, parNom = {}, pharma = {};
+    (data.etablissements || []).forEach(function (e) {
+      poserTerritoire(e, Q);
+      if (e.code) parCode[String(e.code).trim()] = e;
+      var n = normaliser(e.nom); if (n && !parNom[n]) parNom[n] = e;
+    });
+    (data.praticiens || []).forEach(function (p) { if (p.type === 'Pharmacie') pharma[p.code] = true; });
+    var orphelins = {};
+    data.presences.forEach(function (pr) {
+      if (pharma[pr.code]) { poserTerritoire(pr, Q); pr.sourceLieu = 'pharmacies'; return; }   // lieu déjà tiré de Pharmacies
+      var et = (pr.refEtab && parCode[String(pr.refEtab).trim()]) || parNom[normaliser(pr.lieu)] || null;
+      if (!et) { poserTerritoire(pr, Q); pr.sourceLieu = 'presences'; if (pr.lieu) orphelins[pr.lieu] = (orphelins[pr.lieu] || 0) + 1; return; }
+      pr.refEtab = et.code || pr.refEtab || '';
+      pr.lieu = et.nom; pr.commune = et.commune || ''; pr.quartier = et.quartier || '';
+      pr.territoire = et.territoire || ''; pr.zone = et.zone || ''; pr.subdivision = et.subdivision || ''; pr.secteur = et.secteur || '';
+      pr.reperes = et.reperes || '';
+      var aGps = et.lat !== null && et.lat !== undefined && et.lat !== '' && isFinite(et.lat) && et.lon !== null && et.lon !== undefined && et.lon !== '' && isFinite(et.lon);
+      pr.lat = aGps ? +et.lat : null; pr.lon = aGps ? +et.lon : null; pr.origineGps = aGps ? (et.origineGps || '') : '';
+      pr.sourceLieu = 'etablissements';
+    });
+    data.lieuxOrphelins = orphelins;
   }
   function praticien(code) { return ctx().prat[code]; }
 
@@ -3142,7 +3211,8 @@
           lat: usePrGps ? latPr : (latEt !== null ? latEt : latPr),
           lon: usePrGps ? lonPr : (lonEt !== null ? lonEt : lonPr),
           reperes: (et && et.reperes) || pr.reperes || '',
-          origineGps: usePrGps ? (pr.origine_gps || '') : ((et && et.origine_gps) || pr.origine_gps || '')
+          origineGps: usePrGps ? (pr.origine_gps || '') : ((et && et.origine_gps) || pr.origine_gps || ''),
+          refEtab: refEt || (et && String(et.code || et.id || '')) || ''
         };
       });
 
@@ -3207,7 +3277,8 @@
           lat: isFinite(e.lat) && e.lat !== null ? +e.lat : null,
           lon: isFinite(e.lon) && e.lon !== null ? +e.lon : null,
           telephone: e.telephone || '',
-          reperes: e.reperes || ''
+          reperes: e.reperes || '',
+          origineGps: e.origine_gps || ''
         };
       });
 
