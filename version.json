@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.55",
-  "date": "2026-11-12",
+  "version": "3.31.56",
+  "date": "2026-11-15",
   "notes": [
-    "Enregistrement des pharmacies et hôpitaux : toute pharmacie créée ou modifiée depuis le téléphone est systématiquement orientée vers l'onglet Pharmacies (jamais dans Etablissements ou Praticiens), et les hôpitaux vers l'onglet Etablissements"
+    "Harmonisation automatique des repères d'établissements : toute modification d'un repère dans l'onglet Etablissements se duplique automatiquement dans Presences, Supabase et partout dans l'application"
   ]
 }

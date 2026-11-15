@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.55';
+  var APP_VERSION = '3.31.56';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.56', ['Harmonisation automatique des repères d\'établissements : toute modification d\'un repère dans l\'onglet Etablissements se duplique automatiquement dans Presences, Supabase et partout dans l\'application']],
     ['3.31.55', ['Notifications « Conflit de programme » : vos propres visites ne sont plus signalées comme prévues par un collègue ; seuls les autres délégués sont cités']],
     ['3.31.54', [
       'Enregistrement des pharmacies et hôpitaux : toute pharmacie créée ou modifiée depuis le téléphone est systématiquement orientée vers l\'onglet Pharmacies (jamais dans Etablissements ou Praticiens), et les hôpitaux vers l\'onglet Etablissements'
@@ -3087,8 +3088,19 @@
         };
       });
 
-      // 2. Présences (Médecins)
+      // 2. Présences (Médecins) : Repères harmonisés en priorité depuis le référentiel Etablissements
+      var etabRepParCode = {}, etabRepParNom = {};
+      rawEtab.forEach(function (e) {
+        var cEt = String(e.code || e.id || '').trim();
+        var nEt = String(e.nom || '').trim();
+        var rEt = String(e.reperes || '').trim();
+        if (!rEt) return;
+        if (cEt) etabRepParCode[cEt] = rEt;
+        if (nEt) etabRepParNom[normaliser(nEt)] = rEt;
+      });
       var presences = rawPres.map(function (pr) {
+        var refEt = (pr.autres && pr.autres.Ref_CodeEtab) ? String(pr.autres.Ref_CodeEtab).trim() : '';
+        var repEt = (refEt && etabRepParCode[refEt]) || (pr.lieu && etabRepParNom[normaliser(pr.lieu)]) || '';
         return {
           id: String(pr.id),
           code: String(pr.code),
@@ -3109,7 +3121,7 @@
           horaireSoir: pr.horaire_soir || '',
           lat: isFinite(pr.lat) && pr.lat !== null ? +pr.lat : null,
           lon: isFinite(pr.lon) && pr.lon !== null ? +pr.lon : null,
-          reperes: pr.reperes || '',
+          reperes: repEt || pr.reperes || '',
           origineGps: pr.origine_gps || ''
         };
       });
@@ -6231,13 +6243,17 @@
     return s.replace(/\s{2,}/g, ' ').trim();
   }
 
-  // 3.27.22 : repères du lieu (colonne Repères de Presences), retrouvés par le n° de présence pour les visites déjà planifiées
+  // 3.27.22 / 3.31.56 : repères du lieu (Etablissements ou Presences), toujours à jour même sur les visites déjà planifiées
   function reperesDe(a) {
-    if (a.reperes) return a.reperes;
     var id = String(a.idPresence || ''), l = (S.data && S.data.presences) || [];
     var pr = id ? l.filter(function (x) { return String(x.id) === id; })[0] : null;
     if (!pr && a.code && a.lieu) pr = l.filter(function (x) { return x.code === a.code && normaliser(x.lieu) === normaliser(a.lieu); })[0];
     var r = pr && pr.reperes ? String(pr.reperes).trim() : '';
+    if (!r && a.lieu) {
+      var et = ((S.data && S.data.etablissements) || []).filter(function (e) { return normaliser(e.nom) === normaliser(a.lieu); })[0];
+      if (et && et.reperes) r = String(et.reperes).trim();
+    }
+    if (!r && a.reperes) r = String(a.reperes).trim();
     // anciennes visites : repères déjà écrits dans le quartier, pas de redite
     return r && normaliser(a.quartier || '').indexOf(normaliser(r)) < 0 ? r : '';
   }

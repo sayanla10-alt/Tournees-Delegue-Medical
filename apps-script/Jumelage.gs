@@ -595,6 +595,20 @@ function jumSurEdition(e) {
         } catch (ePr) {}
         SpreadsheetApp.flush();
         if (tablesLiees.length) jumPousserApresEcriture_(tablesLiees);
+      } else if (table === 'etablissements') {
+        SpreadsheetApp.flush();
+        var tablesEtab = ['etablissements'];
+        try {
+          var shEt = e.range.getSheet();
+          if (shEt && shEt.getName() === FEUILLES.etablissements && typeof propagerEtablissementsVersPresences_ === 'function') {
+            var r0e = Math.max(2, e.range.getRow()), r1e = r0e + e.range.getNumRows() - 1;
+            var le = []; for (var ie = r0e; ie <= r1e; ie++) le.push(ie);
+            var bilanE = propagerEtablissementsVersPresences_(SpreadsheetApp.getActive(), le);
+            if (bilanE && bilanE.presences > 0) tablesEtab.push('presences');
+          }
+        } catch (ePe) {}
+        SpreadsheetApp.flush();
+        jumPousserApresEcriture_(tablesEtab);
       } else {
         SpreadsheetApp.flush();
         jumPousserApresEcriture_([table]);

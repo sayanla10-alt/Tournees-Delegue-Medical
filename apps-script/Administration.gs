@@ -1484,6 +1484,98 @@ function propagerQuartiersSurFiches_(ss, lignesEditees, opts) {
   return bilan;
 }
 
+// 3.31.55 : Propage les modifications de l'onglet Etablissements (Repères, Nom, GPS, Commune, Quartier, Secteur)
+// vers les lignes correspondantes de Presences (reliées par Ref_CodeEtab, Nom ou Alias).
+function propagerEtablissementsVersPresences_(ss, lignesEditees) {
+  ss = ss || SpreadsheetApp.getActive();
+  var shE = ss.getSheetByName(FEUILLES.etablissements);
+  var shR = ss.getSheetByName(FEUILLES.presences);
+  var bilan = { presences: 0, tablesModifiees: ['etablissements'] };
+  if (!shE || !shR || shE.getLastRow() < 2 || shR.getLastRow() < 2) return bilan;
+
+  var ncE = shE.getLastColumn(), nE = shE.getLastRow() - 1;
+  var entE = shE.getRange(1, 1, 1, ncE).getValues()[0].map(normaliser);
+  var cCodeE = entE.indexOf(normaliser('CodeEtab'));
+  var cNomE = entE.indexOf(normaliser('Nom'));
+  var cRepE = entE.indexOf(normaliser('Reperes'));
+  if (cRepE < 0) cRepE = entE.indexOf(normaliser('Repères'));
+  var cAliasE = entE.indexOf(normaliser('Alias'));
+  var cComE = entE.indexOf(normaliser('Commune'));
+  var cQuartE = entE.indexOf(normaliser('Quartier'));
+  var cSecE = entE.indexOf(normaliser('Secteur'));
+  var cLatE = entE.indexOf(normaliser('Latitude'));
+  var cLonE = entE.indexOf(normaliser('Longitude'));
+  if (cNomE < 0) return bilan;
+
+  var dataE = shE.getRange(2, 1, nE, ncE).getValues();
+  var parCode = {}, parNom = {};
+  var indices = Array.isArray(lignesEditees) && lignesEditees.length
+    ? lignesEditees.map(function (r) { return r - 2; }).filter(function (i) { return i >= 0 && i < dataE.length; })
+    : dataE.map(function (_, i) { return i; });
+
+  indices.forEach(function (i) {
+    var l = dataE[i];
+    var code = cCodeE >= 0 ? String(l[cCodeE] || '').trim() : '';
+    var nom = String(l[cNomE] || '').trim();
+    if (!code && !nom) return;
+    var o = {
+      code: code,
+      nom: nom,
+      reperes: cRepE >= 0 ? String(l[cRepE] || '').trim() : '',
+      commune: cComE >= 0 ? String(l[cComE] || '').trim() : '',
+      quartier: cQuartE >= 0 ? String(l[cQuartE] || '').trim() : '',
+      secteur: cSecE >= 0 ? String(l[cSecE] || '').trim() : '',
+      lat: cLatE >= 0 ? l[cLatE] : '',
+      lon: cLonE >= 0 ? l[cLonE] : ''
+    };
+    if (code) parCode[code] = o;
+    if (nom) parNom[normaliser(nom)] = o;
+    if (cAliasE >= 0 && l[cAliasE]) {
+      String(l[cAliasE]).split(/\s*[;,]\s*/).forEach(function (a) {
+        var na = normaliser(a);
+        if (na && !parNom[na]) parNom[na] = o;
+      });
+    }
+  });
+
+  var ncR = shR.getLastColumn(), nR = shR.getLastRow() - 1;
+  var entR = shR.getRange(1, 1, 1, ncR).getValues()[0].map(normaliser);
+  var cLieuR = entR.indexOf(normaliser('Lieu/Etablissement'));
+  var cRefR = entR.indexOf(normaliser('Ref_CodeEtab'));
+  var cRepR = entR.indexOf(normaliser('Repères'));
+  if (cRepR < 0) cRepR = entR.indexOf(normaliser('Reperes'));
+  if (cLieuR < 0 && cRefR < 0) return bilan;
+
+  var dataR = shR.getRange(2, 1, nR, ncR).getValues();
+  dataR.forEach(function (row, idx) {
+    var ref = cRefR >= 0 ? String(row[cRefR] || '').trim() : '';
+    var lieu = cLieuR >= 0 ? String(row[cLieuR] || '').trim() : '';
+    var e = (ref && parCode[ref]) || (lieu && parNom[normaliser(lieu)]) || null;
+    if (!e) return;
+    var rn = idx + 2, mod = false;
+    if (cRepR >= 0 && String(row[cRepR] || '').trim() !== e.reperes) {
+      shR.getRange(rn, cRepR + 1).setValue(e.reperes);
+      mod = true;
+    }
+    if (cRefR >= 0 && e.code && ref !== e.code) {
+      shR.getRange(rn, cRefR + 1).setValue(e.code);
+      mod = true;
+    }
+    if (cLieuR >= 0 && e.nom && lieu !== e.nom) {
+      shR.getRange(rn, cLieuR + 1).setValue(e.nom);
+      mod = true;
+    }
+    if (mod) bilan.presences++;
+  });
+
+  if (bilan.presences > 0) {
+    bilan.tablesModifiees.push('presences');
+    SpreadsheetApp.flush();
+    try { marquerModif(); } catch (eM) {}
+  }
+  return bilan;
+}
+
 // ---------------------------------------------------------------- Saisie sur ordinateur
 // Praticiens : un nom saisi sur une nouvelle ligne reçoit un CodeContact (MED-xxx ou PHA-xxx).
 // Presences / Pharmacies / Etablissements : Secteur, Quartier ou Commune complète Territoire / Zone / Subdivision / Quartier / Secteur.
