@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.67",
+  "version": "3.31.68",
   "date": "2026-11-15",
   "notes": [
-    "Planifier : boutons « Remplacer » et « Supprimer » ajoutés sous les RDV reportés pour absence, avec libellé centré"
+    "Recalculer : rotation complète de tout le vivier disponible sans tourner en rond (les épinglés restent, les inédits passent toujours avant ceux déjà proposés)"
   ]
 }

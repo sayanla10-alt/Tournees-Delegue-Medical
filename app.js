@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.67';
+  var APP_VERSION = '3.31.68';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.68', ['Recalculer : rotation complète de tout le vivier disponible sans tourner en rond (les épinglés restent, les inédits passent toujours avant ceux déjà proposés)']],
     ['3.31.67', ['Planifier : boutons « Remplacer » et « Supprimer » ajoutés sous les RDV reportés pour absence, avec libellé centré']],
     ['3.31.66', ['Planifier : le quartier modifié d\'un établissement dans le Sheet s\'affiche immédiatement dans la liste proposée (lecture directe depuis Etablissements/Presences, comme pour les repères)']],
     ['3.31.65', ['« Déjà planifié » ne montre plus que vos RDV : pris par vous, reportés ou à rappeler ; les visites proposées par le tirage restent dans la liste proposée', 'Bandeau plus court : « Voir plus en détail »']],
@@ -6247,7 +6248,7 @@
     var avantJours = {};
     dates.forEach(function (d) { avantJours[d] = S.jours[d] ? JSON.parse(JSON.stringify(S.jours[d])) : { etat: 'proposition', valideLe: '', modifieLe: '' }; });
     var avantAAccepter = S.ui.aAccepter;
-    confirmerJours(dates); S.ui.aAccepter = null; S.ui.avantTirage = null;
+    confirmerJours(dates); S.ui.aAccepter = null; S.ui.avantTirage = null; S.rejetes = {}; S.ui.rejetesCle = null;
     S.ui.flashTexte = dates.length === 1 ? majuscule(dateLongue(dates[0])) + ' confirmé' : dates.length + ' jours confirmés';
     sauver(); publierPlan(true);
     S.ui.feuille = { type: 'valide', titre: 'Tournée confirmée ✓', dates: dates, avantJours: avantJours, avantAAccepter: avantAAccepter, depuisChoix: !!depuisChoix, retourAction: 'annulerConfirmation' };
@@ -13092,12 +13093,26 @@
       } else {
         S.ui.avantTirage = null;
       }
-      // 3.28.18 : punaise décochée = simple proposition : écartée du tirage qui suit seulement (pour varier la liste),
-      // elle peut revenir ensuite. La croix (refuser) l'écarte tant que les critères et filtres restent les mêmes.
-      S.rejetes = {};
+      // 3.31.68 : rotation complète du vivier au recalcul : on incrémente le compteur de propositions
+      // pour chaque médecin non épinglé au lieu d'effacer la mémoire à chaque clic (fini l'effet ping-pong).
+      // La mémoire ne repart à zéro que si vous changez de date/critères ou si vous acceptez la tournée.
+      var cleSessionRej = JSON.stringify([
+        portee,
+        cible,
+        cible.map(function (d) {
+          var pd = paramsDuJour(d);
+          return [communesPour(d) || [], pd.typeCibles || 'medecins', pd.specialites || [], pd.potentiels || [], +pd.maxJour || 8, pd.delai, pd.eviterCollegues !== false];
+        })
+      ]);
+      if (S.ui.rejetesCle !== cleSessionRej) {
+        S.rejetes = {};
+        S.ui.rejetesCle = cleSessionRej;
+      }
       if (portee === 'jour' || portee === 'semaine') {
         S.plan.forEach(function (a) {
-          if (cible.indexOf(a.date) >= 0 && !a.garde && !a.impose && a.etat !== 'valide' && !a.corrige) S.rejetes[a.code] = true;
+          if (cible.indexOf(a.date) >= 0 && !a.garde && !a.impose && a.etat !== 'valide' && !a.corrige) {
+            S.rejetes[a.code] = S.rejetes[a.code] === true ? 9999 : ((+S.rejetes[a.code] || 0) + 1);
+          }
         });
       }
       var conserves = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && (a.etat === 'valide' || a.corrige || a.garde); });
@@ -13207,10 +13222,9 @@
         return mieux;
       };
       if (Object.keys(S.rejetes).length && manque(r)) {
-        var r2 = lancerMoteur({}, conserves);
-        if (estMeilleurSansDegrader(r2, r)) r = r2;
-        // 3.28.33 : sinon, on garde les médecins restés dans la liste (à leur heure) et on comble les places libérées
-        if (manque(r) && (portee === 'jour' || portee === 'semaine')) {
+        // 3.31.68 : si même après les paliers de rotation il manque encore des places, on complète uniquement avec
+        // les médecins restés dans la liste précédente (jamais en jetant tout l'historique de rotation)
+        if (portee === 'jour' || portee === 'semaine') {
           var joursManquants = {};
           cible.forEach(function (d) {
             if (r.arrets.filter(function (a) { return a.date === d; }).length < maxPour(d)) joursManquants[d] = true;
@@ -13227,7 +13241,7 @@
             return true;
           }).map(function (a) { var x = JSON.parse(JSON.stringify(a)); x.garde = true; return x; });
           if (restes.length) {
-            var r3 = lancerMoteur({}, conserves.concat(restes));
+            var r3 = lancerMoteur(S.rejetes, conserves.concat(restes));
             r3.arrets.forEach(function (a) { var o = restes.filter(function (x) { return x.uid === a.uid; })[0]; if (o) { var src = S.plan.filter(function (y) { return y.uid === o.uid; })[0]; a.garde = !!(src && src.garde); } });
             if (estMeilleurSansDegrader(r3, r)) r = r3;
           }

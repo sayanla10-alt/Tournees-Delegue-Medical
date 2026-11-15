@@ -945,7 +945,9 @@ var Moteur = (function () {
     var creneaux = candidatsJour(ctx, date, o, utilises);
     var cands = creneaux.map(function (c) {
       var a = arretDepuisCreneau(c, date);
-      return { a: a, it: item(a), score: a.score * (0.5 + 0.5 * a.fiab), rejete: !!(o.rejetes && o.rejetes[c.code]) };
+      var rv = o.rejetes && o.rejetes[c.code];
+      var nbVus = rv === true ? 9999 : (+rv || 0);
+      return { a: a, it: item(a), score: a.score * (0.5 + 0.5 * a.fiab), rejete: nbVus > 0, nbVus: nbVus };
     });
 
     // Pré-calcul unique par immeuble des clés quartier/secteur (évite de rescanner 472 quartiers à chaque étape)
@@ -990,7 +992,7 @@ var Moteur = (function () {
     var cibleJour = Math.min(max, Math.max(route.length, o.targetJour !== undefined && o.targetJour !== null ? o.targetJour : max));
     var targetMatin = Math.ceil(cibleJour / 2), targetSoir = cibleJour - targetMatin;
 
-    function passe(avecRejetes) {
+    function passe(maxVusAutorises) {
       while (route.length < cibleJour) {
         var dansRoute = {}, routeQ = {}, routeZ = {};
         var matinQ = {}, matinZ = {}, soirQ = {}, soirZ = {};
@@ -1011,7 +1013,7 @@ var Moteur = (function () {
           var allOpts = collectAll ? [] : null;
           for (var ci = 0; ci < cands.length; ci++) {
             var cd = cands[ci];
-            if (dansRoute[cd.a.code] || (cd.rejete && !avecRejetes)) continue;
+            if (dansRoute[cd.a.code] || cd.nbVus > maxVusAutorises) continue;
             var cren = creneauDeItem(cd.it);
             var sameZ = cren === 'Matin' ? matinZ : soirZ, otherZ = cren === 'Matin' ? soirZ : matinZ;
             var sameQ = cren === 'Matin' ? matinQ : soirQ, otherQ = cren === 'Matin' ? soirQ : matinQ;
@@ -1047,7 +1049,8 @@ var Moteur = (function () {
               }
             }
             var penRarete = o.autreDispos ? -12 * (o.autreDispos[cd.a.code] || 0) : 0;
-            var baseScore = cd.score + bonusEquilibre + bonusZone + penRarete;
+            var penRotation = cd.nbVus > 0 ? -250 * cd.nbVus : 0;
+            var baseScore = cd.score + bonusEquilibre + bonusZone + penRarete + penRotation;
             var ki = cd.a.cleImmeuble || '';
             var dCache = ki ? (deltaImm[ki] || (deltaImm[ki] = [])) : null;
             for (var i = 0; i <= route.length; i++) {
@@ -1107,8 +1110,15 @@ var Moteur = (function () {
         if (!pris) return;
       }
     }
-    passe(false);
-    if (route.length < cibleJour) passe(true);
+    passe(0);
+    if (route.length < cibleJour) {
+      var paliersMap = {};
+      cands.forEach(function (cd) { if (cd.nbVus > 0) paliersMap[cd.nbVus] = true; });
+      var paliers = Object.keys(paliersMap).map(Number).sort(function (a, b) { return a - b; });
+      for (var pi = 0; pi < paliers.length && route.length < cibleJour; pi++) {
+        passe(paliers[pi]);
+      }
+    }
     route = equilibrerCreneaux(meilleurOrdre(route, depart), cands, depart, targetMatin, targetSoir);
     route.forEach(function (it) { utilises[it.a.code] = true; });
     return finaliser(route, depart);
