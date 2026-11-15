@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.74",
+  "version": "3.31.75",
   "date": "2026-11-15",
   "notes": [
-    "+ Ajouter : deux onglets « Compatibles » et « Hors filtre » avec compteurs, et tri par pertinence sur les recherches par nom (début du nom prioritaire)"
+    "+ Ajouter : onglet « Compatibles » passé en vert (cohérent avec « Hors filtre » ambre)"
   ]
 }

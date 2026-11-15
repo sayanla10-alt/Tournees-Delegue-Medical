@@ -318,8 +318,8 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .seg-ajout { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; background: var(--papier-2); border: 1px solid var(--trait); border-radius: 12px; margin: 2px 0 10px; }
 .seg-btn { border: 1px solid transparent; background: transparent; color: var(--gris); border-radius: 9px; padding: 8px 10px; font: 650 13px/1.2 var(--corps); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all .15s ease; }
 .seg-btn .nb { font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--trait); color: var(--gris); }
-.seg-btn.actif.compat { background: var(--papier); color: var(--primaire); border-color: var(--trait); box-shadow: var(--ombre); }
-.seg-btn.actif.compat .nb { background: var(--primaire-pale); color: var(--primaire); }
+.seg-btn.actif.compat { background: var(--vert-pale); color: var(--vert); border-color: var(--vert-trait); box-shadow: var(--ombre); }
+.seg-btn.actif.compat .nb { background: var(--papier); color: var(--vert); border: 1px solid var(--vert-trait); }
 .seg-btn.actif.hors { background: var(--ambre-pale); color: var(--ambre); border-color: var(--ambre-trait); box-shadow: var(--ombre); }
 .seg-btn.actif.hors .nb { background: var(--papier); color: var(--ambre); border: 1px solid var(--ambre-trait); }
 .etiquette {

@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.74';
+  var APP_VERSION = '3.31.75';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.75', ['+ Ajouter : onglet « Compatibles » passé en vert (cohérent avec « Hors filtre » ambre)']],
     ['3.31.74', ['+ Ajouter : deux onglets « Compatibles » et « Hors filtre » avec compteurs, et tri par pertinence sur les recherches par nom (début du nom prioritaire)']],
     ['3.31.73', ['+ Ajouter (Planifier) : lors d\'une recherche par nom, toutes les fiches correspondantes s\'affichent désormais (compatibles en haut, puis « Hors filtre » centré en dessous avec la raison précise)']],
     ['3.31.72', ['+ Ajouter (Planifier) : ouverture allégée (50 cartes initiales) et affichage des médecins prévus par un collègue avec leur étiquette informative au lieu de les masquer']],
