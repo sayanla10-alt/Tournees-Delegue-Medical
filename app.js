@@ -9,10 +9,13 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.57';
+  var APP_VERSION = '3.31.58';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.58', ['Secteurs : chaque arrêt est rangé dans la subdivision de l\'onglet Quartiers (Cocody – Angré, Riviera, Deux Plateaux, Centre ; Abobo – Nord, Centre, Sud ; Yopougon…) retrouvée depuis sa commune et son quartier : 8e Tranche, Djibi, Château, Oscar(s) vont avec Angré ; Palmeraie, Bonoumin, Riviera Golf avec Riviera ; Vallon(s), Latrille avec Deux Plateaux ; Blockhauss, Danga, Mermoz avec Cocody – Centre',
+               'Un quartier qui porte le même nom dans deux communes (Djibi d\'Abobo et de Cocody, Sideci de Yopougon et de Cocody) reste dans sa propre commune ; Anador et Dokui ne forment plus un secteur à part dans Abobo',
+               'Quartier d\'un hôpital modifié dans Etablissements : pris en compte aussitôt dans Planifier (le secteur resté de l\'ancien quartier ne le ramène plus) ; dans le classeur, le Secteur de la ligne suit le nouveau quartier']],
     ['3.31.57', [
       'Planifier : regroupement strict par secteur (ex. Angré, Riviera, Deux-Plateaux) sur la même demi-journée sans aller-retour Matin/Soir tant que les horaires de réception le permettent',
       'Position GPS captée sur un Médecin / IDE / SAG : enregistrée automatiquement dans Etablissements (Répertoire › Hôpitaux) et diffusée à tous les praticiens du même lieu'

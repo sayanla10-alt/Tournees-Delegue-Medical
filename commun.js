@@ -1890,7 +1890,10 @@ function resoudreTerritoire(input, listeQuartiers) {
         }
       }
     }
-    if (best1 || best1Global) return construireResultat(best1 || best1Global, true);
+    // 3.31.58 : commune connue : un homonyme d'une autre commune (« Djibi » d'Abobo et de Cocody, « Sideci » de Yopougon
+    // et de Cocody) ne l'emporte plus ; on cherche d'abord par le nom de quartier dans la bonne commune (étape 2)
+    if (best1) return construireResultat(best1, true);
+    if (best1Global && !comExplicite) return construireResultat(best1Global, true);
   }
 
   // 2) Match exact normalisé sur quartier
@@ -1918,8 +1921,12 @@ function resoudreTerritoire(input, listeQuartiers) {
         best2Global = q2;
       }
     }
-    if (best2 || best2Global) return construireResultat(best2 || best2Global, true);
+    if (best2) return construireResultat(best2, true);
+    if (best2Global && !comExplicite) return construireResultat(best2Global, true);
   }
+  // 3.31.58 : rien dans la commune indiquée : dernier recours, l'homonyme d'une autre commune (comportement d'avant)
+  if (comExplicite && typeof best1Global !== 'undefined' && best1Global && !inLieuNorm) return construireResultat(best1Global, true);
+  if (comExplicite && typeof best2Global !== 'undefined' && best2Global && !inLieuNorm) return construireResultat(best2Global, true);
 
   // 3) Match partiel >= 4 caractères dans lieu (trié par longueur décroissante, priorisant commune)
   if (inLieuNorm) {

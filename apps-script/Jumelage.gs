@@ -596,6 +596,7 @@ function jumSurEdition(e) {
         SpreadsheetApp.flush();
         if (tablesLiees.length) jumPousserApresEcriture_(tablesLiees);
       } else if (table === 'etablissements') {
+        try { alignerSecteurSurQuartier_(e); } catch (eAl) { console.warn('alignerSecteurSurQuartier_ : ' + eAl); }   // 3.31.58
         SpreadsheetApp.flush();
         var tablesEtab = ['etablissements'];
         try {
@@ -611,6 +612,7 @@ function jumSurEdition(e) {
         SpreadsheetApp.flush();
         jumPousserApresEcriture_(tablesEtab);
       } else if (table === 'presences' || table === 'pharmacies') {
+        try { alignerSecteurSurQuartier_(e); } catch (eAl2) { console.warn('alignerSecteurSurQuartier_ : ' + eAl2); }   // 3.31.58
         SpreadsheetApp.flush();
         var tablesPP = [table];
         try {

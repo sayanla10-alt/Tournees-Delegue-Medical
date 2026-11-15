@@ -1,8 +1,7 @@
 ﻿{
-  "version": "3.31.57",
+  "version": "3.31.58",
   "date": "2026-11-15",
   "notes": [
-    "Planifier : regroupement strict par secteur (ex. Angré, Riviera, Deux-Plateaux) sur la même demi-journée sans aller-retour Matin/Soir tant que les horaires de réception le permettent",
-    "Position GPS captée sur un Médecin / IDE / SAG : enregistrée automatiquement dans Etablissements (Répertoire › Hôpitaux) et diffusée à tous les praticiens du même lieu"
+    "Secteurs tirés de l'onglet Quartiers ; quartier d'un hôpital modifié pris en compte aussitôt"
   ]
 }

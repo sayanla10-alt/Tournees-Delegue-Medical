@@ -1486,6 +1486,41 @@ function propagerQuartiersSurFiches_(ss, lignesEditees, opts) {
 
 // 3.31.55 : Propage les modifications de l'onglet Etablissements (Repères, Nom, GPS, Commune, Quartier, Secteur)
 // vers les lignes correspondantes de Presences (reliées par Ref_CodeEtab, Nom ou Alias).
+// 3.31.58 : quartier (ou commune) modifié à la main dans Etablissements, Presences ou Pharmacies : le Secteur de la ligne
+// est remis sur celui du nouveau quartier (onglet Quartiers), vide s'il n'en a pas, puis les formules Territoire / Zone /
+// Subdivision / Quartier de la ligne sont reposées. Avant, le Secteur gardait l'ancien quartier et les formules (« mode
+// secteur ») ramenaient l'ancien quartier : le changement de quartier n'apparaissait pas dans l'application.
+function alignerSecteurSurQuartier_(e) {
+  if (!e || !e.range) return [];
+  var sh = e.range.getSheet(), ss = sh.getParent();
+  if ([FEUILLES.etablissements, FEUILLES.presences, FEUILLES.pharmacies].indexOf(sh.getName()) < 0) return [];
+  var nc = sh.getLastColumn(); if (nc < 1 || sh.getLastRow() < 2) return [];
+  var ent = sh.getRange(1, 1, 1, nc).getValues()[0].map(normaliser);
+  var cQ = ent.indexOf(normaliser('Quartier')), cCom = ent.indexOf(normaliser('Commune')), cSec = ent.indexOf(normaliser('Secteur'));
+  if (cSec < 0 || cQ < 0) return [];
+  var c0 = e.range.getColumn() - 1, c1 = c0 + e.range.getNumColumns() - 1;
+  var touche = function (c) { return c >= 0 && c >= c0 && c <= c1; };
+  if (!(touche(cQ) || touche(cCom)) || touche(cSec)) return [];   // Secteur saisi lui-même : on le respecte
+  var refQ = referentielQuartiers_(ss), modifiees = [];
+  var r0 = Math.max(2, e.range.getRow()), r1 = e.range.getRow() + e.range.getNumRows() - 1;
+  if (r1 < r0) return [];
+  var vals = sh.getRange(r0, 1, r1 - r0 + 1, nc).getValues();
+  vals.forEach(function (row, k) {
+    var q = String(row[cQ] || '').trim(), com = cCom >= 0 ? String(row[cCom] || '').trim() : '';
+    if (!q) return;
+    var res = null;
+    try { res = resoudreTerritoire({ commune: com, quartier: q, secteur: '', subdivision: '', lieu: '' }, refQ); } catch (eR) { res = null; }
+    var nouveau = (res && res.matched && normaliser(res.quartier) === normaliser(q)) ? String(res.secteur || '').trim() : '';
+    if (String(row[cSec] || '').trim() === nouveau) return;
+    sh.getRange(r0 + k, cSec + 1).setValue(nouveau);
+    modifiees.push(r0 + k);
+  });
+  if (modifiees.length && typeof deployerFormulesTerritoire_ === 'function') {
+    try { deployerFormulesTerritoire_(ss, [sh.getName()], modifiees); } catch (eD) { console.warn('deployerFormulesTerritoire_ : ' + eD); }
+  }
+  return modifiees;
+}
+
 function propagerEtablissementsVersPresences_(ss, lignesEditees) {
   ss = ss || SpreadsheetApp.getActive();
   var shE = ss.getSheetByName(FEUILLES.etablissements);
@@ -1568,6 +1603,8 @@ function propagerEtablissementsVersPresences_(ss, lignesEditees) {
     }
     if (cQuartR >= 0 && e.quartier && String(row[cQuartR] || '').trim() !== e.quartier) {
       shR.getRange(rn, cQuartR + 1).setValue(e.quartier);
+      // 3.31.58 : quartier changé : le secteur de l'ancien quartier est remplacé (vidé si l'établissement n'en a pas)
+      if (cSecR >= 0 && String(row[cSecR] || '').trim() !== e.secteur) { shR.getRange(rn, cSecR + 1).setValue(e.secteur); row[cSecR] = e.secteur; }
       mod = true;
     }
     if (cSecR >= 0 && e.secteur && String(row[cSecR] || '').trim() !== e.secteur) {

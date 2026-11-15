@@ -38,6 +38,7 @@ var Moteur = (function () {
   // ------------------------------------------------------------------ Contexte
   // data : { praticiens, presences, quartiers }
   function preparer(data) {
+    definirQuartiersMoteur(data && data.quartiers);   // 3.31.58 : clés de secteur tirées de l'onglet Quartiers
     var idxQ = {}, ambiguQ = {}, parQ = {}, parAmbiguQ = {};
     var normIdxQ = {}, normAmbiguQ = {}, normParQ = {}, normParAmbiguQ = {};
     function extraireVariantes(v) {
@@ -132,7 +133,8 @@ var Moteur = (function () {
         try {
           terE = resoudreTerritoire({
             commune: e.commune || '', subdivision: e.subdivision || '',
-            quartier: e.quartier || '', secteur: e.secteur || '', lieu: e.nom || ''
+            // 3.31.58 : le quartier saisi fait foi ; un secteur resté de l'ancien quartier n'est plus pris
+            quartier: e.quartier || '', secteur: e.quartier ? '' : (e.secteur || ''), lieu: e.nom || ''
           }, data.quartiers);
         } catch (errE) { terE = null; }
       }
@@ -141,7 +143,7 @@ var Moteur = (function () {
       var eCom = (terE && terE.commune) || e.commune || '';
       var eSub = (terE && terE.subdivision) || e.subdivision || '';
       var eQua = (terE && terE.quartier) || e.quartier || '';
-      var eSec = (terE && terE.secteur) || e.secteur || '';
+      var eSec = (terE && terE.secteur) || (e.quartier ? '' : e.secteur) || '';
       var keOrig = cleNorm(e.nom || '') + '|' + cleNorm(e.commune || '');
       var ke = cleNorm(e.nom || '') + '|' + cleNorm(eCom || e.commune || '');
       var kn = cleNorm(e.nom || '');
@@ -173,6 +175,12 @@ var Moteur = (function () {
       idsVus[String(prId)] = true;
       var p = prat[pr.code];
       if (!p) return;
+      // 3.31.58 : l'établissement (onglet Etablissements) fait foi pour le quartier de son lieu : un quartier modifié
+      // dans Etablissements s'applique aussitôt, même si la ligne de Présences garde encore l'ancien quartier ou secteur
+      var etab0 = etabParCle[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')] || etabParNom[cleNorm(pr.lieu || '')] || null;
+      if (etab0 && etab0.quartier && p.type !== 'Pharmacie') {
+        pr = Object.assign({}, pr, { quartier: etab0.quartier, secteur: etab0.secteur || '', subdivision: etab0.subdivision || '', commune: etab0.commune || pr.commune });
+      }
       var prCopy = Object.assign({}, pr, { id: prId });
       (presencesParCode[pr.code] = presencesParCode[pr.code] || []).push(prCopy);
       var kc = bas(pr.commune), kp = typeof communeParente === 'function' ? bas(communeParente(pr.commune)) : kc;
@@ -200,8 +208,10 @@ var Moteur = (function () {
       if (!q) q = chercherQ(pr.quartier) || chercherQ(pr.secteur);
       var ter = null;
       if (typeof resoudreTerritoire === 'function') {
+        // 3.31.58 : un secteur resté d'un ancien quartier (secteur qui n'appartient pas au quartier) n'est plus pris
+        var secOk = pr.secteur && (!pr.quartier || !chercherQ(pr.secteur) || bas(chercherQ(pr.secteur).quartier) === bas(pr.quartier)) ? pr.secteur : '';
         var entreeTer = {
-          commune: pr.commune || '', quartier: pr.quartier || '', secteur: pr.secteur || '',
+          commune: pr.commune || '', quartier: pr.quartier || '', secteur: secOk || '',
           subdivision: pr.subdivision || '', lieu: pr.lieu || ''
         };
         try {
@@ -609,19 +619,62 @@ var Moteur = (function () {
     var k = cleSecteur(qRef, comBase);
     return k ? k + '|' + cleNorm(comBase) : cleEtablissement(it);
   }
+  // 3.31.58 : secteur = SUBDIVISION de l'onglet Quartiers (Cocody – Angré, Cocody – Riviera, Abobo – Sud…), retrouvée
+  // depuis la commune et le quartier de l'arrêt : 8e Tranche, Djibi, Château, Oscar → Angré ; Palmeraie, Bonoumin,
+  // Riviera Golf → Riviera ; Vallons, Latrille → Deux Plateaux ; Blockhauss, Danga, Mermoz → Cocody – Centre.
+  // Un quartier homonyme d'une autre commune (Djibi d'Abobo, Sideci de Yopougon) reste dans sa commune.
+  // Communes sans subdivision (Marcory, Adjamé, Plateau…) : comme avant (grands secteurs de Marcory, sinon le quartier).
+  var QUARTIERS_MOTEUR = null, CACHE_CLE_Z = {};
+  function definirQuartiersMoteur(l) { if (l !== QUARTIERS_MOTEUR) { QUARTIERS_MOTEUR = l && l.length ? l : null; CACHE_CLE_Z = {}; } }
+  function resoudreSub_(commune, quartier, secteur) {
+    try {
+      var t = resoudreTerritoire({ commune: commune || '', quartier: quartier || '', secteur: secteur || '', subdivision: '', lieu: '' }, QUARTIERS_MOTEUR || undefined);
+      if (t && t.matched && t.subdivision) return { sub: t.subdivision, com: t.commune || '' };
+    } catch (e) {}
+    return null;
+  }
+  function subdivisionDe(a) {
+    var cle = [a.commune, a.quartier, a.secteur].map(cleNorm).join('|');
+    if (CACHE_CLE_Z[cle] !== undefined) return CACHE_CLE_Z[cle];
+    var r = null;
+    if (typeof resoudreTerritoire === 'function' && (a.quartier || a.secteur)) {
+      r = resoudreSub_(a.commune, a.quartier, a.secteur);
+      // pluriel ou singulier écrit autrement que dans l'onglet (« Oscars » / « Oscar », « Vallon » / « Vallons »)
+      var q = String(a.quartier || '').trim();
+      if (!r && q) r = resoudreSub_(a.commune, /s$/i.test(q) ? q.slice(0, -1) : q + 's', '');
+    }
+    CACHE_CLE_Z[cle] = r;
+    return r;
+  }
+  // subdivision de la commune dont le nom contient ce mot (« angre » → « Cocody – Angré »)
+  function subdivisionParMot(mot, comBase) {
+    var l = QUARTIERS_MOTEUR || (typeof quartiersDefautObjets === 'function' ? quartiersDefautObjets() : []);
+    for (var i = 0; i < l.length; i++) {
+      var q = l[i]; if (!q || !q.subdivision) continue;
+      if (cleNorm(communeParente(q.commune)) !== cleNorm(comBase)) continue;
+      if (normaliserSynonymeSecteur(q.subdivision).replace(/[^a-z0-9]+/g, '').indexOf(mot) >= 0) return q.subdivision;
+    }
+    return '';
+  }
   function cleZoneSecteur(it) {
     var a = it.a || it;
     var comBase = typeof communeParente === 'function' ? communeParente(a.commune) : a.commune;
-    var tout = normaliserSynonymeSecteur([a.subdivision, a.secteur, a.quartier].filter(Boolean).join(' '));
-    var grandsSecteurs = ['angre', 'riviera', 'deuxplateaux', 'niangon', 'anador', 'dokui', 'bietry', 'zone4', 'marcoryresidentiel'];
+    // le quartier fait foi (onglet Quartiers) ; la subdivision portée par l'arrêt sert si le quartier est inconnu
+    var r = subdivisionDe(a);
+    var sub = (r && r.sub) || a.subdivision || '';
+    if (sub) return 'sub:' + cleNorm(sub) + '|' + cleNorm(communeParente((r && r.com) || comBase) || comBase);
+    var tout = normaliserSynonymeSecteur([a.secteur, a.quartier].filter(Boolean).join(' '));
     var toutCompact = tout.replace(/\bzone\s*4\b/g, 'zone4').replace(/\bmarcory\s+residentiel\b/g, 'marcoryresidentiel');
-    for (var i = 0; i < grandsSecteurs.length; i++) {
-      var gs = grandsSecteurs[i];
-      if (new RegExp('\\b' + gs + '\\b').test(toutCompact)) return gs + '|' + cleNorm(comBase);
+    // quartier absent de l'onglet Quartiers dans une grande commune : le nom du secteur écrit dans le quartier suffit
+    var nomsSub = { cocody: ['angre', 'riviera', 'deuxplateaux'], yopougon: ['niangon'], marcory: ['bietry', 'zone4', 'marcoryresidentiel'] }[cleNorm(comBase)] || [];
+    for (var i = 0; i < nomsSub.length; i++) {
+      if (new RegExp('\\b' + nomsSub[i] + '\\b').test(toutCompact)) {
+        var subM = subdivisionParMot(nomsSub[i], comBase);
+        return subM ? 'sub:' + cleNorm(subM) + '|' + cleNorm(comBase) : nomsSub[i] + '|' + cleNorm(comBase);
+      }
     }
-    var sRef = a.secteur || a.subdivision || a.quartier || '';
-    if (a.subdivision && cleNorm(sRef) === cleNorm(comBase)) sRef = a.subdivision;
-    if (a.quartier && cleNorm(sRef) === cleNorm(comBase)) sRef = a.quartier;
+    var sRef = a.quartier || a.secteur || '';
+    if (a.secteur && cleNorm(sRef) === cleNorm(comBase)) sRef = a.secteur;
     var k = cleSecteur(sRef, comBase);
     return k ? k + '|' + cleNorm(comBase) : cleQuartier(it);
   }
@@ -1299,7 +1352,8 @@ var Moteur = (function () {
     simuler: simuler, ordonnerJour: ordonnerJour, planifierJour: planifierJour, genererPlanning: genererPlanning,
     autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur,
     cleQuartier: cleQuartier, cleSecteurTournee: cleSecteurTournee, nomSecteurTournee: nomSecteurTournee,
-    estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid, evaluerInsertion: evaluerInsertion
+    estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid, evaluerInsertion: evaluerInsertion,
+    cleZoneSecteur: cleZoneSecteur, definirQuartiersMoteur: definirQuartiersMoteur
   };
 })();
 
