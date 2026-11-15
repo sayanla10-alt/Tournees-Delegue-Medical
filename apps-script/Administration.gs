@@ -436,7 +436,8 @@ function ecrireQuartiers(ss) {
 // Ajoute Territoire, Subdivision, Secteur sur Presences, Pharmacies, Etablissements si manquantes
 function assurerColonnesTerritoire_(ss) {
   var extra = [['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur']];
-  [FEUILLES.presences, FEUILLES.pharmacies, FEUILLES.etablissements].forEach(function (nom) {
+  // 3.31.60 : Pharmacies et Etablissements n'ont plus ces colonnes (déduites de l'onglet Quartiers) : jamais recréées
+  [FEUILLES.presences].forEach(function (nom) {
     var sh = ss.getSheetByName(nom);
     if (sh) completerEntetes(sh, extra);
   });
@@ -956,7 +957,7 @@ function importerPharmacies() {
       nbVisites: ex.nbVisites || 0, actif: ex.actif || 'Oui', prochaine: ex.prochaine || '', source: 'OpenStreetMap' });
   });
   lignes.sort(function (a, b) { return a.commune.localeCompare(b.commune) || a.nom.localeCompare(b.nom); });
-  var champsPh = typeof champsEcrAvecTerritoire_ === 'function' ? champsEcrAvecTerritoire_(CHAMPS_PHARMACIES) : CHAMPS_PHARMACIES;
+  var champsPh = CHAMPS_PHARMACIES;   // 3.31.60 : ni Zone, ni Territoire, ni Subdivision, ni Secteur (onglet Quartiers)
   var sh = preparerFeuille(ss, FEUILLES.pharmacies, champsPh.map(function (c) { return c[1]; }));
   if (lignes.length) {
     sh.getRange(2, colonne(champsPh, 'telephone'), lignes.length, 1).setNumberFormat('@');
@@ -1544,6 +1545,7 @@ function propagerEtablissementsVersPresences_(ss, lignesEditees) {
 
   var dataE = shE.getRange(2, 1, nE, ncE).getValues();
   var parCode = {}, parNom = {};
+  var refQE = cSecE < 0 ? referentielQuartiers_(ss) : null, cacheTE = {};   // 3.31.60 : secteur de l'onglet Quartiers
   var indices = Array.isArray(lignesEditees) && lignesEditees.length
     ? lignesEditees.map(function (r) { return r - 2; }).filter(function (i) { return i >= 0 && i < dataE.length; })
     : dataE.map(function (_, i) { return i; });
@@ -1563,6 +1565,7 @@ function propagerEtablissementsVersPresences_(ss, lignesEditees) {
       lat: cLatE >= 0 ? l[cLatE] : '',
       lon: cLonE >= 0 ? l[cLonE] : ''
     };
+    if (cSecE < 0 && o.quartier) { var tE0 = territoireDuLieu(o.commune, o.quartier, refQE, cacheTE); o.secteur = (tE0 && tE0.secteur) || ''; }
     if (code) parCode[code] = o;
     if (nom) parNom[normaliser(nom)] = o;
     if (cAliasE >= 0 && l[cAliasE]) {

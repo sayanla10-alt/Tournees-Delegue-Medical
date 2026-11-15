@@ -223,6 +223,7 @@ function jumLignes_(table) {
           note: jumNote_(get(l, c.note)), conventionne: jumOui_(get(l, c.conv)), derniere: jumDate_(get(l, c.der), tz), statut: jumVide_(get(l, c.st), tz), commentaire: jumVide_(get(l, c.com), tz),
           nb_visites: jumInt_(get(l, c.nb), 0), actif: jumActif_(get(l, c.act)) });
       });
+      poserTerritoireLieux(out, referentielQuartiers_());   // 3.31.60 : zone, territoire, subdivision, secteur : onglet Quartiers
       return out;
     case 'etablissements':
       f = jumFeuille_(FEUILLES.etablissements); if (!f) return null;
@@ -237,6 +238,7 @@ function jumLignes_(table) {
           territoire: jumTxt_(get(l, c.ter), tz), subdivision: jumTxt_(get(l, c.sub), tz), secteur: jumTxt_(get(l, c.se), tz),
           lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel), tz), reperes: jumTxt_(get(l, c.rep), tz), position: jumTxt_(get(l, c.pos), tz), origine_gps: jumTxt_(get(l, c.og), tz) });
       });
+      poserTerritoireLieux(out, referentielQuartiers_());   // 3.31.60 : idem (plus de colonnes déduites dans Etablissements)
       return out;
     case 'visites':
       f = jumFeuille_(FEUILLES.hist); if (!f) return null;

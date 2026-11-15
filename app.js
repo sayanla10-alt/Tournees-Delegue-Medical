@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.59';
+  var APP_VERSION = '3.31.60';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.60', ['Base allégée : Etablissements et Pharmacies n\'ont plus de colonnes Zone, Territoire, Subdivision ni Secteur (ni Position) ; ces informations viennent toutes de l\'onglet Quartiers, par la même règle sur le serveur et dans l\'application', 'Repères des pharmacies lus et enregistrés', 'Quartier homonyme d\'une autre commune : le lieu reste dans sa commune']],
     ['3.31.59', ['Source unique des lieux : l\'application ne lit plus dans Présences la commune, le quartier, la zone, la subdivision, le secteur, les repères ni la position GPS ; le lieu d\'un médecin vient d\'Etablissements, celui d\'une pharmacie de Pharmacies, le territoire (zone, subdivision, secteur) de Quartiers ; un changement dans l\'un de ces onglets se voit partout']],
     ['3.31.58', ['Secteurs : chaque arrêt est rangé dans la subdivision de l\'onglet Quartiers (Cocody – Angré, Riviera, Deux Plateaux, Centre ; Abobo – Nord, Centre, Sud ; Yopougon…) retrouvée depuis sa commune et son quartier : 8e Tranche, Djibi, Château, Oscar(s) vont avec Angré ; Palmeraie, Bonoumin, Riviera Golf avec Riviera ; Vallon(s), Latrille avec Deux Plateaux ; Blockhauss, Danga, Mermoz avec Cocody – Centre',
                'Un quartier qui porte le même nom dans deux communes (Djibi d\'Abobo et de Cocody, Sideci de Yopougon et de Cocody) reste dans sa propre commune ; Anador et Dokui ne forment plus un secteur à part dans Abobo',
@@ -1679,35 +1680,10 @@
   // Appelée à chaque recalcul du contexte : une modification d'Etablissements, Pharmacies ou Quartiers (base, temps réel
   // ou saisie dans l'application) se répercute partout.
   var TERR_CACHE = { q: null, m: {} };
-  function territoireDe(commune, quartier, Q) {
-    if (TERR_CACHE.q !== Q) TERR_CACHE = { q: Q, m: {} };
-    var k = normaliser(commune) + '|' + normaliser(quartier);
-    if (TERR_CACHE.m[k] !== undefined) return TERR_CACHE.m[k];
-    var t = null;
-    if (quartier && typeof resoudreTerritoire === 'function') {
-      try { t = resoudreTerritoire({ commune: commune || '', quartier: quartier, secteur: '', subdivision: '', lieu: '' }, Q && Q.length ? Q : undefined); } catch (e) { t = null; }
-      if (t && !t.matched) t = { territoire: t.territoire, zone: t.zone, commune: t.commune, subdivision: '', secteur: '', partiel: true };   // quartier inconnu de l'onglet Quartiers : seule la commune est sûre
-      // quartier absent de l'onglet mais qui nomme une subdivision de sa commune (« Deux Plateaux », « Angré CHU Angré »,
-      // « Riviera Riviera 2 ») : on reprend cette subdivision
-      if (t && !t.subdivision) { var sm = subdivisionNommee(t.commune || commune, quartier, Q); if (sm) t = Object.assign({}, t, { subdivision: sm }); }
-    }
-    TERR_CACHE.m[k] = t;
-    return t;
-  }
-  function subdivisionNommee(commune, quartier, Q) {
-    var l = Q && Q.length ? Q : (typeof quartiersDefautObjets === 'function' ? quartiersDefautObjets() : []);
-    var kc = normaliser(commune), kq = normaliser(quartier), vus = {};
-    if (!kc || !kq) return '';
-    for (var i = 0; i < l.length; i++) {
-      var r = l[i]; if (!r || !r.subdivision || vus[r.subdivision] || normaliser(r.commune) !== kc) continue;
-      vus[r.subdivision] = true;
-      var nom = normaliser(String(r.subdivision).split(/[–-]/).slice(1).join(' ')).replace(/s$/, '');
-      if (nom && nom !== kc && kq.indexOf(nom) >= 0) return r.subdivision;
-    }
-    return '';
-  }
+  // règle commune au serveur et à l'application (commun.js : territoireDuLieu)
   function poserTerritoire(o, Q) {
-    var t = territoireDe(o.commune, o.quartier, Q);
+    if (TERR_CACHE.q !== Q) TERR_CACHE = { q: Q, m: {} };
+    var t = o.quartier ? territoireDuLieu(o.commune, o.quartier, Q, TERR_CACHE.m) : null;
     if (t) {
       o.territoire = t.territoire || o.territoire || ''; o.zone = t.zone || o.zone || ''; o.subdivision = t.subdivision || ''; o.secteur = t.secteur || '';
       if (!o.commune && t.commune) o.commune = t.commune;

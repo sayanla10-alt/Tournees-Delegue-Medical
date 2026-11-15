@@ -77,13 +77,14 @@ function lireTout(sig, hdepuis) {
     historique = lireObjets(shH, CHAMPS_HIST, tz, Math.max(2, shH.getLastRow() - NB_HISTORIQUE_RENVOYE + 1)).reverse()
       .filter(function (v) { return !v.date || String(v.date).slice(0, 10) >= limH; });
   }
-  lirePharmacies(ss, tz).forEach(function (ph) {
+  var pharmaciesLues = poserTerritoireLieux(lirePharmacies(ss, tz), quartiers);   // 3.31.60 : zone, territoire… : onglet Quartiers
+  pharmaciesLues.forEach(function (ph) {
     praticiens.push({ code: ph.code, type: 'Pharmacie', nom: ph.nom, specialite: 'Pharmacien', note: lireNote(ph.note),
       conventionne: ph.conventionne, telephone: ph.telephone, derniere: ph.derniere, statut: ph.statut, commentaire: ph.commentaire,
       nbVisites: +ph.nbVisites || 0, actif: ph.actif, prochaine: ph.prochaine, titulaire: ph.titulaire });
     var pr = { id: 'P-' + ph.code, code: ph.code, nom: ph.nom, lieu: ph.nom, quartier: ph.quartier, commune: ph.commune, zone: ph.zone,
       territoire: ph.territoire || '', subdivision: ph.subdivision || '', secteur: ph.secteur || '',
-      horaireMatin: ph.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: ph.horaireSoir || HORAIRES_PHARMACIE[1], lat: ph.lat, lon: ph.lon, origineGps: ph.origineGps || '' };
+      horaireMatin: ph.horaireMatin || HORAIRES_PHARMACIE[0], horaireSoir: ph.horaireSoir || HORAIRES_PHARMACIE[1], lat: ph.lat, lon: ph.lon, origineGps: ph.origineGps || '', reperes: ph.reperes || '' };
     JOURS_CLES.forEach(function (j) { pr[j] = 'Matin et soir'; });
     presences.push(pr);
   });
@@ -102,6 +103,7 @@ function lireTout(sig, hdepuis) {
     if (entEtab.indexOf(normaliser('Position')) >= 0 && !champsEtab.some(function (c) { return c[0] === 'position'; })) champsEtab.push(['position', 'Position']);
     if (entEtab.indexOf(normaliser('OrigineGPS')) >= 0 && !champsEtab.some(function (c) { return c[0] === 'origineGps'; })) champsEtab.push(['origineGps', 'OrigineGPS']);
     ref.etablissements = lireObjets(shEtab, champsEtab, tz).filter(function (e) { return String(e.nom || '').trim() !== ''; });
+    poserTerritoireLieux(ref.etablissements, quartiers);   // 3.31.60 : territoire, zone, subdivision, secteur : onglet Quartiers
   } else {
     ref.etablissements = [];
   }

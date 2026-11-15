@@ -84,8 +84,7 @@ var CHAMPS_HIST = [
 // matin et soir ; les colonnes de suivi portent les mêmes noms que dans Praticiens.
 var CHAMPS_PHARMACIES = [
   ['code', 'CodeContact'], ['nom', 'Nom'], ['titulaire', 'Titulaire'], ['quartier', 'Quartier'], ['commune', 'Commune'],
-  ['zone', 'Zone'], ['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur'],
-  ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['horaireMatin', 'HoraireMatin'],
+  ['reperes', 'Repères'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['horaireMatin', 'HoraireMatin'],
   ['horaireSoir', 'HoraireSoir'], ['note', 'Note'], ['conventionne', 'Engagé'], ['derniere', 'DateDerniereVisite'],
   ['statut', 'DernierStatut'], ['commentaire', 'DernierCommentaire'], ['nbVisites', 'NbVisites'], ['actif', 'Actif'],
   ['prochaine', 'ProchaineEtape'], ['source', 'Source'], ['origineGps', 'OrigineGPS']
@@ -93,10 +92,12 @@ var CHAMPS_PHARMACIES = [
 
 // Répertoire des hôpitaux et établissements de santé (CHU, Cliniques, FSU COM, Centres Médicaux, etc.)
 var CHAMPS_ETABLISSEMENTS = [
-  ['code', 'CodeEtab'], ['nom', 'Nom'], ['categorie', 'Categorie'], ['commune', 'Commune'],
-  ['quartier', 'Quartier'], ['zone', 'Zone'], ['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur'],
-  ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['reperes', 'Repères']
+  ['code', 'CodeEtab'], ['nom', 'Nom'], ['categorie', 'Categorie'], ['commune', 'Commune'], ['quartier', 'Quartier'],
+  ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS']
 ];
+// 3.31.60 : SOURCE UNIQUE. Territoire, Zone, Subdivision et Secteur d'un établissement ou d'une pharmacie ne sont plus
+// des colonnes de leur onglet : ils se déduisent de l'onglet Quartiers à partir de la commune et du quartier
+// (territoireDuLieu). Aucune fonction ne recrée ces colonnes.
 var HORAIRES_PHARMACIE = ['08:00-12:30', '15:00-20:00'];
 var ACTIVITES_DEFAUT = ['Routine', 'Présentation', 'Échantillons', 'Cadeaux', 'EPU', 'Staff', 'Réunion', 'Déjeuner', 'Garde', 'Dépistage', 'Autre'];
 var ACTIVITES_PHARMACIE_DEFAUT = ['Routine', 'Présentation', 'Échantillons', 'Cadeaux', 'Stocks', 'Commande', 'MEP', 'Formation', 'Animation', 'Autre'];
@@ -2083,6 +2084,64 @@ function resoudreTerritoire(input, listeQuartiers) {
   return null;
 }
 
+// 3.31.60 : territoire, zone, subdivision et secteur d'un lieu, tirés de l'onglet Quartiers (règle unique, serveur et
+// application). Quartier inconnu de l'onglet : seule la commune est sûre (territoire et zone de la commune), sauf si le
+// quartier nomme une subdivision de sa commune (« Deux Plateaux », « Angré CHU Angré », « Riviera Riviera 2 »).
+// cache (facultatif) : objet réutilisé entre les appels d'une même liste de quartiers.
+function subdivisionNommeeDansQuartier(commune, quartier, listeQuartiers) {
+  var l = listeQuartiers && listeQuartiers.length ? listeQuartiers : quartiersDefautObjets();
+  var kc = normaliser(commune), kq = normaliser(quartier), vus = {};
+  if (!kc || !kq) return '';
+  for (var i = 0; i < l.length; i++) {
+    var r = l[i]; if (!r || !r.subdivision || vus[r.subdivision] || normaliser(r.commune) !== kc) continue;
+    vus[r.subdivision] = true;
+    var nom = normaliser(String(r.subdivision).split(/[–-]/).slice(1).join(' ')).replace(/s$/, '');
+    if (nom && nom !== kc && kq.indexOf(nom) >= 0) return r.subdivision;
+  }
+  return '';
+}
+function territoireDuLieu(commune, quartier, listeQuartiers, cache) {
+  var k = normaliser(commune) + '|' + normaliser(quartier);
+  if (cache && cache[k] !== undefined) return cache[k];
+  var t = null;
+  if (quartier || commune) {
+    try { t = resoudreTerritoire({ commune: commune || '', quartier: quartier || '', secteur: '', subdivision: '', lieu: '' }, listeQuartiers && listeQuartiers.length ? listeQuartiers : undefined); } catch (e) { t = null; }
+    if (t) {
+      t = { territoire: t.territoire || '', zone: t.zone || '', commune: t.commune || '', subdivision: t.matched ? (t.subdivision || '') : '',
+            secteur: t.matched ? (t.secteur || '') : '', matched: !!t.matched };
+      // quartier homonyme d'une autre commune (« Santé » d'Attécoubé trouvé à Yopougon) : le lieu reste dans sa commune
+      var lq0 = listeQuartiers && listeQuartiers.length ? listeQuartiers : quartiersDefautObjets();
+      if (commune && t.commune && normaliser(communeParente(t.commune)) !== normaliser(communeParente(commune))) {
+        var rc = null, kc0 = normaliser(commune);
+        for (var ic = 0; ic < lq0.length && !rc; ic++) if (lq0[ic] && normaliser(lq0[ic].commune) === kc0) rc = lq0[ic];
+        if (rc) t = { territoire: rc.territoire || '', zone: rc.zone || '', commune: rc.commune, subdivision: '', secteur: '', matched: false };
+      }
+      if (!t.subdivision) t.subdivision = subdivisionNommeeDansQuartier(t.commune || commune, quartier, listeQuartiers);
+      if (!t.zone) {   // zone absente du résultat (villes de l'intérieur) : celle de la commune dans l'onglet Quartiers
+        var lq = listeQuartiers && listeQuartiers.length ? listeQuartiers : quartiersDefautObjets(), kc = normaliser(t.commune || commune);
+        for (var iz = 0; iz < lq.length && !t.zone; iz++) if (lq[iz] && lq[iz].zone && normaliser(lq[iz].commune) === kc) t.zone = lq[iz].zone;
+        if (!t.zone && normaliser(t.territoire) === 'interieur') t.zone = 'Intérieur';
+      }
+    }
+  }
+  if (cache) cache[k] = t;
+  return t;
+}
+// Pose territoire / zone / subdivision / secteur sur chaque lieu d'une liste (établissements, pharmacies, présences).
+function poserTerritoireLieux(liste, listeQuartiers) {
+  var cache = {};
+  (liste || []).forEach(function (o) {
+    if (!o) return;
+    var t = territoireDuLieu(o.commune, o.quartier, listeQuartiers, cache);
+    if (t) {
+      o.territoire = t.territoire || o.territoire || ''; o.zone = t.zone || o.zone || '';
+      o.subdivision = t.subdivision || ''; o.secteur = t.secteur || '';
+      if (!o.commune && t.commune) o.commune = t.commune;
+    } else { o.subdivision = ''; o.secteur = ''; }
+  });
+  return liste;
+}
+
 function zoneDeQuartier(commune, quartier, lieu, listeQuartiers) {
   var r = resoudreTerritoire({ commune: commune, quartier: quartier, secteur: quartier, lieu: lieu }, listeQuartiers);
   if (r && r.subdivision) return r.subdivision;
@@ -2508,7 +2567,7 @@ if (typeof module !== 'undefined' && module.exports) {
     ACTIVITES_PHARMACIE_DEFAUT: ACTIVITES_PHARMACIE_DEFAUT, STATUTS_RENOMMES: STATUTS_RENOMMES, MOTIFS_MEDECIN: MOTIFS_MEDECIN, MOTIFS_PHARMACIE: MOTIFS_PHARMACIE, PRODUITS_DEFAUT: PRODUITS_DEFAUT, FICHES_PRODUITS_DEFAUT: FICHES_PRODUITS_DEFAUT, CHAMPS_FICHES: CHAMPS_FICHES, CHAMPS_RAPPORTS: CHAMPS_RAPPORTS,
     estConventionne: estConventionne, calcScore: calcScore, distanceKm: distanceKm, distanceVol: distanceVol,
     quartiersDefautObjets: quartiersDefautObjets, creerAlea: creerAlea, genererBaseFictive: genererBaseFictive,
-    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, resoudreTerritoire: resoudreTerritoire, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
+    ZONES_GRANDES_COMMUNES: ZONES_GRANDES_COMMUNES, resoudreTerritoire: resoudreTerritoire, territoireDuLieu: territoireDuLieu, poserTerritoireLieux: poserTerritoireLieux, subdivisionNommeeDansQuartier: subdivisionNommeeDansQuartier, zoneDeQuartier: zoneDeQuartier, communeParente: communeParente, secteurDeQuartier: secteurDeQuartier, communeCorrespondante: communeCorrespondante,
     COMMUNES_GRAND_ABIDJAN: COMMUNES_GRAND_ABIDJAN, VILLES_INTERIEUR_CI: VILLES_INTERIEUR_CI,
     estCommuneGrandAbidjan: estCommuneGrandAbidjan, estCommuneInterieur: estCommuneInterieur, estTerritoireInterieur: estTerritoireInterieur,
     estCoordonneeAbidjan: estCoordonneeAbidjan, centroideVilleInterieur: centroideVilleInterieur, trouverEtablissementRef: trouverEtablissementRef,
