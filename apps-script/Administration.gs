@@ -1898,6 +1898,8 @@ function onEdit(e) {
                       (cCom > 0 && c0 <= cCom && cCom <= cEnd);
       var refQ = toucheGeo ? referentielQuartiers_(ss) : null;
       var editeSecSeul = (cSec > 0 && c0 === cSec && cEnd === cSec);
+      var editeQSansSec = (cQ > 0 && c0 <= cQ && cQ <= cEnd && !(cSec > 0 && c0 <= cSec && cSec <= cEnd));
+      var editeComSeul = (cCom > 0 && c0 <= cCom && cCom <= cEnd && !(cSec > 0 && c0 <= cSec && cSec <= cEnd) && !(cQ > 0 && c0 <= cQ && cQ <= cEnd));
       var lignesGeo = [];
 
       for (var r2 = rStart; r2 <= rEnd; r2++) {
@@ -1915,16 +1917,32 @@ function onEdit(e) {
         var valLieu = cLieu > 0 ? chapTxtFormule_(sh.getRange(r2, cLieu).getValue()) : '';
         if (!valCom && !valQ && !valSec) continue;
 
-        var resT = resoudreTerritoireEcriture_(editeSecSeul && valSec
+        // 3.31.89 : la saisie humaine dans Quartier ou Commune fait toujours foi ;
+        // l'ancien Secteur ou le nom du lieu ne doivent jamais écraser ce que l'utilisateur vient de saisir.
+        var entreeGeo = (editeSecSeul && valSec)
           ? { secteur: valSec, lieu: valLieu }
-          : { commune: valCom, quartier: valQ, secteur: valSec, lieu: valLieu }, refQ);
-        if (resT.secteur && cSec > 0 && !valSec) sh.getRange(r2, cSec).setValue(resT.secteur);
-        if (resT.commune && cCom > 0 && (!valCom || (editeSecSeul && valSec))) sh.getRange(r2, cCom).setValue(resT.commune);
-        if (resT.quartier && cQ > 0 && (!valQ || (editeSecSeul && valSec))) sh.getRange(r2, cQ).setValue(resT.quartier);
-        if (resT.subdivision && cSub > 0) sh.getRange(r2, cSub).setValue(resT.subdivision);
-        if (resT.zone && cZ > 0) sh.getRange(r2, cZ).setValue(resT.zone);
-        if (resT.territoire && cTer > 0) sh.getRange(r2, cTer).setValue(resT.territoire);
-        lignesGeo.push(r2);
+          : (editeQSansSec && valQ)
+            ? { commune: valCom, quartier: valQ }
+            : (editeComSeul && valCom)
+              ? { commune: valCom, quartier: valQ }
+              : { commune: valCom, quartier: valQ, secteur: valSec, lieu: valLieu };
+        var resT = resoudreTerritoireEcriture_(entreeGeo, refQ);
+        if (editeQSansSec && valQ) {
+          var qExact = !!(resT.quartier && normaliser(resT.quartier) === normaliser(valQ));
+          if (cSec > 0) sh.getRange(r2, cSec).setValue(qExact ? (resT.secteur || '') : '');
+          if (resT.commune && cCom > 0 && !valCom) sh.getRange(r2, cCom).setValue(resT.commune);
+          if (resT.subdivision && cSub > 0) sh.getRange(r2, cSub).setValue(resT.subdivision);
+          if (resT.zone && cZ > 0) sh.getRange(r2, cZ).setValue(resT.zone);
+          if (resT.territoire && cTer > 0) sh.getRange(r2, cTer).setValue(resT.territoire);
+        } else {
+          if (resT.secteur && cSec > 0 && !valSec) sh.getRange(r2, cSec).setValue(resT.secteur);
+          if (resT.commune && cCom > 0 && (!valCom || (editeSecSeul && valSec))) sh.getRange(r2, cCom).setValue(resT.commune);
+          if (resT.quartier && cQ > 0 && (!valQ || (editeSecSeul && valSec))) sh.getRange(r2, cQ).setValue(resT.quartier);
+          if (resT.subdivision && cSub > 0) sh.getRange(r2, cSub).setValue(resT.subdivision);
+          if (resT.zone && cZ > 0) sh.getRange(r2, cZ).setValue(resT.zone);
+          if (resT.territoire && cTer > 0) sh.getRange(r2, cTer).setValue(resT.territoire);
+          lignesGeo.push(r2);
+        }
       }
       if (lignesGeo.length) {
         deployerFormulesTerritoire_(ss, [nom], lignesGeo);
