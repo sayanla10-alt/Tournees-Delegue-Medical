@@ -1,8 +1,7 @@
 ﻿{
-  "version": "3.31.66",
+  "version": "3.31.67",
   "date": "2026-11-15",
   "notes": [
-    "Planifier : toute modification du Quartier d'un hôpital dans l'onglet Etablissements s'affiche immédiatement dans la liste proposée (lecture directe depuis Etablissements/Presences, comme pour les repères)",
-    "Secteurs de tournée (cleZoneSecteur) : rattachement direct à la colonne Subdivision de l'onglet Quartiers"
+    "Planifier : boutons « Remplacer » et « Supprimer » ajoutés sous les RDV reportés pour absence, avec libellé centré"
   ]
 }

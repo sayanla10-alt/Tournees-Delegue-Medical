@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.66';
+  var APP_VERSION = '3.31.67';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.67', ['Planifier : boutons « Remplacer » et « Supprimer » ajoutés sous les RDV reportés pour absence, avec libellé centré']],
     ['3.31.66', ['Planifier : le quartier modifié d\'un établissement dans le Sheet s\'affiche immédiatement dans la liste proposée (lecture directe depuis Etablissements/Presences, comme pour les repères)']],
     ['3.31.65', ['« Déjà planifié » ne montre plus que vos RDV : pris par vous, reportés ou à rappeler ; les visites proposées par le tirage restent dans la liste proposée', 'Bandeau plus court : « Voir plus en détail »']],
     ['3.31.64', ['Planifier, bandeau « Déjà planifié » : pour chaque visite, la raison au lieu du lieu : RDV pris le (date du compte rendu), confirmé ou non, avec l\'annotation du compte rendu ; prioritaire ou visite ajoutée à la main ; ou proposition du tirage avec la dernière visite']],
@@ -6444,7 +6445,8 @@
     // Carte orange appliquée STRICTEMENT si hors des zones ciblées par les filtres
     var classeOrange = horsZone ? ' ancien' : '';
     var cf = conflitArret(a);
-    var avecActionsBas = (horsZone && !verrou && !a.statut) || !!cf;
+    var estRdvReporte = !!(a.impose && a.etape && a.rdvDate && a.rdvDate !== a.date);
+    var avecActionsBas = (horsZone && !verrou && !a.statut) || !!cf || (estRdvReporte && !verrou && !a.statut);
 
     return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + classeOrange + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
