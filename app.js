@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.65';
+  var APP_VERSION = '3.31.66';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.66', ['« Déjà planifié » : le dernier commentaire laissé sur chaque praticien, daté, sous le RDV']],
     ['3.31.65', ['« Déjà planifié » ne montre plus que vos RDV : pris par vous, reportés ou à rappeler ; les visites proposées par le tirage restent dans la liste proposée', 'Bandeau plus court : « Voir plus en détail »']],
     ['3.31.64', ['Planifier, bandeau « Déjà planifié » : pour chaque visite, la raison au lieu du lieu : RDV pris le (date du compte rendu), confirmé ou non, avec l\'annotation du compte rendu ; prioritaire ou visite ajoutée à la main ; ou proposition du tirage avec la dernière visite']],
     ['3.31.63', ['Planifier : chaque groupe porte le nom exact de la subdivision de l\'onglet Quartiers (Angré, Riviera, Deux Plateaux, Cocody Centre…), affiché même quand la journée tient dans une seule subdivision', 'Planifier : le bandeau bleu « Déjà planifié » se touche : il montre les visites déjà prévues et permet de garder ou de remplacer chacune ; les visites remplacées sont aussitôt reproposées par le tirage']],
@@ -9202,6 +9203,12 @@
     if (rt) return { type: 'rdv', texte: 'RDV ' + rt + ', pris à la main', note: '' };
     return { type: 'tirage', texte: '', note: '' };
   }
+  // 3.31.66 : dernier commentaire laissé sur ce praticien (tous comptes rendus), daté
+  function dernierCommentaire(code) {
+    var v = ((S.data && S.data.historique) || []).filter(function (x) { return x.code === code && String(x.commentaire || '').trim(); })
+      .sort(function (x, y) { return String(y.date || '').localeCompare(String(x.date || '')); })[0];
+    return v ? { date: String(v.date || '').slice(0, 10), texte: String(v.commentaire).trim(), statut: v.statut || '' } : null;
+  }
   function rdvDejaPlanifies(d) {
     return donneesJour(d).filter(function (a) { return raisonVisitePlanifiee(a, d).type !== 'tirage'; });
   }
@@ -9217,7 +9224,8 @@
         var r = raisonVisitePlanifiee(a, d);
         corps += '<li class="dp-visite' + (rempl ? ' dp-rempl' : '') + '"><div class="dp-info"><b>' + (a.heure ? '<span class="dp-heure">' + esc(a.heure) + '</span> ' : '') + esc(a.nom) + '</b>' +
           (a.specialite ? '<small>' + esc(a.specialite) + '</small>' : '') +
-          '<small class="dp-raison ' + r.type + '">' + esc(r.texte) + '</small>' + (r.note ? '<small class="dp-note">« ' + esc(r.note) + ' »</small>' : '') + '</div>' +
+          '<small class="dp-raison ' + r.type + '">' + esc(r.texte) + '</small>' + (r.note ? '<small class="dp-note">« ' + esc(r.note) + ' »</small>' : '') +
+          (function () { var dc = dernierCommentaire(a.code); return dc && dc.texte !== r.note ? '<small class="dp-dernier"><b>Dernier commentaire' + (dc.date ? ' (' + esc(dateCourte(dc.date)) + ')' : '') + ' :</b> ' + esc(dc.texte) + '</small>' : ''; })() + '</div>' +
           (faite ? '<span class="etiquette ok">' + esc(a.statut) + '</span>'
             : '<div class="puces dp-puces"><button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="garder" aria-pressed="' + !rempl + '">Garder</button>' +
               '<button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="remplacer" aria-pressed="' + rempl + '">Remplacer</button></div>') + '</li>';
