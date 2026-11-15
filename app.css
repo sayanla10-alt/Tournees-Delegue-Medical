@@ -5001,3 +5001,10 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .vf-lieux .puce { white-space: normal; text-align: left; }
 .vf-q .scan-sem-barre { margin-top: 4px; }
 .vf-q .scan-input-hopital { margin-top: 6px; width: 100%; }
+.vf-tete { grid-template-columns: 1.2fr 1fr; }
+.vf-bilan .vf-photo { float: right; display: inline-flex; align-items: center; gap: 4px; margin: 0 0 4px 10px; color: var(--primaire); font-weight: 600; text-decoration: none; font-size: 14px; }
+.vf-bilan .vf-photo svg { width: 18px; height: 18px; }
+.vf-q + .vf-q { margin-top: 6px; }
+.vf-sep { margin-top: 10px !important; }
+.vf-lieux .puce[aria-pressed="true"] { font-weight: 600; }
+.vf-lieux + .vf-lien { margin-top: 8px; }

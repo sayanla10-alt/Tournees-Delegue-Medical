@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.80",
+  "version": "3.31.81",
   "date": "2026-11-15",
   "notes": [
-    "Fiche photographiée : « Vérifier la fiche » repensé, une ligne par contact et une seule question ; contacts déjà en base sans changement ignorés ; date du rapport modifiable ; noms proches signalés"
+    "Vérifier la fiche : mise en page allégée et harmonisée"
   ]
 }

@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.80';
+  var APP_VERSION = '3.31.81';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.81', ['Vérifier la fiche : mise en page allégée et harmonisée (photo dans la ligne de bilan, « Autre établissement » discret, planning de la semaine sous l\'hôpital de visite)']],
     ['3.31.80', ['Fiche photographiée : écran « Vérifier la fiche » repensé : une ligne par contact lu, une seule question à la fois (Garder la base ou Prendre la fiche, C\'est lui ou Nouveau contact, Ajouter ou non) ; les contacts déjà en base sans changement sont ignorés ; date du rapport modifiable ; noms proches signalés avant tout rapprochement', 'Fiche photographiée : pour chaque médecin, l\'hôpital de la visite se confirme (lieux connus ou autre établissement) et le planning de la semaine sur ce lieu se modifie d\'un toucher']],
     ['3.31.79', ['« Déjà planifié » : le dernier commentaire laissé sur chaque praticien, daté, sous le RDV']],
     ['3.31.78', ['Uniformisation : le tri par pertinence (début du nom prioritaire) s\'applique désormais partout (Répertoire, Autour de moi, Remplacer, + Ajouter, Tout le répertoire)']],
@@ -12255,7 +12256,6 @@
       '<div class="segment vf-creneaux" role="group" aria-label="Créneau">' +
         '<button type="button" data-a="scanCreneau" data-v="matin" aria-pressed="' + !!v.matin + '">Matin</button>' +
         '<button type="button" data-a="scanCreneau" data-v="soir" aria-pressed="' + !!v.soir + '">Soir</button></div>' +
-      (x.photo && x.photo.url ? '<a class="vf-photo" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">Voir la photo</a>' : '') +
     '</section>';
     if (!v.date) h += '<p class="vf-alerte">Date non lue sur la fiche : indiquez-la ci-dessus.</p>';
     var morceaux = [];
@@ -12263,7 +12263,7 @@
     if (nb('changement')) morceaux.push(nb('changement') + ' changement' + (nb('changement') > 1 ? 's' : ''));
     if (nb('proche')) morceaux.push(nb('proche') + ' nom' + (nb('proche') > 1 ? 's' : '') + ' proche' + (nb('proche') > 1 ? 's' : ''));
     if (nb('identique')) morceaux.push(nb('identique') + ' déjà en base sans changement (ignoré' + (nb('identique') > 1 ? 's' : '') + ')');
-    h += '<p class="vf-bilan"><b>' + v.entites.length + ' ligne' + (v.entites.length > 1 ? 's' : '') + ' lue' + (v.entites.length > 1 ? 's' : '') + '</b>' + (morceaux.length ? ' · ' + morceaux.join(' · ') : '') + '</p>';
+    h += '<p class="vf-bilan">' + (x.photo && x.photo.url ? '<a class="vf-photo" href="' + esc(x.photo.url) + '" target="_blank" rel="noopener">' + icone('photo') + 'Photo</a>' : '') + '<b>' + v.entites.length + ' ligne' + (v.entites.length > 1 ? 's' : '') + ' lue' + (v.entites.length > 1 ? 's' : '') + '</b>' + (morceaux.length ? ' · ' + morceaux.join(' · ') : '') + '</p>';
     if (!v.entites.length) return h + '<div class="vide"><strong>Aucun médecin ni pharmacie lu</strong>Reprenez la photo plus nette, bien à plat et éclairée.</div>';
 
     var lignes = '';
@@ -12329,7 +12329,7 @@
         '</div>' +
         (ent.inclus ? '<p class="vf-lien"><button type="button" class="lien" data-a="scanOuvrir" data-i="' + i + '">' + (ent.ouvert ? 'Fermer la correction' : 'Corriger les infos') + '</button></p>' : '') + '</div>';
       if (ent.inclus && (ent.ouvert || pl.erreur)) h += editionScan(f, ent, pl, i, estPh);
-      if (ent.inclus && !estPh && pl.prog && pl.prog.lieu) h += '<div class="vf-q"><p class="vf-champ">Planning à ' + esc(pl.prog.lieu) + '</p>' + semaineScan(pl.prog, i) + '</div>';
+      if (ent.inclus && !estPh && pl.prog && pl.prog.lieu) h += '<div class="vf-q"><p class="vf-champ">Planning de la semaine à ' + esc(pl.prog.lieu) + '</p>' + semaineScan(pl.prog, i) + '</div>';
     }
     return h + '</section>';
   }
@@ -12341,9 +12341,9 @@
     var h = '<div class="vf-q"><p class="vf-champ">Visité à</p><div class="vf-lieux">' + lieux.map(function (x) {
       var on = memeEtablissement(x, actuel);
       return '<button type="button" class="puce" data-a="scanChoisirHopital" data-i="' + i + '" data-etab="' + esc(x) + '" aria-pressed="' + on + '">' + esc(x) + '</button>';
-    }).join('') + '<button type="button" class="puce" data-a="scanAutreLieu" data-i="' + i + '" aria-pressed="' + !!ent.autreLieu + '">Autre…</button></div>';
+    }).join('') + '</div><p class="vf-lien"><button type="button" class="lien" data-a="scanAutreLieu" data-i="' + i + '">' + (ent.autreLieu ? 'Fermer' : 'Autre établissement') + '</button></p>';
     if (ent.autreLieu) h += '<input type="text" class="scan-input-hopital" data-f="scanEtabInput" data-i="' + i + '" placeholder="Premières lettres de l\'établissement…" autocomplete="off"><div id="scanSuggEtab_' + i + '" class="scan-sugg-etabs"></div>';
-    if (pl.prog && pl.prog.lieu) h += '<p class="vf-champ" style="margin-top:8px">Planning à ' + esc(pl.prog.lieu) + ' <small>(touchez un jour pour le modifier)</small></p>' + semaineScan(pl.prog, i);
+    if (pl.prog && pl.prog.lieu) h += '<p class="vf-champ vf-sep">Planning de la semaine</p>' + semaineScan(pl.prog, i);
     return h + '</div>';
   }
   // champs à corriger d'un nouveau contact : nom, téléphone, spécialité, lieu d'exercice (établissements de la base), quartier
