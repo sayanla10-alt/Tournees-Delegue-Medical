@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.82';
+  var APP_VERSION = '3.31.83';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.83', ['Vérifier la fiche épuré : chaque contact tient en une ligne (ce qui sera fait, en clair) avec un interrupteur « Intégrer » ; les noms proches se tranchent en un geste (Même personne / Nouveau contact) ; les réglages fins sont sous « Ajuster »']],
     ['3.31.82', ['Mises à jour : correction du double bandeau de mise à jour (une seule confirmation suffit désormais)']],
     ['3.31.81', ['Vérifier la fiche : mise en page allégée et harmonisée (photo dans la ligne de bilan, « Autre établissement » discret, planning de la semaine sous l\'hôpital de visite)']],
     ['3.31.80', ['Fiche photographiée : écran « Vérifier la fiche » repensé : une ligne par contact lu, une seule question à la fois (Garder la base ou Prendre la fiche, C\'est lui ou Nouveau contact, Ajouter ou non) ; les contacts déjà en base sans changement sont ignorés ; date du rapport modifiable ; noms proches signalés avant tout rapprochement', 'Fiche photographiée : pour chaque médecin, l\'hôpital de la visite se confirme (lieux connus ou autre établissement) et le planning de la semaine sur ce lieu se modifie d\'un toucher']],
@@ -12024,12 +12025,12 @@
       if (!estPh) {
         var spE = specialiteCanonique(d.specialite || '');
         if (ent.specialite && !spE) { if (!R.specialite) d.specialite = ent.specialite; ligne('specialite', 'Spécialité', ent.specialite, '', 'ajout', 'refus'); }
-        else if (ent.specialite && normaliser(spE) !== normaliser(ent.specialite)) { if (P.specialite) d.specialite = ent.specialite; ligne('specialite', 'Spécialité', ent.specialite, spE, 'different', 'remplacer'); }
+        else if (ent.specialite && normaliser(spE) !== normaliser(ent.specialite)) { if (P.specialite !== false && !R.specialite) d.specialite = ent.specialite; ligne('specialite', 'Spécialité', ent.specialite, spE, 'different', 'remplacer'); }
         else ligne('specialite', 'Spécialité', ent.specialite, spE, ent.specialite ? 'identique' : 'base');
       }
       var telE = normaliserNumero(d.telephone), telL = normaliserNumero(ent.telephone), telB = d.telephone;
       if (telL && !telE) { if (!R.telephone) d.telephone = ent.telephone; ligne('telephone', 'Téléphone', ent.telephone, '', 'ajout', 'refus'); }
-      else if (telL && telE !== telL) { if (P.telephone) d.telephone = ent.telephone; ligne('telephone', 'Téléphone', ent.telephone, telB, 'different', 'remplacer'); }
+      else if (telL && telE !== telL) { if (P.telephone !== false && !R.telephone) d.telephone = ent.telephone; ligne('telephone', 'Téléphone', ent.telephone, telB, 'different', 'remplacer'); }
       else ligne('telephone', 'Téléphone', ent.telephone, telB, telL ? 'identique' : 'base');
       var idx = -1, lieuxBase = d.lieux.map(function (l) { return l.lieu; }).filter(Boolean);
       if (estPh) idx = 0;
@@ -12047,7 +12048,7 @@
       if (idx < 0) idx = 0;
       L = d.lieux[idx];
       if (L && ent.quartier && !L.quartier) { if (!R.quartier) { L.quartier = ent.quartier; L.commune = ent.commune; } ligne('quartier', 'Quartier', ent.quartier, '', 'ajout', 'refus'); }
-      else if (L && ent.quartier && normaliser(L.quartier) !== normaliser(ent.quartier)) { if (P.quartier) { L.quartier = ent.quartier; L.commune = ent.commune; } ligne('quartier', 'Quartier', ent.quartier, L.quartier, 'different', 'remplacer'); }
+      else if (L && ent.quartier && normaliser(L.quartier) !== normaliser(ent.quartier)) { if (P.quartier !== false && !R.quartier) { L.quartier = ent.quartier; L.commune = ent.commune; } ligne('quartier', 'Quartier', ent.quartier, L.quartier, 'different', 'remplacer'); }
       else if (L) ligne('quartier', 'Quartier', ent.quartier, L.quartier, ent.quartier ? 'identique' : 'base');
       if (L && !L.reperes && ent.adresse) L.reperes = ent.adresse;
       if (L) avant = JSON.parse(JSON.stringify(L.jours || []));
@@ -12206,7 +12207,7 @@
   // une valeur différente de la base attend un choix ; un ajout (champ vide en base) est retenu d'office
   function choixChangementScan(ent, r) {
     if (r.k === 'nom') return ent.remplacer && ent.remplacer.nom === true ? 'fiche' : 'base';   // orthographe : la base est gardée sauf choix contraire
-    if (r.opt === 'remplacer') return ent.remplacer && ent.remplacer[r.k] === true ? 'fiche' : (ent.refus && ent.refus[r.k] ? 'base' : '');
+    if (r.opt === 'remplacer') return ent.remplacer && ent.remplacer[r.k] === false ? 'base' : (ent.refus && ent.refus[r.k] ? 'base' : 'fiche');   // 3.31.82 : la fiche (terrain, récente) fait foi par défaut
     return ent.refus && ent.refus[r.k] ? 'base' : 'fiche';
   }
   function classerScan(ent, pl) {
@@ -12287,15 +12288,67 @@
         '<button class="bouton bouton-plein" type="button" data-a="scanEnregistrer"' + (prets ? '' : ' disabled') + '>' + icone('valider') + 'Enregistrer' + (prets ? ' (' + prets + ')' : '') + '</button></div>'
     };
   };
+  // 3.31.82 : ligne compacte : nom, ce qui sera fait en une ou deux phrases, un interrupteur « Intégrer » ;
+  // les réglages fins (champ par champ, autre hôpital, jours) n'apparaissent qu'en touchant « Ajuster ».
+  function resumeScan(ent, pl, cl, estPh) {
+    var l = [];
+    if (cl === 'nouveau') {
+      var L = pl.lieu;
+      l.push((estPh ? 'Pharmacie' : (ent.specialite || 'Spécialité à préciser')) + ((!estPh && ((L && L.lieu) || ent.etablissement)) ? ' · ' + ((L && L.lieu) || ent.etablissement) : '') + (((L && L.quartier) || ent.quartier) ? ' · ' + ((L && L.quartier) || ent.quartier) : ''));
+    }
+    if (cl === 'changement') {
+      changementsScan(ent, pl).forEach(function (r) {
+        if (choixChangementScan(ent, r) !== 'fiche') return;
+        var lib = { nom: 'Nom', telephone: 'Tél.', specialite: 'Spécialité', etablissement: 'Nouveau lieu', quartier: 'Quartier', absence: 'Absence' }[r.k] || r.champ;
+        var court = function (t) { return r.k === 'telephone' ? String(t || '').replace(/^\+225\s*/, '') : t; };
+        l.push(r.k === 'absence' ? r.fiche : lib + ' ' + court(r.fiche) + (r.base && r.k !== 'etablissement' ? ' (avant : ' + court(r.base) + ')' : ''));
+      });
+    }
+    if (!estPh && pl.prog && pl.prog.lieu && (cl === 'nouveau' || planningChangeScan(ent, pl) || ent.joursModifs || ent.lieuConfirme)) {
+      var N = ['lun.', 'mar.', 'mer.', 'jeu.', 'ven.'], plus = [], moins = [], av = pl.prog.avant || [], ap = pl.prog.apres || [];
+      var cren = function (x) { return x.matin && x.soir ? 'matin et soir' : x.matin ? 'matin' : 'soir'; };
+      for (var k = 0; k < 5; k++) {
+        var a0 = av[k] || {}, b0 = ap[k] || {};
+        var aj = { matin: b0.matin && !a0.matin, soir: b0.soir && !a0.soir }, re = { matin: a0.matin && !b0.matin, soir: a0.soir && !b0.soir };
+        if (aj.matin || aj.soir) plus.push(N[k] + ' ' + cren(aj));
+        if (re.matin || re.soir) moins.push(N[k] + ' ' + cren(re));
+      }
+      if (plus.length || moins.length) l.push('Planning ' + pl.prog.lieu + ' : ' + [plus.length ? 'ajout ' + plus.join(', ') : '', moins.length ? 'retrait ' + moins.join(', ') : ''].filter(Boolean).join(' ; '));
+      else if (cl === 'nouveau' && resumeJours(ap)) l.push('Présent ' + resumeJours(ap));
+    }
+    return l;
+  }
   function ligneScan(f, v, ent, pl, i, cl) {
+    var estPh = ent.type === 'Pharmacie', ex = ent.choix ? praticien(ent.choix) : null;
+    var nom = ex && cl === 'changement' ? ex.nom : (ent.nom ? nomPropre(ent.nom, estPh) : 'Nom illisible');
+    var h = '<section class="vf2 ' + cl + (ent.inclus || cl === 'proche' ? '' : ' exclu') + '">';
+    if (cl === 'proche') {
+      var c0 = ent.choix || ent.douteux || (ent.cands || [])[0], p0 = praticien(c0) || {};
+      var lx = (ctx().presencesParCode[c0] || []).map(function (y) { return y.lieu; }).filter(Boolean)[0] || '';
+      h += '<div class="vf2-haut"><div class="vf2-txt"><b>' + esc(nom) + '</b><small class="vf2-alerte">Ressemble à <b>' + esc(p0.nom || '') + '</b>' + esc([p0.specialite, lx].filter(Boolean).length ? ' (' + [p0.specialite, lx].filter(Boolean).join(', ') + ')' : '') + '</small></div></div>' +
+        '<div class="vf-boutons"><button type="button" class="bouton" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="ancien" data-code="' + esc(c0) + '">Même personne</button>' +
+        '<button type="button" class="bouton" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="nouveau">Nouveau contact</button></div>' +
+        ((ent.cands || []).filter(function (c) { return c && c !== c0; }).length ? '<button type="button" class="lien vf2-ajuster" data-a="scanOuvrir" data-i="' + i + '">' + (ent.ouvert ? 'Masquer' : 'Autres ressemblances') + '</button>' : '');
+      if (ent.ouvert) h += '<div class="vf2-detail">' + detailScan(f, v, ent, pl, i, cl) + '</div>';
+      return h + '</section>';
+    }
+    var res = resumeScan(ent, pl, cl, estPh);
+    var etiquette = cl === 'nouveau' ? (estPh ? 'Nouvelle pharmacie' : 'Nouveau contact') : '';
+    h += '<div class="vf2-haut"><div class="vf2-txt"><b>' + esc(nom) + '</b>' + (etiquette ? '<span class="vf2-tag">' + etiquette + '</span>' : '') +
+      res.map(function (t) { return '<small>' + esc(t) + '</small>'; }).join('') +
+      (ent.inclus && pl.erreur ? '<small class="vf2-alerte">À compléter : ' + esc(pl.erreur.toLowerCase()) + '</small>' : '') + '</div>' +
+      '<button type="button" class="vf2-switch" role="switch" aria-checked="' + !!ent.inclus + '" aria-label="Intégrer" data-a="scanInclure" data-i="' + i + '" data-v="' + (ent.inclus ? 'non' : 'oui') + '"><span></span></button></div>';
+    if (ent.inclus) h += '<button type="button" class="lien vf2-ajuster" data-a="scanOuvrir" data-i="' + i + '">' + (ent.ouvert || pl.erreur ? 'Masquer' : 'Ajuster') + '</button>';
+    if (ent.inclus && (ent.ouvert || pl.erreur)) h += '<div class="vf2-detail">' + detailScan(f, v, ent, pl, i, cl) + '</div>';
+    return h + '</section>';
+  }
+  function detailScan(f, v, ent, pl, i, cl) {
     var estPh = ent.type === 'Pharmacie', ex = ent.choix ? praticien(ent.choix) : null, L = pl.lieu;
     var nom = ent.nom ? nomPropre(ent.nom, estPh) : (ex ? ex.nom : 'Nom illisible');
     var badge = cl === 'nouveau' ? '<span class="vf-badge nv">Nouveau</span>' : cl === 'changement' ? '<span class="vf-badge ch">' + (changementsScan(ent, pl).length ? 'Changement' : 'Planning') + '</span>' : '<span class="vf-badge ch">Nom proche</span>';
     var sous = ex ? [ex.specialite, (ex.lieux || []).map(function (l) { return l.lieu; }).filter(Boolean)[0]].filter(Boolean)
       : [estPh ? 'Pharmacie' : (ent.specialite || 'Spécialité illisible'), estPh ? '' : ((L && L.lieu) || ent.etablissement), (L && L.quartier) || ent.quartier, ent.telephone].filter(Boolean);
-    var h = '<section class="vf-ligne ' + cl + (ent.inclus ? '' : ' exclu') + '">' +
-      '<div class="vf-ligne-tete">' + badge + '<span class="vf-nom">' + esc(ex && cl === 'changement' ? ex.nom : nom) + '</span></div>' +
-      (sous.length ? '<div class="vf-sous">' + esc(sous.join(' · ')) + '</div>' : '');
+    var h = '';
 
     if (cl === 'proche') {
       var codes = [ent.choix, ent.douteux].concat(ent.cands || []).filter(function (c, k, t) { return c && t.indexOf(c) === k; }).slice(0, 3);
@@ -12321,18 +12374,11 @@
       if (!estPh) h += blocLieuScan(f, ent, pl, i, ex);
       if (ent.decision === 'oui') h += '<p class="vf-lien"><button type="button" class="lien" data-a="scanRevoirProche" data-i="' + i + '">Ce n\'est pas la même personne</button></p>';
     } else {
-      h += '<div class="vf-q"><p>' + (estPh ? 'Pharmacie absente de la base' : 'Absent de la base') +
-        (ent.decision === 'non' ? ' <small>(nom proche écarté · <button type="button" class="lien" data-a="scanRevoirProche" data-i="' + i + '">revoir</button>)</small>' : '') + '</p>' +
-        (ent.inclus && pl.erreur ? '<p class="vf-alerte petit">' + esc(pl.erreur) + '</p>' : '') +
-        '<div class="vf-boutons">' +
-          '<button type="button" class="bouton' + (!ent.inclus ? ' bouton-plein' : '') + '" data-a="scanInclure" data-i="' + i + '" data-v="non" aria-pressed="' + !ent.inclus + '">Ne pas ajouter</button>' +
-          '<button type="button" class="bouton' + (ent.inclus ? ' bouton-plein' : '') + '" data-a="scanInclure" data-i="' + i + '" data-v="oui" aria-pressed="' + !!ent.inclus + '">Ajouter</button>' +
-        '</div>' +
-        (ent.inclus ? '<p class="vf-lien"><button type="button" class="lien" data-a="scanOuvrir" data-i="' + i + '">' + (ent.ouvert ? 'Fermer la correction' : 'Corriger les infos') + '</button></p>' : '') + '</div>';
-      if (ent.inclus && (ent.ouvert || pl.erreur)) h += editionScan(f, ent, pl, i, estPh);
+      if (ent.decision === 'non') h += '<p class="vf-lien">Nom proche écarté · <button type="button" class="lien" data-a="scanRevoirProche" data-i="' + i + '">revoir</button></p>';
+      h += editionScan(f, ent, pl, i, estPh);
       if (ent.inclus && !estPh && pl.prog && pl.prog.lieu) h += '<div class="vf-q"><p class="vf-champ">Planning de la semaine à ' + esc(pl.prog.lieu) + '</p>' + semaineScan(pl.prog, i) + '</div>';
     }
-    return h + '</section>';
+    return h;
   }
   // 3.31.80 : lieu de la visite confirmé (lieux connus du médecin, ou autre établissement de la base) et planning de la semaine sur ce lieu
   function blocLieuScan(f, ent, pl, i, ex) {

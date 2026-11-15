@@ -5008,3 +5008,21 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .vf-sep { margin-top: 10px !important; }
 .vf-lieux .puce[aria-pressed="true"] { font-weight: 600; }
 .vf-lieux + .vf-lien { margin-top: 8px; }
+
+/* 3.31.82 : lignes compactes de « Vérifier la fiche » */
+.vf2 { border-top: 1px solid var(--trait, #e3e8e9); padding: 12px 0; }
+.vf2.exclu .vf2-txt { opacity: .5; }
+.vf2-haut { display: flex; align-items: flex-start; gap: 12px; }
+.vf2-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vf2-txt > b { font-size: 15.5px; white-space: normal; overflow: visible; }
+.vf2-txt small { color: var(--gris); font-size: 13.5px; line-height: 1.35; }
+.vf2-tag { align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--bleu, #1F5FAF); background: var(--bleu-pale, #E4EDF8); border-radius: 6px; padding: 1px 7px; margin: 2px 0; }
+.vf2-txt small.vf2-alerte { color: var(--ambre); font-weight: 600; }
+.vf2-txt small.vf2-alerte b { font-size: inherit; }
+.vf2 .vf-boutons { margin-top: 10px; }
+.vf2-ajuster { display: inline-block; margin-top: 6px; background: none; border: 0; padding: 0; color: var(--primaire); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.vf2-detail { margin-top: 8px; }
+.vf2-switch { flex: 0 0 auto; position: relative; width: 48px; height: 28px; border-radius: 99px; border: 0; padding: 0; background: var(--trait-fort, #c9d3d5); cursor: pointer; transition: background .15s; margin-top: 2px; }
+.vf2-switch span { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .15s; }
+.vf2-switch[aria-checked="true"] { background: var(--primaire); }
+.vf2-switch[aria-checked="true"] span { transform: translateX(20px); }
