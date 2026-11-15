@@ -9,10 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.56';
+  var APP_VERSION = '3.31.57';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.57', [
+      'Planifier : regroupement strict par secteur (ex. Angré, Riviera, Deux-Plateaux) sur la même demi-journée sans aller-retour Matin/Soir tant que les horaires de réception le permettent',
+      'Position GPS captée sur un Médecin / IDE / SAG : enregistrée automatiquement dans Etablissements (Répertoire › Hôpitaux) et diffusée à tous les praticiens du même lieu'
+    ]],
     ['3.31.56', ['Harmonisation automatique des repères d\'établissements : toute modification d\'un repère dans l\'onglet Etablissements se duplique automatiquement dans Presences, Supabase et partout dans l\'application']],
     ['3.31.55', ['Notifications « Conflit de programme » : vos propres visites ne sont plus signalées comme prévues par un collègue ; seuls les autres délégués sont cités']],
     ['3.31.54', [

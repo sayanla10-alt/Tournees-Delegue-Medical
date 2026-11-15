@@ -1,7 +1,8 @@
 ﻿{
-  "version": "3.31.56",
+  "version": "3.31.57",
   "date": "2026-11-15",
   "notes": [
-    "Harmonisation automatique des repères d'établissements : toute modification d'un repère dans l'onglet Etablissements se duplique automatiquement dans Presences, Supabase et partout dans l'application"
+    "Planifier : regroupement strict par secteur (ex. Angré, Riviera, Deux-Plateaux) sur la même demi-journée sans aller-retour Matin/Soir tant que les horaires de réception le permettent",
+    "Position GPS captée sur un Médecin / IDE / SAG : enregistrée automatiquement dans Etablissements (Répertoire › Hôpitaux) et diffusée à tous les praticiens du même lieu"
   ]
 }
