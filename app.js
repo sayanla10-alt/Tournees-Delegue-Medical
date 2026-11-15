@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.76';
+  var APP_VERSION = '3.31.77';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.77', ['Planifier : changer le nombre de visites par jour ne réintègre plus les médecins retirés avec la croix']],
     ['3.31.76', ['Recherche par nom : correction du tri de pertinence (les noms commençant par le mot cherché passent désormais bien en premier, avant ceux qui le contiennent en 2e/3e position)']],
     ['3.31.75', ['+ Ajouter : onglet « Compatibles » passé en vert (cohérent avec « Hors filtre » ambre)']],
     ['3.31.74', ['+ Ajouter : deux onglets « Compatibles » et « Hors filtre » avec compteurs, et tri par pertinence sur les recherches par nom (début du nom prioritaire)']],
@@ -6038,9 +6039,9 @@
   // 3.26.94 : praticiens retirés à la main d'une liste proposée : ils ne reviennent plus dans les propositions (recalcul,
   // nouveau tirage, complément) tant que les critères de planification restent les mêmes ; un changement de critère les libère
   function signatureCriteres(d) {
-    // 3.28.18 : tous les filtres comptent, ceux de Planifier comme ceux du Répertoire (communes, spécialités)
+    // 3.28.18 / 3.31.77 : tous les filtres comptent sauf le nombre de visites/jour (maxJour)
     var p = paramsDuJour(d), tri = function (l) { return (l || []).slice().sort(); };
-    return JSON.stringify([tri(p.communes), S.params && S.params.parJour ? S.params.communesJour || {} : {}, tri(p.specialites), tri(p.potentiels), p.typeCibles || '', +p.delai || 0, +p.maxJour || 0, p.eviterCollegues !== false]);
+    return JSON.stringify([tri(p.communes), S.params && S.params.parJour ? S.params.communesJour || {} : {}, tri(p.specialites), tri(p.potentiels), p.typeCibles || '', +p.delai || 0, p.eviterCollegues !== false]);
   }
   function refusKeyDate(d) {
     return d || (S.ui && S.ui.jour) || (S.params && S.params.dateRef) || 'global';
@@ -13235,7 +13236,7 @@
       // et on la réinitialise dès que la date ou un critère (communes, type, spécialités, potentiel, rythme) change.
       var cleCritRej = JSON.stringify([portee, cible.map(function (d) {
         var pd = paramsDuJour(d);
-        return [d, communesPour(d) || [], pd.typeCibles || 'medecins', pd.specialites || [], pd.potentiels || [], +pd.maxJour || 8, pd.delai, pd.eviterCollegues !== false];
+        return [d, communesPour(d) || [], pd.typeCibles || 'medecins', pd.specialites || [], pd.potentiels || [], pd.delai, pd.eviterCollegues !== false];
       })]);
       if (LS.get('rejetesCrit', '') !== cleCritRej) {
         S.rejetes = {};

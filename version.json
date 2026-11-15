@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.76",
+  "version": "3.31.77",
   "date": "2026-11-15",
   "notes": [
-    "Recherche par nom : correction du tri de pertinence (les noms commençant par le mot cherché passent désormais bien en premier, avant ceux qui le contiennent en 2e/3e position)"
+    "Planifier : changer le nombre de visites par jour ne réintègre plus les médecins retirés avec la croix"
   ]
 }
