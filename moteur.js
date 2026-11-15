@@ -236,14 +236,15 @@ var Moteur = (function () {
       if (coord && estInt && typeof estCoordonneeAbidjan === 'function' && estCoordonneeAbidjan(coord)) {
         coord = null;
       }
-      // 3.31.36 : validation cartographique : si une table de référence vérifiée existe ou si le GPS diverge
-      // de > 3,5 km du quartier déclaré dans le Grand Abidjan, corriger la position aberrante
+      // 3.31.36 / 3.31.56 : validation cartographique : une position captée sur le terrain (Terrain / Repertoire Hopital)
+      // est toujours prioritaire et conservée telle quelle.
+      var estOrigineTerrain = /terrain|repertoire hopital/i.test(String(pr.origineGps || ''));
       var refLieu = typeof trouverEtablissementRef === 'function' ? trouverEtablissementRef(pr.lieu) : null;
       var refCoord = coordObj(refLieu);
-      if (refCoord && refCompatibleCommune(communeRes, refLieu) &&
+      if (!estOrigineTerrain && refCoord && refCompatibleCommune(communeRes, refLieu) &&
           !(estInt && (!refLieu || !refLieu.commune || cleNorm(refLieu.commune) !== cleNorm(communeRes)))) {
         if (!coord || distanceVol(coord, refCoord) > 1.5) coord = refCoord;
-      } else if (coord && qCoord && !estInt && typeof estCommuneGrandAbidjan === 'function' && estCommuneGrandAbidjan(communeRes)) {
+      } else if (!estOrigineTerrain && coord && qCoord && !estInt && typeof estCommuneGrandAbidjan === 'function' && estCommuneGrandAbidjan(communeRes)) {
         if (distanceVol(coord, qCoord) > 3.5) {
           var ke = cleNorm(pr.lieu || '') + '|' + cleNorm(communeRes || '');
           var ce = etabCoords[ke] || etabCoords[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')];

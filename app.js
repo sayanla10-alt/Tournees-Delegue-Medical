@@ -3111,6 +3111,9 @@
         var lonEt = et && isFinite(et.lon) && et.lon !== null ? +et.lon : null;
         var latPr = isFinite(pr.lat) && pr.lat !== null ? +pr.lat : null;
         var lonPr = isFinite(pr.lon) && pr.lon !== null ? +pr.lon : null;
+        var prTerrain = latPr !== null && lonPr !== null && /terrain|repertoire hopital/i.test(String(pr.origine_gps || ''));
+        var etTerrain = latEt !== null && lonEt !== null && /terrain|repertoire hopital/i.test(String(et && et.origine_gps || ''));
+        var usePrGps = prTerrain && !etTerrain;
         return {
           id: String(pr.id),
           code: String(pr.code),
@@ -3129,10 +3132,10 @@
           vendredi: pr.vendredi || '',
           horaireMatin: pr.horaire_matin || '',
           horaireSoir: pr.horaire_soir || '',
-          lat: latEt !== null ? latEt : latPr,
-          lon: lonEt !== null ? lonEt : lonPr,
+          lat: usePrGps ? latPr : (latEt !== null ? latEt : latPr),
+          lon: usePrGps ? lonPr : (lonEt !== null ? lonEt : lonPr),
           reperes: (et && et.reperes) || pr.reperes || '',
-          origineGps: (et && et.origine_gps) || pr.origine_gps || ''
+          origineGps: usePrGps ? (pr.origine_gps || '') : ((et && et.origine_gps) || pr.origine_gps || '')
         };
       });
 
@@ -13735,6 +13738,19 @@
         if (r && r.quartier) {
           l.quartier = r.quartier.quartier;
           l.commune = r.quartier.commune;
+        }
+        if (d.type !== 'Pharmacie' && l.lieu && S.data) {
+          var nomEtabM = normaliser(l.lieu);
+          (S.data.etablissements || []).forEach(function (et) {
+            if (normaliser(et.nom) === nomEtabM) {
+              et.lat = pCapt.lat; et.lon = pCapt.lon; et.origineGps = l.origineGps;
+            }
+          });
+          (S.data.presences || []).forEach(function (pr) {
+            if (normaliser(pr.lieu) === nomEtabM) {
+              pr.lat = pCapt.lat; pr.lon = pCapt.lon; pr.origineGps = l.origineGps;
+            }
+          });
         }
         enregistrerFiche(d); rendre();
         var labelLieu = l.lieu || l.quartier || 'Lieu';
