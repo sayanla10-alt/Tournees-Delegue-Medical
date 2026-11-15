@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.70",
+  "version": "3.31.71",
   "date": "2026-11-15",
   "notes": [
-    "Tirage & Recalculer : la mémoire persistante des médecins non retenus est réinitialisée automatiquement si vous modifiez vos critères de planification"
+    "Tirage & Recalculer : la mémoire des tirages est limitée à la journée/période ciblée et se réinitialise dès que la date ou un critère change"
   ]
 }

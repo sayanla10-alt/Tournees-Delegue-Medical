@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.70';
+  var APP_VERSION = '3.31.71';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.71', ['Tirage & Recalculer : la mémoire des tirages est limitée à la journée/période ciblée et se réinitialise dès que la date ou un critère change']],
     ['3.31.70', ['Tirage & Recalculer : la mémoire persistante des médecins non retenus est réinitialisée automatiquement si vous modifiez vos critères de planification']],
     ['3.31.69', ['Tirage & Recalculer : mémoire persistante des tirages précédents (les médecins proposés mais non retenus restent évités aux tirages suivants pour explorer tout le vivier, même après confirmation ou rechargement)']],
     ['3.31.68', ['Recalculer : rotation complète de tout le vivier disponible sans tourner en rond (les épinglés restent, les inédits passent toujours avant ceux déjà proposés)']],
@@ -13102,14 +13103,13 @@
       } else {
         S.ui.avantTirage = null;
       }
-      // 3.31.69 / 3.31.70 : mémoire persistante des tirages déjà effectués :
-      // on conserve S.rejetes d'un tirage à l'autre (même après confirmation ou rechargement) afin d'éviter
-      // les médecins proposés mais non retenus et d'explorer tout le vivier disponible.
-      // Elle est remise à zéro uniquement si vous modifiez vos critères (communes, type, spécialités, potentiel, rythme).
-      var cleCritRej = JSON.stringify(cible.map(function (d) {
+      // 3.31.69 / 3.31.71 : mémoire persistante des tirages de la journée :
+      // on conserve S.rejetes d'un recalcul à l'autre pour cette date (même après confirmation ou rechargement),
+      // et on la réinitialise dès que la date ou un critère (communes, type, spécialités, potentiel, rythme) change.
+      var cleCritRej = JSON.stringify([portee, cible.map(function (d) {
         var pd = paramsDuJour(d);
-        return [communesPour(d) || [], pd.typeCibles || 'medecins', pd.specialites || [], pd.potentiels || [], +pd.maxJour || 8, pd.delai, pd.eviterCollegues !== false];
-      }));
+        return [d, communesPour(d) || [], pd.typeCibles || 'medecins', pd.specialites || [], pd.potentiels || [], +pd.maxJour || 8, pd.delai, pd.eviterCollegues !== false];
+      })]);
       if (LS.get('rejetesCrit', '') !== cleCritRej) {
         S.rejetes = {};
         LS.set('rejetesCrit', cleCritRej);
