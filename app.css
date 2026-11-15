@@ -4947,3 +4947,57 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .dp-raison.rappel { color: var(--ambre, #a86a00) !important; }
 .dp-dernier { white-space: normal; color: var(--encre, inherit) !important; }
 .dp-dernier b { display: inline; font-weight: 600; }
+
+/* 3.31.80 : « Vérifier la fiche » repensé (une ligne de la fiche = une ligne, une question) */
+.vf-tete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0 8px; border-bottom: 1px solid var(--trait, #e3e8e9); }
+.vf-tete { display: grid !important; grid-template-columns: 1.2fr 1fr; gap: 8px; align-items: center; }
+.vf-date { display: block; margin: 0; min-width: 0; }
+.vf-date .date-fr { height: 44px; min-height: 0; box-sizing: border-box; padding: 0 30px 0 10px; font-weight: 600; background-position: right 8px center; }
+.vf-tete .vf-creneaux { display: flex; width: 100%; height: 44px; }
+.vf-tete .vf-creneaux button { flex: 1 1 0; min-width: 0; white-space: nowrap; padding: 0 8px; }
+.vf-tete .vf-photo { grid-column: 1 / -1; justify-self: end; margin: 0; font-size: 14px; }
+.vf-date.manque .date-fr { border-color: var(--ambre); background-color: var(--ambre-pale, #FFF4E0); }
+.vf-creneaux button { min-height: 36px; }
+.vf-photo { margin-left: auto; color: var(--primaire); font-weight: 600; text-decoration: none; }
+.vf-alerte { margin: 8px 0 0; color: var(--ambre); font-weight: 600; font-size: 14px; }
+.vf-alerte.petit { font-size: 13px; margin: 2px 0 6px; }
+.vf-bilan { margin: 10px 0 4px; font-size: 14px; color: var(--gris); }
+.vf-bilan b { color: var(--encre, inherit); }
+.vf-ligne { border-top: 1px solid var(--trait, #e3e8e9); padding: 10px 0; }
+.vf-ligne.exclu .vf-nom, .vf-ligne.exclu .vf-sous { opacity: .55; }
+.vf-ligne-tete { display: flex; align-items: flex-start; gap: 8px; }
+.vf-nom { font-weight: 700; white-space: normal; overflow: visible; flex: 1 1 auto; }
+.vf-badge { order: 2; flex: 0 0 auto; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 7px; }
+.vf-badge.nv { background: var(--bleu-pale, #EAF1FB); color: var(--bleu, #1F5FAF); }
+.vf-badge.ch { background: var(--ambre-pale, #FFF4E0); color: var(--ambre); }
+.vf-sous { color: var(--gris); font-size: 13px; margin-top: 2px; }
+.vf-q { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--papier-2, #f4f6f6); font-size: 14px; }
+.vf-q p { margin: 0 0 6px; }
+.vf-q.alerte { background: var(--ambre-pale, #FFF4E0); }
+.vf-champ { font-weight: 600; }
+.vf-champ small { font-weight: 400; color: var(--gris); }
+.vf-vals s { color: var(--gris); }
+.vf-boutons { display: flex; gap: 8px; }
+.vf-boutons .bouton { flex: 1 1 0; justify-content: center; min-height: 40px; }
+.vf-cand { display: flex; align-items: center; gap: 8px; justify-content: space-between; background: var(--fond, #fff); border: 1px solid var(--trait, #e3e8e9); border-radius: 10px; padding: 6px 8px; margin: 0 0 6px; }
+.vf-cand span { display: flex; flex-direction: column; min-width: 0; }
+.vf-cand small { color: var(--gris); font-size: 12.5px; }
+.vf-cand .vf-raison { color: var(--ambre); }
+.vf-cand .bouton { flex: 0 0 auto; }
+.vf-large { width: 100%; justify-content: center; }
+.vf-lien { margin: 6px 0 0; font-size: 13px; }
+.vf-lien .lien, .vf-q small .lien { background: none; border: 0; padding: 0; color: var(--primaire); text-decoration: underline; font: inherit; cursor: pointer; }
+.vf-edition { margin-top: 8px; display: grid; gap: 6px; }
+.vf-lu { margin: 0; font-size: 12.5px; }
+.vf-ignores { display: flex; gap: 6px; align-items: flex-start; border-top: 1px solid var(--trait, #e3e8e9); padding: 10px 0 0; margin: 4px 0 0; color: var(--gris); font-size: 13.5px; }
+.vf-ignores svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--vert, #1E7A4C); margin-top: 2px; }
+.vf-remarques { margin-top: 10px; }
+.vf-pied { display: flex; align-items: center; gap: 8px; width: 100%; }
+.vf-pied > span { flex: 1 1 auto; }
+.vf-restant { color: var(--ambre); font-weight: 600; font-size: 13px; }
+.vf-pied .bouton { white-space: nowrap; padding-left: 14px; padding-right: 14px; }
+.vf-pied .vf-restant { white-space: nowrap; }
+.vf-lieux { display: flex; flex-wrap: wrap; gap: 6px; }
+.vf-lieux .puce { white-space: normal; text-align: left; }
+.vf-q .scan-sem-barre { margin-top: 4px; }
+.vf-q .scan-input-hopital { margin-top: 6px; width: 100%; }

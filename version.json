@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.79",
+  "version": "3.31.80",
   "date": "2026-11-15",
   "notes": [
-    "« Déjà planifié » : dernier commentaire laissé sur chaque praticien, daté, sous le RDV"
+    "Fiche photographiée : « Vérifier la fiche » repensé, une ligne par contact et une seule question ; contacts déjà en base sans changement ignorés ; date du rapport modifiable ; noms proches signalés"
   ]
 }

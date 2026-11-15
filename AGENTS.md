@@ -49,6 +49,7 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 * `avant-fiche-v2` : fiche contact (Ajouter / Modifier) avant la refonte 3.27.1 (chercher avant de créer, semaine type, carte de visite).
 * `avant-fiche-repertoire-v2` : fiche dépliée du Répertoire avant la refonte 3.27.6 (prochaine présence, contact sur une ligne, une seule semaine en petits carrés).
 * `avant-repertoire-annuaires` : Répertoire avant la 3.27.30 (sélecteur Médecins / Pharmacies / Hôpitaux et annuaire des hôpitaux).
+* `avant-verifier-fiche-v2` : écran « Vérifier la fiche » (fiche photographiée) avant la refonte 3.31.80 (une ligne par contact, une question, contacts inchangés ignorés).
 
 ---
 
