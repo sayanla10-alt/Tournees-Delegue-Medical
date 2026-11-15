@@ -5041,3 +5041,32 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .vf-mini button { min-height: 32px; padding: 0 10px; font-size: 13px; }
 .vf-mini button { white-space: nowrap; flex: 0 0 auto; }
 .vf2-ajuster { margin-top: 4px; }
+
+/* 3.31.85 : « Vérifier la fiche » hiérarchisé (doutes, nouveaux, mises à jour) */
+.vf3-titre { margin: 18px 0 4px; font-size: 13.5px; font-weight: 700; color: var(--gris); display: flex; align-items: center; gap: 6px; }
+.vf3-titre span { font-size: 12px; font-weight: 700; color: var(--primaire); background: var(--primaire-pale, #E3F1F2); border-radius: 99px; padding: 0 7px; line-height: 18px; }
+.vf3-doute { background: var(--ambre-pale, #FFF4E0); border-radius: 14px; padding: 12px 14px; margin: 6px 0 8px; }
+.vf3-q { margin: 0; font-size: 15px; line-height: 1.4; }
+.vf3-ctx { margin: 2px 0 10px; font-size: 13px; color: var(--gris); }
+.vf3-doute .vf-boutons .bouton { min-height: 40px; }
+.vf3-lien { display: block; margin: 8px 0 0; background: none; border: 0; padding: 0; color: var(--primaire); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.vf3-autres { display: grid; gap: 6px; margin-top: 8px; }
+.vf3-autre { display: flex; flex-direction: column; align-items: flex-start; text-align: left; background: var(--papier, #fff); border: 1px solid var(--ambre-trait, #EBD3A8); border-radius: 10px; padding: 6px 10px; font: inherit; cursor: pointer; }
+.vf3-autre small { color: var(--gris); font-size: 12.5px; }
+.vf3 { border-bottom: 1px solid var(--trait, #e3e8e9); }
+.vf3-ligne { display: flex; align-items: center; gap: 12px; }
+.vf3-corps { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; background: none; border: 0; padding: 11px 0; font: inherit; color: inherit; cursor: pointer; }
+.vf3-corps:disabled { cursor: default; }
+.vf3.exclu .vf3-corps { opacity: .45; }
+.vf3-nom { font-size: 15.5px; font-weight: 600; white-space: normal; }
+.vf3-sous { font-size: 13px; color: var(--gris); }
+.vf3-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.vf3-tags span { font-size: 12px; font-weight: 600; color: var(--primaire); background: var(--primaire-pale, #E3F1F2); border-radius: 6px; padding: 1px 7px; }
+.vf3-manque { font-size: 12.5px; font-weight: 600; color: var(--ambre); }
+.vf3-detail { padding: 0 0 12px; }
+.vf3-detail .vf-reglage:first-child { margin-top: 0; }
+.vf3-bas { margin: 16px 0 0; font-size: 13px; color: var(--gris); }
+.vf3-bas a { color: var(--primaire); font-weight: 600; }
+.fx-scan-rangee { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fx-scan-rangee .fx-btn-scanner-hero { padding: 10px 8px; white-space: nowrap; }
+.fx-btn-scanner-hero svg { fill: none; stroke: currentColor; stroke-width: 2; }
