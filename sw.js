@@ -12,7 +12,7 @@
 
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
    ============================================================================= */
-var VERSION = '3.31.81';
+var VERSION = '3.31.82';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -76,9 +76,18 @@ self.addEventListener('fetch', function (e) {
   // 3.29.2 : une page ouverte avec des paramètres (lien de partage) ou hors ligne retombe sur index.html
   var navigation = e.request.mode === 'navigate';
   var estPolice = POLICES.indexOf(url) >= 0;
+  if (navigation) {
+    e.respondWith(
+      caches.open(CACHE).then(function (c) {
+        return c.match('./index.html').then(function (r) {
+          return r || fetch(e.request).catch(function () { return caches.match('./index.html'); });
+        });
+      })
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(function (r) {
-      if (!r && navigation) return fetch(e.request).catch(function () { return caches.match('./index.html'); });
       return r || fetch(e.request).then(function (resp) {
         if (resp && ((resp.status === 200 && resp.type === 'basic') || (estPolice && (resp.status === 200 || resp.type === 'opaque')))) {
           var respClone = resp.clone();

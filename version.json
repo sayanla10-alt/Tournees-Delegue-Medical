@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.81",
+  "version": "3.31.82",
   "date": "2026-11-15",
   "notes": [
-    "Vérifier la fiche : mise en page allégée et harmonisée"
+    "Mises à jour : correction du double bandeau de mise à jour (une seule confirmation suffit désormais)"
   ]
 }

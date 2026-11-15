@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.81';
+  var APP_VERSION = '3.31.82';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.82', ['Mises à jour : correction du double bandeau de mise à jour (une seule confirmation suffit désormais)']],
     ['3.31.81', ['Vérifier la fiche : mise en page allégée et harmonisée (photo dans la ligne de bilan, « Autre établissement » discret, planning de la semaine sous l\'hôpital de visite)']],
     ['3.31.80', ['Fiche photographiée : écran « Vérifier la fiche » repensé : une ligne par contact lu, une seule question à la fois (Garder la base ou Prendre la fiche, C\'est lui ou Nouveau contact, Ajouter ou non) ; les contacts déjà en base sans changement sont ignorés ; date du rapport modifiable ; noms proches signalés avant tout rapprochement', 'Fiche photographiée : pour chaque médecin, l\'hôpital de la visite se confirme (lieux connus ou autre établissement) et le planning de la semaine sur ce lieu se modifie d\'un toucher']],
     ['3.31.79', ['« Déjà planifié » : le dernier commentaire laissé sur chaque praticien, daté, sous le RDV']],
@@ -16979,16 +16980,20 @@
   // Une nouvelle version s'installe en arrière-plan puis attend : le bandeau propose « Mise à jour ».
   // Accepter : le nouveau service worker prend la main, la page se recharge, les données locales restent.
   var swReg = null, majDemandee = false;
+  function envoyerSkipWaiting(w) {
+    if (!w) return;
+    try {
+      w.postMessage('SKIP_WAITING');
+      w.postMessage({ type: 'SKIP_WAITING' });
+    } catch (e) {}
+  }
   function proposerMaj() {
-    if (!swReg || !swReg.waiting) return;
+    if (majDemandee || !swReg || !swReg.waiting) return;
     fetch('version.json?_=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; }).then(function (v) {
-      if (!swReg || !swReg.waiting) return;
+      if (majDemandee || !swReg || !swReg.waiting) return;
       var verServeur = v && v.version ? v.version : '';
       if (verServeur && typeof compVersion === 'function' && compVersion(verServeur, APP_VERSION) <= 0) {
-        try {
-          swReg.waiting.postMessage('SKIP_WAITING');
-          swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        } catch (e) {}
+        envoyerSkipWaiting(swReg.waiting);
         return;
       }
       var reportee = null;
@@ -17005,18 +17010,26 @@
     });
   }
   function appliquerMaj() {
+    if (majDemandee) return;
     sauver();                                   // tout est déjà dans le stockage local ; par sécurité
     majDemandee = true;
     $('bandeauMaj').hidden = true;
     toast('Mise à jour en cours…');
     if (swReg && swReg.waiting) {
-      try {
-        swReg.waiting.postMessage('SKIP_WAITING');
-        swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      } catch (err) {}
+      envoyerSkipWaiting(swReg.waiting);
+    } else if (swReg && swReg.installing) {
+      swReg.installing.addEventListener('statechange', function () {
+        if (this.state === 'installed') envoyerSkipWaiting(this);
+      });
+    } else {
+      if (!window.__rechargement) { window.__rechargement = true; location.reload(); }
+      return;
     }
-    else location.reload();
-    setTimeout(function () { location.reload(); }, 2500);
+    setTimeout(function () {
+      if (window.__rechargement) return;
+      window.__rechargement = true;
+      location.reload();
+    }, 6000);
   }
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     var controleurInitial = !!navigator.serviceWorker.controller;
