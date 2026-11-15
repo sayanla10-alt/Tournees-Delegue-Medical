@@ -231,12 +231,12 @@ function jumLignes_(table) {
       c = { code: f.col(['CodeEtab']), nom: f.col(['Nom']), cat: f.col(['Categorie']), co: f.col(['Commune']), q: f.col(['Quartier']), z: f.col(['Zone']),
         ter: f.col(['Territoire']), sub: f.col(['Subdivision']), se: f.col(['Secteur']),
         la: f.col(['Latitude']), lo: f.col(['Longitude']),
-        tel: f.col(['Telephone', 'Téléphone']), rep: f.col(['Reperes', 'Repères']), pos: f.col(['Position']), og: f.col(['OrigineGPS']) };
+        tel: f.col(['Telephone', 'Téléphone']), rep: f.col(['Reperes', 'Repères']), og: f.col(['OrigineGPS']) };
       f.lignes.forEach(function (l) {
         var code = jumTxt_(get(l, c.code), tz), nom = jumTxt_(get(l, c.nom), tz); if (!code || !nom) return;
         pousser(l, { code: code, nom: nom, categorie: jumTxt_(get(l, c.cat), tz), commune: jumTxt_(get(l, c.co), tz), quartier: jumTxt_(get(l, c.q), tz), zone: jumTxt_(get(l, c.z), tz),
           territoire: jumTxt_(get(l, c.ter), tz), subdivision: jumTxt_(get(l, c.sub), tz), secteur: jumTxt_(get(l, c.se), tz),
-          lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel), tz), reperes: jumTxt_(get(l, c.rep), tz), position: jumTxt_(get(l, c.pos), tz), origine_gps: jumTxt_(get(l, c.og), tz) });
+          lat: jumNum_(get(l, c.la)), lon: jumNum_(get(l, c.lo)), telephone: jumTel_(get(l, c.tel), tz), reperes: jumTxt_(get(l, c.rep), tz), origine_gps: jumTxt_(get(l, c.og), tz) });
       });
       poserTerritoireLieux(out, referentielQuartiers_());   // 3.31.60 : idem (plus de colonnes déduites dans Etablissements)
       return out;
@@ -672,7 +672,7 @@ var JUM_RETOUR = {
     ['prochaine', ['ProchaineEtape'], 'd'], ['source', ['Source']], ['origine_gps', ['OrigineGPS']]] },
   etablissements: { feuille: 'etablissements', cle: [['code', ['CodeEtab']]], cols: [['nom', ['Nom']], ['categorie', ['Categorie']], ['commune', ['Commune']], ['quartier', ['Quartier']], ['zone', ['Zone']],
     ['territoire', ['Territoire']], ['subdivision', ['Subdivision']], ['secteur', ['Secteur']],
-    ['lat', ['Latitude'], 'n'], ['lon', ['Longitude'], 'n'], ['telephone', ['Telephone', 'Téléphone']], ['reperes', ['Reperes', 'Repères']], ['position', ['Position']], ['origine_gps', ['OrigineGPS']]] },
+    ['lat', ['Latitude'], 'n'], ['lon', ['Longitude'], 'n'], ['telephone', ['Telephone', 'Téléphone']], ['reperes', ['Reperes', 'Repères']], ['origine_gps', ['OrigineGPS']]] },
   visites: { feuille: 'hist', cle: [['uid', ['IdSync']]], cols: [['date', ['DateVisite'], 'd'], ['delegue', ['Délégué']], ['code', ['CodeContact']], ['id_presence', ['IdPresence']], ['nom', ['Nom']], ['type', ['Type']],
     ['specialite', ['Spécialité']], ['note', ['Note'], 'n'], ['commune', ['Commune']], ['quartier', ['Quartier']], ['lieu', ['Lieu/Etablissement']], ['creneau', ['Créneau']], ['statut', ['Statut']],
     ['type_echange', ['Activité']], ['produits_presentes', ['Produits']], ['echantillons', ['Échantillons']], ['prochaine_etape', ['ProchaineEtape']], ['commentaire', ['Commentaire']],

@@ -490,7 +490,7 @@ function fusionnerEtablissements_(ss, o) {
   if (!tE) return { ok: false, erreur: 'Onglet Etablissements introuvable.' };
   var c = {
     code: tE.col('CodeEtab'), nom: tE.col('Nom'), com: tE.col('Commune'), quart: tE.col('Quartier'), zone: tE.col('Zone'),
-    lat: tE.col('Latitude'), lon: tE.col('Longitude'), pos: tE.col('Position'), ori: tE.col('OrigineGPS'),
+    lat: tE.col('Latitude'), lon: tE.col('Longitude'), ori: tE.col('OrigineGPS'),
     tel: tE.col('Téléphone', 'Telephone'), rep: tE.col('Repères', 'Reperes'), alias: tE.col('Alias')
   };
 
@@ -517,7 +517,7 @@ function fusionnerEtablissements_(ss, o) {
       var posB = c.lat >= 0 && !fusVide_(lB[c.lat]) && (fusVide_(lA[c.lat]) || (/terrain/i.test(fusTxt_(lB[c.ori])) && !/terrain/i.test(fusTxt_(lA[c.ori]))));
       tE.brut.forEach(function (h, k) {
         if (k === c.code || k === c.nom || k === c.alias) return;
-        if ([c.lat, c.lon, c.pos, c.ori].indexOf(k) >= 0) { if (posB) chE.poser(A.i, k, lB[k]); return; }
+        if ([c.lat, c.lon, c.ori].indexOf(k) >= 0) { if (posB) chE.poser(A.i, k, lB[k]); return; }
         if (k === c.tel) { chE.poser(A.i, k, fusTel_(lA[k], lB[k])); return; }
         if (k === c.rep) { chE.poser(A.i, k, fusCumul_(lA[k], lB[k])); return; }
         if (fusVide_(lA[k]) && !fusVide_(lB[k])) chE.poser(A.i, k, lB[k]);

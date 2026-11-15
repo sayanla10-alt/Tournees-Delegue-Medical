@@ -617,7 +617,7 @@ function enregistrerFiche(b, dejaVerrouille) {
 
     // --- Presences : lieux du praticien remplacés (mêmes lignes réutilisées, identifiants conservés)
     var refQ = referentielQuartiers_(ss);
-    var etabParNom = {}, maxEtNum = 0, entEtRef = [], cEtCode = -1, cEtNom = -1, cEtRep = -1, cEtAlias = -1, cEtCom = -1, cEtQuart = -1, cEtSec = -1, cEtLat = -1, cEtLon = -1, cEtOrig = -1, cEtPos = -1, cEtZone = -1, cEtTer = -1, cEtSub = -1;
+    var etabParNom = {}, maxEtNum = 0, entEtRef = [], cEtCode = -1, cEtNom = -1, cEtRep = -1, cEtAlias = -1, cEtCom = -1, cEtQuart = -1, cEtLat = -1, cEtLon = -1, cEtOrig = -1;
     var shEtRef = ss.getSheetByName(FEUILLES.etablissements);
     if (shEtRef && shEtRef.getLastColumn() >= 1) {
       entEtRef = shEtRef.getRange(1, 1, 1, shEtRef.getLastColumn()).getValues()[0].map(normaliser);
@@ -628,14 +628,9 @@ function enregistrerFiche(b, dejaVerrouille) {
       cEtAlias = entEtRef.indexOf(normaliser('Alias'));
       cEtCom = entEtRef.indexOf(normaliser('Commune'));
       cEtQuart = entEtRef.indexOf(normaliser('Quartier'));
-      cEtSec = entEtRef.indexOf(normaliser('Secteur'));
-      cEtZone = entEtRef.indexOf(normaliser('Zone'));
-      cEtTer = entEtRef.indexOf(normaliser('Territoire'));
-      cEtSub = entEtRef.indexOf(normaliser('Subdivision'));
       cEtLat = entEtRef.indexOf(normaliser('Latitude'));
       cEtLon = entEtRef.indexOf(normaliser('Longitude'));
       cEtOrig = entEtRef.indexOf(normaliser('OrigineGPS'));
-      cEtPos = entEtRef.indexOf(normaliser('Position'));
       if (cEtNom >= 0 && shEtRef.getLastRow() > 1) {
         shEtRef.getRange(2, 1, shEtRef.getLastRow() - 1, entEtRef.length).getValues().forEach(function (lEt, idxEt) {
           var codeEt = cEtCode >= 0 ? String(lEt[cEtCode] || '').trim() : '';
@@ -650,7 +645,7 @@ function enregistrerFiche(b, dejaVerrouille) {
             reperes: cEtRep >= 0 ? String(lEt[cEtRep] || '').trim() : '',
             commune: cEtCom >= 0 ? String(lEt[cEtCom] || '').trim() : '',
             quartier: cEtQuart >= 0 ? String(lEt[cEtQuart] || '').trim() : '',
-            secteur: cEtSec >= 0 ? String(lEt[cEtSec] || '').trim() : '',
+            secteur: '',   // 3.31.60 : déduit de l'onglet Quartiers (resoudreTerritoireEcriture_)
             lat: cEtLat >= 0 ? lEt[cEtLat] : '',
             lon: cEtLon >= 0 ? lEt[cEtLon] : ''
           };
@@ -728,7 +723,6 @@ function enregistrerFiche(b, dejaVerrouille) {
           if (cEtLat >= 0) shEtRef.getRange(etabMatch.row, cEtLat + 1).setValue(latT6);
           if (cEtLon >= 0) shEtRef.getRange(etabMatch.row, cEtLon + 1).setValue(lonT6);
           if (cEtOrig >= 0) shEtRef.getRange(etabMatch.row, cEtOrig + 1).setValue(texteCellule_(x.origineGps || ''));
-          if (cEtPos >= 0) shEtRef.getRange(etabMatch.row, cEtPos + 1).setValue(latT6.toFixed(6) + ', ' + lonT6.toFixed(6));
         } else if (String(x.lieu || '').trim().length >= 2 && cEtNom >= 0) {
           var newEtCode = 'ETAB-' + numeroCode(++maxEtNum);
           var newEtRow = shEtRef.getLastRow() + 1;
@@ -738,14 +732,9 @@ function enregistrerFiche(b, dejaVerrouille) {
           if (cEtRep >= 0 && x.reperes) vEt[cEtRep] = texteCellule_(x.reperes);
           if (cEtCom >= 0) vEt[cEtCom] = texteCellule_(resT.commune || x.commune || '');
           if (cEtQuart >= 0) vEt[cEtQuart] = texteCellule_(resT.quartier || x.quartier || '');
-          if (cEtSec >= 0) vEt[cEtSec] = texteCellule_(resT.secteur || x.secteur || '');
-          if (cEtZone >= 0) vEt[cEtZone] = texteCellule_(resT.zone || x.zone || '');
-          if (cEtTer >= 0) vEt[cEtTer] = texteCellule_(resT.territoire || x.territoire || '');
-          if (cEtSub >= 0) vEt[cEtSub] = texteCellule_(resT.subdivision || x.subdivision || '');
           if (cEtLat >= 0) vEt[cEtLat] = latT6;
           if (cEtLon >= 0) vEt[cEtLon] = lonT6;
           if (cEtOrig >= 0) vEt[cEtOrig] = texteCellule_(x.origineGps || '');
-          if (cEtPos >= 0) vEt[cEtPos] = latT6.toFixed(6) + ', ' + lonT6.toFixed(6);
           shEtRef.getRange(newEtRow, 1, 1, entEtRef.length).setValues([vEt]);
           if (typeof deployerFormulesTerritoire_ === 'function') {
             try { deployerFormulesTerritoire_(ss, [FEUILLES.etablissements], [newEtRow]); } catch (eFEtN) {}
@@ -873,6 +862,15 @@ function enregistrerFiche(b, dejaVerrouille) {
 // 3.27.33 : nombre (virgule ou point) arrondi à 6 décimales ; NaN si vide
 function nombre6(x) { var n = parseFloat(String(x === undefined || x === null ? '' : x).replace(',', '.')); return isFinite(n) ? Math.round(n * 1e6) / 1e6 : NaN; }
 
+// 3.31.60 : une ligne réécrite depuis l'application garde ses formules (liste dynamique des quartiers, colonnes
+// calculées) sur les colonnes que l'application n'a pas modifiées ; avant, la ligne entière était recopiée en valeurs.
+function garderFormulesLigne_(sh, rang, v, champs, pos, modif) {
+  if (!sh || rang > sh.getLastRow()) return v;
+  var f = sh.getRange(rang, 1, 1, v.length).getFormulas()[0], ecrits = {};
+  champs.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) ecrits[pos[k]] = true; });
+  return v.map(function (x, k) { return f[k] && !ecrits[k] ? f[k] : x; });
+}
+
 // Pharmacie créée ou modifiée depuis l'application (feuille Pharmacies)
 function enregistrerPharmacie(ss, p, lieu, auteur) {
   var sh = ss.getSheetByName(FEUILLES.pharmacies), tz = ss.getSpreadsheetTimeZone();
@@ -989,7 +987,7 @@ function enregistrerPharmacie(ss, p, lieu, auteur) {
   champsPh.forEach(function (c, k) { if (pos[k] >= 0 && modif[c[0]] !== undefined) v[pos[k]] = modif[c[0]]; });
   var rangPh = ligne >= 0 ? ligne + 2 : sh.getLastRow() + 1;
   if (kTel >= 0) sh.getRange(rangPh, kTel + 1).setNumberFormat('@');
-  sh.getRange(rangPh, 1, 1, ent.length).setValues([v]);
+  sh.getRange(rangPh, 1, 1, ent.length).setValues([garderFormulesLigne_(sh, rangPh, v, champsPh, pos, modif)]);
   if (typeof deployerFormulesTerritoire_ === 'function') {
     try { deployerFormulesTerritoire_(ss, [FEUILLES.pharmacies], [rangPh]); } catch (eFPh) {}
   }
@@ -1121,7 +1119,7 @@ function enregistrerEtablissement(b) {
     var rangE = ligne >= 0 ? ligne + 2 : sh.getLastRow() + 1;
     var cTelE = pos[indexChamp(champsE, 'telephone')];
     if (cTelE >= 0) sh.getRange(rangE, cTelE + 1).setNumberFormat('@');
-    sh.getRange(rangE, 1, 1, ent.length).setValues([v]);
+    sh.getRange(rangE, 1, 1, ent.length).setValues([garderFormulesLigne_(sh, rangE, v, champsE, pos, modif)]);
     if (typeof deployerFormulesTerritoire_ === 'function') {
       try { deployerFormulesTerritoire_(ss, [FEUILLES.etablissements], [rangE]); } catch (eFEt) {}
     }

@@ -100,7 +100,6 @@ function lireTout(sig, hdepuis) {
   if (shEtab && shEtab.getLastRow() >= 1 && shEtab.getLastColumn() >= 1) {
     var entEtab = shEtab.getRange(1, 1, 1, shEtab.getLastColumn()).getValues()[0].map(normaliser);
     var champsEtab = champsAvecTerritoire_(CHAMPS_ETABLISSEMENTS);
-    if (entEtab.indexOf(normaliser('Position')) >= 0 && !champsEtab.some(function (c) { return c[0] === 'position'; })) champsEtab.push(['position', 'Position']);
     if (entEtab.indexOf(normaliser('OrigineGPS')) >= 0 && !champsEtab.some(function (c) { return c[0] === 'origineGps'; })) champsEtab.push(['origineGps', 'OrigineGPS']);
     ref.etablissements = lireObjets(shEtab, champsEtab, tz).filter(function (e) { return String(e.nom || '').trim() !== ''; });
     poserTerritoireLieux(ref.etablissements, quartiers);   // 3.31.60 : territoire, zone, subdivision, secteur : onglet Quartiers

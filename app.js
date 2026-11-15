@@ -1696,6 +1696,8 @@
       poserTerritoire(e, Q);
       if (e.code) parCode[String(e.code).trim()] = e;
       var n = normaliser(e.nom); if (n && !parNom[n]) parNom[n] = e;
+      // clés secondaires : alias de l'établissement (« CHR d'Abobo », ancien nom…), comme sur le serveur
+      String(e.alias || '').split(/\s*[;,]\s*/).forEach(function (a) { var na = normaliser(a); if (na && !parNom[na]) parNom[na] = e; });
     });
     (data.praticiens || []).forEach(function (p) { if (p.type === 'Pharmacie') pharma[p.code] = true; });
     var orphelins = {};
@@ -3254,7 +3256,8 @@
           lon: isFinite(e.lon) && e.lon !== null ? +e.lon : null,
           telephone: e.telephone || '',
           reperes: e.reperes || '',
-          origineGps: e.origine_gps || ''
+          origineGps: e.origine_gps || '',
+          alias: (e.autres && (e.autres.Alias || e.autres.alias)) || ''
         };
       });
 

@@ -93,7 +93,7 @@ var CHAMPS_PHARMACIES = [
 // Répertoire des hôpitaux et établissements de santé (CHU, Cliniques, FSU COM, Centres Médicaux, etc.)
 var CHAMPS_ETABLISSEMENTS = [
   ['code', 'CodeEtab'], ['nom', 'Nom'], ['categorie', 'Categorie'], ['commune', 'Commune'], ['quartier', 'Quartier'],
-  ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS']
+  ['lat', 'Latitude'], ['lon', 'Longitude'], ['telephone', 'Téléphone'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS'], ['alias', 'Alias']
 ];
 // 3.31.60 : SOURCE UNIQUE. Territoire, Zone, Subdivision et Secteur d'un établissement ou d'une pharmacie ne sont plus
 // des colonnes de leur onglet : ils se déduisent de l'onglet Quartiers à partir de la commune et du quartier
