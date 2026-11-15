@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.73",
+  "version": "3.31.74",
   "date": "2026-11-15",
   "notes": [
-    "+ Ajouter (Planifier) : lors d'une recherche par nom, toutes les fiches correspondantes s'affichent désormais (compatibles en haut, puis « Hors filtre » centré en dessous avec la raison précise)"
+    "+ Ajouter : deux onglets « Compatibles » et « Hors filtre » avec compteurs, et tri par pertinence sur les recherches par nom (début du nom prioritaire)"
   ]
 }
