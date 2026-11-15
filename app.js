@@ -3088,30 +3088,40 @@
         };
       });
 
-      // 2. Présences (Médecins) : Repères harmonisés en priorité depuis le référentiel Etablissements
-      var etabRepParCode = {}, etabRepParNom = {};
+      // 2. Présences (Médecins) : irriguées en priorité depuis le référentiel Etablissements (Repères, Quartier, Commune, Secteur, Zone, Territoire, Subdivision, GPS)
+      var etabParCode = {}, etabParNom = {};
       rawEtab.forEach(function (e) {
         var cEt = String(e.code || e.id || '').trim();
         var nEt = String(e.nom || '').trim();
-        var rEt = String(e.reperes || '').trim();
-        if (!rEt) return;
-        if (cEt) etabRepParCode[cEt] = rEt;
-        if (nEt) etabRepParNom[normaliser(nEt)] = rEt;
+        if (!cEt && !nEt) return;
+        if (cEt) etabParCode[cEt] = e;
+        if (nEt) etabParNom[normaliser(nEt)] = e;
+        var alEt = e.autres && e.autres.Alias ? String(e.autres.Alias) : '';
+        if (alEt) {
+          alEt.split(/\s*[;,]\s*/).forEach(function (a) {
+            var na = normaliser(a);
+            if (na && !etabParNom[na]) etabParNom[na] = e;
+          });
+        }
       });
       var presences = rawPres.map(function (pr) {
         var refEt = (pr.autres && pr.autres.Ref_CodeEtab) ? String(pr.autres.Ref_CodeEtab).trim() : '';
-        var repEt = (refEt && etabRepParCode[refEt]) || (pr.lieu && etabRepParNom[normaliser(pr.lieu)]) || '';
+        var et = (refEt && etabParCode[refEt]) || (pr.lieu && etabParNom[normaliser(pr.lieu)]) || null;
+        var latEt = et && isFinite(et.lat) && et.lat !== null ? +et.lat : null;
+        var lonEt = et && isFinite(et.lon) && et.lon !== null ? +et.lon : null;
+        var latPr = isFinite(pr.lat) && pr.lat !== null ? +pr.lat : null;
+        var lonPr = isFinite(pr.lon) && pr.lon !== null ? +pr.lon : null;
         return {
           id: String(pr.id),
           code: String(pr.code),
           nom: pr.nom || '',
-          lieu: pr.lieu || '',
-          quartier: pr.quartier || '',
-          commune: pr.commune || '',
-          zone: pr.zone || '',
-          territoire: pr.territoire || '',
-          subdivision: pr.subdivision || '',
-          secteur: pr.secteur || '',
+          lieu: (et && et.nom) || pr.lieu || '',
+          quartier: (et && et.quartier) || pr.quartier || '',
+          commune: (et && et.commune) || pr.commune || '',
+          zone: (et && et.zone) || pr.zone || '',
+          territoire: (et && et.territoire) || pr.territoire || '',
+          subdivision: (et && et.subdivision) || pr.subdivision || '',
+          secteur: (et && et.secteur) || pr.secteur || '',
           lundi: pr.lundi || '',
           mardi: pr.mardi || '',
           mercredi: pr.mercredi || '',
@@ -3119,10 +3129,10 @@
           vendredi: pr.vendredi || '',
           horaireMatin: pr.horaire_matin || '',
           horaireSoir: pr.horaire_soir || '',
-          lat: isFinite(pr.lat) && pr.lat !== null ? +pr.lat : null,
-          lon: isFinite(pr.lon) && pr.lon !== null ? +pr.lon : null,
-          reperes: repEt || pr.reperes || '',
-          origineGps: pr.origine_gps || ''
+          lat: latEt !== null ? latEt : latPr,
+          lon: lonEt !== null ? lonEt : lonPr,
+          reperes: (et && et.reperes) || pr.reperes || '',
+          origineGps: (et && et.origine_gps) || pr.origine_gps || ''
         };
       });
 

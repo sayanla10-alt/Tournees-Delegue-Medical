@@ -252,6 +252,11 @@ var Moteur = (function () {
         }
       }
       if (!coord) {
+        var ke0 = cleNorm(pr.lieu || '') + '|' + cleNorm(communeRes || '');
+        var ce0 = etabCoords[ke0] || etabCoords[cleNorm(pr.lieu || '') + '|' + cleNorm(pr.commune || '')] || coordObj(etabPr);
+        if (ce0) coord = { lat: ce0.lat, lon: ce0.lon };
+      }
+      if (!coord) {
         coord = qCoord ? { lat: qCoord.lat, lon: qCoord.lon, approx: true } :
           (typeof centroideVilleInterieur === 'function'
             ? (centroideVilleInterieur(communeRes) || centroideVilleInterieur(quartierRes) || centroideVilleInterieur(pr.commune) || centroideVilleInterieur(pr.quartier))

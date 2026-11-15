@@ -605,10 +605,25 @@ function jumSurEdition(e) {
             var le = []; for (var ie = r0e; ie <= r1e; ie++) le.push(ie);
             var bilanE = propagerEtablissementsVersPresences_(SpreadsheetApp.getActive(), le);
             if (bilanE && bilanE.presences > 0) tablesEtab.push('presences');
+            if (bilanE && bilanE.plannings > 0) tablesEtab.push('plannings');
           }
         } catch (ePe) {}
         SpreadsheetApp.flush();
         jumPousserApresEcriture_(tablesEtab);
+      } else if (table === 'presences' || table === 'pharmacies') {
+        SpreadsheetApp.flush();
+        var tablesPP = [table];
+        try {
+          var shPP = e.range.getSheet();
+          if (shPP && typeof propagerPresencesOuPharmaciesVersPlannings_ === 'function') {
+            var r0p = Math.max(2, e.range.getRow()), r1p = r0p + e.range.getNumRows() - 1;
+            var lp = []; for (var ip = r0p; ip <= r1p; ip++) lp.push(ip);
+            var bilanPP = propagerPresencesOuPharmaciesVersPlannings_(SpreadsheetApp.getActive(), shPP.getName(), lp);
+            if (bilanPP && bilanPP.plannings > 0) tablesPP.push('plannings');
+          }
+        } catch (ePp) {}
+        SpreadsheetApp.flush();
+        jumPousserApresEcriture_(tablesPP);
       } else {
         SpreadsheetApp.flush();
         jumPousserApresEcriture_([table]);

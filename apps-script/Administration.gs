@@ -1544,6 +1544,11 @@ function propagerEtablissementsVersPresences_(ss, lignesEditees) {
   var cRefR = entR.indexOf(normaliser('Ref_CodeEtab'));
   var cRepR = entR.indexOf(normaliser('Repères'));
   if (cRepR < 0) cRepR = entR.indexOf(normaliser('Reperes'));
+  var cComR = entR.indexOf(normaliser('Commune'));
+  var cQuartR = entR.indexOf(normaliser('Quartier'));
+  var cSecR = entR.indexOf(normaliser('Secteur'));
+  var cLatR = entR.indexOf(normaliser('Latitude'));
+  var cLonR = entR.indexOf(normaliser('Longitude'));
   if (cLieuR < 0 && cRefR < 0) return bilan;
 
   var dataR = shR.getRange(2, 1, nR, ncR).getValues();
@@ -1553,8 +1558,25 @@ function propagerEtablissementsVersPresences_(ss, lignesEditees) {
     var e = (ref && parCode[ref]) || (lieu && parNom[normaliser(lieu)]) || null;
     if (!e) return;
     var rn = idx + 2, mod = false;
-    if (cRepR >= 0 && String(row[cRepR] || '').trim() !== e.reperes) {
+    if (cRepR >= 0 && e.reperes && String(row[cRepR] || '').trim() !== e.reperes) {
       shR.getRange(rn, cRepR + 1).setValue(e.reperes);
+      mod = true;
+    }
+    if (cComR >= 0 && e.commune && String(row[cComR] || '').trim() !== e.commune) {
+      shR.getRange(rn, cComR + 1).setValue(e.commune);
+      mod = true;
+    }
+    if (cQuartR >= 0 && e.quartier && String(row[cQuartR] || '').trim() !== e.quartier) {
+      shR.getRange(rn, cQuartR + 1).setValue(e.quartier);
+      mod = true;
+    }
+    if (cSecR >= 0 && e.secteur && String(row[cSecR] || '').trim() !== e.secteur) {
+      shR.getRange(rn, cSecR + 1).setValue(e.secteur);
+      mod = true;
+    }
+    if (cLatR >= 0 && cLonR >= 0 && e.lat !== '' && e.lon !== '' && (String(row[cLatR] || '') !== String(e.lat) || String(row[cLonR] || '') !== String(e.lon))) {
+      shR.getRange(rn, cLatR + 1).setValue(e.lat);
+      shR.getRange(rn, cLonR + 1).setValue(e.lon);
       mod = true;
     }
     if (cRefR >= 0 && e.code && ref !== e.code) {
@@ -1570,6 +1592,105 @@ function propagerEtablissementsVersPresences_(ss, lignesEditees) {
 
   if (bilan.presences > 0) {
     bilan.tablesModifiees.push('presences');
+  }
+  // Mettre à jour les Plannings à venir (>= aujourd'hui) rattachés à ces établissements
+  var shPl = ss.getSheetByName(FEUILLES.plannings);
+  if (shPl && shPl.getLastRow() >= 2 && shPl.getLastColumn() >= 1) {
+    var tz = ss.getSpreadsheetTimeZone() || 'Africa/Abidjan';
+    var aujourdhui = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+    var ncP = shPl.getLastColumn(), nP = shPl.getLastRow() - 1;
+    var entP = shPl.getRange(1, 1, 1, ncP).getValues()[0].map(normaliser);
+    var cComP = entP.indexOf(normaliser('Commune')), cQP = entP.indexOf(normaliser('Quartier')),
+        cLieuP = entP.indexOf(normaliser('Lieu/Etablissement')), cDateP = entP.indexOf(normaliser('Date'));
+    if (cLieuP >= 0 && cDateP >= 0) {
+      var dataP = shPl.getRange(2, 1, nP, ncP).getValues();
+      var modPl = 0;
+      dataP.forEach(function (row, idxRow) {
+        var dIso = typeof versIso === 'function' ? versIso(row[cDateP], tz) : '';
+        if (!dIso || dIso < aujourdhui) return;
+        var lieuP = String(row[cLieuP] || '').trim();
+        var e = lieuP ? parNom[normaliser(lieuP)] : null;
+        if (!e) return;
+        var rnP = idxRow + 2, mP = false;
+        if (e.nom && lieuP !== e.nom) { shPl.getRange(rnP, cLieuP + 1).setValue(e.nom); mP = true; }
+        if (cComP >= 0 && e.commune && String(row[cComP] || '').trim() !== e.commune) { shPl.getRange(rnP, cComP + 1).setValue(e.commune); mP = true; }
+        if (cQP >= 0 && e.quartier && String(row[cQP] || '').trim() !== e.quartier) { shPl.getRange(rnP, cQP + 1).setValue(e.quartier); mP = true; }
+        if (mP) modPl++;
+      });
+      if (modPl > 0) {
+        bilan.plannings = modPl;
+        bilan.tablesModifiees.push('plannings');
+      }
+    }
+  }
+  if (bilan.presences > 0 || bilan.plannings > 0) {
+    SpreadsheetApp.flush();
+    try { marquerModif(); } catch (eM) {}
+  }
+  return bilan;
+}
+
+// 3.31.56 : Propage les modifications de Presences ou Pharmacies vers les Plannings à venir (>= aujourd'hui)
+function propagerPresencesOuPharmaciesVersPlannings_(ss, nomFeuille, lignesEditees) {
+  ss = ss || SpreadsheetApp.getActive();
+  var shSrc = ss.getSheetByName(nomFeuille);
+  var shPl = ss.getSheetByName(FEUILLES.plannings);
+  var bilan = { plannings: 0 };
+  if (!shSrc || !shPl || shSrc.getLastRow() < 2 || shPl.getLastRow() < 2) return bilan;
+
+  var ncS = shSrc.getLastColumn(), nS = shSrc.getLastRow() - 1;
+  var entS = shSrc.getRange(1, 1, 1, ncS).getValues()[0].map(normaliser);
+  var cIdS = entS.indexOf(normaliser('IdPresence'));
+  var cCodeS = entS.indexOf(normaliser('CodeContact'));
+  var cLieuS = entS.indexOf(normaliser(nomFeuille === FEUILLES.presences ? 'Lieu/Etablissement' : 'Nom'));
+  var cComS = entS.indexOf(normaliser('Commune'));
+  var cQS = entS.indexOf(normaliser('Quartier'));
+
+  var dataS = shSrc.getRange(2, 1, nS, ncS).getValues();
+  var parId = {}, parCode = {};
+  var indices = Array.isArray(lignesEditees) && lignesEditees.length
+    ? lignesEditees.map(function (r) { return r - 2; }).filter(function (i) { return i >= 0 && i < dataS.length; })
+    : dataS.map(function (_, i) { return i; });
+
+  indices.forEach(function (i) {
+    var l = dataS[i];
+    var code = cCodeS >= 0 ? String(l[cCodeS] || '').trim() : '';
+    var idP = cIdS >= 0 ? String(l[cIdS] || '').trim() : (nomFeuille === FEUILLES.pharmacies && code ? 'P-' + code : '');
+    var o = {
+      id: idP,
+      code: code,
+      lieu: cLieuS >= 0 ? String(l[cLieuS] || '').trim() : '',
+      commune: cComS >= 0 ? String(l[cComS] || '').trim() : '',
+      quartier: cQS >= 0 ? String(l[cQS] || '').trim() : ''
+    };
+    if (idP) parId[idP] = o;
+    if (code && nomFeuille === FEUILLES.pharmacies) parCode[code] = o;
+  });
+
+  var tz = ss.getSpreadsheetTimeZone() || 'Africa/Abidjan';
+  var aujourdhui = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+  var ncP = shPl.getLastColumn(), nP = shPl.getLastRow() - 1;
+  var entP = shPl.getRange(1, 1, 1, ncP).getValues()[0].map(normaliser);
+  var cIdP = entP.indexOf(normaliser('IdPresence')), cCodeP = entP.indexOf(normaliser('CodeContact')),
+      cComP = entP.indexOf(normaliser('Commune')), cQP = entP.indexOf(normaliser('Quartier')),
+      cLieuP = entP.indexOf(normaliser('Lieu/Etablissement')), cDateP = entP.indexOf(normaliser('Date'));
+  if (cDateP < 0) return bilan;
+
+  var dataP = shPl.getRange(2, 1, nP, ncP).getValues();
+  dataP.forEach(function (row, idxRow) {
+    var dIso = typeof versIso === 'function' ? versIso(row[cDateP], tz) : '';
+    if (!dIso || dIso < aujourdhui) return;
+    var idPl = cIdP >= 0 ? String(row[cIdP] || '').trim() : '';
+    var codePl = cCodeP >= 0 ? String(row[cCodeP] || '').trim() : '';
+    var s = (idPl && parId[idPl]) || (codePl && parCode[codePl]) || null;
+    if (!s) return;
+    var rnP = idxRow + 2, mP = false;
+    if (cLieuP >= 0 && s.lieu && String(row[cLieuP] || '').trim() !== s.lieu) { shPl.getRange(rnP, cLieuP + 1).setValue(s.lieu); mP = true; }
+    if (cComP >= 0 && s.commune && String(row[cComP] || '').trim() !== s.commune) { shPl.getRange(rnP, cComP + 1).setValue(s.commune); mP = true; }
+    if (cQP >= 0 && s.quartier && String(row[cQP] || '').trim() !== s.quartier) { shPl.getRange(rnP, cQP + 1).setValue(s.quartier); mP = true; }
+    if (mP) bilan.plannings++;
+  });
+  if (bilan.plannings > 0) {
     SpreadsheetApp.flush();
     try { marquerModif(); } catch (eM) {}
   }

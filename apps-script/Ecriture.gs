@@ -626,6 +626,11 @@ function enregistrerFiche(b, dejaVerrouille) {
       var cEtRep = entEtRef.indexOf(normaliser('Reperes'));
       if (cEtRep < 0) cEtRep = entEtRef.indexOf(normaliser('Repères'));
       var cEtAlias = entEtRef.indexOf(normaliser('Alias'));
+      var cEtCom = entEtRef.indexOf(normaliser('Commune'));
+      var cEtQuart = entEtRef.indexOf(normaliser('Quartier'));
+      var cEtSec = entEtRef.indexOf(normaliser('Secteur'));
+      var cEtLat = entEtRef.indexOf(normaliser('Latitude'));
+      var cEtLon = entEtRef.indexOf(normaliser('Longitude'));
       if (cEtNom >= 0) {
         shEtRef.getRange(2, 1, shEtRef.getLastRow() - 1, entEtRef.length).getValues().forEach(function (lEt) {
           var nomEt = String(lEt[cEtNom] || '').trim();
@@ -633,7 +638,12 @@ function enregistrerFiche(b, dejaVerrouille) {
           var infoEt = {
             code: cEtCode >= 0 ? String(lEt[cEtCode] || '').trim() : '',
             nom: nomEt,
-            reperes: cEtRep >= 0 ? String(lEt[cEtRep] || '').trim() : ''
+            reperes: cEtRep >= 0 ? String(lEt[cEtRep] || '').trim() : '',
+            commune: cEtCom >= 0 ? String(lEt[cEtCom] || '').trim() : '',
+            quartier: cEtQuart >= 0 ? String(lEt[cEtQuart] || '').trim() : '',
+            secteur: cEtSec >= 0 ? String(lEt[cEtSec] || '').trim() : '',
+            lat: cEtLat >= 0 ? lEt[cEtLat] : '',
+            lon: cEtLon >= 0 ? lEt[cEtLon] : ''
           };
           etabParNom[normaliser(nomEt)] = infoEt;
           if (cEtAlias >= 0 && lEt[cEtAlias]) {
@@ -691,17 +701,19 @@ function enregistrerFiche(b, dejaVerrouille) {
       idsPris[String(id)] = true;
       lignesId.push(String(id));
       if (idBrut && /^TMP/i.test(idBrut)) ids[idBrut] = id;
+      var etabMatch = etabParNom[normaliser(x.lieu || '')] || null;
       var resT = resoudreTerritoireEcriture_({
         territoire: x.territoire || '',
         zone: x.zone || '',
-        commune: x.commune || '',
+        commune: (etabMatch && etabMatch.commune) || x.commune || '',
         subdivision: x.subdivision || '',
-        quartier: x.quartier || '',
-        secteur: x.secteur || '',
-        lieu: x.lieu || ''
+        quartier: (etabMatch && etabMatch.quartier) || x.quartier || '',
+        secteur: (etabMatch && etabMatch.secteur) || x.secteur || '',
+        lieu: (etabMatch && etabMatch.nom) || x.lieu || ''
       }, refQ);
-      var etabMatch = etabParNom[normaliser(x.lieu || '')] || null;
       var repFinal = (etabMatch && etabMatch.reperes) ? etabMatch.reperes : (x.reperes || '');
+      var latFinal = (etabMatch && etabMatch.lat !== '' && etabMatch.lat !== undefined) ? etabMatch.lat : (x.lat === undefined ? '' : x.lat);
+      var lonFinal = (etabMatch && etabMatch.lon !== '' && etabMatch.lon !== undefined) ? etabMatch.lon : (x.lon === undefined ? '' : x.lon);
       var o = {
         id: id,
         code: code,
@@ -709,14 +721,14 @@ function enregistrerFiche(b, dejaVerrouille) {
         lieu: texteCellule_((etabMatch && etabMatch.nom) ? etabMatch.nom : (x.lieu || '')),
         territoire: texteCellule_(resT.territoire || x.territoire || ''),
         zone: texteCellule_(resT.zone || x.zone || ''),
-        commune: texteCellule_(resT.commune || x.commune || ''),
+        commune: texteCellule_((etabMatch && etabMatch.commune) || resT.commune || x.commune || ''),
         subdivision: texteCellule_(resT.subdivision || x.subdivision || ''),
-        quartier: texteCellule_(resT.quartier || x.quartier || ''),
-        secteur: texteCellule_(resT.secteur || x.secteur || ''),
+        quartier: texteCellule_((etabMatch && etabMatch.quartier) || resT.quartier || x.quartier || ''),
+        secteur: texteCellule_((etabMatch && etabMatch.secteur) || resT.secteur || x.secteur || ''),
         horaireMatin: texteCellule_(x.horaireMatin || ''),
         horaireSoir: texteCellule_(x.horaireSoir || ''),
-        lat: x.lat === undefined ? '' : x.lat,
-        lon: x.lon === undefined ? '' : x.lon,
+        lat: latFinal,
+        lon: lonFinal,
         reperes: texteCellule_(repFinal),
         origineGps: texteCellule_(x.origineGps || '')
       };
@@ -1084,9 +1096,9 @@ function enregistrerEtablissement(b) {
               shR.getRange(rnR, cRefE + 1).setValue(code);
               touche = true;
             }
-            if (modif.commune && cComR >= 0 && !fR[idxR][cComR] && (!row[cComR] || normaliser(row[cComR]) === 'nl')) { shR.getRange(rnR, cComR + 1).setValue(modif.commune); touche = true; }
-            if (modif.quartier && cQuartR >= 0 && !fR[idxR][cQuartR] && (!row[cQuartR] || normaliser(row[cQuartR]) === 'nl')) { shR.getRange(rnR, cQuartR + 1).setValue(modif.quartier); touche = true; }
-            if (modif.secteur && cSecR >= 0 && !fR[idxR][cSecR] && !row[cSecR]) { shR.getRange(rnR, cSecR + 1).setValue(modif.secteur); touche = true; }
+            if (modif.commune && cComR >= 0 && !fR[idxR][cComR] && String(row[cComR] || '').trim() !== modif.commune) { shR.getRange(rnR, cComR + 1).setValue(modif.commune); touche = true; }
+            if (modif.quartier && cQuartR >= 0 && !fR[idxR][cQuartR] && String(row[cQuartR] || '').trim() !== modif.quartier) { shR.getRange(rnR, cQuartR + 1).setValue(modif.quartier); touche = true; }
+            if (modif.secteur && cSecR >= 0 && !fR[idxR][cSecR] && String(row[cSecR] || '').trim() !== modif.secteur) { shR.getRange(rnR, cSecR + 1).setValue(modif.secteur); touche = true; }
             if (touche) cascades++;
           }
         });
