@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.69",
+  "version": "3.31.70",
   "date": "2026-11-15",
   "notes": [
-    "Tirage & Recalculer : mémoire persistante des tirages précédents (les médecins proposés mais non retenus restent évités aux tirages suivants pour explorer tout le vivier, même après confirmation ou rechargement)"
+    "Tirage & Recalculer : la mémoire persistante des médecins non retenus est réinitialisée automatiquement si vous modifiez vos critères de planification"
   ]
 }
