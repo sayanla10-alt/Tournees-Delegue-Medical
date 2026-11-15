@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.62';
+  var APP_VERSION = '3.31.63';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.63', ['Planifier : chaque groupe porte le nom exact de la subdivision de l\'onglet Quartiers (Angré, Riviera, Deux Plateaux, Cocody Centre…), affiché même quand la journée tient dans une seule subdivision', 'Planifier : le bandeau bleu « Déjà planifié » se touche : il montre les visites déjà prévues et permet de garder ou de remplacer chacune ; les visites remplacées sont aussitôt reproposées par le tirage']],
     ['3.31.62', ['Listes déroulantes des quartiers complètes (Cocody : 69 quartiers, Triangle compris)', 'Planifier : groupes par subdivision affichés comme avant (Cocody Centre, Cocody – Angré, Riviera…)', 'Tirage : onglet Quartiers vérifié juste avant, sans attente', 'Présences : lieux reliés aux pharmacies par leur code, nouveaux lieux créés avec un code ETAB, spécialité et téléphone tirés de la fiche du praticien']],
     ['3.31.61', ['Planifier : communes segmentées et subdivisions lues dans l\'onglet Quartiers (plus aucun nom écrit en dur) : un nom de subdivision changé, ajouté ou supprimé s\'applique tout de suite', 'Quartier qui porte le nom d\'une subdivision (« Deux Plateaux », « Riviera ») rangé dans cette subdivision']],
     ['3.31.60', ['Base allégée : Etablissements et Pharmacies n\'ont plus de colonnes Zone, Territoire, Subdivision ni Secteur (ni Position) ; ces informations viennent toutes de l\'onglet Quartiers, par la même règle sur le serveur et dans l\'application', 'Repères des pharmacies lus et enregistrés', 'Quartier homonyme d\'une autre commune : le lieu reste dans sa commune']],
@@ -4614,12 +4615,14 @@
     var vus = {};
     return l.filter(function (a) { if (vus[a.code]) return false; vus[a.code] = true; return true; });
   }
+  // 3.31.63 : le bandeau se touche : il ouvre le détail des visites déjà planifiées, à garder ou à remplacer
   function bandeauDejaPlanifie(dates) {
     var l = dates.map(function (d) { return { d: d, n: donneesJour(d).length }; }).filter(function (x) { return x.n; });
     if (!l.length) return '';
-    return '<div class="bandeau info deja-planifie">' + icone('calendrier') + '<p><b>Déjà planifié</b><br>' +
+    return '<button type="button" class="bandeau info deja-planifie" data-a="dejaPlanifieOuvrir">' + icone('calendrier') + '<p><b>Déjà planifié</b><br>' +
       l.map(function (x) { return majuscule(dateCourte(x.d)) + ' : ' + x.n + ' visite' + (x.n > 1 ? 's' : ''); }).join('<br>') +
-      '<br><span class="discret">Ces visites restent en place ; seuls les créneaux libres seront complétés.</span></p></div>';
+      '<br><span class="discret">Ces visites restent en place ; seuls les créneaux libres seront complétés.</span>' +
+      '<span class="deja-voir">Voir le détail, garder ou remplacer ' + icone('chevron') + '</span></p></button>';
   }
   function prochainFerie() {
     var t = aujourdhui(), l = feries().filter(function (d) { return d >= t; }).sort();
@@ -6357,17 +6360,9 @@
 
   // 3.31.36 : liste fidèle à l'ordre chronologique du TSP (sans jamais remonter un arrêt du soir avant un arrêt du matin) ;
   // un titre de secteur n'apparaît que lors d'un véritable changement de secteur le long du parcours
-  // 3.31.62 : titre de secteur comme avant (« Cocody – Angré », « Yopougon – Niangon »), avec les noms de subdivision de
-  // l'onglet Quartiers : la commune est ajoutée devant une subdivision qui ne la nomme pas déjà (« Cocody Centre » reste tel quel)
-  function libelleSecteurPlan(nom, commune) {
-    var n = String(nom || '').trim(); if (!n) return n;
-    var par = communeParente(commune || '') || '';
-    if (!par || !estGrandeCommune(par)) {
-      var parSub = communeParente(n); if (parSub && normaliser(parSub) !== normaliser(n)) par = parSub; else return n;
-    }
-    if (normaliser(n) === normaliser(par) || normaliser(n).indexOf(normaliser(par)) === 0) return n;
-    return par + ' – ' + n;
-  }
+  // 3.31.63 : titre de secteur comme avant la 3.31.58 (« Riviera », « Deux Plateaux »), soit le nom exact de la subdivision
+  // dans l'onglet Quartiers (« Angré », « Cocody Centre », « Riviera »…) ; la commune seule pour une commune non segmentée
+  function libelleSecteurPlan(nom) { return String(nom || '').trim(); }
   function rendreGroupesPlan(l) {
     var tri = l.slice().sort(function (a, b) {
       var ha = heureVersMinutes(a.heure), hb = heureVersMinutes(b.heure);
@@ -6378,12 +6373,13 @@
     tri.forEach(function (a) {
       var nom = Moteur.nomSecteurTournee(a, quartiers()), k = normaliser(nom) || ('u|' + a.uid);
       if (!dernier || dernier.cle !== k) {
-        dernier = { cle: k, nom: libelleSecteurPlan(nom, a.commune), l: [] };
+        dernier = { cle: k, nom: libelleSecteurPlan(nom), l: [] };
         blocs.push(dernier);
       }
       dernier.l.push(a);
     });
-    var titres = blocs.length > 1;
+    // 3.31.63 : le secteur est toujours affiché, même quand toute la journée est dans une seule subdivision
+    var titres = blocs.length > 1 || (blocs.length === 1 && !!blocs[0].nom);
     return blocs.map(function (b) {
       return (titres ? '<li class="lp-groupe lp-groupe-q" aria-hidden="true">' + icone('localisation') + '<span>' + esc(b.nom || 'Autre secteur') + '</span><small>' + b.l.length + ' visite' + (b.l.length > 1 ? 's' : '') + '</small></li>' : '') +
         b.l.map(function (a) { return rendreLignePlan(a); }).join('');
@@ -9182,6 +9178,33 @@
   // 3.21.0 : un seul filtre « Qui / Quand » pour le Bilan (tableau de bord et historique) et l'Équipe :
   // moi, toute l'équipe ou plusieurs délégués choisis ; jour, semaine, mois ou période, avec ‹ › pour avancer ou reculer
   var FEUILLES = {};   // feuilles (fenêtres) : déclarées ici car certaines sont définies plus haut que leur section
+
+  // 3.31.63 : détail des visites déjà planifiées sur la période (bandeau bleu de Planifier) : pour chacune, garder ou remplacer.
+  // Une visite faite (compte rendu) reste. Remplacer : la visite est retirée et le tirage complète les créneaux libérés.
+  FEUILLES.dejaPlanifie = function (f) {
+    var choix = f.choix || {}, nbR = 0, corps = '';
+    (f.dates || []).forEach(function (d) {
+      var l = donneesJour(d).slice().sort(function (a, b) { return String(a.heure || '').localeCompare(String(b.heure || '')); });
+      if (!l.length) return;
+      corps += '<h4 class="dp-jour">' + esc(majuscule(dateCourte(d))) + ' <small>' + l.length + ' visite' + (l.length > 1 ? 's' : '') + '</small></h4><ul class="dp-liste">';
+      l.forEach(function (a) {
+        var k = d + '|' + a.code, faite = !!vraiStatut(a.statut), rempl = !faite && choix[k] === 'remplacer';
+        if (rempl) nbR++;
+        var det = [a.specialite, a.lieu, a.quartier || a.commune].filter(function (x) { return x; }).map(esc).join(' · ');
+        corps += '<li class="dp-visite' + (rempl ? ' dp-rempl' : '') + '"><div class="dp-info"><b>' + (a.heure ? '<span class="dp-heure">' + esc(a.heure) + '</span> ' : '') + esc(a.nom) + '</b>' +
+          (det ? '<small>' + det + '</small>' : '') + '</div>' +
+          (faite ? '<span class="etiquette ok">' + esc(a.statut) + '</span>'
+            : '<div class="puces dp-puces"><button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="garder" aria-pressed="' + !rempl + '">Garder</button>' +
+              '<button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="remplacer" aria-pressed="' + rempl + '">Remplacer</button></div>') + '</li>';
+      });
+      corps += '</ul>';
+    });
+    if (!corps) corps = '<p class="discret">Aucune visite planifiée sur cette période.</p>';
+    else corps = '<p class="discret" style="margin:0 0 8px">Touchez « Remplacer » pour les visites à changer : elles sont retirées et le tirage propose d\'autres praticiens à leur place. Les visites faites restent.</p>' + corps;
+    var pied = '<button class="bouton" type="button" data-a="dejaToutGarder">Tout garder</button>' +
+      '<button class="bouton bouton-plein" type="button" data-a="dejaAppliquer"' + (nbR ? '' : ' disabled') + '>' + icone('relancer') + (nbR ? 'Remplacer ' + nbR + ' visite' + (nbR > 1 ? 's' : '') : 'Remplacer') + '</button>';
+    return { corps: corps, pied: pied };
+  };
   FEUILLES.rappels = feuilleRappels;
   S.ui.fq = LS.get('filtreQui', { qui: 'moi', liste: [] });
   function nomsDelegues() {
@@ -14163,6 +14186,37 @@
       rendre();
     },
     ouvrirAutour: function () { S.ui.pharmaciesProches = false; S.ui.rechAutourLibre = ''; S.ui.tab = 'autour'; chercherMaPosition(); rendre(); window.scrollTo(0, 0); },
+    dejaPlanifieOuvrir: function () {
+      S.ui.feuille = { type: 'dejaPlanifie', titre: 'Visites déjà planifiées', pleine: true, dates: datesPeriode().filter(function (d) { return donneesJour(d).length; }), choix: {} };
+      rendre();
+    },
+    dejaChoix: function (el) {
+      var f = S.ui.feuille; if (!f || f.type !== 'dejaPlanifie') return;
+      f.choix = f.choix || {}; if (el.dataset.v === 'remplacer') f.choix[el.dataset.k] = 'remplacer'; else delete f.choix[el.dataset.k];
+      rendreFeuille();
+    },
+    dejaToutGarder: function () { S.ui.feuille = null; rendre(); toast('Toutes les visites déjà planifiées sont gardées.'); },
+    dejaAppliquer: function () {
+      var f = S.ui.feuille; if (!f || f.type !== 'dejaPlanifie') return;
+      var cles = Object.keys(f.choix || {}).filter(function (k) { return f.choix[k] === 'remplacer'; });
+      if (!cles.length) return;
+      var noms = [];
+      cles.forEach(function (k) { var d = k.split('|')[0], c = k.slice(d.length + 1); var a = donneesJour(d).filter(function (x) { return x.code === c; })[0]; if (a) noms.push(a.nom + ' (' + dateCourte(d) + ')'); });
+      confirmerPuis('Remplacer des visites', 'Remplacer ' + (cles.length > 1 ? 'ces ' + cles.length + ' visites' : 'cette visite') + ' : ' + esc(noms.join(', ')) + ' ?<br><span class="discret">Elles sont retirées de la tournée et le tirage propose d\'autres praticiens à leur place.</span>', 'Remplacer', function () {
+        var dates = {};
+        cles.forEach(function (k) {
+          var d = k.split('|')[0], c = k.slice(d.length + 1);
+          var a = donneesJour(d).filter(function (x) { return x.code === c; })[0];
+          if (!a || vraiStatut(a.statut)) return;
+          S.plan = S.plan.filter(function (x) { return !(x.date === d && x.code === c); });
+          S.imposes = S.imposes.filter(function (im) { return !(im.code === c && im.date === d); });
+          S.rejetes[c] = true; refuser(c, d); marquerVisiteSupprimee(d, c); dates[d] = true;
+        });
+        Object.keys(dates).forEach(function (d) { reordonner(d); });
+        S.ui.feuille = null; S.ui.aPublier = true; LS.set('aPublier', true); marquerModifie(); sauver();
+        ACTIONS.generer();
+      });
+    },
     generer: function () {
       if (S.ui.tab === 'semaine' && S.params.mode !== 'semaine' && S.ui.jour && S.ui.jour >= aujourdhui()) {
         S.params.mode = 'jour';

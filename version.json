@@ -1,9 +1,8 @@
 ﻿{
-  "version": "3.31.62",
+  "version": "3.31.63",
   "date": "2026-11-15",
   "notes": [
-    "Listes déroulantes des quartiers complètes dans Etablissements et Pharmacies (Triangle compris)",
-    "Planifier : groupes par subdivision affichés comme avant, avec les nouveaux noms",
-    "Présences harmonisées avec Etablissements, Pharmacies, Quartiers et Praticiens"
+    "Planifier : groupes au nom exact de la subdivision (Angré, Riviera, Deux Plateaux, Cocody Centre…), toujours affichés",
+    "Planifier : le bandeau « Déjà planifié » ouvre le détail des visites prévues, à garder ou à remplacer"
   ]
 }
