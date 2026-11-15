@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.88';
+  var APP_VERSION = '3.31.89';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.89', ['Vérifier la fiche : espace resserré pour le téléphone (tableau Ancien / Nouveau plus compact, marges réduites)', 'Vérifier la fiche : retour du tableau Ancien / Nouveau par médecin (téléphone, spécialité, lieu, planning) : on touche la valeur à garder ; l\'hôpital et la semaine se règlent en touchant le nom']],
     ['3.31.88', ['Journée : ajout de la 4e icône « à vol d\'oiseau » (distance directe sans détour routier) après distance route, à pied et en voiture']],
     ['3.31.87', ['Écran d\'accueil : ne se relance plus plusieurs fois pendant le chargement initial ou la synchronisation']],
     ['3.31.86', ['Vérifier la fiche réorganisé par importance : d\'abord les noms à vérifier (une question, Oui / Non), puis les nouveaux contacts, puis les mises à jour en un mot (Téléphone, Planning + jeu.) ; le détail s\'ouvre en touchant la ligne ; seul ce qui manque est demandé', 'Répertoire › Ajouter : « Scanner une fiche » et « Photo déjà prise » côte à côte, pour reprendre la photo d\'un compte rendu déjà prise (galerie ou dossiers du téléphone)']],
@@ -12329,6 +12330,35 @@
     }
     return t;
   }
+  // 3.31.87 : tableau Ancien / Nouveau par médecin, comme avant : une ligne par champ qui change, on touche la valeur à garder
+  function joursCourts(j) {
+    var N = ['Lu', 'Ma', 'Me', 'Je', 'Ve'], l = [];
+    (j || []).forEach(function (x, k) { if (k < 5 && x && (x.matin || x.soir)) l.push(N[k] + ' ' + (x.matin && x.soir ? 'M+S' : x.matin ? 'M' : 'S')); });
+    return l.join(', ');
+  }
+  function tableauScan(ent, pl, i, estPh, v) {
+    var lignes = changementsScan(ent, pl).map(function (r) {
+      var court = function (t) { return r.k === 'telephone' ? String(t || '').replace(/^\+225\s*/, '') : t; };
+      return { k: r.k, lib: { nom: 'Nom', telephone: 'Tél.', specialite: 'Spéc.', etablissement: 'Lieu', quartier: 'Quartier', absence: 'Absence' }[r.k] || r.champ,
+        a: court(r.base), n: court(r.fiche), c: choixChangementScan(ent, r) };
+    });
+    var pc = !estPh && planningChangeScan(ent, pl);
+    if (pc && pl.prog) {
+      var nv = JSON.parse(JSON.stringify(pl.prog.avant || [])), wd = pl.prog.wd;   // ce que la fiche ajoute, même si l'ancien est retenu
+      if (wd >= 0 && wd <= 4) { var x0 = nv[wd] || {}; nv[wd] = { matin: x0.matin || !!v.matin, soir: x0.soir || !!v.soir }; }
+      if (ent.joursModifs) nv = pl.prog.apres;
+      lignes.push({ k: 'programme', lib: 'Planning', a: joursCourts(pl.prog.avant), n: joursCourts(nv), c: ent.refus && ent.refus.programme ? 'base' : 'fiche' });
+    }
+    if (!lignes.length) return '';
+    return '<table class="vf-tab"><thead><tr><th></th><th>Ancien</th><th>Nouveau</th></tr></thead><tbody>' + lignes.map(function (l) {
+      var cell = function (cote, val) {
+        var on = (cote === 'ancien') === (l.c === 'base');
+        return '<td><button type="button" class="vf-cell' + (on ? ' on' : '') + '" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(l.k) + '" data-val="' + cote + '" aria-pressed="' + on + '">' +
+          (val ? esc(val) : '<span class="vf-vide">aucun</span>') + '</button></td>';
+      };
+      return '<tr><th>' + esc(l.lib) + '</th>' + cell('ancien', l.a) + cell('nouveau', l.n) + '</tr>';
+    }).join('') + '</tbody></table>';
+  }
   function ligneScan(f, v, ent, pl, i, cl) {
     var estPh = ent.type === 'Pharmacie', ex = ent.choix ? praticien(ent.choix) : null, L = pl.lieu;
     var nom = ex && cl === 'changement' ? ex.nom : (ent.nom ? nomPropre(ent.nom, estPh) : 'Nom illisible');
@@ -12342,10 +12372,12 @@
       '<div class="vf3-ligne"><button type="button" class="vf3-corps" data-a="scanOuvrir" data-i="' + i + '" aria-expanded="' + ouvert + '"' + (ent.inclus ? '' : ' disabled') + '>' +
         '<span class="vf3-nom">' + esc(nom) + '</span>' +
         (sous ? '<span class="vf3-sous">' + esc(sous) + '</span>' : '') +
-        (tags.length ? '<span class="vf3-tags">' + tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</span>' : '') +
+        (tags.length && cl !== 'changement' ? '<span class="vf3-tags">' + tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</span>' : '') +
+        (cl === 'changement' && !estPh && pl.prog && pl.prog.lieu ? '<span class="vf3-sous vf3-hop">Visité à ' + esc(pl.prog.lieu) + '</span>' : '') +
         (manque ? '<span class="vf3-manque">' + esc(manque) + '</span>' : '') +
       '</button>' +
       '<button type="button" class="vf2-switch" role="switch" aria-checked="' + !!ent.inclus + '" aria-label="Intégrer ' + esc(nom) + '" data-a="scanInclure" data-i="' + i + '" data-v="' + (ent.inclus ? 'non' : 'oui') + '"><span></span></button></div>';
+    if (cl === 'changement' && ent.inclus) h += tableauScan(ent, pl, i, estPh, v);
     if (ouvert) h += '<div class="vf3-detail">' + detailScan(f, v, ent, pl, i, cl) + '</div>';
     return h + '</section>';
   }
@@ -12369,13 +12401,6 @@
         }).join('') +
         '<button type="button" class="bouton bouton-plein vf-large" data-a="scanBasculerChoix" data-i="' + i + '" data-mode="nouveau">Non, ' + (estPh ? 'nouvelle pharmacie' : 'nouveau contact') + '</button></div>';
     } else if (cl === 'changement') {
-      changementsScan(ent, pl).forEach(function (r) {
-        var c = choixChangementScan(ent, r), court = function (t) { return r.k === 'telephone' ? String(t || '').replace(/^\+225\s*/, '') : t; };
-        var lib = { nom: 'Nom', telephone: 'Tél.', specialite: 'Spéc.', etablissement: 'Lieu', quartier: 'Quartier', absence: 'Absence' }[r.k] || r.champ;
-        h += '<div class="vf-reglage"><span class="vf-lib">' + esc(lib) + '</span><div class="vf-choix"><span class="vf-val"><b>' + esc(court(r.fiche) || '(vide)') + '</b>' + (r.base ? '<small>avant : ' + esc(court(r.base)) + '</small>' : '') + '</span>' +
-          '<div class="segment vf-mini" role="group"><button type="button" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(r.k) + '" data-val="ancien" aria-pressed="' + (c === 'base') + '">' + (r.base ? 'Base' : 'Non') + '</button>' +
-          '<button type="button" data-a="scanChangerPuce" data-i="' + i + '" data-champ="' + esc(r.k) + '" data-val="nouveau" aria-pressed="' + (c === 'fiche') + '">Fiche</button></div></div></div>';
-      });
       if (!estPh) h += blocLieuScan(f, ent, pl, i, ex);
       if (ent.decision === 'oui') h += '<p class="vf-lien"><button type="button" class="lien" data-a="scanRevoirProche" data-i="' + i + '">Ce n\'est pas la même personne</button></p>';
     } else {

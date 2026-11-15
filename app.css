@@ -5070,3 +5070,27 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .fx-scan-rangee { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .fx-scan-rangee .fx-btn-scanner-hero { padding: 10px 8px; white-space: nowrap; }
 .fx-btn-scanner-hero svg { fill: none; stroke: currentColor; stroke-width: 2; }
+
+/* 3.31.87 : tableau Ancien / Nouveau par médecin */
+.vf-tab { width: 100%; border-collapse: separate; border-spacing: 0 4px; table-layout: fixed; margin: -4px 0 8px; font-size: 13.5px; }
+.vf-tab thead th { font-size: 12px; font-weight: 600; color: var(--gris); text-align: left; padding: 0 8px; }
+.vf-tab thead th:first-child, .vf-tab tbody th { width: 64px; }
+.vf-tab tbody th { font-size: 12.5px; font-weight: 600; color: var(--gris); text-align: left; padding: 0 4px 0 0; vertical-align: middle; }
+.vf-tab td { padding: 0 2px; vertical-align: stretch; }
+.vf-cell { width: 100%; min-height: 36px; text-align: left; font: inherit; font-size: 13.5px; color: var(--gris); background: var(--papier-2, #F0F4F6); border: 1.5px solid transparent; border-radius: 8px; padding: 6px 8px; cursor: pointer; word-break: break-word; }
+.vf-cell.on { color: var(--encre, #0E2230); font-weight: 600; background: var(--primaire-pale, #E0F0F1); border-color: var(--primaire); }
+.vf-vide { font-style: italic; font-weight: 400; color: var(--gris-2, #9aa5a8); }
+.vf3-hop { color: var(--primaire) !important; }
+/* 3.31.88 : espace resserré pour téléphone */
+.vf-tab { border-spacing: 0 3px; margin: -6px 0 6px; font-size: 13px; }
+.vf-tab thead th { font-size: 11.5px; padding: 0 6px; line-height: 1.2; }
+.vf-tab thead th:first-child, .vf-tab tbody th { width: 56px; }
+.vf-tab tbody th { font-size: 12px; }
+.vf-cell { min-height: 30px; padding: 4px 7px; font-size: 13px; border-radius: 7px; }
+.vf3-corps { padding: 9px 0; gap: 2px; }
+.vf3-titre { margin: 12px 0 2px; }
+.vf3-doute { padding: 10px 12px; margin: 4px 0 6px; }
+.vf3-ctx { margin: 0 0 8px; }
+.vf3-doute .vf-boutons .bouton { min-height: 36px; }
+.vf-tete { padding-bottom: 6px; }
+.vf3-bas { margin-top: 10px; }
