@@ -1,8 +1,7 @@
 ﻿{
-  "version": "3.31.86",
+  "version": "3.31.87",
   "date": "2026-11-15",
   "notes": [
-    "Vérifier la fiche réorganisé par importance : noms à vérifier, nouveaux contacts, puis mises à jour en un mot",
-    "Ajouter : « Scanner une fiche » et « Photo déjà prise » côte à côte"
+    "Écran d'accueil : ne se relance plus plusieurs fois pendant le chargement initial ou la synchronisation"
   ]
 }

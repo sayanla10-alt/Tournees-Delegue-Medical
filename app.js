@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.86';
+  var APP_VERSION = '3.31.87';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.87', ['Écran d\'accueil : ne se relance plus plusieurs fois pendant le chargement initial ou la synchronisation']],
     ['3.31.86', ['Vérifier la fiche réorganisé par importance : d\'abord les noms à vérifier (une question, Oui / Non), puis les nouveaux contacts, puis les mises à jour en un mot (Téléphone, Planning + jeu.) ; le détail s\'ouvre en touchant la ligne ; seul ce qui manque est demandé', 'Répertoire › Ajouter : « Scanner une fiche » et « Photo déjà prise » côte à côte, pour reprendre la photo d\'un compte rendu déjà prise (galerie ou dossiers du téléphone)']],
     ['3.31.85', ['Écran de mise à jour : les nouveautés restent affichées sans décompte automatique (l\'écran ne saute plus tout seul)']],
     ['3.31.84', ['Vérifier la fiche, « Ajuster » compact : lieu de visite dans une liste déroulante, planning et choix Base / Fiche sur une ligne chacun ; un établissement absent de la base est signalé et créé']],
@@ -16967,7 +16968,11 @@
   // ------------------------------------------------------------------ Écran de lancement
   function rendreLancement() {
     var el = $('lancement');
-    if (!S.ui.lancement) { el.hidden = true; el.innerHTML = ''; return; }
+    if (!S.ui.lancement) {
+      el.hidden = true; el.innerHTML = '';
+      delete el.dataset.lancementCle;
+      return;
+    }
     var etat, detail = '';
     if (S.config.demo) etat = ['demo', 'Mode démonstration'];
     else if (!pret()) etat = ['aucune', 'Aucune base connectée'];
@@ -16975,11 +16980,7 @@
     else etat = ['ok', 'Base de données opérationnelle'];
     if (pret() && S.data.syncedAt) detail = 'Synchro ' + new Date(S.data.syncedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     // 3.25.0 : accueil plein écran, sans décompte ; ouverture après 2 s, ou tout de suite d'un toucher
-    var h = '<div class="lancement moderne" role="dialog" aria-modal="true" aria-labelledby="titreLancement">' +
-      '<div class="lancement-tete"><div class="logo-halo"><img src="icon-192.png" alt=""></div><h1 id="titreLancement">MediPlanner</h1>' +
-      '<p>Tournées médicales, planning des praticiens et suivi d\'équipe</p>' +
-      '<span class="version">v' + APP_VERSION + '</span></div><div class="lancement-corps">' +
-      '<div class="etat-base ' + etat[0] + '">' + etat[1] + (detail ? '<small>' + esc(detail) + '</small>' : '') + '</div>';
+    var corps = '<div class="etat-base ' + etat[0] + '">' + etat[1] + (detail ? '<small>' + esc(detail) + '</small>' : '') + '</div>';
     if (pret()) {
       var prat = ctx().prat, nMed = 0, nPha = 0;
       Object.keys(prat).forEach(function (k) { if (prat[k].type === 'Pharmacie') nPha++; else nMed++; });
@@ -16988,7 +16989,7 @@
       var sem = arretsPlanifies(true).filter(function (a) { return a.date >= l && a.date <= f; });
       var del = {}; sem.forEach(function (a) { if (a.delegue) del[a.delegue] = true; });
       var vus = visitesConnues().filter(function (v) { return String(v.date).slice(0, 10) >= lundiDe(aujourdhui()) && Moteur.estVisite(v.statut, statuts()); }).length;
-      h += '<div class="metriques">' +
+      corps += '<div class="metriques">' +
         '<div class="metrique"><b>' + nMed + '</b><span>médecins enregistrés</span></div>' +
         '<div class="metrique"><b>' + nPha + '</b><span>pharmacies</span></div>' +
         '<div class="metrique"><b>' + sem.length + '</b><span>visites planifiées, semaine du ' + dateCourte(l).slice(5) + (S.config.demo ? '' : ' (équipe)') + '</span></div>' +
@@ -16996,14 +16997,28 @@
         (pf ? '<p class="discret" style="margin:-6px 0 14px">Prochain jour férié : <b>' + esc(nomFerie(pf)) + '</b>, ' + dateLongue(pf) + '.</p>' : '');
     }
     if (S.ui.nouveautes && S.ui.nouveautes.length) {
-      h += '<div class="nouveautes"><b>Nouveautés de la mise à jour ' + APP_VERSION + '</b><ul>' + S.ui.nouveautes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
+      corps += '<div class="nouveautes"><b>Nouveautés de la mise à jour ' + APP_VERSION + '</b><ul>' + S.ui.nouveautes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
     }
-    h += '<p class="lancement-astuce" id="lancementAstuce">' + (S.ui.lancementAuto ? 'Touchez l\'écran pour suspendre le décompte et lire tranquillement' : 'Prenez le temps de lire puis lancez votre journée ci-dessous') + '</p>';
-    h += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="jour">Lancer l\'application</button>' +
+    corps += '<p class="lancement-astuce" id="lancementAstuce">' + (S.ui.lancementAuto ? 'Touchez l\'écran pour suspendre le décompte et lire tranquillement' : 'Prenez le temps de lire puis lancez votre journée ci-dessous') + '</p>';
+    corps += pret() ? '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="jour">Lancer l\'application</button>' +
         '<button class="bouton" type="button" data-a="fermerLancement" data-tab="bilan" style="margin-top:10px">Voir mon bilan</button>'
       : '<button class="bouton bouton-plein" type="button" data-a="fermerLancement" data-tab="jour">Lancer l\'application</button>';
-    el.innerHTML = h + '</div></div>';
-    el.hidden = false;
+
+    var dejaAffiche = !el.hidden && el.querySelector('.lancement-corps');
+    if (dejaAffiche) {
+      if (el.dataset.lancementCle !== corps) {
+        el.querySelector('.lancement-corps').innerHTML = corps;
+        el.dataset.lancementCle = corps;
+      }
+    } else {
+      var tete = '<div class="lancement moderne" role="dialog" aria-modal="true" aria-labelledby="titreLancement">' +
+        '<div class="lancement-tete"><div class="logo-halo"><img src="icon-192.png" alt=""></div><h1 id="titreLancement">MediPlanner</h1>' +
+        '<p>Tournées médicales, planning des praticiens et suivi d\'équipe</p>' +
+        '<span class="version">v' + APP_VERSION + '</span></div><div class="lancement-corps">' + corps + '</div></div>';
+      el.innerHTML = tete;
+      el.dataset.lancementCle = corps;
+      el.hidden = false;
+    }
     if (pret() && S.ui.lancementAuto) demarrerDecompte();
   }
   // Lancement automatique : l'écran d'accueil se ferme seul et ouvre la tournée.
