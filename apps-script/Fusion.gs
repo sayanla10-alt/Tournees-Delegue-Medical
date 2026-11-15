@@ -547,7 +547,8 @@ function fusionnerEtablissements_(ss, o) {
   if (tP && chP) {
     var p = {
       id: tP.col('IdPresence'), code: tP.col('CodeContact'), lieu: tP.col('Lieu/Etablissement'), quart: tP.col('Quartier'), com: tP.col('Commune'), zone: tP.col('Zone'),
-      lat: tP.col('Latitude'), lon: tP.col('Longitude'), ori: tP.col('OrigineGPS'), rep: tP.col('Repères', 'Reperes'), hm: tP.col('HoraireMatin'), hs: tP.col('HoraireSoir')
+      lat: tP.col('Latitude'), lon: tP.col('Longitude'), ori: tP.col('OrigineGPS'), rep: tP.col('Repères', 'Reperes'), hm: tP.col('HoraireMatin'), hs: tP.col('HoraireSoir'),
+      refE: tP.col('Ref_CodeEtab')
     };
     var renommees = {}, groupes = {};
     tP.data.forEach(function (l, i) {
@@ -555,14 +556,18 @@ function fusionnerEtablissements_(ss, o) {
       if (estB(l[p.lieu], l[p.com])) {
         renommees[i] = 1; bilan.presences++;
         chP.poser(i, p.lieu, A.nom);
+        if (p.refE >= 0 && A.code) chP.poser(i, p.refE, A.code);
         if (ref.commune && fusVide_(l[p.com])) chP.poser(i, p.com, ref.commune);
         if (ref.quartier && fusVide_(l[p.quart])) chP.poser(i, p.quart, ref.quartier);
         if (ref.zone && p.zone >= 0 && fusVide_(l[p.zone])) chP.poser(i, p.zone, ref.zone);
-        if (p.rep >= 0 && ref.rep && fusVide_(l[p.rep])) chP.poser(i, p.rep, ref.rep);
+        if (p.rep >= 0 && ref.rep) chP.poser(i, p.rep, ref.rep);
         if (!fusVide_(ref.lat) && p.lat >= 0 && !/terrain/i.test(fusTxt_(l[p.ori]))) {
           chP.poser(i, p.lat, ref.lat); chP.poser(i, p.lon, ref.lon);
           if (p.ori >= 0) chP.poser(i, p.ori, ref.ori);
         }
+      } else if (estA(l[p.lieu], l[p.com])) {
+        if (p.refE >= 0 && A.code && fusVide_(l[p.refE])) chP.poser(i, p.refE, A.code);
+        if (p.rep >= 0 && ref.rep && fusTxt_(l[p.rep]) !== ref.rep) chP.poser(i, p.rep, ref.rep);
       }
       if (renommees[i] || estA(l[p.lieu], l[p.com])) {
         var g = fusTxt_(l[p.code]);

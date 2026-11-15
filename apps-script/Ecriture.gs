@@ -617,8 +617,37 @@ function enregistrerFiche(b, dejaVerrouille) {
 
     // --- Presences : lieux du praticien remplacés (mêmes lignes réutilisées, identifiants conservés)
     var refQ = referentielQuartiers_(ss);
+    var etabParNom = {};
+    var shEtRef = ss.getSheetByName(FEUILLES.etablissements);
+    if (shEtRef && shEtRef.getLastRow() > 1) {
+      var entEtRef = shEtRef.getRange(1, 1, 1, shEtRef.getLastColumn()).getValues()[0].map(normaliser);
+      var cEtCode = entEtRef.indexOf(normaliser('CodeEtab'));
+      var cEtNom = entEtRef.indexOf(normaliser('Nom'));
+      var cEtRep = entEtRef.indexOf(normaliser('Reperes'));
+      if (cEtRep < 0) cEtRep = entEtRef.indexOf(normaliser('Repères'));
+      var cEtAlias = entEtRef.indexOf(normaliser('Alias'));
+      if (cEtNom >= 0) {
+        shEtRef.getRange(2, 1, shEtRef.getLastRow() - 1, entEtRef.length).getValues().forEach(function (lEt) {
+          var nomEt = String(lEt[cEtNom] || '').trim();
+          if (!nomEt) return;
+          var infoEt = {
+            code: cEtCode >= 0 ? String(lEt[cEtCode] || '').trim() : '',
+            nom: nomEt,
+            reperes: cEtRep >= 0 ? String(lEt[cEtRep] || '').trim() : ''
+          };
+          etabParNom[normaliser(nomEt)] = infoEt;
+          if (cEtAlias >= 0 && lEt[cEtAlias]) {
+            String(lEt[cEtAlias]).split(/\s*[;,]\s*/).forEach(function (al) {
+              var na = normaliser(al);
+              if (na && !etabParNom[na]) etabParNom[na] = infoEt;
+            });
+          }
+        });
+      }
+    }
     var champsR = champsEcrAvecTerritoire_(CHAMPS_PRESENCES);
     var entR = shR.getRange(1, 1, 1, shR.getLastColumn()).getValues()[0].map(normaliser);
+    var cRefEtabR = entR.indexOf(normaliser('Ref_CodeEtab'));
     var posR = champsR.map(function (c) { return entR.indexOf(normaliser(c[1])); });
     var rCode = posR[indexChamp(champsR, 'code')], rId = posR[indexChamp(champsR, 'id')];
     var nR = Math.max(shR.getLastRow() - 1, 0);
@@ -671,11 +700,13 @@ function enregistrerFiche(b, dejaVerrouille) {
         secteur: x.secteur || '',
         lieu: x.lieu || ''
       }, refQ);
+      var etabMatch = etabParNom[normaliser(x.lieu || '')] || null;
+      var repFinal = (etabMatch && etabMatch.reperes) ? etabMatch.reperes : (x.reperes || '');
       var o = {
         id: id,
         code: code,
         nom: texteCellule_(nom),
-        lieu: texteCellule_(x.lieu || ''),
+        lieu: texteCellule_((etabMatch && etabMatch.nom) ? etabMatch.nom : (x.lieu || '')),
         territoire: texteCellule_(resT.territoire || x.territoire || ''),
         zone: texteCellule_(resT.zone || x.zone || ''),
         commune: texteCellule_(resT.commune || x.commune || ''),
@@ -686,7 +717,7 @@ function enregistrerFiche(b, dejaVerrouille) {
         horaireSoir: texteCellule_(x.horaireSoir || ''),
         lat: x.lat === undefined ? '' : x.lat,
         lon: x.lon === undefined ? '' : x.lon,
-        reperes: texteCellule_(x.reperes || ''),
+        reperes: texteCellule_(repFinal),
         origineGps: texteCellule_(x.origineGps || '')
       };
       // 3.9.0 : pas de position prise sur place ? on cherche l'établissement sur Google Maps (Abidjan), sinon centroïde quartier
@@ -712,6 +743,7 @@ function enregistrerFiche(b, dejaVerrouille) {
       JOURS_CLES.forEach(function (j) { o[j] = texteCellule_(x[j] || ''); });
       var v = entR.map(function () { return ''; });
       champsR.forEach(function (c, k) { if (posR[k] >= 0) v[posR[k]] = o[c[0]] === undefined ? '' : o[c[0]]; });
+      if (cRefEtabR >= 0 && etabMatch && etabMatch.code) v[cRefEtabR] = etabMatch.code;
       return v;
     });
     // 1) lieux déjà en base : réécrits sur leur propre ligne ; 2) lieux nouveaux : sur les lignes libérées, sinon ajoutés ;
@@ -1014,38 +1046,52 @@ function enregistrerEtablissement(b) {
       try { deployerFormulesTerritoire_(ss, [FEUILLES.etablissements], [rangE]); } catch (eFEt) {}
     }
 
-    // Cascade GPS et territoire/quartier vers la feuille Presences sans écraser les formules dynamiques
+    // Cascade GPS, repères et territoire/quartier vers la feuille Presences sans écraser les formules dynamiques
     var cascades = 0;
-    if (isFinite(modif.lat) && isFinite(modif.lon) && modif.lat) {
-      var shR = ss.getSheetByName(FEUILLES.presences);
-      if (shR && shR.getLastRow() > 1) {
-        var entR = shR.getRange(1, 1, 1, shR.getLastColumn()).getValues()[0].map(normaliser);
-        var cLieu = entR.indexOf(normaliser('Lieu/Etablissement'));
-        var cLatR = entR.indexOf(normaliser('Latitude'));
-        var cLonR = entR.indexOf(normaliser('Longitude'));
-        var cComR = entR.indexOf(normaliser('Commune'));
-        var cQuartR = entR.indexOf(normaliser('Quartier'));
-        var cSecR = entR.indexOf(normaliser('Secteur'));
-        if (cLieu >= 0 && cLatR >= 0 && cLonR >= 0) {
-          var nR = shR.getLastRow() - 1;
-          var valR = shR.getRange(2, 1, nR, entR.length).getValues();
-          var fR = shR.getRange(2, 1, nR, entR.length).getFormulas();
-          var rowsGeoR = [];
-          valR.forEach(function (row, idxR) {
-            if (normaliser(row[cLieu]) === nomNorm) {
-              var rnR = idxR + 2;
+    var shR = ss.getSheetByName(FEUILLES.presences);
+    if (shR && shR.getLastRow() > 1) {
+      var entR = shR.getRange(1, 1, 1, shR.getLastColumn()).getValues()[0].map(normaliser);
+      var cLieu = entR.indexOf(normaliser('Lieu/Etablissement'));
+      var cRefE = entR.indexOf(normaliser('Ref_CodeEtab'));
+      var cLatR = entR.indexOf(normaliser('Latitude'));
+      var cLonR = entR.indexOf(normaliser('Longitude'));
+      var cComR = entR.indexOf(normaliser('Commune'));
+      var cQuartR = entR.indexOf(normaliser('Quartier'));
+      var cSecR = entR.indexOf(normaliser('Secteur'));
+      var cRepR = entR.indexOf(normaliser('Repères'));
+      if (cRepR < 0) cRepR = entR.indexOf(normaliser('Reperes'));
+      if (cLieu >= 0) {
+        var nR = shR.getLastRow() - 1;
+        var valR = shR.getRange(2, 1, nR, entR.length).getValues();
+        var fR = shR.getRange(2, 1, nR, entR.length).getFormulas();
+        var rowsGeoR = [];
+        var aGpsM = isFinite(modif.lat) && isFinite(modif.lon) && modif.lat;
+        valR.forEach(function (row, idxR) {
+          var memeEtab = (cRefE >= 0 && code && String(row[cRefE] || '').trim() === code) || normaliser(row[cLieu]) === nomNorm;
+          if (memeEtab) {
+            var rnR = idxR + 2, touche = false;
+            if (aGpsM && cLatR >= 0 && cLonR >= 0) {
               shR.getRange(rnR, cLatR + 1).setValue(modif.lat);
               shR.getRange(rnR, cLonR + 1).setValue(modif.lon);
-              if (modif.commune && cComR >= 0 && !fR[idxR][cComR] && (!row[cComR] || normaliser(row[cComR]) === 'nl')) shR.getRange(rnR, cComR + 1).setValue(modif.commune);
-              if (modif.quartier && cQuartR >= 0 && !fR[idxR][cQuartR] && (!row[cQuartR] || normaliser(row[cQuartR]) === 'nl')) shR.getRange(rnR, cQuartR + 1).setValue(modif.quartier);
-              if (modif.secteur && cSecR >= 0 && !fR[idxR][cSecR] && !row[cSecR]) shR.getRange(rnR, cSecR + 1).setValue(modif.secteur);
               rowsGeoR.push(rnR);
-              cascades++;
+              touche = true;
             }
-          });
-          if (rowsGeoR.length && typeof deployerFormulesTerritoire_ === 'function') {
-            try { deployerFormulesTerritoire_(ss, [FEUILLES.presences], rowsGeoR); } catch (eFR) {}
+            if (modif.reperes && cRepR >= 0 && !fR[idxR][cRepR] && String(row[cRepR] || '').trim() !== modif.reperes) {
+              shR.getRange(rnR, cRepR + 1).setValue(modif.reperes);
+              touche = true;
+            }
+            if (cRefE >= 0 && code && !fR[idxR][cRefE] && String(row[cRefE] || '').trim() !== code) {
+              shR.getRange(rnR, cRefE + 1).setValue(code);
+              touche = true;
+            }
+            if (modif.commune && cComR >= 0 && !fR[idxR][cComR] && (!row[cComR] || normaliser(row[cComR]) === 'nl')) { shR.getRange(rnR, cComR + 1).setValue(modif.commune); touche = true; }
+            if (modif.quartier && cQuartR >= 0 && !fR[idxR][cQuartR] && (!row[cQuartR] || normaliser(row[cQuartR]) === 'nl')) { shR.getRange(rnR, cQuartR + 1).setValue(modif.quartier); touche = true; }
+            if (modif.secteur && cSecR >= 0 && !fR[idxR][cSecR] && !row[cSecR]) { shR.getRange(rnR, cSecR + 1).setValue(modif.secteur); touche = true; }
+            if (touche) cascades++;
           }
+        });
+        if (rowsGeoR.length && typeof deployerFormulesTerritoire_ === 'function') {
+          try { deployerFormulesTerritoire_(ss, [FEUILLES.presences], rowsGeoR); } catch (eFR) {}
         }
       }
     }
