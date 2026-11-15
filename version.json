@@ -1,8 +1,7 @@
 ﻿{
-  "version": "3.31.63",
+  "version": "3.31.64",
   "date": "2026-11-15",
   "notes": [
-    "Planifier : groupes au nom exact de la subdivision (Angré, Riviera, Deux Plateaux, Cocody Centre…), toujours affichés",
-    "Planifier : le bandeau « Déjà planifié » ouvre le détail des visites prévues, à garder ou à remplacer"
+    "Planifier, « Déjà planifié » : chaque visite dit pourquoi elle est là : RDV pris le (date), confirmé ou non, avec l'annotation du compte rendu ; ajout à la main ; ou proposition du tirage avec la dernière visite"
   ]
 }

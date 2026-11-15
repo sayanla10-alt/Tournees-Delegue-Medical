@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.63';
+  var APP_VERSION = '3.31.64';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.64', ['Planifier, bandeau « Déjà planifié » : pour chaque visite, la raison au lieu du lieu : RDV pris le (date du compte rendu), confirmé ou non, avec l\'annotation du compte rendu ; prioritaire ou visite ajoutée à la main ; ou proposition du tirage avec la dernière visite']],
     ['3.31.63', ['Planifier : chaque groupe porte le nom exact de la subdivision de l\'onglet Quartiers (Angré, Riviera, Deux Plateaux, Cocody Centre…), affiché même quand la journée tient dans une seule subdivision', 'Planifier : le bandeau bleu « Déjà planifié » se touche : il montre les visites déjà prévues et permet de garder ou de remplacer chacune ; les visites remplacées sont aussitôt reproposées par le tirage']],
     ['3.31.62', ['Listes déroulantes des quartiers complètes (Cocody : 69 quartiers, Triangle compris)', 'Planifier : groupes par subdivision affichés comme avant (Cocody Centre, Cocody – Angré, Riviera…)', 'Tirage : onglet Quartiers vérifié juste avant, sans attente', 'Présences : lieux reliés aux pharmacies par leur code, nouveaux lieux créés avec un code ETAB, spécialité et téléphone tirés de la fiche du praticien']],
     ['3.31.61', ['Planifier : communes segmentées et subdivisions lues dans l\'onglet Quartiers (plus aucun nom écrit en dur) : un nom de subdivision changé, ajouté ou supprimé s\'applique tout de suite', 'Quartier qui porte le nom d\'une subdivision (« Deux Plateaux », « Riviera ») rangé dans cette subdivision']],
@@ -9181,6 +9182,31 @@
 
   // 3.31.63 : détail des visites déjà planifiées sur la période (bandeau bleu de Planifier) : pour chacune, garder ou remplacer.
   // Une visite faite (compte rendu) reste. Remplacer : la visite est retirée et le tirage complète les créneaux libérés.
+  // 3.31.64 : pourquoi une visite est déjà planifiée : RDV (pris quand, par quel compte rendu, confirmé ou non),
+  // prioritaire ajouté à la main, visite inopinée, ou proposition du tirage (avec la dernière visite) ; le lieu n'y est plus
+  function raisonVisitePlanifiee(a, d) {
+    var jm = function (x) { return x ? dateCourte(String(x).slice(0, 10)) : ''; };
+    var hist = ((S.data && S.data.historique) || []).filter(function (v) { return v.code === a.code; })
+      .sort(function (x, y) { return String(y.date || '').localeCompare(String(x.date || '')); });
+    var im = (S.imposes || []).filter(function (x) { return x.code === a.code && (!x.date || x.date === d); })[0];
+    var dRdv = a.rdvDate || d;
+    var src = hist.filter(function (v) { var pv = String(v.prochaine || '').slice(0, 10); return pv && (pv === dRdv || pv === d); })[0];
+    if (a.etape || src) {
+      var t = 'RDV' + (a.rdvDate && a.rdvDate !== d ? ' du ' + jm(a.rdvDate) + ', reporté' : '');
+      var pris = a.rdvPrisLe || (src && src.date);
+      if (pris) t += ' pris le ' + jm(pris);
+      if (src && (src.rdvConfirme || /^RDV confirmé/i.test(src.suite || ''))) t += ', confirmé';
+      if (src && src.statut) t += ' (visite : ' + src.statut + ')';
+      return { rdv: true, texte: t, note: src ? String(src.commentaire || src.suite || '').trim() : '' };
+    }
+    if (im || a.impose || a.inopinee) {
+      var rt = (im && im.rdv) || a.rdv || '';
+      return { rdv: !!rt, texte: rt ? 'RDV ' + rt + ', ajouté à la main' : (a.inopinee || (im && im.force) ? 'Visite ajoutée à la main' : 'Prioritaire, ajouté à la main'), note: '' };
+    }
+    var der = hist.filter(function (v) { return String(v.date || '').slice(0, 10) < d && v.statut; })[0];
+    return { rdv: false, texte: 'Proposé par le tirage · ' + (der ? 'dernière visite le ' + jm(der.date) + ' (' + der.statut + ')' : 'jamais visité'),
+      note: der && der.commentaire ? String(der.commentaire).trim() : '' };
+  }
   FEUILLES.dejaPlanifie = function (f) {
     var choix = f.choix || {}, nbR = 0, corps = '';
     (f.dates || []).forEach(function (d) {
@@ -9190,9 +9216,10 @@
       l.forEach(function (a) {
         var k = d + '|' + a.code, faite = !!vraiStatut(a.statut), rempl = !faite && choix[k] === 'remplacer';
         if (rempl) nbR++;
-        var det = [a.specialite, a.lieu, a.quartier || a.commune].filter(function (x) { return x; }).map(esc).join(' · ');
+        var r = raisonVisitePlanifiee(a, d);
         corps += '<li class="dp-visite' + (rempl ? ' dp-rempl' : '') + '"><div class="dp-info"><b>' + (a.heure ? '<span class="dp-heure">' + esc(a.heure) + '</span> ' : '') + esc(a.nom) + '</b>' +
-          (det ? '<small>' + det + '</small>' : '') + '</div>' +
+          (a.specialite ? '<small>' + esc(a.specialite) + '</small>' : '') +
+          '<small class="dp-raison' + (r.rdv ? ' rdv' : '') + '">' + esc(r.texte) + '</small>' + (r.note ? '<small class="dp-note">« ' + esc(r.note) + ' »</small>' : '') + '</div>' +
           (faite ? '<span class="etiquette ok">' + esc(a.statut) + '</span>'
             : '<div class="puces dp-puces"><button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="garder" aria-pressed="' + !rempl + '">Garder</button>' +
               '<button type="button" class="puce" data-a="dejaChoix" data-k="' + esc(k) + '" data-v="remplacer" aria-pressed="' + rempl + '">Remplacer</button></div>') + '</li>';

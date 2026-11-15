@@ -4931,3 +4931,6 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .dp-info small { display: block; color: var(--gris); font-size: 12.5px; }
 .dp-heure { color: var(--primaire); font-variant-numeric: tabular-nums; }
 .dp-puces { display: flex; flex-wrap: nowrap; gap: 6px; flex: 0 0 auto; }
+.dp-raison { color: var(--primaire) !important; font-weight: 600; }
+.dp-raison.rdv { color: var(--bleu) !important; }
+.dp-note { font-style: italic; white-space: normal; }
