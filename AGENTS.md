@@ -94,3 +94,12 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 - Clés : propriétés du script `CLE_GEMINI` (d'abord) et `CLE_ANTHROPIC` (secours si Gemini manque ou échoue), par le menu MediPlanner, jamais dans le code ; modèles : `MODELE_GEMINI` / `MODELE_CLAUDE`, sinon les listes par défaut (404 : modèle suivant). Claude rend sa lecture par un outil au même schéma.
 - Rien n'est écrit sans l'écran « Vérifier la fiche ». L'enregistrement passe par `enregistrerFiche` (file d'envoi habituelle). Contact existant : seuls les champs vides sont complétés, un écart (téléphone, spécialité) se remplace seulement si la case est cochée. La fiche fait foi : le jour de visite devient présence confirmée sur le lieu lu (créneaux choisis, matin et soir par défaut) ; une absence déclarée couvrant ce jour s'arrête la veille. Nouveau contact : seuls ce jour et ces créneaux sont cochés (jamais la semaine entière par défaut).
 - Le téléphone garde la photo (clé `fichesScannees`, IndexedDB) tant qu'elle n'est pas lue : coupure réseau = « En attente », relancée au retour du réseau et à l'ouverture.
+
+## Avant chaque publication (depuis 3.31.123)
+
+- Lancer `bash tests/verifier.sh` : syntaxe de tous les fichiers, puis parcours complet de l'application sur un téléphone
+  simulé contre un faux serveur (rien ne touche la vraie base). Ne publier que si la dernière ligne est « Tout est conforme ».
+- Journal des nouveautés : ajouter la ligne de la version en tête de `JOURNAL` dans `app.js`. Au-delà d'une quinzaine de
+  lignes, déplacer les plus anciennes en tête de `journal.js` (chargé seulement pour les téléphones en retard de versions).
+- Rendu : `rendre()` ne remplace que les blocs dont le HTML a changé (voir `poserVue`). Ne pas modifier le contenu de
+  `#vue` à la main en comptant sur le rendu suivant pour « remettre à zéro » un élément inchangé ; passer par l'état `S.ui`.
