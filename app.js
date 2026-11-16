@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.102';
+  var APP_VERSION = '3.31.103';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.103', ['Libellé RDV reporté raccourci : « RDV 09/11 → 16/11 (absence) »']],
     ['3.31.102', ['Planifier : centrage complet des lignes d\'étiquettes (Visite faite, Déjà renseignée, Indisponible, Prioritaire, Absent…) sur toutes les cartes']],
     ['3.31.101', ['Fluidité : ouvrir ou fermer une fiche du Répertoire ne reconstruit plus toute la liste (réponse immédiate, la liste ne bouge plus)', 'Plus de saut d\'écran à chaque synchronisation sans changement : seule la pastille « À jour » est actualisée', 'Démarrage : l\'écran derrière la page de garde n\'est construit qu\'une fois (au lieu de 5 ou 6), la page de garde reste fluide', 'Moteur : textes, quartiers et établissements déjà analysés relus au lieu d\'être recalculés ; enregistrements lourds faits quand l\'application est au repos ; moins de mises en page forcées']],
     ['3.31.100', ['Fluidité & démarrage : pré-calcul des index pendant la page de garde, optimisation du MutationObserver d\'abréviation (98 % d\'appels DOM évités) et apparition instantanée des onglets']],
@@ -3035,10 +3036,10 @@
   }
   // « RDV pris le 26-Oct-2026 » ; si le praticien n'était pas présent le jour convenu : « prévu le …, décalé au premier jour de présence »
   function libelleRdv(a) {
-    // 3.19.0 : libellé court (« RDV du 05-Nov reporté au 07-Nov pour absence »)
-    var jm = function (d) { return dateFr(d).slice(0, -5); };
-    if (a.rdvDate && a.rdvDate !== a.date) return 'RDV du ' + jm(a.rdvDate) + ' reporté au ' + jm(a.date) + ' pour absence';
-    return 'RDV du ' + jm(a.rdvDate || a.date);
+    // 3.31.103 : libellé compact (« RDV 09/11 → 16/11 (absence) »)
+    var jjmm = function (d) { var s = String(d || ''); return /^\d{4}-\d{2}-\d{2}/.test(s) ? (s.slice(8, 10) + '/' + s.slice(5, 7)) : dateFr(d).slice(0, -5); };
+    if (a.rdvDate && a.rdvDate !== a.date) return 'RDV ' + jjmm(a.rdvDate) + ' → ' + jjmm(a.date) + ' (absence)';
+    return 'RDV du ' + dateFr(a.rdvDate || a.date).slice(0, -5);
   }
   function statutLibelle(a) { return estPharmacie(a) && a.statut && !estKo(a.statut) ? 'Visitée' : a.statut; }
   function activites() { return (S.data && S.data.activites && S.data.activites.length) ? S.data.activites : ACTIVITES_DEFAUT; }
