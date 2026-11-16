@@ -536,6 +536,34 @@ function realignerListesQuartiers_(sh) {
   return faux.length;
 }
 
+// 3.31.107 : Google Sheets ne sait pas faire une liste déroulante « relative à sa ligne » (même posée par l'API, la
+// plage est figée) et un tri ne déclenche pas toujours onChange : quand une cellule Quartier de Pharmacies ou
+// d'Etablissements est sélectionnée, sa règle est vérifiée et refaite si elle lit une autre ligne (déclencheur simple,
+// rien à installer ; il faut seulement recharger le classeur une fois)
+function onSelectionChange(e) {
+  try {
+    var rg = e && e.range; if (!rg || rg.getNumRows() > 200) return;
+    var sh = rg.getSheet(), nom = sh.getName();
+    if (nom !== FEUILLES.pharmacies && nom !== FEUILLES.etablissements) return;
+    var r0 = Math.max(2, rg.getRow()), r1 = rg.getLastRow(); if (r1 < 2) return;
+    var cache = CacheService.getDocumentCache(), k = 'ldd_cols_' + nom, cols = null;
+    try { cols = JSON.parse(cache.get(k) || 'null'); } catch (eC) {}
+    if (!cols) {
+      var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+      cols = { q: ent.indexOf(normaliser('Quartier')) + 1, l: ent.indexOf(normaliser('Liste_Quartiers_Dynamique')) + 1 };
+      cache.put(k, JSON.stringify(cols), 600);
+    }
+    if (!cols.q || !cols.l || rg.getColumn() > cols.q || rg.getLastColumn() < cols.q) return;
+    var regles = sh.getRange(r0, cols.q, r1 - r0 + 1, 1).getDataValidations(), faux = [];
+    for (var i = 0; i < regles.length; i++) {
+      var v = regles[i][0], ok = false;
+      try { var pl = v && v.getCriteriaValues()[0]; ok = !!(pl && pl.getRow && pl.getRow() === r0 + i && pl.getColumn() === cols.l && pl.getSheet().getName() === nom); } catch (eV) {}
+      if (!ok) faux.push(r0 + i);
+    }
+    if (faux.length) listeQuartiersParLigne_(sh, faux);
+  } catch (err) {}
+}
+
 function listeQuartiersParLigne_(sh, rangs) {
   if (!sh || !rangs || !rangs.length || sh.getLastColumn() < 1) return 0;
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
