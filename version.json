@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.98",
+  "version": "3.31.99",
   "date": "2026-11-16",
   "notes": [
-    "Performance globale : mise en cache de suppressionsServeur(), quartiers(), visitesConnues(), etablissementsConnus(), rappelsDuJour() et importerAgenda()"
+    "Navigation : sélection instantanée de l'onglet au toucher (plus de délai avant l'activation du bouton en bas)"
   ]
 }

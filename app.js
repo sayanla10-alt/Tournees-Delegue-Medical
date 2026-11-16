@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.98';
+  var APP_VERSION = '3.31.99';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.99', ['Navigation : sélection instantanée de l\'onglet au toucher (plus de délai avant l\'activation du bouton en bas)']],
     ['3.31.98', ['Performance globale : mise en cache de suppressionsServeur(), quartiers(), visitesConnues(), etablissementsConnus(), rappelsDuJour() et importerAgenda() pour éliminer les recalculs répétés sur chaque onglet']],
     ['3.31.97', ['Fluidité & navigation : suppression des freezes au clic sur Journée / Planifier (calcul groupé des 85 jours en une passe) et suppression des sauts d\'écran entre onglets et dans Nouveau contact (Hôpital)', 'Établissements connus autour de vous : affiche les 4 plus proches (au lieu d\'un seul dans 500 m), uniformisé avec Médecins et Pharmacies']],
     ['3.31.96', ['Répertoire › Ajouter : Médecin et Hôpital n\'ouvrent plus le clavier d\'office, comme Pharmacie ; on touche le champ pour saisir']],
@@ -4037,8 +4038,12 @@
     // onglet mémorisé : l'application rouvre là où l'on était (rafraîchissement, mise à jour, relance)
     if (VUES[tab] && tab !== 'accueil' && tab !== 'identite' && LS.get('onglet', '') !== tab) LS.set('onglet', tab);
     // jour affiché mémorisé : un rafraîchissement ne ramène plus au lundi (valable jusqu'à minuit)
-    if (S.ui.jour || S.ui.jourVue) LS.set('jourVu', { j: S.ui.jour, v: S.ui.jourVue || null, le: aujourdhui() });
-    LS.set('proches', S.ui.pharmaciesProches || false);
+    var jvPrev = LS.get('jourVu', null);
+    if ((S.ui.jour || S.ui.jourVue) && (!jvPrev || jvPrev.j !== S.ui.jour || jvPrev.v !== (S.ui.jourVue || null) || jvPrev.le !== aujourdhui())) {
+      LS.set('jourVu', { j: S.ui.jour, v: S.ui.jourVue || null, le: aujourdhui() });
+    }
+    var prVal = S.ui.pharmaciesProches || false;
+    if (LS.get('proches', false) !== prVal) LS.set('proches', prVal);
     // 3.28.36 : premier lancement par le lien d'un collègue : le profil se remplit pendant que la base se télécharge
     if (connecte() && !moi() && tab !== 'reglages' && !S.ui.restauration) tab = 'identite';
     else if (!pret() && tab !== 'reglages') tab = connecte() ? 'chargement' : 'accueil';   // 3.26.73 : téléphone relié mais base pas encore reçue
@@ -14446,8 +14451,13 @@
       S.ui.feuille = null;
       S.ui.aAccepter = null;
       gererHistoriqueModal(false);
-      rendre(); window.scrollTo(0, 0);
-      if (S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe') rendreSiPossible(); });
+      afficherNav();
+      var destNav = S.ui.tab;
+      requestAnimationFrame(function () {
+        if (S.ui.tab !== destNav) return;
+        rendre(); window.scrollTo(0, 0);
+        if (S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe') rafraichirEquipe().then(function (ok) { if (ok && S.ui.tab === 'suivi' && S.ui.suiviVue === 'equipe') rendreSiPossible(); });
+      });
     },
     suiviVue: function (el) {
       S.ui.suiviVue = el.dataset.v;
