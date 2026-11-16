@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.117",
+  "version": "3.31.118",
   "date": "2026-11-16",
   "notes": [
-    "Planifier : modifier « Ne pas revoir avant » (comme le nombre de visites/jour) ne fait plus revenir les médecins retirés avec la croix"
+    "Journée : un compte rendu du jour déjà validé reste bien validé après actualisation (correction de la restauration des rapports)"
   ]
 }

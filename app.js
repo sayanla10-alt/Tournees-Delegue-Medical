@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.117';
+  var APP_VERSION = '3.31.118';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.118', ['Journée : un compte rendu du jour déjà validé reste bien validé après actualisation (correction de la restauration des rapports)']],
     ['3.31.117', ['Planifier : modifier « Ne pas revoir avant » (comme le nombre de visites/jour) ne fait plus revenir les médecins retirés avec la croix']],
     ['3.31.116', ['Planifier : le nombre maximum de tirages par journée passe de 20 à 30']],
     ['3.31.115', ['Mode sombre : harmonisation des contrastes, des badges, de l\'écran de scan et du mode Auto']],
@@ -1356,8 +1357,8 @@
 
   var PREFIXE = 'tournees.';
   var CLES_LEGERES = { config: true, token: true, theme: true, onglet: true };
-  var IDB_DIFFEREES = { data: true, archives: true, secours: true, stats: true, hist: true, plannings: true, rapports: true, erreursApp: true };
-  var CLES_LOURDES = { fichesScannees: true, data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true, secours: true, erreursApp: true };
+  var IDB_DIFFEREES = { data: true, archives: true, secours: true, stats: true, hist: true, plannings: true, erreursApp: true };
+  var CLES_LOURDES = { fichesScannees: true, data: true, plan: true, archives: true, queue: true, fiches: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true, secours: true, erreursApp: true };
   // 3.29.0 : saisies pas encore reçues par le serveur : fusionnées (jamais remplacées) à la relecture, copie de secours si l'écriture échoue
   var CLES_PRECIEUSES = { queue: true, fiches: true, deadLetter: true };
 
@@ -17202,6 +17203,9 @@
     if (LS._mem.rejetes) S.rejetes = LS._mem.rejetes;
     if (LS._mem.archives) S.archives = LS._mem.archives;
     if (LS._mem.horsPlan) S.horsPlan = LS._mem.horsPlan;
+    if (LS._mem.rapports && typeof LS._mem.rapports === 'object') {
+      S.rapports = Object.assign({}, LS._mem.rapports, S.rapports || {});
+    }
     // 3.29.0 : comptes rendus et fiches non envoyés : téléphone + mémoire + copie de secours, réunis sans doublon
     var dlDisque = tous.deadLetter || {}, dlUrg = lireUrgence('deadLetter') || {};
     S.queue = fusionnerParUid(fusionnerParUid(tous.queue, lireUrgence('queue')), memQueue);
