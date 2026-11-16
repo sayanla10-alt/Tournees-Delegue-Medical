@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.101';
+  var APP_VERSION = '3.31.102';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.102', ['Planifier : centrage complet des lignes d\'étiquettes (Visite faite, Déjà renseignée, Indisponible, Prioritaire, Absent…) sur toutes les cartes']],
     ['3.31.101', ['Fluidité : ouvrir ou fermer une fiche du Répertoire ne reconstruit plus toute la liste (réponse immédiate, la liste ne bouge plus)', 'Plus de saut d\'écran à chaque synchronisation sans changement : seule la pastille « À jour » est actualisée', 'Démarrage : l\'écran derrière la page de garde n\'est construit qu\'une fois (au lieu de 5 ou 6), la page de garde reste fluide', 'Moteur : textes, quartiers et établissements déjà analysés relus au lieu d\'être recalculés ; enregistrements lourds faits quand l\'application est au repos ; moins de mises en page forcées']],
     ['3.31.100', ['Fluidité & démarrage : pré-calcul des index pendant la page de garde, optimisation du MutationObserver d\'abréviation (98 % d\'appels DOM évités) et apparition instantanée des onglets']],
     ['3.31.99', ['Navigation : sélection instantanée de l\'onglet au toucher (plus de délai avant l\'activation du bouton en bas)']],
@@ -6619,7 +6620,7 @@
             '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
         '</div>' +
       '</div>' +
-      (e ? '<button type="button" class="lp-etiquettes-btn' + (avecActionsBas ? ' centre' : '') + '" data-a="voirVisite" data-uid="' + a.uid + '"><span class="etiquettes">' + e + '</span></button>' : '') +
+      (e ? '<button type="button" class="lp-etiquettes-btn centre" data-a="voirVisite" data-uid="' + a.uid + '"><span class="etiquettes">' + e + '</span></button>' : '') +
       // Un seul couple compact Remplacer / Supprimer collé juste sous les étiquettes centrées
       (avecActionsBas ? questionConflit(a) : '') +
       '</li>';
