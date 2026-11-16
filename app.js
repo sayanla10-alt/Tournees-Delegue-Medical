@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.110';
+  var APP_VERSION = '3.31.111';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.111', ['Planifier : alignement vertical exact de la croix et de la coche avec le cœur (en conservant l\'écart avec l\'épingle Garder)']],
     ['3.31.110', ['Favoris (♥) : préséance sur les ★★★ dans les tirages (+500 pts) — le cœur passe avant le potentiel']],
     ['3.31.109', ['Favoris (♡ / ♥) : cœur vide harmonisé avec les étoiles vides et affiché partout (Planifier, Journée, + Ajouter, Autour de moi, Répertoire)']],
     ['3.31.108', ['Répertoire & Tirage : ajout du bouton cœur (♡ / ♥) à droite des fiches pour désigner vos favoris et les faire revenir plus souvent dans les tirages']],

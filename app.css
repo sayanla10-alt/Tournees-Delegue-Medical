@@ -1302,10 +1302,10 @@ body.avec-barre main { padding-bottom: 90px; }
 .lp-garder svg { width: 16px; height: 16px; }
 .lp-garder small { font-size: 10.5px; font-weight: 600; }
 .lp-garder[aria-pressed="true"] { background: var(--primaire); border-color: var(--primaire); color: var(--sur-primaire); }
-.lp-retirer { width: 34px; height: 34px; position: relative; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--gris-2); touch-action: manipulation; }
+.lp-retirer { width: 30px; height: 34px; margin-right: -3px; position: relative; display: grid; place-items: center; border: 0; border-radius: 50%; background: none; color: var(--gris-2); touch-action: manipulation; }
 .lp-retirer::after { content: ""; position: absolute; inset: -5px; }
 .lp-retirer svg { width: 17px; height: 17px; }
-.lp-fait { flex: none; width: 34px; height: 34px; display: grid; place-items: center; color: var(--vert, var(--primaire)); }
+.lp-fait { flex: none; width: 30px; height: 34px; margin-right: -3px; display: grid; place-items: center; color: var(--vert, var(--primaire)); }
 .lp-fait svg { width: 18px; height: 18px; }
 
 /* Réglages : section Avancé repliée */
