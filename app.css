@@ -1798,18 +1798,19 @@ details.avance h3 { margin-top: 18px; }
 .bouton-accepter-plan { display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; width: 100%; max-width: 280px; height: 44px; min-height: 44px; font-weight: 700 !important; }
 .barre-plan-actions-flottante {
   position: sticky;
-  bottom: calc(var(--haut-nav, 60px) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--nav-h, 60px) + env(safe-area-inset-bottom, 0px));
   background: var(--papier, #fff);
   padding: 6px 10px;
   z-index: 15;
   border-top: 1px solid var(--trait, #e2e8f0);
   box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
   margin: 4px -10px 0;
-  border-radius: var(--r, 8px);
+  border-radius: var(--r, 8px) var(--r, 8px) 0 0;
   animation: none !important;
   transform: none !important;
   opacity: 1 !important;
 }
+main:has(> .barre-plan-actions-flottante) { padding-bottom: 0; }
 .barre-plan-actions-flottante .rangee-tirage { margin-bottom: 0; }
 #vue.vue-entre > .barre-plan-actions-flottante,
 #vue.jour-glisse-d .barre-plan-actions-flottante,

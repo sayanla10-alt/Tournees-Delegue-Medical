@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.106';
+  var APP_VERSION = '3.31.107';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.107', ['Journée : suppression des 24 px d\'espace vide sous la barre du bas (+ Médecin / + Phcie / Autour de moi)']],
     ['3.31.106', ['Journée : suppression de l\'espace sous + Médecin / + Phcie / Autour de moi et resserrage autour de « Praticien indisponible ? » et « Modifier la tournée »']],
     ['3.31.105', ['Journée et Planifier : la frise des jours montre 3 semaines avant et après le jour choisi (au lieu de 6) ; écrans plus légers et plus rapides ; le calendrier permet toujours d\'aller plus loin']],
     ['3.31.104', ['Planifier : étiquettes compactes maintenues sur une seule ligne centrée pour gagner de l\'espace']],
