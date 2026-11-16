@@ -542,9 +542,21 @@ function ldd_(ss) {
     try { sh.hideSheet(); } catch (eH) {}
   }
   if (sh.getMaxColumns() < largeur + 1) sh.insertColumnsAfter(sh.getMaxColumns(), largeur + 1 - sh.getMaxColumns());
+  if (!sh.getRange(1, 1).getValue()) {
+    sh.getRange(1, 1, 1, 2).setValues([['Commune', 'Quartiers de la commune (calculés depuis l\'onglet Quartiers, ne pas modifier : sert aux listes déroulantes)']]);
+    sh.setFrozenRows(1);
+    try { sh.hideSheet(); } catch (eH2) {}
+  }
   var idx = {}, der = sh.getLastRow();
-  if (der >= 2) sh.getRange(2, 1, der - 1, 1).getValues().forEach(function (l, k) { var c = normaliser(l[0]); if (c && !idx[c]) idx[c] = k + 2; });
   var lQ = lettreColonne_(iQ), lC = lettreColonne_(iC);
+  // classeur en français : séparateur « ; » dans les formules
+  var formule = function (r) { return '=IFERROR(TRANSPOSE(SORT(UNIQUE(FILTER(Quartiers!$' + lQ + '$2:$' + lQ + '; Quartiers!$' + lC + '$2:$' + lC + '=$A' + r + '))));"")'; };
+  if (der >= 2) {
+    sh.getRange(2, 1, der - 1, 1).getValues().forEach(function (l, k) { var c = normaliser(l[0]); if (c && !idx[c]) idx[c] = k + 2; });
+    var fs = sh.getRange(2, 2, der - 1, 1).getFormulas(), voulues = [], diff = false;
+    for (var k = 0; k < fs.length; k++) { voulues.push([formule(k + 2)]); if (fs[k][0] !== voulues[k][0]) diff = true; }
+    if (diff) sh.getRange(2, 2, der - 1, 1).setFormulas(voulues);
+  }
   return {
     sh: sh, largeur: largeur, toutes: shQ.getRange(2, iQ, shQ.getMaxRows() - 1, 1),
     // ligne de la commune dans Listes_Quartiers (ajoutée à la fin si elle manque : les lignes existantes ne bougent jamais)
@@ -554,7 +566,7 @@ function ldd_(ss) {
       if (idx[k]) return idx[k];
       var r = Math.max(sh.getLastRow(), 1) + 1;
       sh.getRange(r, 1).setValue(t);
-      sh.getRange(r, 2).setFormula('=IFERROR(TRANSPOSE(SORT(UNIQUE(FILTER(Quartiers!$' + lQ + '$2:$' + lQ + ', Quartiers!$' + lC + '$2:$' + lC + '=$A' + r + ')))),"")');
+      sh.getRange(r, 2).setFormula(formule(r));
       idx[k] = r;
       return r;
     }
