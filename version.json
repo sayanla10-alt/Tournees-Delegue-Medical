@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.108",
+  "version": "3.31.109",
   "date": "2026-11-16",
   "notes": [
-    "Répertoire & Tirage : ajout du bouton cœur (♡ / ♥) à droite des fiches pour désigner vos favoris et les faire revenir plus souvent dans les tirages"
+    "Favoris (♡ / ♥) : cœur vide harmonisé avec les étoiles vides et affiché partout (Planifier, Journée, + Ajouter, Autour de moi, Répertoire)"
   ]
 }

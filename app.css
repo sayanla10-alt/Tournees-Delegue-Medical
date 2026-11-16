@@ -314,17 +314,18 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .arret-lieu { display: block; color: var(--gris); font-size: 13.5px; margin-top: 2px; }
 .etiquettes { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 7px; }
 .etiquettes.centre { justify-content: center; }
-.element.avec-fav { position: relative; }
-.element.avec-fav .element-titre { padding-right: 28px; }
+.element.avec-fav, .ligne-plan.avec-fav { position: relative; }
+.element.avec-fav .element-titre, .ligne-plan.avec-fav .lp-nom-btn { padding-right: 28px; }
 .btn-fav {
   position: absolute; top: 6px; right: 6px;
   width: 30px; height: 30px; padding: 0;
   display: grid; place-items: center;
   border: 0; border-radius: 50%; background: transparent;
-  color: var(--gris-2); cursor: pointer;
+  color: var(--trait); cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   transition: transform .15s ease, color .15s ease;
 }
+.ligne-plan .btn-fav { top: 4px; right: 5px; }
 .btn-fav svg { width: 16px; height: 16px; }
 .btn-fav[aria-pressed="true"] { color: #E11D48; }
 .btn-fav:active { transform: scale(1.18); }

@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.108';
+  var APP_VERSION = '3.31.109';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.109', ['Favoris (♡ / ♥) : cœur vide harmonisé avec les étoiles vides et affiché partout (Planifier, Journée, + Ajouter, Autour de moi, Répertoire)']],
     ['3.31.108', ['Répertoire & Tirage : ajout du bouton cœur (♡ / ♥) à droite des fiches pour désigner vos favoris et les faire revenir plus souvent dans les tirages']],
     ['3.31.107', ['Journée : suppression des 24 px d\'espace vide sous la barre du bas (+ Médecin / + Phcie / Autour de moi)']],
     ['3.31.106', ['Journée : suppression de l\'espace sous + Médecin / + Phcie / Autour de moi et resserrage autour de « Praticien indisponible ? » et « Modifier la tournée »']],
@@ -6609,7 +6610,7 @@
     var estRdvReporte = !!(a.impose && a.etape && a.rdvDate && a.rdvDate !== a.date);
     var avecActionsBas = (horsZone && !verrou && !a.statut) || !!cf || (estRdvReporte && !verrou && !a.statut);
 
-    return '<li class="ligne-plan' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + classeOrange + '">' +
+    return '<li class="ligne-plan avec-fav' + classeType(a) + (a.garde ? ' gardee' : '') + (verrou ? ' faite' : '') + classeOrange + '">' +
       '<div class="lp-gauche" data-a="voirVisite" data-uid="' + a.uid + '">' +
         '<span class="lp-pastille-col">' + pastilleType(a) + '</span>' +
         '<span class="lp-heure">' + esc(heureVisite(a)) + '</span>' +
@@ -6628,6 +6629,7 @@
             '<button type="button" class="lp-retirer" data-a="retirer" data-uid="' + a.uid + '" aria-label="Retirer de la tournée">' + icone('fermer') + '</button></span>') +
         '</div>' +
       '</div>' +
+      boutonFavori(a.code) +
       (e ? '<button type="button" class="lp-etiquettes-btn centre" data-a="voirVisite" data-uid="' + a.uid + '"><span class="etiquettes">' + e + '</span></button>' : '') +
       // Un seul couple compact Remplacer / Supprimer collé juste sous les étiquettes centrées
       (avecActionsBas ? questionConflit(a) : '') +
@@ -7645,7 +7647,7 @@
           (ouvert ? (lieuEtSpec(a) ? '<span class="arret-lieu">' + specGras(a, lieuEtSpec(a)) + '</span>' : '') +
             '<span class="arret-lieu">' + esc([a.quartier, reperesDe(a), a.commune].filter(Boolean).join(', ')) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + specGras(a, lieuQuartier(a)) + '</span>' : '') + ligneEtat(a)) +
-        '</button>' +
+        '</button>' + boutonFavori(a.code) +
         (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && !futurVerrouille(a.date) ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
     if (ouvert) {
       var pa = praticien(a.code) || {};
@@ -8288,14 +8290,14 @@
   function rendreProposition(x, i, date, src, avecDist) {
     var c = x.c, p = c.prat;
     var deja = S.plan.some(function (a) { return a.date === date && a.code === p.code; });
-    return '<li class="element' + classeType(p) + '"><div class="element-tete"><div>' +
+    return '<li class="element avec-fav' + classeType(p) + '"><div class="element-tete"><div>' +
       '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + esc(infosSansDoublon(p, [p.specialite, c.lieu])) + '</span>' +
       '<span class="discret bloc-texte">' + esc(c.quartier) + ', ' + c.creneau.toLowerCase() + ' ' + minutesVersHeure(c.debut) + '-' + minutesVersHeure(c.fin) + '</span>' +
       '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere, date)) + '</span>' +
       etiquetteCollegues(p.code, date) + '</span></div>' +
       '<div class="element-mesure">' + (avecDist === false ? '' : distMoi(x.dist, c.coord && c.coord.approx)) +
-        (avecDist !== false && c.coord && c.coord.approx ? '<small>quartier</small>' : '') + '<small>score ' + Math.round(x.score) + '</small></div></div>' +
+        (avecDist !== false && c.coord && c.coord.approx ? '<small>quartier</small>' : '') + '<small>score ' + Math.round(x.score) + '</small></div></div>' + boutonFavori(p.code) +
       (avecDist !== false && c.coord && gpsPrecis() && (c.coord.approx || x.dist <= 2.5) ? '<p class="discret pos-approx">' + (c.coord.approx ? 'Position du lieu non enregistrée (centre du quartier). ' : 'Vous êtes devant mais la distance est fausse ? ') +
         '<button type="button" class="bouton-texte" data-a="posLieuIci" data-v="' + esc(c.cle) + '">' + icone('cible') + 'Je suis devant : enregistrer sa position</button></p>' : '') +
       (deja ? '<p class="discret" style="margin:8px 0 0">Déjà dans votre tournée ce jour-là.</p>' :
@@ -9136,7 +9138,7 @@
   }
   function estFavori(code) { return !!(S.favoris && code && S.favoris[code]); }
   function iconeCoeur(actif) {
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7-4.5-9.2-8.7C1 8.5 2.8 4.8 6.4 4.3c2-.3 4 .7 5.6 2.6 1.6-1.9 3.6-2.9 5.6-2.6 3.6.5 5.4 4.2 3.6 7.5C19 16 12 20.5 12 20.5Z" fill="' + (actif ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="' + (actif ? '1.6' : '1.8') + '" stroke-linejoin="round"/></svg>';
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7-4.5-9.2-8.7C1 8.5 2.8 4.8 6.4 4.3c2-.3 4 .7 5.6 2.6 1.6-1.9 3.6-2.9 5.6-2.6 3.6.5 5.4 4.2 3.6 7.5C19 16 12 20.5 12 20.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>';
   }
   function boutonFavori(code) {
     if (!code) return '';
@@ -10733,10 +10735,10 @@
         if (secteur && (!hopital || hopital.toLowerCase().indexOf(secteur.toLowerCase()) < 0)) m.push(secteur);
         st = m.join(' · ');
       }
-      return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
+      return '<li class="element avec-fav' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
         '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
         (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
-        '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button></li>';
+        '<span class="discret bloc-texte">' + cr.creneau + ' ' + minutesVersHeure(cr.debut) + '-' + minutesVersHeure(cr.fin) + ' · ' + esc(vuDepuis(p.derniere, d)) + '</span></button>' + boutonFavori(p.code) + '</li>';
     }).join('') + '</ul>';
   }
   FEUILLES.ajouterTournee = function (f) {
@@ -10923,11 +10925,11 @@
         var hopital = p.type === 'Pharmacie' ? '' : abregerHopital(pr0.lieu || '');
         var com0 = pr0.commune || '';
         var st = [p.type === 'Pharmacie' ? '' : p.specialite, hopital, com0 && (!hopital || hopital.toLowerCase().indexOf(com0.toLowerCase()) < 0) ? com0 : ''].filter(Boolean).join(' · ');
-        return '<li class="element hors-filtre' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterHorsFiltre" data-code="' + esc(p.code) + '" data-cle="' + esc(h.cleJour) + '" data-raison="' + esc(h.raison) + '">' +
+        return '<li class="element avec-fav hors-filtre' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterHorsFiltre" data-code="' + esc(p.code) + '" data-cle="' + esc(h.cleJour) + '" data-raison="' + esc(h.raison) + '">' +
           '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
           '<span class="etiquettes centre"><span class="etiquette ' + (h.gris ? '' : 'ambre') + '">' + esc(h.raison) + '</span></span>' +
-          '</button></li>';
+          '</button>' + boutonFavori(p.code) + '</li>';
       }).join('') + '</ul>';
     }
 
@@ -10949,12 +10951,12 @@
           st = m.join(' · ');
         }
         var etCol = etiquetteCollegues(p.code, d);
-        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
+        return '<li class="element avec-fav' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterCandidat" data-r="recherche" data-v="' + esc(cr.cle) + '">' +
           '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
           '<span class="discret bloc-texte">' + details + '</span>' +
           (etCol ? '<span class="etiquettes centre">' + etCol + '</span>' : '') +
-          '</button></li>';
+          '</button>' + boutonFavori(p.code) + '</li>';
       }).join('') + '</ul>' + (tous.length > l.length ? '<p class="discret">' + (tous.length - l.length) + ' autres : tapez un nom ou précisez la recherche.</p>' : '')) : '<p class="discret">Aucun compatible pour « ' + esc(q) + ' ». Consultez l\'onglet <b>Hors filtre</b>.</p>';
 
     return segHtml + htmlCompat;
@@ -11072,10 +11074,10 @@
           details += ' · <span class="conflit-planif">Prévu par ' + esc(cib[0].delegue) + '</span>';
         }
 
-        return '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterToutPrat" data-code="' + esc(p.code) + '">' +
+        return '<li class="element avec-fav' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="ajouterToutPrat" data-code="' + esc(p.code) + '">' +
           '<span class="element-titre">' + pastilleType(p) + lienFiche(p.code, esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
           (st ? '<span class="discret bloc-texte">' + esc(st) + '</span>' : '') +
-          '<span class="discret bloc-texte">' + details + '</span></button></li>';
+          '<span class="discret bloc-texte">' + details + '</span></button>' + boutonFavori(p.code) + '</li>';
       }).join('') + '</ul>' +
       (avecDist.length > l.length ? '<p class="discret" style="text-align:center;padding:12px 0">' + (avecDist.length - l.length) + ' autres praticiens. Tapez un nom ou un lieu dans la recherche ci-dessus pour affiner.</p>' : '');
 
