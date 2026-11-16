@@ -592,7 +592,14 @@ var Moteur = (function () {
 
   // 3.28.20 : regroupement : les médecins d'un même hôpital se suivent, et les hôpitaux d'un même quartier aussi,
   // tant que cela ne crée aucun retard et ne finit pas la journée plus de 20 min plus tard
-  function cleNorm(x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ''); }
+  // 3.31.101 : résultat mémorisé (appelée pour chaque lieu à la préparation de la base et à chaque calcul de tournée)
+  var _cleNormCache = Object.create(null), _cleNormN = 0;
+  function cleNorm(x) {
+    var t = String(x || ''), v = _cleNormCache[t];
+    if (v !== undefined) return v;
+    if (++_cleNormN > 20000) { _cleNormCache = Object.create(null); _cleNormN = 0; }
+    return (_cleNormCache[t] = t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ''));
+  }
   function cleEtablissement(it) { var a = it.a; return cleNorm(a.lieu) ? cleNorm(a.lieu) + '|' + cleNorm(a.commune) : 'u|' + (a.uid || a.code); }
   // 3.28.26 : dans un même hôpital, les médecins d'une même spécialité se suivent
   function cleLieuSpec(it) { return cleEtablissement(it) + '|' + cleNorm(it.a.specialite || it.a.type); }

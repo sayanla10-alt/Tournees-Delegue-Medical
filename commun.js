@@ -1096,10 +1096,23 @@ var REGLAGES_MOTEUR = {
 };
 
 // ---------------------------------------------------------------- Texte
+// 3.31.101 : fonctions pures appelées des dizaines de milliers de fois (préparation de la base, recherche, tirage) :
+// texte sans caractère accentué rendu tel quel, résultats déjà calculés relus (mémoire bornée)
+var _saCache = Object.create(null), _saN = 0, _noCache = Object.create(null), _noN = 0;
 function sansAccents(s) {
-  return String(s === undefined || s === null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  var t = String(s === undefined || s === null ? '' : s);
+  if (!/[^\x00-\x7f]/.test(t)) return t;
+  var v = _saCache[t];
+  if (v !== undefined) return v;
+  if (++_saN > 20000) { _saCache = Object.create(null); _saN = 0; }
+  return (_saCache[t] = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
 }
-function normaliser(s) { return sansAccents(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function normaliser(s) {
+  var t = String(s === undefined || s === null ? '' : s), v = _noCache[t];
+  if (v !== undefined) return v;
+  if (++_noN > 20000) { _noCache = Object.create(null); _noN = 0; }
+  return (_noCache[t] = sansAccents(t).toLowerCase().replace(/[^a-z0-9]/g, ''));
+}
 // 3.29.0 : numéro d'un code (MED-007, MED-1000) : 3 chiffres au moins, jamais tronqué au-delà de 999
 function numeroCode(n) { n = Math.max(0, Math.floor(+n || 0)); return n < 1000 ? ('00' + n).slice(-3) : String(n); }
 
@@ -1792,7 +1805,20 @@ var ZONES_GRANDES_COMMUNES = {
   ]
 };
 
+// 3.31.101 : même entrée, même référentiel (onglet Quartiers et table des subdivisions) : résultat relu au lieu d'être recalculé
+// (la préparation de la base appelle cette fonction plusieurs fois par lieu) ; une copie est rendue (l'appelant peut la modifier)
+var _terrMemo = { idx: null, sub: null, m: Object.create(null), n: 0 };
 function resoudreTerritoire(input, listeQuartiers) {
+  if (arguments.length > 2 || (listeQuartiers !== undefined && listeQuartiers !== null && typeof listeQuartiers !== 'object')) return resoudreTerritoireCalc_.apply(null, arguments);
+  var idx = _obtenirQuartiersIndexes(listeQuartiers), sub = typeof SUB_VERS_COMMUNE !== 'undefined' ? SUB_VERS_COMMUNE : null;
+  if (_terrMemo.idx !== idx || _terrMemo.sub !== sub || _terrMemo.len !== idx.len || _terrMemo.n > 20000) _terrMemo = { idx: idx, sub: sub, len: idx.len, m: Object.create(null), n: 0 };
+  var k = input === null || input === undefined ? '\u0000' : (typeof input === 'string' ? 's\u0001' + input :
+    'o\u0001' + [input.secteur, input.quartier, input.lieu, input.commune, input.subdivision, input.zone, input.territoire].map(function (x) { return x === undefined || x === null ? '' : String(x); }).join('\u0001'));
+  var r = _terrMemo.m[k];
+  if (r === undefined) { r = resoudreTerritoireCalc_(input, listeQuartiers); _terrMemo.m[k] = r; _terrMemo.n++; }
+  return r ? Object.assign({}, r) : r;
+}
+function resoudreTerritoireCalc_(input, listeQuartiers) {
   if (input === null || input === undefined) return null;
   var estChaine = typeof input === 'string';
   var rawStr = estChaine ? input.trim() : '';

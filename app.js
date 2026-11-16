@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.100';
+  var APP_VERSION = '3.31.101';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.101', ['Fluidité : ouvrir ou fermer une fiche du Répertoire ne reconstruit plus toute la liste (réponse immédiate, la liste ne bouge plus)', 'Plus de saut d\'écran à chaque synchronisation sans changement : seule la pastille « À jour » est actualisée', 'Démarrage : l\'écran derrière la page de garde n\'est construit qu\'une fois (au lieu de 5 ou 6), la page de garde reste fluide', 'Moteur : textes, quartiers et établissements déjà analysés relus au lieu d\'être recalculés ; enregistrements lourds faits quand l\'application est au repos ; moins de mises en page forcées']],
     ['3.31.100', ['Fluidité & démarrage : pré-calcul des index pendant la page de garde, optimisation du MutationObserver d\'abréviation (98 % d\'appels DOM évités) et apparition instantanée des onglets']],
     ['3.31.99', ['Navigation : sélection instantanée de l\'onglet au toucher (plus de délai avant l\'activation du bouton en bas)']],
     ['3.31.98', ['Performance globale : mise en cache de suppressionsServeur(), quartiers(), visitesConnues(), etablissementsConnus(), rappelsDuJour() et importerAgenda() pour éliminer les recalculs répétés sur chaque onglet']],
@@ -1230,7 +1231,25 @@
         IDB.init();
         return;
       }
+      // 3.31.101 : la copie d'une grosse donnée (base, archives, secours, statistiques) bloque l'écran plusieurs dixièmes de
+      // seconde sur téléphone : elle est faite quand l'application est au repos (une seule fois par clé, la plus récente).
+      // Les saisies non envoyées (file d'envoi, fiches) et la tournée restent écrites tout de suite.
+      if (IDB_DIFFEREES[k]) { IDB._differees[k] = val; IDB._planifier(); return; }
       IDB._ecrire(k, val);
+    },
+    _differees: {},
+    _minuteur: 0,
+    _planifier: function () {
+      if (IDB._minuteur) return;
+      var go = function () { IDB._minuteur = 0; IDB.viderDifferees(); };
+      IDB._minuteur = setTimeout(function () {
+        if (window.requestIdleCallback) window.requestIdleCallback(go, { timeout: 2000 }); else go();
+      }, 600);
+    },
+    viderDifferees: function () {
+      var d = IDB._differees; IDB._differees = {};
+      if (IDB._minuteur) { clearTimeout(IDB._minuteur); IDB._minuteur = 0; }
+      Object.keys(d).forEach(function (k) { if (IDB.db) IDB._ecrire(k, d[k]); });
     },
     get: function (k) {
       return IDB.init().then(function (db) {
@@ -1246,6 +1265,7 @@
       });
     },
     del: function (k) {
+      delete IDB._differees[k];
       if (!IDB.db) return;
       try {
         var tx = IDB.db.transaction([IDB.magasin], 'readwrite');
@@ -1284,7 +1304,7 @@
       });
     },
     vider: function () {
-      IDB._fileAttente = [];
+      IDB._fileAttente = []; IDB._differees = {};
       if (!IDB.db) return;
       try {
         var tx = IDB.db.transaction([IDB.magasin], 'readwrite');
@@ -1320,6 +1340,7 @@
 
   var PREFIXE = 'tournees.';
   var CLES_LEGERES = { config: true, token: true, theme: true, onglet: true };
+  var IDB_DIFFEREES = { data: true, archives: true, secours: true, stats: true, hist: true, plannings: true, rapports: true, erreursApp: true };
   var CLES_LOURDES = { fichesScannees: true, data: true, plan: true, archives: true, queue: true, fiches: true, rapports: true, stats: true, horsPlan: true, imposes: true, rejetes: true, hist: true, plannings: true, secours: true, erreursApp: true };
   // 3.29.0 : saisies pas encore reçues par le serveur : fusionnées (jamais remplacées) à la relecture, copie de secours si l'écriture échoue
   var CLES_PRECIEUSES = { queue: true, fiches: true, deadLetter: true };
@@ -3662,6 +3683,7 @@
     if (!connecte()) return Promise.resolve();
     if (S.ui.enCours) return Promise.resolve();
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
+    var avantSync = { pret: pret(), att: enAttente(), pub: !!S.ui.aPublier, err: S.ui.sync === 'erreur' || S.ui.sync === 'horsligne' };
     S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete(); if (!pret()) rendreSiPossible();
     if (!sansGps) localiser(true, 'sync');   // 3.27.47 : localisation passive régulée (cache 3 min)
     var tentePub = false, aChange = true, verPubAvant = S.ui._verPub || 0;
@@ -3763,8 +3785,12 @@
       minuteurReprise = setTimeout(function () { if (navigator.onLine) synchroniser(true); }, 30000);
     }).then(function () {
       S.ui.enCours = false;
-      importerAgenda();
-      if (!sansGps || aChange || !S.ui.feuille) rendreSiPossible(); else afficherEntete();
+      var nImporte = importerAgenda();
+      // 3.31.101 : une synchronisation sans changement (base identique, rien envoyé, pas d'erreur) ne reconstruit plus l'écran :
+      // seule la pastille de l'en-tête est mise à jour (plus de saut d'écran toutes les quelques minutes)
+      var utile = aChange || nImporte || !avantSync.pret || avantSync.att !== enAttente() || avantSync.pub !== !!S.ui.aPublier ||
+        avantSync.err || S.ui.sync === 'erreur';
+      if (utile && (!sansGps || aChange || !S.ui.feuille)) rendreSiPossible(); else { afficherEntete(); afficherBarre(); }
       // 3.27.47 : Second appel redondant localiser supprimé pour économiser la batterie
       if (S.ui.aPublier && (!tentePub || (S.ui._verPub || 0) !== verPubAvant) && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
     });
@@ -4031,9 +4057,19 @@
   // ------------------------------------------------------------------ Rendu
   // 3.27.26 : écran gardé au rafraîchissement (onglet, carte ouverte, position) pendant la session
   var UI_SESSION = 'mediplanner.ui';
-  function memoriserEcran() {
+  // 3.31.101 : la position de lecture est lue à l'image suivante (et non juste après le rendu, ce qui forçait une mise en page
+  // complète supplémentaire à chaque écran) ; à la fermeture de la page, elle est écrite tout de suite
+  var _memoEcranRaf = 0;
+  function memoriserEcranMaintenant() {
+    _memoEcranRaf = 0;
     try { sessionStorage.setItem(UI_SESSION, JSON.stringify({ tab: S.ui.tab, ouvert: S.ui.ouvert || null, contact: S.ui.contactOuvert || null, hop: S.ui.hopOuvert || null, y: Math.round(window.scrollY), t: Date.now() })); } catch (e) {}
   }
+  function memoriserEcran(e) {
+    if (e && e.type === 'pagehide') { memoriserEcranMaintenant(); return; }
+    if (_memoEcranRaf) return;
+    _memoEcranRaf = (window.requestAnimationFrame || setTimeout)(function () { setTimeout(memoriserEcranMaintenant, 0); });
+  }
+  var _renduGarde = 0;
   function rendre() {
     var tab = S.ui.tab;
     // onglet mémorisé : l'application rouvre là où l'on était (rafraîchissement, mise à jour, relance)
@@ -4048,6 +4084,15 @@
     // 3.28.36 : premier lancement par le lien d'un collègue : le profil se remplit pendant que la base se télécharge
     if (connecte() && !moi() && tab !== 'reglages' && !S.ui.restauration) tab = 'identite';
     else if (!pret() && tab !== 'reglages') tab = connecte() ? 'chargement' : 'accueil';   // 3.26.73 : téléphone relié mais base pas encore reçue
+    // 3.31.101 : pendant la page de garde, l'écran caché derrière n'est construit qu'une fois les chargements terminés
+    // (au lieu de 5 ou 6 fois de suite au démarrage) : la page de garde reste fluide ; la fermer affiche l'écran aussitôt
+    if (S.ui.lancement && !S.ui.feuille && !S.ui._renduForce && $('lancement')) {
+      rendreLancement(); afficherEntete(); afficherBarre(); afficherNav();
+      clearTimeout(_renduGarde);
+      _renduGarde = setTimeout(function () { _renduGarde = 0; if (!S.ui.lancement) return; S.ui._renduForce = true; try { rendre(); } finally { S.ui._renduForce = false; } }, 350);
+      return;
+    }
+    clearTimeout(_renduGarde); _renduGarde = 0;
     cacherInfobulle();
     try { majSuiviGps(); } catch (eSuivi) {}
     cartesAFaire = [];
@@ -4187,7 +4232,8 @@
     if (proch && tab === 'jour') { var bp = v.querySelector('.arret .carte-bouton[data-uid="' + proch.uid + '"]'); if (bp) bp.closest('.arret').classList.add('prochaine'); }
     if (tab !== S.ui.ongletAnime) {
       var nb = document.querySelector('.navigation button[aria-current="page"]');
-      if (nb) { nb.classList.remove('rebond'); void nb.offsetWidth; nb.classList.add('rebond'); }
+      // 3.31.101 : relance de l'animation à l'image suivante, sans forcer une mise en page complète du nouvel écran
+      if (nb) { nb.classList.remove('rebond'); requestAnimationFrame(function () { nb.classList.add('rebond'); }); }
       S.ui.ongletAnime = tab;
     }
     var bpx = v.querySelector('.bandeau-proche'), kp = bpx ? bpx.textContent : '';
@@ -9012,7 +9058,7 @@
       var titrePres = txtPres;   // 3.31.92 : libellé court pour tenir sur une ligne ; le texte complet reste en info-bulle
       txtPres = ici + '/' + nTot + ' présent' + (ici > 1 ? 's' : '') + ' auj.';
       var clPres = ici > 0 ? 'etiquette auj' : 'etiquette';
-      h += '<li class="element element-hopital"><div class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '" role="button" tabindex="0">' +
+      h += '<li class="element element-hopital' + (ouvert ? ' rep-ouvert' : '') + '"><div class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '" role="button" tabindex="0">' +
         '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + '</span>' +
         '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d, e.approx) : '') + '</span>' +
         '<span class="etiquettes etq-ligne">' + badgeGps + '<span class="' + clPres + '" title="' + esc(titrePres) + '">' + txtPres + '</span>' +
@@ -9086,7 +9132,7 @@
     t = t || aujourdhui();
     if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
     var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
-    var h = '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
+    var h = '<li class="element' + classeType(p) + (ouvert ? ' rep-ouvert' : '') + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
       // 3.31.95 : fiche ouverte : toucher le nom ouvre le suivi des visites (le reste de l'en-tête replie la fiche, comme avant)
       '<span class="element-titre">' + pastilleType(p) + (ouvert ? '<span class="nom-suivi" role="button" tabindex="0" data-a="suiviContact" data-v="' + esc(p.code) + '" title="Voir le suivi des visites">' + esc(p.nom) + '</span>' : esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
@@ -9127,6 +9173,31 @@
     h += '</li>';
     return h;
   }
+  function boutonModifierRep() {
+    return S.ui.contactOuvert
+      ? '<button class="bouton bouton-modifier-rep" type="button" data-a="modifierActif">' + icone('crayon') + '<span>Modifier</span></button>'
+      : '<button class="bouton bouton-modifier-rep desactive" type="button" data-a="modifierActif" style="opacity:.45" title="Touchez d\'abord un contact dans la liste">' + icone('crayon') + '<span>Modifier</span></button>';
+  }
+  // 3.31.101 : ouvrir ou fermer une fiche du Répertoire ne remplace que les cartes concernées (et le bouton Modifier),
+  // pas toute la liste : réponse immédiate au toucher, la liste ne bouge pas. Rendu complet si l'écran ne s'y prête pas.
+  function basculerCarteRep(ancien, nouveau) {
+    var ul = document.getElementById('listePraticiens');
+    if (!ul || S.ui.tab !== 'praticiens' || S.ui.feuille || S.ui.rechOuverte) return false;
+    var c = ctx(), t = aujourdhui(), ok = true;
+    [ancien, nouveau].forEach(function (code) {
+      if (!code || !ok) return;
+      var b = ul.querySelector('[data-a="contact"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(code) : code) + '"]'), li = b && b.closest('li.element'), p = praticien(code);
+      if (!li || li.parentNode !== ul || !p) { ok = ok && code === ancien && !li; return; }
+      var tmp = document.createElement('ul'); tmp.innerHTML = cartePraticienHtml(p, c, t, S.ui.contactOuvert === code);
+      if (!tmp.firstElementChild) { ok = false; return; }
+      ul.replaceChild(tmp.firstElementChild, li);
+    });
+    if (!ok) return false;
+    var bm = document.querySelector('#vue .bouton-modifier-rep');
+    if (bm) { var tb = document.createElement('div'); tb.innerHTML = boutonModifierRep(); if (tb.firstElementChild) bm.parentNode.replaceChild(tb.firstElementChild, bm); }
+    datesEnFrancais(); memoriserEcran();
+    return true;
+  }
   VUES.praticiens = function () {
     var f = S.ui.filtres, t = aujourdhui(), c = ctx();
     var liste = trierPraticiens(filtrerPraticiens(f, S.ui.recherche), S.ui.tri, S.ui.recherche);
@@ -9160,9 +9231,7 @@
     h += '<div class="rangee-actions-rep">' +
       '<button class="bouton bouton-criteres" type="button" data-a="rechOuvrir">' + icone('filtre') + '<span>Recherche</span></button>' +
       '<button class="bouton bouton-plein bouton-ajouter-rep" type="button" data-a="nouvelleFiche">' + icone('plus') + '<span>Ajouter</span></button>' +
-      (S.ui.contactOuvert
-        ? '<button class="bouton bouton-modifier-rep" type="button" data-a="modifierActif">' + icone('crayon') + '<span>Modifier</span></button>'
-        : '<button class="bouton bouton-modifier-rep desactive" type="button" data-a="modifierActif" style="opacity:.45" title="Touchez d\'abord un contact dans la liste">' + icone('crayon') + '<span>Modifier</span></button>') +
+      boutonModifierRep() +
       '</div>' + bandeauScans();   // 3.30.0 : fiches photographiées à vérifier ou en cours de lecture
     var aFiltres = criteresActifs(f).length > 0 || !!(S.ui.recherche && String(S.ui.recherche).trim());
     var phrase = phraseCriteres(f, S.ui.recherche, liste.length, S.ui.tri);
@@ -15199,9 +15268,9 @@
       var code = el.dataset.v;
       if (S.ui.feuille && S.ui.feuille.type === 'contactFiche') return;   // 3.28.19 : dans la fenêtre « fiche », la carte reste ouverte
       S.ui.contactEnTete = null;
-      var ouvrant = S.ui.contactOuvert !== code;
+      var ouvrant = S.ui.contactOuvert !== code, ancien = S.ui.contactOuvert;
       S.ui.contactOuvert = ouvrant ? code : null;
-      rendre();
+      if (!basculerCarteRep(ancien, code)) rendre();
       if (ouvrant) {
         var sel = '[data-a="contact"][data-v="' + (window.CSS && CSS.escape ? CSS.escape(code) : code) + '"]';
         var b = document.querySelector(sel);
@@ -17438,6 +17507,9 @@
   } else ecranSession = null;
   var minuteurMemo; window.addEventListener('scroll', function () { clearTimeout(minuteurMemo); minuteurMemo = setTimeout(memoriserEcran, 250); }, { passive: true });
   window.addEventListener('pagehide', memoriserEcran);
+  // 3.31.101 : écritures différées faites avant que la page ne passe en arrière-plan ou ne se ferme
+  window.addEventListener('pagehide', function () { try { IDB.viderDifferees(); } catch (e) {} });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { try { IDB.viderDifferees(); } catch (e) {} } });
   chargerFeriesCalendrier();
   try { if (!sessionStorage.getItem('mediplanner.lancement')) { S.ui.lancement = true; sessionStorage.setItem('mediplanner.lancement', '1'); } }
   catch (e) { S.ui.lancement = true; }

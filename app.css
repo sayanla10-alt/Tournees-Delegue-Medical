@@ -5136,14 +5136,14 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .entete .bouton-icone { flex: none; }
 /* 3.31.93 : fiche ouverte détachée des cartes voisines (on voit où elle commence et où elle finit) */
 .liste-rep { background: var(--fond); }
-.liste-rep > .element:has(> .carte-bouton[aria-expanded="true"]) {
+/* 3.31.101 : classe posée au rendu (rep-ouvert) au lieu de :has(), coûteux à recalculer à chaque changement de l'écran */
+.liste-rep > .element.rep-ouvert {
   margin: 10px 6px; border: 1.5px solid var(--primaire); border-radius: 14px;
   box-shadow: inset 4px 0 0 var(--k-lisere, var(--bleu)), 0 6px 18px -6px rgba(14, 34, 48, .28);
 }
-.liste-rep > .element.t-pharma:has(> .carte-bouton[aria-expanded="true"]) { --k-lisere: var(--violet); }
-.liste-rep > .element.element-hopital:has(> .carte-bouton[aria-expanded="true"]) { --k-lisere: #0A6C74; }
-.liste-rep > .element:has(> .carte-bouton[aria-expanded="true"]):first-child { margin-top: 6px; }
-.liste-rep > .element:has(+ .element > .carte-bouton[aria-expanded="true"]) { border-bottom: 0; }
+.liste-rep > .element.t-pharma.rep-ouvert { --k-lisere: var(--violet); }
+.liste-rep > .element.element-hopital.rep-ouvert { --k-lisere: #0A6C74; }
+.liste-rep > .element.rep-ouvert:first-child { margin-top: 6px; }
 @media (max-width: 400px) {
   .entete { gap: 5px; padding-left: 12px; padding-right: 6px; }
   .entete .bouton-icone { width: 36px; height: 36px; }
