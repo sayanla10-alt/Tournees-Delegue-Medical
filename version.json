@@ -1,7 +1,9 @@
 ﻿{
-  "version": "3.31.122",
+  "version": "3.31.123",
   "date": "2026-11-16",
   "notes": [
-    "OCR : activation de la haute résolution d'image (MEDIA_RESOLUTION_HIGH) et ajout de Gemini 3.6 Flash en secours gratuit"
+    "Application plus légère au démarrage (140 Ko de moins)",
+    "Fiche ouverte du Répertoire : « Ajouter au jour » n'est plus rogné",
+    "Classeur : listes déroulantes du Quartier liées à la commune aussi dans Presences"
   ]
 }

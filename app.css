@@ -5205,3 +5205,7 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .sv-statut em { font-style: normal; font-weight: 500; color: var(--gris-2); }
 .sv-com { font-size: 13px; color: var(--carte-texte); }
 .sv-suite { font-size: 12.5px; color: var(--ambre); }
+/* 3.31.123 : boutons de la fiche ouverte : plus aucun texte rogné (« Ajouter au jour ») */
+.rangee-actions-contact .bouton, .rangee-actions-contact .badge-deja-prevu { flex: 0 0 auto !important; white-space: nowrap; }
+.rangee-actions-contact .bouton-inopinee, .rangee-actions-contact .badge-deja-prevu { padding: 0 10px !important; }
+.rangee-actions-contact .bouton:not(.bouton-inopinee) { padding: 0 9px !important; }

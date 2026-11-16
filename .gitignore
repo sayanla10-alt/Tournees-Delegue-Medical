@@ -7,3 +7,5 @@ android-signed/
 package.json
 package-lock.json
 node_modules/
+tests/.jeton
+tests/.serveur.log

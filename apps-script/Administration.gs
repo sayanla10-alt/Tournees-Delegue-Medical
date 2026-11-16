@@ -472,10 +472,13 @@ function deployerListesValidationTerritoire_(ss) {
     champsGeo.forEach(function (lib) {
       var cDest = ent.indexOf(normaliser(lib)) + 1;
       var cSrc = colQ(lib);
-      if (lib === 'Quartier' && cDest > 0 && ent.indexOf(normaliser('Liste_Quartiers_Dynamique')) >= 0 && sh.getLastRow() >= 2) {
-        var rgs = []; for (var rq = 2; rq <= sh.getLastRow(); rq++) rgs.push(rq);
-        listeQuartiersParLigne_(sh, rgs);
-        return;
+      // 3.31.123 : Presences, Pharmacies et Etablissements : liste du Quartier liée à la commune de la ligne
+      if (lib === 'Quartier' && cDest > 0 && sh.getLastRow() >= 2) {
+        try {
+          var rgs = []; for (var rq = 2; rq <= sh.getLastRow(); rq++) rgs.push(rq);
+          listeQuartiersParLigne_(sh, rgs);
+          return;
+        } catch (eLdd) { console.warn('listes Quartier par commune : ' + eLdd); }   // à défaut : liste complète ci-dessous
       }
       if (cDest > 0 && cSrc > 0) {
         var lettre = lettreColonne_(cSrc);
@@ -500,7 +503,7 @@ function reparerListesQuartiers() {
   var entQ = shQ.getRange(1, 1, 1, shQ.getLastColumn()).getValues()[0].map(normaliser);
   var cCom = entQ.indexOf(normaliser('Commune')) + 1, cQ = entQ.indexOf(normaliser('Quartier')) + 1;
   var bilan = [];
-  [FEUILLES.etablissements, FEUILLES.pharmacies].forEach(function (nomF) {
+  [FEUILLES.etablissements, FEUILLES.pharmacies, FEUILLES.presences].forEach(function (nomF) {
     var sh = ss.getSheetByName(nomF); if (!sh || sh.getLastRow() < 2) return;
     var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
     var cC = ent.indexOf(normaliser('Commune')) + 1, cQd = ent.indexOf(normaliser('Quartier')) + 1, der = sh.getLastRow();
@@ -555,6 +558,9 @@ function ldd_(ss) {
     if (!idx[n]) idx[n] = debut + k;
     if (!f2[k] && String(v2[k] || '') === '') shQ.getRange(2, debut + k).setFormula(formule(debut + k));   // colonne sans formule (ex. Abengourou)
   }
+  // communes réellement présentes dans l'onglet Quartiers : une commune inconnue (faute de frappe, ligne vide) ne crée pas de colonne
+  var connues = {};
+  shQ.getRange(2, iC, shQ.getLastRow() - 1, 1).getValues().forEach(function (l) { var n = normaliser(l[0]); if (n) connues[n] = true; });
   var dernier = debut + noms.length - 1;
   while (dernier >= debut && !normaliser(noms[dernier - debut])) dernier--;
   return {
@@ -565,6 +571,7 @@ function ldd_(ss) {
       var t = String(commune || '').trim(), k = normaliser(t);
       if (!k) return 0;
       if (idx[k]) return idx[k];
+      if (!connues[k]) return 0;   // commune absente de l'onglet Quartiers : liste complète des quartiers
       var col = dernier + 1;
       if (col > shQ.getMaxColumns()) shQ.insertColumnsAfter(shQ.getMaxColumns(), col - shQ.getMaxColumns());
       shQ.getRange(1, col).setValue(t);
@@ -2000,7 +2007,7 @@ function onEdit(e) {
       }
       // 3.31.106 : la liste déroulante du Quartier de la ligne suit sa commune
       // 3.31.108 : seulement quand la commune change (ou une ligne collée qui la contient)
-      if (nom !== FEUILLES.presences && cCom > 0 && c0 <= cCom && cCom <= cEnd) {
+      if (cCom > 0 && c0 <= cCom && cCom <= cEnd) {
         var lgs = []; for (var rl = rStart; rl <= rEnd; rl++) lgs.push(rl);
         try { listeQuartiersParLigne_(sh, lgs); } catch (eLq) {}
       }
