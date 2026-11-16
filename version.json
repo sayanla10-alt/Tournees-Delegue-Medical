@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.121",
+  "version": "3.31.122",
   "date": "2026-11-16",
   "notes": [
-    "OCR : ajout de Gemini 3.8 Flash en tête de cascade (gratuit), classement par performance et bascule immédiate en sourdine dès qu'un quota est atteint"
+    "OCR : activation de la haute résolution d'image (MEDIA_RESOLUTION_HIGH) et ajout de Gemini 3.6 Flash en secours gratuit"
   ]
 }

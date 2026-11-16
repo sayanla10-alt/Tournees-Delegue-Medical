@@ -15,8 +15,8 @@
 
 var DOSSIER_FICHES_SCANNEES = 'MediPlanner - Fiches scannées';
 var ONGLET_FICHES_SCANNEES = 'Fiches scannées';
-// 3.31.121 : Cascade classée par performance (palier gratuit), avec bascule immédiate en sourdine dès qu'un quota (429) est atteint
-var MODELES_GEMINI_DEFAUT = ['gemini-3.8-flash', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
+// 3.31.122 : Cascade classée par performance (palier gratuit) + haute résolution d'image (MEDIA_RESOLUTION_HIGH), avec bascule immédiate en sourdine dès qu'un quota (429) est atteint
+var MODELES_GEMINI_DEFAUT = ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
 var TAILLE_MAX_PHOTO = 8 * 1024 * 1024;   // octets, après décodage
 var PAUSE_QUOTA_MODELE_SEC = 600;         // 10 min de mise en sourdine après un 429
 
@@ -329,11 +329,12 @@ function appelerGemini_(cle, b64, mime) {
   if (!modeles.length) modeles = base;
   var derniere = '';
   var consigneComplete = CONSIGNE_LECTURE_FICHE + referentielPraticiensPourOcr_();
-  var envoyer = function (modele, parts) {
+  var envoyer = function (modele, parts, sansRes) {
+    var genCfg = { temperature: 0, maxOutputTokens: 16384, responseMimeType: 'application/json', responseSchema: schemaLectureFiche_() };
+    if (!sansRes) genCfg.mediaResolution = 'MEDIA_RESOLUTION_HIGH';
     return UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(modele) + ':generateContent', {
       method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': cle }, muteHttpExceptions: true,
-      payload: JSON.stringify({ contents: [{ role: 'user', parts: parts }],
-        generationConfig: { temperature: 0, maxOutputTokens: 16384, responseMimeType: 'application/json', responseSchema: schemaLectureFiche_() } }) });
+      payload: JSON.stringify({ contents: [{ role: 'user', parts: parts }], generationConfig: genCfg }) });
   };
   var lire = function (rep) {
     var o = JSON.parse(rep.getContentText()), cand = o.candidates && o.candidates[0];
@@ -346,6 +347,7 @@ function appelerGemini_(cle, b64, mime) {
     var modeleEnCours = modeles[i];
     for (var essai = 0; essai < 2; essai++) {
       var rep = envoyer(modeleEnCours, [{ text: consigneComplete }, image]), code = rep.getResponseCode();
+      if (code === 400) { rep = envoyer(modeleEnCours, [{ text: consigneComplete }, image], true); code = rep.getResponseCode(); }
       if (code === 200) {
         if (modeleEnCours === 'gemini-2.5-pro') {
           enregistrerAppelProReussi_();
