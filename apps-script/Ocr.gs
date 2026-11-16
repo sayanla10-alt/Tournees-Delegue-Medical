@@ -15,17 +15,31 @@
 
 var DOSSIER_FICHES_SCANNEES = 'MediPlanner - Fiches scannées';
 var ONGLET_FICHES_SCANNEES = 'Fiches scannées';
-// 3.31.29 : Cascade de modèles intelligente : gemini-2.5-pro en priorité pour une intelligence maximale,
-// puis gemini-2.5-flash dès que les quotas gratuits du Pro sont atteints.
-var MODELES_GEMINI_DEFAUT = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
+// 3.31.121 : Cascade classée par performance (palier gratuit), avec bascule immédiate en sourdine dès qu'un quota (429) est atteint
+var MODELES_GEMINI_DEFAUT = ['gemini-3.8-flash', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash'];
 var TAILLE_MAX_PHOTO = 8 * 1024 * 1024;   // octets, après décodage
+var PAUSE_QUOTA_MODELE_SEC = 600;         // 10 min de mise en sourdine après un 429
 
 // Gestionnaire intelligent des quotas du tier gratuit pour Gemini 2.5 Pro (2 req/min, 50 req/jour)
 var QUOTAS_GEMINI_PRO = {
   maxJour: 45,          // marge de sécurité sous les 50/jour
   maxMinute: 2,         // max 2 requêtes / minute
-  pauseApres429Sec: 600 // 10 minutes de repli automatique sur Flash si Google répond 429
+  pauseApres429Sec: 600 // 10 minutes de repli automatique si Google répond 429
 };
+
+function estModeleSature_(modele) {
+  try {
+    return !!CacheService.getScriptCache().get('GEMINI_PAUSE_429_' + modele);
+  } catch (e) {
+    return false;
+  }
+}
+
+function marquerModeleSature_(modele) {
+  try {
+    CacheService.getScriptCache().put('GEMINI_PAUSE_429_' + modele, '1', PAUSE_QUOTA_MODELE_SEC);
+  } catch (e) {}
+}
 
 function estGeminiProDisponible_() {
   try {
@@ -79,9 +93,8 @@ function enregistrerAppelProReussi_() {
 
 function marquerGeminiProSature_() {
   try {
-    var cache = CacheService.getScriptCache();
-    cache.put('GEMINI_PRO_PAUSE_429', '1', QUOTAS_GEMINI_PRO.pauseApres429Sec);
-    console.warn('Gemini 2.5 Pro a atteint son quota gratuit (429). Bascule automatique immédiate sur Gemini 2.5 Flash.');
+    CacheService.getScriptCache().put('GEMINI_PRO_PAUSE_429', '1', QUOTAS_GEMINI_PRO.pauseApres429Sec);
+    marquerModeleSature_('gemini-2.5-pro');
   } catch (e) {}
 }
 
@@ -307,16 +320,13 @@ function referentielPraticiensPourOcr_() {
 
 function appelerGemini_(cle, b64, mime) {
   var prop = PropertiesService.getScriptProperties().getProperty('MODELE_GEMINI');
-  var modeles = [];
-  if (prop) {
-    modeles = [prop].concat(MODELES_GEMINI_DEFAUT.filter(function (m) { return m !== prop; }));
-  } else {
-    // Vérification intelligente des compteurs de quotas gratuits (Pro -> Flash)
-    if (estGeminiProDisponible_()) {
-      modeles.push('gemini-2.5-pro');
-    }
-    modeles.push('gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash');
-  }
+  var base = prop ? [prop].concat(MODELES_GEMINI_DEFAUT.filter(function (m) { return m !== prop; })) : MODELES_GEMINI_DEFAUT.slice();
+  var modeles = base.filter(function (m) {
+    if (estModeleSature_(m)) return false;
+    if (m === 'gemini-2.5-pro' && !estGeminiProDisponible_()) return false;
+    return true;
+  });
+  if (!modeles.length) modeles = base;
   var derniere = '';
   var consigneComplete = CONSIGNE_LECTURE_FICHE + referentielPraticiensPourOcr_();
   var envoyer = function (modele, parts) {
@@ -355,12 +365,9 @@ function appelerGemini_(cle, b64, mime) {
       derniere = 'Gemini (' + modeleEnCours + ') ' + code + ' : ' + String(msg).slice(0, 300);
       if (code === 404) break; // modèle retiré : passer au modèle suivant
       if (code === 429) {
-        if (modeleEnCours === 'gemini-2.5-pro') {
-          // Limite atteinte sur Pro : pause automatique et bascule immédiate sur Flash !
-          marquerGeminiProSature_();
-          break;
-        }
-        if (essai === 0) { Utilities.sleep(2500); continue; }
+        // Limite atteinte : mise en sourdine temporaire et bascule immédiate sur le modèle suivant
+        if (modeleEnCours === 'gemini-2.5-pro') marquerGeminiProSature_();
+        else marquerModeleSature_(modeleEnCours);
         break;
       }
       if (code >= 500) {

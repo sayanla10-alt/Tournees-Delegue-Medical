@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.120",
+  "version": "3.31.121",
   "date": "2026-11-16",
   "notes": [
-    "Planifier : le message bilan après recalcul reste affiché plus longtemps (14 s) et se ferme d'un toucher"
+    "OCR : ajout de Gemini 3.8 Flash en tête de cascade (gratuit), classement par performance et bascule immédiate en sourdine dès qu'un quota est atteint"
   ]
 }

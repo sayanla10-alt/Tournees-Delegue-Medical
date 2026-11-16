@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.120';
+  var APP_VERSION = '3.31.121';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.121', ['OCR : ajout de Gemini 3.8 Flash en tête de cascade (gratuit), classement par performance et bascule immédiate en sourdine dès qu\'un quota est atteint']],
     ['3.31.120', ['Planifier : le message bilan après recalcul reste affiché plus longtemps (14 s) et se ferme d\'un toucher']],
     ['3.31.119', ['Planifier : message bilan après recalcul clarifié et structuré en lignes courtes faciles à lire']],
     ['3.31.118', ['Journée : un compte rendu du jour déjà validé reste bien validé après actualisation (correction de la restauration des rapports)']],
