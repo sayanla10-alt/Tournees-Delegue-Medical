@@ -516,59 +516,61 @@ function reparerListesQuartiers() {
   return bilan.join(' ; ');
 }
 
-// 3.31.108 : liste déroulante du Quartier qui ne se dérègle plus au tri.
+// 3.31.108 / 3.31.109 : liste déroulante du Quartier qui ne se dérègle plus au tri.
 // Google Sheets fige l'adresse de la plage d'une liste déroulante : une règle « lis TA ligne » se décale dès qu'on trie.
-// La règle de chaque ligne lit désormais la liste de SA COMMUNE, rangée une fois pour toutes dans l'onglet caché
-// « Listes_Quartiers » (une ligne par commune, quartiers calculés par formule depuis l'onglet Quartiers).
-// Trier, copier ou déplacer des lignes déplace la commune ET sa règle ensemble : la liste reste juste, sans aucun
-// script à attendre. Seul un changement de commune refait la règle de la ligne (onEdit, au moment de la saisie).
-var FEUILLE_LDD = 'Listes_Quartiers';
+// La règle de chaque ligne lit désormais la colonne de SA COMMUNE dans le tableau déjà présent à droite de l'onglet
+// Quartiers (une colonne par commune : nom en ligne 1, quartiers calculés par formule en dessous). Aucun onglet en plus.
+// Trier, copier ou déplacer des lignes déplace la commune ET sa règle ensemble : la liste reste juste, sans attendre.
+// Les noms de communes du tableau sont des valeurs fixes (une commune nouvelle est ajoutée à la fin) : une colonne ne
+// change jamais de commune, sinon les listes pointeraient vers la mauvaise colonne.
 function ldd_(ss) {
   var shQ = ss.getSheetByName(FEUILLES.quartiers || 'Quartiers');
   if (!shQ || shQ.getLastRow() < 2) return null;
-  var eQ = shQ.getRange(1, 1, 1, shQ.getLastColumn()).getValues()[0].map(normaliser);
+  var nCol = shQ.getLastColumn(), l1 = shQ.getRange(1, 1, 1, nCol).getValues()[0], f1 = shQ.getRange(1, 1, 1, nCol).getFormulas()[0];
+  var eQ = l1.map(normaliser);
   var iC = eQ.indexOf(normaliser('Commune')) + 1, iQ = eQ.indexOf(normaliser('Quartier')) + 1;
   if (iC < 1 || iQ < 1) return null;
-  var maxQ = 0, nb = {};
-  shQ.getRange(2, iC, shQ.getLastRow() - 1, 1).getValues().forEach(function (l) {
-    var c = normaliser(l[0]); if (c) { nb[c] = (nb[c] || 0) + 1; if (nb[c] > maxQ) maxQ = nb[c]; }
-  });
-  var largeur = Math.max(150, maxQ + 50);
-  var sh = ss.getSheetByName(FEUILLE_LDD);
-  if (!sh) {
-    sh = ss.insertSheet(FEUILLE_LDD, ss.getNumSheets());
-    sh.getRange(1, 1, 1, 2).setValues([['Commune', 'Quartiers de la commune (calculés depuis l\'onglet Quartiers, ne pas modifier : sert aux listes déroulantes)']]);
-    sh.setFrozenRows(1);
-    try { sh.hideSheet(); } catch (eH) {}
-  }
-  if (sh.getMaxColumns() < largeur + 1) sh.insertColumnsAfter(sh.getMaxColumns(), largeur + 1 - sh.getMaxColumns());
-  if (!sh.getRange(1, 1).getValue()) {
-    sh.getRange(1, 1, 1, 2).setValues([['Commune', 'Quartiers de la commune (calculés depuis l\'onglet Quartiers, ne pas modifier : sert aux listes déroulantes)']]);
-    sh.setFrozenRows(1);
-    try { sh.hideSheet(); } catch (eH2) {}
-  }
-  var idx = {}, der = sh.getLastRow();
   var lQ = lettreColonne_(iQ), lC = lettreColonne_(iC);
-  // classeur en français : séparateur « ; » dans les formules
-  var formule = function (r) { return '=IFERROR(TRANSPOSE(SORT(UNIQUE(FILTER(Quartiers!$' + lQ + '$2:$' + lQ + '; Quartiers!$' + lC + '$2:$' + lC + '=$A' + r + '))));"")'; };
-  if (der >= 2) {
-    sh.getRange(2, 1, der - 1, 1).getValues().forEach(function (l, k) { var c = normaliser(l[0]); if (c && !idx[c]) idx[c] = k + 2; });
-    var fs = sh.getRange(2, 2, der - 1, 1).getFormulas(), voulues = [], diff = false;
-    for (var k = 0; k < fs.length; k++) { voulues.push([formule(k + 2)]); if (fs[k][0] !== voulues[k][0]) diff = true; }
-    if (diff) sh.getRange(2, 2, der - 1, 1).setFormulas(voulues);
+  // début du tableau : première cellule non vide de la ligne 1 après la première colonne vide qui suit les en-têtes
+  var debut = 0, vu = false;
+  for (var c = 1; c <= nCol; c++) {
+    var vide = String(l1[c - 1] || '').trim() === '' && !f1[c - 1];
+    if (vide) vu = true; else if (vu) { debut = c; break; }
   }
+  if (!debut) { debut = nCol + 2; }
+  // noms de communes figés (la formule d'en-tête qui les triait est remplacée par ses valeurs)
+  if (f1[debut - 1]) {
+    var vals = shQ.getRange(1, debut, 1, Math.max(1, nCol - debut + 1)).getValues();
+    shQ.getRange(1, debut).setFormula(''); shQ.getRange(1, debut, 1, vals[0].length).setValues(vals);
+  }
+  var fin = Math.max(debut, shQ.getLastColumn());
+  var noms = shQ.getRange(1, debut, 1, fin - debut + 1).getValues()[0], idx = {};
+  var formule = function (col) {
+    var L = lettreColonne_(col);
+    return '=IFERROR(SORT(UNIQUE(FILTER($' + lQ + '$2:$' + lQ + '; $' + lC + '$2:$' + lC + '=' + L + '$1; $' + lQ + '$2:$' + lQ + '<>""))); "")';
+  };
+  var f2 = shQ.getRange(2, debut, 1, noms.length).getFormulas()[0], v2 = shQ.getRange(2, debut, 1, noms.length).getValues()[0];
+  for (var k = 0; k < noms.length; k++) {
+    var n = normaliser(noms[k]); if (!n) continue;
+    if (!idx[n]) idx[n] = debut + k;
+    if (!f2[k] && String(v2[k] || '') === '') shQ.getRange(2, debut + k).setFormula(formule(debut + k));   // colonne sans formule (ex. Abengourou)
+  }
+  var dernier = debut + noms.length - 1;
+  while (dernier >= debut && !normaliser(noms[dernier - debut])) dernier--;
   return {
-    sh: sh, largeur: largeur, toutes: shQ.getRange(2, iQ, shQ.getMaxRows() - 1, 1),
-    // ligne de la commune dans Listes_Quartiers (ajoutée à la fin si elle manque : les lignes existantes ne bougent jamais)
-    ligne: function (commune) {
+    sh: shQ, toutes: shQ.getRange(2, iQ, shQ.getMaxRows() - 1, 1),
+    plage: function (col) { return shQ.getRange(2, col, shQ.getMaxRows() - 1, 1); },
+    // colonne de la commune (ajoutée à la fin du tableau si elle manque : les colonnes existantes ne bougent jamais)
+    colonne: function (commune) {
       var t = String(commune || '').trim(), k = normaliser(t);
       if (!k) return 0;
       if (idx[k]) return idx[k];
-      var r = Math.max(sh.getLastRow(), 1) + 1;
-      sh.getRange(r, 1).setValue(t);
-      sh.getRange(r, 2).setFormula(formule(r));
-      idx[k] = r;
-      return r;
+      var col = dernier + 1;
+      if (col > shQ.getMaxColumns()) shQ.insertColumnsAfter(shQ.getMaxColumns(), col - shQ.getMaxColumns());
+      shQ.getRange(1, col).setValue(t);
+      shQ.getRange(2, col).setFormula(formule(col));
+      idx[k] = col; dernier = col;
+      return col;
     }
   };
 }
@@ -588,11 +590,11 @@ function listeQuartiersParLigne_(sh, rangs) {
   var regleToutes = SpreadsheetApp.newDataValidation().requireValueInRange(L.toutes, true).setAllowInvalid(true).build();
   for (var r = r0; r <= r1; r++) {
     if (!voulu[r]) continue;
-    var lg = L.ligne(communes[r - r0][0]);
-    if (!lg) { regles[r - r0][0] = regleToutes; continue; }
-    if (!cacheRegle[lg]) cacheRegle[lg] = SpreadsheetApp.newDataValidation()
-      .requireValueInRange(L.sh.getRange(lg, 2, 1, L.largeur), true).setAllowInvalid(true).build();
-    regles[r - r0][0] = cacheRegle[lg];
+    var col = L.colonne(communes[r - r0][0]);
+    if (!col) { regles[r - r0][0] = regleToutes; continue; }
+    if (!cacheRegle[col]) cacheRegle[col] = SpreadsheetApp.newDataValidation()
+      .requireValueInRange(L.plage(col), true).setAllowInvalid(true).build();
+    regles[r - r0][0] = cacheRegle[col];
   }
   sh.getRange(r0, cQ + 1, r1 - r0 + 1, 1).setDataValidations(regles);
   return rs.length;
