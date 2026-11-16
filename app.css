@@ -1800,16 +1800,17 @@ details.avance h3 { margin-top: 18px; }
   position: sticky;
   bottom: calc(var(--haut-nav, 60px) + env(safe-area-inset-bottom, 0px));
   background: var(--papier, #fff);
-  padding: 8px 10px;
+  padding: 6px 10px;
   z-index: 15;
   border-top: 1px solid var(--trait, #e2e8f0);
   box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
-  margin: 8px -10px 12px;
+  margin: 4px -10px 0;
   border-radius: var(--r, 8px);
   animation: none !important;
   transform: none !important;
   opacity: 1 !important;
 }
+.barre-plan-actions-flottante .rangee-tirage { margin-bottom: 0; }
 #vue.vue-entre > .barre-plan-actions-flottante,
 #vue.jour-glisse-d .barre-plan-actions-flottante,
 #vue.jour-glisse-g .barre-plan-actions-flottante {
@@ -3727,9 +3728,9 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .fx-presents-ici { border-color: #EDCF94; background: #FCF6EA; }
 
 /* 3.27.29 : encadré « Praticien indisponible » ajusté au texte */
-.bloc-remplacant { width: fit-content; max-width: 100%; margin: 16px auto 4px; padding: 8px 14px; }
+.bloc-remplacant { width: fit-content; max-width: 100%; margin: 6px auto 2px; padding: 6px 12px; }
 .bloc-remplacant p { margin: 0; text-align: center; }
-.lien-modifier-tournee { display: flex; align-items: center; gap: 6px; margin: 6px auto 0; justify-content: center; }
+.lien-modifier-tournee { display: flex; align-items: center; gap: 6px; margin: 2px auto 0; min-height: 30px; padding: 4px 8px; justify-content: center; }
 .lien-modifier-tournee svg { width: 16px; height: 16px; }
 
 /* 3.27.30 : Répertoire en trois annuaires */
