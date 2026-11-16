@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.96';
+  var APP_VERSION = '3.31.97';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.97', ['Fluidité & navigation : suppression des freezes au clic sur Journée / Planifier (calcul groupé des 85 jours en une passe) et suppression des sauts d\'écran entre onglets et dans Nouveau contact (Hôpital)', 'Établissements connus autour de vous : affiche les 4 plus proches (au lieu d\'un seul dans 500 m), uniformisé avec Médecins et Pharmacies']],
     ['3.31.96', ['Répertoire › Ajouter : Médecin et Hôpital n\'ouvrent plus le clavier d\'office, comme Pharmacie ; on touche le champ pour saisir']],
     ['3.31.95', ['Fiche ouverte d\'un médecin ou d\'une pharmacie : toucher le nom ouvre le suivi des visites (prochain RDV, absence, dernière visite, dernier échange, fréquence, historique complet) ; le reste de la fiche est inchangé']],
     ['3.31.94', ['Répertoire › Ajouter : médecins et établissements connus autour de vous, comme pour les pharmacies (même présentation : nom, lieu, distance, Ouvrir)', 'Hôpitaux : bouton Planifier de la fiche à la hauteur des boutons + Médecin de Journée ; étiquette « Aujourd\'hui » en ambre, plus lisible que le vert']],
@@ -4086,8 +4087,9 @@
       }
     }
     memoriserEcran();
+    var memeOngletR = tab === S.ui.ongletAnime;
     animerRendu(tab, dateAvant); annoncer(tab === 'jour' ? 'Affichage de la journée' : (tab === 'semaine' ? 'Planifier' : tab));
-    if (!vue.classList.contains('vue-entre') && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
+    if ((memeOngletR || !vue.classList.contains('vue-entre')) && Math.abs(window.scrollY - y) > 1) window.scrollTo(0, y);
     centrerBandeJours();
     dessinerCartes();
     rendreFeuille();
@@ -4157,16 +4159,14 @@
     if (nouvelEcran) {
       var memeOnglet = S.ui.ongletAnime === tab;
       var changementJour = memeOnglet && dateAvant && dCour && dateAvant !== dCour && (tab === 'jour' || tab === 'semaine');
-      void v.offsetWidth;
-      if (!changementJour) v.classList.add('vue-entre');
-      if (changementJour) {
+      if (!memeOnglet) {
+        v.classList.add('vue-entre');
+        v.querySelectorAll('.arret, .ligne-plan, .liste > .element, .kpi, .ligne-gamme, .tuile').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 10)); });
+        if (!reduireAnimations()) compterChiffres(v);
+      } else if (changementJour) {
         v.classList.add(dCour > dateAvant ? 'jour-glisse-d' : 'jour-glisse-g');
       }
       S.ui.cleVue = cle;
-      // 3.31.34 : Indexation séparée de la frise et du contenu pour éviter que 85 jours de frise retardent les visites du bas
-      v.querySelectorAll('.bj-jour').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 6)); });
-      v.querySelectorAll('.arret, .ligne-plan, .liste > .element, .kpi, .ligne-gamme, .tuile').forEach(function (el, i) { el.style.setProperty('--i', Math.min(i, 10)); });
-      if (!reduireAnimations() && !changementJour) compterChiffres(v);
     }
     // la prochaine visite du jour respire (anneau qui pulse sur la ligne du temps)
     var t = aujourdhui(), now = minutesMaintenant(), proch = S.plan.filter(function (x) { return x.date === t && !x.statut && (heureVersMinutes(x.heure) === null || heureVersMinutes(x.heure) >= now - 20); })[0];
@@ -4960,6 +4960,45 @@
     sel.faites.forEach(function (v) { var k = v.code || v.uid; if (k) vus[k] = true; });
     return Object.keys(vus).length;
   }
+  // 3.31.89 : calcul en une seule passe du nombre de visites sur tous les jours de la frise (évite 85×2 scans complets)
+  function comptesVisitesJours(jours) {
+    var comptes = {}, sets = {}, dansJours = {};
+    jours.forEach(function (j) { comptes[j] = 0; dansJours[j] = true; });
+    S.plan.forEach(function (a) { if (dansJours[a.date]) comptes[a.date]++; });
+    var supSrv = suppressionsServeur();
+    var jRetLoc = LS.get('joursRetires', {}) || {};
+    var vSupLoc = LS.get('visitesSupprimees', {}) || {};
+    var arch = LS.get('archives', {}) || {};
+    var supJour = function (d, c) {
+      return !!((supSrv.visites[d] && supSrv.visites[d][c]) || (vSupLoc[d] && vSupLoc[d][c]));
+    };
+    var ajouterCode = function (d, x) {
+      var k = x.code || x.uid; if (!k) return;
+      (sets[d] = sets[d] || {})[k] = true;
+    };
+    var srvParJour = {};
+    ((S.data && S.data.plannings) || []).forEach(function (x) {
+      if (!dansJours[x.date] || comptes[x.date] > 0 || supSrv.jours[x.date]) return;
+      if (x.delegue && estMoi(x.delegue)) (srvParJour[x.date] = srvParJour[x.date] || []).push(x);
+    });
+    jours.forEach(function (d) {
+      if (comptes[d] > 0 || supSrv.jours[d]) return;
+      var liste = (srvParJour[d] && srvParJour[d].length) ? srvParJour[d] : (arch[d] && arch[d].length ? arch[d] : null);
+      if (!liste) return;
+      var retire = !!(supSrv.jours[d] || jRetLoc[d]);
+      liste.forEach(function (x) {
+        if (supJour(d, x.code)) return;
+        if (vraiStatut(x.statut) || !retire) ajouterCode(d, x);
+      });
+    });
+    visitesConnues().forEach(function (v) {
+      var d = String(v.date || '').slice(0, 10);
+      if (!dansJours[d] || comptes[d] > 0) return;
+      if ((!v.delegue || estMoi(v.delegue)) && v.code && !supJour(d, v.code)) ajouterCode(d, v);
+    });
+    jours.forEach(function (d) { if (comptes[d] === 0 && sets[d]) comptes[d] = Object.keys(sets[d]).length; });
+    return comptes;
+  }
   function enteteJour(d) {
     var t = aujourdhui(), dates = datesPlan(), tour = dates.indexOf(d) >= 0, etat;
     if (tour) etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmée</span>' :
@@ -4968,12 +5007,13 @@
     // 3.19.0 : bande défilante des jours ouvrés (glisser à gauche ou à droite), jour choisi au centre, en couleur
     // 3.26.50 : aujourd'hui (et le jour choisi) toujours présents dans la frise, même un week-end (grisé)
     var jours = []; for (var k = -42; k <= 42; k++) jours.push(ajouterJours(d, k));   // 3.26.65 : tous les jours, samedi, dimanche et fériés grisés
+    var comptesJ = comptesVisitesJours(jours);
     return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + etiquetteRelative(d) + '</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
       '<p class="sous-titre">Déroulez votre tournée dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus.</p>' +
       '<div class="bande-jours">' +
         '<div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
-          var n = nbVisitesJour(x);
+          var n = comptesJ[x] || 0;
           return '<button type="button" class="bj-jour' + (x === t ? ' aujourdhui' : '') + (jourSemaineIndex(x) === 0 ? ' lundi' : '') + (jourSemaineIndex(x) > 4 || estFerie(x) ? ' non-ouvre grise' : '') + '" data-a="jourAller" data-v="' + x + '" aria-pressed="' + (x === d) + '"><small>' +
             JOURS_COURTS[jourSemaineIndex(x)].replace('.', '') + '</small><b>' + (+x.slice(8)) + '</b><em>' + MOIS_ABREGES[+x.slice(5, 7) - 1] + '</em><i>' + (n ? n : '') + '</i></button>';
         }).join('') + '</div>' +
@@ -10030,24 +10070,41 @@
   // ------------------------------------------------------------------ Feuilles (fenêtres du bas)
   function rendreFeuille() {
     var f = S.ui.feuille, el = $('feuille'); if (!el) return;
-    if (!f) { el.hidden = true; el.innerHTML = ''; el.dataset.ouverte = ''; document.body.classList.remove('feuille-ouverte'); return; }
+    if (!f) { el.hidden = true; el.innerHTML = ''; el.dataset.ouverte = ''; el.dataset.type = ''; document.body.classList.remove('feuille-ouverte'); return; }
+    var etaitFermee = el.hidden || !el.querySelector('.feuille');
     el.hidden = false; document.body.classList.add('feuille-ouverte');
     var contenu = FEUILLES[f.type](f), pied = '', tete = '';
-    if (typeof contenu === 'object') { pied = contenu.pied; tete = contenu.tete || ''; contenu = contenu.corps; }
+    if (typeof contenu === 'object') { pied = contenu.pied || ''; tete = contenu.tete || ''; contenu = contenu.corps; }
     var sousType = f.type + (f.etape || '') + (f.cherche ? '|cherche' : '') + (f.choix ? '|choix' : '');
     var defil = el.querySelector('.feuille-corps'), haut = defil && el.dataset.type === sousType ? defil.scrollTop : 0;
-    var nouvelle = !defil || el.dataset.ouverte !== f.type;
     el.dataset.type = sousType; el.dataset.ouverte = f.type;
-    el.innerHTML = '<div class="voile" data-a="fermerFeuille"></div><div class="feuille' + (f.pleine ? ' pleine' : '') + (nouvelle ? ' anim' : '') + '" role="dialog" aria-modal="true" aria-label="' + esc(String(f.titre || '').replace(/<[^>]+>/g, '')) + '">' +
-      '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="' + (f.retourAction || 'fermerFeuille') + '" aria-label="Retour">' + icone('chevron') + '</button><b>' + (f.titreHtml ? f.titre : esc(f.titre || '')) + '</b>' + tete + '</div>' +
-      '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
-    if (haut) el.querySelector('.feuille-corps').scrollTop = haut;
+    var titreHtml = f.titreHtml ? f.titre : esc(f.titre || '');
+    var titreAria = esc(String(f.titre || '').replace(/<[^>]+>/g, ''));
+    if (etaitFermee) {
+      el.innerHTML = '<div class="voile" data-a="fermerFeuille"></div><div class="feuille' + (f.pleine ? ' pleine' : '') + ' anim" role="dialog" aria-modal="true" aria-label="' + titreAria + '">' +
+        '<div class="poignee" aria-hidden="true"></div><div class="feuille-tete"><button type="button" class="retour-feuille" data-a="' + (f.retourAction || 'fermerFeuille') + '" aria-label="Retour">' + icone('chevron') + '</button><b>' + titreHtml + '</b>' + tete + '</div>' +
+        '<div class="feuille-corps">' + contenu + '</div>' + (pied ? '<div class="feuille-pied">' + pied + '</div>' : '') + '</div>';
+    } else {
+      var box = el.querySelector('.feuille');
+      box.className = 'feuille' + (f.pleine ? ' pleine' : '');
+      box.setAttribute('aria-label', titreAria);
+      var ft = box.querySelector('.feuille-tete');
+      if (ft) ft.innerHTML = '<button type="button" class="retour-feuille" data-a="' + (f.retourAction || 'fermerFeuille') + '" aria-label="Retour">' + icone('chevron') + '</button><b>' + titreHtml + '</b>' + tete;
+      if (defil) defil.innerHTML = contenu;
+      var fp = box.querySelector('.feuille-pied');
+      if (pied) {
+        if (!fp) { fp = document.createElement('div'); fp.className = 'feuille-pied'; box.appendChild(fp); }
+        fp.innerHTML = pied;
+      } else if (fp) fp.remove();
+    }
+    var corpsEl = el.querySelector('.feuille-corps');
+    if (corpsEl) corpsEl.scrollTop = haut;
     // 3.25.49 : Bande des produits fluide : centrage doux du produit sélectionné sans saut ni boucle
     var bp = el.querySelector('.bande-produits'), sel = bp && bp.querySelector('.bp-produit[aria-pressed="true"]');
     if (sel) {
       setTimeout(function () {
         var cible = sel.offsetLeft - (bp.clientWidth - sel.offsetWidth) / 2;
-        if (nouvelle) {
+        if (etaitFermee) {
           bp.scrollLeft = Math.max(0, cible);
         } else {
           bp.scrollTo({ left: Math.max(0, cible), behavior: 'smooth' });
@@ -11864,15 +11921,17 @@
     });
     return res.sort(function (a, b) { return a.m - b.m; }).slice(0, 4);
   }
-  // 3.31.94 : établissements connus à moins de rayonKm
+  // 3.31.94 / 3.31.97 : les 4 établissements connus les plus proches (en priorité dans rayonKm)
   function hopitauxConnusProches(pos, rayonKm) {
-    var res = [];
+    var tous = [];
     hopitauxRepertoire(true).forEach(function (e) {
       if (!isFinite(e.lat) || !isFinite(e.lon)) return;
       var dKm = distanceKm(pos, { lat: e.lat, lon: e.lon }) / REGLAGES_MOTEUR.detourRoutier;
-      if (dKm <= rayonKm) res.push({ e: e, m: Math.round(dKm * 1000) });
+      tous.push({ e: e, m: Math.round(dKm * 1000) });
     });
-    return res.sort(function (a, b) { return a.m - b.m; }).slice(0, 4);
+    tous.sort(function (a, b) { return a.m - b.m; });
+    var dansRayon = tous.filter(function (x) { return x.m <= rayonKm * 1000; });
+    return (dansRayon.length >= 4 ? dansRayon : tous).slice(0, 4);
   }
   function pharmaciesConnuesProches(pos, rayonKm) {
     var res = [], c = ctx();
@@ -12688,13 +12747,13 @@
     if (f.cherche) {
       h += segmentAjout('Hôpital');
       var gH = gpsFrais();
-      if (gH) {   // 3.31.94 : établissements connus autour de vous, comme pour les pharmacies
+      if (gH) {   // 3.31.94 / 3.31.97 : les 4 établissements connus les plus proches, comme pour les pharmacies
         var prochesH = hopitauxConnusProches(gH, 0.5);
         h += '<div class="fx-radar"><div class="fx-radar-t"><span>Établissements connus autour de vous</span><span>± ' + gH.prec + ' m</span></div>' +
           (prochesH.length ? prochesH.map(function (x) {
             return '<button type="button" class="fx-ph" data-a="hopOuvrir" data-v="' + esc(x.e.nom) + '"><span><b>' + esc(x.e.nom) + '</b><small>' + esc([x.e.quartier, x.e.reperes].filter(Boolean).join(', ')) + '</small></span>' +
               '<span class="fx-ph-d">' + distMoi(x.m / 1000 * REGLAGES_MOTEUR.detourRoutier).replace(/^≈ /, '≈ ') + '<small>Ouvrir</small></span></button>';
-          }).join('') : '<p class="discret" style="margin:0">Aucun établissement connu à moins de 500 m.</p>') + '</div>';
+          }).join('') : '<p class="discret" style="margin:0">Aucun établissement connu à proximité.</p>') + '</div>';
       }
       h += '<p class="fx-question">Quel établissement ?</p>' +
         champFiche('hnom', 'Nom de l\'hôpital ou de la clinique', '<input type="text" class="fx-champ-g" data-f="hop" data-k="nom" autocomplete="off" value="' + esc(e.nom) + '" placeholder="Ex. Hôpital Général de Bingerville"' + attrInvalide(f, 'hnom') + '>', f, false) +

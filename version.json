@@ -1,7 +1,8 @@
 ﻿{
-  "version": "3.31.96",
-  "date": "2026-11-15",
+  "version": "3.31.97",
+  "date": "2026-11-16",
   "notes": [
-    "Vérifier la fiche : retour du tableau Ancien / Nouveau par médecin, valeur à garder au toucher, espace resserré pour le téléphone"
+    "Fluidité & navigation : suppression des freezes sur Journée/Planifier et des sauts d'écran",
+    "Établissements connus autour de vous : affiche jusqu'à 4 établissements proches"
   ]
 }
