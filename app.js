@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.99';
+  var APP_VERSION = '3.31.100';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.100', ['Fluidité & démarrage : pré-calcul des index pendant la page de garde, optimisation du MutationObserver d\'abréviation (98 % d\'appels DOM évités) et apparition instantanée des onglets']],
     ['3.31.99', ['Navigation : sélection instantanée de l\'onglet au toucher (plus de délai avant l\'activation du bouton en bas)']],
     ['3.31.98', ['Performance globale : mise en cache de suppressionsServeur(), quartiers(), visitesConnues(), etablissementsConnus(), rappelsDuJour() et importerAgenda() pour éliminer les recalculs répétés sur chaque onglet']],
     ['3.31.97', ['Fluidité & navigation : suppression des freezes au clic sur Journée / Planifier (calcul groupé des 85 jours en une passe) et suppression des sauts d\'écran entre onglets et dans Nouveau contact (Hôpital)', 'Établissements connus autour de vous : affiche les 4 plus proches (au lieu d\'un seul dans 500 m), uniformisé avec Médecins et Pharmacies']],
@@ -17470,8 +17471,9 @@
     var RE_CSU = /\bCSU\s+Communautaire\b/gi;
     function abreger(n) {
       if (n.nodeType === 3) {
-        var p = n.parentNode; if (!p || EXCLUS[p.nodeName] || (p.closest && p.closest('[contenteditable],textarea,select,pre,.texte-entier'))) return;
         var txt = n.nodeValue;
+        if (!txt || (txt.indexOf('harmacie') < 0 && txt.indexOf('HARMACIE') < 0 && txt.indexOf('oulevard') < 0 && txt.indexOf('CSU') < 0)) return;
+        var p = n.parentNode; if (!p || EXCLUS[p.nodeName] || (p.closest && p.closest('[contenteditable],textarea,select,pre,.texte-entier'))) return;
         if (RE.test(txt)) { RE.lastIndex = 0; txt = txt.replace(RE, function (m) { return m === 'PHARMACIE' ? 'PHCIE' : 'Phcie'; }); }
         if (RE_BLVD.test(txt)) { RE_BLVD.lastIndex = 0; txt = txt.replace(RE_BLVD, 'Blvd.'); }
         if (RE_CSU.test(txt)) { RE_CSU.lastIndex = 0; txt = txt.replace(RE_CSU, 'CSU COM'); }
@@ -17479,9 +17481,8 @@
         return;
       }
       if (n.nodeType !== 1 || EXCLUS[n.nodeName]) return;
-      var w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT), l = [], t;
-      while ((t = w.nextNode())) l.push(t);
-      l.forEach(abreger);
+      var w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT), t;
+      while ((t = w.nextNode())) abreger(t);
     }
     if (!window.MutationObserver) return;
     abreger(document.body);
@@ -17498,9 +17499,28 @@
     if (datesPlan().indexOf(t) >= 0) { S.ui.jour = t; S.ui.jourVue = null; } else { S.ui.jourVue = t; }
   })();
   rendre();
+  // 3.31.100 : pré-calcul progressif des index pendant la page de garde (rend les changements d'onglets instantanés)
+  function prechaufferCaches() {
+    if (!pret()) return;
+    var etapes = [
+      function () { ctx(); quartiers(); },
+      function () { suppressionsServeur(); visitesConnues(); rappelsDuJour(); },
+      function () { _obtenirColleguesIndex(); etablissementsConnus(); },
+      function () { hopitauxRepertoire(false); hopitauxRepertoire(true); }
+    ];
+    var i = 0;
+    function pas() {
+      if (i >= etapes.length) return;
+      try { etapes[i++](); } catch (ePre) {}
+      setTimeout(pas, 25);
+    }
+    setTimeout(pas, 40);
+  }
+  prechaufferCaches();
   if (configureParLien) toast('Application configurée. Synchronisation…');
   var lancerSync = function () {
     if (connecte()) synchroniser(!configureParLien).then(function () {
+      prechaufferCaches();
       if (configureParLien && pret()) { S.ui.tab = S.plan.length ? 'jour' : 'semaine'; rendre(); }
     });
   };

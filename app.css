@@ -1885,7 +1885,7 @@ details.avance h3 { margin-top: 18px; }
 @keyframes onde { from { transform: scale(0); opacity: .35; } to { transform: scale(2.4); opacity: 0; } }
 @keyframes attention { 0%, 100% { transform: none; } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(1px); } }
 #vue.vue-entre .arret, #vue.vue-entre .ligne-plan, #vue.vue-entre .liste > .element, #vue.vue-entre .kpi, #vue.vue-entre .ligne-gamme, #vue.vue-entre .tuile {
-  animation: arriver .24s cubic-bezier(.2, .8, .25, 1) both; animation-delay: calc(var(--i, 0) * 20ms); }
+  animation: arriver .15s ease-out both; }
 #vue.vue-entre .progression i, #vue.vue-entre .jauge i { animation: remplir .9s cubic-bezier(.2, .8, .25, 1) both; animation-delay: .2s; }
 .arret.prochaine .arret-noeud { animation: pulse-anneau 1.8s ease-out infinite; }
 .navigation button.rebond svg { animation: rebond .45s ease-out; }

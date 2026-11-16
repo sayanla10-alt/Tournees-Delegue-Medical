@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.99",
+  "version": "3.31.100",
   "date": "2026-11-16",
   "notes": [
-    "Navigation : sélection instantanée de l'onglet au toucher (plus de délai avant l'activation du bouton en bas)"
+    "Fluidité & démarrage : pré-calcul des index pendant la page de garde, optimisation du MutationObserver d'abréviation et apparition instantanée des onglets"
   ]
 }
