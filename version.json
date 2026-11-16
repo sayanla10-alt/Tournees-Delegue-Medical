@@ -1,8 +1,7 @@
 ﻿{
-  "version": "3.31.97",
+  "version": "3.31.98",
   "date": "2026-11-16",
   "notes": [
-    "Fluidité & navigation : suppression des freezes sur Journée/Planifier et des sauts d'écran",
-    "Établissements connus autour de vous : affiche jusqu'à 4 établissements proches"
+    "Performance globale : mise en cache de suppressionsServeur(), quartiers(), visitesConnues(), etablissementsConnus(), rappelsDuJour() et importerAgenda()"
   ]
 }

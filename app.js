@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.97';
+  var APP_VERSION = '3.31.98';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.98', ['Performance globale : mise en cache de suppressionsServeur(), quartiers(), visitesConnues(), etablissementsConnus(), rappelsDuJour() et importerAgenda() pour éliminer les recalculs répétés sur chaque onglet']],
     ['3.31.97', ['Fluidité & navigation : suppression des freezes au clic sur Journée / Planifier (calcul groupé des 85 jours en une passe) et suppression des sauts d\'écran entre onglets et dans Nouveau contact (Hôpital)', 'Établissements connus autour de vous : affiche les 4 plus proches (au lieu d\'un seul dans 500 m), uniformisé avec Médecins et Pharmacies']],
     ['3.31.96', ['Répertoire › Ajouter : Médecin et Hôpital n\'ouvrent plus le clavier d\'office, comme Pharmacie ; on touche le champ pour saisir']],
     ['3.31.95', ['Fiche ouverte d\'un médecin ou d\'une pharmacie : toucher le nom ouvre le suivi des visites (prochain RDV, absence, dernière visite, dernier échange, fréquence, historique complet) ; le reste de la fiche est inchangé']],
@@ -1325,6 +1326,7 @@
   // n'est pas relue, un réglage introuvable au démarrage n'y est pas écrasé par sa valeur par défaut
   var A_SAUVER = { params: true, filtres: true, filtresAutour: true, etatsJours: true, rapports: true };
   var absentsAuDemarrage = {}, idbRelue = false;
+  var _supRev = 0, _rappelsRev = 0;
   var LS = {
     _mem: {},
     get: function (k, d) {
@@ -1342,6 +1344,8 @@
     },
     set: function (k, v) {
       LS._mem[k] = v;
+      if (k === 'joursRetires' || k === 'visitesSupprimees' || k === 'archives') _supRev++;
+      if (k === 'rappelsTraites') _rappelsRev++;
       if (!idbRelue && absentsAuDemarrage[k]) return;
       IDB.set(k, v);
       if (k === 'plan' && typeof S !== 'undefined' && S && S.horsPlan && (idbRelue || !absentsAuDemarrage.horsPlan)) {
@@ -1672,9 +1676,13 @@
     }
     return l;
   }
+  var _qCache = { src: null, res: null };
   function quartiers() {
     if (S.data && S.data.quartiers && S.data.quartiers.length) {
-      return S.data.quartiers.filter(function (q) { return q && (q.quartier || q.secteur); });
+      if (_qCache.src !== S.data.quartiers) {
+        _qCache = { src: S.data.quartiers, res: S.data.quartiers.filter(function (q) { return q && (q.quartier || q.secteur); }) };
+      }
+      return _qCache.res;
     }
     return quartiersDefautObjets();
   }
@@ -4799,8 +4807,14 @@
     if (futur && moi()) { S.ui.aPublier = true; LS.set('aPublier', true); }
     return true;
   }
+  var _agendaCache = { data: null, planLen: -1, hpLen: -1, supRev: -1, moi: '' };
   function importerAgenda() {
     if (!pret()) return 0;
+    var hpLen = (S.horsPlan || []).length, mCur = moi() || '';
+    if (_agendaCache.data === S.data && _agendaCache.planLen === S.plan.length &&
+        _agendaCache.hpLen === hpLen && _agendaCache.supRev === _supRev && _agendaCache.moi === mCur) {
+      return 0;
+    }
     actualiserLieux();
     var t = aujourdhui(), n = 0, deja = ensemble(datesPlan()), retires = joursRetires();
     for (var k = -7; k <= 70; k++) {
@@ -4836,6 +4850,7 @@
       S.plan = S.plan.concat(l); S.jours[d] = { etat: confirme ? 'valide' : 'proposition', valideLe: '', modifieLe: '' }; n++;
     }
     LS.set('agendaImporte', true);
+    _agendaCache = { data: S.data, planLen: S.plan.length, hpLen: (S.horsPlan || []).length, supRev: _supRev, moi: mCur };
     if (!n) return 0;
     LS.set('horsPlan', S.horsPlan || []);
     trierPlan(); sauver(true);
@@ -5025,7 +5040,12 @@
   function estSuppressionPlanning(p) { return !!p && p.programme === PROG_SUPPRIME; }
   function sansSuppressions(l) { return (l || []).filter(function (p) { return !estSuppressionPlanning(p); }); }
   function suppressionsDe(l, ancien) { return l ? l.filter(estSuppressionPlanning) : ((ancien && ancien.suppressions) || []); }
+  var _supSrvCache = { data: null, rev: -1, moi: '', res: null };
   function suppressionsServeur() {
+    var mCur = moi() || '';
+    if (_supSrvCache.data === S.data && _supSrvCache.rev === _supRev && _supSrvCache.moi === mCur && _supSrvCache.res) {
+      return _supSrvCache.res;
+    }
     function normMaj(v) {
       if (!v) return 0;
       var s = String(v).trim();
@@ -5069,7 +5089,8 @@
         if ((!vMaj || (maj && maj > vMaj)) && !(visitesSupLoc[p.date] && visitesSupLoc[p.date][p.code])) delete visites[p.date][p.code];
       }
     });
-    return { jours: jours, visites: visites };
+    _supSrvCache = { data: S.data, rev: _supRev, moi: mCur, res: { jours: jours, visites: visites } };
+    return _supSrvCache.res;
   }
   function joursRetires() { return Object.assign({}, suppressionsServeur().jours, LS.get('joursRetires', {})); }
   function visitesSupprimeesJour(d) { return Object.assign({}, suppressionsServeur().visites[d] || {}, (LS.get('visitesSupprimees', {}) || {})[d] || {}); }
@@ -7446,23 +7467,31 @@
   }
 
   // Rappels du jour (et en retard) : suites « Rappel » de mes comptes rendus, sans visite depuis
+  var _rappelsCache = { data: null, qLen: -1, rev: -1, date: '', moi: '', res: null };
   function rappelsDuJour() {
-    var t = aujourdhui(), dernier = {}, l = [];
-    (S.queue || []).concat((S.data && S.data.historique) || []).forEach(function (v) {
+    var t = aujourdhui(), qLen = (S.queue || []).length, mCur = moi() || '';
+    if (_rappelsCache.data === S.data && _rappelsCache.qLen === qLen && _rappelsCache.rev === _rappelsRev && _rappelsCache.date === t && _rappelsCache.moi === mCur && _rappelsCache.res) {
+      return _rappelsCache.res;
+    }
+    var dernier = {}, l = [];
+    visitesConnues().forEach(function (v) {
       if (v.delegue && !estMoi(v.delegue)) return;
       var d = String(v.date || '').slice(0, 10);
       if (!dernier[v.code] || d > dernier[v.code].d) dernier[v.code] = { d: d, v: v };
     });
+    var traites = LS.get('rappelsTraites', {});
     Object.keys(dernier).forEach(function (k) {
       var v = dernier[k].v, p = String(v.prochaine || '').slice(0, 10);
       if (/^Rappel/.test(v.suite || '') && p && p <= t) {
         // 3.27.14 : rappel traité (« Fait ») ou reporté depuis la carte : masqué
-        var st = LS.get('rappelsTraites', {})[v.code + '|' + p];
+        var st = traites[v.code + '|' + p];
         if (st && (st.fait || (st.jusqua && st.jusqua > t))) return;
         l.push({ v: v, date: p });
       }
     });
-    return l.sort(function (x, y) { return x.date < y.date ? -1 : 1; });
+    var res = l.sort(function (x, y) { return x.date < y.date ? -1 : 1; });
+    _rappelsCache = { data: S.data, qLen: qLen, rev: _rappelsRev, date: t, moi: mCur, res: res };
+    return res;
   }
   function rendreRappels() {
     var l = rappelsDuJour();
@@ -9515,12 +9544,16 @@
   }
   function joursEntre(a, b) { var l = []; for (var d = a; d <= b && l.length < 400; d = ajouterJours(d, 1)) l.push(d); return l; }
   // Comptes rendus connus (envoyés et en attente), sans doublon
+  var _vcCache = { data: null, qLen: -1, res: null };
   function visitesConnues() {
+    var qLen = (S.queue || []).length;
+    if (_vcCache.data === S.data && _vcCache.qLen === qLen && _vcCache.res) return _vcCache.res;
     var vus = {}, l = [];
     S.queue.concat((S.data && S.data.historique) || []).forEach(function (v) {
       if (v.uid) { if (vus[v.uid]) return; vus[v.uid] = true; }
       l.push(v);
     });
+    _vcCache = { data: S.data, qLen: qLen, res: l };
     return l;
   }
   // Visites planifiées : ma tournée en cours + tournées publiées (les miennes ou celles de toute l'équipe)
@@ -11602,7 +11635,10 @@
     return null;
   }
 
+  var _ecCache = { data: null, len: -1, res: null };
   function etablissementsConnus() {
+    var etLen = (S.data && S.data.etablissements && S.data.etablissements.length) || 0;
+    if (_ecCache.data === S.data && _ecCache.len === etLen && _ecCache.res) return _ecCache.res;
     var vus = {}, l = [];
     var pharCodes = {};
     ((S.data && S.data.praticiens) || []).forEach(function (p) {
@@ -11652,6 +11688,7 @@
       var cx = lireCoord(x); if (!e.lat && cx) { e.lat = cx.lat; e.lon = cx.lon; }
     });
     l.forEach(function (e) { e.txt = normaliser(e.lieu + ' ' + (e.quartier || '') + ' ' + (e.commune || '') + ' ' + (e.categorie || '')); });
+    _ecCache = { data: S.data, len: etLen, res: l };
     return l;
   }
   function cleEtab(e) { return normaliser(e.lieu || '') + '|' + normaliser(e.commune || '') + '|' + normaliser(e.quartier || ''); }
