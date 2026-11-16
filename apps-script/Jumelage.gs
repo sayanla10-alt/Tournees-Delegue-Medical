@@ -647,8 +647,8 @@ function jumSurChangement(e) {
     var ss = SpreadsheetApp.getActive();
     var sh = ss.getActiveSheet();
     SpreadsheetApp.flush();
-    // 3.31.106 : tri ou déplacement de lignes : les listes déroulantes du Quartier sont remises sur leur propre ligne
-    if (sh && (sh.getName() === FEUILLES.pharmacies || sh.getName() === FEUILLES.etablissements) && type !== 'EDIT') {
+    // 3.31.108 : lignes ajoutées : leur liste déroulante du Quartier suit leur commune (le tri, lui, ne dérègle plus rien)
+    if (sh && (sh.getName() === FEUILLES.pharmacies || sh.getName() === FEUILLES.etablissements) && type === 'INSERT_ROW') {
       try { realignerListesQuartiers_(sh); } catch (eRl) { console.warn('realignerListesQuartiers_ : ' + eRl); }
     }
     if (sh && sh.getName() === FEUILLES.quartiers) {

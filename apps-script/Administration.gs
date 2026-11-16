@@ -516,93 +516,81 @@ function reparerListesQuartiers() {
   return bilan.join(' ; ');
 }
 
-// 3.31.106 : après un tri, un copier-coller ou une suppression de lignes dans Pharmacies ou Etablissements, chaque règle
-// « Quartier » est vérifiée : celle qui ne lit pas la liste de SA ligne est refaite (rien n'est réécrit si tout est juste)
-function realignerListesQuartiers_(sh) {
-  if (!sh || sh.getLastRow() < 2) return 0;
-  var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
-  var cL = ent.indexOf(normaliser('Liste_Quartiers_Dynamique')), cQ = ent.indexOf(normaliser('Quartier'));
-  if (cL < 0 || cQ < 0) return 0;
-  var der = sh.getLastRow(), regles = sh.getRange(2, cQ + 1, der - 1, 1).getDataValidations(), faux = [];
-  for (var i = 0; i < regles.length; i++) {
-    var r = i + 2, v = regles[i][0], ok = false;
-    try {
-      var pl = v && v.getCriteriaValues && v.getCriteriaValues()[0];
-      ok = !!(pl && pl.getSheet && pl.getSheet().getName() === sh.getName() && pl.getRow() === r && pl.getColumn() === cL + 1);
-    } catch (e) {}
-    if (!ok) faux.push(r);
+// 3.31.108 : liste déroulante du Quartier qui ne se dérègle plus au tri.
+// Google Sheets fige l'adresse de la plage d'une liste déroulante : une règle « lis TA ligne » se décale dès qu'on trie.
+// La règle de chaque ligne lit désormais la liste de SA COMMUNE, rangée une fois pour toutes dans l'onglet caché
+// « Listes_Quartiers » (une ligne par commune, quartiers calculés par formule depuis l'onglet Quartiers).
+// Trier, copier ou déplacer des lignes déplace la commune ET sa règle ensemble : la liste reste juste, sans aucun
+// script à attendre. Seul un changement de commune refait la règle de la ligne (onEdit, au moment de la saisie).
+var FEUILLE_LDD = 'Listes_Quartiers';
+function ldd_(ss) {
+  var shQ = ss.getSheetByName(FEUILLES.quartiers || 'Quartiers');
+  if (!shQ || shQ.getLastRow() < 2) return null;
+  var eQ = shQ.getRange(1, 1, 1, shQ.getLastColumn()).getValues()[0].map(normaliser);
+  var iC = eQ.indexOf(normaliser('Commune')) + 1, iQ = eQ.indexOf(normaliser('Quartier')) + 1;
+  if (iC < 1 || iQ < 1) return null;
+  var maxQ = 0, nb = {};
+  shQ.getRange(2, iC, shQ.getLastRow() - 1, 1).getValues().forEach(function (l) {
+    var c = normaliser(l[0]); if (c) { nb[c] = (nb[c] || 0) + 1; if (nb[c] > maxQ) maxQ = nb[c]; }
+  });
+  var largeur = Math.max(150, maxQ + 50);
+  var sh = ss.getSheetByName(FEUILLE_LDD);
+  if (!sh) {
+    sh = ss.insertSheet(FEUILLE_LDD, ss.getNumSheets());
+    sh.getRange(1, 1, 1, 2).setValues([['Commune', 'Quartiers de la commune (calculés depuis l\'onglet Quartiers, ne pas modifier : sert aux listes déroulantes)']]);
+    sh.setFrozenRows(1);
+    try { sh.hideSheet(); } catch (eH) {}
   }
-  if (faux.length) listeQuartiersParLigne_(sh, faux);
-  return faux.length;
-}
-
-// 3.31.107 : Google Sheets ne sait pas faire une liste déroulante « relative à sa ligne » (même posée par l'API, la
-// plage est figée) et un tri ne déclenche pas toujours onChange : quand une cellule Quartier de Pharmacies ou
-// d'Etablissements est sélectionnée, sa règle est vérifiée et refaite si elle lit une autre ligne (déclencheur simple,
-// rien à installer ; il faut seulement recharger le classeur une fois)
-function onSelectionChange(e) {
-  try {
-    var rg = e && e.range; if (!rg || rg.getNumRows() > 200) return;
-    var sh = rg.getSheet(), nom = sh.getName();
-    if (nom !== FEUILLES.pharmacies && nom !== FEUILLES.etablissements) return;
-    var r0 = Math.max(2, rg.getRow()), r1 = rg.getLastRow(); if (r1 < 2) return;
-    var cache = CacheService.getDocumentCache(), k = 'ldd_cols_' + nom, cols = null;
-    try { cols = JSON.parse(cache.get(k) || 'null'); } catch (eC) {}
-    if (!cols) {
-      var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
-      cols = { q: ent.indexOf(normaliser('Quartier')) + 1, l: ent.indexOf(normaliser('Liste_Quartiers_Dynamique')) + 1 };
-      cache.put(k, JSON.stringify(cols), 600);
+  if (sh.getMaxColumns() < largeur + 1) sh.insertColumnsAfter(sh.getMaxColumns(), largeur + 1 - sh.getMaxColumns());
+  var idx = {}, der = sh.getLastRow();
+  if (der >= 2) sh.getRange(2, 1, der - 1, 1).getValues().forEach(function (l, k) { var c = normaliser(l[0]); if (c && !idx[c]) idx[c] = k + 2; });
+  var lQ = lettreColonne_(iQ), lC = lettreColonne_(iC);
+  return {
+    sh: sh, largeur: largeur, toutes: shQ.getRange(2, iQ, shQ.getMaxRows() - 1, 1),
+    // ligne de la commune dans Listes_Quartiers (ajoutée à la fin si elle manque : les lignes existantes ne bougent jamais)
+    ligne: function (commune) {
+      var t = String(commune || '').trim(), k = normaliser(t);
+      if (!k) return 0;
+      if (idx[k]) return idx[k];
+      var r = Math.max(sh.getLastRow(), 1) + 1;
+      sh.getRange(r, 1).setValue(t);
+      sh.getRange(r, 2).setFormula('=IFERROR(TRANSPOSE(SORT(UNIQUE(FILTER(Quartiers!$' + lQ + '$2:$' + lQ + ', Quartiers!$' + lC + '$2:$' + lC + '=$A' + r + ')))),"")');
+      idx[k] = r;
+      return r;
     }
-    if (!cols.q || !cols.l || rg.getColumn() > cols.q || rg.getLastColumn() < cols.q) return;
-    var regles = sh.getRange(r0, cols.q, r1 - r0 + 1, 1).getDataValidations(), faux = [];
-    for (var i = 0; i < regles.length; i++) {
-      var v = regles[i][0], ok = false;
-      try { var pl = v && v.getCriteriaValues()[0]; ok = !!(pl && pl.getRow && pl.getRow() === r0 + i && pl.getColumn() === cols.l && pl.getSheet().getName() === nom); } catch (eV) {}
-      if (!ok) faux.push(r0 + i);
-    }
-    if (faux.length) listeQuartiersParLigne_(sh, faux);
-  } catch (err) {}
+  };
 }
 
 function listeQuartiersParLigne_(sh, rangs) {
   if (!sh || !rangs || !rangs.length || sh.getLastColumn() < 1) return 0;
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
-  var cL = ent.indexOf(normaliser('Liste_Quartiers_Dynamique')), cQ = ent.indexOf(normaliser('Quartier'));
-  if (cL < 0 || cQ < 0) return 0;
-  // largeur = plus grand nombre de quartiers d'une commune (+ marge) : aucune omission dans la liste
-  var shQ = SpreadsheetApp.getActive().getSheetByName(FEUILLES.quartiers || 'Quartiers'), maxQ = 0;
-  if (shQ && shQ.getLastRow() > 1) {
-    var eQ = shQ.getRange(1, 1, 1, shQ.getLastColumn()).getValues()[0].map(normaliser);
-    var iC = eQ.indexOf(normaliser('Commune'));
-    if (iC >= 0) {
-      var nb = {};
-      shQ.getRange(2, iC + 1, shQ.getLastRow() - 1, 1).getValues().forEach(function (l) {
-        var c = String(l[0] || '').trim(); if (c) { nb[c] = (nb[c] || 0) + 1; if (nb[c] > maxQ) maxQ = nb[c]; }
-      });
-    }
-  }
-  var largeur = Math.max(150, maxQ + 50);
-  var manque = cL + largeur - sh.getMaxColumns();
-  if (manque > 0) sh.insertColumnsAfter(sh.getMaxColumns(), manque);
-  var modele = sh.getRange(2, cL + 1).getFormulaR1C1();
+  var cQ = ent.indexOf(normaliser('Quartier')), cC = ent.indexOf(normaliser('Commune'));
+  if (cQ < 0 || cC < 0) return 0;
+  var L = ldd_(sh.getParent()); if (!L) return 0;
   var rs = rangs.filter(function (r) { return r >= 2; }).sort(function (a, b) { return a - b; });
   if (!rs.length) return 0;
-  var r0 = rs[0], r1 = rs[rs.length - 1];
-  // formule de la colonne dynamique posée là où elle manque (lignes ajoutées)
-  if (modele) {
-    var fl = sh.getRange(r0, cL + 1, r1 - r0 + 1, 1).getFormulas();
-    rs.forEach(function (r) { if (!fl[r - r0][0]) sh.getRange(r, cL + 1).setFormulaR1C1(modele); });
-  }
-  // une règle par ligne, écrites d'un bloc
-  var regles = sh.getRange(r0, cQ + 1, r1 - r0 + 1, 1).getDataValidations(), voulu = {};
+  var r0 = rs[0], r1 = rs[rs.length - 1], voulu = {};
   rs.forEach(function (r) { voulu[r] = true; });
+  var communes = sh.getRange(r0, cC + 1, r1 - r0 + 1, 1).getValues();
+  var regles = sh.getRange(r0, cQ + 1, r1 - r0 + 1, 1).getDataValidations(), cacheRegle = {};
+  var regleToutes = SpreadsheetApp.newDataValidation().requireValueInRange(L.toutes, true).setAllowInvalid(true).build();
   for (var r = r0; r <= r1; r++) {
     if (!voulu[r]) continue;
-    regles[r - r0][0] = SpreadsheetApp.newDataValidation()
-      .requireValueInRange(sh.getRange(r, cL + 1, 1, largeur), true).setAllowInvalid(true).build();
+    var lg = L.ligne(communes[r - r0][0]);
+    if (!lg) { regles[r - r0][0] = regleToutes; continue; }
+    if (!cacheRegle[lg]) cacheRegle[lg] = SpreadsheetApp.newDataValidation()
+      .requireValueInRange(L.sh.getRange(lg, 2, 1, L.largeur), true).setAllowInvalid(true).build();
+    regles[r - r0][0] = cacheRegle[lg];
   }
   sh.getRange(r0, cQ + 1, r1 - r0 + 1, 1).setDataValidations(regles);
   return rs.length;
+}
+
+// toutes les lignes d'un onglet (après un ajout de lignes, ou depuis le menu de réparation)
+function realignerListesQuartiers_(sh) {
+  if (!sh || sh.getLastRow() < 2) return 0;
+  var rgs = []; for (var r = 2; r <= sh.getLastRow(); r++) rgs.push(r);
+  return listeQuartiersParLigne_(sh, rgs);
 }
 
 function ecrireListes(ss) {
@@ -1996,9 +1984,9 @@ function onEdit(e) {
         deployerFormulesTerritoire_(ss, [nom], lignesGeo);
         SpreadsheetApp.flush();
       }
-      // 3.31.106 : la liste déroulante du Quartier de chaque ligne touchée relit SA ligne (un tri ou un copier-coller
-      // de lignes emporte la règle d'une autre ligne : choisir Anyama affichait alors les quartiers de Cocody)
-      if (nom !== FEUILLES.presences) {
+      // 3.31.106 : la liste déroulante du Quartier de la ligne suit sa commune
+      // 3.31.108 : seulement quand la commune change (ou une ligne collée qui la contient)
+      if (nom !== FEUILLES.presences && cCom > 0 && c0 <= cCom && cCom <= cEnd) {
         var lgs = []; for (var rl = rStart; rl <= rEnd; rl++) lgs.push(rl);
         try { listeQuartiersParLigne_(sh, lgs); } catch (eLq) {}
       }
