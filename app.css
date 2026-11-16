@@ -5153,3 +5153,26 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 /* 3.31.94 : fiche hôpital : Planifier à la hauteur des boutons + Médecin de Journée ; « Aujourd'hui » en ambre (moins de vert) */
 .hop-medecins .bouton.petit { min-height: 34px; height: 34px; padding: 0 12px; font-size: 13.5px; }
 .etiquette.auj { background: var(--ambre-pale); color: var(--ambre); border-color: var(--ambre-trait); }
+/* 3.31.95 : suivi des visites (toucher le nom dans la fiche ouverte) */
+.nom-suivi { cursor: pointer; }
+.nom-suivi:focus-visible { outline: 3px solid var(--d-objectif); outline-offset: 2px; border-radius: 4px; }
+.sv-synthese { background: var(--papier); border: 1px solid var(--trait); border-radius: 14px; padding: 2px 12px; }
+.sv-l { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--trait); font-size: 13.5px; }
+.sv-l:last-child { border-bottom: 0; }
+.sv-k { flex: none; width: 104px; color: var(--gris); font-weight: 600; }
+.sv-v { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sv-v small { font-size: 12.5px; color: var(--gris); }
+.sv-ambre { color: var(--ambre); } .sv-vert { color: var(--vert); } .sv-rouge { color: var(--rouge); } .sv-gris { color: var(--gris-2); }
+.sv-titre { margin: 14px 2px 6px; font-size: 13px; font-weight: 700; color: var(--gris); }
+.sv-histo { list-style: none; margin: 0; padding: 0; background: var(--papier); border: 1px solid var(--trait); border-radius: 14px; overflow: hidden; }
+.sv-histo li { display: flex; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--trait); }
+.sv-histo li:last-child { border-bottom: 0; }
+.sv-date { flex: none; width: 42px; display: flex; flex-direction: column; line-height: 1.15; }
+.sv-date b { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.sv-date small { font-size: 11px; color: var(--gris-2); }
+.sv-corps { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sv-statut { display: flex; align-items: center; flex-wrap: wrap; gap: 0 5px; font-size: 13px; font-weight: 600; }
+.sv-statut i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.sv-statut em { font-style: normal; font-weight: 500; color: var(--gris-2); }
+.sv-com { font-size: 13px; color: var(--carte-texte); }
+.sv-suite { font-size: 12.5px; color: var(--ambre); }

@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.94';
+  var APP_VERSION = '3.31.95';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.95', ['Fiche ouverte d\'un médecin ou d\'une pharmacie : toucher le nom ouvre le suivi des visites (prochain RDV, absence, dernière visite, dernier échange, fréquence, historique complet) ; le reste de la fiche est inchangé']],
     ['3.31.94', ['Répertoire › Ajouter : médecins et établissements connus autour de vous, comme pour les pharmacies (même présentation : nom, lieu, distance, Ouvrir)', 'Hôpitaux : bouton Planifier de la fiche à la hauteur des boutons + Médecin de Journée ; étiquette « Aujourd\'hui » en ambre, plus lisible que le vert']],
     ['3.31.93', ['En-tête : la pastille de synchronisation est centrée entre le numéro de version et la roue crantée, sans plus le chevaucher (même avec une version à 3 chiffres)', 'Répertoire : la fiche ouverte se détache nettement des autres cartes (encadrée, espacée), médecins, pharmacies et hôpitaux', 'Critères : bouton « Tous » en tête des raccourcis (médecins, pharmacies, hôpitaux) ; « Réinitialiser les filtres » toujours actif, vert, y compris dans Hôpitaux']],
     ['3.31.92', ['Répertoire : retour des pastilles (médecin, caducée pharmacie) et des liserés de couleur, plus de teinte sur le contact ouvert', 'Étiquettes (Engagé, Vu il y a, GPS, Hors créneau…) resserrées et centrées sur une ligne quand c\'est possible, aussi dans la fiche ouverte et les Hôpitaux', 'Fiche ouverte : « Tél » et « D.C » (dernier commentaire) en gras, titre et horaires de la semaine sur une ligne, boutons Ajouter au jour / Planifier / Modifier centrés et régulièrement espacés']],
@@ -9010,7 +9011,8 @@
     if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
     var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
     var h = '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
-      '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
+      // 3.31.95 : fiche ouverte : toucher le nom ouvre le suivi des visites (le reste de l'en-tête replie la fiche, comme avant)
+      '<span class="element-titre">' + pastilleType(p) + (ouvert ? '<span class="nom-suivi" role="button" tabindex="0" data-a="suiviContact" data-v="' + esc(p.code) + '" title="Voir le suivi des visites">' + esc(p.nom) + '</span>' : esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
         (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
           var ok = function (x) { return aF && communeCorrespondante(x, coF, quartiers()); };
@@ -10212,6 +10214,57 @@
     };
   };
 
+  // 3.31.95 : suivi des visites d'un contact (prochain RDV, absence, dernière visite, dernier échange, historique)
+  function visitesDuContact(code) {
+    var vus = {}, l = [];
+    ((S.queue || []).concat((S.data && S.data.historique) || [])).forEach(function (v) {
+      if (v.code !== code || !v.date || !vraiStatut(v.statut)) return;
+      var k = v.uid || (v.date + '|' + v.statut + '|' + (v.lieu || ''));
+      if (vus[k]) return; vus[k] = true; l.push(v);
+    });
+    var p = praticien(code);
+    if (!l.length && p && p.derniere) l.push({ date: String(p.derniere).slice(0, 10), statut: p.statut || 'Visite faite', commentaire: p.commentaire || '', lieu: '' });
+    return l.sort(function (a, b) { return String(b.date).localeCompare(String(a.date)) || String(b.horodatage || '').localeCompare(String(a.horodatage || '')); });
+  }
+  FEUILLES.suiviContact = function (f) {
+    var p = praticien(f.code); if (!p) return '<p class="discret">Fiche introuvable.</p>';
+    var t = aujourdhui(), l = visitesDuContact(p.code), h = '';
+    var ligne = function (k, v, d, cl) { return '<div class="sv-l"><span class="sv-k">' + k + '</span><span class="sv-v"><b' + (cl ? ' class="' + cl + '"' : '') + '>' + v + '</b>' + (d ? '<small>' + d + '</small>' : '') + '</span></div>'; };
+    var rdv = p.prochaine && String(p.prochaine).slice(0, 10) >= t ? String(p.prochaine).slice(0, 10) : '';
+    var vRdv = rdv ? l.filter(function (v) { return String(v.prochaine || '').slice(0, 10) === rdv; })[0] : null;
+    h += '<div class="sv-synthese">';
+    h += ligne('Prochain RDV', rdv ? esc(majuscule(dateCourte(rdv))) : 'Aucun', vRdv ? esc([vRdv.lieu ? abregerHopital(vRdv.lieu) : '', 'pris le ' + dateCourte(vRdv.date)].filter(Boolean).join(' · ')) : '', rdv ? 'sv-ambre' : 'sv-gris');
+    if (p.absentDu || p.absentAu) {
+      var fin = String(p.absentAu || '').slice(0, 10);
+      if (!fin || fin >= t) h += ligne('Absence', esc((p.absentDu ? 'Du ' + dateCourte(String(p.absentDu).slice(0, 10)) + ' ' : '') + (fin ? 'au ' + dateCourte(fin) : '')), fin ? 'Retour le ' + esc(dateCourte(ajouterJours(fin, 1))) : '', 'sv-rouge');
+    }
+    if (!l.length) h += ligne('Dernière visite', 'Jamais visité', '', 'sv-gris');
+    else {
+      var v0 = l[0];
+      h += ligne('Dernière visite', esc(dateCourte(v0.date)) + ' · ' + esc(statutLibelle(Object.assign({}, p, { statut: v0.statut }))), esc([v0.lieu ? abregerHopital(v0.lieu) : '', joursEcoules(v0.date, t) > 0 ? 'il y a ' + joursEcoules(v0.date, t) + ' j' : 'aujourd\'hui'].filter(Boolean).join(' · ')), estKo(v0.statut) ? 'sv-ambre' : 'sv-vert');
+      var dc = dernierCommentaire(p.code);
+      if (dc) {
+        var vDc = l.filter(function (v) { return String(v.commentaire || '').trim() === dc.texte; })[0] || {};
+        h += ligne('Dernier échange', esc(dc.texte), esc([dc.date ? dateCourte(dc.date) : '', vDc.suite ? 'Suite : ' + vDc.suite : ''].filter(Boolean).join(' · ')), '');
+      } else if (p.commentaire) h += ligne('Dernier échange', esc(p.commentaire), '', '');
+      var six = ajouterJours(t, -183), n6 = l.filter(function (v) { return v.date >= six && !estKo(v.statut); }).length;
+      h += ligne('Fréquence', n6 + ' visite' + (n6 > 1 ? 's' : '') + ' faite' + (n6 > 1 ? 's' : ''), 'sur les 6 derniers mois', '');
+    }
+    h += '</div>';
+    if (l.length) {
+      var nF = l.filter(function (v) { return !estKo(v.statut); }).length, nK = l.length - nF;
+      h += '<p class="sv-titre">Historique : ' + l.length + ' visite' + (l.length > 1 ? 's' : '') + ' · ' + nF + ' faite' + (nF > 1 ? 's' : '') + (nK ? ', ' + nK + ' non faite' + (nK > 1 ? 's' : '') : '') + '</p>';
+      h += '<ul class="sv-histo">' + l.map(function (v) {
+        var ko = estKo(v.statut), suite = [v.suite, v.prochaine ? 'Prochaine étape le ' + dateCourte(String(v.prochaine).slice(0, 10)) : ''].filter(Boolean).join(' · ');
+        return '<li><span class="sv-date"><b>' + esc(String(v.date).slice(8, 10) + '/' + String(v.date).slice(5, 7)) + '</b><small>' + esc(String(v.date).slice(0, 4)) + '</small></span><span class="sv-corps">' +
+          '<span class="sv-statut ' + (ko ? 'sv-ambre' : 'sv-vert') + '"><i></i>' + esc(statutLibelle(Object.assign({}, p, { statut: v.statut }))) +
+            (v.lieu ? '<em> · ' + esc(abregerHopital(v.lieu)) + '</em>' : '') + (v.delegue && !estMoi(v.delegue) ? '<em> · ' + esc(v.delegue) + '</em>' : '') + '</span>' +
+          (String(v.commentaire || '').trim() ? '<span class="sv-com">' + esc(v.commentaire) + '</span>' : '') +
+          (suite ? '<span class="sv-suite">' + esc(suite) + '</span>' : '') + '</span></li>';
+      }).join('') + '</ul>';
+    }
+    return h;
+  };
   FEUILLES.contactFiche = function (f) {
     var p = praticien(f.code);
     if (!p) return '<p class="discret">Fiche introuvable.</p>';
@@ -14855,7 +14908,7 @@
         return;
       }
       if (f && f.type === 'listeChoix') { S.ui.feuille = f.retour || null; if (!S.ui.feuille) gererHistoriqueModal(false); if (f.dom) rendreFeuille(); else rendre(); return; }
-      if (f && f.type === 'contactFiche') { S.ui.feuille = f.retour || null; if (!S.ui.feuille) gererHistoriqueModal(false); rendre(); return; }
+      if (f && (f.type === 'contactFiche' || f.type === 'suiviContact')) { S.ui.feuille = f.retour || null; if (!S.ui.feuille) gererHistoriqueModal(false); rendre(); return; }
       S.ui.feuille = null; gererHistoriqueModal(false); rendre();
     },
     couvPortee: function (el) { S.ui.couvPortee = el.dataset.v; LS.set('couvPortee', S.ui.couvPortee); rendre(); },
@@ -15068,6 +15121,12 @@
       var h = hopitauxRepertoire().filter(function (x) { return x.cle === k; })[0];
       if (!h) { toast('Établissement introuvable.'); return; }
       majGpsPourHopital(h);
+    },
+    suiviContact: function (el) {
+      var p = praticien(el.dataset.v); if (!p) return;
+      var f0 = S.ui.feuille;
+      S.ui.feuille = { type: 'suiviContact', code: p.code, titre: p.nom, pleine: true, retour: f0 || null };
+      rendre();
     },
     voirContact: function (el) {
       var p = praticien(el.dataset.v); if (!p) return;
