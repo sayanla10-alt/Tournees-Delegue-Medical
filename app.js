@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.116';
+  var APP_VERSION = '3.31.117';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.117', ['Planifier : modifier « Ne pas revoir avant » (comme le nombre de visites/jour) ne fait plus revenir les médecins retirés avec la croix']],
     ['3.31.116', ['Planifier : le nombre maximum de tirages par journée passe de 20 à 30']],
     ['3.31.115', ['Mode sombre : harmonisation des contrastes, des badges, de l\'écran de scan et du mode Auto']],
     ['3.31.114', ['Compte rendu d\'un médecin : les étapes « Type(s) de visite médicale » et « Produits présentés » tiennent à l\'écran, titre en haut et Continuer en bas ; cocher un choix ne fait plus défiler la page']],
@@ -6191,9 +6192,9 @@
   // 3.26.94 : praticiens retirés à la main d'une liste proposée : ils ne reviennent plus dans les propositions (recalcul,
   // nouveau tirage, complément) tant que les critères de planification restent les mêmes ; un changement de critère les libère
   function signatureCriteres(d) {
-    // 3.28.18 / 3.31.77 : tous les filtres comptent sauf le nombre de visites/jour (maxJour)
+    // 3.28.18 / 3.31.77 / 3.31.117 : tous les filtres comptent sauf les deux critères de rythme de l'étape 6 (maxJour et delai / « Ne pas revoir avant »)
     var p = paramsDuJour(d), tri = function (l) { return (l || []).slice().sort(); };
-    return JSON.stringify([tri(p.communes), S.params && S.params.parJour ? S.params.communesJour || {} : {}, tri(p.specialites), tri(p.potentiels), p.typeCibles || '', +p.delai || 0, p.eviterCollegues !== false]);
+    return JSON.stringify([tri(p.communes), S.params && S.params.parJour ? S.params.communesJour || {} : {}, tri(p.specialites), tri(p.potentiels), p.typeCibles || '', p.eviterCollegues !== false]);
   }
   function refusKeyDate(d) {
     return d || (S.ui && S.ui.jour) || (S.params && S.params.dateRef) || 'global';

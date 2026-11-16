@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.116",
+  "version": "3.31.117",
   "date": "2026-11-16",
   "notes": [
-    "Planifier : le nombre maximum de tirages par journée passe de 20 à 30"
+    "Planifier : modifier « Ne pas revoir avant » (comme le nombre de visites/jour) ne fait plus revenir les médecins retirés avec la croix"
   ]
 }
