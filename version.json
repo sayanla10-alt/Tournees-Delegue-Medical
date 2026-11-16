@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.109",
+  "version": "3.31.110",
   "date": "2026-11-16",
   "notes": [
-    "Favoris (♡ / ♥) : cœur vide harmonisé avec les étoiles vides et affiché partout (Planifier, Journée, + Ajouter, Autour de moi, Répertoire)"
+    "Favoris (♥) : préséance sur les ★★★ dans les tirages (+500 pts) — le cœur passe avant le potentiel"
   ]
 }

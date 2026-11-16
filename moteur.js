@@ -328,7 +328,7 @@ var Moteur = (function () {
     var isFav = !!(p && fav && fav[p.code]);
     var jE = joursEcoules(p.derniere, date);
     var s = calcScore(p.note, isFav ? jE * 2 : jE, p.statut);
-    if (isFav) s += 150;
+    if (isFav) s += 500;
     if (p.prochaine && /^\d{4}-\d{2}-\d{2}$/.test(p.prochaine) && p.prochaine <= date) s += 120;
     return s;
   }
