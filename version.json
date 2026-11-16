@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.119",
+  "version": "3.31.120",
   "date": "2026-11-16",
   "notes": [
-    "Planifier : message bilan après recalcul clarifié et structuré en lignes courtes faciles à lire"
+    "Planifier : le message bilan après recalcul reste affiché plus longtemps (14 s) et se ferme d'un toucher"
   ]
 }

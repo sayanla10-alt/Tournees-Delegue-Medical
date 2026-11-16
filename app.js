@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.119';
+  var APP_VERSION = '3.31.120';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.120', ['Planifier : le message bilan après recalcul reste affiché plus longtemps (14 s) et se ferme d\'un toucher']],
     ['3.31.119', ['Planifier : message bilan après recalcul clarifié et structuré en lignes courtes faciles à lire']],
     ['3.31.118', ['Journée : un compte rendu du jour déjà validé reste bien validé après actualisation (correction de la restauration des rapports)']],
     ['3.31.117', ['Planifier : modifier « Ne pas revoir avant » (comme le nombre de visites/jour) ne fait plus revenir les médecins retirés avec la croix']],
@@ -3067,6 +3068,7 @@
   var toastTimer;
   function toast(msg, duree) {
     var t = $('toast'); t.textContent = msg; t.classList.add('visible');
+    t.onclick = function () { clearTimeout(toastTimer); t.classList.remove('visible'); };
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('visible'); }, duree || 3400);
   }
 
@@ -13718,7 +13720,7 @@
       if (cible.length > 1 && r.arrets.length && r.arrets.length < attendu * 0.75) {
         parties.push('Vivier réduit : élargissez communes ou spécialités');
       }
-      toast(parties.join('\n'), (parties.length > 1 || (cible.length === 1 && r.arrets.length < maxJ0)) ? 7500 : 4000);
+      toast(parties.join('\n'), (parties.length > 1 || (cible.length === 1 && r.arrets.length < maxJ0)) ? 14000 : 6500);
     });
   }
 

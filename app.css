@@ -1170,7 +1170,7 @@ body.avec-barre main { padding-bottom: 90px; }
   background: var(--encre); color: var(--papier); font-size: 14px; line-height: 1.45; white-space: pre-line; z-index: 70;
   opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s; pointer-events: none;
 }
-.toast.visible { opacity: 1; transform: none; }
+.toast.visible { opacity: 1; transform: none; pointer-events: auto; cursor: pointer; }
 
 /* ------------------------------------------------------------- Bandeau de mise à jour */
 .bandeau-maj {
