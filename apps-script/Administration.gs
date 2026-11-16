@@ -1334,9 +1334,9 @@ function deployerFormulesTerritoire_(ss, nomsFeuilles, rowNumsOpt) {
       var vals = {
         territoire: resT.territoire || rawTer,
         zone: resT.zone || rawZ,
-        commune: resT.commune || rawCom,
+        commune: rawCom || resT.commune,   // 3.31.90 : la commune et le quartier saisis font foi, jamais remplacés
         subdivision: resT.subdivision !== undefined && resT.subdivision !== '' ? resT.subdivision : rawSub,
-        quartier: resT.quartier || rawQ,
+        quartier: rawQ || resT.quartier,
         secteur: secPourMode || resT.secteur || ''
       };
       var f = formulesLigneTerritoire_(i + 2, vals, refsDest, metaQ);

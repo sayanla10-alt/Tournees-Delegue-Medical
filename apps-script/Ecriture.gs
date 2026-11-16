@@ -525,16 +525,21 @@ function resoudreTerritoireFallback_(entree, refQ) {
 
 function resoudreTerritoireEcriture_(entree, refQ) {
   if (!refQ || !refQ.length) refQ = referentielQuartiers_(null);
+  // 3.31.90 : la saisie fait foi. Le nom du lieu (« CHU de Cocody ») ne sert plus jamais à deviner le quartier,
+  // et un quartier ou une commune saisis ne sont jamais remplacés : on ne fait que compléter ce qui est vide.
+  entree = entree || {};
+  var qSaisi = String(entree.quartier || '').trim(), cSaisie = String(entree.commune || '').trim();
+  var e2 = {}; Object.keys(entree).forEach(function (k) { e2[k] = entree[k]; }); e2.lieu = '';
   var res = (typeof resoudreTerritoire === 'function')
-    ? resoudreTerritoire(entree, refQ)
-    : resoudreTerritoireFallback_(entree, refQ);
+    ? resoudreTerritoire(e2, refQ)
+    : resoudreTerritoireFallback_(e2, refQ);
   res = res || {};
   var out = {
     territoire: String(res.territoire || entree.territoire || '').trim(),
     zone: String(res.zone || entree.zone || '').trim(),
-    commune: String(res.commune || (typeof communeParente === 'function' ? communeParente(entree.commune || '') : entree.commune || '')).trim(),
+    commune: cSaisie || String(res.commune || '').trim(),
     subdivision: String(res.subdivision || entree.subdivision || '').trim(),
-    quartier: String(res.quartier || entree.quartier || '').trim(),
+    quartier: qSaisi || String(res.quartier || '').trim(),
     secteur: String(res.secteur || entree.secteur || '').trim(),
     lat: res.lat,
     lon: res.lon
