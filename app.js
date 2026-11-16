@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.112';
+  var APP_VERSION = '3.31.113';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.113', ['Répertoire › Nouveau contact (Hôpitaux) : limitation à 3 établissements proches pour garder le bouton Créer visible']],
     ['3.31.112', ['Journée : ajout du bouton cœur (♡ / ♥) dans la carte « Maintenant / Visite suivante »']],
     ['3.31.111', ['Planifier : alignement vertical exact de la croix et de la coche avec le cœur (en conservant l\'écart avec l\'épingle Garder)']],
     ['3.31.110', ['Favoris (♥) : préséance sur les ★★★ dans les tirages (+500 pts) — le cœur passe avant le potentiel']],
@@ -12056,7 +12057,7 @@
     });
     return res.sort(function (a, b) { return a.m - b.m; }).slice(0, 4);
   }
-  // 3.31.94 / 3.31.97 : les 4 établissements connus les plus proches (en priorité dans rayonKm)
+  // 3.31.94 / 3.31.97 / 3.31.113 : les 3 établissements connus les plus proches (en priorité dans rayonKm)
   function hopitauxConnusProches(pos, rayonKm) {
     var tous = [];
     hopitauxRepertoire(true).forEach(function (e) {
@@ -12066,7 +12067,7 @@
     });
     tous.sort(function (a, b) { return a.m - b.m; });
     var dansRayon = tous.filter(function (x) { return x.m <= rayonKm * 1000; });
-    return (dansRayon.length >= 4 ? dansRayon : tous).slice(0, 4);
+    return (dansRayon.length >= 3 ? dansRayon : tous).slice(0, 3);
   }
   function pharmaciesConnuesProches(pos, rayonKm) {
     var res = [], c = ctx();
