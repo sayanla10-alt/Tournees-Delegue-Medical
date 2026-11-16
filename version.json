@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.103",
+  "version": "3.31.104",
   "date": "2026-11-16",
   "notes": [
-    "Libellé RDV reporté raccourci : « RDV 09/11 → 16/11 (absence) »"
+    "Planifier : étiquettes compactes maintenues sur une seule ligne centrée pour gagner de l'espace"
   ]
 }
