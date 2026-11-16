@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.104';
+  var APP_VERSION = '3.31.105';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.105', ['Journée et Planifier : la frise des jours montre 3 semaines avant et après le jour choisi (au lieu de 6) ; écrans plus légers et plus rapides ; le calendrier permet toujours d\'aller plus loin']],
     ['3.31.104', ['Planifier : étiquettes compactes maintenues sur une seule ligne centrée pour gagner de l\'espace']],
     ['3.31.103', ['Libellé RDV reporté raccourci : « RDV 09/11 → 16/11 (absence) »']],
     ['3.31.102', ['Planifier : centrage complet des lignes d\'étiquettes (Visite faite, Déjà renseignée, Indisponible, Prioritaire, Absent…) sur toutes les cartes']],
@@ -5076,7 +5077,8 @@
     else etat = d < t ? '<span class="etiquette">' + (passeVerrouille(d) ? 'Lecture seule' : 'Jour passé') + '</span>' : (d > t ? '<span class="etiquette p1">' + (futurVerrouille(d) ? 'Aperçu' : 'Jour à venir') + '</span>' : '');
     // 3.19.0 : bande défilante des jours ouvrés (glisser à gauche ou à droite), jour choisi au centre, en couleur
     // 3.26.50 : aujourd'hui (et le jour choisi) toujours présents dans la frise, même un week-end (grisé)
-    var jours = []; for (var k = -42; k <= 42; k++) jours.push(ajouterJours(d, k));   // 3.26.65 : tous les jours, samedi, dimanche et fériés grisés
+    // 3.31.105 : 3 semaines avant et après le jour choisi (au lieu de 6) : écran deux fois plus léger ; le calendrier va plus loin
+    var jours = []; for (var k = -21; k <= 21; k++) jours.push(ajouterJours(d, k));   // 3.26.65 : tous les jours, samedi, dimanche et fériés grisés
     var comptesJ = comptesVisitesJours(jours);
     return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + etiquetteRelative(d) + '</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
@@ -5989,7 +5991,7 @@
   // à toucher pour les planifier ; jours passés, week-ends et fériés grisés
   function frisePlanifier(dates, d) {
     var t = aujourdhui(), centre = d || S.ui.planVide || S.ui.jourSupprime || t, sel = d || S.ui.planVide || S.ui.jourSupprime;
-    var jours = []; for (var k = -42; k <= 42; k++) jours.push(ajouterJours(centre, k));
+    var jours = []; for (var k = -21; k <= 21; k++) jours.push(ajouterJours(centre, k));   // 3.31.105 : 3 semaines de chaque côté
     return '<div class="bande-jours frise-plan"><div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
       var n = S.plan.filter(function (a) { return a.date === x; }).length, ok = jourConfirme(x);
       var nonOuvre = jourSemaineIndex(x) > 4 || estFerie(x), passe = x < t, actif = !passe && !nonOuvre;

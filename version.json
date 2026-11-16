@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.104",
+  "version": "3.31.105",
   "date": "2026-11-16",
   "notes": [
-    "Planifier : étiquettes compactes maintenues sur une seule ligne centrée pour gagner de l'espace"
+    "Journée et Planifier : la frise des jours montre 3 semaines avant et après le jour choisi (au lieu de 6) ; écrans plus légers et plus rapides ; le calendrier permet toujours d'aller plus loin"
   ]
 }
