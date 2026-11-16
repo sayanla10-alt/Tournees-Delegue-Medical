@@ -516,6 +516,26 @@ function reparerListesQuartiers() {
   return bilan.join(' ; ');
 }
 
+// 3.31.106 : après un tri, un copier-coller ou une suppression de lignes dans Pharmacies ou Etablissements, chaque règle
+// « Quartier » est vérifiée : celle qui ne lit pas la liste de SA ligne est refaite (rien n'est réécrit si tout est juste)
+function realignerListesQuartiers_(sh) {
+  if (!sh || sh.getLastRow() < 2) return 0;
+  var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
+  var cL = ent.indexOf(normaliser('Liste_Quartiers_Dynamique')), cQ = ent.indexOf(normaliser('Quartier'));
+  if (cL < 0 || cQ < 0) return 0;
+  var der = sh.getLastRow(), regles = sh.getRange(2, cQ + 1, der - 1, 1).getDataValidations(), faux = [];
+  for (var i = 0; i < regles.length; i++) {
+    var r = i + 2, v = regles[i][0], ok = false;
+    try {
+      var pl = v && v.getCriteriaValues && v.getCriteriaValues()[0];
+      ok = !!(pl && pl.getSheet && pl.getSheet().getName() === sh.getName() && pl.getRow() === r && pl.getColumn() === cL + 1);
+    } catch (e) {}
+    if (!ok) faux.push(r);
+  }
+  if (faux.length) listeQuartiersParLigne_(sh, faux);
+  return faux.length;
+}
+
 function listeQuartiersParLigne_(sh, rangs) {
   if (!sh || !rangs || !rangs.length || sh.getLastColumn() < 1) return 0;
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
@@ -1947,6 +1967,12 @@ function onEdit(e) {
       if (lignesGeo.length) {
         deployerFormulesTerritoire_(ss, [nom], lignesGeo);
         SpreadsheetApp.flush();
+      }
+      // 3.31.106 : la liste déroulante du Quartier de chaque ligne touchée relit SA ligne (un tri ou un copier-coller
+      // de lignes emporte la règle d'une autre ligne : choisir Anyama affichait alors les quartiers de Cocody)
+      if (nom !== FEUILLES.presences) {
+        var lgs = []; for (var rl = rStart; rl <= rEnd; rl++) lgs.push(rl);
+        try { listeQuartiersParLigne_(sh, lgs); } catch (eLq) {}
       }
     } else if (nom === FEUILLES.quartiers) {
       // 3.31.52 : la propagation et la synchronisation Supabase sont gérées par le déclencheur installable

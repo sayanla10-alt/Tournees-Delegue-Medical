@@ -647,6 +647,10 @@ function jumSurChangement(e) {
     var ss = SpreadsheetApp.getActive();
     var sh = ss.getActiveSheet();
     SpreadsheetApp.flush();
+    // 3.31.106 : tri ou déplacement de lignes : les listes déroulantes du Quartier sont remises sur leur propre ligne
+    if (sh && (sh.getName() === FEUILLES.pharmacies || sh.getName() === FEUILLES.etablissements) && type !== 'EDIT') {
+      try { realignerListesQuartiers_(sh); } catch (eRl) { console.warn('realignerListesQuartiers_ : ' + eRl); }
+    }
     if (sh && sh.getName() === FEUILLES.quartiers) {
       jumPousserApresEcriture_(JUM_APRES_ACTION.quartiers);
     } else {
