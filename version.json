@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.115",
+  "version": "3.31.116",
   "date": "2026-11-16",
   "notes": [
-    "Mode sombre : harmonisation des contrastes, des badges, de l'écran de scan et du mode Auto"
+    "Planifier : le nombre maximum de tirages par journée passe de 20 à 30"
   ]
 }

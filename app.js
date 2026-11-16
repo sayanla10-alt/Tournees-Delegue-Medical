@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.115';
+  var APP_VERSION = '3.31.116';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.116', ['Planifier : le nombre maximum de tirages par journée passe de 20 à 30']],
     ['3.31.115', ['Mode sombre : harmonisation des contrastes, des badges, de l\'écran de scan et du mode Auto']],
     ['3.31.114', ['Compte rendu d\'un médecin : les étapes « Type(s) de visite médicale » et « Produits présentés » tiennent à l\'écran, titre en haut et Continuer en bas ; cocher un choix ne fait plus défiler la page']],
     ['3.31.113', ['Répertoire › Nouveau contact (Hôpitaux) : limitation à 3 établissements proches pour garder le bouton Créer visible']],
@@ -6752,7 +6753,7 @@
               '<div class="champ champ-rythme"><span>Visites par jour</span>' +
                 '<div class="champ-compteur">' +
                   '<button type="button" class="btn-pas" data-a="paramPas" data-k="maxJour" data-pas="-1" aria-label="Moins">−</button>' +
-                  '<input type="number" min="1" max="20" inputmode="numeric" data-f="param" data-k="maxJour" value="' + p.maxJour + '">' +
+                  '<input type="number" min="1" max="30" inputmode="numeric" data-f="param" data-k="maxJour" value="' + p.maxJour + '">' +
                   '<button type="button" class="btn-pas" data-a="paramPas" data-k="maxJour" data-pas="1" aria-label="Plus">+</button>' +
                 '</div><small class="rythme-unite">visites / jour</small></div>' +
               '<div class="champ champ-rythme"><span>Ne pas revoir avant</span>' +
@@ -15617,7 +15618,7 @@
     paramSpecDefaut: function () { S.params.specialites = coeurDeCible(); sauverParamsEtCriteres(); rendre(); },
     paramPas: function (el) {
       var k = el.dataset.k, pas = +(el.dataset.pas || el.dataset.v) || 0;
-      if (k === 'maxJour') S.params.maxJour = Math.max(1, Math.min(20, (+S.params.maxJour || 8) + pas));
+      if (k === 'maxJour') S.params.maxJour = Math.max(1, Math.min(30, (+S.params.maxJour || 8) + pas));
       else if (k === 'delai') S.params.delai = Math.max(0, Math.min(90, (S.params.delai !== undefined ? +S.params.delai : 7) + pas));
       sauverParamsEtCriteres(); rendre();
     },
@@ -16967,6 +16968,7 @@
     if (f === 'param') {
       var k = el.dataset.k, dPrec = S.params.dateRef || S.ui.jour;
       S.params[k] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? +el.value : el.value);
+      if (k === 'maxJour') S.params.maxJour = Math.max(1, Math.min(30, +S.params.maxJour || 8));
       if (k === 'dateRef' && S.params.dateRef && S.params.dateRef < aujourdhui() && (S.params.mode === 'jour' || joursOuvres(lundiDe(S.params.dateRef))[4] < aujourdhui())) {
         S.params.dateRef = aujourdhui(); toast('Impossible de planifier un jour passé : la date revient à aujourd\'hui.', 4000);
       }
