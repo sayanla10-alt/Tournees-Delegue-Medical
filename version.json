@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.118",
+  "version": "3.31.119",
   "date": "2026-11-16",
   "notes": [
-    "Journée : un compte rendu du jour déjà validé reste bien validé après actualisation (correction de la restauration des rapports)"
+    "Planifier : message bilan après recalcul clarifié et structuré en lignes courtes faciles à lire"
   ]
 }

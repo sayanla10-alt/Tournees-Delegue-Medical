@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.118';
+  var APP_VERSION = '3.31.119';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.119', ['Planifier : message bilan après recalcul clarifié et structuré en lignes courtes faciles à lire']],
     ['3.31.118', ['Journée : un compte rendu du jour déjà validé reste bien validé après actualisation (correction de la restauration des rapports)']],
     ['3.31.117', ['Planifier : modifier « Ne pas revoir avant » (comme le nombre de visites/jour) ne fait plus revenir les médecins retirés avec la croix']],
     ['3.31.116', ['Planifier : le nombre maximum de tirages par journée passe de 20 à 30']],
@@ -13430,9 +13431,16 @@
       else if (delai && joursEcoules(c.prat.derniere, d) < delai) nb.delai++;
     });
     var libre = nb.tous - nb.ref - nb.autres - nb.delai;
-    var l = [nb.ref ? nb.ref + ' retiré' + (nb.ref > 1 ? 's' : '') + ' par la croix' : '', nb.autres ? nb.autres + ' déjà prévu' + (nb.autres > 1 ? 's' : '') + ' un autre jour ou par un collègue' : '', nb.delai ? nb.delai + ' vu' + (nb.delai > 1 ? 's' : '') + ' il y a moins de ' + delai + ' jours' : ''].filter(Boolean);
-    return n + ' sur ' + maxJ + ' : ' + nb.tous + ' praticien' + (nb.tous > 1 ? 's' : '') + ' présent' + (nb.tous > 1 ? 's' : '') + ' ce jour dans vos critères' + (l.length ? ', dont ' + l.join(', ') : '') +
-      (libre > n ? ' ; les autres ont des heures de présence qui ne s\'enchaînent pas sans retard.' : '.') + ' Élargissez les communes ou les spécialités pour en avoir ' + maxJ + '.';
+    var puces = [
+      nb.ref ? '• ' + nb.ref + ' retiré' + (nb.ref > 1 ? 's' : '') + ' (×)' : '',
+      nb.autres ? '• ' + nb.autres + ' déjà prévu' + (nb.autres > 1 ? 's' : '') + ' (autre jour / collègue)' : '',
+      nb.delai ? '• ' + nb.delai + ' vu' + (nb.delai > 1 ? 's' : '') + ' < ' + delai + ' j' : '',
+      libre > n ? '• horaires incompatibles sans retard' : ''
+    ].filter(Boolean);
+    var lignes = ['Objectif : ' + n + ' / ' + maxJ + ' (' + nb.tous + ' présent' + (nb.tous > 1 ? 's' : '') + ' ce jour)'];
+    if (puces.length) lignes = lignes.concat(puces);
+    lignes.push('→ Élargissez communes ou spécialités');
+    return lignes.join('\n');
   }
   function plafonnerArretsMaxJour(liste, maxJ) {
     var parDate = {}, ordre = [];
@@ -13694,20 +13702,23 @@
       sauver(); rendre(); publierPlan(true);
       if (portee === 'jour') setTimeout(function () { centrerElement(document.querySelector('.bandeau-prog.accepter')); }, 60);
       var nG = Object.keys(heuresGardees).length, nN = r.arrets.length - nG;
-      var msg = r.arrets.length ? (nG ? (!nN ? 'Aucun créneau libre : les ' + nG + ' visites déjà prévues sont conservées.' : nN + ' visite' + (nN > 1 ? 's' : '') + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' déjà prévue' + (nG > 1 ? 's' : '') + ' conservée' + (nG > 1 ? 's' : '') + '.') : r.arrets.length + ' visites proposées' + (cible.length === 1 ? ' pour ce jour' : '') + '.') : 'Aucun praticien ne correspond à ces critères.';
+      var resume = r.arrets.length
+        ? (nG ? (!nN ? 'Aucun créneau libre · ' + nG + ' conservée' + (nG > 1 ? 's' : '') : r.arrets.length + ' visites (' + nN + ' ajoutée' + (nN > 1 ? 's' : '') + ', ' + nG + ' conservée' + (nG > 1 ? 's' : '') + ')') : r.arrets.length + ' visite' + (r.arrets.length > 1 ? 's' : '') + ' proposée' + (r.arrets.length > 1 ? 's' : ''))
+        : 'Aucun praticien trouvé pour ces critères';
+      var parties = [resume];
       var maxJ0 = cible.length === 1 ? maxPour(cible[0]) : (+p.maxJour || 8);
       if ((portee === 'jour' || (portee === 'nouveau' && cible.length === 1)) && cible[0] && r.arrets.length < maxJ0) {
-        msg += ' ' + raisonsManque(cible[0], r.arrets.length, maxJ0, construireExclus([cible[0]]));
+        parties.push(raisonsManque(cible[0], r.arrets.length, maxJ0, construireExclus([cible[0]])));
       }
       var np = r.nonPlaces.filter(function (x) { return !x.etape; });
-      if (np.length) msg += ' ' + np.length + ' médecin(s) prioritaire(s) absent(s) sur la période.';
+      if (np.length) parties.push('• ' + np.length + ' prioritaire' + (np.length > 1 ? 's' : '') + ' absent' + (np.length > 1 ? 's' : '') + ' sur la période');
       var hz = r.nonPlaces.filter(function (x) { return x.etape && x.horsCommunes; });
-      if (hz.length) msg += ' ' + hz.length + ' RDV hors des communes choisies, non placé' + (hz.length > 1 ? 's' : '') + ' : ' + hz.map(function (x) { var pr = praticien(x.code); return pr ? pr.nom : x.code; }).join(', ') + '.';
+      if (hz.length) parties.push('• ' + hz.length + ' RDV hors zone : ' + hz.map(function (x) { var pr = praticien(x.code); return pr ? pr.nom : x.code; }).join(', '));
       var attendu = cible.reduce(function (tot, d) { return tot + (jourSemaineIndex(d) < 5 ? maxPour(d) : 0); }, 0);
       if (cible.length > 1 && r.arrets.length && r.arrets.length < attendu * 0.75) {
-        msg += ' Moins de visites que prévu : les praticiens présents sont déjà ciblés par l\'équipe, vus récemment ou hors des critères choisis. Élargissez les communes ou les spécialités.';
+        parties.push('Vivier réduit : élargissez communes ou spécialités');
       }
-      toast(msg, (cible.length === 1 && r.arrets.length < maxJ0) ? 9000 : 4500);
+      toast(parties.join('\n'), (parties.length > 1 || (cible.length === 1 && r.arrets.length < maxJ0)) ? 7500 : 4000);
     });
   }
 
