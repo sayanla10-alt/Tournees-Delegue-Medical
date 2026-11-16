@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.89';
+  var APP_VERSION = '3.31.91';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.91', ['Répertoire modernisé : liste d\'un seul tenant avec initiales colorées (bleu médecin, violet pharmacie), onglets Médecins / Pharmacies / Hôpitaux soulignés ; mêmes étiquettes, mêmes boutons, même fiche au toucher']],
     ['3.31.89', ['Vérifier la fiche : espace resserré pour le téléphone (tableau Ancien / Nouveau plus compact, marges réduites)', 'Vérifier la fiche : retour du tableau Ancien / Nouveau par médecin (téléphone, spécialité, lieu, planning) : on touche la valeur à garder ; l\'hôpital et la semaine se règlent en touchant le nom']],
     ['3.31.88', ['Journée : ajout de la 4e icône « à vol d\'oiseau » (distance directe sans détour routier) après distance route, à pied et en voiture']],
     ['3.31.87', ['Écran d\'accueil : ne se relance plus plusieurs fois pendant le chargement initial ou la synchronisation']],
@@ -8996,6 +8997,11 @@
     return d !== null ? ' · ' + distMoi(d, approx) : '';
   }
   // 3.28.19 : carte (fiche) d'un contact, hors de la vue pour être aussi ouverte en fenêtre depuis tout l'écran
+  function initialesContact(nom) {
+    var m = String(nom || '').replace(/^\s*(Dr|Pr|Docteur|Professeur|Mme|M\.|Pharmacie(\s+(de\s+la|de\s+l'|du|des|de|les|la|le))?)\s+/i, '')
+      .split(/[\s'-]+/).filter(function (x) { return /[A-Za-zÀ-ÿ]/.test(x); });
+    return ((m[0] || '').charAt(0) + (m[1] || '').charAt(0)).toUpperCase() || '?';
+  }
   function cartePraticienHtml(p, c, t, ouvert) {
     if (!p) return '';
     c = c || ctx();
@@ -9003,6 +9009,8 @@
     if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
     var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
     var h = '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
+      // 3.31.91 : présentation modernisée : avatar d'initiales (couleur du type) à gauche, contenu inchangé
+      '<span class="rep-ligne"><span class="rep-av" aria-hidden="true">' + esc(initialesContact(p.nom)) + '</span><span class="rep-corps">' +
       '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
         (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
@@ -9016,7 +9024,7 @@
           return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
       (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
       (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
-      etiquetteCollegues(p.code, t) + '</span></button>';
+      etiquetteCollegues(p.code, t) + '</span></span></span></button>';
     if (ouvert) {
       var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
       h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
@@ -9064,7 +9072,7 @@
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (nbRes ? 'les ' + nbRes + ' résultat' + (nbRes > 1 ? 's' : '') : 'les résultats') + '</button></div>';
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire</h2></div>' +
-      '<p class="sous-titre">Médecins, pharmacies et hôpitaux : recherchez, filtrez, mettez à jour leurs fiches.</p>';
+      '<p class="sous-titre">Tous vos contacts : recherchez, filtrez, mettez à jour leurs fiches.</p>';
     h += selecteurAnnuaire(f);
     if (S.ui.annuaire === 'hop') {
       if (!gpsFrais()) relocaliserSiBesoin('repertoireHop');
@@ -9129,7 +9137,7 @@
     var nbInitial = Math.min(liste.length, Math.max(TAILLE_PAGE_PRAT, S.ui._pratAffiches || 0, (io >= 0 ? io + 1 : 0)));
     S.ui._pratAffiches = nbInitial;
 
-    h += '<ul id="listePraticiens" class="liste">';
+    h += '<ul id="listePraticiens" class="liste liste-rep">';
     for (var i = 0; i < nbInitial; i++) {
       h += cartePraticienHtml(liste[i], c, t, S.ui.contactOuvert === liste[i].code);
     }
