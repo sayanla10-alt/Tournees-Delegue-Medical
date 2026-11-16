@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.114",
+  "version": "3.31.115",
   "date": "2026-11-16",
   "notes": [
-    "Compte rendu d'un médecin : les étapes « Type(s) de visite médicale » et « Produits présentés » tiennent à l'écran, titre en haut et Continuer en bas ; cocher un choix ne fait plus défiler la page"
+    "Mode sombre : harmonisation des contrastes, des badges, de l'écran de scan et du mode Auto"
   ]
 }

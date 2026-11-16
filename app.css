@@ -45,6 +45,7 @@
   --sur-primaire: #FFFFFF;
   --bleu: #1E5AA8;
   --bleu-pale: #E4EDF8;
+  --bleu-trait: #BFD7F2;
   --entete-1: #09374C;
   --entete-2: #0A6C74;
   --ambre: #9A5B00;
@@ -55,6 +56,7 @@
   --vert-trait: #B6DCC6;
   --rouge: #B3362E;
   --rouge-pale: #FAE5E3;
+  --rouge-trait: #F1D2CF;
   --violet: #6A3FA0;
   --violet-pale: #EFE7F8;
   --voile: rgba(8, 22, 30, .5);
@@ -77,9 +79,9 @@
   :root:not([data-theme="clair"]) {
     --fond: #0A151B; --papier: #111F27; --papier-2: #0D1A21; --encre: #E2ECF0; --gris: #9AB0BA; --gris-2: #6C838E;
     --trait: #22343E; --primaire: #3BB7B5; --primaire-2: #5CCBC8; --primaire-pale: #12343A; --sur-primaire: #04191C;
-    --bleu: #8DBBF2; --bleu-pale: #172B44; --entete-1: #0B1E2C; --entete-2: #0D363B;
+    --bleu: #8DBBF2; --bleu-pale: #172B44; --bleu-trait: #274870; --entete-1: #0B1E2C; --entete-2: #0D363B;
     --ambre: #F0B44C; --ambre-pale: #33270F; --ambre-trait: #5A4419; --vert: #66CF96; --vert-pale: #12301F; --vert-trait: #24563A;
-    --rouge: #F29389; --rouge-pale: #3A1A18; --violet: #C7A8F0; --violet-pale: #2A1E3B; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
+    --rouge: #F29389; --rouge-pale: #3A1A18; --rouge-trait: #5A2A26; --violet: #C7A8F0; --violet-pale: #2A1E3B; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
     --d-serie: #1FA8A4; --d-objectif: #C98118; --d-piste: #22363F; --d-grille: #1B2C34; --carte-fond: #0D1A21; --carte-texte: #B8CAD1;
     color-scheme: dark;
   }
@@ -87,9 +89,9 @@
 :root[data-theme="sombre"] {
   --fond: #0A151B; --papier: #111F27; --papier-2: #0D1A21; --encre: #E2ECF0; --gris: #9AB0BA; --gris-2: #6C838E;
   --trait: #22343E; --primaire: #3BB7B5; --primaire-2: #5CCBC8; --primaire-pale: #12343A; --sur-primaire: #04191C;
-  --bleu: #8DBBF2; --bleu-pale: #172B44; --entete-1: #0B1E2C; --entete-2: #0D363B;
+  --bleu: #8DBBF2; --bleu-pale: #172B44; --bleu-trait: #274870; --entete-1: #0B1E2C; --entete-2: #0D363B;
   --ambre: #F0B44C; --ambre-pale: #33270F; --ambre-trait: #5A4419; --vert: #66CF96; --vert-pale: #12301F; --vert-trait: #24563A;
-  --rouge: #F29389; --rouge-pale: #3A1A18; --violet: #C7A8F0; --violet-pale: #2A1E3B; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
+  --rouge: #F29389; --rouge-pale: #3A1A18; --rouge-trait: #5A2A26; --violet: #C7A8F0; --violet-pale: #2A1E3B; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
   --d-serie: #1FA8A4; --d-objectif: #C98118; --d-piste: #22363F; --d-grille: #1B2C34; --carte-fond: #0D1A21; --carte-texte: #B8CAD1;
   color-scheme: dark;
 }
@@ -262,7 +264,7 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .jour:active { transform: scale(0.95); }
 .jour b { display: block; font: 700 18px/1.1 var(--titre); font-variant-numeric: tabular-nums lining-nums; }
 .jour small { color: var(--gris); font-size: 12px; }
-.jour[aria-pressed="true"] { background: linear-gradient(135deg, var(--primaire), #0E8A94); border-color: transparent; color: #fff; transform: scale(1.06); box-shadow: 0 6px 16px rgba(10, 108, 116, .32); }
+.jour[aria-pressed="true"] { background: linear-gradient(135deg, var(--primaire), var(--primaire-2)); border-color: transparent; color: var(--sur-primaire); transform: scale(1.06); box-shadow: 0 6px 16px rgba(10, 108, 116, .32); }
 .jour[aria-pressed="true"] small { color: inherit; opacity: .88; }
 .jour.aujourdhui:not([aria-pressed="true"]) { border-color: var(--primaire); background: var(--primaire-pale); }
 
@@ -359,7 +361,7 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 }
 .statut::after { content: ""; position: absolute; inset: -4px; }
 .statut[aria-pressed="true"] { background: var(--primaire); border-color: var(--primaire); color: var(--sur-primaire); }
-.statut.ko[aria-pressed="true"] { background: var(--rouge); border-color: var(--rouge); color: #fff; }
+.statut.ko[aria-pressed="true"] { background: var(--rouge); border-color: var(--rouge); color: var(--sur-primaire); }
 .actions-arret { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .actions-arret .bouton { min-height: 38px; padding: 0 12px; font-size: 14px; flex: 1; }
 
@@ -1358,7 +1360,7 @@ details.avance h3 { margin-top: 18px; }
   border-radius: 18px;
   border: none;
   background: var(--primaire, #0A6C74);
-  color: #ffffff;
+  color: var(--sur-primaire);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -1370,18 +1372,18 @@ details.avance h3 { margin-top: 18px; }
 .bouton-reinit-danger svg {
   width: 14px;
   height: 14px;
-  color: #ffffff;
+  color: var(--sur-primaire);
   flex: none;
 }
 .bouton-reinit-rep:hover,
 .bouton-reinit-danger:hover {
-  background: #08545a;
+  background: var(--primaire-2);
   box-shadow: 0 3px 8px rgba(10, 108, 116, 0.35);
 }
 .bouton-reinit-rep:active,
 .bouton-reinit-danger:active {
   transform: scale(0.96);
-  background: #063f44;
+  background: var(--primaire-2);
   box-shadow: 0 1px 3px rgba(10, 108, 116, 0.2);
 }
 .bouton-reinit-rep:disabled,
@@ -1687,8 +1689,8 @@ details.avance h3 { margin-top: 18px; }
 .bj-jour small { font-size: 11px; font-weight: 500; color: var(--gris); text-transform: capitalize; }
 .bj-jour i { font-style: normal; font-size: 10px; font-weight: 700; color: var(--primaire); min-height: 13px; }
 .bj-jour.aujourdhui { border-color: var(--primaire); background: var(--primaire-pale); }
-.bj-jour[aria-pressed="true"] { background: linear-gradient(135deg, var(--primaire), #0E8A94) !important; border-color: transparent !important; color: #fff !important; transform: scale(1.08) !important; box-shadow: 0 6px 16px rgba(10, 108, 116, .32) !important; position: relative; z-index: 2; }
-.bj-jour[aria-pressed="true"] em, .bj-jour[aria-pressed="true"] small, .bj-jour[aria-pressed="true"] i { color: #fff !important; opacity: .92; }
+.bj-jour[aria-pressed="true"] { background: linear-gradient(135deg, var(--primaire), var(--primaire-2)) !important; border-color: transparent !important; color: var(--sur-primaire) !important; transform: scale(1.08) !important; box-shadow: 0 6px 16px rgba(10, 108, 116, .32) !important; position: relative; z-index: 2; }
+.bj-jour[aria-pressed="true"] em, .bj-jour[aria-pressed="true"] small, .bj-jour[aria-pressed="true"] i { color: var(--sur-primaire) !important; opacity: .92; }
 .bj-cal {
   position: relative; flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px;
   background: transparent; border: 0; outline: none; padding: 0;
@@ -1718,7 +1720,7 @@ details.avance h3 { margin-top: 18px; }
 .ligne-etat { display: block; margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--gris); }
 .ligne-etat.ok { color: var(--vert); }
 .ligne-etat.ko { color: var(--rouge); }
-.ligne-etat.alerte { color: #B45309; }
+.ligne-etat.alerte { color: var(--ambre); }
 .remplacer-ligne { margin: 6px 0 0 12px; }
 .pied-jour { margin: 14px 0 6px; }
 .rapport-jour { margin-top: 14px; }
@@ -1728,7 +1730,7 @@ details.avance h3 { margin-top: 18px; }
 .choix-ajout .tuile b svg { width: 18px; height: 18px; }
 .choix-ajout .tuile small { text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 13px; }
 .a-saisir .bouton-texte { min-height: 0; padding: 3px 0; font-size: 14.5px; }
-.txt-alerte { color: #B45309; }
+.txt-alerte { color: var(--ambre); }
 
 /* 3.13.4 & 3.26.10 : équilibre frise / heures / carte sans chevauchement */
 .arret, .troncon { grid-template-columns: 44px 18px 1fr; }
@@ -2013,7 +2015,7 @@ main:has(> .barre-plan-actions-flottante) { padding-bottom: 0; }
 .lancement.moderne .etat-base small { color: rgba(255,255,255,.75); margin-left: 8px; }
 .lancement.moderne .metrique { border: 0; background: rgba(255,255,255,.12); backdrop-filter: blur(8px); color: #fff; }
 .lancement.moderne .metrique span, .lancement.moderne .discret { color: rgba(255,255,255,.8); }
-.lancement.moderne .nouveautes { background: rgba(255,255,255,.95); color: var(--encre); }
+.lancement.moderne .nouveautes { background: var(--papier); color: var(--encre); }
 .lancement.moderne .bouton { border-radius: 14px; }
 .lancement.moderne .bouton:not(.bouton-plein) { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.3); }
 .lancement.moderne .bouton-plein { background: #fff; color: var(--entete-1); border-color: #fff; }
@@ -2056,10 +2058,10 @@ main:has(> .barre-plan-actions-flottante) { padding-bottom: 0; }
   cursor: pointer;
   transition: background .15s ease, border-color .15s ease;
 }
-.lieu-bloc-plie:hover { background: var(--fond-discret, #f8fafc); border-color: var(--primaire, #0B4F6C); }
+.lieu-bloc-plie:hover { background: var(--papier-2); border-color: var(--primaire); }
 .lieu-plie-info { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
 .lieu-plie-textes { display: flex; flex-direction: column; min-width: 0; }
-.lieu-plie-nom { font-size: 14px; color: var(--texte, #1e293b); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lieu-plie-nom { font-size: 14px; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lieu-plie-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 /* 3.25.15 : compte rendu de pharmacie : un produit par carte */
 .cr-question .ligne-stock, .ligne-stock { background: var(--papier, #fff); border: 1px solid var(--trait); border-radius: var(--r); padding: 10px 12px; margin: 0 0 10px; }
@@ -2598,7 +2600,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 .ligne-plan.med-engage .lp-nom-btn b,
 .bandeau-proche.med-engage p b:nth-of-type(2),
 .nom-engage {
-  color: #B45309;
+  color: var(--ambre);
 }
 /* 3.28.9 : bulle « Aujourd'hui » / présents aujourd'hui (sarcelle, distincte de l'ambre des engagés) */
 .etiquette.auj { background: var(--primaire-pale); color: var(--primaire); border-color: var(--primaire); font-weight: 700; }
@@ -3213,6 +3215,12 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   border-color: var(--primaire);
   box-shadow: 0 2px 10px rgba(0, 0, 0, .3);
 }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="clair"]) .rc-carte-nouveau {
+    border-color: var(--primaire);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .3);
+  }
+}
 .rc-entete-carte {
   display: flex;
   align-items: center;
@@ -3298,6 +3306,11 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 }
 :root[data-theme="sombre"] .rc-cadre-cible {
   background: rgba(18, 52, 58, .4);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="clair"]) .rc-cadre-cible {
+    background: rgba(18, 52, 58, .4);
+  }
 }
 .rc-lieu-item {
   line-height: 1.35;
@@ -3433,7 +3446,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
 /* 3.26.50 : pastille GPS du Répertoire = simple indicateur (vert : position en base, rouge : absente), non cliquable */
 span.btn-micro-gps { cursor: default; }
 span.btn-micro-gps:active { transform: none; }
-.btn-micro-gps.manquant { background: #fdecea; border-color: #f2b8b5; color: #b3261e; }
+.btn-micro-gps.manquant { background: var(--rouge-pale); border-color: var(--rouge-trait); color: var(--rouge); }
 /* 3.26.50 : jour non ouvré dans la frise de Journée (aujourd'hui un week-end) */
 .bj-jour.non-ouvre { opacity: .45; filter: grayscale(1); }
 .bj-jour.non-ouvre[aria-pressed="true"] { opacity: .75; }
@@ -3443,10 +3456,10 @@ span.btn-micro-gps:active { transform: none; }
 .grille-pres .tr-lieu-aide .texte-aide-plan { font-size: 11px; white-space: nowrap; }
 .grille-pres .cell-lieu-infos { white-space: normal !important; overflow: hidden; }
 /* 3.26.51 : jours grisés en vrai gris (sans filtre, qui donnait du marron sur certains téléphones) */
-.bj-jour.grise, .bj-jour.non-ouvre, .frise-plan .bj-jour.grise { filter: none; opacity: 1 !important; background: #eceff1; border-color: #cfd8dc !important; color: #90a4ae; box-shadow: none; }
-.bj-jour.grise *, .bj-jour.non-ouvre * { color: #90a4ae; }
-.bj-jour.non-ouvre[aria-pressed="true"] { background: #b0bec5; border-color: #90a4ae !important; color: #fff !important; }
-.bj-jour.non-ouvre[aria-pressed="true"] * { color: #fff !important; }
+.bj-jour.grise, .bj-jour.non-ouvre, .frise-plan .bj-jour.grise { filter: none; opacity: 1 !important; background: var(--papier-2); border-color: var(--trait) !important; color: var(--gris-2); box-shadow: none; }
+.bj-jour.grise *, .bj-jour.non-ouvre * { color: var(--gris-2); }
+.bj-jour.non-ouvre[aria-pressed="true"] { background: var(--trait); border-color: var(--gris-2) !important; color: var(--encre) !important; }
+.bj-jour.non-ouvre[aria-pressed="true"] * { color: var(--encre) !important; }
 
 /* 3.26.54 (lot 2) : boutons harmonisés. Une seule forme pour toute l'application :
    pilule (coins = moitié de la hauteur), 44 px de haut (34 px pour .petit, 50 px pour l'action principale du bas),
@@ -3511,8 +3524,8 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .champ-avec-gps input { flex: 1; min-width: 0; }
 .btn-gps-champ { flex: none; width: 46px; border-radius: 12px; border: 1.5px solid; display: grid; place-items: center; cursor: pointer; }
 .btn-gps-champ svg { width: 20px; height: 20px; }
-.btn-gps-champ.gps-ok { background: #E3F4EA; color: #1F7A45; border-color: #BFE3CD; }
-.btn-gps-champ.gps-non { background: #FDE8E8; color: #B42318; border-color: #F6C7C3; }
+.btn-gps-champ.gps-ok { background: var(--vert-pale); color: var(--vert); border-color: var(--vert-trait); }
+.btn-gps-champ.gps-non { background: var(--rouge-pale); color: var(--rouge); border-color: var(--rouge-trait); }
 .grille-2.serre { gap: 8px; }
 .bascule-col { border: 0; background: none; font: 700 12px var(--titre); color: var(--primaire); padding: 2px 6px; border-radius: 8px; cursor: pointer; }
 .bascule-col[aria-pressed="true"] { background: var(--primaire-pale); }
@@ -3583,13 +3596,9 @@ li.deja-tournee .carte-bouton[disabled] { opacity: 1; cursor: default; }
 /* 3.26.93 : en-tête fixe aussi quand une fenêtre est ouverte (le défilement de la page est bloqué) */
 body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-index: 41; }
 /* 3.26.95 : Journée : visites avec compte rendu sur fond vert léger (à faire : blanc) */
-.arret.fait .arret-carte, .arret.fait-attente .arret-carte { background: #EEF8F1; border-color: #CFEBD9; }
+.arret.fait .arret-carte, .arret.fait-attente .arret-carte { background: var(--vert-pale); border-color: var(--vert-trait); }
 /* 3.27.4 : visite non réalisée : rouge léger, même intensité que le vert */
-.arret.absent .arret-carte, .arret.absent-attente .arret-carte { background: #FBEFEE; border-color: #F1D2CF; }
-:root[data-theme="sombre"] .arret.fait .arret-carte, :root[data-theme="sombre"] .arret.fait-attente .arret-carte { background: var(--vert-pale); border-color: var(--vert-trait); }
-:root[data-theme="sombre"] .arret.absent .arret-carte, :root[data-theme="sombre"] .arret.absent-attente .arret-carte { background: var(--rouge-pale); border-color: #5A2A26; }
-:root[data-theme="sombre"] .arret.fait .arret-carte, :root[data-theme="sombre"] .arret.fait-attente .arret-carte { background: #16302A; border-color: #24503F; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="clair"]) .arret.fait .arret-carte, :root:not([data-theme="clair"]) .arret.fait-attente .arret-carte { background: #16302A; border-color: #24503F; } }
+.arret.absent .arret-carte, .arret.absent-attente .arret-carte { background: var(--rouge-pale); border-color: var(--rouge-trait); }
 
 /* 3.27.1 : fiche repensée (chercher avant de créer, semaine type, carte de visite) */
 .feuille-tete .fx-enregistrer { margin-left: auto; min-height: 38px; padding: 0 16px; }
@@ -3739,12 +3748,12 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
   border-radius: 12px; padding: 8px 10px !important; min-height: 56px !important; height: auto !important; max-height: none !important; gap: 2px; white-space: normal; overflow: visible; font-weight: 500; line-height: 1.25; }
 .feuille .choix-planif .choix-planif-l b { font-weight: 700; }
 .feuille .choix-planif .choix-planif-l small { display: block; font-size: 12px; opacity: .85; white-space: normal; overflow-wrap: anywhere; }
-.feuille .choix-planif .conflit-planif { color: #9A5B00; font-weight: 700; opacity: 1; }
+.feuille .choix-planif .conflit-planif { color: var(--ambre); font-weight: 700; opacity: 1; }
 .feuille .choix-planif .choix-planif-l[aria-pressed="true"] .conflit-planif { color: inherit; }
 
 /* 3.27.28 : alertes de doublon (même établissement, pharmacie proche) */
-.fx-res .fx-alerte { color: #9A5B00; font-weight: 700; }
-.fx-presents-ici { border-color: #EDCF94; background: #FCF6EA; }
+.fx-res .fx-alerte { color: var(--ambre); font-weight: 700; }
+.fx-presents-ici { border-color: var(--ambre-trait); background: var(--ambre-pale); }
 
 /* 3.27.29 : encadré « Praticien indisponible » ajusté au texte */
 .bloc-remplacant { width: fit-content; max-width: 100%; margin: 6px auto 2px; padding: 6px 12px; }
@@ -3757,10 +3766,10 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .selecteur-annuaire button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 7px 4px; border: 0; border-radius: 10px; background: transparent; color: var(--encre); font: inherit; cursor: pointer; }
 .selecteur-annuaire button b { font-size: 14.5px; }
 .selecteur-annuaire button small { font-size: 12px; color: var(--gris); }
-.selecteur-annuaire button[aria-pressed="true"] { background: var(--primaire); color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
-.selecteur-annuaire button[aria-pressed="true"] small { color: rgba(255,255,255,.85); }
-.element-hopital { border-left: 4px solid #0A6C74; }
-.type-pastille.t-hop { color: #0A6C74; background: #E0F0F1; }
+.selecteur-annuaire button[aria-pressed="true"] { background: var(--primaire); color: var(--sur-primaire); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.selecteur-annuaire button[aria-pressed="true"] small { color: var(--sur-primaire); opacity: .85; }
+.element-hopital { border-left: 4px solid var(--primaire); }
+.type-pastille.t-hop { color: var(--primaire); background: var(--primaire-pale); }
 .hop-medecins { list-style: none; margin: 10px 0 0; padding: 0; border-top: 1px solid var(--trait); }
 .hop-medecins li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--trait); }
 .hop-medecins .hop-med { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 0; font: inherit; color: var(--encre); cursor: pointer; }
@@ -3941,9 +3950,9 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .ligne-plan.ancien .lp-bas { margin-top: 1px; }
 .ligne-plan.ancien .lp-details-btn .bloc-texte { font-size: 12px; line-height: 1.25; }
 .ligne-plan.ancien .lp-details-btn .etiquettes { margin-top: 2px; }
-:root .arret.ancien .arret-carte, :root .arret.ancien.fait .arret-carte, :root .arret.ancien.fait-attente .arret-carte,
-:root[data-theme] .arret.ancien.fait .arret-carte, :root[data-theme] .arret.ancien.fait-attente .arret-carte,
-:root:not([data-theme="clair"]) .arret.ancien.fait .arret-carte, :root:not([data-theme="clair"]) .arret.ancien.fait-attente .arret-carte { background: var(--ambre-pale); border-color: var(--ambre-trait); }
+.arret.ancien .arret-carte,
+.arret.ancien.fait .arret-carte,
+.arret.ancien.fait-attente .arret-carte { background: var(--ambre-pale); border-color: var(--ambre-trait); }
 .etiquette.ambre { color: var(--ambre); background: var(--papier); border-color: var(--ambre-trait); }
 
 /* Actions des cartes oranges / conflits (Planifier) : boutons compacts rapprochés juste sous les étiquettes */
@@ -4078,23 +4087,23 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 10px;
-  background: var(--fond-champ, #f0f4f4);
-  color: var(--texte);
+  background: var(--papier-2);
+  color: var(--encre);
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 .scan-pill-stat.neuf {
-  background: #EBF3FD;
-  color: #1976D2;
+  background: var(--bleu-pale);
+  color: var(--bleu);
 }
 .scan-pill-stat.enrichir {
-  background: var(--vert-pale, #E8F5E9);
-  color: var(--vert, #2E7D32);
+  background: var(--vert-pale);
+  color: var(--vert);
 }
 .scan-pill-stat.doute {
-  background: var(--ambre-pale, #FFF8E1);
-  color: var(--ambre, #D97706);
+  background: var(--ambre-pale);
+  color: var(--ambre);
 }
 
 .scan-photo {
@@ -4124,7 +4133,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   font-size: 11px;
   font-weight: 700;
   color: var(--gris);
-  background: var(--fond-champ, #F0F4F4);
+  background: var(--papier-2);
   padding: 1px 7px;
   border-radius: 10px;
   text-transform: none;
@@ -4132,7 +4141,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 
 /* Carte contact unifiée, propre et sans débordement */
 .scan-carte-but {
-  background: var(--surface);
+  background: var(--papier);
   border: 1px solid var(--trait);
   border-radius: 12px;
   padding: 12px 14px;
@@ -4144,10 +4153,10 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 }
 .scan-carte-but.exclu {
   opacity: .5;
-  background: var(--fond-champ, #F7FAFA);
+  background: var(--papier-2);
 }
 .scan-carte-but.nouveau {
-  border-left: 4px solid #2D7FF9;
+  border-left: 4px solid var(--bleu);
 }
 .scan-carte-but.enrichir {
   border-left: 4px solid var(--vert, #2E7D32);
@@ -4187,16 +4196,16 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   border-radius: 6px;
 }
 .scan-tag-nouveau {
-  background: #EBF3FD;
-  color: #1976D2;
+  background: var(--bleu-pale);
+  color: var(--bleu);
 }
 .scan-tag-enrichir {
-  background: var(--vert-pale, #E8F5E9);
-  color: var(--vert, #2E7D32);
+  background: var(--vert-pale);
+  color: var(--vert);
 }
 .scan-tag-doute {
-  background: var(--ambre-pale, #FFF8E1);
-  color: var(--ambre, #D97706);
+  background: var(--ambre-pale);
+  color: var(--ambre);
 }
 .scan-btn-editer {
   font-size: 12px;
@@ -4332,8 +4341,8 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   padding: 6px 12px;
   border-radius: 16px;
   border: 1px solid var(--trait);
-  background: var(--fond-champ, #F0F4F4);
-  color: var(--texte);
+  background: var(--papier-2);
+  color: var(--encre);
   cursor: pointer;
   min-height: 36px;
   display: inline-flex;
@@ -4518,12 +4527,12 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   margin-bottom: 4px;
 }
 .scan-btn-bascule {
-  background: var(--surface, #fff);
-  border: 1px solid var(--trait, #E5E7EB);
+  background: var(--papier);
+  border: 1px solid var(--trait);
   border-radius: 6px;
   font-size: 11.5px;
   font-weight: 600;
-  color: var(--gris, #6B7280);
+  color: var(--gris);
   padding: 4px 8px;
   cursor: pointer;
   display: inline-flex;
@@ -4532,13 +4541,13 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   min-height: 28px;
 }
 .scan-btn-bascule:hover {
-  background: var(--fond-champ, #F9FAFB);
-  color: var(--texte, #111827);
+  background: var(--papier-2);
+  color: var(--encre);
 }
 .scan-carte-nom-entier {
   font-size: 16px;
   font-weight: 700;
-  color: var(--texte, #111827);
+  color: var(--encre);
   line-height: 1.35;
   white-space: normal !important;
   word-break: break-word;
@@ -4559,7 +4568,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   cursor: pointer;
 }
 .scan-carte-sous-entier b {
-  color: var(--texte, #111827);
+  color: var(--encre);
   font-weight: 600;
 }
 .scan-corps-deplie {
@@ -4599,19 +4608,19 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 }
 .scan-fuzzy-astuce {
   font-size: 11.5px;
-  color: #92400E;
+  color: var(--ambre);
   margin-top: 6px;
   line-height: 1.3;
-  background: #FEF3C7;
+  background: var(--ambre-pale);
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid #FDE68A;
+  border: 1px solid var(--ambre-trait);
 }
 
 /* Bloc Présence & Rattachement à l'Hôpital / Clinique */
 .scan-bloc-presence-hopital {
-  background: #F0FDF4;
-  border: 1px solid #BBF7D0;
+  background: var(--vert-pale);
+  border: 1px solid var(--vert-trait);
   border-radius: 8px;
   padding: 8px;
   display: flex;
@@ -4621,7 +4630,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .scan-hopital-question {
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--texte, #111827);
+  color: var(--encre);
   line-height: 1.25;
   margin-bottom: 1px;
 }
@@ -4632,20 +4641,20 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   margin-bottom: 2px;
 }
 .scan-pill-hopital {
-  background: #fff;
-  border: 1.5px solid #86EFAC;
+  background: var(--papier);
+  border: 1.5px solid var(--vert-trait);
   border-radius: 14px;
   font-size: 11.5px;
   padding: 4px 9px;
-  color: #14532D;
+  color: var(--vert);
   cursor: pointer;
   transition: all 0.15s ease;
   line-height: 1.2;
 }
 .scan-pill-hopital.actif {
-  background: #15803D;
-  border-color: #15803D;
-  color: #fff;
+  background: var(--vert);
+  border-color: var(--vert);
+  color: var(--sur-primaire);
   font-weight: 700;
 }
 .scan-hopital-recherche-wrap {
@@ -4656,24 +4665,24 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   width: 100%;
   padding: 8px 10px;
   font-size: 16px; /* Empêche l'auto-zoom forcé d'iOS */
-  border: 1.5px solid var(--trait, #D1D5DB);
+  border: 1.5px solid var(--trait);
   border-radius: 6px;
-  background: #fff;
-  color: var(--texte, #111827);
+  background: var(--papier);
+  color: var(--encre);
   box-sizing: border-box;
 }
 .scan-input-hopital:focus {
-  border-color: var(--primaire, #0A6C74);
+  border-color: var(--primaire);
   outline: none;
-  background: #fff;
+  background: var(--papier);
 }
 .scan-sugg-liste {
   position: absolute;
   top: 100%;
   left: 0;
   right: 0;
-  background: #fff;
-  border: 1px solid var(--trait, #D1D5DB);
+  background: var(--papier);
+  border: 1px solid var(--trait);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.12);
   z-index: 100;
@@ -4687,39 +4696,39 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   padding: 8px 10px;
   background: none;
   border: none;
-  border-bottom: 1px solid #F3F4F6;
+  border-bottom: 1px solid var(--trait);
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 .scan-sugg-btn:hover {
-  background: #F0FDF4;
+  background: var(--vert-pale);
 }
 .scan-sugg-btn b {
   font-size: 12.5px;
-  color: var(--texte, #111827);
+  color: var(--encre);
 }
 .scan-sugg-btn small {
   font-size: 11px;
-  color: var(--gris, #6B7280);
+  color: var(--gris);
 }
 .scan-sugg-vide {
   padding: 8px 10px;
   font-size: 11.5px;
-  color: var(--gris, #6B7280);
+  color: var(--gris);
   font-style: italic;
 }
 .scan-hopital-cascade {
   font-size: 12px;
-  color: #15803D;
+  color: var(--vert);
   margin-top: 2px;
   font-weight: 600;
   line-height: 1.3;
 }
 .scan-semaine-apercu {
-  background: #fff;
-  border: 1px solid #BBF7D0;
+  background: var(--papier);
+  border: 1px solid var(--vert-trait);
   border-radius: 8px;
   padding: 8px;
   display: flex;
@@ -4730,7 +4739,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .scan-semaine-titre-court {
   font-size: 12px;
   font-weight: 700;
-  color: #166534;
+  color: var(--vert);
   display: flex;
   align-items: baseline;
   gap: 5px;
@@ -4750,8 +4759,8 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   min-width: 0;
   padding: 6px 2px;
   border-radius: 8px;
-  border: 1.5px solid var(--trait, #E5E7EB);
-  background: #fff;
+  border: 1.5px solid var(--trait);
+  background: var(--papier);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -4764,7 +4773,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .scan-sem-nom {
   font-size: 11px;
   font-weight: 700;
-  color: var(--texte, #111827);
+  color: var(--encre);
   line-height: 1;
 }
 .scan-sem-creneau {
@@ -4773,19 +4782,19 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   line-height: 1;
 }
 .scan-sem-btn.absent {
-  background: #FAFAFA;
-  border-color: #E5E7EB;
-  color: #9CA3AF;
+  background: var(--papier-2);
+  border-color: var(--trait);
+  color: var(--gris-2);
 }
 .scan-sem-btn.present-base {
-  background: #EFF6FF;
-  border-color: #3B82F6;
-  color: #1D4ED8;
+  background: var(--bleu-pale);
+  border-color: var(--bleu);
+  color: var(--bleu);
 }
 .scan-sem-btn.present-terrain {
-  background: #ECFDF5;
-  border-color: #10B981;
-  color: #047857;
+  background: var(--vert-pale);
+  border-color: var(--vert);
+  color: var(--vert);
   font-weight: 700;
 }
 .scan-sem-btn.jour-visite {
@@ -4794,8 +4803,8 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 
 /* Tableau comparatif [Ancien | Nouveau] avec micro-sélection au clic */
 .scan-table-wrap {
-  background: #fff;
-  border: 1px solid var(--trait, #E5E7EB);
+  background: var(--papier);
+  border: 1px solid var(--trait);
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
@@ -4804,15 +4813,15 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--fond-champ, #F9FAFB);
+  background: var(--papier-2);
   padding: 6px 8px;
-  border-bottom: 1px solid var(--trait, #E5E7EB);
+  border-bottom: 1px solid var(--trait);
   gap: 6px;
   flex-wrap: wrap;
 }
 .scan-table-titre {
   font-size: 12px;
-  color: var(--texte, #111827);
+  color: var(--encre);
   line-height: 1.2;
 }
 .scan-table-actions-rapides {
@@ -4820,22 +4829,22 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   gap: 4px;
 }
 .scan-btn-mini {
-  background: #fff;
-  border: 1px solid var(--trait, #D1D5DB);
+  background: var(--papier);
+  border: 1px solid var(--trait);
   border-radius: 6px;
   padding: 3px 8px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--texte, #374151);
+  color: var(--encre);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
   line-height: 1.2;
 }
 .scan-btn-mini:hover {
-  background: #F3F4F6;
-  border-color: var(--primaire, #0A6C74);
-  color: var(--primaire, #0A6C74);
+  background: var(--papier-2);
+  border-color: var(--primaire);
+  color: var(--primaire);
 }
 .scan-table-comparatif {
   width: 100%;
@@ -4850,9 +4859,9 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: var(--gris, #6B7280);
-  background: var(--fond-champ, #F9FAFB);
-  border-bottom: 1px solid var(--trait, #E5E7EB);
+  color: var(--gris);
+  background: var(--papier-2);
+  border-bottom: 1px solid var(--trait);
 }
 .scan-th-col {
   width: 50%;
@@ -4890,29 +4899,29 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 }
 /* Cellule non retenue */
 .scan-td-cell:not(.retenu) {
-  background: #F9FAFB;
-  color: #6B7280;
+  background: var(--papier-2);
+  color: var(--gris);
   opacity: 0.85;
 }
 .scan-td-cell:not(.retenu):hover {
-  background: #F3F4F6;
+  background: var(--trait);
   opacity: 1;
 }
 /* Cellule retenue / choisie */
 .scan-td-cell.retenu {
-  background: #EFF6FF;
-  border-color: #3B82F6;
-  color: #1E40AF;
+  background: var(--bleu-pale);
+  border-color: var(--bleu);
+  color: var(--bleu);
   font-weight: 700;
 }
 .scan-td-nouveau.retenu {
-  background: #ECFDF5;
-  border-color: #10B981;
-  color: #065F46;
+  background: var(--vert-pale);
+  border-color: var(--vert);
+  color: var(--vert);
   font-weight: 700;
 }
 .scan-val-vide {
-  color: #9CA3AF;
+  color: var(--gris-2);
   font-style: italic;
   font-weight: normal;
 }
@@ -5122,7 +5131,7 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .liste-rep > .element:active { transform: none; }
 .liste-rep > .element.t-med { box-shadow: inset 4px 0 0 var(--bleu); }
 .liste-rep > .element.t-pharma { box-shadow: inset 4px 0 0 var(--violet); }
-.liste-rep > .element.element-hopital { box-shadow: inset 4px 0 0 #0A6C74; }
+.liste-rep > .element.element-hopital { box-shadow: inset 4px 0 0 var(--primaire); }
 /* étiquettes resserrées et centrées : 4 à 5 tiennent sur une ligne */
 .etiquettes.etq-ligne { justify-content: center; gap: 3px; margin-top: 6px; }
 .etq-ligne .etiquette { min-height: 20px; padding: 1px 5px; font-size: 11px; letter-spacing: -.01em; }
@@ -5162,7 +5171,7 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
   box-shadow: inset 4px 0 0 var(--k-lisere, var(--bleu)), 0 6px 18px -6px rgba(14, 34, 48, .28);
 }
 .liste-rep > .element.t-pharma.rep-ouvert { --k-lisere: var(--violet); }
-.liste-rep > .element.element-hopital.rep-ouvert { --k-lisere: #0A6C74; }
+.liste-rep > .element.element-hopital.rep-ouvert { --k-lisere: var(--primaire); }
 .liste-rep > .element.rep-ouvert:first-child { margin-top: 6px; }
 @media (max-width: 400px) {
   .entete { gap: 5px; padding-left: 12px; padding-right: 6px; }

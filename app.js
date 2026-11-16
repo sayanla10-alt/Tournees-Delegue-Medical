@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.114';
+  var APP_VERSION = '3.31.115';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.115', ['Mode sombre : harmonisation des contrastes, des badges, de l\'écran de scan et du mode Auto']],
     ['3.31.114', ['Compte rendu d\'un médecin : les étapes « Type(s) de visite médicale » et « Produits présentés » tiennent à l\'écran, titre en haut et Continuer en bas ; cocher un choix ne fait plus défiler la page']],
     ['3.31.113', ['Répertoire › Nouveau contact (Hôpitaux) : limitation à 3 établissements proches pour garder le bouton Créer visible']],
     ['3.31.112', ['Journée : ajout du bouton cœur (♡ / ♥) dans la carte « Maintenant / Visite suivante »']],
@@ -10153,7 +10154,7 @@
       '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets (appoint)</button>' +
       '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Défaut)</button>' +
       '</div>' +
-      '<div style="font-size:12.5px;color:var(--texte-discret);margin-bottom:10px">' +
+      '<div style="font-size:12.5px;color:var(--gris);margin-bottom:10px">' +
       (bddSrc === 'sheets' ?
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> lecture de secours (la base est identique).' :
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> base principale, chargement rapide.') +
@@ -11074,7 +11075,7 @@
           details += ' · <small>' + esc(vuDepuis(p.derniere, d)) + '</small>';
         }
         if (dejaPlan) {
-          details += ' · <span class="etiquette" style="background:#e0f2fe;color:#0369a1;font-weight:bold">Déjà dans la tournée</span>';
+          details += ' · <span class="etiquette" style="background:var(--bleu-pale);color:var(--bleu);font-weight:bold">Déjà dans la tournée</span>';
         }
         if (cib.length) {
           details += ' · <span class="conflit-planif">Prévu par ' + esc(cib[0].delegue) + '</span>';
@@ -11301,7 +11302,7 @@
     lieux.forEach(function (l, idx) {
       var cl = lireCoord(l), aGps = !!cl;
       var coordStr = cl ? cl.lat.toFixed(5) + ', ' + cl.lon.toFixed(5) : '';
-      h += '<div class="carte-choix-gps" style="border:1.5px solid ' + (aGps ? 'var(--trait,#d0d7de)' : 'rgba(230,126,34,0.5)') + ';border-radius:10px;padding:12px;background:var(--fond-carte,#fff);box-shadow:0 1px 3px rgba(0,0,0,0.05)">' +
+      h += '<div class="carte-choix-gps" style="border:1.5px solid ' + (aGps ? 'var(--trait,#d0d7de)' : 'rgba(230,126,34,0.5)') + ';border-radius:10px;padding:12px;background:var(--papier);box-shadow:0 1px 3px rgba(0,0,0,0.05)">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">' +
           '<div style="flex:1">' +
             '<div style="font-weight:700;font-size:15px;color:var(--encre,#1c2833)">' + esc(l.lieu || ('Établissement ' + (idx + 1))) + '</div>' +

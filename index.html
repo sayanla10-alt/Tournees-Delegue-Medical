@@ -30,11 +30,11 @@
       if (vue && !vue.innerHTML.trim()) {
         var detail = msg ? echappHtmlErreur(msg) + (line ? ' (L.' + echappHtmlErreur(line) + ')' : '') : '';
         vue.innerHTML = '<div style="padding:40px 20px;text-align:center;font-family:sans-serif">' +
-          '<h2 style="font-size:20px;margin-bottom:8px;color:#0B4F6C">MediPlanner</h2>' +
-          '<p style="color:#555;font-size:14px;margin-bottom:20px">Une mise à jour ou une anomalie est survenue lors de l\'affichage.</p>' +
-          '<button type="button" onclick="relancerApplication()" style="background:#0B4F6C;color:#fff;border:0;padding:14px 28px;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;box-shadow:0 4px 12px rgba(11,79,108,0.25)">Recharger l\'application</button>' +
-          '<br><button type="button" onclick="reinitialiserAffichage()" style="background:transparent;border:0;color:#888;margin-top:16px;font-size:13px;text-decoration:underline;cursor:pointer">Réinitialiser l\'affichage</button>' +
-          (detail ? '<p style="margin-top:20px;font-size:11px;color:#999;word-break:break-all">' + detail + '</p>' : '') +
+          '<h2 style="font-size:20px;margin-bottom:8px;color:var(--primaire,#0B4F6C)">MediPlanner</h2>' +
+          '<p style="color:var(--gris,#555);font-size:14px;margin-bottom:20px">Une mise à jour ou une anomalie est survenue lors de l\'affichage.</p>' +
+          '<button type="button" onclick="relancerApplication()" style="background:var(--primaire,#0B4F6C);color:var(--sur-primaire,#fff);border:0;padding:14px 28px;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;box-shadow:0 4px 12px rgba(11,79,108,0.25)">Recharger l\'application</button>' +
+          '<br><button type="button" onclick="reinitialiserAffichage()" style="background:transparent;border:0;color:var(--gris,#888);margin-top:16px;font-size:13px;text-decoration:underline;cursor:pointer">Réinitialiser l\'affichage</button>' +
+          (detail ? '<p style="margin-top:20px;font-size:11px;color:var(--gris-2,#999);word-break:break-all">' + detail + '</p>' : '') +
           '</div>';
       }
     }
@@ -78,12 +78,12 @@
       relancerApplication();
     }
   </script>
-  <link rel="stylesheet" href="app.css?v=3.31.114">
+  <link rel="stylesheet" href="app.css?v=3.31.115">
 </head>
 <body>
   <header class="entete">
     <div class="entete-titre">
-      <div style="display:flex;align-items:baseline;gap:6px"><span class="marque">MediPlanner</span><span class="badge-version" id="badgeVersion">v3.31.114</span></div>
+      <div style="display:flex;align-items:baseline;gap:6px"><span class="marque">MediPlanner</span><span class="badge-version" id="badgeVersion">v3.31.115</span></div>
       <span class="entete-date" id="enteteDate"></span>
     </div>
     <button class="pastille-sync" id="pastilleSync" data-a="sync" type="button"></button>
@@ -130,8 +130,8 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div id="annonceur" class="visuellement-cache" role="status" aria-live="polite"></div>
 
-  <script src="commun.js?v=3.31.114"></script>
-  <script src="moteur.js?v=3.31.114"></script>
-  <script src="app.js?v=3.31.114"></script>
+  <script src="commun.js?v=3.31.115"></script>
+  <script src="moteur.js?v=3.31.115"></script>
+  <script src="app.js?v=3.31.115"></script>
 </body>
 </html>
