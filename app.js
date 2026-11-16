@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.93';
+  var APP_VERSION = '3.31.94';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.94', ['Répertoire › Ajouter : médecins et établissements connus autour de vous, comme pour les pharmacies (même présentation : nom, lieu, distance, Ouvrir)', 'Hôpitaux : bouton Planifier de la fiche à la hauteur des boutons + Médecin de Journée ; étiquette « Aujourd\'hui » en ambre, plus lisible que le vert']],
     ['3.31.93', ['En-tête : la pastille de synchronisation est centrée entre le numéro de version et la roue crantée, sans plus le chevaucher (même avec une version à 3 chiffres)', 'Répertoire : la fiche ouverte se détache nettement des autres cartes (encadrée, espacée), médecins, pharmacies et hôpitaux', 'Critères : bouton « Tous » en tête des raccourcis (médecins, pharmacies, hôpitaux) ; « Réinitialiser les filtres » toujours actif, vert, y compris dans Hôpitaux']],
     ['3.31.92', ['Répertoire : retour des pastilles (médecin, caducée pharmacie) et des liserés de couleur, plus de teinte sur le contact ouvert', 'Étiquettes (Engagé, Vu il y a, GPS, Hors créneau…) resserrées et centrées sur une ligne quand c\'est possible, aussi dans la fiche ouverte et les Hôpitaux', 'Fiche ouverte : « Tél » et « D.C » (dernier commentaire) en gras, titre et horaires de la semaine sur une ligne, boutons Ajouter au jour / Planifier / Modifier centrés et régulièrement espacés']],
     ['3.31.91', ['Répertoire modernisé : liste d\'un seul tenant avec initiales colorées (bleu médecin, violet pharmacie), onglets Médecins / Pharmacies / Hôpitaux soulignés ; mêmes étiquettes, mêmes boutons, même fiche au toucher']],
@@ -11794,6 +11795,31 @@
     });
     return res.sort(function (a, b) { return a.m - b.m; });
   }
+  // 3.31.94 : médecins dont un lieu d'exercice est à moins de rayonKm (lieu le plus proche)
+  function medecinsConnusProches(pos, rayonKm) {
+    var res = [], c = ctx();
+    ((S.data && S.data.praticiens) || []).forEach(function (p) {
+      if (p.type === 'Pharmacie') return;
+      var best = null;
+      (c.presencesParCode[p.code] || []).forEach(function (pr) {
+        var co = lireCoord(pr); if (!co) return;
+        var dKm = distanceKm(pos, co) / REGLAGES_MOTEUR.detourRoutier;
+        if (dKm <= rayonKm && (!best || dKm * 1000 < best.m)) best = { p: p, pr: pr, m: Math.round(dKm * 1000) };
+      });
+      if (best) res.push(best);
+    });
+    return res.sort(function (a, b) { return a.m - b.m; }).slice(0, 4);
+  }
+  // 3.31.94 : établissements connus à moins de rayonKm
+  function hopitauxConnusProches(pos, rayonKm) {
+    var res = [];
+    hopitauxRepertoire(true).forEach(function (e) {
+      if (!isFinite(e.lat) || !isFinite(e.lon)) return;
+      var dKm = distanceKm(pos, { lat: e.lat, lon: e.lon }) / REGLAGES_MOTEUR.detourRoutier;
+      if (dKm <= rayonKm) res.push({ e: e, m: Math.round(dKm * 1000) });
+    });
+    return res.sort(function (a, b) { return a.m - b.m; }).slice(0, 4);
+  }
   function pharmaciesConnuesProches(pos, rayonKm) {
     var res = [], c = ctx();
     ((S.data && S.data.praticiens) || []).forEach(function (p) {
@@ -12606,7 +12632,17 @@
   FEUILLES.hopitalNouveau = function (f) {
     var e = f.e, h = '';
     if (f.cherche) {
-      h += segmentAjout('Hôpital') + '<p class="fx-question">Quel établissement ?</p>' +
+      h += segmentAjout('Hôpital');
+      var gH = gpsFrais();
+      if (gH) {   // 3.31.94 : établissements connus autour de vous, comme pour les pharmacies
+        var prochesH = hopitauxConnusProches(gH, 0.5);
+        h += '<div class="fx-radar"><div class="fx-radar-t"><span>Établissements connus autour de vous</span><span>± ' + gH.prec + ' m</span></div>' +
+          (prochesH.length ? prochesH.map(function (x) {
+            return '<button type="button" class="fx-ph" data-a="hopOuvrir" data-v="' + esc(x.e.nom) + '"><span><b>' + esc(x.e.nom) + '</b><small>' + esc([x.e.quartier, x.e.reperes].filter(Boolean).join(', ')) + '</small></span>' +
+              '<span class="fx-ph-d">' + distMoi(x.m / 1000 * REGLAGES_MOTEUR.detourRoutier).replace(/^≈ /, '≈ ') + '<small>Ouvrir</small></span></button>';
+          }).join('') : '<p class="discret" style="margin:0">Aucun établissement connu à moins de 500 m.</p>') + '</div>';
+      }
+      h += '<p class="fx-question">Quel établissement ?</p>' +
         champFiche('hnom', 'Nom de l\'hôpital ou de la clinique', '<input type="text" class="fx-champ-g" data-f="hop" data-k="nom" autocomplete="off" value="' + esc(e.nom) + '" placeholder="Ex. Hôpital Général de Bingerville"' + attrInvalide(f, 'hnom') + '>', f, false) +
         '<div id="doublonsHop">' + rendreDoublonsHopital(e.nom) + '</div>' +
         '<button type="button" class="fx-creer" data-a="hopCreer"><span class="fx-plus">' + icone('plus') + '</span><span><b>Créer <span id="hopCreerNom">' + esc(String(e.nom || '').trim() || 'un établissement') + '</span></b><small>Catégorie, quartier et position ensuite</small></span></button>';
@@ -12654,13 +12690,13 @@
     if (f.cherche) {
       h += segmentAjout(d.type);   // 3.31.0 : Médecin, Pharmacie, Hôpital ; Fiche dessous sur toute la largeur
       var g = gpsFrais();
-      if (estPh && g) {
-        var proches = pharmaciesConnuesProches(g, 0.5);
-        h += '<div class="fx-radar"><div class="fx-radar-t"><span>Pharmacies connues autour de vous</span><span>± ' + g.prec + ' m</span></div>' +
+      if (g) {   // 3.31.94 : comme pour les pharmacies, les médecins connus autour de vous (même présentation)
+        var proches = estPh ? pharmaciesConnuesProches(g, 0.5) : medecinsConnusProches(g, 0.5);
+        h += '<div class="fx-radar"><div class="fx-radar-t"><span>' + (estPh ? 'Pharmacies connues' : 'Médecins connus') + ' autour de vous</span><span>± ' + g.prec + ' m</span></div>' +
           (proches.length ? proches.map(function (x) {
-            return '<button type="button" class="fx-ph" data-a="ouvrirDoublon" data-v="' + esc(x.p.code) + '"><span>' + nomPrat(x.p) + '<small>' + esc([x.pr.quartier, x.pr.reperes].filter(Boolean).join(', ')) + '</small></span>' +
+            return '<button type="button" class="fx-ph" data-a="ouvrirDoublon" data-v="' + esc(x.p.code) + '"><span>' + nomPrat(x.p) + '<small>' + esc((estPh ? [x.pr.quartier, x.pr.reperes] : [x.pr.lieu, x.pr.quartier]).filter(Boolean).join(', ')) + '</small></span>' +
               '<span class="fx-ph-d">' + distMoi(x.m / 1000 * REGLAGES_MOTEUR.detourRoutier).replace(/^≈ /, '≈ ') + '<small>Ouvrir</small></span></button>';
-          }).join('') : '<p class="discret" style="margin:0">Aucune pharmacie connue à moins de 500 m.</p>') + '</div>';
+          }).join('') : '<p class="discret" style="margin:0">Aucun' + (estPh ? 'e pharmacie connue' : ' médecin connu') + ' à moins de 500 m.</p>') + '</div>';
       }
       h += '<p class="fx-question">' + (estPh ? 'Quelle pharmacie ?' : 'Qui avez-vous rencontré ?') + '</p>' +
         champFiche('nom', estPh ? 'Nom de la pharmacie' : 'Nom du médecin', '<input type="text" class="fx-champ-g" data-f="fiche" data-k="nom" autocomplete="off" value="' + esc(d.nom) + '" placeholder="' + (estPh ? 'Ex. Pharmacie des Lagunes' : 'Ex. Dr Kouassi Aya') + '"' + attrInvalide(f, 'nom') + '>', f, false) +

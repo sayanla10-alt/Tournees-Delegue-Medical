@@ -5150,3 +5150,6 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
   .pastille-sync { padding: 0 8px; gap: 5px; font-size: 12.5px; }
   .pastille-sync svg { display: none; }
 }
+/* 3.31.94 : fiche hôpital : Planifier à la hauteur des boutons + Médecin de Journée ; « Aujourd'hui » en ambre (moins de vert) */
+.hop-medecins .bouton.petit { min-height: 34px; height: 34px; padding: 0 12px; font-size: 13.5px; }
+.etiquette.auj { background: var(--ambre-pale); color: var(--ambre); border-color: var(--ambre-trait); }
