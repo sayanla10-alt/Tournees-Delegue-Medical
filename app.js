@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.95';
+  var APP_VERSION = '3.31.96';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.96', ['Répertoire › Ajouter : Médecin et Hôpital n\'ouvrent plus le clavier d\'office, comme Pharmacie ; on touche le champ pour saisir']],
     ['3.31.95', ['Fiche ouverte d\'un médecin ou d\'une pharmacie : toucher le nom ouvre le suivi des visites (prochain RDV, absence, dernière visite, dernier échange, fréquence, historique complet) ; le reste de la fiche est inchangé']],
     ['3.31.94', ['Répertoire › Ajouter : médecins et établissements connus autour de vous, comme pour les pharmacies (même présentation : nom, lieu, distance, Ouvrir)', 'Hôpitaux : bouton Planifier de la fiche à la hauteur des boutons + Médecin de Journée ; étiquette « Aujourd\'hui » en ambre, plus lisible que le vert']],
     ['3.31.93', ['En-tête : la pastille de synchronisation est centrée entre le numéro de version et la roue crantée, sans plus le chevaucher (même avec une version à 3 chiffres)', 'Répertoire : la fiche ouverte se détache nettement des autres cartes (encadrée, espacée), médecins, pharmacies et hôpitaux', 'Critères : bouton « Tous » en tête des raccourcis (médecins, pharmacies, hôpitaux) ; « Réinitialiser les filtres » toujours actif, vert, y compris dans Hôpitaux']],
@@ -15887,8 +15888,8 @@
     // 3.31.0 : nouvel hôpital
     ficheHopital: function () {
       var nom = S.ui.feuille && S.ui.feuille.d && S.ui.feuille.d.type !== 'Pharmacie' ? '' : '';
+      // 3.31.96 : comme Pharmacie, pas de curseur ni de clavier d'office : on touche le champ pour saisir
       S.ui.feuille = { type: 'hopitalNouveau', titre: 'Nouveau contact', pleine: true, cherche: true, e: brouillonHopital(nom), err: {} }; rendre();
-      setTimeout(function () { var i = document.querySelector('.fx-champ-g'); if (i) i.focus(); }, 250);
     },
     hopCreer: function () {
       var f = S.ui.feuille; if (!f) return;
@@ -16140,7 +16141,7 @@
     scanCreneau: function (el) { var f = S.ui.feuille, k = el.dataset.v; majScan(f.id, function (x) { x.validation[k] = !x.validation[k]; if (!x.validation.matin && !x.validation.soir) x.validation[k === 'matin' ? 'soir' : 'matin'] = true; }); rendre(); },
     scanEnregistrer: function () { enregistrerScan(null); },
     scanEnregistrerUn: function (el) { enregistrerScan(+el.dataset.i); },
-    nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau contact', pleine: true, etape: 0, cherche: true, nouveau: true, d: brouillonFiche(''), err: {} }; rendre(); setTimeout(function () { var i = document.querySelector('.fx-champ-g'); if (i) i.focus(); }, 250); },
+    nouvelleFiche: function () { S.ui.feuille = { type: 'fiche', titre: 'Nouveau contact', pleine: true, etape: 0, cherche: true, nouveau: true, d: brouillonFiche(''), err: {} }; rendre(); },   // 3.31.96 : plus de clavier d'office (comme Pharmacie)
     // 3.27.1 : personne introuvable dans la base : on passe à la fiche (1. Où et quand)
     ficheCreer: function () {
       var f = S.ui.feuille; if (!f) return;
