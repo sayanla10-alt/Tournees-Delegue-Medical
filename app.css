@@ -5095,21 +5095,26 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .vf-tete { padding-bottom: 6px; }
 .vf3-bas { margin-top: 10px; }
 
-/* 3.31.91 : Répertoire modernisé (présentation seule ; retour arrière : tag avant-repertoire-v2) */
-.rep-ligne { display: block; }
-.rep-av { display: none; }
+/* 3.31.91 / 3.31.92 : Répertoire modernisé (présentation seule ; retour arrière : branche avant-repertoire-v2) */
 .liste-rep { background: var(--papier); border: 1px solid var(--trait); border-radius: 16px; box-shadow: var(--ombre); overflow: hidden; }
-.liste-rep > .element { border: 0; border-bottom: 1px solid var(--trait); border-radius: 0; margin: 0; box-shadow: none; padding: 11px 14px; }
+.liste-rep > .element { border: 0; border-bottom: 1px solid var(--trait); border-radius: 0; margin: 0; padding: 11px 12px 11px 14px; }
 .liste-rep > .element:last-child { border-bottom: 0; }
 .liste-rep > .element:active { transform: none; }
-.liste-rep > .element:has(> .carte-bouton[aria-expanded="true"]) { background: var(--primaire-pale); }
-.liste-rep .rep-ligne { display: flex; gap: 12px; align-items: flex-start; }
-.liste-rep .rep-corps { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.liste-rep .rep-av { display: grid; place-items: center; flex: none; width: 42px; height: 42px; margin-top: 1px; border-radius: 50%;
-  font: 700 14px/1 var(--texte); letter-spacing: .02em; background: var(--bleu-pale); color: var(--bleu); }
-.liste-rep .t-pharma .rep-av { background: var(--violet-pale); color: var(--violet); }
-.liste-rep .rep-corps .type-pastille { display: none; }
-.liste-rep .etiquettes { margin-top: 4px; }
+.liste-rep > .element.t-med { box-shadow: inset 4px 0 0 var(--bleu); }
+.liste-rep > .element.t-pharma { box-shadow: inset 4px 0 0 var(--violet); }
+.liste-rep > .element.element-hopital { box-shadow: inset 4px 0 0 #0A6C74; }
+/* étiquettes resserrées et centrées : 4 à 5 tiennent sur une ligne */
+.etiquettes.etq-ligne { justify-content: center; gap: 3px; margin-top: 6px; }
+.etq-ligne .etiquette { min-height: 20px; padding: 1px 5px; font-size: 11px; letter-spacing: -.01em; }
+.etq-ligne .etiquette-gps { gap: 2px; }
+.etq-ligne .etiquette-gps svg { width: 11px; height: 11px; }
+/* semaine : titre et horaires (ou consigne) sur une même ligne */
+.sr-tete > div { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
+.sr-tete > div small { display: inline; }
+/* boutons de la fiche ouverte : centrés, espacement régulier, « Ajouter au jour » plus large */
+.rangee-actions-contact { justify-content: space-evenly !important; gap: 0 !important; }
+.rangee-actions-contact .bouton, .rangee-actions-contact .badge-deja-prevu { flex: 0 1 auto !important; padding: 0 11px !important; font-size: 13.5px !important; }
+.rangee-actions-contact .bouton-inopinee, .rangee-actions-contact .badge-deja-prevu { padding: 0 13px !important; }
 .selecteur-annuaire { display: flex; gap: 22px; padding: 0; margin: 4px 0 12px; background: none; border: 0; border-bottom: 1px solid var(--trait); border-radius: 0; }
 .selecteur-annuaire button { flex-direction: row; align-items: baseline; gap: 5px; padding: 0 0 9px; border-radius: 0; border-bottom: 2.5px solid transparent; margin-bottom: -1px; color: var(--gris); }
 .selecteur-annuaire button b { font-weight: 600; }
@@ -5117,3 +5122,9 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .selecteur-annuaire button[aria-pressed="true"] { background: none; color: var(--encre); box-shadow: none; border-bottom-color: var(--primaire); }
 .selecteur-annuaire button[aria-pressed="true"] b { font-weight: 700; }
 .selecteur-annuaire button[aria-pressed="true"] .sa-n { color: var(--primaire); }
+.sr-tete > div { flex-wrap: nowrap; white-space: nowrap; }
+.rangee-actions-contact { flex-wrap: nowrap !important; }
+.rangee-actions-contact .bouton, .rangee-actions-contact .badge-deja-prevu { padding: 0 9px !important; font-size: 13px !important; gap: 4px !important; }
+.rangee-actions-contact .bouton-inopinee, .rangee-actions-contact .badge-deja-prevu { padding: 0 12px !important; }
+.rangee-actions-contact { justify-content: center !important; gap: 4px !important; }
+.rangee-actions-contact .bouton:not(.bouton-inopinee) { padding: 0 8px !important; }

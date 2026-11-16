@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.91';
+  var APP_VERSION = '3.31.92';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.92', ['Répertoire : retour des pastilles (médecin, caducée pharmacie) et des liserés de couleur, plus de teinte sur le contact ouvert', 'Étiquettes (Engagé, Vu il y a, GPS, Hors créneau…) resserrées et centrées sur une ligne quand c\'est possible, aussi dans la fiche ouverte et les Hôpitaux', 'Fiche ouverte : « Tél » et « D.C » (dernier commentaire) en gras, titre et horaires de la semaine sur une ligne, boutons Ajouter au jour / Planifier / Modifier centrés et régulièrement espacés']],
     ['3.31.91', ['Répertoire modernisé : liste d\'un seul tenant avec initiales colorées (bleu médecin, violet pharmacie), onglets Médecins / Pharmacies / Hôpitaux soulignés ; mêmes étiquettes, mêmes boutons, même fiche au toucher']],
     ['3.31.89', ['Vérifier la fiche : espace resserré pour le téléphone (tableau Ancien / Nouveau plus compact, marges réduites)', 'Vérifier la fiche : retour du tableau Ancien / Nouveau par médecin (téléphone, spécialité, lieu, planning) : on touche la valeur à garder ; l\'hôpital et la semaine se règlent en touchant le nom']],
     ['3.31.88', ['Journée : ajout de la 4e icône « à vol d\'oiseau » (distance directe sans détour routier) après distance route, à pied et en voiture']],
@@ -8916,7 +8917,7 @@
       '</div>' +
       '</div>';
     if (!l.length) return h + '<div class="vide"><strong>Aucun établissement</strong>Aucun hôpital ne correspond à cette recherche.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
-    h += '<ul class="liste">';
+    h += '<ul class="liste liste-rep">';
     l.slice(0, S.ui.limite).forEach(function (e) {
       var ouvert = S.ui.hopOuvert === e.cle;
       var vus = e.pres.filter(function (x) { var p = c.prat[x.code]; return p && p.derniere && p.derniere >= debutMois; }).length;
@@ -8928,11 +8929,13 @@
       var badgeGps = '<span class="etiquette etiquette-gps etiquette-gps-cliquable ' + clGps + '" data-a="capterGpsHopital" data-v="' + esc(e.cle) + '" role="button" tabindex="0" title="' + (aGpsHop ? 'GPS enregistré : toucher pour actualiser' : 'Pas de GPS : toucher pour enregistrer la position') + '" aria-label="' + (aGpsHop ? 'GPS enregistré pour ' : 'Enregistrer le GPS de ') + esc(e.nom) + '">' + icone('carte') + 'GPS</span>';
       var nTot = e.pres.length;
       var txtPres = ici + '/' + nTot + ' médecin' + (nTot > 1 ? 's' : '') + ' présent' + (ici > 1 ? 's' : '') + ' aujourd\'hui';
+      var titrePres = txtPres;   // 3.31.92 : libellé court pour tenir sur une ligne ; le texte complet reste en info-bulle
+      txtPres = ici + '/' + nTot + ' présent' + (ici > 1 ? 's' : '') + ' auj.';
       var clPres = ici > 0 ? 'etiquette auj' : 'etiquette';
       h += '<li class="element element-hopital"><div class="carte-bouton" data-a="hopital" data-v="' + esc(e.cle) + '" aria-expanded="' + ouvert + '" role="button" tabindex="0">' +
         '<span class="element-titre"><i class="type-pastille t-hop" aria-hidden="true">' + icone('epingle') + '</i>' + esc(e.nom) + '</span>' +
         '<span class="discret bloc-texte">' + esc([e.quartier, e.commune].filter(Boolean).join(', ')) + (e.d !== null ? ' · ' + distMoi(e.d, e.approx) : '') + '</span>' +
-        '<span class="etiquettes">' + badgeGps + '<span class="' + clPres + '">' + txtPres + '</span>' +
+        '<span class="etiquettes etq-ligne">' + badgeGps + '<span class="' + clPres + '" title="' + esc(titrePres) + '">' + txtPres + '</span>' +
           (vus ? '<span class="etiquette ok">' + vus + ' vu' + (vus > 1 ? 's' : '') + ' ce mois</span>' : '') +
           '</span></div>';
       if (ouvert) {
@@ -8997,11 +9000,6 @@
     return d !== null ? ' · ' + distMoi(d, approx) : '';
   }
   // 3.28.19 : carte (fiche) d'un contact, hors de la vue pour être aussi ouverte en fenêtre depuis tout l'écran
-  function initialesContact(nom) {
-    var m = String(nom || '').replace(/^\s*(Dr|Pr|Docteur|Professeur|Mme|M\.|Pharmacie(\s+(de\s+la|de\s+l'|du|des|de|les|la|le))?)\s+/i, '')
-      .split(/[\s'-]+/).filter(function (x) { return /[A-Za-zÀ-ÿ]/.test(x); });
-    return ((m[0] || '').charAt(0) + (m[1] || '').charAt(0)).toUpperCase() || '?';
-  }
   function cartePraticienHtml(p, c, t, ouvert) {
     if (!p) return '';
     c = c || ctx();
@@ -9009,8 +9007,6 @@
     if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
     var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
     var h = '<li class="element' + classeType(p) + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
-      // 3.31.91 : présentation modernisée : avatar d'initiales (couleur du type) à gauche, contenu inchangé
-      '<span class="rep-ligne"><span class="rep-av" aria-hidden="true">' + esc(initialesContact(p.nom)) + '</span><span class="rep-corps">' +
       '<span class="element-titre">' + pastilleType(p) + esc(p.nom) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
         (function () { var coF = ensemble(S.ui.filtres && S.ui.filtres.communes || []), aF = Object.keys(coF).length;
@@ -9019,18 +9015,18 @@
           return tri.filter(function (x) { if (vus[x.commune]) return false; vus[x.commune] = 1; return true; })
             .map(function (x) { return ok(x) ? '<b>' + esc(x.commune) + '</b>' : esc(x.commune); }).join(', '); })() +
         distancePharmacie(p, lieux) + '</span>' +
-      '<span class="etiquettes">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
+      '<span class="etiquettes etq-ligne">' + badgeConv(p.conventionne) + '<span class="etiquette">' + esc(vuDepuis(p.derniere)) + '</span>' +
         (function () { var nG = lieux.filter(aCoord).length, cl = !lieux.length || nG === 0 ? 'gps-non' : (nG === lieux.length ? 'gps-ok' : 'gps-partiel');
           return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
       (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
       (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
-      etiquetteCollegues(p.code, t) + '</span></span></span></button>';
+      etiquetteCollegues(p.code, t) + '</span></button>';
     if (ouvert) {
       var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
       h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
                             lieu: pres.lieu, quartier: pres.quartier, commune: pres.commune });
-      if (p.telephone) h += '<p class="discret" style="margin:6px 0 0">Tél : ' + esc(p.telephone) + '</p>';
-      if (p.commentaire) h += '<p class="discret" style="margin:0">Dernier commentaire : ' + esc(p.commentaire) + '</p>';
+      if (p.telephone) h += '<p class="discret" style="margin:6px 0 0"><b>Tél :</b> ' + esc(p.telephone) + '</p>';
+      if (p.commentaire) h += '<p class="discret" style="margin:0" title="Dernier commentaire"><b>D.C :</b> ' + esc(p.commentaire) + '</p>';
       if (p.prochaine) h += '<p class="discret" style="margin:4px 0 0">Prochain RDV le ' + dateCourte(p.prochaine) + '</p>';
       if (p.absentDu) h += '<p class="discret erreur-texte" style="margin:4px 0 0">Absent du ' + dateCourte(p.absentDu) + (p.absentAu ? ' au ' + dateCourte(p.absentAu) : '') + '</p>';
       h += grillePresences(p.code);
@@ -9233,7 +9229,7 @@
     var hor = function (pr) { var hM = lireHoraire(pr.horaireMatin, REGLAGES_MOTEUR.horaireMatinDefaut), hS = lireHoraire(pr.horaireSoir, REGLAGES_MOTEUR.horaireSoirDefaut);
       return 'Matin ' + minutesVersHeure(hM[0]) + '-' + minutesVersHeure(hM[1]) + ', soir ' + minutesVersHeure(hS[0]) + '-' + minutesVersHeure(hS[1]); };
     var jAuj = jourSemaineIndex(aujourdhui());
-    var h = '<div class="sem-rep"><div class="sr-tete"><div><b>' + (estPh ? 'Reçoit les délégués' : 'Semaine type') + '</b><small>' + (estPh ? esc(hor(lieux[0])) : 'Touchez un créneau pour planifier') + '</small></div>' +
+    var h = '<div class="sem-rep"><div class="sr-tete"><div><b>' + (estPh ? 'Reçoit les délégués' : 'Semaine type') + '</b><small>' + (estPh ? esc(hor(lieux[0]).replace(/^Matin /, 'M ').replace(', soir ', ', S ')) : 'Touchez un créneau pour planifier') + '</small></div>' +
       '</div>' +
       '<div class="sr-grille"><span></span>' + JOURS.map(function (j, i) { return '<span class="sr-j' + (i === jAuj ? ' auj' : '') + '">' + j.slice(0, 3) + '</span>'; }).join('');
     [['Matin', 'M', 'matin'], ['Soir', 'S', 'soir']].forEach(function (cr) {
