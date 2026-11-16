@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.123';
+  var APP_VERSION = '3.31.124';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.124', ['Fluidité : l\'écran n\'est plus reconstruit en entier à chaque toucher ; seuls les blocs qui changent sont remplacés (réponse immédiate, plus de saut, saisie en cours conservée)', 'Fiabilité : une fiche ou un compte rendu modifié pendant un envoi n\'est plus perdu (il part à l\'envoi suivant)', 'Feuille de style allégée de 230 déclarations inutiles, apparence strictement identique']],
     ['3.31.123', ['Application plus légère : l\'historique des nouveautés des anciennes versions n\'est plus chargé à chaque démarrage (140 Ko de moins)', 'Fiche ouverte du Répertoire : le bouton « Ajouter au jour » n\'est plus rogné', 'Classeur : listes déroulantes du Quartier liées à la commune aussi dans Presences (insensibles au tri)']],
     ['3.31.122', ['OCR : activation de la haute résolution d\'image (MEDIA_RESOLUTION_HIGH) et ajout de Gemini 3.6 Flash en secours gratuit']],
     ['3.31.121', ['OCR : ajout de Gemini 3.8 Flash en tête de cascade (gratuit), classement par performance et bascule immédiate en sourdine dès qu\'un quota est atteint']],
@@ -2721,7 +2722,9 @@
     var f = S.fiches[0];
     if (!f.uid) { f.uid = 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); LS.set('fiches', S.fiches); }
     return apiPost('fiche', { uid: f.uid, praticien: f.praticien, presences: f.presences, auteur: moi() }).then(function (r) {
-      S.fiches.shift();
+      // 3.31.124 : on retire LA fiche qui vient d'être envoyée, où qu'elle soit (une fiche enregistrée pendant l'envoi
+      // changeait l'ordre de la file : c'est une autre fiche, jamais envoyée, qui en était retirée)
+      var iF = S.fiches.indexOf(f); if (iF >= 0) S.fiches.splice(iF, 1);
       if (r.ancien && r.code && r.ancien !== r.code) remplacerCode(r.ancien, r.code);
       if (r.ids) remplacerIds(r.ids);
       LS.set('fiches', S.fiches); LS.set('plan', S.plan); LS.set('imposes', S.imposes); LS.set('queue', S.queue);
@@ -2736,7 +2739,8 @@
 
       // 3.29.0 : seul un refus du serveur met la fiche de côté ; une erreur de réseau la garde dans la file, sans limite d'essais
       if (e.refus) {
-        var rejete = S.fiches.shift();
+        var iR = S.fiches.indexOf(f); if (iR >= 0) S.fiches.splice(iR, 1);
+        var rejete = f;
         rejete.refus = true;
         S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
         S.deadLetter.fiches = S.deadLetter.fiches || [];
@@ -2748,7 +2752,7 @@
         return envoyerFiches(essaisRestants - 1);
       }
 
-      if (S.fiches.length > 1) {
+      if (S.fiches.length > 1 && S.fiches[0] === f) {
         S.fiches.push(S.fiches.shift());
       }
       LS.set('fiches', S.fiches);
@@ -2768,10 +2772,20 @@
     if (uidAjoutes) LS.set('queue', S.queue);
 
 
-    return apiPost('valider', { visites: S.queue }).then(function (r) {
+    // 3.31.124 : seules les visites réellement envoyées, et inchangées depuis, sont retirées de la file. Un compte rendu
+    // corrigé pendant l'envoi (même identifiant, nouveau contenu) reste dans la file et part à l'envoi suivant
+    // (avant : il était retiré avec l'ancienne version, la correction était perdue).
+    var envoyees = S.queue.slice(), empreintes = envoyees.map(function (v) { return JSON.stringify(v); });
+    return apiPost('valider', { visites: envoyees }).then(function (r) {
       var recus = {};
       (r.recus || []).forEach(function (u) { recus[u] = true; });
-      S.queue = S.queue.filter(function (v) { return !recus[v.uid]; });
+      S.queue = S.queue.filter(function (v) {
+        if (!recus[v.uid]) return true;
+        var k = envoyees.indexOf(v);
+        if (k >= 0 && JSON.stringify(v) === empreintes[k]) return false;
+        v.correction = true;   // le serveur a déjà l'ancienne version : la nouvelle part comme une correction
+        return true;
+      });
       LS.set('queue', S.queue);
     }).catch(function (errBatch) {
       console.warn('Erreur envoi groupé de la file de visites, basculement en mode unitaire résilient:', errBatch);
@@ -2781,16 +2795,20 @@
 
   function viderQueueVisitesUnitaire(index) {
     if (!S.queue || index >= S.queue.length) return Promise.resolve();
-    var v = S.queue[index];
-
+    var v = S.queue[index], empreinte = JSON.stringify(v);
 
     return apiPost('valider', { visites: [v] }).then(function (r) {
-      if (r.recus && r.recus.indexOf(v.uid) >= 0) {
-        S.queue.splice(index, 1);
+      // 3.31.124 : la file a pu changer pendant l'envoi : on retire CETTE visite (si elle n'a pas été modifiée), pas « la n-ième »
+      var pos = S.queue.indexOf(v);
+      if (r.recus && r.recus.indexOf(v.uid) >= 0 && pos >= 0 && JSON.stringify(v) === empreinte) {
+        S.queue.splice(pos, 1);
         LS.set('queue', S.queue);
-        return viderQueueVisitesUnitaire(index);
+        return viderQueueVisitesUnitaire(Math.min(index, pos));
       } else {
-        return viderQueueVisitesUnitaire(index + 1);
+        // reçue par le serveur mais modifiée (ou remplacée) entre-temps : la version actuelle part comme une correction
+        if (r.recus && r.recus.indexOf(v.uid) >= 0) S.queue.forEach(function (x) { if (x.uid === v.uid) x.correction = true; });
+        LS.set('queue', S.queue);
+        return viderQueueVisitesUnitaire((pos >= 0 ? pos : index - 1) + 1);
       }
     }).catch(function (errU) {
       v.tentatives = (v.tentatives || 0) + 1;
@@ -2805,7 +2823,7 @@
       S.deadLetter = S.deadLetter || { visites: [], fiches: [] };
       S.deadLetter.visites = S.deadLetter.visites || [];
       S.deadLetter.visites.push(v);
-      S.queue.splice(index, 1);
+      var posR = S.queue.indexOf(v); if (posR >= 0) S.queue.splice(posR, 1); else return viderQueueVisitesUnitaire(index);
       LS.set('queue', S.queue);
       LS.set('deadLetter', S.deadLetter);
       signalerErreur('compte rendu refusé', errU, { nom: v.nom, date: v.date });
@@ -2959,6 +2977,90 @@
     if (_memoEcranRaf) return;
     _memoEcranRaf = (window.requestAnimationFrame || setTimeout)(function () { setTimeout(memoriserEcranMaintenant, 0); });
   }
+  // 3.31.124 : rendu « par différences ». Tant qu'on reste sur le même écran, seuls les blocs dont le contenu a changé
+  // sont remplacés ; le reste de la page n'est pas touché (plus de reconstruction complète à chaque toucher : réponse
+  // immédiate, pas de saut, la saisie en cours et les défilements internes sont conservés).
+  // Chaque élément affiché garde une référence (__src) vers sa version d'origine, non modifiée ; un élément posé ou
+  // modifié en dehors de ce mécanisme n'a pas de référence et est donc toujours remplacé. Au moindre doute ou à la
+  // moindre erreur, l'écran est reconstruit en entier comme avant. Coupe-circuit : localStorage tournees.renduClassique = 1.
+  var RENDU_PROFONDEUR = 6, _renduClassique = null;
+  function memesAttributs(a, b) {
+    if (a.nodeType !== 1 || b.nodeType !== 1 || a.tagName !== b.tagName) return false;
+    var x = a.attributes, y = b.attributes;
+    if (x.length !== y.length) return false;
+    for (var i = 0; i < x.length; i++) { if (b.getAttribute(x[i].name) !== x[i].value) return false; }
+    return true;
+  }
+  function clonerAvecSource(src, prof) {
+    var c = src.cloneNode(true);
+    (function lier(n, o, p) {
+      n.__src = o;
+      if (p <= 0 || n.nodeType !== 1) return;
+      var a = n.childNodes, b = o.childNodes;
+      for (var i = 0; i < a.length; i++) lier(a[i], b[i], p - 1);
+    })(c, src, prof);
+    return c;
+  }
+  function fusionnerEnfants(parent, modele, prof) {
+    var vifs = Array.prototype.slice.call(parent.childNodes), neufs = Array.prototype.slice.call(modele.childNodes);
+    var egal = function (v, n) { return !!(v && v.__src && v.__src.isEqualNode(n)); };
+    // mêmes blocs au début et à la fin : conservés ; seul le milieu est examiné
+    var d = 0, fv = vifs.length - 1, fn = neufs.length - 1;
+    while (d <= fv && d <= fn && egal(vifs[d], neufs[d])) { vifs[d].__src = neufs[d]; d++; }
+    while (fv >= d && fn >= d && egal(vifs[fv], neufs[fn])) { vifs[fv].__src = neufs[fn]; fv--; fn--; }
+    if (fv - d === fn - d) {
+      for (var i = d; i <= fv; i++) {
+        var v = vifs[i], n = neufs[i];
+        if (egal(v, n)) { v.__src = n; continue; }
+        if (prof > 0 && v.__src && v.nodeType === 1 && n.nodeType === 1 && n.firstElementChild && memesAttributs(v.__src, n) &&
+            !/^(SELECT|TEXTAREA|SVG|TABLE|THEAD|TBODY|TR)$/i.test(n.tagName)) {
+          fusionnerEnfants(v, n, prof - 1); v.__src = n;
+        } else parent.replaceChild(clonerAvecSource(n, prof), v);
+      }
+      return;
+    }
+    // nombre de blocs différent : le milieu est remplacé d'un coup
+    var avant = fv + 1 < vifs.length ? vifs[fv + 1] : null, frag = document.createDocumentFragment();
+    for (var k = d; k <= fv; k++) parent.removeChild(vifs[k]);
+    for (var j = d; j <= fn; j++) frag.appendChild(clonerAvecSource(neufs[j], prof));
+    parent.insertBefore(frag, avant);
+  }
+  function poserVue(vue, html, tab) {
+    var dCour = S.ui.jourVue || S.ui.jour || '';
+    var cle = tab + '|' + (S.ui.rechOuverte ? 1 : 0) + '|' + (S.ui.voirParams ? 1 : 0) + '|' + dCour;
+    if (_renduClassique === null) { try { _renduClassique = localStorage.getItem('tournees.renduClassique') === '1'; } catch (e) { _renduClassique = false; } }
+    var modele = null;
+    try {
+      if (!_renduClassique && document.createRange && cle === S.ui.cleVue && vue._cleSrc === cle && vue.firstChild) {
+        modele = document.createElement('div'); modele.innerHTML = html;
+        // états provisoires posés après le rendu précédent : retirés (ils sont recalculés juste après)
+        vue.querySelectorAll('.prochaine, .vient-ouvrir, .nouvelle, .nouveau, .appui-long-actif').forEach(function (e) { e.classList.remove('prochaine', 'vient-ouvrir', 'nouvelle', 'nouveau', 'appui-long-actif'); });
+        var forcer = function (e) { while (e && e !== vue) { e.__src = null; e = e.parentNode; } };
+        // cartes géographiques : leur bloc est toujours reconstruit (la carte est redessinée avec les données du moment)
+        cartesAFaire.forEach(function (c) { forcer($(c.id)); });
+        vue.querySelectorAll('.leaflet-container').forEach(forcer);
+        // case, liste ou champ dont l'état affiché ne correspond plus à son état d'origine (hors champ en cours de saisie) : reconstruit
+        var actif = document.activeElement;
+        vue.querySelectorAll('input, select, textarea').forEach(function (c) {
+          if (c === actif) return;
+          var change = c.type === 'checkbox' || c.type === 'radio' ? c.checked !== c.defaultChecked :
+            (c.tagName === 'SELECT' ? Array.prototype.some.call(c.options, function (o) { return o.selected !== o.defaultSelected; }) : c.value !== c.defaultValue && c.type !== 'file');
+          if (change) forcer(c);
+        });
+        fusionnerEnfants(vue, modele, RENDU_PROFONDEUR);
+        vue._cleSrc = cle;
+        return;
+      }
+    } catch (eFusion) { try { signalerErreur('rendu par différences', eFusion); } catch (e2) {} }
+    // nouvel écran (ou repli) : reconstruction complète, puis chaque bloc est relié à sa version d'origine
+    if (_renduClassique) { vue.innerHTML = html; vue._cleSrc = null; return; }
+    try {
+      if (!modele) { modele = document.createElement('div'); modele.innerHTML = html; }
+      var frag = document.createDocumentFragment();
+      Array.prototype.forEach.call(modele.childNodes, function (n) { frag.appendChild(clonerAvecSource(n, RENDU_PROFONDEUR)); });
+      vue.textContent = ''; vue.appendChild(frag); vue._cleSrc = cle;
+    } catch (ePose) { vue.innerHTML = html; vue._cleSrc = null; }
+  }
   var _renduGarde = 0;
   function rendre() {
     var tab = S.ui.tab;
@@ -3008,7 +3110,7 @@
     }
     vue.classList.remove('vue-entre', 'jour-glisse-d', 'jour-glisse-g');
     try {
-      vue.innerHTML = (VUES[tab] || VUES.jour)();
+      poserVue(vue, (VUES[tab] || VUES.jour)(), tab);
       if (infoFocus) {
         var champCible = infoFocus.id ? $(infoFocus.id) : (infoFocus.f ? vue.querySelector('[data-f="' + infoFocus.f + '"]') : null);
         if (champCible) {
@@ -9678,8 +9780,13 @@
   function propreMots(s) {
     return sansAccents(String(s || '')).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   }
+  // 3.31.124 : résultat mémorisé (appelée des milliers de fois à chaque tri de la liste du Répertoire)
+  var _nomSansTitreCache = Object.create(null), _nomSansTitreN = 0;
   function nomSansTitre(nom) {
-    return propreMots(nomSansType(nom || '')).replace(/^(dr|pr|ide|sage femme|mme|mlle|m|pharmacie)\s+/, '').trim();
+    var k = nom || '', v = _nomSansTitreCache[k];
+    if (v !== undefined) return v;
+    if (++_nomSansTitreN > 8000) { _nomSansTitreCache = Object.create(null); _nomSansTitreN = 0; }
+    return (_nomSansTitreCache[k] = propreMots(nomSansType(k)).replace(/^(dr|pr|ide|sage femme|mme|mlle|m|pharmacie)\s+/, '').trim());
   }
   function scorePertinenceNom(p, qClean, mots) {
     if (!qClean || !mots || !mots.length) return 0;

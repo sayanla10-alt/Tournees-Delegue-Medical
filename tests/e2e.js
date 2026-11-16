@@ -136,6 +136,26 @@ const ok = (nom, v, detail) => { if (!v) echecs++; console.log((v ? 'OK    ' : '
     ok('état « À jour »', await T(() => /jour/i.test(document.getElementById('pastilleSync').textContent)), await T(() => document.getElementById('pastilleSync').textContent));
   });
 
+  await etape('File d\'envoi', async () => {
+    const lireServeur = async () => { const r = await fetch(API + '/exec?action=data&token=' + jeton); return (await r.json()).historique || []; };
+    const creer = (uid, com) => T((a) => { const S = window.__tournees.S, p = S.data.praticiens.find(x => x.type !== 'Pharmacie'), pr = S.data.presences.find(x => x.code === p.code) || {};
+      const v = { uid: a.uid, date: new Date().toISOString().slice(0, 10), code: p.code, nom: p.nom, type: p.type, specialite: p.specialite || '', lieu: pr.lieu || '', quartier: pr.quartier || '', commune: pr.commune || '', creneau: 'Matin', statut: 'Visite faite', commentaire: a.com, delegue: 'Awa Koné', produits: '', prochaine: '', activite: 'Routine' };
+      const i = S.queue.findIndex(x => x.uid === a.uid); if (i >= 0) S.queue[i] = v; else S.queue.push(v); return S.queue.length; }, { uid, com });
+    const uid = 'TEST' + Date.now().toString(36);
+    await creer(uid, 'premier envoi'); await clic('#pastilleSync', 5000);
+    ok('visite envoyée : la file d\'envoi est vide', await T(() => window.__tournees.S.queue.length === 0), await T(() => window.__tournees.S.queue.length));
+    ok('visite reçue par le serveur', (await lireServeur()).some(v => v.uid === uid && v.commentaire === 'premier envoi'));
+    // correction faite PENDANT l'envoi : elle ne doit pas être perdue
+    const uid2 = 'TEST2' + Date.now().toString(36);
+    await creer(uid2, 'version envoyée'); await T(() => document.getElementById('pastilleSync').click()); await attendre(60);
+    await creer(uid2, 'version corrigée pendant l\'envoi'); await attendre(5000);
+    const q1 = await T((u) => window.__tournees.S.queue.filter(x => x.uid === u).map(x => x.commentaire), uid2);
+    ok('correction faite pendant l\'envoi : conservée dans la file', q1.length === 1 && /corrigée/.test(q1[0]), q1);
+    await clic('#pastilleSync', 5000);
+    ok('la correction part à l\'envoi suivant, file vide', await T(() => window.__tournees.S.queue.length === 0));
+    ok('le serveur a la version corrigée', (await lireServeur()).some(v => v.uid === uid2 && /corrigée/.test(v.commentaire)), (await lireServeur()).filter(v => v.uid === uid2).map(v => v.commentaire));
+  });
+
   ok('aucune erreur JavaScript pendant tout le parcours', err.length === 0, err.slice(0, 5));
   await b.close();
   console.log(echecs ? '\n' + echecs + ' contrôle(s) en échec' : '\nTout est conforme');

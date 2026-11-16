@@ -1,9 +1,9 @@
 ﻿{
-  "version": "3.31.123",
+  "version": "3.31.124",
   "date": "2026-11-16",
   "notes": [
-    "Application plus légère au démarrage (140 Ko de moins)",
-    "Fiche ouverte du Répertoire : « Ajouter au jour » n'est plus rogné",
-    "Classeur : listes déroulantes du Quartier liées à la commune aussi dans Presences"
+    "Fluidité : seuls les blocs qui changent sont redessinés (réponse immédiate, plus de saut d'écran)",
+    "Fiabilité : une fiche ou un compte rendu modifié pendant un envoi n'est plus perdu",
+    "Feuille de style allégée, apparence identique"
   ]
 }
