@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.107';
+  var APP_VERSION = '3.31.108';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.108', ['Répertoire & Tirage : ajout du bouton cœur (♡ / ♥) à droite des fiches pour désigner vos favoris et les faire revenir plus souvent dans les tirages']],
     ['3.31.107', ['Journée : suppression des 24 px d\'espace vide sous la barre du bas (+ Médecin / + Phcie / Autour de moi)']],
     ['3.31.106', ['Journée : suppression de l\'espace sous + Médecin / + Phcie / Autour de moi et resserrage autour de « Praticien indisponible ? » et « Modifier la tournée »']],
     ['3.31.105', ['Journée et Planifier : la frise des jours montre 3 semaines avant et après le jour choisi (au lieu de 6) ; écrans plus légers et plus rapides ; le calendrier permet toujours d\'aller plus loin']],
@@ -1432,6 +1433,7 @@
     params: LS.get('params', null),
     imposes: LS.get('imposes', []),
     rejetes: LS.get('rejetes', {}),
+    favoris: LS.get('favoris', {}),
     queue: LS.get('queue', []),
     fiches: LS.get('fiches', []),
     deadLetter: LS.get('deadLetter', { visites: [], fiches: [] }),
@@ -9132,6 +9134,15 @@
     });
     return d !== null ? ' · ' + distMoi(d, approx) : '';
   }
+  function estFavori(code) { return !!(S.favoris && code && S.favoris[code]); }
+  function iconeCoeur(actif) {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7-4.5-9.2-8.7C1 8.5 2.8 4.8 6.4 4.3c2-.3 4 .7 5.6 2.6 1.6-1.9 3.6-2.9 5.6-2.6 3.6.5 5.4 4.2 3.6 7.5C19 16 12 20.5 12 20.5Z" fill="' + (actif ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="' + (actif ? '1.6' : '1.8') + '" stroke-linejoin="round"/></svg>';
+  }
+  function boutonFavori(code) {
+    if (!code) return '';
+    var actif = estFavori(code);
+    return '<button type="button" class="btn-fav" data-a="toggleFavori" data-code="' + esc(code) + '" aria-pressed="' + actif + '" aria-label="' + (actif ? 'Retirer des favoris' : 'Ajouter aux favoris') + '" title="' + (actif ? 'Retirer des favoris' : 'Marquer comme favori') + '">' + iconeCoeur(actif) + '</button>';
+  }
   // 3.28.19 : carte (fiche) d'un contact, hors de la vue pour être aussi ouverte en fenêtre depuis tout l'écran
   function cartePraticienHtml(p, c, t, ouvert) {
     if (!p) return '';
@@ -9139,7 +9150,7 @@
     t = t || aujourdhui();
     if (ouvert === undefined) ouvert = S.ui.contactOuvert === p.code;
     var lieux = fusionnerLieux(c.presencesParCode[p.code] || []);
-    var h = '<li class="element' + classeType(p) + (ouvert ? ' rep-ouvert' : '') + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
+    var h = '<li class="element avec-fav' + classeType(p) + (ouvert ? ' rep-ouvert' : '') + '"><button type="button" class="carte-bouton" data-a="contact" data-v="' + esc(p.code) + '" aria-expanded="' + ouvert + '">' +
       // 3.31.95 : fiche ouverte : toucher le nom ouvre le suivi des visites (le reste de l'en-tête replie la fiche, comme avant)
       '<span class="element-titre">' + pastilleType(p) + (ouvert ? '<span class="nom-suivi" role="button" tabindex="0" data-a="suiviContact" data-v="' + esc(p.code) + '" title="Voir le suivi des visites">' + esc(p.nom) + '</span>' : esc(p.nom)) + ' ' + etoiles(p.note) + '</span>' +
       '<span class="discret bloc-texte">' + (estPharmacie(p) ? '' : '<b class="spec-gras">' + esc(abrSpec(p.specialite)) + '</b>, ') + lieux.length + ' lieu' + (lieux.length > 1 ? 'x' : '') + ' : ' +
@@ -9154,7 +9165,7 @@
           return '<span class="etiquette etiquette-gps ' + cl + '">' + icone('carte') + 'GPS ' + nG + '/' + (lieux.length || 1) + '</span>'; })() +
       (estPharmacie(p) ? (p.statut ? '<span class="etiquette ' + (estKo(p.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(p)) + '</span>' : '') : badgePresenceMedecin(p.code, p)) +
       (/^TMP-/.test(p.code) || ficheEnAttente(p.code) ? '<span class="etiquette p1">Fiche en attente d\'envoi</span>' : '') +
-      etiquetteCollegues(p.code, t) + '</span></button>';
+      etiquetteCollegues(p.code, t) + '</span></button>' + boutonFavori(p.code);
     if (ouvert) {
       var cr = (c.parCode[p.code] || [])[0], pres = lieux[0] || {};
       h += prochainePresenceHtml(p) + actionsRapides({ telephone: p.telephone, lat: cr && cr.coord && cr.coord.lat, lon: cr && cr.coord && cr.coord.lon,
@@ -15270,6 +15281,21 @@
     },
     finRef: function () { S.ui.autour.ref = null; LS.set('autour', S.ui.autour); rendre(); },
     // Divers
+    toggleFavori: function (el) {
+      var code = el && el.dataset && el.dataset.code; if (!code) return;
+      S.favoris = S.favoris || {};
+      var actif = !S.favoris[code];
+      if (actif) S.favoris[code] = true; else delete S.favoris[code];
+      LS.set('favoris', S.favoris);
+      if (typeof Moteur !== 'undefined' && Moteur.definirFavoris) Moteur.definirFavoris(S.favoris);
+      document.querySelectorAll('.btn-fav[data-code="' + (window.CSS && CSS.escape ? CSS.escape(code) : code) + '"]').forEach(function (b) {
+        b.setAttribute('aria-pressed', actif);
+        b.setAttribute('aria-label', actif ? 'Retirer des favoris' : 'Ajouter aux favoris');
+        b.setAttribute('title', actif ? 'Retirer des favoris' : 'Marquer comme favori');
+        b.innerHTML = iconeCoeur(actif);
+      });
+      toast(actif ? 'Ajouté aux favoris (proposé plus souvent).' : 'Retiré des favoris.');
+    },
     contact: function (el) {
       // 3.25.34 : au clic dans le Répertoire, centrage et défilement fluide sur le praticien
       var code = el.dataset.v;
@@ -17570,6 +17596,7 @@
     }).observe(document.body, { childList: true, subtree: true, characterData: true });
   })();
   // 3.24.9 : les jours écartés d'office par les versions précédentes reviennent dans l'agenda
+  if (typeof Moteur !== 'undefined' && Moteur.definirFavoris) Moteur.definirFavoris(S.favoris);
   if (!LS.get('retiresV2', false)) { LS.set('joursRetires', {}); LS.set('retiresV2', true); }
   importerAgenda();
   // 3.19.0 : à l'ouverture, Journée montre toujours aujourd'hui

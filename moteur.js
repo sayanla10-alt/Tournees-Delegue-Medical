@@ -320,9 +320,15 @@ var Moteur = (function () {
     return code;
   }
 
-  // Score : potentiel + retard de visite + bonus si une « prochaine étape » est arrivée à échéance
-  function scoreDe(p, date) {
-    var s = calcScore(p.note, joursEcoules(p.derniere, date), p.statut);
+  var _favorisMap = {};
+  function definirFavoris(m) { _favorisMap = (m && typeof m === 'object') ? m : {}; }
+  // Score : potentiel + retard de visite (cadence doublée pour les favoris + bonus permanent) + bonus si une « prochaine étape » est arrivée à échéance
+  function scoreDe(p, date, favoris) {
+    var fav = favoris || _favorisMap;
+    var isFav = !!(p && fav && fav[p.code]);
+    var jE = joursEcoules(p.derniere, date);
+    var s = calcScore(p.note, isFav ? jE * 2 : jE, p.statut);
+    if (isFav) s += 150;
     if (p.prochaine && /^\d{4}-\d{2}-\d{2}$/.test(p.prochaine) && p.prochaine <= date) s += 120;
     return s;
   }
@@ -1384,7 +1390,7 @@ var Moteur = (function () {
     autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur,
     cleQuartier: cleQuartier, cleSecteurTournee: cleSecteurTournee, nomSecteurTournee: nomSecteurTournee,
     estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid, evaluerInsertion: evaluerInsertion,
-    cleZoneSecteur: cleZoneSecteur, definirQuartiersMoteur: definirQuartiersMoteur
+    cleZoneSecteur: cleZoneSecteur, definirQuartiersMoteur: definirQuartiersMoteur, definirFavoris: definirFavoris
   };
 })();
 

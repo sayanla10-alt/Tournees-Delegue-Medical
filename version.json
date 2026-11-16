@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.107",
+  "version": "3.31.108",
   "date": "2026-11-16",
   "notes": [
-    "Journée : suppression des 24 px d'espace vide sous la barre du bas (+ Médecin / + Phcie / Autour de moi)"
+    "Répertoire & Tirage : ajout du bouton cœur (♡ / ♥) à droite des fiches pour désigner vos favoris et les faire revenir plus souvent dans les tirages"
   ]
 }

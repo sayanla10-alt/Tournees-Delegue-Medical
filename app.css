@@ -314,6 +314,20 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .arret-lieu { display: block; color: var(--gris); font-size: 13.5px; margin-top: 2px; }
 .etiquettes { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 7px; }
 .etiquettes.centre { justify-content: center; }
+.element.avec-fav { position: relative; }
+.element.avec-fav .element-titre { padding-right: 28px; }
+.btn-fav {
+  position: absolute; top: 6px; right: 6px;
+  width: 30px; height: 30px; padding: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--gris-2); cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  transition: transform .15s ease, color .15s ease;
+}
+.btn-fav svg { width: 16px; height: 16px; }
+.btn-fav[aria-pressed="true"] { color: #E11D48; }
+.btn-fav:active { transform: scale(1.18); }
 .element.hors-filtre { background: var(--ambre-pale); border-color: var(--ambre-trait); }
 .seg-ajout { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; background: var(--papier-2); border: 1px solid var(--trait); border-radius: 12px; margin: 2px 0 10px; }
 .seg-btn { border: 1px solid transparent; background: transparent; color: var(--gris); border-radius: 9px; padding: 8px 10px; font: 650 13px/1.2 var(--corps); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: all .15s ease; }
