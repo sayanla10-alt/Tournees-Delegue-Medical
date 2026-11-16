@@ -1709,6 +1709,9 @@ details.avance h3 { margin-top: 18px; }
 .a-saisir { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 10px; margin-bottom: 10px; border-radius: 10px; background: var(--fond); }
 .a-saisir b { display: inline-flex; align-items: center; gap: 4px; color: var(--rouge); font-size: 13.5px; width: 100%; }
 .a-saisir b svg { width: 15px; height: 15px; }
+.suivante { position: relative; }
+.suivante small, .suivante > b { padding-right: 30px; }
+.suivante .btn-fav { top: 0; right: 0; }
 .suivante small { display: block; font-size: 12px; font-weight: 600; color: var(--gris); }
 .suivante > b { font-size: 16px; }
 .suivante .bouton-large { margin-top: 8px; }

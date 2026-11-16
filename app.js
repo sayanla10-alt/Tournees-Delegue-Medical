@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.111';
+  var APP_VERSION = '3.31.112';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.112', ['Journée : ajout du bouton cœur (♡ / ♥) dans la carte « Maintenant / Visite suivante »']],
     ['3.31.111', ['Planifier : alignement vertical exact de la croix et de la coche avec le cœur (en conservant l\'écart avec l\'épingle Garder)']],
     ['3.31.110', ['Favoris (♥) : préséance sur les ★★★ dans les tirages (+500 pts) — le cœur passe avant le potentiel']],
     ['3.31.109', ['Favoris (♡ / ♥) : cœur vide harmonisé avec les étoiles vides et affiché partout (Planifier, Journée, + Ajouter, Autour de moi, Répertoire)']],
@@ -5562,7 +5563,7 @@
         var qp = Moteur.quartierLePlusProche(pos.lat, pos.lon, quartiers()), dk = distanceVol(pos, cS);
         tr = trajetMini(dk, minutesTrajet(dk, qp ? qp.quartier.commune : '', suivante.commune, now));
       } else if (suivante.dist > 0) tr = trajetMini(suivante.dist, suivante.trajet !== undefined ? suivante.trajet : Math.round(suivante.dist * REGLAGES_MOTEUR.minutesParKm));
-      corps += '<div class="suivante"><small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
+      corps += '<div class="suivante">' + boutonFavori(suivante.code) + '<small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
         (lieuQuartier(suivante) ? '<span class="discret bloc-texte">' + esc(lieuQuartier(suivante)) + '</span>' : '') + tr +
         actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte Rendu de cette visite</button></div>';

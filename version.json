@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.111",
+  "version": "3.31.112",
   "date": "2026-11-16",
   "notes": [
-    "Planifier : alignement vertical exact de la croix et de la coche avec le cœur (en conservant l'écart avec l'épingle Garder)"
+    "Journée : ajout du bouton cœur (♡ / ♥) dans la carte « Maintenant / Visite suivante »"
   ]
 }
