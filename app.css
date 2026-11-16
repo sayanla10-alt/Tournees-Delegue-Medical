@@ -5128,3 +5128,25 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .rangee-actions-contact .bouton-inopinee, .rangee-actions-contact .badge-deja-prevu { padding: 0 12px !important; }
 .rangee-actions-contact { justify-content: center !important; gap: 4px !important; }
 .rangee-actions-contact .bouton:not(.bouton-inopinee) { padding: 0 8px !important; }
+/* 3.31.93 : en-tête : pastille de synchro centrée entre la version et la roue, jamais par-dessus la version */
+.entete-titre { flex: 0 0 auto; max-width: 62%; }
+.entete-titre > div:first-child { white-space: nowrap; }
+.pastille-sync { flex: 0 1 auto; min-width: 0; margin: 0 auto; padding: 0 10px; overflow: hidden; }
+.pastille-sync span { overflow: hidden; text-overflow: ellipsis; }
+.entete .bouton-icone { flex: none; }
+/* 3.31.93 : fiche ouverte détachée des cartes voisines (on voit où elle commence et où elle finit) */
+.liste-rep { background: var(--fond); }
+.liste-rep > .element:has(> .carte-bouton[aria-expanded="true"]) {
+  margin: 10px 6px; border: 1.5px solid var(--primaire); border-radius: 14px;
+  box-shadow: inset 4px 0 0 var(--k-lisere, var(--bleu)), 0 6px 18px -6px rgba(14, 34, 48, .28);
+}
+.liste-rep > .element.t-pharma:has(> .carte-bouton[aria-expanded="true"]) { --k-lisere: var(--violet); }
+.liste-rep > .element.element-hopital:has(> .carte-bouton[aria-expanded="true"]) { --k-lisere: #0A6C74; }
+.liste-rep > .element:has(> .carte-bouton[aria-expanded="true"]):first-child { margin-top: 6px; }
+.liste-rep > .element:has(+ .element > .carte-bouton[aria-expanded="true"]) { border-bottom: 0; }
+@media (max-width: 400px) {
+  .entete { gap: 5px; padding-left: 12px; padding-right: 6px; }
+  .entete .bouton-icone { width: 36px; height: 36px; }
+  .pastille-sync { padding: 0 8px; gap: 5px; font-size: 12.5px; }
+  .pastille-sync svg { display: none; }
+}

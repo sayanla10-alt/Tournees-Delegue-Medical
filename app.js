@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.92';
+  var APP_VERSION = '3.31.93';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.93', ['En-tête : la pastille de synchronisation est centrée entre le numéro de version et la roue crantée, sans plus le chevaucher (même avec une version à 3 chiffres)', 'Répertoire : la fiche ouverte se détache nettement des autres cartes (encadrée, espacée), médecins, pharmacies et hôpitaux', 'Critères : bouton « Tous » en tête des raccourcis (médecins, pharmacies, hôpitaux) ; « Réinitialiser les filtres » toujours actif, vert, y compris dans Hôpitaux']],
     ['3.31.92', ['Répertoire : retour des pastilles (médecin, caducée pharmacie) et des liserés de couleur, plus de teinte sur le contact ouvert', 'Étiquettes (Engagé, Vu il y a, GPS, Hors créneau…) resserrées et centrées sur une ligne quand c\'est possible, aussi dans la fiche ouverte et les Hôpitaux', 'Fiche ouverte : « Tél » et « D.C » (dernier commentaire) en gras, titre et horaires de la semaine sur une ligne, boutons Ajouter au jour / Planifier / Modifier centrés et régulièrement espacés']],
     ['3.31.91', ['Répertoire modernisé : liste d\'un seul tenant avec initiales colorées (bleu médecin, violet pharmacie), onglets Médecins / Pharmacies / Hôpitaux soulignés ; mêmes étiquettes, mêmes boutons, même fiche au toucher']],
     ['3.31.89', ['Vérifier la fiche : espace resserré pour le téléphone (tableau Ancien / Nouveau plus compact, marges réduites)', 'Vérifier la fiche : retour du tableau Ancien / Nouveau par médecin (téléphone, spécialité, lieu, planning) : on touche la valeur à garder ; l\'hôpital et la semaine se règlent en touchant le nom']],
@@ -8510,7 +8511,9 @@
       { id: 'qui', auto: true, resume: function () { return f.type === 'Pharmacie' ? 'Pharmacies' : (f.type === 'Médecin' ? 'Médecins' : 'Médecins et pharmacies'); },
         rendu: function () {
           return '<div class="puces">' + [['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']].map(function (x) { return puceEtape('type', x[0], x[1], f.type === x[0], false, 'qui'); }).join('') + '</div>' +
-            '<p class="discret raccourcis-titre-etape">Ou directement un raccourci :</p><div class="puces">' + FILTRES_RAPIDES.map(function (x) {
+            '<p class="discret raccourcis-titre-etape">Ou directement un raccourci :</p><div class="puces">' +
+              '<button type="button" class="puce petite puce-tous" data-a="filtreRapideTous" aria-pressed="' + !FILTRES_RAPIDES.some(function (x) { return filtreRapideActif(f, x[0], x[1]); }) + '">Tous</button>' +
+              FILTRES_RAPIDES.map(function (x) {
               return '<button type="button" class="puce petite" data-a="filtreRapide" data-fin="1" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + filtreRapideActif(f, x[0], x[1]) + '">' + esc(x[2]) + '</button>';
             }).join('') + '</div>';
         } },
@@ -8562,7 +8565,9 @@
         rendu: function () {
           return '<div class="puces"><button type="button" class="puce puce-tous" data-a="etapeFiltre" data-k="categories" data-v="tous" aria-pressed="' + (!f.categories || !f.categories.length) + '">Tous</button>' +
             GROUPES_CAT_HOP.map(function (x) { return puceEtape('categories', x[0], x[1], (f.categories || []).indexOf(x[0]) >= 0, true); }).join('') + '</div>' +
-            '<p class="discret raccourcis-titre-etape">Ou directement un raccourci :</p><div class="puces">' + RACCOURCIS_HOP.map(function (x) {
+            '<p class="discret raccourcis-titre-etape">Ou directement un raccourci :</p><div class="puces">' +
+              '<button type="button" class="puce petite puce-tous" data-a="hopRapideTous" aria-pressed="' + !RACCOURCIS_HOP.some(function (x) { return f[x[0]] === x[1]; }) + '">Tous</button>' +
+              RACCOURCIS_HOP.map(function (x) {
               return '<button type="button" class="puce petite" data-a="hopRapide" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + (f[x[0]] === x[1]) + '">' + esc(x[2]) + '</button>';
             }).join('') + '</div>';
         } },
@@ -8907,13 +8912,10 @@
     h += '<div class="bandeau-criteres-rep">' +
       '<p class="phrase-criteres">' + esc(phraseHop) + '</p>' +
       '<div class="centre-reinit-rep">' +
-        (aFiltresHop
-          ? '<button type="button" class="bouton-reinit-rep" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
-              icone('relancer') + '<span>Réinitialiser les filtres</span>' +
-            '</button>'
-          : '<button type="button" class="bouton-reinit-rep desactive" disabled title="Aucun filtre actif">' +
-              icone('relancer') + '<span>Réinitialiser les filtres</span>' +
-            '</button>') +
+        // 3.31.93 : toujours actif (vert), comme partout dans le Répertoire
+        '<button type="button" class="bouton-reinit-rep" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
+          icone('relancer') + '<span>Réinitialiser les filtres</span>' +
+        '</button>' +
       '</div>' +
       '</div>';
     if (!l.length) return h + '<div class="vide"><strong>Aucun établissement</strong>Aucun hôpital ne correspond à cette recherche.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
@@ -9088,13 +9090,10 @@
     h += '<div class="bandeau-criteres-rep">' +
       '<p class="phrase-criteres">' + esc(phrase) + '</p>' +
       '<div class="centre-reinit-rep">' +
-        (aFiltres
-          ? '<button type="button" class="bouton-reinit-rep" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
-              icone('relancer') + '<span>Réinitialiser les filtres</span>' +
-            '</button>'
-          : '<button type="button" class="bouton-reinit-rep desactive" disabled title="Aucun filtre actif">' +
-              icone('relancer') + '<span>Réinitialiser les filtres</span>' +
-            '</button>') +
+        // 3.31.93 : toujours actif (vert), comme partout dans le Répertoire
+        '<button type="button" class="bouton-reinit-rep" data-a="effacerFiltres" title="Réinitialiser les filtres et recommencer">' +
+          icone('relancer') + '<span>Réinitialiser les filtres</span>' +
+        '</button>' +
       '</div>' +
       '</div>';
     if (!liste.length) return h + '<div class="vide"><strong>Aucun praticien</strong>Aucun praticien ne correspond à tous ces critères.<div style="margin-top:14px"><button class="bouton bouton-plein" type="button" data-a="effacerFiltres">' + icone('relancer') + 'Réinitialiser les filtres et recommencer</button></div></div>';
@@ -15689,6 +15688,19 @@
       else { if (el.dataset.m === '1') { var i = f[k].indexOf(v); if (i >= 0) f[k].splice(i, 1); else f[k].push(v); } else f[k] = v; majFiltres(f); }
       if (el.dataset.auto) { etatEtapes().ok[el.dataset.auto] = true; sauverEtapes(); }
       if (!finRecherche()) rendre();
+    },
+    // 3.31.93 : raccourci « Tous » : retire les raccourcis et montre les résultats
+    filtreRapideTous: function () {
+      var f = filtresCour();
+      FILTRES_RAPIDES.forEach(function (x) { if (Array.isArray(f[x[0]])) f[x[0]] = f[x[0]].filter(function (v) { return v !== x[1]; }); else if (f[x[0]] === x[1]) f[x[0]] = 'tous'; });
+      var et = etatEtapes(); Object.keys(QUESTIONS_FILTRES).forEach(function (q) { et.ok[q] = true; }); et.ouvert = false; sauverEtapes();
+      majFiltres(f); if (!finRecherche()) rendre();
+    },
+    hopRapideTous: function () {
+      var f = filtresCour();
+      RACCOURCIS_HOP.forEach(function (x) { f[x[0]] = 'tous'; }); majFiltres(f);
+      etapesActives(f).forEach(function (e) { etatEtapes().ok[e.id] = true; });
+      sauverEtapes(); S.ui.rechOuverte = false; LS.set('rechOuverte', false); rendre(); window.scrollTo(0, 0);
     },
     hopRapide: function (el) {
       var f = filtresCour(), k = el.dataset.k, v = el.dataset.v;
