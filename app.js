@@ -9,10 +9,11 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.113';
+  var APP_VERSION = '3.31.114';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   var JOURNAL = [
+    ['3.31.114', ['Compte rendu d\'un médecin : les étapes « Type(s) de visite médicale » et « Produits présentés » tiennent à l\'écran, titre en haut et Continuer en bas ; cocher un choix ne fait plus défiler la page']],
     ['3.31.113', ['Répertoire › Nouveau contact (Hôpitaux) : limitation à 3 établissements proches pour garder le bouton Créer visible']],
     ['3.31.112', ['Journée : ajout du bouton cœur (♡ / ♥) dans la carte « Maintenant / Visite suivante »']],
     ['3.31.111', ['Planifier : alignement vertical exact de la croix et de la coche avec le cœur (en conservant l\'écart avec l\'épingle Garder)']],
@@ -7422,7 +7423,8 @@
       }
       // question en cours : la seule affichée
       var err = s.valide ? s.valide() : '';
-      h += '<div class="cr-question"><span class="etape-titre">' + esc(s.titre) + ' <small>étape ' + (i + 1) + (s.type === 'facultatif' ? ', facultatif' : '') + '</small></span>' + s.rendu();
+      // 3.31.114 : étape repérée (cadrage à l'écran des étapes « Type de visite » et « Produits présentés » du médecin)
+      h += '<div class="cr-question" data-etape="' + s.id + '"' + (estPharmacie(a) ? ' data-ph="1"' : '') + '><span class="etape-titre">' + esc(s.titre) + ' <small>étape ' + (i + 1) + (s.type === 'facultatif' ? ', facultatif' : '') + '</small></span>' + s.rendu();
       if (s.type !== 'auto') {
         h += '<div class="rangee cr-boutons">' + (s.type === 'facultatif' ? '<button class="bouton" type="button" data-a="crPasser" data-uid="' + a.uid + '" data-v="' + s.id + '">Passer</button>' : '') +
           '<button class="bouton bouton-plein" type="button" data-a="crOk" data-uid="' + a.uid + '" data-v="' + s.id + '"' + (err ? ' disabled' : '') + '>Continuer</button></div>' +
@@ -13733,6 +13735,22 @@
         var nav = (document.querySelector('.navigation') || { offsetHeight: 0 }).offsetHeight;
         var dispo = window.innerHeight - ent - nav;
         if (dispo <= 0) return;
+
+        // 3.31.114 : compte rendu d'un médecin, étapes « Type(s) de visite médicale » et « Produits présentés » : toute
+        // l'étape est cadrée à l'écran, titre en haut et bouton Continuer en bas (centrée si elle tient) ; cocher une
+        // option ne fait plus défiler la page tant que l'étape reste bien cadrée
+        var qCadre = card && card.querySelector('.cr-question[data-etape="types"]:not([data-ph]), .cr-question[data-etape="produits"]:not([data-ph])');
+        if (qCadre && qCadre.querySelector('button[data-a="crOk"]')) {
+          var rQ = qCadre.getBoundingClientRect(), marge = 8, place = dispo - 2 * marge;
+          var cleQ = ((qCadre.querySelector('[data-uid]') || {}).getAttribute ? qCadre.querySelector('[data-uid]').getAttribute('data-uid') : '') + '|' + qCadre.getAttribute('data-etape');
+          // même étape, déjà entièrement visible : on ne bouge pas (pas de saut à chaque option cochée)
+          if (centrerElement._etape === cleQ && rQ.top >= ent + 2 && rQ.bottom <= ent + dispo - 2) return;
+          centrerElement._etape = cleQ;
+          var hautVoulu = rQ.height <= place ? ent + marge + Math.round((place - rQ.height) / 2) : ent + marge;
+          var dQ = rQ.top - hautVoulu;
+          if (Math.abs(dQ) > 4) window.scrollTo({ top: Math.max(0, Math.round(window.scrollY + dQ)), behavior: 'smooth' });
+          return;
+        }
 
         // 1. Détection du bouton principal de validation (Continuer, Valider, Enregistrer)
         var btnValider = (card && card.querySelector(

@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.113",
+  "version": "3.31.114",
   "date": "2026-11-16",
   "notes": [
-    "Répertoire › Nouveau contact (Hôpitaux) : limitation à 3 établissements proches pour garder le bouton Créer visible"
+    "Compte rendu d'un médecin : les étapes « Type(s) de visite médicale » et « Produits présentés » tiennent à l'écran, titre en haut et Continuer en bas ; cocher un choix ne fait plus défiler la page"
   ]
 }
