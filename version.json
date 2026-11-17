@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.135",
+  "version": "3.31.136",
   "date": "2026-11-17",
   "notes": [
-    "Performance Journée : mise en cache de la commune GPS actuelle (plus de balayage des quartiers sur chaque carte à chaque toucher)"
+    "Répertoire › Hôpitaux : correction du plantage à l'ouverture (suppression du dernier appel à bandeauScans) et mise en cache de la liste des communes"
   ]
 }
