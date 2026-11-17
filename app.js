@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.132';
+  var APP_VERSION = '3.31.133';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.133', ['Journée : calcul en direct de la distance et du trajet entre deux établissements consécutifs à partir de leurs coordonnées réelles']],
     ['3.31.132', ['Journée : correction du calcul de distance et de durée à pied sur les trajets entre établissements (suppression du double détour routier)']],
     ['3.31.131', ['Journée : durées à pied et en voiture alignées sur l\'estimation la plus réaliste (distance routière) sur toutes les cartes']],
     ['3.31.130', ['Journée : alignement des durées à pied et en voiture entre la carte « Maintenant » et les cartes de la liste (suppression du double détour routier)']],
@@ -4442,9 +4443,19 @@
       if (!liste.length) return;
       h += '<div class="creneau-titre">' + cren + '</div><ol class="ligne">';
       liste.forEach(function (a, i) {
-        if (i > 0 && a.dist > 0) {
-          h += '<li class="troncon"><div></div><div class="arret-rail"></div>' +
-            trajetMini(a.dist / REGLAGES_MOTEUR.detourRoutier, a.trajet !== undefined ? a.trajet : minutesTrajet(a.dist, '', a.commune || '', heureVersMinutes(a.heure))) + '</li>';
+        if (i > 0) {
+          var prev = liste[i - 1];
+          var cPrev = coordPrecise(prev) || coordArret(prev);
+          var cAct = coordPrecise(a) || coordArret(a);
+          var kmVol = cPrev && cAct ? distanceVol(cPrev, cAct) : (a.dist > 0 ? a.dist / REGLAGES_MOTEUR.detourRoutier : 0);
+          if (kmVol > 0.05) {
+            var routeKm = kmVol * REGLAGES_MOTEUR.detourRoutier;
+            var hDep = heureVersMinutes(prev.heure);
+            var minDep = hDep !== null ? hDep + REGLAGES_MOTEUR.dureeVisite : minutesMaintenant();
+            var minVoit = minutesTrajet(routeKm, prev.commune || '', a.commune || '', minDep);
+            h += '<li class="troncon"><div></div><div class="arret-rail"></div>' +
+              trajetMini(kmVol, minVoit) + '</li>';
+          }
         }
         h += rendreArret(a);
       });

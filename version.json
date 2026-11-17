@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.132",
+  "version": "3.31.133",
   "date": "2026-11-17",
   "notes": [
-    "Journée : correction du calcul de distance et de durée à pied sur les trajets entre établissements (suppression du double détour routier)"
+    "Journée : calcul en direct de la distance et du trajet entre deux établissements consécutifs à partir de leurs coordonnées réelles"
   ]
 }
