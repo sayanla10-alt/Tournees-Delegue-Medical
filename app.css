@@ -1141,8 +1141,10 @@ body.feuille-ouverte { overflow: hidden; }
 .barre-valider {
   position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   padding: 10px 16px; background: linear-gradient(to top, var(--fond) 70%, transparent); z-index: 15;
+  display: flex; gap: 8px; max-width: 680px; margin: 0 auto; box-sizing: border-box;
 }
-.barre-valider .bouton { width: 100%; max-width: 648px; margin: 0 auto; display: flex; min-height: 50px; font-size: 16px; }
+.barre-valider[hidden], .barre-valider .bouton[hidden] { display: none !important; }
+.barre-valider .bouton { flex: 1 1 0; min-width: 0; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 48px; font-size: 14.5px; padding: 0 14px; white-space: nowrap; }
 body.avec-barre main { padding-bottom: 90px; }
 
 .navigation {
@@ -1734,6 +1736,9 @@ details.avance h3 { margin-top: 18px; }
 .acces-rapport small { color: var(--gris); font-size: 12.5px; }
 .acces-rapport > .etiquette { flex: none; }
 .acces-rapport > svg { width: 18px; height: 18px; color: var(--gris); transform: rotate(-90deg); flex: none; }
+.acces-rapport-bloc { border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); margin: 0 0 12px; padding: 11px 12px; }
+.acces-rapport-bloc .acces-rapport { border: 0; border-radius: 0; background: none; margin: 0; padding: 0; }
+.acces-rapport-cta { display: flex; justify-content: center; margin-top: 10px; }
 
 /* 3.14.0 */
 .arret.absent-attente .arret-noeud { background: var(--papier); border-color: var(--rouge); }

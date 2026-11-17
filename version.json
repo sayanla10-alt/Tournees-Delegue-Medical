@@ -1,8 +1,9 @@
 {
-  "version": "3.31.143",
+  "version": "3.31.144",
   "date": "2026-11-17",
   "notes": [
-    "Journée (Compte rendu) : quand un lieu n'a pas encore de GPS précis, le bouton Maps bascule en « Fixer GPS » pendant la visite sur place (avec contrôle dès 1 km, précision, commune et confirmation)",
-    "Filtre « Où ? » : suppression des coches sur les pastilles vertes déjà sélectionnées, libellé « Tous Secteurs » et noms de communes sur une ligne sans césure inutile"
+    "Journée : « Fixer GPS » remplace Maps dès l'ouverture d'une visite du jour à remplir (si le lieu n'a pas encore de GPS précis), y compris hors tournée",
+    "Journée : quand un compte rendu est interrompu avant la fin, un bouton « Finaliser le CR » en bas permet d'y retourner directement sans bloquer sur « Enregistrer »",
+    "Journée : suppression du doublon « Maintenant » une fois toutes les visites renseignées, bouton « Finaliser le compte rendu » intégré directement dans la carte Compte Rendu"
   ]
 }

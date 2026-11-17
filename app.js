@@ -9,13 +9,18 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.143';
+  var APP_VERSION = '3.31.144';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.144', [
+      'Journée : « Fixer GPS » remplace Maps dès l\'ouverture d\'une visite du jour à remplir (si le lieu n\'a pas encore de GPS précis), y compris hors tournée',
+      'Journée : quand un compte rendu est interrompu avant la fin, un bouton « Finaliser le CR » en bas permet d\'y retourner directement sans bloquer sur « Enregistrer »',
+      'Journée : suppression du doublon « Maintenant » une fois toutes les visites renseignées, bouton « Finaliser le compte rendu » intégré directement dans la carte Compte Rendu'
+    ]],
     ['3.31.143', [
       'Journée (Compte rendu) : quand un lieu n\'a pas encore de GPS précis, le bouton Maps bascule en « Fixer GPS » pendant la visite sur place (avec contrôle dès 1 km, précision, commune et confirmation)',
       'Filtre « Où ? » : suppression des coches sur les pastilles vertes déjà sélectionnées, libellé « Tous Secteurs » et noms de communes sur une ligne sans césure inutile'
@@ -3089,13 +3094,66 @@
     p.dataset.etat = etat; p.innerHTML = '<span>' + esc(texte) + '</span>' + (etat === 'demo' ? '' : icone('relancer'));
     p.setAttribute('aria-label', 'Synchronisation : ' + texte + (S.ui.erreur ? '. ' + S.ui.erreur : ''));
   }
+  function arretsEnAttenteCr() {
+    var vus = {};
+    return S.plan.concat(S.horsPlan || []).filter(function (a) {
+      if (!a || !a.statut || a.etat === 'valide' || vus[a.uid]) return false;
+      vus[a.uid] = true;
+      return true;
+    });
+  }
+  function crEnCours(a) {
+    if (!a || !a.statut || a.etat === 'valide') return false;
+    if (manquesCr(a).length) return true;
+    if (S.config.crExpress && !a.modeComplet) return false;
+    var c = crDe(a), ok = c.ok || {}, l = etapesCr(a);
+    for (var i = 0; i < l.length; i++) {
+      if (!l[i].fin && !ok[l[i].id]) return true;
+    }
+    return false;
+  }
   function afficherBarre() {
-    var att = S.plan.filter(function (a) { return a.statut && a.etat !== 'valide'; }), n = att.length;
+    var att = arretsEnAttenteCr(), n = att.length;
     // inutile si le seul compte rendu en attente est celui de la carte ouverte (qui a son propre bouton)
     var visible = S.ui.tab === 'jour' && n > 0 && !S.ui.feuille && !(n === 1 && S.ui.ouvert === att[0].uid);
     var bv = $('barreValider'); if (bv) bv.hidden = !visible;
     document.body.classList.toggle('avec-barre', visible);
-    var btv = $('boutonValider'); if (btv) btv.textContent = n > 1 ? 'Enregistrer les ' + n + ' comptes rendus' : 'Enregistrer le compte rendu';
+    var btr = $('boutonReprendreCr'), btv = $('boutonValider');
+    if (!visible || !btv) return;
+    var enCours = att.filter(crEnCours);
+    var prets = att.filter(function (a) { return !crEnCours(a); });
+    if (enCours.length > 0 && prets.length === 0) {
+      if (btr) {
+        btr.hidden = false;
+        btr.className = 'bouton bouton-plein';
+        btr.style.order = '2'; btr.style.flex = '1.5 1 0';
+        btr.textContent = enCours.length > 1 ? 'Finaliser (' + enCours.length + ' en cours)' : 'Finaliser le CR';
+      }
+      btv.className = 'bouton';
+      btv.style.order = '1'; btv.style.flex = '0.9 1 0';
+      btv.textContent = 'Enregistrer';
+    } else if (enCours.length > 0 && prets.length > 0) {
+      if (btr) {
+        btr.hidden = false;
+        btr.className = 'bouton';
+        btr.style.order = '1'; btr.style.flex = '1 1 0';
+        btr.textContent = 'Finaliser (' + enCours.length + ')';
+      }
+      btv.className = 'bouton bouton-plein';
+      btv.style.order = '2'; btv.style.flex = '1.4 1 0';
+      btv.textContent = 'Enregistrer (' + prets.length + ' prêt' + (prets.length > 1 ? 's' : '') + ')';
+    } else {
+      var fermes = att.some(function (a) { return S.ui.ouvert !== a.uid; });
+      if (btr) {
+        btr.hidden = !fermes;
+        btr.className = 'bouton';
+        btr.style.order = '1'; btr.style.flex = '0.7 1 0';
+        btr.textContent = 'Ouvrir';
+      }
+      btv.className = 'bouton bouton-plein';
+      btv.style.order = '2'; btv.style.flex = fermes ? '1.6 1 0' : '1 1 0';
+      btv.textContent = n > 1 ? 'Enregistrer les ' + n + ' comptes rendus' : 'Enregistrer le compte rendu';
+    }
   }
   function afficherNav() {
     document.querySelectorAll('.navigation button').forEach(function (b) {
@@ -4540,8 +4598,13 @@
         (R && R.valideLe ? '<span class="etiquette ok">CR validé</span>' : '<span class="etiquette p1">CR non fait</span>') + icone('chevron') + '</button>';
     }
     var etat = R && R.valideLe ? '<span class="etiquette ok">Validé</span>' : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>');
-    return '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte Rendu</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
+    var btn = '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte Rendu</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
       ' · faits marquants, concurrence, besoins</small></span>' + etat + icone('chevron') + '</button>';
+    if (n > 0 && r === n && !passeVerrouille(d) && !futurVerrouille(d)) {
+      return '<div class="acces-rapport-bloc">' + btn +
+        '<div class="acces-rapport-cta"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div></div>';
+    }
+    return btn;
   }
   VUES.rapport = function () {
     var d = jourAffiche(), t = aujourdhui();
@@ -4683,13 +4746,6 @@
       }
     }
     if (!sans.length) {
-      if (!crValide) {
-        var msgCloture = finJournee
-          ? 'Fin de journée : toutes vos visites sont renseignées. Pensez à finaliser votre compte rendu de la journée.'
-          : 'Toutes les visites prévues sont renseignées. Vous pouvez dès maintenant finaliser et envoyer votre compte rendu de la journée.';
-        corps += '<p>' + msgCloture + '</p>' +
-          '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div>';
-      }
       return corps ? '<section class="maintenant"><h3>Maintenant</h3>' + corps + '</section>' : '';
     }
     if (aSaisir.length) {
@@ -6737,6 +6793,7 @@
   function ligneEtat(a) {
     var t = aujourdhui(), now = minutesMaintenant(), hm = heureVersMinutes(a.heure);
     if (a.statut) {
+      if (crEnCours(a)) return '<span class="ligne-etat alerte">… En cours · toucher pour finaliser</span>';
       var ko = estKo(a.statut), pr = !ko && a.produits ? ' · ' + a.produits : '';
       return '<span class="ligne-etat ' + (ko ? 'ko' : 'ok') + '">' + (ko ? '✗ ' : '✓ ') + esc(statutLibelle(a)) + esc(pr) + (a.etat !== 'valide' ? ' · à enregistrer' : '') + '</span>';
     }
@@ -6784,7 +6841,9 @@
     if (estPharmacie(a)) vu = vu.replace(/^Vu /, 'Visitée ').replace('Jamais visité', 'Jamais visitée');
     e += '<span class="etiquette">' + esc(vu) + '</span>';
     if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
-    if (a.statut && !verrou) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + ', à enregistrer</span>';
+    if (a.statut && !verrou) e += crEnCours(a)
+      ? '<span class="etiquette alerte">CR en cours · à finaliser</span>'
+      : '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + ', à enregistrer</span>';
     if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
     if (a.etat === 'repris') e += '<span class="etiquette">Repris d\'un ancien programme</span>';
     if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
@@ -12996,7 +13055,9 @@
     return JSON.stringify([c, a.statut || '', a.commentaire || '', a.produits || '', a.prochaine || '', a.activite || '']);
   }
   function validerVisites(uid) {
-    var aValider = S.plan.concat(S.horsPlan || []).filter(function (a) { return a.statut && a.etat !== 'valide' && (!uid || a.uid === uid); });
+    var aValider = S.plan.concat(S.horsPlan || []).filter(function (a) {
+      return a.statut && a.etat !== 'valide' && (!uid || (Array.isArray(uid) ? uid.indexOf(a.uid) >= 0 : a.uid === uid));
+    });
     // modification ouverte puis enregistrée sans rien changer : on le dit, rien n'est renvoyé
     var inchanges = aValider.filter(function (a) { if (a.cr) syncCr(a); return a.corrige && a.empreinte && a.empreinte === empreinteCr(a); });
     inchanges.forEach(function (a) { a.etat = 'valide'; delete a.corrige; delete a.empreinte; });
@@ -13745,10 +13806,9 @@
     return false;
   }
   function arretPeutFixerGps(a) {
-    if (!a || a.hors || a.etat === 'valide') return false;
+    if (!a || a.etat === 'valide') return false;
     if (a.date !== aujourdhui() || passeVerrouille(a.date) || futurVerrouille(a.date)) return false;
-    var c = a.cr;
-    if (!c || c.faite !== 'oui') return false;
+    if ((a.cr && a.cr.faite === 'non') || (a.statut && estKo(a.statut))) return false;
     return arretBesoinGps(a);
   }
   function appliquerGpsArret(uid, pCapt, prec, qCapt) {
@@ -13834,7 +13894,7 @@
       }
     }
 
-    S.plan.forEach(function (x) {
+    S.plan.concat(S.horsPlan || []).forEach(function (x) {
       if (x === a || (x.code === a.code && (!a.idPresence || String(x.idPresence) === String(a.idPresence))) ||
           (!info.estPh && info.nomLieu && normaliser(x.lieu) === normaliser(info.nomLieu))) {
         x.lat = pCapt.lat; x.lon = pCapt.lon;
@@ -13845,6 +13905,7 @@
     ctxCache.data = null;
     try { actualiserVisitesPlanifiees(); } catch (eAct) {}
     sauver();
+    if (S.horsPlan && S.horsPlan.length) LS.set('horsPlan', S.horsPlan);
     rendre();
     toast('GPS fixé pour ' + info.nomLieu + ' (± ' + prec + ' m)' + (S.config.demo ? '.' : (navigator.onLine ? ', envoyé à la BDD.' : ', envoyé dès le retour du réseau.')));
     if (!S.config.demo && navigator.onLine) {
@@ -14842,8 +14903,38 @@
     eqDecaler: function (el) { decalerEquipe(+el.dataset.v); },
     eqAujourdhui: function () { S.ui.eqDate = aujourdhui(); LS.set('eqDate', S.ui.eqDate); S.ui.jourEquipe = null; rendre(); },
     histFiltre: function (el) { S.ui.histFiltre = el.dataset.v; LS.set('histFiltre', S.ui.histFiltre); rendre(); },
+    reprendreCr: function () {
+      var att = arretsEnAttenteCr(), enCours = att.filter(crEnCours);
+      var cible = enCours[0] || att.filter(function (a) { return S.ui.ouvert !== a.uid; })[0] || att[0];
+      if (!cible) return;
+      S.ui.tab = 'jour';
+      if (datesPlan().indexOf(cible.date) >= 0) { S.ui.jour = cible.date; S.ui.jourVue = null; }
+      else { S.ui.jourVue = cible.date; }
+      S.ui.ouvert = cible.uid;
+      rendre();
+      centrerQuestion(cible.uid);
+    },
     valider: function () {
-      var n = S.plan.concat(S.horsPlan || []).filter(function (a) { return a.statut && a.etat !== 'valide'; }).length;
+      var att = arretsEnAttenteCr();
+      if (!att.length) return;
+      var enCours = att.filter(crEnCours);
+      var prets = att.filter(function (a) { return !crEnCours(a); });
+      if (prets.length > 0 && enCours.length > 0) {
+        var uidsPrets = prets.map(function (a) { return a.uid; });
+        confirmerPuis('Enregistrer les comptes rendus terminés',
+          'Enregistrer ' + (prets.length > 1 ? 'les ' + prets.length + ' comptes rendus terminés' : 'le compte rendu terminé') + ' ?' +
+          '<br><span class="discret">' + (enCours.length > 1 ? enCours.length + ' comptes rendus encore en cours resteront ouverts pour finalisation.' : '1 compte rendu encore en cours restera à finaliser.') + '</span>',
+          'Enregistrer', function () { validerVisites(uidsPrets); });
+        return;
+      }
+      if (enCours.length > 0 && prets.length === 0) {
+        confirmerPuis('Compte rendu non finalisé',
+          (enCours.length > 1 ? enCours.length + ' comptes rendus sont encore en cours de saisie (interrompus avant la fin).' : 'Ce compte rendu est encore en cours de saisie (interrompu avant la fin).') +
+          ' L\'enregistrer quand même tel quel ?',
+          'Enregistrer quand même', function () { validerVisites(); }, null, null, true);
+        return;
+      }
+      var n = att.length;
       confirmerPuis('Enregistrer les comptes rendus', 'Enregistrer ' + (n > 1 ? 'les ' + n + ' comptes rendus' : 'le compte rendu') + ' en attente ?', 'Enregistrer', function () { validerVisites(); });
     },
     validerUn: function (el) {
