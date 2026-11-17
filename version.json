@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.133",
+  "version": "3.31.134",
   "date": "2026-11-17",
   "notes": [
-    "Journée : calcul en direct de la distance et du trajet entre deux établissements consécutifs à partir de leurs coordonnées réelles"
+    "Répertoire : remplacement du bandeau « Fiches photographiées » par une pastille cliquable « X fiche(s) à vérifier » à droite du titre Répertoire"
   ]
 }
