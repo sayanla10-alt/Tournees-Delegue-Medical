@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.146';
+  var APP_VERSION = '3.31.147';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.147', ['Journée : suppression du bouton « Finaliser le compte rendu » en double ; la pastille de la carte Compte Rendu passe directement de « À faire » (gris) à « Finaliser » (vert) quand toutes les visites sont renseignées']],
     ['3.31.146', [
       'Journée : « Fixer GPS » reste aussi proposé à la place de Maps après l\'enregistrement du compte rendu du jour tant que le lieu n\'a pas encore de GPS précis',
       'Journée : bouton du bas « CR en cours · Finaliser » (au lieu d\'un libellé identique au rapport du jour) avec bouton « Enregistrer » ajusté et code allégé'
@@ -4602,14 +4603,12 @@
         ' · RDV, faits marquants, détail des visites</small></span>' +
         (R && R.valideLe ? '<span class="etiquette ok">CR validé</span>' : '<span class="etiquette p1">CR non fait</span>') + icone('chevron') + '</button>';
     }
-    var etat = R && R.valideLe ? '<span class="etiquette ok">Validé</span>' : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>');
-    var btn = '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte Rendu</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
+    var pretFinaliser = n > 0 && r === n && !passeVerrouille(d) && !futurVerrouille(d);
+    var etat = pretFinaliser ? '<span class="etiquette finaliser">Finaliser</span>'
+      : (R && R.valideLe ? '<span class="etiquette ok">Validé</span>'
+        : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>'));
+    return '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte Rendu</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
       ' · faits marquants, concurrence, besoins</small></span>' + etat + icone('chevron') + '</button>';
-    if (n > 0 && r === n && !passeVerrouille(d) && !futurVerrouille(d)) {
-      return '<div class="acces-rapport-bloc">' + btn +
-        '<div class="acces-rapport-cta"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div></div>';
-    }
-    return btn;
   }
   VUES.rapport = function () {
     var d = jourAffiche(), t = aujourdhui();

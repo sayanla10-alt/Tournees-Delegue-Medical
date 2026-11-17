@@ -345,6 +345,7 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 .etiquette.ok { background: var(--vert-pale); color: var(--vert); border-color: var(--vert-trait); }
 .etiquette.ko, .etiquette.alerte { background: var(--rouge-pale); color: var(--rouge); border-color: transparent; }
 .etiquette.equipe, .etiquette.conv { background: var(--bleu-pale); color: var(--bleu); border-color: transparent; }
+.etiquette.finaliser { padding: 3px 10px; background: var(--primaire); color: var(--sur-primaire); border-color: var(--primaire); font-weight: 700; }
 
 /* Potentiel de prescription en étoiles */
 .note { color: var(--d-objectif); letter-spacing: 1px; font-size: 14px; white-space: nowrap; margin-left: 2px; }
@@ -1737,11 +1738,6 @@ details.avance h3 { margin-top: 18px; }
 .acces-rapport small { color: var(--gris); font-size: 12.5px; }
 .acces-rapport > .etiquette { flex: none; }
 .acces-rapport > svg { width: 18px; height: 18px; color: var(--gris); transform: rotate(-90deg); flex: none; }
-.acces-rapport-bloc { border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); margin: 0 0 12px; padding: 11px 12px; }
-.acces-rapport-bloc .acces-rapport { border: 0; border-radius: 0; background: none; margin: 0; padding: 0; }
-.acces-rapport-cta { display: flex; justify-content: center; margin-top: 8px; }
-.acces-rapport-cta .bouton { min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; padding: 0 14px !important; gap: 5px; width: auto; }
-.acces-rapport-cta .bouton svg { width: 16px !important; height: 16px !important; flex: none; }
 
 /* 3.14.0 */
 .arret.absent-attente .arret-noeud { background: var(--papier); border-color: var(--rouge); }

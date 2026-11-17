@@ -1,8 +1,7 @@
 {
-  "version": "3.31.146",
+  "version": "3.31.147",
   "date": "2026-11-17",
   "notes": [
-    "Journée : « Fixer GPS » reste aussi proposé à la place de Maps après l'enregistrement du compte rendu du jour tant que le lieu n'a pas encore de GPS précis",
-    "Journée : bouton du bas « CR en cours · Finaliser » (distinct du bouton du rapport du jour) avec bouton « Enregistrer » ajusté et code allégé"
+    "Journée : suppression du bouton « Finaliser le compte rendu » en double ; la pastille de la carte Compte Rendu passe directement de « À faire » (gris) à « Finaliser » (vert) quand toutes les visites sont renseignées"
   ]
 }
