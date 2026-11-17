@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.134';
+  var APP_VERSION = '3.31.135';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.135', ['Performance Journée : mise en cache de la commune GPS actuelle (plus de balayage des quartiers sur chaque carte à chaque toucher)']],
     ['3.31.134', ['Répertoire : remplacement du bandeau « Fiches photographiées » par une pastille cliquable « X fiche(s) à vérifier » à droite du titre Répertoire']],
     ['3.31.133', ['Journée : calcul en direct de la distance et du trajet entre deux établissements consécutifs à partir de leurs coordonnées réelles']],
     ['3.31.132', ['Journée : correction du calcul de distance et de durée à pied sur les trajets entre établissements (suppression du double détour routier)']],
@@ -4638,8 +4639,8 @@
       var pa = praticien(suivante.code) || {}, premiere = suivante === duJour[0] && !duJour.some(function (a) { return a.statut; });
       var cS = coordPrecise(suivante) || coordArret(suivante), pos = S.ui.posGps && Date.now() - S.ui.posGps.t < 5 * 60000 ? S.ui.posGps : null, tr = '';
       if (cS && pos) {
-        var qp = Moteur.quartierLePlusProche(pos.lat, pos.lon, quartiers()), dk = distanceVol(pos, cS);
-        tr = trajetMini(dk, minutesTrajet(dk * REGLAGES_MOTEUR.detourRoutier, qp ? qp.quartier.commune : '', suivante.commune, now));
+        var dk = distanceVol(pos, cS);
+        tr = trajetMini(dk, minutesTrajet(dk * REGLAGES_MOTEUR.detourRoutier, communeGps(pos), suivante.commune, now));
       } else if (suivante.dist > 0) tr = trajetMini(suivante.dist / REGLAGES_MOTEUR.detourRoutier, suivante.trajet !== undefined ? suivante.trajet : Math.round(suivante.dist * REGLAGES_MOTEUR.minutesParKm));
       corps += '<div class="suivante">' + boutonFavori(suivante.code) + '<small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
         (lieuQuartier(suivante) ? '<span class="discret bloc-texte">' + esc(lieuQuartier(suivante)) + '</span>' : '') + tr +
@@ -6685,6 +6686,15 @@
   }
   // 3.23.2 : distance entre moi (GPS) et une visite du jour pas encore faite, pour choisir qui voir en priorité
   // 3.25.36 : distance entre moi (GPS) et une visite du jour pas encore faite avec durées à pied et en voiture
+  var _comGpsCache = { cle: '', com: '' };
+  function communeGps(pos) {
+    if (!pos) return '';
+    var cle = pos.lat + '|' + pos.lon;
+    if (_comGpsCache.cle === cle) return _comGpsCache.com;
+    var qp = Moteur.quartierLePlusProche(pos.lat, pos.lon, quartiers());
+    _comGpsCache = { cle: cle, com: qp && qp.quartier ? qp.quartier.commune : '' };
+    return _comGpsCache.com;
+  }
   function distanceMoi(a) {
     var pos = gpsFrais(), cp = pos ? coordPrecise(a) : null, c = cp || (pos ? coordArret(a) : null);
     if (!c || !pos) return '';
@@ -6692,8 +6702,7 @@
     var route = kmVol * REGLAGES_MOTEUR.detourRoutier;
     var d = distMoi(kmVol, !cp);
     var minPied = Math.max(1, Math.round(route / 4.8 * 60));
-    var qp = Moteur.quartierLePlusProche(pos.lat, pos.lon, quartiers());
-    var minVoit = Math.max(1, minutesTrajet(route, qp ? qp.quartier.commune : '', a.commune || '', minutesMaintenant()));
+    var minVoit = Math.max(1, minutesTrajet(route, communeGps(pos), a.commune || '', minutesMaintenant()));
     return '<span class="dist-moi' + (kmVol < 0.5 ? ' tout-pres' : '') + '" role="img" aria-label="À ' + d + ' de vous, ' + formaterDureeTrajet(minPied) + ' à pied, ' + formaterDureeTrajet(minVoit) + ' en voiture">' +
       '<span class="dist-val" title="Distance">' + icone('cible') + d + '</span>' +
       '<span class="trajet-mode" title="À pied">' + icone('pieton') + formaterDureeTrajet(minPied) + '</span>' +

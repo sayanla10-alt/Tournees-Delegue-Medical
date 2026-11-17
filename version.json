@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.134",
+  "version": "3.31.135",
   "date": "2026-11-17",
   "notes": [
-    "Répertoire : remplacement du bandeau « Fiches photographiées » par une pastille cliquable « X fiche(s) à vérifier » à droite du titre Répertoire"
+    "Performance Journée : mise en cache de la commune GPS actuelle (plus de balayage des quartiers sur chaque carte à chaque toucher)"
   ]
 }
