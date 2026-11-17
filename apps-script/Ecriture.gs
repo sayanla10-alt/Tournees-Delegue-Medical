@@ -682,9 +682,23 @@ function enregistrerFiche(b, dejaVerrouille) {
       if (isFinite(nId) && nId > maxId) maxId = nId;
       if ((anciensCode && String(l[rCode]) === anciensCode) || (code && String(l[rCode]) === code)) mesLignes.push(i);
     });
+    var fusionDispo = function (a, b) { var t = String(a || '') + ' ' + String(b || ''), m = /matin/i.test(t), so = /soir/i.test(t); return m && so ? 'Matin et soir' : (m ? 'Matin' : (so ? 'Soir' : '')); };
+    // 3.31.141 : dédoublonnage des lieux portant le même nom dans une même soumission (fusion des créneaux et infos)
+    var parLieuSub = {}, lieuxUniques = [];
+    lieux.forEach(function (x) {
+      var kl = normaliser(x && x.lieu);
+      if (!kl) { lieuxUniques.push(x); return; }
+      var prev = parLieuSub[kl];
+      if (!prev) { parLieuSub[kl] = x; lieuxUniques.push(x); return; }
+      if ((!prev.id || /^TMP/i.test(String(prev.id))) && x.id && !/^TMP/i.test(String(x.id))) prev.id = x.id;
+      JOURS_CLES.forEach(function (j) { prev[j] = fusionDispo(prev[j], x[j]); });
+      ['territoire', 'zone', 'commune', 'subdivision', 'quartier', 'secteur', 'reperes', 'lat', 'lon', 'origineGps', 'horaireMatin', 'horaireSoir'].forEach(function (k) {
+        if ((prev[k] === undefined || prev[k] === '') && x[k] !== undefined && x[k] !== '') prev[k] = x[k];
+      });
+    });
+    lieux = lieuxUniques;
     if (rattache) {
       // lieux déjà connus conservés ; même établissement : jours cumulés sur la ligne existante
-      var fusionDispo = function (a, b) { var t = String(a || '') + ' ' + String(b || ''), m = /matin/i.test(t), so = /soir/i.test(t); return m && so ? 'Matin et soir' : (m ? 'Matin' : (so ? 'Soir' : '')); };
       var exist = mesLignes.map(function (i) { var l = dataR[i], o = {}; champsR.forEach(function (c, k) { if (posR[k] >= 0) o[c[0]] = l[posR[k]]; }); return o; });
       lieux = lieux.slice();
       lieux.forEach(function (x) {

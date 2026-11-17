@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.140",
+  "version": "3.31.141",
   "date": "2026-11-17",
   "notes": [
-    "Parcours (Planifier, Recherche, Compte rendu) : boutons Précédent, Passer et Suivant affinés (36 px) et dimensionnés selon leur texte pour ne plus rogner « Précédent »"
+    "Fiches & Présences : fusion automatique de deux blocs portant le même établissement dans une même fiche (côté téléphone et serveur) pour éviter les doublons dans Presences"
   ]
 }
