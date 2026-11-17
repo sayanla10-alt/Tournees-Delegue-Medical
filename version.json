@@ -1,8 +1,8 @@
-﻿{
-  "version": "3.31.142",
+{
+  "version": "3.31.143",
   "date": "2026-11-17",
   "notes": [
-    "Application plus légère : les vérifications de la base sans nouveauté ne refont plus tous les calculs",
-    "Journée : ouverture et défilement allégés (bande des jours, anneau de la prochaine visite)"
+    "Journée (Compte rendu) : quand un lieu n'a pas encore de GPS précis, le bouton Maps bascule en « Fixer GPS » pendant la visite sur place (avec contrôle dès 1 km, précision, commune et confirmation)",
+    "Filtre « Où ? » : suppression des coches sur les pastilles vertes déjà sélectionnées, libellé « Tous Secteurs » et noms de communes sur une ligne sans césure inutile"
   ]
 }

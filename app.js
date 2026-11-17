@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    app.js : interface de MediPlanner
    - Données en cache sur le téléphone : tout fonctionne hors ligne
    - Visites, fiches praticiens et tournées envoyées au Google Sheet dès que possible
@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.142';
+  var APP_VERSION = '3.31.143';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.143', [
+      'Journée (Compte rendu) : quand un lieu n\'a pas encore de GPS précis, le bouton Maps bascule en « Fixer GPS » pendant la visite sur place (avec contrôle dès 1 km, précision, commune et confirmation)',
+      'Filtre « Où ? » : suppression des coches sur les pastilles vertes déjà sélectionnées, libellé « Tous Secteurs » et noms de communes sur une ligne sans césure inutile'
+    ]],
     ['3.31.142', ['Application plus légère : une vérification de la base sans nouveauté (toutes les 15 s) ne refait plus tous les calculs et ne réécrit plus toute la base sur le téléphone', 'Journée : la bande des jours n\'est plus remesurée à chaque affichage, et l\'anneau de la prochaine visite ne force plus le téléphone à redessiner l\'écran en continu']],
     ['3.31.141', ['Fiches & Présences : fusion automatique de deux blocs portant le même établissement dans une même fiche (côté téléphone et serveur) pour éviter les doublons dans Presences']],
     ['3.31.140', ['Parcours (Planifier, Recherche, Compte rendu) : boutons Précédent, Passer et Suivant affinés (36 px) et dimensionnés selon leur texte pour ne plus rogner « Précédent »']],
@@ -1348,9 +1352,12 @@
       return '<div class="contact-barre" role="group" aria-label="Contact"><span class="cb-n">' + (o.telephone ? esc(o.telephone) : '<span class="discret">Pas de numéro</span>') + '</span>' +
         ic('tel:' + tel, 'tel', 'Appeler', !!tel) + ic('sms:' + tel, 'sms', 'SMS', !!tel) + ic(waHref, 'whatsapp', 'WhatsApp', !!num, !estMobile() || S.config.waWeb) + ic(gmaps, 'carte', 'Maps', true, true) + '</div>';
     }
+    var btnFin = o.gpsFixerUid
+      ? '<button type="button" class="action-rapide" data-a="fixerGpsArret" data-uid="' + esc(o.gpsFixerUid) + '">' + icone('cible') + 'Fixer GPS</button>'
+      : lien(gmaps, 'carte', 'Maps', true, true);
     return '<div class="actions-rapides" role="group" aria-label="Actions rapides">' +
       lien('tel:' + tel, 'tel', 'Appeler', !!tel) + lien('sms:' + tel, 'sms', 'SMS', !!tel) +
-      lien(waHref, 'whatsapp', 'WhatsApp', !!num, !estMobile() || S.config.waWeb) + lien(gmaps, 'carte', 'Maps', true, true) + '</div>';
+      lien(waHref, 'whatsapp', 'WhatsApp', !!num, !estMobile() || S.config.waWeb) + btnFin + '</div>';
   }
   // Contrôle segmenté (un seul choix) : [[valeur, libellé], ...]
   function segment(titre, action, options, valeur, style) {
@@ -1374,7 +1381,7 @@
         var secsDuPar = (typeof secteursDeGrandeCommune === 'function') ? secteursDeGrandeCommune(op.commune) : [];
         var toutCoche = secsDuPar.length > 0 && secsDuPar.every(function (s) { return sel && sel[s]; });
         var nbCoches = secsDuPar.filter(function (s) { return sel && sel[s]; }).length;
-        var sousLib = toutCoche ? 'Tous les secteurs cochés' : (nbCoches > 0 ? nbCoches + '/' + secsDuPar.length + ' secteur' + (nbCoches > 1 ? 's' : '') : 'Toute la commune');
+        var sousLib = toutCoche ? 'Tous Secteurs' : (nbCoches > 0 ? nbCoches + '/' + secsDuPar.length + ' secteur' + (nbCoches > 1 ? 's' : '') : 'Toute la commune');
         return '<div class="commune-parent-ligne"' + (!matchQ ? ' hidden' : '') + '>' +
           '<button type="button" class="puce puce-parente" data-a="choix" data-chemin="' + o.chemin + '" data-m="' + (o.multiple ? 1 : 0) + '" data-v="' + esc(op.v) +
           '" data-parent="1" data-lib="' + dataLib + '" aria-pressed="' + toutCoche + '">' +
@@ -1382,10 +1389,9 @@
           '<span class="parente-badge">' + esc(sousLib) + '</span></button></div>';
       }
       if (op.estSecteur) {
-        var iconeCoche = actif ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5 19 7"/></svg>' : '';
         return '<button type="button" class="puce puce-secteur" data-a="choix" data-chemin="' + o.chemin + '" data-m="' + (o.multiple ? 1 : 0) + '" data-v="' + esc(op.v) +
           '" data-lib="' + dataLib + '" aria-pressed="' + actif + '"' + (!matchQ ? ' hidden' : '') + '>' +
-          '<span class="sec-nom">' + iconeCoche + esc(op.nomCourt || op.lib) + '</span>' +
+          '<span class="sec-nom">' + esc(op.nomCourt || op.lib) + '</span>' +
           (op.sousTitre ? '<small class="sec-reperes">' + esc(op.sousTitre) + '</small>' : '') +
           '</button>';
       }
@@ -6800,7 +6806,8 @@
     if (ouvert) {
       var pa = praticien(a.code) || {};
       h += '<div class="arret-detail">' +
-        actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune });
+        actionsRapides({ telephone: pa.telephone, lat: a.lat, lon: a.lon, lieu: a.lieu, quartier: a.quartier, commune: a.commune,
+          gpsFixerUid: arretPeutFixerGps(a) ? a.uid : '' });
       if (futurVerrouille(a.date) && !(a.statut && verrou)) {
         // 3.25.0 : jour à venir sans « Saisie avancée » : pas de compte rendu, la planification reste possible
         h += '<div class="bandeau" style="margin-top:10px"><p><b>Visite à venir.</b> Le compte rendu ne se saisit pas à l\'avance.</p></div>' +
@@ -13695,6 +13702,237 @@
     }, function () { toast('Position indisponible. Autorisez la localisation.'); });
   }
 
+  // 3.31.142 : Option A — Fixer GPS pendant le compte rendu en Journée (uniquement si GPS absent ou approximatif)
+  function lieuInfosPourArret(a) {
+    var estPh = estPharmacie(a), p = praticien(a.code) || {};
+    var dData = S.data || {}, normLieu = normaliser(a.lieu || '');
+    var pres = (dData.presences || []).filter(function (pr) {
+      return pr.code === a.code && ((a.idPresence && String(pr.id) === String(a.idPresence)) || (normLieu && normaliser(pr.lieu) === normLieu));
+    })[0] || (estPh ? (dData.presences || []).filter(function (pr) { return pr.code === a.code; })[0] : null);
+    var et = null;
+    if (!estPh && (normLieu || (pres && pres.refEtab))) {
+      var refE = pres && pres.refEtab ? String(pres.refEtab).trim() : '';
+      et = (dData.etablissements || []).filter(function (e) {
+        return (refE && String(e.code || '') === refE) || (normLieu && (normaliser(e.nom) === normLieu || (typeof memeEtablissement === 'function' && memeEtablissement(e.nom, a.lieu))));
+      })[0] || null;
+    }
+    var nomLieu = (et && et.nom) || (pres && pres.lieu) || a.lieu || p.nom || a.nom || 'cet établissement';
+    var quartier = (et && et.quartier) || (pres && pres.quartier) || a.quartier || '';
+    var commune = (et && et.commune) || (pres && pres.commune) || a.commune || '';
+    var latRaw = (et && et.lat !== undefined && et.lat !== null && et.lat !== '') ? et.lat : (pres && pres.lat !== undefined && pres.lat !== null && pres.lat !== '' ? pres.lat : a.lat);
+    var lonRaw = (et && et.lon !== undefined && et.lon !== null && et.lon !== '') ? et.lon : (pres && pres.lon !== undefined && pres.lon !== null && pres.lon !== '' ? pres.lon : a.lon);
+    var la = parseFloat(String(latRaw === undefined || latRaw === null ? '' : latRaw).replace(',', '.'));
+    var lo = parseFloat(String(lonRaw === undefined || lonRaw === null ? '' : lonRaw).replace(',', '.'));
+    var coordRaw = isFinite(la) && isFinite(lo) && (la !== 0 || lo !== 0) ? { lat: la, lon: lo } : null;
+    var orig = String((et && et.origineGps) || (pres && pres.origineGps) || '').trim();
+    return { estPh: estPh, p: p, pres: pres, et: et, nomLieu: nomLieu, quartier: quartier, commune: commune, coordRaw: coordRaw, orig: orig };
+  }
+  function arretBesoinGps(a) {
+    var info = lieuInfosPourArret(a);
+    if (!info.coordRaw) return true;
+    if (/terrain|repertoire hopital|google maps/i.test(info.orig)) return false;
+    if (/centro[iï]de|quartier de r[eé]f[eé]rence|ville|approx|non localis/i.test(info.orig)) return true;
+    var cr = creneauDe(a.code, a.date, a.idPresence, a.creneau);
+    if (cr && cr.coord && cr.coord.approx) return true;
+    if (!info.orig) {
+      var dist25m = 0.025;
+      if (quartiers().some(function (q) { return isFinite(+q.lat) && isFinite(+q.lon) && distanceVol(info.coordRaw, { lat: +q.lat, lon: +q.lon }) < dist25m; })) return true;
+      if (typeof centroideVilleInterieur === 'function') {
+        var cv = centroideVilleInterieur(info.commune) || centroideVilleInterieur(info.quartier);
+        if (cv && distanceVol(info.coordRaw, { lat: +cv.lat, lon: +cv.lon }) < dist25m) return true;
+      }
+    }
+    return false;
+  }
+  function arretPeutFixerGps(a) {
+    if (!a || a.hors || a.etat === 'valide') return false;
+    if (a.date !== aujourdhui() || passeVerrouille(a.date) || futurVerrouille(a.date)) return false;
+    var c = a.cr;
+    if (!c || c.faite !== 'oui') return false;
+    return arretBesoinGps(a);
+  }
+  function appliquerGpsArret(uid, pCapt, prec, qCapt) {
+    var a = arret(uid);
+    if (!a) return;
+    var info = lieuInfosPourArret(a);
+    var orig = origineTerrain(prec);
+    S.ui.posGps = { lat: pCapt.lat, lon: pCapt.lon, t: Date.now(), prec: prec };
+    LS.set('derniereGps', S.ui.posGps);
+    var qMaj = (!info.quartier || /^NL$/i.test(info.quartier)) && qCapt && qCapt.quartier ? qCapt.quartier : info.quartier;
+    var cMaj = (!info.commune || /^NL$/i.test(info.commune)) && qCapt && qCapt.commune ? qCapt.commune : info.commune;
+
+    if (info.estPh || (info.pres && info.pres.refEtab && /^PHA-/i.test(info.pres.refEtab))) {
+      var codePh = info.estPh ? a.code : info.pres.refEtab;
+      var dPh = brouillonFiche(codePh);
+      if (dPh && dPh.lieux && dPh.lieux[0]) {
+        dPh.lieux[0].lat = pCapt.lat; dPh.lieux[0].lon = pCapt.lon; dPh.lieux[0].origineGps = orig;
+        if (qMaj && (!dPh.lieux[0].quartier || /^NL$/i.test(dPh.lieux[0].quartier)) && qCapt) {
+          var resPh = resoudreTerritoire(qMaj, cMaj) || qCapt;
+          appliquerTerritoireSurLieu(dPh.lieux[0], resPh);
+        }
+        enregistrerFiche(dPh);
+      }
+    } else if (!info.nomLieu || info.nomLieu.length < 2 || normaliser(info.nomLieu) === normaliser(info.p.nom || a.nom)) {
+      var dDoc = brouillonFiche(a.code);
+      if (dDoc && dDoc.lieux && dDoc.lieux.length) {
+        var idxL = 0;
+        if (a.idPresence) {
+          var kId = dDoc.lieux.map(function (x) { return String(x.id || ''); }).indexOf(String(a.idPresence));
+          if (kId >= 0) idxL = kId;
+        }
+        var lD = dDoc.lieux[idxL];
+        lD.lat = pCapt.lat; lD.lon = pCapt.lon; lD.origineGps = orig;
+        if (qMaj && (!lD.quartier || /^NL$/i.test(lD.quartier)) && qCapt) {
+          var resDoc = resoudreTerritoire(qMaj, cMaj) || qCapt;
+          appliquerTerritoireSurLieu(lD, resDoc);
+        }
+        enregistrerFiche(dDoc);
+      }
+    } else {
+      S.data = S.data || {};
+      S.data.etablissements = S.data.etablissements || [];
+      var normN = normaliser(info.nomLieu);
+      var etEx = (info.et && S.data.etablissements.filter(function (e) { return e === info.et || (info.et.code && e.code === info.et.code); })[0]) ||
+        S.data.etablissements.filter(function (e) { return normaliser(e.nom) === normN || (typeof memeEtablissement === 'function' && memeEtablissement(e.nom, info.nomLieu)); })[0] || null;
+      var codeEt = (etEx && etEx.code) || ('TMP-ETAB-' + Date.now().toString(36).toUpperCase());
+      var resT = (qMaj && qCapt) ? (resoudreTerritoire(qMaj, cMaj) || qCapt) : null;
+      if (etEx) {
+        etEx.lat = pCapt.lat; etEx.lon = pCapt.lon; etEx.origineGps = orig;
+        if ((!etEx.quartier || /^NL$/i.test(etEx.quartier)) && qMaj) etEx.quartier = qMaj;
+        if ((!etEx.commune || /^NL$/i.test(etEx.commune)) && cMaj) etEx.commune = cMaj;
+        if (resT) {
+          if (!etEx.zone && resT.zone) etEx.zone = resT.zone;
+          if (!etEx.territoire && resT.territoire) etEx.territoire = resT.territoire;
+          if (!etEx.subdivision && resT.subdivision) etEx.subdivision = resT.subdivision;
+          if (!etEx.secteur && resT.secteur) etEx.secteur = resT.secteur;
+        }
+      } else {
+        S.data.etablissements.push({
+          code: codeEt, nom: info.nomLieu, categorie: '',
+          commune: cMaj || '', quartier: qMaj || '',
+          zone: (resT && resT.zone) || '', territoire: (resT && resT.territoire) || '',
+          subdivision: (resT && resT.subdivision) || '', secteur: (resT && resT.secteur) || '',
+          lat: pCapt.lat, lon: pCapt.lon, origineGps: orig, telephone: '', reperes: ''
+        });
+      }
+      (S.data.presences || []).forEach(function (pr) {
+        if ((codeEt && !/^TMP-/.test(codeEt) && pr.refEtab === codeEt) || normaliser(pr.lieu) === normN || (typeof memeEtablissement === 'function' && memeEtablissement(pr.lieu, info.nomLieu))) {
+          pr.lat = pCapt.lat; pr.lon = pCapt.lon; pr.origineGps = orig;
+          if ((!pr.quartier || /^NL$/i.test(pr.quartier)) && qMaj) pr.quartier = qMaj;
+          if ((!pr.commune || /^NL$/i.test(pr.commune)) && cMaj) pr.commune = cMaj;
+        }
+      });
+      if (!S.config.demo) {
+        var payload = {
+          uid: 'GPS-' + Date.now().toString(36),
+          nom: info.nomLieu, quartier: qMaj || '', commune: cMaj || '',
+          lat: pCapt.lat, lon: pCapt.lon, originegps: orig, auteur: moi()
+        };
+        if (etEx && etEx.code) payload.code = etEx.code;
+        else payload.code = codeEt;
+        LS.set('etabsEnAttente', LS.get('etabsEnAttente', []).concat([payload]));
+      }
+    }
+
+    S.plan.forEach(function (x) {
+      if (x === a || (x.code === a.code && (!a.idPresence || String(x.idPresence) === String(a.idPresence))) ||
+          (!info.estPh && info.nomLieu && normaliser(x.lieu) === normaliser(info.nomLieu))) {
+        x.lat = pCapt.lat; x.lon = pCapt.lon;
+        if ((!x.quartier || /^NL$/i.test(x.quartier)) && qMaj) x.quartier = qMaj;
+        if ((!x.commune || /^NL$/i.test(x.commune)) && cMaj) x.commune = cMaj;
+      }
+    });
+    ctxCache.data = null;
+    try { actualiserVisitesPlanifiees(); } catch (eAct) {}
+    sauver();
+    rendre();
+    toast('GPS fixé pour ' + info.nomLieu + ' (± ' + prec + ' m)' + (S.config.demo ? '.' : (navigator.onLine ? ', envoyé à la BDD.' : ', envoyé dès le retour du réseau.')));
+    if (!S.config.demo && navigator.onLine) {
+      if (LS.get('etabsEnAttente', []).length) envoyerEtabsEnAttente().then(function () { if (navigator.onLine) synchroniser(true); });
+      else synchroniser(true);
+    }
+  }
+  function fixerGpsArret(uid) {
+    var a0 = arret(uid);
+    if (!a0 || !arretPeutFixerGps(a0)) return;
+    if (!navigator.geolocation) { toast('Localisation indisponible.'); return; }
+    toast('Mesure précise de votre position (jusqu\'à 25 s)…', 25000);
+    mesurePrecise(function (p) {
+      var a = arret(uid);
+      if (!a || !arretPeutFixerGps(a)) return;
+      if (!p || !isFinite(p.lat) || !isFinite(p.lon)) { toast('Position introuvable.'); return; }
+      if (p.prec > 80) {
+        toast('Signal GPS trop faible (± ' + p.prec + ' m). Sortez devant l\'entrée à découvert et réessayez.', 6000);
+        return;
+      }
+      var pCapt = { lat: +p.lat.toFixed(6), lon: +p.lon.toFixed(6) };
+      var info = lieuInfosPourArret(a);
+      var rQ = Moteur.quartierLePlusProche(pCapt.lat, pCapt.lon, quartiers());
+      var qCapt = rQ && rQ.quartier ? rQ.quartier : null;
+      var avert = [];
+
+      if (p.prec > PREC_LIEU_M) avert.push('Précision GPS moyenne (± ' + p.prec + ' m) : approchez-vous de la sortie si possible.');
+
+      var nqDecl = normaliser(info.quartier), ncDecl = normaliser(info.commune);
+      var qDecl = nqDecl ? (quartiers().filter(function (q) { return normaliser(q.quartier) === nqDecl && (!ncDecl || normaliser(q.commune) === ncDecl); })[0] ||
+        quartiers().filter(function (q) { return normaliser(q.quartier) === nqDecl; })[0]) : null;
+      var refGeo = qDecl && isFinite(+qDecl.lat) && isFinite(+qDecl.lon) ? { lat: +qDecl.lat, lon: +qDecl.lon } : info.coordRaw;
+      var refNom = (qDecl && qDecl.quartier) || info.quartier || info.commune || info.nomLieu;
+      if (!refGeo && typeof centroideVilleInterieur === 'function') {
+        var cv = centroideVilleInterieur(info.commune) || centroideVilleInterieur(info.quartier);
+        if (cv) { refGeo = { lat: +cv.lat, lon: +cv.lon }; refNom = info.commune || info.quartier || info.nomLieu; }
+      }
+      if (refGeo && isFinite(refGeo.lat) && isFinite(refGeo.lon)) {
+        var distKm = distanceVol(pCapt, refGeo) || 0;
+        if (distKm >= 1) {
+          avert.push('Écart de <b>' + (distKm < 10 ? distKm.toFixed(1).replace('.', ',') : Math.round(distKm)) + ' km</b> par rapport à ' + esc(refNom) + '.');
+        }
+      }
+      if (info.commune && !/^NL$/i.test(info.commune) && qCapt && qCapt.commune) {
+        var cFiche = normaliser(typeof communeParente === 'function' ? communeParente(info.commune) : info.commune);
+        var cMesure = normaliser(typeof communeParente === 'function' ? communeParente(qCapt.commune) : qCapt.commune);
+        if (cFiche && cMesure && cFiche !== cMesure) {
+          avert.push('Commune détectée : <b>' + esc(qCapt.commune) + '</b> alors que la fiche indique <b>' + esc(info.commune) + '</b>.');
+        }
+      }
+      var normNom = normaliser(info.nomLieu), doublonPos = null, dMin30 = 0.03;
+      ((S.data && S.data.etablissements) || []).forEach(function (e) {
+        if (!e || !e.nom || !isFinite(+e.lat) || !isFinite(+e.lon) || (+e.lat === 0 && +e.lon === 0)) return;
+        if (info.et && e.code && info.et.code && e.code === info.et.code) return;
+        if (normaliser(e.nom) === normNom || (typeof memeEtablissement === 'function' && memeEtablissement(e.nom, info.nomLieu))) return;
+        var dd = distanceVol(pCapt, { lat: +e.lat, lon: +e.lon });
+        if (dd < dMin30) { dMin30 = dd; doublonPos = { nom: e.nom, d: dd }; }
+      });
+      ((S.data && S.data.praticiens) || []).forEach(function (ph) {
+        if (!ph || ph.type !== 'Pharmacie') return;
+        if (info.estPh && ph.code === a.code) return;
+        if (normaliser(ph.nom) === normNom) return;
+        var prPh = (S.data.presences || []).filter(function (pr) { return pr.code === ph.code; })[0];
+        if (!prPh || !isFinite(+prPh.lat) || !isFinite(+prPh.lon) || (+prPh.lat === 0 && +prPh.lon === 0)) return;
+        var dp = distanceVol(pCapt, { lat: +prPh.lat, lon: +prPh.lon });
+        if (dp < dMin30) { dMin30 = dp; doublonPos = { nom: ph.nom, d: dp }; }
+      });
+      if (doublonPos) {
+        avert.push('Position très proche (' + Math.max(1, Math.round(doublonPos.d * 1000)) + ' m) d\'un autre lieu : <b>' + esc(doublonPos.nom) + '</b>.');
+      }
+      if (minutesMaintenant() >= 20 * 60) {
+        avert.push('Il est tard : confirmez uniquement si vous êtes actuellement sur place.');
+      }
+
+      var repereCapt = qCapt ? esc(qCapt.quartier) + (qCapt.commune ? ' (' + esc(qCapt.commune) + ')' : '') : '';
+      var msg = 'Enregistrer votre position actuelle (± ' + p.prec + ' m) pour ' + (info.estPh ? 'la pharmacie ' : '') + '<b>' + esc(info.nomLieu) + '</b> ?' +
+        (repereCapt ? '<br><span class="discret">Secteur mesuré : ' + repereCapt + '</span>' : '');
+      if (avert.length) {
+        msg += '<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--ambre-pale);border:1px solid var(--ambre-trait);color:var(--encre);font-size:13.5px">' +
+          '<b style="color:var(--ambre)">Vérifiez avant d\'enregistrer :</b>' +
+          '<ul style="margin:6px 0 0;padding-left:18px">' + avert.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul></div>';
+      }
+      confirmerPuis('Fixer le GPS sur place', msg, 'Enregistrer', function () {
+        appliquerGpsArret(uid, pCapt, p.prec, qCapt);
+      }, function () { toast('Position inchangée.'); }, null, true);
+    }, function () { toast('Position indisponible. Autorisez la localisation.'); }, true);
+  }
+
   var ACTIONS = {
     nav: function (el) {
       if (S.ui.feuille && el && el.closest && el.closest('.entete')) S.ui.feuille = null;   // 3.26.93 : la roue crantée referme la fenêtre ouverte
@@ -13758,6 +13996,7 @@
     crEtapeRapide: function (el) {
       var a = arret(el.dataset.uid); if (!a) return;
       var c = crDe(a);
+      if (S.config.crExpress && !a.modeComplet && !c.faite) { c.statut = c.statut || 'Visite faite'; appliquerStatutExpress(c); }
       c.prochaine = el.dataset.v || '';
       syncCr(a);
       LS.set('plan', S.plan);
@@ -15659,6 +15898,9 @@
       S.ui.feuille = null;
       majGpsPourLieu(code, isNaN(idx) ? 0 : idx);
     },
+    fixerGpsArret: function (el) {
+      fixerGpsArret(el.dataset.uid);
+    },
     ficheVal: function (el) {
       if (S.ui.feuille && S.ui.feuille.type === 'hopitalNouveau') {   // 3.31.0 : de « Hôpital » vers Médecin ou Pharmacie
         var nH = S.ui.feuille.e.nom; ACTIONS.nouvelleFiche(); S.ui.feuille.d.type = el.dataset.v; synchroniserDefautsFiche(S.ui.feuille.d);
@@ -16172,7 +16414,10 @@
       var as = arret(el.dataset.uid);
       if (as) { majCr(as, el.dataset.k, el.value); if (el.dataset.k === 'statut') { appliquerStatutExpress(crDe(as)); syncCr(as); } if (el.dataset.k === 'date' && el.value) validerEtape(as, 'date'); rendre(); }
     }
-    if (f === 'cr' && /^(autres)$/.test(el.dataset.k)) rendre();
+    if (f === 'cr') {
+      var acChg = arret(el.dataset.uid);
+      if (/^(autres)$/.test(el.dataset.k) || (acChg && S.config.crExpress && !acChg.modeComplet)) rendre();
+    }
     if (f === 'repriseCible' && el.value && S.ui.feuille) {
       S.ui.feuille.cible = el.value < aujourdhui() && (S.ui.feuille.source.type !== 'semaine' || joursOuvres(lundiDe(el.value))[4] < aujourdhui()) ? aujourdhui() : el.value;
       if (S.ui.feuille.cible !== el.value) toast('Impossible de reprendre sur un jour passé.', 3500);

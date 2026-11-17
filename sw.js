@@ -1,4 +1,4 @@
-﻿/* =============================================================================
+/* =============================================================================
    sw.js : service worker de MediPlanner (fonctionnement hors ligne et mises a jour)
 
    - Les fichiers de l'application sont servis depuis un cache propre a chaque version
@@ -13,7 +13,7 @@
    Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json, puis lancer tests/verifier.sh
    (il régénère les fichiers .min réellement servis aux téléphones, voir scripts/minifier.js).
    ============================================================================= */
-var VERSION = '3.31.142';
+var VERSION = '3.31.143';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
