@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.138';
+  var APP_VERSION = '3.31.139';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.139', ['Répertoire › Recherche : ordre logique des étapes (Où ? avant Spécialité pour Médecins/Pharmacies, et Dans quelles communes ? en premier pour Hôpitaux)']],
     ['3.31.138', ['Nettoyage : suppression du code mort de l\'ancien bandeau flash des scans (demarrerFlashScans, CSS .bandeau-scans)']],
     ['3.31.137', ['Répertoire › Recherche : suppression des boutons Médecins / Pharmacies / Tous à l\'étape 1, remplacée par « Raccourci rapide ? » avec Tous actif par défaut']],
     ['3.31.136', ['Répertoire › Hôpitaux : correction du plantage à l\'ouverture (suppression du dernier appel à bandeauScans) et mise en cache de la liste des communes']],
@@ -7680,15 +7681,15 @@
   // Filtres ordonnés comme un arbre de décision : Qui ? > Quelle spécialité ? > Où ? > Quelle valeur ? > Quel suivi ? (> Dans quel ordre ?)
   var QUESTIONS_FILTRES = {
     qui: { titre: 'Qui ?', cles: ['type'] },
-    spec: { titre: 'Quelle spécialité ?', cles: ['specialites'] },
     com: { titre: 'Où ?', cles: ['communes'] },
+    spec: { titre: 'Quelle spécialité ?', cles: ['specialites'] },
     valeur: { titre: 'Quelle valeur ?', cles: ['potentiels', 'conv'] },
     suivi: { titre: 'Quel suivi ?', cles: ['visite', 'equipe'] },
     ordre: { titre: 'Dans quel ordre ?', cles: [] }
   };
   var QUESTIONS_FILTRES_HOP = {
-    cat: { titre: 'Quel type d\'établissement ?', cles: ['categories'] },
     com: { titre: 'Dans quelles communes ?', cles: ['communes'] },
+    cat: { titre: 'Quel type d\'établissement ?', cles: ['categories'] },
     meds: { titre: 'Médecins sur place & GPS ?', cles: ['dispo', 'specialites', 'gps', 'visite'] },
     spec: { titre: 'Spécialités présentes ?', cles: ['specialites'] },
     ordre: { titre: 'Dans quel ordre trier ?', cles: [] }
@@ -7767,6 +7768,11 @@
           return '<div class="puces">' + [['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']].map(function (x) { return puceEtape('type', x[0], x[1], f.type === x[0], false, 'qui'); }).join('') + '</div>' +
             '<p class="discret raccourcis-titre-etape">Ou directement un raccourci :</p>' + blocRaccourcis;
         } },
+      { id: 'com', resume: function () { return f.communes.length ? resumerCommunesFiltre(f.communes) : 'Toutes'; },
+        rendu: function () {
+          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes.length ? esc(resumerCommunesFiltre(f.communes)) : 'Toutes les communes') + '</p>' +
+            '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="com">' + icone('loupe') + 'Choisir les communes</button>';
+        } },
       { id: 'spec', si: f.type !== 'Pharmacie', resume: function () {
           if (!f.specialites.length) return 'Toutes';
           if (estCoeurDeCible(f.specialites)) return 'Cœur de cible';
@@ -7776,11 +7782,6 @@
         rendu: function () {
           return '<p class="discret" style="margin:0 0 6px">' + (f.type === 'tous' ? 'Spécialités du cœur de cible pré-sélectionnées (les pharmacies restent affichées) :' : 'Spécialités du cœur de cible pré-sélectionnées (modifier met à jour votre cœur de cible) :') + '</p>' +
             pucesSpecialitesCible(f.specialites, 'filtreSpecToggle', 'filtreSpecToutes', 'filtreSpecCoeur', 'filtreSpecChoisir');
-        } },
-      { id: 'com', resume: function () { return f.communes.length ? resumerCommunesFiltre(f.communes) : 'Toutes'; },
-        rendu: function () {
-          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes.length ? esc(resumerCommunesFiltre(f.communes)) : 'Toutes les communes') + '</p>' +
-            '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="com">' + icone('loupe') + 'Choisir les communes</button>';
         } },
       { id: 'valeur', resume: function () {
           var r = f.potentiels.map(function (x) { return ETOILES[x]; }); if (f.conv !== 'tous') r.push(f.conv === 'oui' ? 'Engagés' : 'Non engagés');
@@ -7809,6 +7810,11 @@
     var libGps = { tous: 'Tous', oui: 'GPS OK', non: 'Sans GPS' };
     var libVis = { tous: 'Tous', non: 'Non vus ce mois', oui: 'Visités ce mois' };
     return [
+      { id: 'com', resume: function () { return f.communes && f.communes.length ? resumerCommunesFiltre(f.communes) : 'Toutes'; },
+        rendu: function () {
+          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes && f.communes.length ? esc(resumerCommunesFiltre(f.communes)) : 'Toutes les communes') + '</p>' +
+            '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="com">' + icone('loupe') + 'Choisir les communes</button>';
+        } },
       { id: 'cat', resume: function () {
           return f.categories && f.categories.length ? f.categories.map(function (c) { return libCat[c] || c; }).join(', ') : 'Tous';
         },
@@ -7820,11 +7826,6 @@
               RACCOURCIS_HOP.map(function (x) {
               return '<button type="button" class="puce petite" data-a="hopRapide" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + (f[x[0]] === x[1]) + '">' + esc(x[2]) + '</button>';
             }).join('') + '</div>';
-        } },
-      { id: 'com', resume: function () { return f.communes && f.communes.length ? resumerCommunesFiltre(f.communes) : 'Toutes'; },
-        rendu: function () {
-          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes && f.communes.length ? esc(resumerCommunesFiltre(f.communes)) : 'Toutes les communes') + '</p>' +
-            '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="com">' + icone('loupe') + 'Choisir les communes</button>';
         } },
       { id: 'meds', resume: function () {
           var r = [];

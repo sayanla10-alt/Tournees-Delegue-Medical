@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.138",
+  "version": "3.31.139",
   "date": "2026-11-17",
   "notes": [
-    "Nettoyage : suppression du code mort de l'ancien bandeau flash des scans (demarrerFlashScans, CSS .bandeau-scans)"
+    "Répertoire › Recherche : ordre logique des étapes (Où ? avant Spécialité pour Médecins/Pharmacies, et Dans quelles communes ? en premier pour Hôpitaux)"
   ]
 }
