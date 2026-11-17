@@ -109,7 +109,7 @@ const ok = (nom, v, detail) => { if (!v) echecs++; console.log((v ? 'OK    ' : '
 
   await etape('Compte rendu', async () => {
     await nav('Journée');
-    const a = await T(() => { const x = [...document.querySelectorAll('.arret:not(.verrouille)')].find(y => !/pharma/i.test(y.className)); if (!x) return false; x.querySelector('.carte-bouton').click(); return true; });
+    const a = await T(() => { const x = [...document.querySelectorAll('.arret:not(.verrouille)')].find(y => y.querySelector('.arret-carte.t-med')); if (!x) return false; x.querySelector('.carte-bouton').click(); return true; });
     await attendre(800);
     if (!a) { ok('une visite de médecin à saisir aujourd\'hui (sinon contrôle sauté)', true); return; }
     const q = () => T(() => { const x = document.querySelector('.arret.ouvert .cr-question'); if (!x) return null; const t = x.querySelector('.etape-titre').getBoundingClientRect(), bt = x.querySelector('[data-a="crOk"]'), rb = bt && bt.getBoundingClientRect(); return { etape: x.dataset.etape, haut: Math.round(t.top), bas: rb ? Math.round(rb.bottom) : null, y: Math.round(scrollY) }; });

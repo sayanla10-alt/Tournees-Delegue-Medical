@@ -4,10 +4,13 @@
 # Usage : bash tests/verifier.sh        (code de sortie 0 = tout est conforme)
 cd "$(dirname "$0")/.." || exit 1
 export PORT_WEB=${PORT_WEB:-8777} PORT_API=${PORT_API:-8779} JETON="$(pwd)/tests/.jeton"
+echo "== Versions compactes (fichiers .min servis aux téléphones)"
+node scripts/minifier.js > /dev/null || exit 1
+node scripts/minifier.js --verifier || exit 1
 echo "== Syntaxe"
 node -e "
 const fs=require('fs'),vm=require('vm');let ko=0;
-const l=['app.js','commun.js','moteur.js','sw.js'].concat(fs.readdirSync('apps-script').filter(f=>f.endsWith('.gs')).map(f=>'apps-script/'+f)).concat(fs.existsSync('journal.js')?['journal.js']:[]);
+const l=['app.js','commun.js','moteur.js','sw.js','app.min.js','commun.min.js','moteur.min.js','journal.min.js'].concat(fs.readdirSync('apps-script').filter(f=>f.endsWith('.gs')).map(f=>'apps-script/'+f)).concat(fs.existsSync('journal.js')?['journal.js']:[]);
 for(const f of l){try{new vm.Script(fs.readFileSync(f,'utf8').replace(/^﻿/,''),{filename:f});}catch(e){ko++;console.log('ÉCHEC '+f+' : '+e.message);}}
 console.log(ko?ko+' fichier(s) en erreur':'OK    '+l.length+' fichiers');process.exit(ko?1:0);" || exit 1
 node tests/serveur.js > tests/.serveur.log 2>&1 & P1=$!

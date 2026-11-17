@@ -10,9 +10,10 @@
      tournees-v*) n'a pas ce bandeau ; il bascule automatiquement sur cette version.
    - Les appels au Google Sheet (script.google.com) et version.json ne sont jamais mis en cache.
 
-   Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json.
+   Publier une version : modifier VERSION ici, APP_VERSION dans app.js et version.json, puis lancer tests/verifier.sh
+   (il régénère les fichiers .min réellement servis aux téléphones, voir scripts/minifier.js).
    ============================================================================= */
-var VERSION = '3.31.125';
+var VERSION = '3.31.126';
 var CACHE = 'mediplanner-' + VERSION;
 var POLICES = [
   'https://cdn.jsdelivr.net/npm/@fontsource/barlow-semi-condensed@5.3.0/files/barlow-semi-condensed-latin-600-normal.woff2',
@@ -22,7 +23,7 @@ var POLICES = [
 // le réseau (cache: 'reload'), jamais depuis le cache du navigateur : une nouvelle version ne peut plus enregistrer l'ancien fichier
 var FICHIERS = [
   './', './index.html', './manifest.webmanifest',
-  './app.css?v=' + VERSION, './commun.js?v=' + VERSION, './moteur.js?v=' + VERSION, './app.js?v=' + VERSION,
+  './app.min.css?v=' + VERSION, './commun.min.js?v=' + VERSION, './moteur.min.js?v=' + VERSION, './app.min.js?v=' + VERSION,
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'
 ];
 

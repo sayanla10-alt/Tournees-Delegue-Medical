@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.125",
+  "version": "3.31.126",
   "date": "2026-11-17",
   "notes": [
-    "Répertoire & Planifier : affichage intelligent et condensé des communes filtrées (Abidjan, Intérieur, Abidjan & Intérieur, Zone Nord/Est/…, ou 1 à 3 communes citées)"
+    "Démarrage plus rapide : fichiers de l'application compactés (environ un tiers de moins à télécharger), sans changement visible"
   ]
 }

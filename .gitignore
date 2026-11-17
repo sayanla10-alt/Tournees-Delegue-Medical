@@ -9,3 +9,4 @@ package-lock.json
 node_modules/
 tests/.jeton
 tests/.serveur.log
+scripts/.outils/

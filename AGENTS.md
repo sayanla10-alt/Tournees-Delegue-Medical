@@ -97,6 +97,10 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 
 ## Avant chaque publication (depuis 3.31.123)
 
+- Les téléphones chargent les versions compactes `app.min.js`, `commun.min.js`, `moteur.min.js`, `journal.min.js` et
+  `app.min.css` (depuis 3.31.125). On modifie TOUJOURS les fichiers lisibles (`app.js`, `app.css`...), jamais les `.min` :
+  `tests/verifier.sh` les régénère (`node scripts/minifier.js`) et les teste. Les ajouter au commit. Filet de sécurité :
+  l'action GitHub « Versions compactes » les régénère si un push les a oubliés.
 - Lancer `bash tests/verifier.sh` : syntaxe de tous les fichiers, puis parcours complet de l'application sur un téléphone
   simulé contre un faux serveur (rien ne touche la vraie base). Ne publier que si la dernière ligne est « Tout est conforme ».
 - Journal des nouveautés : ajouter la ligne de la version en tête de `JOURNAL` dans `app.js`. Au-delà d'une quinzaine de

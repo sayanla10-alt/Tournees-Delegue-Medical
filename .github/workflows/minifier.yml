@@ -1,0 +1,26 @@
+name: Versions compactes
+# Filet de sécurité : si une publication a oublié de régénérer les fichiers .min (servis aux téléphones),
+# ils sont régénérés ici à partir des fichiers lisibles et ajoutés au dépôt.
+on:
+  push:
+    branches: [main]
+    paths: ['app.js', 'app.css', 'commun.js', 'moteur.js', 'journal.js', 'scripts/minifier.js']
+permissions:
+  contents: write
+concurrency: { group: minifier, cancel-in-progress: false }
+jobs:
+  minifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Contrôle (et régénération si besoin)
+        run: |
+          if node scripts/minifier.js --verifier; then exit 0; fi
+          node scripts/minifier.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add *.min.js *.min.css
+          git commit -m "Versions compactes régénérées automatiquement"
+          git pull --rebase && git push

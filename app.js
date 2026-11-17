@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.125';
+  var APP_VERSION = '3.31.126';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.126', ['Démarrage plus rapide : les fichiers de l\'application sont compactés (environ un tiers de moins à télécharger et à lire à chaque ouverture), sans aucun changement visible']],
     ['3.31.125', ['Répertoire & Planifier : affichage intelligent et condensé des communes filtrées (Abidjan, Intérieur, Abidjan & Intérieur, Zone Nord/Est/…, ou 1 à 3 communes citées)']],
     ['3.31.124', ['Fluidité : l\'écran n\'est plus reconstruit en entier à chaque toucher ; seuls les blocs qui changent sont remplacés (réponse immédiate, plus de saut, saisie en cours conservée)', 'Fiabilité : une fiche ou un compte rendu modifié pendant un envoi n\'est plus perdu (il part à l\'envoi suivant)', 'Feuille de style allégée de 230 déclarations inutiles, apparence strictement identique']],
     ['3.31.123', ['Application plus légère : l\'historique des nouveautés des anciennes versions n\'est plus chargé à chaque démarrage (140 Ko de moins)', 'Fiche ouverte du Répertoire : le bouton « Ajouter au jour » n\'est plus rogné', 'Classeur : listes déroulantes du Quartier liées à la commune aussi dans Presences (insensibles au tri)']],
@@ -16634,7 +16635,7 @@
       var plusAncienne = APP_VERSION;
       JOURNAL.forEach(function (v) { if (compVersion(v[0], plusAncienne) < 0) plusAncienne = v[0]; });
       if (vue && compVersion(plusAncienne, vue) > 0) {
-        var sj = document.createElement('script'); sj.src = 'journal.js?v=' + APP_VERSION; sj.async = true;
+        var sj = document.createElement('script'); sj.src = 'journal.min.js?v=' + APP_VERSION; sj.async = true;
         sj.onload = function () {
           var plus = [];
           (window.MP_JOURNAL_ANCIEN || []).forEach(function (v) { if (compVersion(v[0], vue) > 0 && compVersion(v[0], APP_VERSION) <= 0) plus = plus.concat(v[1]); });
