@@ -1,4 +1,4 @@
-/*! app.css cd3e6eec785b : version compacte générée par scripts/minifier.js, ne pas modifier */
+/*! app.css e00122fcb0ab : version compacte générée par scripts/minifier.js, ne pas modifier */
 /* Accessibilité universelle WCAG 2.1 AA : Annonceur vocal d'écran */
 .visuellement-cache {
   position: absolute;
@@ -1759,9 +1759,7 @@ details.avance h3 { margin-top: 18px; }
 
 /* 3.19.0 : questions Oui / Non / Sortir */
 .feuille-pied .sortir-question { margin-right: auto; color: var(--gris); font-weight: 600; padding: 10px 6px; }
-.bandeau-scans { width: 100%; text-align: left; align-items: center; }
 .bandeau-prog.flash { animation: flash-fondu 7.5s ease forwards; }
-.bandeau-scans.flash { animation: flash-fondu 2s ease forwards; }
 @keyframes flash-fondu { 0%, 87% { opacity: 1; } 100% { opacity: 0; } }
 
 /* 3.19.0 : Produits, sections repliables par aire */

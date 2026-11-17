@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.137",
+  "version": "3.31.138",
   "date": "2026-11-17",
   "notes": [
-    "Répertoire › Recherche : suppression des boutons Médecins / Pharmacies / Tous à l'étape 1, remplacée par « Raccourci rapide ? » avec Tous actif par défaut"
+    "Nettoyage : suppression du code mort de l'ancien bandeau flash des scans (demarrerFlashScans, CSS .bandeau-scans)"
   ]
 }
