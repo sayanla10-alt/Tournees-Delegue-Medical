@@ -1,7 +1,8 @@
 {
-  "version": "3.31.145",
+  "version": "3.31.146",
   "date": "2026-11-17",
   "notes": [
-    "Journée : boutons Enregistrer / Finaliser le CR (en bas) et « Finaliser le compte rendu » affinés au format compact (34 px) comme « + Médecin / + Phcie / Autour de moi »"
+    "Journée : « Fixer GPS » reste aussi proposé à la place de Maps après l'enregistrement du compte rendu du jour tant que le lieu n'a pas encore de GPS précis",
+    "Journée : bouton du bas « CR en cours · Finaliser » (distinct du bouton du rapport du jour) avec bouton « Enregistrer » ajusté et code allégé"
   ]
 }

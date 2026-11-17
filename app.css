@@ -1145,7 +1145,7 @@ body.feuille-ouverte { overflow: hidden; }
   display: flex; gap: 6px; max-width: 680px; margin: 0 auto; box-sizing: border-box;
 }
 .barre-valider[hidden], .barre-valider .bouton[hidden] { display: none !important; }
-.barre-valider .bouton { flex: 1 1 0; min-width: 0; margin: 0; display: flex; justify-content: center; align-items: center; gap: 4px; min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; padding: 0 10px; white-space: nowrap; }
+.barre-valider .bouton { flex: 1 1 0; min-width: 0; margin: 0; display: flex; justify-content: center; align-items: center; gap: 4px; min-height: 34px !important; height: 34px !important; font-size: 13px !important; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .barre-valider .bouton svg { width: 16px !important; height: 16px !important; flex: none; }
 body.avec-barre main { padding-bottom: 70px; }
 
@@ -1649,7 +1649,6 @@ details.avance h3 { margin-top: 18px; }
 .lg-produits { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 .pastille-produit { min-height: 34px; padding: 0 12px; min-width: 50px; border-radius: 17px; border: 1.5px solid var(--primaire); background: var(--papier); color: var(--primaire); font-weight: 700; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .pastille-produit[aria-pressed="true"] { background: var(--primaire) !important; color: var(--sur-primaire) !important; border-color: var(--primaire) !important; box-shadow: 0 2px 5px rgba(11, 107, 116, .35) !important; }
-.pastille-produit[aria-pressed="true"]::before { display: none !important; }
 .fp-dci { margin: 0; }
 .fp-bascule { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 0; border: 0; background: none; color: inherit; }
 .fp-bascule h4 { margin: 0; }
@@ -2690,9 +2689,6 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   border-color: var(--primaire) !important;
   box-shadow: 0 2px 6px rgba(11, 107, 116, .35) !important;
 }
-.liste-gammes-cr .pastille-produit[aria-pressed="true"]::before {
-  display: none !important;
-}
 .grille-gamme-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 8px; background: var(--fond, #f8fafb); }
 @media (max-width: 330px) { .grille-gamme-2 { grid-template-columns: 1fr; } }
 .carte-famille-cr { background: var(--papier, #fff); border: 1px solid var(--trait); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(10, 30, 45, .04); }
@@ -3690,9 +3686,6 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .rappel-actions .etiquette { flex: 1 1 auto; justify-content: center; }
 .rangee-tirage.barre-remplacant .bouton:nth-child(-n+2) { flex: 0.9 1 0 !important; }
 .rangee-tirage.barre-remplacant .bouton:nth-child(3) { flex: 1.25 1 0 !important; }
-
-/* 3.27.15 : compte rendu : un choix sélectionné est déjà en couleur, pas de coche (gain de place) */
-.cr-question .puce[aria-pressed="true"]::before, .arret .puces-types-cr .puce[aria-pressed="true"]::before { display: none; }
 
 /* 3.27.16 : couleurs d'établissement fixes : texte toujours blanc, y compris en mode sombre */
 .sr-c.on, .fx-c.on { color: #fff; }

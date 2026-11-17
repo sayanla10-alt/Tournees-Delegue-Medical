@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.145';
+  var APP_VERSION = '3.31.146';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.146', [
+      'Journée : « Fixer GPS » reste aussi proposé à la place de Maps après l\'enregistrement du compte rendu du jour tant que le lieu n\'a pas encore de GPS précis',
+      'Journée : bouton du bas « CR en cours · Finaliser » (au lieu d\'un libellé identique au rapport du jour) avec bouton « Enregistrer » ajusté et code allégé'
+    ]],
     ['3.31.145', ['Journée : boutons Enregistrer / Finaliser le CR (en bas) et « Finaliser le compte rendu » affinés au format compact (34 px) comme « + Médecin / + Phcie / Autour de moi »']],
     ['3.31.144', [
       'Journée : « Fixer GPS » remplace Maps dès l\'ouverture d\'une visite du jour à remplir (si le lieu n\'a pas encore de GPS précis), y compris hors tournée',
@@ -3104,10 +3108,10 @@
     });
   }
   function crEnCours(a) {
-    if (!a || !a.statut || a.etat === 'valide') return false;
+    if (!a || !a.statut || a.etat === 'valide' || !a.cr) return false;
     if (manquesCr(a).length) return true;
     if (S.config.crExpress && !a.modeComplet) return false;
-    var c = crDe(a), ok = c.ok || {}, l = etapesCr(a);
+    var ok = a.cr.ok || {}, l = etapesCr(a);
     for (var i = 0; i < l.length; i++) {
       if (!l[i].fin && !ok[l[i].id]) return true;
     }
@@ -3121,28 +3125,28 @@
     document.body.classList.toggle('avec-barre', visible);
     var btr = $('boutonReprendreCr'), btv = $('boutonValider');
     if (!visible || !btv) return;
-    var enCours = att.filter(crEnCours);
-    var prets = att.filter(function (a) { return !crEnCours(a); });
+    var enCours = [], prets = [];
+    att.forEach(function (a) { (crEnCours(a) ? enCours : prets).push(a); });
     if (enCours.length > 0 && prets.length === 0) {
       if (btr) {
         btr.hidden = false;
         btr.className = 'bouton bouton-plein';
-        btr.style.order = '2'; btr.style.flex = '1.5 1 0';
-        btr.textContent = enCours.length > 1 ? 'Finaliser (' + enCours.length + ' en cours)' : 'Finaliser le CR';
+        btr.style.order = '2'; btr.style.flex = '1.65 1 0';
+        btr.textContent = enCours.length > 1 ? 'CR en cours (' + enCours.length + ') · Finaliser' : 'CR en cours · Finaliser';
       }
       btv.className = 'bouton';
-      btv.style.order = '1'; btv.style.flex = '0.9 1 0';
+      btv.style.order = '1'; btv.style.flex = '0.7 1 0';
       btv.textContent = 'Enregistrer';
     } else if (enCours.length > 0 && prets.length > 0) {
       if (btr) {
         btr.hidden = false;
         btr.className = 'bouton';
-        btr.style.order = '1'; btr.style.flex = '1 1 0';
-        btr.textContent = 'Finaliser (' + enCours.length + ')';
+        btr.style.order = '1'; btr.style.flex = '1.45 1 0';
+        btr.textContent = 'CR en cours (' + enCours.length + ') · Finaliser';
       }
       btv.className = 'bouton bouton-plein';
-      btv.style.order = '2'; btv.style.flex = '1.4 1 0';
-      btv.textContent = 'Enregistrer (' + prets.length + ' prêt' + (prets.length > 1 ? 's' : '') + ')';
+      btv.style.order = '2'; btv.style.flex = '0.9 1 0';
+      btv.textContent = 'Enregistrer (' + prets.length + ')';
     } else {
       var fermes = att.some(function (a) { return S.ui.ouvert !== a.uid; });
       if (btr) {
@@ -6791,10 +6795,10 @@
   // jours à venir : aperçu seul, sauf option cachée Réglages › Avancé › « Saisir les jours à venir » (3.16.0)
   function futurVerrouille(d) { return d > aujourdhui() && !S.config.saisieFutur; }
   // état d'une visite en une ligne (carte fermée) : faite + produits, non faite + motif, à saisir, à venir
-  function ligneEtat(a) {
+  function ligneEtat(a, enCours) {
     var t = aujourdhui(), now = minutesMaintenant(), hm = heureVersMinutes(a.heure);
     if (a.statut) {
-      if (crEnCours(a)) return '<span class="ligne-etat alerte">… En cours · toucher pour finaliser</span>';
+      if (arguments.length > 1 ? enCours : crEnCours(a)) return '<span class="ligne-etat alerte">… En cours · toucher pour finaliser</span>';
       var ko = estKo(a.statut), pr = !ko && a.produits ? ' · ' + a.produits : '';
       return '<span class="ligne-etat ' + (ko ? 'ko' : 'ok') + '">' + (ko ? '✗ ' : '✓ ') + esc(statutLibelle(a)) + esc(pr) + (a.etat !== 'valide' ? ' · à enregistrer' : '') + '</span>';
     }
@@ -6835,22 +6839,24 @@
     var cls = 'arret' + (ouvert ? ' ouvert' : '') + (verrou ? ' verrouille' : '') + (a.garde ? ' garde' : '') +   // 3.30.2 : Journée : blanc, vert, rouge seulement
       (a.statut ? (estKo(a.statut) ? (verrou ? ' absent' : ' absent-attente') : (verrou ? ' fait' : ' fait-attente')) : '') +   // plein = enregistré, vide de couleur = à enregistrer
       (S.ui.flashOk && S.ui.flashOk[a.uid] ? ' vient-enregistrer' : '');
-    var e = '';
-    e += badgeConv(a.conventionne);
-    var pv = praticien(a.code) || {}, der = pv.derniere && (!a.derniere || pv.derniere > a.derniere) ? pv.derniere : a.derniere;
-    var vu = vuDepuis(der, a.etat !== 'valide' && a.date > aujourdhui() ? a.date : aujourdhui());
-    if (estPharmacie(a)) vu = vu.replace(/^Vu /, 'Visitée ').replace('Jamais visité', 'Jamais visitée');
-    e += '<span class="etiquette">' + esc(vu) + '</span>';
-    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
-    if (a.statut && !verrou) e += crEnCours(a)
-      ? '<span class="etiquette alerte">CR en cours · à finaliser</span>'
-      : '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + ', à enregistrer</span>';
-    if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
-    if (a.etat === 'repris') e += '<span class="etiquette">Repris d\'un ancien programme</span>';
-    if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
-    if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">RDV prévu le ' + dateCourte(a.prochaine) + '</span>';
-    if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';
-    e += etiquetteCollegues(a.code, a.date);
+    var e = '', enCoursCr = a.statut && !verrou ? crEnCours(a) : false;
+    if (ouvert) {
+      e += badgeConv(a.conventionne);
+      var pv = praticien(a.code) || {}, der = pv.derniere && (!a.derniere || pv.derniere > a.derniere) ? pv.derniere : a.derniere;
+      var vu = vuDepuis(der, a.etat !== 'valide' && a.date > aujourdhui() ? a.date : aujourdhui());
+      if (estPharmacie(a)) vu = vu.replace(/^Vu /, 'Visitée ').replace('Jamais visité', 'Jamais visitée');
+      e += '<span class="etiquette">' + esc(vu) + '</span>';
+      if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
+      if (a.statut && !verrou) e += enCoursCr
+        ? '<span class="etiquette alerte">CR en cours · à finaliser</span>'
+        : '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + ', à enregistrer</span>';
+      if (a.etat === 'ajoute') e += '<span class="etiquette">Ajouté</span>';
+      if (a.etat === 'repris') e += '<span class="etiquette">Repris d\'un ancien programme</span>';
+      if (a.retard) e += '<span class="etiquette alerte">Horaire difficile à tenir</span>';
+      if (a.prochaine && a.prochaine <= a.date && !a.statut && !a.etape) e += '<span class="etiquette p1">RDV prévu le ' + dateCourte(a.prochaine) + '</span>';
+      if (a.fiab !== undefined && a.fiab < 0.6 && a.fiabTexte) e += '<span class="etiquette alerte">Souvent absent ici (présent ' + esc(a.fiabTexte) + ')</span>';
+      e += etiquetteCollegues(a.code, a.date);
+    }
 
     var h = '<li class="' + cls + '" data-p="' + (+a.note === 3 ? 1 : 3) + '" data-uid-arret="' + esc(a.uid) + '">' +
       '<div class="arret-heure"><b>' + esc((a.statut && a.valideA) || a.heure || (a.creneau ? a.creneau.slice(0, 5) : '--:--')) + '</b>' + (a.debut || a.fin ? '<small>' + esc(a.debut) + '-' + esc(a.fin) + '</small>' : '') + '</div>' +
@@ -6860,7 +6866,7 @@
           '<span class="arret-nom">' + pastilleType(a) + lienFiche(a.code, esc(a.nom)) + ' ' + etoiles(a.note) + '</span>' +
           (ouvert ? (lieuEtSpec(a) ? '<span class="arret-lieu">' + specGras(a, lieuEtSpec(a)) + '</span>' : '') +
             '<span class="arret-lieu">' + esc([a.quartier, reperesDe(a), a.commune].filter(Boolean).join(', ')) + '</span>' +
-            '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + specGras(a, lieuQuartier(a)) + '</span>' : '') + ligneEtat(a)) +
+            '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + specGras(a, lieuQuartier(a)) + '</span>' : '') + ligneEtat(a, enCoursCr)) +
         '</button>' + boutonFavori(a.code) +
         (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && !futurVerrouille(a.date) ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
     if (ouvert) {
@@ -13807,7 +13813,7 @@
     return false;
   }
   function arretPeutFixerGps(a) {
-    if (!a || a.etat === 'valide') return false;
+    if (!a) return false;
     if (a.date !== aujourdhui() || passeVerrouille(a.date) || futurVerrouille(a.date)) return false;
     if ((a.cr && a.cr.faite === 'non') || (a.statut && estKo(a.statut))) return false;
     return arretBesoinGps(a);
