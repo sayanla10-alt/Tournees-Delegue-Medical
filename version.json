@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.129",
+  "version": "3.31.130",
   "date": "2026-11-17",
   "notes": [
-    "Journée : les compteurs (visites, faites, sans CR, à planifier) occupent toute la largeur pour tenir sur une ligne sans réduire la police"
+    "Journée : alignement des durées à pied et en voiture entre la carte « Maintenant » et les cartes de la liste (suppression du double détour routier)"
   ]
 }
