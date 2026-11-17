@@ -1821,7 +1821,8 @@ details.avance h3 { margin-top: 18px; }
   opacity: 1 !important;
 }
 main:has(> .barre-plan-actions-flottante) { padding-bottom: 0; }
-.barre-plan-actions-flottante .rangee-tirage { margin-bottom: 0; }
+.barre-plan-actions-flottante .rangee-tirage,
+.barre-plan-actions-flottante .rangee-actions-rep { margin: 0; }
 #vue.vue-entre > .barre-plan-actions-flottante,
 #vue.jour-glisse-d .barre-plan-actions-flottante,
 #vue.jour-glisse-g .barre-plan-actions-flottante {
@@ -2837,23 +2838,7 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   height: 20px !important;
 }
 
-/* 3.25.36 : Barre d'actions Répertoire [ Recherche ] [ + Ajouter ] [ Modifier ] sur la même ligne */
-.rangee-actions-rep {
-  display: grid;
-  grid-template-columns: 1.15fr 1fr 1fr;
-  gap: 6px;
-  width: 100%;
-  margin: 6px 0 10px;
-}
-.rangee-actions-rep .bouton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 0 8px;
-  box-sizing: border-box;
-  margin: 0;
-}
+/* 3.25.36 : Barre d'actions Répertoire [ Recherche ] [ + Ajouter ] [ Modifier ] en bas (miroir de Planifier) */
 .rangee-actions-rep .bouton span {
   white-space: nowrap !important;
   overflow: hidden;
@@ -3420,7 +3405,7 @@ span.btn-micro-gps:active { transform: none; }
    texte 14 px semi-gras. Les anciennes variantes à coins de 10 px du Répertoire et des fiches contact sont alignées. */
 .bouton { border-radius: 999px; font-size: 15px; font-weight: 600; }
 .bouton.petit { border-radius: 999px; }
-.rangee-actions-rep .bouton, .rangee-criteres-ajouter .bouton, .rangee-actions-contact .bouton,
+.rangee-criteres-ajouter .bouton, .rangee-actions-contact .bouton,
 .barre-recherche .bouton, .lancement.moderne .bouton, .badge-deja-prevu {
   min-height: 44px !important; height: 44px; border-radius: 999px !important;
   font-size: 14px !important; font-weight: 600 !important;
@@ -3488,13 +3473,13 @@ li.arret { -webkit-user-select: none; user-select: none; -webkit-touch-callout: 
 .rangee-2-fiche .bouton { flex: 1; }
 .grille-dispo .bascule-col { border: 0 !important; background: none; min-height: 0 !important; height: auto !important; padding: 2px 8px !important; font: 700 12px var(--titre) !important; color: var(--primaire) !important; box-shadow: none !important; }
 .grille-dispo .bascule-col[aria-pressed="true"] { background: var(--primaire-pale) !important; }
-/* 3.26.65 : Ajouter, Recalculer, Accepter sur une ligne */
-.rangee-tirage { display: flex !important; gap: 6px !important; flex-wrap: nowrap !important; }
-.rangee-tirage .bouton { flex: 1 1 0 !important; min-width: 0 !important; padding: 0 6px !important; gap: 4px !important; }
-.rangee-tirage .bouton svg { width: 16px !important; height: 16px !important; flex: none; }
+/* 3.26.65 : Ajouter, Recalculer, Accepter (et miroir Répertoire) sur une ligne */
+.rangee-tirage, .rangee-actions-rep { display: flex !important; gap: 6px !important; flex-wrap: nowrap !important; }
+.rangee-tirage .bouton, .rangee-actions-rep .bouton { flex: 1 1 0 !important; min-width: 0 !important; padding: 0 6px !important; gap: 4px !important; display: flex; align-items: center; justify-content: center; margin: 0; border-radius: 999px !important; white-space: nowrap; }
+.rangee-tirage .bouton svg, .rangee-actions-rep .bouton svg { width: 16px !important; height: 16px !important; flex: none; }
 .rangee-tirage .bouton-accepter-plan { margin: 0 !important; max-width: none !important; }
-/* 3.26.66 : Ajouter / Recalculer / Accepter à la hauteur du bouton « Critères » (34 px) */
-.rangee-tirage .bouton { min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; }
+/* 3.26.66 : Ajouter / Recalculer / Accepter et Répertoire à la même hauteur (34 px) et police (13,5 px) */
+.rangee-tirage .bouton, .rangee-actions-rep .bouton { min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; font-weight: 600 !important; }
 /* 3.26.67 : ligne de détail du jour centrée */
 .tete-jour-plan .details-plan { text-align: center; }
 /* 3.26.69 : Réception sur une ligne, boutons du contact à 36 px comme « Réinitialiser les filtres » */
@@ -3728,9 +3713,7 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .selecteur-annuaire .sa-n { font-weight: 400; font-size: 12.5px; color: var(--gris); }
 @media (max-width: 360px) { .selecteur-annuaire button, .selecteur-annuaire button b { font-size: 12.5px; } .selecteur-annuaire .sa-n { font-size: 11.5px; } }
 
-/* 3.27.32 : Recherche, Ajouter, Modifier à la hauteur de « Réinitialiser les filtres » (36 px) ; spécialité en gras */
-.rangee-actions-rep .bouton { min-height: 36px !important; height: 36px; font-size: 13px; }
-.rangee-actions-rep .bouton svg { width: 16px; height: 16px; }
+/* 3.27.32 : spécialité en gras */
 .spec-gras { font-weight: 700; color: var(--encre); }
 
 /* 3.27.49 : Écran et bandeau de clôture de journée après 18h30 */

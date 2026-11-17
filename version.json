@@ -1,7 +1,7 @@
 {
-  "version": "3.31.148",
+  "version": "3.31.149",
   "date": "2026-11-17",
   "notes": [
-    "Répertoire : ouverture par défaut sur Médecins avec chargement en chaîne (Médecins → Pharmacies → Hôpitaux), dépliage instantané d'un hôpital et bouton « Tous » réversible dans Recherche › Communes"
+    "Répertoire : boutons Recherche, + Ajouter et Modifier déplacés en barre flottante au bas de l'écran, alignés au format compact (34 px, 13,5 px) de Planifier"
   ]
 }
