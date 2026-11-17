@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.128';
+  var APP_VERSION = '3.31.129';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.129', ['Journée : les compteurs (visites, faites, sans CR, à planifier) occupent toute la largeur pour tenir sur une ligne sans réduire la police']],
     ['3.31.128', ['Répertoire : phrase de critères resserrée (« cœur (6) » et taille fluide) pour tenir sur une seule ligne']],
     ['3.31.127', ['Communes : regroupement en 2 entrées principales (« Abidjan » contenant les zones Nord, Centre, Est, Sud, Ouest, et « Intérieur ») partout dans l\'application']],
     ['3.31.126', ['Démarrage plus rapide : les fichiers de l\'application sont compactés (environ un tiers de moins à télécharger et à lire à chaque ouverture), sans aucun changement visible']],
@@ -4421,8 +4422,9 @@
     var com = Array.from(new Set(duJourOrdonne.map(function (a) { return a.commune; }).filter(Boolean)));
     var est = estimationJour(duJourOrdonne), liens = lienItineraire(duJourOrdonne);
     var infos = [est ? minutesVersHeure(est.debut) + ' → ' + minutesVersHeure(est.fin) : '', com.length ? esc(libelleCommunes(com)) : ''].filter(Boolean).join(' · ');
-    h += '<section class="synthese-jour"><div class="sj-ligne"><span>' + compteursJour(d, duJour) + (infos ? '<small class="discret bloc-texte">' + infos + '</small>' : '') + '</span>' +
-        (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' +
+    h += '<section class="synthese-jour"><div class="sj-compteurs">' + compteursJour(d, duJour) + '</div>' +
+      (infos || liens.length ? '<div class="sj-ligne">' + (infos ? '<span class="discret">' + infos + '</span>' : '<span></span>') +
+        (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' : '') +
       barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length, duJour.filter(function (a) { return a.statut; }).length) +
       '</section>';
     if (!futurVerrouille(d) && duJour.length && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, duJour);

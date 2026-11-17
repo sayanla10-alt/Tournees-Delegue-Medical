@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.128",
+  "version": "3.31.129",
   "date": "2026-11-17",
   "notes": [
-    "Répertoire : phrase de critères resserrée (« cœur (6) » et taille fluide) pour tenir sur une seule ligne"
+    "Journée : les compteurs (visites, faites, sans CR, à planifier) occupent toute la largeur pour tenir sur une ligne sans réduire la police"
   ]
 }
