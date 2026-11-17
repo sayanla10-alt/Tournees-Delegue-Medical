@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.126';
+  var APP_VERSION = '3.31.127';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.127', ['Communes : regroupement en 2 entrées principales (« Abidjan » contenant les zones Nord, Centre, Est, Sud, Ouest, et « Intérieur ») partout dans l\'application']],
     ['3.31.126', ['Démarrage plus rapide : les fichiers de l\'application sont compactés (environ un tiers de moins à télécharger et à lire à chaque ouverture), sans aucun changement visible']],
     ['3.31.125', ['Répertoire & Planifier : affichage intelligent et condensé des communes filtrées (Abidjan, Intérieur, Abidjan & Intérieur, Zone Nord/Est/…, ou 1 à 3 communes citées)']],
     ['3.31.124', ['Fluidité : l\'écran n\'est plus reconstruit en entier à chaque toucher ; seuls les blocs qui changent sont remplacés (réponse immédiate, plus de saut, saisie en cours conservée)', 'Fiabilité : une fiche ou un compte rendu modifié pendant un envoi n\'est plus perdu (il part à l\'envoi suivant)', 'Feuille de style allégée de 230 déclarations inutiles, apparence strictement identique']],
@@ -1394,12 +1395,15 @@
     if (o.sections) {
       // 3.25.31 : sections repliables en accordéon (zones géographiques, quartiers…)
       var accCle = o.accordeon || o.id || 'sections';
+      var estTerritoires = (o.id === 'communes' || o.id === 'com') && o.sections.some(function (s) { return s.territoire === 'Abidjan'; });
       var memo = LS.get('secOuverte', {});
       var ouv = (f.secOuvertes && f.secOuvertes[accCle] !== undefined)
         ? f.secOuvertes[accCle]
         : (f.secOuverte !== undefined && accCle === 'l' ? f.secOuverte : undefined);
       if (ouv === undefined || ouv === null) {
-        if (o.multiple) {
+        if (estTerritoires) {
+          ouv = '';
+        } else if (o.multiple) {
           var secAvecSel = o.sections.filter(function (sec) {
             return sec.options.some(function (op) { return !op.entete && sel && sel[op.v]; });
           })[0];
@@ -1415,7 +1419,7 @@
         f.secOuvertes = f.secOuvertes || {};
         f.secOuvertes[accCle] = ouv;
       }
-      o.sections.forEach(function (sec) {
+      function rendreUneSection(sec) {
         var nbSel = o.multiple ? sec.options.filter(function (op) { return !op.entete && sel && sel[op.v]; }).length : (sec.options.some(function (op) { return !op.entete && op.v === val; }) ? 1 : 0);
         var nbTot = sec.options.filter(function (op) { return !op.entete; }).length;
         var aMatch = !q || sec.options.some(function (op) { return !op.entete && optionCorrespondRecherche(op, qBrut, q); });
@@ -1478,7 +1482,7 @@
           }
         }
 
-        h += '<div class="section-choix' + (ariaExp ? ' ouverte' : '') + (nbSel ? ' a-selection' : '') + '"' + (q && !aMatch ? ' hidden' : '') + '>' +
+        return '<div class="section-choix' + (ariaExp ? ' ouverte' : '') + (nbSel ? ' a-selection' : '') + '"' + (q && !aMatch ? ' hidden' : '') + '>' +
           '<div class="section-choix-tete">' +
           '<button type="button" class="aire-titre aire-bascule" data-a="sectionBascule" data-acc="' + esc(accCle) + '" data-v="' + esc(sec.titre) + '" aria-expanded="' + ariaExp + '">' +
           '<span class="sec-titre">' + esc(sec.titre) + '</span>' +
@@ -1487,7 +1491,33 @@
           (o.multiple ? '<button type="button" class="lien-action section-tous" data-a="sectionToute" data-chemin="' + o.chemin + '" title="Tout sélectionner ou effacer dans ' + esc(sec.titre) + '">Tous</button>' : '') +
           '</div>' +
           '<div class="puces" data-ferme="' + (ferme ? 1 : 0) + '"' + (ferme && !q ? ' hidden' : '') + '>' + corpsSec + '</div></div>';
-      });
+      }
+      if (estTerritoires) {
+        var secsAbidjan = o.sections.filter(function (s) { return s.territoire !== 'Intérieur'; });
+        var secsInterieur = o.sections.filter(function (s) { return s.territoire === 'Intérieur'; });
+        var nbSelAb = 0, nbTotAb = 0, aMatchAb = !q;
+        secsAbidjan.forEach(function (sec) {
+          sec.options.forEach(function (op) {
+            if (op.entete) return;
+            nbTotAb++;
+            if (o.multiple ? (sel && sel[op.v]) : (op.v === val)) nbSelAb++;
+          });
+          if (q && sec.options.some(function (op) { return !op.entete && optionCorrespondRecherche(op, qBrut, q); })) aMatchAb = true;
+        });
+        var abOuvert = q ? aMatchAb : !!(f.terOuverts && f.terOuverts[accCle] === 'Abidjan');
+        h += '<div class="section-choix section-territoire' + (abOuvert ? ' ouverte' : '') + (nbSelAb ? ' a-selection' : '') + '"' + (q && !aMatchAb ? ' hidden' : '') + '>' +
+          '<div class="section-choix-tete">' +
+          '<button type="button" class="aire-titre aire-bascule" data-a="territoireBascule" data-acc="' + esc(accCle) + '" data-v="Abidjan" aria-expanded="' + abOuvert + '">' +
+          '<span class="sec-titre">Abidjan</span>' +
+          (nbSelAb ? '<span class="compteur">' + nbSelAb + '</span>' : '') +
+          '<small>' + nbTotAb + '</small>' + icone('chevron') + '</button>' +
+          (o.multiple ? '<button type="button" class="lien-action section-tous" data-a="sectionToute" data-chemin="' + o.chemin + '" title="Tout sélectionner ou effacer dans Abidjan">Tous</button>' : '') +
+          '</div>' +
+          '<div class="section-territoire-corps"' + (!abOuvert ? ' hidden' : '') + '>' + secsAbidjan.map(rendreUneSection).join('') + '</div></div>';
+        h += secsInterieur.map(rendreUneSection).join('');
+      } else {
+        h += o.sections.map(rendreUneSection).join('');
+      }
     } else {
       var puceTous = o.multiple && totalOpts > 1 && !q
         ? '<button type="button" class="puce puce-tous" data-a="' + (o.tousVide ? 'groupeAucun' : 'groupeToutToggle') + '" data-chemin="' + o.chemin + '" aria-pressed="' + (o.tousVide ? (!nb || nb === totalOpts) : nb === totalOpts) + '">Tous</button>'
@@ -1594,7 +1624,7 @@
           });
         }
       });
-      if (opts.length) secs.push({ titre: z, options: opts });
+      if (opts.length) secs.push({ titre: z, territoire: (z === 'Intérieur' || z === 'Zone Intérieur') ? 'Intérieur' : 'Abidjan', options: opts });
     });
 
     return secs;
@@ -15002,6 +15032,13 @@
         vs.forEach(function (v) { if (l.indexOf(v) < 0) l.push(v); });
       }
       rendre();
+    },
+    territoireBascule: function (el) {
+      var f = S.ui.feuille, cle = el.dataset.acc || 'defaut', v = el.dataset.v;
+      f.terOuverts = f.terOuverts || {};
+      f.terOuverts[cle] = f.terOuverts[cle] === v && el.getAttribute('aria-expanded') === 'true' ? '' : v;
+      if (f.terOuverts[cle] === v && f.secOuvertes) f.secOuvertes[cle] = '';
+      rendreFeuille();
     },
     sectionBascule: function (el) {
       var f = S.ui.feuille, cle = el.dataset.acc || 'defaut', v = el.dataset.v, memo = LS.get('secOuverte', {});

@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.126",
+  "version": "3.31.127",
   "date": "2026-11-17",
   "notes": [
-    "Démarrage plus rapide : fichiers de l'application compactés (environ un tiers de moins à télécharger), sans changement visible"
+    "Communes : regroupement en 2 entrées principales (« Abidjan » contenant les zones Nord, Centre, Est, Sud, Ouest, et « Intérieur ») partout dans l'application"
   ]
 }

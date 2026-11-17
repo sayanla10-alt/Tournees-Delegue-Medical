@@ -904,6 +904,13 @@ body.feuille-ouverte { overflow: hidden; }
 .section-choix > .puces {
   padding: 10px 12px 12px;
 }
+.section-territoire-corps {
+  padding: 4px 10px 10px;
+  background: var(--papier);
+}
+.section-territoire-corps > .section-choix:first-child {
+  margin-top: 6px;
+}
 .lien-action { border: 0; background: none; color: var(--primaire); font-weight: 600; font-size: 13px; padding: 6px; border-radius: 6px; }
 .lien-action:active { background: var(--primaire-pale); }
 .recherche.petite input { min-height: 40px; border-radius: 20px; font-size: 14px; }
