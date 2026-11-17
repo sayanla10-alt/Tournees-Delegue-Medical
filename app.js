@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.124';
+  var APP_VERSION = '3.31.125';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.125', ['Répertoire & Planifier : affichage intelligent et condensé des communes filtrées (Abidjan, Intérieur, Abidjan & Intérieur, Zone Nord/Est/…, ou 1 à 3 communes citées)']],
     ['3.31.124', ['Fluidité : l\'écran n\'est plus reconstruit en entier à chaque toucher ; seuls les blocs qui changent sont remplacés (réponse immédiate, plus de saut, saisie en cours conservée)', 'Fiabilité : une fiche ou un compte rendu modifié pendant un envoi n\'est plus perdu (il part à l\'envoi suivant)', 'Feuille de style allégée de 230 déclarations inutiles, apparence strictement identique']],
     ['3.31.123', ['Application plus légère : l\'historique des nouveautés des anciennes versions n\'est plus chargé à chaque démarrage (140 Ko de moins)', 'Fiche ouverte du Répertoire : le bouton « Ajouter au jour » n\'est plus rogné', 'Classeur : listes déroulantes du Quartier liées à la commune aussi dans Presences (insensibles au tri)']],
     ['3.31.122', ['OCR : activation de la haute résolution d\'image (MEDIA_RESOLUTION_HIGH) et ajout de Gemini 3.6 Flash en secours gratuit']],
@@ -1163,12 +1164,60 @@
     return resultats.join(', ');
   }
 
+  // 3.31.125 : résumé intelligent par territoires/zones (Abidjan & Intérieur, Abidjan, Zone Nord…, Intérieur, ou 1-3 communes)
+  function resumerCommunesFiltre(l) {
+    if (!l || !l.length) return '';
+    var r = condenserCommunesEtSecteurs(l);
+    var sel = r ? r.split(', ').filter(Boolean) : [];
+    if (!sel.length) return '';
+    var selSet = {};
+    sel.forEach(function (c) { selSet[normaliser(c)] = true; });
+    var toutes = communesListe();
+    var abidjan = [], interieur = [], parZone = {};
+    toutes.forEach(function (item) {
+      var com = item.commune;
+      if (!com) return;
+      if (item.zone === 'Intérieur' || estTerritoireInterieur(com)) {
+        interieur.push(com);
+      } else {
+        abidjan.push(com);
+        if (item.zone) {
+          if (!parZone[item.zone]) parZone[item.zone] = [];
+          parZone[item.zone].push(com);
+        }
+      }
+    });
+    var tousAbidjan = abidjan.length > 0 && abidjan.every(function (c) { return !!selSet[normaliser(c)]; });
+    var toutInterieur = interieur.length > 0 && interieur.every(function (c) { return !!selSet[normaliser(c)]; });
+    if (tousAbidjan && toutInterieur) return 'Abidjan & Intérieur';
+    var tokens = [], consomme = {};
+    if (tousAbidjan) {
+      tokens.push('Abidjan');
+      abidjan.forEach(function (c) { consomme[normaliser(c)] = true; });
+    } else {
+      ['Zone Nord', 'Zone Centre', 'Zone Est', 'Zone Sud', 'Zone Ouest'].forEach(function (z) {
+        var zList = parZone[z] || [];
+        if (zList.length >= 2 && zList.every(function (c) { return !!selSet[normaliser(c)]; })) {
+          tokens.push(z);
+          zList.forEach(function (c) { consomme[normaliser(c)] = true; });
+        }
+      });
+    }
+    if (toutInterieur) {
+      tokens.push('Intérieur');
+      interieur.forEach(function (c) { consomme[normaliser(c)] = true; });
+    }
+    var restantes = sel.filter(function (c) { return !consomme[normaliser(c)]; });
+    if (tokens.length) {
+      if (!restantes.length) return tokens.join(' + ');
+      return tokens.join(' + ') + ' + ' + (restantes.length <= 2 ? restantes.join(', ') : restantes.length + ' autres');
+    }
+    return restantes.length <= 3 ? restantes.join(', ') : restantes.slice(0, 2).join(', ') + ' + ' + (restantes.length - 2) + ' autres';
+  }
+
   function libelleCommunes(l) {
     if (!l || !l.length) return 'Toutes les communes';
-    var r = condenserCommunesEtSecteurs(l);
-    var parts = r ? r.split(', ') : [];
-    if (!parts.length) return 'Toutes les communes';
-    return parts.length <= 3 ? parts.join(', ') : parts.slice(0, 2).join(', ') + ' et ' + (parts.length - 2) + ' autres';
+    return resumerCommunesFiltre(l) || 'Toutes les communes';
   }
 
   function libelleListe(l, tous) {
@@ -7646,9 +7695,9 @@
           return '<p class="discret" style="margin:0 0 6px">' + (f.type === 'tous' ? 'Spécialités du cœur de cible pré-sélectionnées (les pharmacies restent affichées) :' : 'Spécialités du cœur de cible pré-sélectionnées (modifier met à jour votre cœur de cible) :') + '</p>' +
             pucesSpecialitesCible(f.specialites, 'filtreSpecToggle', 'filtreSpecToutes', 'filtreSpecCoeur', 'filtreSpecChoisir');
         } },
-      { id: 'com', resume: function () { return f.communes.length ? condenserCommunesEtSecteurs(f.communes) : 'Toutes'; },
+      { id: 'com', resume: function () { return f.communes.length ? resumerCommunesFiltre(f.communes) : 'Toutes'; },
         rendu: function () {
-          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes.length ? esc(condenserCommunesEtSecteurs(f.communes)) : 'Toutes les communes') + '</p>' +
+          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes.length ? esc(resumerCommunesFiltre(f.communes)) : 'Toutes les communes') + '</p>' +
             '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="com">' + icone('loupe') + 'Choisir les communes</button>';
         } },
       { id: 'valeur', resume: function () {
@@ -7690,9 +7739,9 @@
               return '<button type="button" class="puce petite" data-a="hopRapide" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + (f[x[0]] === x[1]) + '">' + esc(x[2]) + '</button>';
             }).join('') + '</div>';
         } },
-      { id: 'com', resume: function () { return f.communes && f.communes.length ? condenserCommunesEtSecteurs(f.communes) : 'Toutes'; },
+      { id: 'com', resume: function () { return f.communes && f.communes.length ? resumerCommunesFiltre(f.communes) : 'Toutes'; },
         rendu: function () {
-          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes && f.communes.length ? esc(condenserCommunesEtSecteurs(f.communes)) : 'Toutes les communes') + '</p>' +
+          return '<p class="discret" style="margin:4px 0 8px">' + (f.communes && f.communes.length ? esc(resumerCommunesFiltre(f.communes)) : 'Toutes les communes') + '</p>' +
             '<button class="bouton petit" type="button" data-a="filtreQuestion" data-v="com">' + icone('loupe') + 'Choisir les communes</button>';
         } },
       { id: 'meds', resume: function () {
@@ -7832,7 +7881,7 @@
     if (f.visite !== 'tous') c.push(vis[f.visite] || f.visite);
     if (f.equipe !== 'tous') c.push((f.equipe === 'oui' ? 'prévus' : 'non prévus') + ' collègue');
     if (f.communes.length) {
-      var comAffiche = condenserCommunesEtSecteurs(f.communes);
+      var comAffiche = resumerCommunesFiltre(f.communes);
       if (comAffiche) c.push(comAffiche);
     }
     if (q && String(q).trim()) c.push('« ' + String(q).trim() + ' »');

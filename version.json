@@ -1,9 +1,7 @@
 ﻿{
-  "version": "3.31.124",
-  "date": "2026-11-16",
+  "version": "3.31.125",
+  "date": "2026-11-17",
   "notes": [
-    "Fluidité : seuls les blocs qui changent sont redessinés (réponse immédiate, plus de saut d'écran)",
-    "Fiabilité : une fiche ou un compte rendu modifié pendant un envoi n'est plus perdu",
-    "Feuille de style allégée, apparence identique"
+    "Répertoire & Planifier : affichage intelligent et condensé des communes filtrées (Abidjan, Intérieur, Abidjan & Intérieur, Zone Nord/Est/…, ou 1 à 3 communes citées)"
   ]
 }
