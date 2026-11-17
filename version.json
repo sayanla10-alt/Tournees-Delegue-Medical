@@ -1,9 +1,7 @@
 {
-  "version": "3.31.144",
+  "version": "3.31.145",
   "date": "2026-11-17",
   "notes": [
-    "Journée : « Fixer GPS » remplace Maps dès l'ouverture d'une visite du jour à remplir (si le lieu n'a pas encore de GPS précis), y compris hors tournée",
-    "Journée : quand un compte rendu est interrompu avant la fin, un bouton « Finaliser le CR » en bas permet d'y retourner directement sans bloquer sur « Enregistrer »",
-    "Journée : suppression du doublon « Maintenant » une fois toutes les visites renseignées, bouton « Finaliser le compte rendu » intégré directement dans la carte Compte Rendu"
+    "Journée : boutons Enregistrer / Finaliser le CR (en bas) et « Finaliser le compte rendu » affinés au format compact (34 px) comme « + Médecin / + Phcie / Autour de moi »"
   ]
 }

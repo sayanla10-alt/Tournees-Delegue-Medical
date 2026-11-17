@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.144';
+  var APP_VERSION = '3.31.145';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.145', ['Journée : boutons Enregistrer / Finaliser le CR (en bas) et « Finaliser le compte rendu » affinés au format compact (34 px) comme « + Médecin / + Phcie / Autour de moi »']],
     ['3.31.144', [
       'Journée : « Fixer GPS » remplace Maps dès l\'ouverture d\'une visite du jour à remplir (si le lieu n\'a pas encore de GPS précis), y compris hors tournée',
       'Journée : quand un compte rendu est interrompu avant la fin, un bouton « Finaliser le CR » en bas permet d\'y retourner directement sans bloquer sur « Enregistrer »',

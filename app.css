@@ -1140,12 +1140,14 @@ body.feuille-ouverte { overflow: hidden; }
 /* ------------------------------------------------------------- Barre de validation, navigation, toast */
 .barre-valider {
   position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
-  padding: 10px 16px; background: linear-gradient(to top, var(--fond) 70%, transparent); z-index: 15;
-  display: flex; gap: 8px; max-width: 680px; margin: 0 auto; box-sizing: border-box;
+  padding: 6px 10px; background: var(--papier, #fff); border-top: 1px solid var(--trait, #e2e8f0);
+  box-shadow: 0 -4px 12px rgba(0,0,0,0.06); border-radius: var(--r, 8px) var(--r, 8px) 0 0; z-index: 16;
+  display: flex; gap: 6px; max-width: 680px; margin: 0 auto; box-sizing: border-box;
 }
 .barre-valider[hidden], .barre-valider .bouton[hidden] { display: none !important; }
-.barre-valider .bouton { flex: 1 1 0; min-width: 0; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 48px; font-size: 14.5px; padding: 0 14px; white-space: nowrap; }
-body.avec-barre main { padding-bottom: 90px; }
+.barre-valider .bouton { flex: 1 1 0; min-width: 0; margin: 0; display: flex; justify-content: center; align-items: center; gap: 4px; min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; padding: 0 10px; white-space: nowrap; }
+.barre-valider .bouton svg { width: 16px !important; height: 16px !important; flex: none; }
+body.avec-barre main { padding-bottom: 70px; }
 
 .navigation {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
@@ -1738,7 +1740,9 @@ details.avance h3 { margin-top: 18px; }
 .acces-rapport > svg { width: 18px; height: 18px; color: var(--gris); transform: rotate(-90deg); flex: none; }
 .acces-rapport-bloc { border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); margin: 0 0 12px; padding: 11px 12px; }
 .acces-rapport-bloc .acces-rapport { border: 0; border-radius: 0; background: none; margin: 0; padding: 0; }
-.acces-rapport-cta { display: flex; justify-content: center; margin-top: 10px; }
+.acces-rapport-cta { display: flex; justify-content: center; margin-top: 8px; }
+.acces-rapport-cta .bouton { min-height: 34px !important; height: 34px !important; font-size: 13.5px !important; padding: 0 14px !important; gap: 5px; width: auto; }
+.acces-rapport-cta .bouton svg { width: 16px !important; height: 16px !important; flex: none; }
 
 /* 3.14.0 */
 .arret.absent-attente .arret-noeud { background: var(--papier); border-color: var(--rouge); }
