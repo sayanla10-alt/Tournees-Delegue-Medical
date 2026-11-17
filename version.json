@@ -1,7 +1,7 @@
 {
-  "version": "3.31.147",
+  "version": "3.31.148",
   "date": "2026-11-17",
   "notes": [
-    "Journée : suppression du bouton « Finaliser le compte rendu » en double ; la pastille de la carte Compte Rendu passe directement de « À faire » (gris) à « Finaliser » (vert) quand toutes les visites sont renseignées"
+    "Répertoire : ouverture par défaut sur Médecins avec chargement en chaîne (Médecins → Pharmacies → Hôpitaux), dépliage instantané d'un hôpital et bouton « Tous » réversible dans Recherche › Communes"
   ]
 }
