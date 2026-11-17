@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.127';
+  var APP_VERSION = '3.31.128';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.128', ['Répertoire : phrase de critères resserrée (« cœur (6) » et taille fluide) pour tenir sur une seule ligne']],
     ['3.31.127', ['Communes : regroupement en 2 entrées principales (« Abidjan » contenant les zones Nord, Centre, Est, Sud, Ouest, et « Intérieur ») partout dans l\'application']],
     ['3.31.126', ['Démarrage plus rapide : les fichiers de l\'application sont compactés (environ un tiers de moins à télécharger et à lire à chaque ouverture), sans aucun changement visible']],
     ['3.31.125', ['Répertoire & Planifier : affichage intelligent et condensé des communes filtrées (Abidjan, Intérieur, Abidjan & Intérieur, Zone Nord/Est/…, ou 1 à 3 communes citées)']],
@@ -7891,7 +7892,7 @@
       if (sontToutesSpecialites(f.specialites)) {
         c.push('toutes spécialités');
       } else if (estCoeurDeCible(f.specialites)) {
-        c.push('cœur de cible (' + f.specialites.length + ')');
+        c.push('cœur (' + f.specialites.length + ')');
       } else if (f.specialites.length) {
         t += ' ' + f.specialites.map(function (x) {
           var ab = abbrevSpec(x);

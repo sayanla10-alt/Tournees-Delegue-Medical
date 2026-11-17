@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.127",
+  "version": "3.31.128",
   "date": "2026-11-17",
   "notes": [
-    "Communes : regroupement en 2 entrées principales (« Abidjan » contenant les zones Nord, Centre, Est, Sud, Ouest, et « Intérieur ») partout dans l'application"
+    "Répertoire : phrase de critères resserrée (« cœur (6) » et taille fluide) pour tenir sur une seule ligne"
   ]
 }

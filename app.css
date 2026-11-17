@@ -1323,16 +1323,16 @@ details.avance h3 { margin-top: 18px; }
   border: 1px solid var(--trait);
   border-left: 4px solid var(--primaire);
   border-radius: var(--r, 12px);
-  padding: 10px 14px;
+  padding: 8px 10px;
   margin: 6px 0 12px;
   width: 100%;
   box-sizing: border-box;
 }
 .bandeau-criteres-rep .phrase-criteres {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   width: 100%;
-  font-size: 13.5px;
-  line-height: 1.45;
+  font-size: clamp(11.5px, 3.2vw, 13px);
+  line-height: 1.35;
   color: var(--encre);
   font-weight: 600;
   text-align: center;
