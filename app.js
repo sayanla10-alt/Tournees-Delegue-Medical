@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.141';
+  var APP_VERSION = '3.31.142';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.142', ['Application plus légère : une vérification de la base sans nouveauté (toutes les 15 s) ne refait plus tous les calculs et ne réécrit plus toute la base sur le téléphone', 'Journée : la bande des jours n\'est plus remesurée à chaque affichage, et l\'anneau de la prochaine visite ne force plus le téléphone à redessiner l\'écran en continu']],
     ['3.31.141', ['Fiches & Présences : fusion automatique de deux blocs portant le même établissement dans une même fiche (côté téléphone et serveur) pour éviter les doublons dans Presences']],
     ['3.31.140', ['Parcours (Planifier, Recherche, Compte rendu) : boutons Précédent, Passer et Suivant affinés (36 px) et dimensionnés selon leur texte pour ne plus rogner « Précédent »']],
     ['3.31.139', ['Répertoire › Recherche : ordre logique des étapes (Où ? avant Spécialité pour Médecins/Pharmacies, et Dans quelles communes ? en premier pour Hôpitaux)']],
@@ -2668,7 +2669,18 @@
     return apiGet('data' + ref + sAt + fParam + (hd ? '&hdepuis=' + encodeURIComponent(hd) : ''));
   }
 
-  var minuteurReprise;
+  var minuteurReprise, _dataEnregistreeLe = 0;
+  // 3.31.137 : l'historique reçu n'apporte rien (mêmes visites, même contenu) par rapport à celui du téléphone
+  function historiqueIdentique(hist, d, ancien) {
+    var vieux = ancien.historique || [];
+    if (hist === vieux) return true;
+    if (hist.length !== vieux.length) return false;
+    var recu = d.historique || [];
+    if (recu === vieux) return true;
+    var parUid = {};
+    vieux.forEach(function (v) { if (v && v.uid) parUid[v.uid] = v; });
+    return recu.every(function (v) { var w = v && v.uid && parUid[v.uid]; return !!w && JSON.stringify(w) === JSON.stringify(v); });
+  }
   function synchroniser(silencieux, sansGps, force) {
     if (!connecte()) return Promise.resolve();
     if (S.ui.enCours) return Promise.resolve();
@@ -2740,6 +2752,31 @@
       if (d.alias && moi()) Object.keys(d.alias).forEach(function (k) {
         if (k.toLowerCase() === moi().toLowerCase()) { S.config.delegue = d.alias[k]; LS.set('config', S.config); S.ui._verPub = (S.ui._verPub || 0) + 1; S.ui.aPublier = true; LS.set('aPublier', true); }
       });
+      // 3.31.137 : synchronisation sans rien de neuf (base, visites, tournées et comptes rendus identiques) : la base en mémoire
+      // est gardée telle quelle. Avant, elle était remplacée par une copie identique à chaque vérification (toutes les 15 s avec
+      // Supabase) : tous les calculs (lieux, créneaux, distances, tournées) étaient refaits et la base entière réécrite sur le
+      // téléphone, ce qui alourdissait l'application en continu.
+      var plServeur = sansSuppressions(d.plannings || ancien.plannings || []);
+      var rienDeNeuf = false;
+      try {
+        rienDeNeuf = !!(d.inchange && S.data && ancien === S.data && (ancien.praticiens || []).length && ancien.histDepuis === debutHistorique() &&
+          historiqueIdentique(hist, d, ancien) &&
+          (!d.rapports || d.rapports === ancien.rapports || JSON.stringify(d.rapports) === JSON.stringify(ancien.rapports || [])) &&
+          (!d.plannings || d.plannings === ancien.plannings || JSON.stringify(plServeur) === JSON.stringify(ancien.plannings || [])));
+      } catch (eRn) { rienDeNeuf = false; }
+      if (rienDeNeuf) {
+        ['version', 'sig', 'sauvegarde', 'rev', 'marqueurSb'].forEach(function (k) { if (d[k]) ancien[k] = d[k]; });
+        ancien.syncedAt = d.syncedAt || new Date().toISOString(); ancien.serveurRecent = true;
+        // l'heure de la dernière vérification est enregistrée au plus toutes les 10 minutes (et à chaque vrai changement)
+        if (Date.now() - _dataEnregistreeLe > 600000) { LS.set('data', ancien); _dataEnregistreeLe = Date.now(); }
+        var planChange0 = false;
+        if (!tentePub) { try { planChange0 = actualiserPlanDepuisServeur(); } catch (eP0) { console.warn(eP0); } }
+        aChange = !!planChange0;
+        S.ui.sync = 'ok'; S.ui.erreur = ''; clearTimeout(minuteurReprise);
+        S.ui.conflits = []; setTimeout(notifierConflits, 1500);
+        if (!silencieux) toast('Données à jour (aucun changement).');
+        return;
+      }
       S.data = { version: d.version || ancien.version, sig: d.sig || ancien.sig, praticiens: praticiens, presences: presences, quartiers: base.quartiers || ancien.quartiers || [],
                  statuts: base.statuts || ancien.statuts || [], etablissements: base.etablissements || ancien.etablissements || [], delegues: base.delegues || ancien.delegues || [], feries: base.feries || ancien.feries || [], activites: base.activites || ancien.activites || [], activitesPharmacie: base.activitesPharmacie || ancien.activitesPharmacie || [], produits: base.produits || ancien.produits || [], fiches: base.fiches || ancien.fiches || [],
                  historique: hist, histDepuis: debutHistorique(), plannings: sansSuppressions(d.plannings || ancien.plannings || []), suppressions: d.inchange ? (ancien.suppressions || []) : suppressionsDe(d.plannings, ancien), rapports: d.rapports || ancien.rapports || [], syncedAt: d.syncedAt || new Date().toISOString(),
@@ -2747,7 +2784,7 @@
       if (!d.inchange && d.doublons && d.doublons.length) toast('Base : code en double à corriger : ' + d.doublons.slice(0, 3).join(', '));
       S.queue.forEach(function (v) { Moteur.appliquerVisite(S.data.praticiens, v, statuts()); });
       S.fiches.forEach(function (f) { appliquerFiche(f.praticien, f.presences); });
-      LS.set('data', S.data); ctxCache.data = null;
+      LS.set('data', S.data); ctxCache.data = null; _dataEnregistreeLe = Date.now();
       var nVis = 0; try { nVis = actualiserVisitesPlanifiees() || 0; } catch (eA) { console.warn(eA); }
       var planChange = false;
       if (!tentePub) {
@@ -3540,6 +3577,13 @@
   function centrerBandeJours() {
     var b = document.querySelector('.bj-jours'), s = b && b.querySelector('.bj-jour[aria-pressed="true"]');
     if (!s) { S.ui.bjDepart = null; S.ui.bjAvantDate = null; return; }
+    // 3.31.137 : bande déjà centrée sur ce jour (même bande conservée par le rendu, même largeur d'écran, polices chargées) :
+    // rien à mesurer. Avant, chaque affichage relisait les positions, ce qui obligeait le téléphone à recalculer toute la page.
+    var cleCentre = s.dataset.v + '|' + (window.innerWidth || 0) + '|' + ((document.fonts && document.fonts.status) || '');
+    if (b.__centre === cleCentre && (S.ui.bjDepart === undefined || S.ui.bjDepart === null) && (!S.ui.bjAvantDate || S.ui.bjAvantDate === s.dataset.v)) {
+      S.ui.bjAvantDate = null; return;
+    }
+    b.__centre = cleCentre;
     // 3.28.31 : centré sur la largeur de l'écran (et non de la bande, raccourcie par le bouton calendrier)
     var bR = b.getBoundingClientRect(), posS = s.getBoundingClientRect().left - bR.left + b.scrollLeft;
     var milieu = (window.innerWidth || document.documentElement.clientWidth) / 2 - bR.left;

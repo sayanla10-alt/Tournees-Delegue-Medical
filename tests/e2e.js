@@ -92,7 +92,10 @@ const ok = (nom, v, detail) => { if (!v) echecs++; console.log((v ? 'OK    ' : '
     ok('liste des hôpitaux', await T(() => document.querySelectorAll('.liste-rep > .element-hopital').length >= 5));
     await clic('.liste-rep .element-hopital .carte-bouton', 700);
     ok('hôpital ouvert, détaché, avec ses médecins', await T(() => !!document.querySelector('.liste-rep > .element-hopital.rep-ouvert .hop-medecins')));
-    ok('raccourci « Tous » des hôpitaux', (await clic('[data-a="rechOuvrir"]')) && await T(() => !!document.querySelector('[data-a="hopRapideTous"]')));
+    // 3.31.139 : « Où » est la 1re étape de la recherche, les raccourcis des hôpitaux sont à l'étape suivante
+    await clic('[data-a="rechOuvrir"]');
+    if (!await T(() => !!document.querySelector('[data-a="hopRapideTous"]'))) await clic('[data-a="etapePasser"][data-v="com"], [data-a="etapeOk"][data-v="com"]');
+    ok('raccourci « Tous » des hôpitaux', await T(() => !!document.querySelector('[data-a="hopRapideTous"]')));
     await clic('[data-a="hopRapideTous"]', 600);
     await clic('[data-a="annuaire"][data-v="med"]', 700);
   });
@@ -130,9 +133,12 @@ const ok = (nom, v, detail) => { if (!v) echecs++; console.log((v ? 'OK    ' : '
 
   await etape('Synchronisation', async () => {
     await nav('Répertoire');
-    await T(() => { window.__marque = document.querySelector('#vue').firstElementChild; });
+    await T(() => { window.__marque = document.querySelector('#vue').firstElementChild; window.__base = window.__tournees.S.data; window.__ctx = window.__tournees.ctx(); });
     await clic('#pastilleSync', 4500);
     ok('synchronisation sans changement : écran non reconstruit', await T(() => document.querySelector('#vue').firstElementChild === window.__marque));
+    ok('synchronisation sans changement : base et calculs conservés (rien n\'est recalculé)', await T(() => window.__tournees.S.data === window.__base && window.__tournees.ctx() === window.__ctx));
+    await nav('Journée');
+    ok('Journée : bande des jours mesurée une seule fois tant que rien ne bouge', await T(() => { const b = document.querySelector('.bj-jours'); return !!(b && b.__centre); }));
     ok('état « À jour »', await T(() => /jour/i.test(document.getElementById('pastilleSync').textContent)), await T(() => document.getElementById('pastilleSync').textContent));
   });
 

@@ -1883,14 +1883,18 @@ main:has(> .barre-plan-actions-flottante) { padding-bottom: 0; }
 /* 3.24.0 : animations plus vivantes */
 @keyframes arriver { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes remplir { from { width: 0; } }
-@keyframes pulse-anneau { 0% { box-shadow: 0 0 0 0 rgba(10, 108, 116, .45); } 70% { box-shadow: 0 0 0 10px rgba(10, 108, 116, 0); } 100% { box-shadow: 0 0 0 0 rgba(10, 108, 116, 0); } }
 @keyframes rebond { 0% { transform: translateY(0); } 35% { transform: translateY(-5px) scale(1.12); } 65% { transform: translateY(1px); } 100% { transform: none; } }
 @keyframes onde { from { transform: scale(0); opacity: .35; } to { transform: scale(2.4); opacity: 0; } }
 @keyframes attention { 0%, 100% { transform: none; } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(1px); } }
 #vue.vue-entre .arret, #vue.vue-entre .ligne-plan, #vue.vue-entre .liste > .element, #vue.vue-entre .kpi, #vue.vue-entre .ligne-gamme, #vue.vue-entre .tuile {
   animation: arriver .15s ease-out both; }
 #vue.vue-entre .progression i, #vue.vue-entre .jauge i { animation: remplir .9s cubic-bezier(.2, .8, .25, 1) both; animation-delay: .2s; }
-.arret.prochaine .arret-noeud { animation: pulse-anneau 1.8s ease-out infinite; }
+/* 3.31.137 : anneau de la prochaine visite animé par agrandissement et fondu (traités par la carte graphique), au lieu d'une
+   ombre animée qui obligeait le téléphone à redessiner cette zone à chaque image tant que Journée restait ouverte. Même rendu. */
+.arret.prochaine .arret-rail::after { content: ""; position: absolute; left: 50%; top: 2px; width: 34px; height: 34px; margin-left: -17px;
+  border-radius: 50%; background: rgb(10, 108, 116); opacity: 0; pointer-events: none; will-change: transform, opacity;
+  animation: anneau-prochaine 1.8s ease-out infinite; }
+@keyframes anneau-prochaine { 0% { transform: scale(.4118); opacity: .45; } 70% { transform: none; opacity: 0; } 100% { transform: scale(.4118); opacity: 0; } }
 .navigation button.rebond svg { animation: rebond .45s ease-out; }
 .bouton, .puce, .tuile, .bj-jour, .pastille-produit { position: relative; overflow: hidden; }
 .onde { position: absolute; border-radius: 50%; background: currentColor; pointer-events: none; animation: onde .6s ease-out forwards; }
