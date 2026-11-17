@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.131",
+  "version": "3.31.132",
   "date": "2026-11-17",
   "notes": [
-    "Journée : durées à pied et en voiture alignées sur l'estimation la plus réaliste (distance routière) sur toutes les cartes"
+    "Journée : correction du calcul de distance et de durée à pied sur les trajets entre établissements (suppression du double détour routier)"
   ]
 }

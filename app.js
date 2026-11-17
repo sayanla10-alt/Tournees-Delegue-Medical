@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.131';
+  var APP_VERSION = '3.31.132';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.132', ['Journée : correction du calcul de distance et de durée à pied sur les trajets entre établissements (suppression du double détour routier)']],
     ['3.31.131', ['Journée : durées à pied et en voiture alignées sur l\'estimation la plus réaliste (distance routière) sur toutes les cartes']],
     ['3.31.130', ['Journée : alignement des durées à pied et en voiture entre la carte « Maintenant » et les cartes de la liste (suppression du double détour routier)']],
     ['3.31.129', ['Journée : les compteurs (visites, faites, sans CR, à planifier) occupent toute la largeur pour tenir sur une ligne sans réduire la police']],
@@ -4443,7 +4444,7 @@
       liste.forEach(function (a, i) {
         if (i > 0 && a.dist > 0) {
           h += '<li class="troncon"><div></div><div class="arret-rail"></div>' +
-            trajetMini(a.dist, a.trajet !== undefined ? a.trajet : Math.round(a.dist * REGLAGES_MOTEUR.minutesParKm)) + '</li>';
+            trajetMini(a.dist / REGLAGES_MOTEUR.detourRoutier, a.trajet !== undefined ? a.trajet : minutesTrajet(a.dist, '', a.commune || '', heureVersMinutes(a.heure))) + '</li>';
         }
         h += rendreArret(a);
       });
@@ -4627,7 +4628,7 @@
       if (cS && pos) {
         var qp = Moteur.quartierLePlusProche(pos.lat, pos.lon, quartiers()), dk = distanceVol(pos, cS);
         tr = trajetMini(dk, minutesTrajet(dk * REGLAGES_MOTEUR.detourRoutier, qp ? qp.quartier.commune : '', suivante.commune, now));
-      } else if (suivante.dist > 0) tr = trajetMini(suivante.dist, suivante.trajet !== undefined ? suivante.trajet : Math.round(suivante.dist * REGLAGES_MOTEUR.minutesParKm));
+      } else if (suivante.dist > 0) tr = trajetMini(suivante.dist / REGLAGES_MOTEUR.detourRoutier, suivante.trajet !== undefined ? suivante.trajet : Math.round(suivante.dist * REGLAGES_MOTEUR.minutesParKm));
       corps += '<div class="suivante">' + boutonFavori(suivante.code) + '<small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
         (lieuQuartier(suivante) ? '<span class="discret bloc-texte">' + esc(lieuQuartier(suivante)) + '</span>' : '') + tr +
         actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
