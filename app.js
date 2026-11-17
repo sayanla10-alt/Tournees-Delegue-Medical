@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.136';
+  var APP_VERSION = '3.31.137';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.137', ['Répertoire › Recherche : suppression des boutons Médecins / Pharmacies / Tous à l\'étape 1, remplacée par « Raccourci rapide ? » avec Tous actif par défaut']],
     ['3.31.136', ['Répertoire › Hôpitaux : correction du plantage à l\'ouverture (suppression du dernier appel à bandeauScans) et mise en cache de la liste des communes']],
     ['3.31.135', ['Performance Journée : mise en cache de la commune GPS actuelle (plus de balayage des quartiers sur chaque carte à chaque toucher)']],
     ['3.31.134', ['Répertoire : remplacement du bandeau « Fiches photographiées » par une pastille cliquable « X fiche(s) à vérifier » à droite du titre Répertoire']],
@@ -7709,7 +7710,11 @@
     ['gps', 'non', 'Sans GPS'],
     ['visite', 'non', 'Non vus ce mois']
   ];
-  function questionsActives() { return estVueHopitaux() ? QUESTIONS_FILTRES_HOP : QUESTIONS_FILTRES; }
+  function questionsActives() {
+    if (estVueHopitaux()) return QUESTIONS_FILTRES_HOP;
+    if (S.ui.tab === 'praticiens') return Object.assign({}, QUESTIONS_FILTRES, { qui: { titre: 'Raccourci rapide ?', cles: [] } });
+    return QUESTIONS_FILTRES;
+  }
   function etapesActives(f) { return estVueHopitaux() ? etapesFiltresHop(f) : etapesFiltres(f); }
   // Critères posés une question à la fois, comme le compte rendu : les réponses données se replient en une ligne,
   // seule la question en cours est ouverte ; une fois toutes répondues, une seule ligne résume l'ensemble.
@@ -7741,15 +7746,25 @@
 
   function etapesFiltres(f) {
     var vis = [['tous', 'Toutes'], ['recent', 'Visité -30 j'], ['30', 'Non visité +30 j'], ['jamais', 'Jamais visité'], ['retard', 'En retard'], ['revoir', 'À revoir']];
+    var enRep = S.ui.tab === 'praticiens';
+    var raccourcis = FILTRES_RAPIDES.filter(function (x) { return !enRep || f.type !== 'Pharmacie' || x[0] !== 'conv'; });
     var l = [
-      { id: 'qui', auto: true, resume: function () { return f.type === 'Pharmacie' ? 'Pharmacies' : (f.type === 'Médecin' ? 'Médecins' : 'Médecins et pharmacies'); },
+      { id: 'qui', auto: true, resume: function () {
+          if (enRep) {
+            var actifs = raccourcis.filter(function (x) { return filtreRapideActif(f, x[0], x[1]); }).map(function (x) { return x[2]; });
+            return actifs.length ? actifs.join(' · ') : 'Tous';
+          }
+          return f.type === 'Pharmacie' ? 'Pharmacies' : (f.type === 'Médecin' ? 'Médecins' : 'Médecins et pharmacies');
+        },
         rendu: function () {
-          return '<div class="puces">' + [['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']].map(function (x) { return puceEtape('type', x[0], x[1], f.type === x[0], false, 'qui'); }).join('') + '</div>' +
-            '<p class="discret raccourcis-titre-etape">Ou directement un raccourci :</p><div class="puces">' +
-              '<button type="button" class="puce petite puce-tous" data-a="filtreRapideTous" aria-pressed="' + !FILTRES_RAPIDES.some(function (x) { return filtreRapideActif(f, x[0], x[1]); }) + '">Tous</button>' +
-              FILTRES_RAPIDES.map(function (x) {
+          var blocRaccourcis = '<div class="puces">' +
+            '<button type="button" class="puce petite puce-tous" data-a="filtreRapideTous" aria-pressed="' + !raccourcis.some(function (x) { return filtreRapideActif(f, x[0], x[1]); }) + '">Tous</button>' +
+            raccourcis.map(function (x) {
               return '<button type="button" class="puce petite" data-a="filtreRapide" data-fin="1" data-k="' + x[0] + '" data-v="' + x[1] + '" aria-pressed="' + filtreRapideActif(f, x[0], x[1]) + '">' + esc(x[2]) + '</button>';
             }).join('') + '</div>';
+          if (enRep) return blocRaccourcis;
+          return '<div class="puces">' + [['Médecin', 'Médecins'], ['Pharmacie', 'Pharmacies'], ['tous', 'Tous']].map(function (x) { return puceEtape('type', x[0], x[1], f.type === x[0], false, 'qui'); }).join('') + '</div>' +
+            '<p class="discret raccourcis-titre-etape">Ou directement un raccourci :</p>' + blocRaccourcis;
         } },
       { id: 'spec', si: f.type !== 'Pharmacie', resume: function () {
           if (!f.specialites.length) return 'Toutes';
