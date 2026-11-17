@@ -1,7 +1,7 @@
 ﻿{
-  "version": "3.31.139",
+  "version": "3.31.140",
   "date": "2026-11-17",
   "notes": [
-    "Répertoire › Recherche : ordre logique des étapes (Où ? avant Spécialité pour Médecins/Pharmacies, et Dans quelles communes ? en premier pour Hôpitaux)"
+    "Parcours (Planifier, Recherche, Compte rendu) : boutons Précédent, Passer et Suivant affinés (36 px) et dimensionnés selon leur texte pour ne plus rogner « Précédent »"
   ]
 }
