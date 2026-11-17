@@ -106,7 +106,7 @@ function lireTout(sig, hdepuis) {
   } else {
     ref.etablissements = [];
   }
-  ref.activites = listes.activites; ref.produits = listes.produits; ref.activitesPharmacie = listes.activitesPharmacie;
+  ref.activites = listes.activites; ref.produits = listes.produits; ref.gammesProduits = listes.gammesProduits || {}; ref.activitesPharmacie = listes.activitesPharmacie;
   var inactifs = {};
   var toutesFiches = lireObjets(ss.getSheetByName(FEUILLES.fiches), CHAMPS_FICHES, tz);
   toutesFiches.forEach(function (f) {
@@ -218,14 +218,23 @@ function lirePharmacies(ss, tz) {
   return lireObjets(ss.getSheetByName(FEUILLES.pharmacies), champsAvecTerritoire_(CHAMPS_PHARMACIES), tz).filter(function (p) { return p.code !== '' && p.nom !== ''; });
 }
 function lireListes(ss, tz) {
-  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [], activitesPharmacie: [], produits: [] };
+  var sh = ss.getSheetByName(FEUILLES.listes), r = { delegues: [], feries: [], activites: [], activitesPharmacie: [], produits: [], gammesProduits: {} };
   if (!sh || sh.getLastRow() < 2 || sh.getLastColumn() < 1) return r;
   var ent = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(normaliser);
   var vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
   var cD = ent.indexOf(normaliser('Délégués')), cF = ent.indexOf(normaliser('JoursFériés')), cA = ent.indexOf(normaliser('Activités')), cP = ent.indexOf(normaliser('Produits')), cAP = ent.indexOf(normaliser('ActivitésPharmacie'));
+  var cG = ent.indexOf(normaliser('Gamme'));
+  if (cG < 0) cG = ent.indexOf(normaliser('Gammes'));
+  if (cG < 0) cG = ent.indexOf(normaliser('Gamme Aura'));
+  if (cG < 0 && cP > 0 && !ent[cP - 1]) cG = cP - 1;
   vals.forEach(function (v) {
     if (cAP >= 0 && String(v[cAP]).trim()) r.activitesPharmacie.push(String(v[cAP]).trim());
-    if (cP >= 0 && String(v[cP]).trim()) r.produits.push(String(v[cP]).trim());
+    if (cP >= 0 && String(v[cP]).trim()) {
+      var p = String(v[cP]).trim();
+      r.produits.push(p);
+      var gp = (cG >= 0 && cG !== cP) ? String(v[cG]).trim() : '';
+      if (gp) r.gammesProduits[p] = gp;
+    }
     if (cA >= 0 && String(v[cA]).trim()) r.activites.push(String(v[cA]).trim());
     if (cD >= 0 && String(v[cD]).trim()) r.delegues.push(String(v[cD]).trim());
     if (cF >= 0 && v[cF] !== '') { var d = versIso(v[cF], tz); if (d) r.feries.push(d); }
@@ -239,7 +248,7 @@ function lireEquipe() {
   // listes de référence renvoyées aussi : produits, activités, statuts et délégués suivent la base en temps réel
   var listes = lireListes(ss, ss.getSpreadsheetTimeZone());
   return { ok: true, plannings: lirePlannings(ss, ss.getSpreadsheetTimeZone(), JOURS_PLANNINGS_EQUIPE),
-           listes: { produits: listes.produits, activites: listes.activites, activitesPharmacie: listes.activitesPharmacie, delegues: listes.delegues, statuts: lireStatuts(ss) },
+           listes: { produits: listes.produits, gammesProduits: listes.gammesProduits || {}, activites: listes.activites, activitesPharmacie: listes.activitesPharmacie, delegues: listes.delegues, statuts: lireStatuts(ss) },
            depuis: ajouterJours(Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'yyyy-MM-dd'), -JOURS_PLANNINGS_EQUIPE),
            serveur: new Date().toISOString() };
 }

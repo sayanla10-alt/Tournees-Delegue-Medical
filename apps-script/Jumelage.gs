@@ -327,13 +327,24 @@ function jumLignes_(table) {
     case 'listes_reference':
       f = jumFeuille_(FEUILLES.listes); if (!f) return null;
       tz = f.tz;
+      var kGamme = f.col(['Gamme', 'Gammes', 'Gamme Aura']);
       var cats = [['delegue', ['Délégués']], ['ferie', ['JoursFériés']], ['activite', ['Activités']], ['activite_pharmacie', ['ActivitésPharmacie']], ['produit', ['Produits']]];
       cats.forEach(function (ct) {
         var k = f.col(ct[1]); if (k < 0) return;
+        var kg = -1;
+        if (ct[0] === 'produit') {
+          if (kGamme >= 0 && kGamme !== k) kg = kGamme;
+          else if (k > 0 && !f.ent[k - 1]) kg = k - 1;
+        }
         var n = 0;
         f.lignes.forEach(function (l) {
           var v = ct[0] === 'ferie' ? jumDate_(l[k], tz) : jumTxt_(l[k], tz).trim(); if (!v) return;
-          out.push({ categorie: ct[0], valeur: v, metadata: null, ordre: ++n, actif: true });
+          var meta = null;
+          if (ct[0] === 'produit' && kg >= 0) {
+            var gp = jumTxt_(l[kg], tz).trim();
+            if (gp) meta = { gamme: gp };
+          }
+          out.push({ categorie: ct[0], valeur: v, metadata: meta, ordre: ++n, actif: true });
         });
       });
       // statuts : colonnes A (nom) et B (compte comme visite), comme lireStatuts

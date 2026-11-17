@@ -1,4 +1,4 @@
-/*! app.css c7f996e62004 : version compacte générée par scripts/minifier.js, ne pas modifier */
+/*! app.css aa0f08db38ba : version compacte générée par scripts/minifier.js, ne pas modifier */
 /* Accessibilité universelle WCAG 2.1 AA : Annonceur vocal d'écran */
 .visuellement-cache {
   position: absolute;
@@ -1822,6 +1822,17 @@ details.avance h3 { margin-top: 18px; }
   opacity: 1 !important;
 }
 main:has(> .barre-plan-actions-flottante) { padding-bottom: 0; }
+main:has(> .barre-plan-actions-flottante:last-child) { padding-bottom: 58px; }
+main > .barre-plan-actions-flottante:last-child {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--nav-h, 60px) + env(safe-area-inset-bottom, 0px));
+  max-width: 680px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  z-index: 16;
+}
 .barre-plan-actions-flottante .rangee-tirage,
 .barre-plan-actions-flottante .rangee-actions-rep { margin: 0; }
 #vue.vue-entre > .barre-plan-actions-flottante,
@@ -2004,9 +2015,9 @@ main:has(> .barre-plan-actions-flottante) { padding-bottom: 0; }
 .lancement.moderne .lancement-tete h1 { font-size: 38px; letter-spacing: -.5px; }
 .lancement.moderne .lancement-tete p { font-size: 15px; max-width: 22em; margin: 8px auto 0; }
 .lancement.moderne .lancement-corps { width: 100%; max-width: 440px; padding: 14px 20px 24px; color: #fff; }
-.lancement.moderne .etat-base { justify-content: center; background: rgba(255,255,255,.14); color: #fff; backdrop-filter: blur(8px); }
+.lancement.moderne .etat-base { justify-content: center; background: rgba(255,255,255,.16); color: #fff; }
 .lancement.moderne .etat-base small { color: rgba(255,255,255,.75); margin-left: 8px; }
-.lancement.moderne .metrique { border: 0; background: rgba(255,255,255,.12); backdrop-filter: blur(8px); color: #fff; }
+.lancement.moderne .metrique { border: 0; background: rgba(255,255,255,.15); color: #fff; }
 .lancement.moderne .metrique span, .lancement.moderne .discret { color: rgba(255,255,255,.8); }
 .lancement.moderne .nouveautes { background: var(--papier); color: var(--encre); }
 .lancement.moderne .bouton:not(.bouton-plein) { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.3); }
