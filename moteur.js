@@ -927,12 +927,10 @@ var Moteur = (function () {
 
   function filtrerFixesJour(rawFixes, maxFixes) {
     var faitsFixes = rawFixes.filter(function (a) { return !!a.statut; });
-    var planFixes = rawFixes.filter(function (a) { return !a.statut; });
+    var priosFixes = rawFixes.filter(function (a) { return !a.statut && (a.impose || a.etape || a.rdv); });
+    var planFixes = rawFixes.filter(function (a) { return !a.statut && !(a.impose || a.etape || a.rdv); });
     if (planFixes.length > Math.max(0, maxFixes - faitsFixes.length)) {
       planFixes.sort(function (a, b) {
-        var pa = (a.impose || a.etape || a.rdv) ? 0 : 1;
-        var pb = (b.impose || b.etape || b.rdv) ? 0 : 1;
-        if (pa !== pb) return pa - pb;
         var ga = a.garde ? 0 : 1;
         var gb = b.garde ? 0 : 1;
         if (ga !== gb) return ga - gb;
@@ -941,7 +939,7 @@ var Moteur = (function () {
       });
       planFixes = planFixes.slice(0, Math.max(0, maxFixes - faitsFixes.length));
     }
-    return faitsFixes.concat(planFixes);
+    return faitsFixes.concat(priosFixes).concat(planFixes);
   }
 
   // o : { communes: [..] | null, maxJour, targetJour, delai, exclus, rejetes, autreDispos, fixes: [arrêts], depart }
@@ -1002,7 +1000,9 @@ var Moteur = (function () {
       }
     }
 
-    var cibleJour = Math.min(max, Math.max(route.length, o.targetJour !== undefined && o.targetJour !== null ? o.targetJour : max));
+    var nbPrios = fixesGardes.filter(function (a) { return !a.statut && (a.impose || a.etape || a.rdv); }).length;
+    var baseCible = Math.min(max, o.targetJour !== undefined && o.targetJour !== null ? o.targetJour : max);
+    var cibleJour = Math.max(route.length, baseCible + nbPrios);
     var targetMatin = Math.ceil(cibleJour / 2), targetSoir = cibleJour - targetMatin;
 
     function passe(maxVusAutorises) {
@@ -1039,26 +1039,24 @@ var Moteur = (function () {
               if (curSoir < targetSoir) bonusEquilibre = (curMatin >= targetMatin) ? 120 : 35;
               else if (curMatin < targetMatin) bonusEquilibre = sameZ[cd.cleZ] && !otherZ[cd.cleZ] ? -40 : -160;
             }
-            // Cohésion de zone par demi-journée : on termine tous les praticiens d'un secteur (ex. Angré)
-            // sur la même demi-journée avant d'entamer un autre secteur, sans faire d'aller-retour Matin/Soir
+            // Cohésion de zone par demi-journée : on regroupe chaque demi-journée dans un secteur sans aller-retour,
+            // tout en permettant d'ouvrir une autre subdivision dense l'après-midi (ex. Angré, Deux Plateaux, Riviera)
             var bonusZone = 0;
             if (!route.length) {
               bonusZone = densite[cd.a.code] || 0;
             } else if (curCren > 0) {
               if (sameZ[cd.cleZ]) {
-                bonusZone = sameQ[cd.cleQ] ? 85 : 65;
+                bonusZone = sameQ[cd.cleQ] ? 70 : 55;
               } else if (otherZ[cd.cleZ]) {
-                bonusZone = -90;
+                bonusZone = -85;
               } else {
-                bonusZone = -25;
+                bonusZone = -15;
               }
             } else {
-              // Nouvelle demi-journée vide : si une seule zone est ouverte sur l'autre demi-journée, on peut la poursuivre
-              // sinon on ouvre proprement un nouveau secteur dense pour cette demi-journée
               if (otherZ[cd.cleZ]) {
-                bonusZone = nbZonesJour <= 1 ? (otherQ[cd.cleQ] ? 45 : 30) : -50;
+                bonusZone = nbZonesJour <= 1 ? 10 : -50;
               } else {
-                bonusZone = (densite[cd.a.code] || 0) + 20;
+                bonusZone = (densite[cd.a.code] || 0) + 35;
               }
             }
             var penRarete = o.autreDispos ? -12 * (o.autreDispos[cd.a.code] || 0) : 0;
@@ -1074,7 +1072,8 @@ var Moteur = (function () {
               } else {
                 dKm = delta(route, i, cd.it, depart);
               }
-              var v = baseScore - R.penaliteKm * dKm;
+              var penKm = (curCren === 0 && route.length > 0) ? Math.min(dKm, 4) * (R.penaliteKm * 0.35) : R.penaliteKm * dKm;
+              var v = baseScore - penKm;
               if (collectAll) {
                 allOpts.push({ v: v, cd: cd, i: i });
               } else if (top.length < TOP_K) {

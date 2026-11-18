@@ -1,10 +1,9 @@
 {
-  "version": "3.31.150",
-  "date": "2026-11-17",
+  "version": "3.31.151",
+  "date": "2026-11-18",
   "notes": [
-    "Répertoire : bouton « Détails » dans la fiche ouverte (remplace le doublon « Modifier ») ouvrant le suivi complet du contact",
-    "Produits : 3 boutons Aura 1, Aura 2 et Tous en bas de l'écran (format compact 34 px identique à Planifier) synchronisés avec la BDD",
-    "Synchronisation Supabase plus légère : seules les tables modifiées sont retéléchargées (au lieu des 10 tables entières à chaque visite ou tournée)",
-    "Démarrage et Répertoire plus fluides : suppression du flou coûteux sur l'écran d'accueil, allègement du parcours de texte (hors icônes SVG), préchauffage unique au repos et GPS d'Hôpitaux uniquement en tri proximité"
+    "Planifier : subdivisions de Cocody (Angré, Deux Plateaux, Riviera, Cocody Centre), Abobo et Yopougon toujours reconnues (y compris anciens filtres préfixés) et équilibrées sur une journée",
+    "Planifier : les prioritaires et RDV s'ajoutent en plus du nombre maximal choisi (ex. 10 + 4 = 14) avec une teinte distincte ; purge automatique des prioritaires passés",
+    "Planifier : la puce « RDV / Prio » ouvre directement l'étape « RDV et prioritaires »"
   ]
 }

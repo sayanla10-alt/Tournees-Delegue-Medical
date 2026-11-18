@@ -2300,49 +2300,70 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   var sec = c.secteur || '';
   var qua = c.quartier || '';
   var subNormTiret = function (v) { return String(v || '').trim().replace(/\s+-\s+/g, ' – '); };
+  var extrairePref = function (v) {
+    var m = String(v || '').trim().match(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*(.+)$/i);
+    if (!m) return null;
+    var p = m[1].toLowerCase();
+    var parNom = p === 'abobo' ? 'Abobo' : (p === 'cocody' ? 'Cocody' : 'Yopougon');
+    return { par: normaliser(parNom), sub: normaliser(m[2]), full: normaliser(parNom + ' ' + m[2]) };
+  };
   var dansKeys = Object.keys(dans);
-  var dansNorm = {};
+  var dansNorm = {}, dansSubParCom = {};
   for (var di = 0; di < dansKeys.length; di++) {
     var dk = dansKeys[di];
     if (dans[dk]) {
       var ndk = normaliser(dk);
       if (ndk) dansNorm[ndk] = true;
+      var sp = extrairePref(dk);
+      if (sp) {
+        if (!dansSubParCom[sp.par]) dansSubParCom[sp.par] = {};
+        if (sp.sub) dansSubParCom[sp.par][sp.sub] = true;
+        if (sp.full) dansSubParCom[sp.par][sp.full] = true;
+      }
     }
   }
-  var matchDans = function (v) {
+  var par = communeParente(com, listeQuartiers);
+  var matchDans = function (v, parRef) {
     if (!v) return false;
     var t = subNormTiret(v);
     if (dans[v] || dans[t]) return true;
     var nv = normaliser(v);
-    return !!(nv && dansNorm[nv]);
+    if (nv && dansNorm[nv]) return true;
+    var sv = extrairePref(v);
+    if (sv && sv.sub && dansNorm[sv.sub]) return true;
+    var pN = normaliser(parRef || par || com);
+    if (pN && dansSubParCom[pN]) {
+      if (nv && dansSubParCom[pN][nv]) return true;
+      if (sv && sv.sub && dansSubParCom[pN][sv.sub]) return true;
+    }
+    return false;
   };
-  if (matchDans(sub)) return true;
+  if (matchDans(sub, par)) return true;
   if (com && (dans[com] || dans[com + ' (Toute la commune)'])) return true;
-  var par = communeParente(com, listeQuartiers);
   if (par && (dans[par] || dans[par + ' (Toute la commune)'])) return true;
-  if (qua && dans[qua]) return true;
-  if (sec && dans[sec]) return true;
+  if (qua && (dans[qua] || matchDans(qua, par))) return true;
+  if (sec && (dans[sec] || matchDans(sec, par))) return true;
   if (c.zone && dans[c.zone]) return true;
   if (c.territoire && dans[c.territoire]) return true;
 
   var r = resoudreTerritoire(c, listeQuartiers);
   if (r) {
-    if (r.matched && r.subdivision && matchDans(r.subdivision)) return true;
+    var rPar = communeParente(r.commune, listeQuartiers) || par;
+    if (r.matched && r.subdivision && matchDans(r.subdivision, rPar)) return true;
     if (!com || normaliser(com) === 'abidjan') {
-      if (r.subdivision && matchDans(r.subdivision)) return true;
+      if (r.subdivision && matchDans(r.subdivision, rPar)) return true;
       if (r.commune && (dans[r.commune] || dans[r.commune + ' (Toute la commune)'])) return true;
-      var rPar = communeParente(r.commune, listeQuartiers);
       if (rPar && (dans[rPar] || dans[rPar + ' (Toute la commune)'])) return true;
-      if (r.quartier && dans[r.quartier]) return true;
-      if (r.secteur && dans[r.secteur]) return true;
+      if (r.quartier && (dans[r.quartier] || matchDans(r.quartier, rPar))) return true;
+      if (r.secteur && (dans[r.secteur] || matchDans(r.secteur, rPar))) return true;
       if (r.zone && dans[r.zone]) return true;
       if (r.territoire && dans[r.territoire]) return true;
     } else {
-      var rComNorm = normaliser(communeParente(r.commune, listeQuartiers));
+      var rComNorm = normaliser(rPar);
       if (!rComNorm || rComNorm === normaliser(par)) {
-        if (r.subdivision && matchDans(r.subdivision)) return true;
-        if (r.quartier && dans[r.quartier]) return true;
-        if (r.secteur && dans[r.secteur]) return true;
+        if (r.subdivision && matchDans(r.subdivision, rPar)) return true;
+        if (r.quartier && (dans[r.quartier] || matchDans(r.quartier, rPar))) return true;
+        if (r.secteur && (dans[r.secteur] || matchDans(r.secteur, rPar))) return true;
         if (r.zone && dans[r.zone]) return true;
         if (r.territoire && dans[r.territoire]) return true;
       }

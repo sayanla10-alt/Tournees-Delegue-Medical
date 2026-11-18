@@ -9,13 +9,18 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.150';
+  var APP_VERSION = '3.31.151';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.151', [
+      'Planifier : subdivisions de Cocody (Angré, Deux Plateaux, Riviera, Cocody Centre), Abobo et Yopougon toujours reconnues (y compris anciens filtres préfixés) et mieux équilibrées sur une journée',
+      'Planifier : les prioritaires et RDV s\'ajoutent en plus du nombre maximal choisi (ex. 10 + 4 = 14) et ressortent dans une teinte distincte ; purge automatique des prioritaires à date passée',
+      'Planifier : la puce « RDV / Prio » ouvre directement l\'étape « RDV et prioritaires » (liste, retrait et ajout)'
+    ]],
     ['3.31.150', [
       'Répertoire : le bouton « Modifier » dans la fiche ouverte devient « Détails » (évite le doublon avec celui du bas) et ouvre directement le suivi des visites (prochain RDV, dernière visite, dernier échange)',
       'Produits : 3 boutons Aura 1, Aura 2 et Tous en bas de l\'écran (format compact 34 px identique à Planifier) synchronisés avec la BDD',
@@ -4050,18 +4055,43 @@
     return (p.mode === 'jour' ? [r] : joursOuvres(lundiDe(r))).filter(function (d) { return d >= t; });
   }
   function datesPeriode() { return datesAffichees().filter(function (d) { return !estFerie(d); }); }
+  function normaliserListeCommunes_(liste) {
+    if (!Array.isArray(liste) || !liste.length) return liste || [];
+    var grandes = typeof grandesCommunes === 'function' ? grandesCommunes() : ['Abobo', 'Cocody', 'Yopougon'];
+    var out = [], vus = {};
+    liste.forEach(function (x) {
+      if (!x) return;
+      var s = String(x).trim();
+      var m = s.match(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*(.+)$/i);
+      if (m) {
+        var par = m[1].toLowerCase() === 'abobo' ? 'Abobo' : (m[1].toLowerCase() === 'cocody' ? 'Cocody' : 'Yopougon');
+        var secs = (typeof secteursDeGrandeCommune === 'function' && grandes.indexOf(par) >= 0) ? secteursDeGrandeCommune(par) : [];
+        var nSub = normaliser(m[2]), nFull = normaliser(par + ' ' + m[2]);
+        var match = secs.filter(function (sc) { var ns = normaliser(sc); return ns === nSub || ns === nFull; })[0];
+        if (match) s = match;
+      }
+      if (!vus[s]) { vus[s] = true; out.push(s); }
+    });
+    return out;
+  }
+  function purgerImposesPasses() {
+    if (!Array.isArray(S.imposes) || !S.imposes.length) return;
+    var t = aujourdhui();
+    var garde = S.imposes.filter(function (im) { return !im || !im.date || im.date >= t; });
+    if (garde.length !== S.imposes.length) { S.imposes = garde; LS.set('imposes', S.imposes); }
+  }
   function communesPour(date) {
     var p = S.params;
     if (date && p.mode === 'semaine' && p.parJour) {
       var j = p.communesJour[jourSemaineIndex(date)];
-      if (j && j.length) return j;
+      if (j && j.length) return normaliserListeCommunes_(j);
     }
     if (date && S.criteresJours && S.criteresJours[date]) {
       var cJ = S.criteresJours[date].communes;
-      return cJ && cJ.length ? cJ : null;
+      return cJ && cJ.length ? normaliserListeCommunes_(cJ) : null;
     }
     // 3.28.26 : les communes de Planifier (critères du dernier tirage), indépendantes des filtres du Répertoire
-    return p.communes && p.communes.length ? p.communes : null;
+    return p.communes && p.communes.length ? normaliserListeCommunes_(p.communes) : null;
   }
   // 3.29.3 : visite reprise (compte rendu déjà saisi, RDV de suivi, ancien programme) hors des communes choisies pour son jour
   // 3.30.2 : Planifier seulement : toute proposition récupérée (compte rendu déjà saisi, RDV de suivi ou fixé, ancien programme),
@@ -5134,6 +5164,7 @@
   // N'apparaît que ce qui sert sur le moment : « Confirmer » s'il y a des brouillons, « Accepter / Recalculer encore »
   // juste après un recalcul, « Envoyer par WhatsApp » une fois le jour confirmé.
   function barreCriteresPlanifier() {
+    purgerImposesPasses();
     var p = S.params, dates = datesAffichees();
     var per;
     if (p.mode === 'jour') {
@@ -5152,7 +5183,7 @@
       '<div class="rangee-criteres rangee-criteres-2">' +
         '<button type="button" class="puce petite" data-a="resumeEditer" data-v="spec">' + icone('filtre') + '<span>' + esc(spec) + '</span></button>' +
         '<button type="button" class="puce petite" data-a="resumeEditer" data-v="rythme"><span>' + p.maxJour + '/j · ' + p.delai + 'j</span></button>' +
-        '<button type="button" class="puce petite" data-a="ouvrirRecherche">' + icone('plus') + '<span>' + (rdvN ? rdvN + ' RDV/Prio' : 'RDV / Prio') + '</span></button>' +
+        '<button type="button" class="puce petite" data-a="resumeEditer" data-v="rdv">' + icone('epingle') + '<span>' + (rdvN ? rdvN + ' RDV/Prio' : 'RDV / Prio') + '</span></button>' +
       '</div>' +
     '</div>';
   }
@@ -5902,8 +5933,10 @@
       ? infosPharmaciePlan(a)
       : infosMedecinPlan(a);
 
-    // Carte orange appliquée STRICTEMENT si hors des zones ciblées par les filtres
-    var classeOrange = horsZone ? ' ancien' : '';
+    // Carte orange appliquée STRICTEMENT si hors des zones ciblées par les filtres ;
+    // carte teintée violette pour les prioritaires / RDV (en plus du quota journalier)
+    var estPrio = !!(a.impose || a.etape || a.rdv);
+    var classeOrange = horsZone ? ' ancien' : (estPrio ? ' prioritaire' : '');
     var cf = conflitArret(a);
     var estRdvReporte = !!(a.impose && a.etape && a.rdvDate && a.rdvDate !== a.date);
     var avecActionsBas = (horsZone && !verrou && !a.statut) || !!cf || (estRdvReporte && !verrou && !a.statut);
@@ -12897,12 +12930,10 @@
       var m = Math.max(1, +(typeof maxJ === 'function' ? maxJ(d) : maxJ) || 8);
       var duJ = parDate[d];
       var faits = duJ.filter(function (a) { return !!a.statut; });
-      var planifies = duJ.filter(function (a) { return !a.statut; });
+      var prios = duJ.filter(function (a) { return !a.statut && (a.impose || a.etape || a.rdv); });
+      var planifies = duJ.filter(function (a) { return !a.statut && !(a.impose || a.etape || a.rdv); });
       if (planifies.length > Math.max(0, m - faits.length)) {
         planifies.sort(function (a, b) {
-          var pa = (a.impose || a.etape || a.rdv) ? 0 : 1;
-          var pb = (b.impose || b.etape || b.rdv) ? 0 : 1;
-          if (pa !== pb) return pa - pb;
           var ga = (a.garde || a.corrige) ? 0 : 1;
           var gb = (b.garde || b.corrige) ? 0 : 1;
           if (ga !== gb) return ga - gb;
@@ -12913,7 +12944,7 @@
         });
         planifies = planifies.slice(0, Math.max(0, m - faits.length));
       }
-      Array.prototype.push.apply(res, faits.concat(planifies));
+      Array.prototype.push.apply(res, faits.concat(prios).concat(planifies));
     });
     return res;
   }
@@ -13034,7 +13065,9 @@
         ]);
       };
       var memeCritNonCom = cible.length <= 1 || cible.every(function (d) { return cleCritNonCom(d) === cleCritNonCom(cible[0]); });
-      var tousImposes = S.imposes.concat(rdvProchaines(cible));
+      purgerImposesPasses();
+      var imposesCible = S.imposes.filter(function (im) { return !im.date || cible.indexOf(im.date) >= 0; });
+      var tousImposes = imposesCible.concat(rdvProchaines(cible));
       var exclus = construireExclus(cible);
       var lancerMoteur = function (rejetesMap, conservesList) {
         if (memeCritNonCom) {
@@ -14836,7 +14869,7 @@
     // Communes
     choisirCommunes: function (el) {
       var cle = el.dataset.v, sel = cle === 'tout' ? S.params.communes : (S.params.communesJour[cle] || []);
-      S.ui.feuille = { type: 'communes', titre: cle === 'tout' ? 'Communes ciblées' : 'Communes du ' + JOURS[+cle].toLowerCase(), cle: cle, sel: sel.slice() };
+      S.ui.feuille = { type: 'communes', titre: cle === 'tout' ? 'Communes ciblées' : 'Communes du ' + JOURS[+cle].toLowerCase(), cle: cle, sel: normaliserListeCommunes_(sel) };
       rendre();
     },
     communeToggle: function (el) {
