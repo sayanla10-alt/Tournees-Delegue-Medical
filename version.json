@@ -1,7 +1,7 @@
 {
-  "version": "3.31.158",
+  "version": "3.31.159",
   "date": "2026-11-18",
   "notes": [
-    "Itinéraire anti aller-retour complété au niveau commune : on termine un hôpital, puis un secteur, puis une commune avant de passer à la suivante (y compris avec des RDV répartis sur plusieurs communes)"
+    "Planifier : déverrouillage automatique des propositions qui avaient été épinglées (Gardé) à tort avant v3.31.156, et amélioration de l'ordonnanceur (> 9 établissements) pour regrouper un secteur complet avant d'en sortir sans retard"
   ]
 }
