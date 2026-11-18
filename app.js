@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.152';
+  var APP_VERSION = '3.31.153';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.153', [
+      'Itinéraire et regroupement stricts rétablis : les visites d\'un même hôpital et d\'un même secteur se suivent sans aller-retour (y compris sur la journée complète et avec prioritaires en surplus)',
+      'Subdivisions 100 % dynamiques : suppression des derniers noms de subdivisions et grandes communes en dur dans le moteur et le résolveur territorial (tout est lu depuis l\'onglet Quartiers)'
+    ]],
     ['3.31.152', [
       'Quartiers dynamiques : suppression des derniers noms de communes en dur (toute commune subdivisée dans l\'onglet Quartiers est reconnue automatiquement) et rafraîchissement immédiat des visites déjà planifiées dès qu\'un quartier ou secteur change en BDD'
     ]],
@@ -12941,10 +12945,10 @@
       var m = Math.max(1, +(typeof maxJ === 'function' ? maxJ(d) : maxJ) || 8);
       var duJ = parDate[d];
       var faits = duJ.filter(function (a) { return !!a.statut; });
-      var prios = duJ.filter(function (a) { return !a.statut && (a.impose || a.etape || a.rdv); });
       var planifies = duJ.filter(function (a) { return !a.statut && !(a.impose || a.etape || a.rdv); });
-      if (planifies.length > Math.max(0, m - faits.length)) {
-        planifies.sort(function (a, b) {
+      var quotaPlan = Math.max(0, m - faits.length);
+      if (planifies.length > quotaPlan) {
+        var retenus = planifies.slice().sort(function (a, b) {
           var ga = (a.garde || a.corrige) ? 0 : 1;
           var gb = (b.garde || b.corrige) ? 0 : 1;
           if (ga !== gb) return ga - gb;
@@ -12952,10 +12956,15 @@
           var zb = dansCommunesDu(b, d) ? 0 : 1;
           if (za !== zb) return za - zb;
           return (-(+a.note || 0)) - (-(+b.note || 0));
-        });
-        planifies = planifies.slice(0, Math.max(0, m - faits.length));
+        }).slice(0, quotaPlan);
+        var garder = {};
+        retenus.forEach(function (a) { garder[a.uid || a.code] = true; });
+        Array.prototype.push.apply(res, duJ.filter(function (a) {
+          return !!a.statut || !!(a.impose || a.etape || a.rdv) || !!garder[a.uid || a.code];
+        }));
+      } else {
+        Array.prototype.push.apply(res, duJ);
       }
-      Array.prototype.push.apply(res, faits.concat(prios).concat(planifies));
     });
     return res;
   }

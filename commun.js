@@ -1387,7 +1387,7 @@ function normaliserLigneQuartier(q) {
       lon = (q[4] !== '' && q[4] !== null && q[4] !== undefined && isFinite(+q[4])) ? +q[4] : null;
       secteur = q[5] ? String(q[5]).trim() : '';
       var parArr = communeParente(rawCom);
-      if (parArr && parArr !== rawCom && /^(abobo|cocody|yopougon)$/i.test(parArr)) {
+      if (parArr && parArr !== rawCom) {
         commune = parArr;
         subdivision = rawCom;
       } else {
@@ -1405,7 +1405,7 @@ function normaliserLigneQuartier(q) {
     lat = (q.lat !== '' && q.lat !== null && q.lat !== undefined && isFinite(+q.lat)) ? +q.lat : null;
     lon = (q.lon !== '' && q.lon !== null && q.lon !== undefined && isFinite(+q.lon)) ? +q.lon : null;
     var parObj = communeParente(commune);
-    if (parObj && parObj !== commune && /^(abobo|cocody|yopougon)$/i.test(parObj)) {
+    if (parObj && parObj !== commune) {
       if (!subdivision) subdivision = commune;
       commune = parObj;
     }
@@ -1836,7 +1836,7 @@ function resoudreTerritoireCalc_(input, listeQuartiers) {
   var inCom = rawCom;
   if (rawCom) {
     var parRaw = communeParente(rawCom);
-    if (parRaw && parRaw !== rawCom && /^(abobo|cocody|yopougon)$/i.test(parRaw)) {
+    if (parRaw && parRaw !== rawCom) {
       if (!inSubdiv) inSubdiv = rawCom;
       inCom = parRaw;
     }
@@ -2247,36 +2247,42 @@ function _obtenirQuartiersIndexes(listeQuartiers) {
 
 // 3.31.61 : référentiel courant (onglet Quartiers chargé) : subdivision -> commune, pour les appels sans liste
 // (moteur, serveur). Rempli par definirQuartiersCourants (Moteur.preparer, poserTerritoireLieux).
-var SUB_VERS_COMMUNE = null, SUB_SRC = null;
+var SUB_VERS_COMMUNE = null, COM_AVEC_SUBS = null, SUB_SRC = null;
 function definirQuartiersCourants(liste) {
   if (!liste || !liste.length || liste === SUB_SRC) return;
-  var m = {};
+  var m = {}, cs = {};
   for (var i = 0; i < liste.length; i++) {
     var r = liste[i]; if (!r || typeof r !== 'object') continue;
     var sub = String(r.subdivision || '').trim(), com = String(r.commune || '').trim();
-    if (sub && com && normaliser(sub) !== normaliser(com)) m[normaliser(sub)] = com;
+    if (sub && com) {
+      var nCom = normaliser(com);
+      if (nCom && !cs[nCom]) cs[nCom] = com;
+      if (normaliser(sub) !== nCom) m[normaliser(sub)] = com;
+    }
   }
-  SUB_VERS_COMMUNE = m; SUB_SRC = liste;
+  SUB_VERS_COMMUNE = m; COM_AVEC_SUBS = cs; SUB_SRC = liste;
 }
 function communeParente(nom, listeQuartiers) {
   if (!nom) return '';
   var s = String(nom).trim();
-  if (SUB_VERS_COMMUNE && !(listeQuartiers && listeQuartiers.length)) {
-    var hc = SUB_VERS_COMMUNE[normaliser(s)];
-    if (hc) return hc;
-  }
-  // Seules les 3 grandes communes sont segmentées en sous-secteurs
-  var m = s.match(/^(Abobo|Cocody|Yopougon)\b/i);
-  if (m) {
-    var p = m[1].toLowerCase();
-    if (p === 'abobo') return 'Abobo';
-    if (p === 'cocody') return 'Cocody';
-    if (p === 'yopougon') return 'Yopougon';
-  }
+  var ns = normaliser(s);
   if (listeQuartiers && listeQuartiers.length) {
     var idx = _obtenirQuartiersIndexes(listeQuartiers);
-    var hit = idx.subToCom[normaliser(s)];
+    var hit = idx.subToCom[ns];
     if (hit) return hit;
+  }
+  if (SUB_VERS_COMMUNE) {
+    var hc = SUB_VERS_COMMUNE[ns];
+    if (hc) return hc;
+  }
+  // Ancien format « Commune – Subdivision » ou « Commune - Subdivision » (ne découpe pas Port-Bouët / Grand-Bassam)
+  var mSep = s.match(/^(.+?)\s*(?:[–—]|\s-\s)\s*.+$/);
+  if (mSep) {
+    var pSep = mSep[1].trim(), np = normaliser(pSep);
+    if (np) {
+      if (COM_AVEC_SUBS && COM_AVEC_SUBS[np]) return COM_AVEC_SUBS[np];
+      if (estCommuneGrandAbidjan(pSep)) return pSep;
+    }
   }
   return s;
 }

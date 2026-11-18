@@ -1,7 +1,8 @@
 {
-  "version": "3.31.152",
+  "version": "3.31.153",
   "date": "2026-11-18",
   "notes": [
-    "Quartiers dynamiques : suppression des derniers noms de communes en dur (toute commune subdivisée dans l'onglet Quartiers est reconnue automatiquement) et rafraîchissement immédiat des visites déjà planifiées dès qu'un quartier ou secteur change en BDD"
+    "Itinéraire et regroupement stricts rétablis : les visites d'un même hôpital et d'un même secteur se suivent sans aller-retour (y compris sur la journée complète et avec prioritaires en surplus)",
+    "Subdivisions 100 % dynamiques : suppression des derniers noms de subdivisions et grandes communes en dur dans le moteur et le résolveur territorial (tout est lu depuis l'onglet Quartiers)"
   ]
 }
