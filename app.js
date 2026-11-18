@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.159';
+  var APP_VERSION = '3.31.160';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.160', [
+      'Planifier : nettoyage effectif des propositions épinglées (Gardé) à tort après relecture asynchrone d\'IndexedDB (S.plan étant stocké dans IDB, le nettoyage précédent s\'exécutait avant sa restauration)'
+    ]],
     ['3.31.159', [
       'Planifier : déverrouillage automatique des propositions qui avaient été épinglées (Gardé) à tort avant v3.31.156, et amélioration de l\'ordonnanceur (> 9 établissements) pour regrouper un secteur complet avant d\'en sortir sans retard'
     ]],
@@ -472,8 +475,8 @@
     S.ui.couvPortee = 'jour'; S.ui.couvFiltre = 'couvertes'; LS.set('couvPortee', 'jour'); LS.set('couvFiltre', 'couvertes');
     LS.set('defauts220', true);
   }
-  // 3.31.159 : nettoyage unique des propositions non confirmées dont toutes les visites avaient été épinglées à tort (v3.31.155)
-  if (!LS.get('nettoyerGardeProp331159', false)) {
+  function nettoyerGardePropositions() {
+    if (LS.get('nettoyerGardeProp331160', false)) return;
     try {
       var parJNet = {};
       (S.plan || []).forEach(function (a) { if (a && a.date) (parJNet[a.date] = parJNet[a.date] || []).push(a); });
@@ -487,9 +490,10 @@
         }
       });
       if (modNet) LS.set('plan', S.plan);
-      LS.set('nettoyerGardeProp331159', true);
+      if (idbRelue || (S.plan && S.plan.length)) LS.set('nettoyerGardeProp331160', true);
     } catch (eNet) {}
   }
+  nettoyerGardePropositions();
   // Contacts, Hôpitaux et Autour gardent chacun leur propre jeu de filtres
   function estVueHopitaux() { return S.ui.tab === 'praticiens' && S.ui.annuaire === 'hop'; }
   function cleFiltres() { return estVueHopitaux() ? 'filtresHop' : 'filtres'; }
@@ -17124,6 +17128,7 @@
     if (LS._mem.plan && (!S.plan || !S.plan.length || (LS._mem.plan.length && LS._mem.plan[0].cle))) {
       S.plan = LS._mem.plan;
     }
+    nettoyerGardePropositions();
     if (LS._mem.programme) S.programme = LS._mem.programme;
     // 3.28.25 : réglages et filtres absents au démarrage : ceux de la base du téléphone sont repris, puis gardés aussi dans localStorage
     idbRelue = true;

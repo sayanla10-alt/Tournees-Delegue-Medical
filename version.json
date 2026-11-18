@@ -1,7 +1,7 @@
 {
-  "version": "3.31.159",
+  "version": "3.31.160",
   "date": "2026-11-18",
   "notes": [
-    "Planifier : déverrouillage automatique des propositions qui avaient été épinglées (Gardé) à tort avant v3.31.156, et amélioration de l'ordonnanceur (> 9 établissements) pour regrouper un secteur complet avant d'en sortir sans retard"
+    "Planifier : nettoyage effectif des propositions épinglées (Gardé) à tort après relecture asynchrone d'IndexedDB (S.plan étant stocké dans IDB, le nettoyage précédent s'exécutait avant sa restauration)"
   ]
 }
