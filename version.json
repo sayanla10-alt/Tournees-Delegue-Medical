@@ -1,7 +1,7 @@
 {
-  "version": "3.31.154",
+  "version": "3.31.155",
   "date": "2026-11-18",
   "notes": [
-    "Départ des tournées depuis « Mon quartier » fiabilisé : résolution exacte avec commune, secteur et subdivision, ancrage du matin au plus proche du domicile, inversion Matin/Soir si la journée partait à l'opposé et placement l'après-midi des prioritaires éloignés sans heure imposée"
+    "Moteur d'itinéraire remis à l'identique de v3.31.150 (aucune règle réécrite), tout en conservant les subdivisions 100 % dynamiques (onglet Quartiers), les prioritaires en surplus teintés, l'accès direct RDV / Prio et la résolution fiable du quartier de départ"
   ]
 }

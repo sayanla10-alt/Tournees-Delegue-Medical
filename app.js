@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.154';
+  var APP_VERSION = '3.31.155';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.155', [
+      'Moteur d\'itinéraire remis à l\'identique de v3.31.150 (aucune règle réécrite), tout en conservant les subdivisions 100 % dynamiques (onglet Quartiers), les prioritaires en surplus teintés, l\'accès direct RDV / Prio et la résolution fiable du quartier de départ'
+    ]],
     ['3.31.154', [
       'Départ des tournées depuis « Mon quartier » fiabilisé : résolution exacte avec commune, secteur et subdivision, ancrage du matin au plus proche du domicile, inversion Matin/Soir si la journée partait à l\'opposé et placement l\'après-midi des prioritaires éloignés sans heure imposée'
     ]],
