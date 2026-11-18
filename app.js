@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.162';
+  var APP_VERSION = '3.31.163';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.163', [
+      'Itinéraire strict sans aller-retour sur les tirages multi-secteurs et multi-communes : attribution préalable des demi-journées Matin/Soir par commune et subdivision (0 coupure de commune sur 330 tirages réels) et calcul d\'itinéraire 4x plus rapide'
+    ]],
     ['3.31.162', [
       'Tirage équitable par commune puis par subdivision/secteur dès chaque journée : choisir Cocody, Yopougon ou Abobo répartit équitablement les visites entre ses 4 secteurs (ex. 3+3+2+2 pour 10 visites) et choisir plusieurs communes (ex. Plateau + Marcory ou Cocody + Plateau) partage équitablement entre les communes, tout en gardant un itinéraire consécutif sans aller-retour'
     ]],

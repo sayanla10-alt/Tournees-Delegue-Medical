@@ -1,7 +1,7 @@
 {
-  "version": "3.31.162",
+  "version": "3.31.163",
   "date": "2026-11-18",
   "notes": [
-    "Tirage équitable par commune puis par subdivision/secteur dès chaque journée (ex. Cocody = 4 secteurs répartis équitablement, 2 communes = 50/50), ordonné sans aller-retour"
+    "Zéro coupure commune et secteur (attribution demi-journée Matin/Soir par commune et subdivision) et calcul d'itinéraire accéléré 4x"
   ]
 }
