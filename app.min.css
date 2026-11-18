@@ -1,4 +1,4 @@
-/*! app.css 757e7a915ebb : version compacte générée par scripts/minifier.js, ne pas modifier */
+/*! app.css c53f69faac77 : version compacte générée par scripts/minifier.js, ne pas modifier */
 /* Accessibilité universelle WCAG 2.1 AA : Annonceur vocal d'écran */
 .visuellement-cache {
   position: absolute;
@@ -3885,7 +3885,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 
 /* 3.29.3 : visite reprise hors des communes choisies : carte ambre, même compacité que les cartes blanches et vertes */
 .ligne-plan.ancien, .ligne-plan.ancien.gardee { background: var(--ambre-pale); opacity: 1; padding: 7px 8px; gap: 4px 6px; }
-.ligne-plan.prioritaire, .ligne-plan.prioritaire.gardee { background: var(--violet-pale); }
+.ligne-plan.prioritaire, .ligne-plan.prioritaire.gardee { background: var(--violet-pale); box-shadow: inset 4px 0 0 var(--violet); }
 .ligne-plan.ancien .lp-droite { gap: 1px; }
 .ligne-plan.ancien .lp-bas { margin-top: 1px; }
 .ligne-plan.ancien .lp-details-btn .bloc-texte { font-size: 12px; line-height: 1.25; }

@@ -1,7 +1,8 @@
 {
-  "version": "3.31.156",
+  "version": "3.31.157",
   "date": "2026-11-18",
   "notes": [
-    "Planifier : les prioritaires conservent toujours leur fond violet pâle et leur pastille Prioritaire/RDV même après rechargement ou synchronisation serveur ; une proposition non confirmée n'épingle plus ses visites d'office ; saisie directe du nombre max/jour prise en compte instantanément"
+    "Itinéraire : épuisement strict d'une zone avant d'en sortir (tant qu'il reste des visites possibles selon le planning des médecins), regroupement continu des médecins d'un même hôpital sur toute la journée et suppression de l'écrasement des horaires par heuresGardees",
+    "RDV pris en amont en violet : toutes les visites planifiées à l'avance (bouton Planifier, + Ajouter, RDV / Prio et prochains RDV de compte rendu) s'affichent avec fond violet pâle et liseré violet, même après synchro"
   ]
 }

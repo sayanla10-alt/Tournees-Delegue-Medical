@@ -421,6 +421,7 @@ var Moteur = (function () {
   function coutOrdreBase(route, depart) {
     var s = simuler(route), km = 0, attente = 0, t = null, prev = depart;
     var vusEtab = {}, cleEtabPrev = null, coupesEtab = 0;
+    var vusEtabJour = {}, cleEtabJourPrev = null, coupesEtabJour = 0;
     var vusZCren = {}, cleZCrenPrev = null, coupesSecteurCren = 0;
     var vusZJour = {}, cleZJourPrev = null, coupesSecteurJour = 0;
     var vusQCren = {}, cleQCrenPrev = null, coupesQuartierCren = 0;
@@ -438,9 +439,11 @@ var Moteur = (function () {
         t = s.debuts[i] + R.dureeVisite; prev = it;
       }
       var cr = creneauDeItem(it);
-      var ke = cleEtablissement(it) + '|' + cr;
+      var keJ = cleEtablissement(it), ke = keJ + '|' + cr;
       if (ke !== cleEtabPrev && vusEtab[ke]) coupesEtab++;
       vusEtab[ke] = true; cleEtabPrev = ke;
+      if (keJ !== cleEtabJourPrev && vusEtabJour[keJ]) coupesEtabJour++;
+      vusEtabJour[keJ] = true; cleEtabJourPrev = keJ;
       var kz = cleZoneSecteur(it), kzc = kz + '|' + cr;
       if (kzc !== cleZCrenPrev && vusZCren[kzc]) coupesSecteurCren++;
       vusZCren[kzc] = true; cleZCrenPrev = kzc;
@@ -452,11 +455,11 @@ var Moteur = (function () {
       if (kq !== cleQJourPrev && vusQJour[kq]) coupesQuartierJour++;
       vusQJour[kq] = true; cleQJourPrev = kq;
     });
-    // Priorité absolue : 0 retard (*1000) > ne jamais scinder un établissement (*100) >
+    // Priorité absolue : 0 retard (*1000) > ne jamais scinder un établissement (*100 / *80 sur la journée) >
     // finir un secteur/quartier avant d'en sortir sans y revenir l'après-midi > vraie distance routière (km) + attente
     return {
       retards: s.nbRetards,
-      cout: s.nbRetards * 1000 + coupesEtab * 100 + coupesSecteurCren * 75 + coupesSecteurJour * 60 + coupesQuartierCren * 45 + coupesQuartierJour * 25 + km + attente / 60
+      cout: s.nbRetards * 1000 + coupesEtab * 100 + coupesEtabJour * 80 + coupesSecteurCren * 75 + coupesSecteurJour * 60 + coupesQuartierCren * 45 + coupesQuartierJour * 25 + km + attente / 60
     };
   }
   function coutOrdre(route, depart) {
@@ -978,7 +981,7 @@ var Moteur = (function () {
       return { a: a, it: item(a), score: a.score * (0.5 + 0.5 * a.fiab), rejete: nbVus > 0, nbVus: nbVus };
     });
 
-    // Pré-calcul unique par immeuble des clés quartier/secteur (évite de rescanner 472 quartiers à chaque étape)
+    // Pré-calcul unique par immeuble des clés quartier/secteur/établissement (évite de rescanner 472 quartiers à chaque étape)
     var cleQImm = {}, cleZImm = {};
     cands.forEach(function (cd) {
       var ki = cd.a.cleImmeuble || cd.a.code;
@@ -988,6 +991,7 @@ var Moteur = (function () {
       }
       cd.cleQ = cleQImm[ki];
       cd.cleZ = cleZImm[ki];
+      cd.cleE = cleEtablissement(cd.it);
     });
 
     // Densité géographique par immeuble (avec arrêt anticipé dès le plafond de 6 voisins)
@@ -1026,13 +1030,14 @@ var Moteur = (function () {
       while (route.length < cibleJour) {
         var dansRoute = {}, routeQ = {}, routeZ = {};
         var matinQ = {}, matinZ = {}, soirQ = {}, soirZ = {};
+        var matinE = {}, soirE = {};
         route.forEach(function (it) {
           dansRoute[it.a.code] = true;
-          var kq = cleQuartier(it), kz = cleZoneSecteur(it), crIt = creneauDeItem(it);
+          var kq = cleQuartier(it), kz = cleZoneSecteur(it), ke = cleEtablissement(it), crIt = creneauDeItem(it);
           routeQ[kq] = true;
           routeZ[kz] = true;
-          if (crIt === 'Matin') { matinQ[kq] = true; matinZ[kz] = true; }
-          else { soirQ[kq] = true; soirZ[kz] = true; }
+          if (crIt === 'Matin') { matinQ[kq] = true; matinZ[kz] = true; matinE[ke] = true; }
+          else { soirQ[kq] = true; soirZ[kz] = true; soirE[ke] = true; }
         });
         var nbZonesJour = Object.keys(routeZ).length;
         var curMatin = route.filter(function (it) { return creneauDeItem(it) === 'Matin'; }).length;
@@ -1047,6 +1052,7 @@ var Moteur = (function () {
             var cren = creneauDeItem(cd.it);
             var sameZ = cren === 'Matin' ? matinZ : soirZ, otherZ = cren === 'Matin' ? soirZ : matinZ;
             var sameQ = cren === 'Matin' ? matinQ : soirQ, otherQ = cren === 'Matin' ? soirQ : matinQ;
+            var sameE = cren === 'Matin' ? matinE : soirE, otherE = cren === 'Matin' ? soirE : matinE;
             var curCren = cren === 'Matin' ? curMatin : curSoir;
             var bonusEquilibre = 0;
             if (cren === 'Matin') {
@@ -1056,24 +1062,26 @@ var Moteur = (function () {
               if (curSoir < targetSoir) bonusEquilibre = (curMatin >= targetMatin) ? 120 : 35;
               else if (curMatin < targetMatin) bonusEquilibre = sameZ[cd.cleZ] && !otherZ[cd.cleZ] ? -40 : -160;
             }
-            // Cohésion de zone par demi-journée : on termine tous les praticiens d'un secteur (ex. Angré)
-            // sur la même demi-journée avant d'entamer un autre secteur, sans faire d'aller-retour Matin/Soir
+            // Épuisement strict de zone et regroupement d'établissement :
+            // on ne sort pas d'une zone (ni d'un hôpital) tant qu'il reste des visites possibles selon le planning
+            // des médecins dans cette zone, sans aller-retour Matin/Soir entre zones
             var bonusZone = 0;
             if (!route.length) {
               bonusZone = densite[cd.a.code] || 0;
             } else if (curCren > 0) {
               if (sameZ[cd.cleZ]) {
-                bonusZone = sameQ[cd.cleQ] ? 85 : 65;
+                bonusZone = 1000 + (sameQ[cd.cleQ] ? 40 : 0) + (sameE[cd.cleE] ? 80 : 0);
               } else if (otherZ[cd.cleZ]) {
-                bonusZone = -90;
+                bonusZone = -1000;
               } else {
                 bonusZone = -25;
               }
             } else {
-              // Nouvelle demi-journée vide : si une seule zone est ouverte sur l'autre demi-journée, on peut la poursuivre
-              // sinon on ouvre proprement un nouveau secteur dense pour cette demi-journée
+              // Nouvelle demi-journée vide : si une seule zone est ouverte, on continue dans cette même zone
+              // jusqu'à épuisement de ses médecins disponibles (priorité au même établissement déjà entamé) ;
+              // on n'ouvre une nouvelle zone que s'il n'y a plus de visite possible dans la zone courante
               if (otherZ[cd.cleZ]) {
-                bonusZone = nbZonesJour <= 1 ? (otherQ[cd.cleQ] ? 45 : 30) : -50;
+                bonusZone = nbZonesJour <= 1 ? (1000 + (otherQ[cd.cleQ] ? 40 : 0) + (otherE[cd.cleE] ? 80 : 0)) : -1000;
               } else {
                 bonusZone = (densite[cd.a.code] || 0) + 20;
               }
