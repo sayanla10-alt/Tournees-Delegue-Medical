@@ -1178,7 +1178,18 @@ var Moteur = (function () {
       return typeof communeCorrespondante === 'function' ? communeCorrespondante(c, dans, ctx.quartiers) : !!dans[c.commune];
     }
     (p.imposes || []).forEach(function (im) {
-      if (utilises[im.code]) return;
+      if (utilises[im.code]) {
+        p.dates.forEach(function (d) {
+          (fixes[d] || []).forEach(function (fx) {
+            if (fx.code === im.code) {
+              fx.impose = true; fx.garde = true;
+              if (im.rdv && !fx.rdv) fx.rdv = im.rdv;
+              if (im.etape) { fx.etape = true; if (!fx.rdvDate) fx.rdvDate = im.dateRdv || im.apres || ''; if (!fx.rdvPrisLe) fx.rdvPrisLe = im.prisLe || ''; }
+            }
+          });
+        });
+        return;
+      }
       var rdv = heureVersMinutes(im.rdv), options = [], horsZone = 0;
       p.dates.forEach(function (d) {
         var j = jourSemaineIndex(d);

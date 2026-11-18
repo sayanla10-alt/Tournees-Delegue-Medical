@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.155';
+  var APP_VERSION = '3.31.156';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.156', [
+      'Planifier : les prioritaires conservent toujours leur fond violet pâle et leur pastille Prioritaire/RDV même après rechargement ou synchronisation serveur ; une proposition non confirmée n\'épingle plus ses visites d\'office ; saisie directe du nombre max/jour prise en compte instantanément'
+    ]],
     ['3.31.155', [
       'Moteur d\'itinéraire remis à l\'identique de v3.31.150 (aucune règle réécrite), tout en conservant les subdivisions 100 % dynamiques (onglet Quartiers), les prioritaires en surplus teintés, l\'accès direct RDV / Prio et la résolution fiable du quartier de départ'
     ]],
@@ -3998,17 +4001,27 @@
     var m = s.match(/(\d{2}:\d{2})/);
     return m ? m[1] : '';
   }
+  function imposePourArret(code, d) {
+    if (!code || !Array.isArray(S.imposes) || !S.imposes.length) return null;
+    for (var i = 0; i < S.imposes.length; i++) {
+      var im = S.imposes[i];
+      if (im && im.code === code && (!im.date || !d || im.date === d)) return im;
+    }
+    return null;
+  }
   function versPlan(x, v, d) {
     var s = v || x, x2 = x || {}, pr = praticien(s.code) || {}, c = creneauDe(s.code, d, s.idPresence || x2.idPresence, s.creneau || x2.creneau);
     var st = v ? v.statut || '' : vraiStatut(x2.statut);
     var va = (v && (v.valideA || heureHorodatage(v.horodatage))) || '';
+    var im = imposePourArret(s.code, d);
+    var estValide = !!(st || (x2.prog ? x2.prog === 'valide' : x2.programme === 'Validé'));
     var a = { uid: (v && v.uid) || x2.uid || ('C-' + d + '-' + s.code), cle: (c && c.cle) || x2.cle || '', date: d, heure: x2.heure || (v && v.heure) || '', creneau: s.creneau || x2.creneau || (c ? c.creneau : ''),
       debut: x2.debut || '', fin: x2.fin || '', idPresence: s.idPresence || x2.idPresence || '', code: s.code, nom: s.nom || pr.nom || s.code, type: pr.type || s.type || 'Médecin',
       specialite: s.specialite || pr.specialite || '', note: pr.note || s.note, conventionne: pr.conventionne, quartier: s.quartier || x2.quartier || '', commune: s.commune || x2.commune || '',
       lieu: s.lieu || x2.lieu || '', reperes: (v && v.reperes) || x2.reperes || (c && c.reperes) || pr.reperes || '', lat: c && c.coord ? c.coord.lat : null, lon: c && c.coord ? c.coord.lon : null, statut: st,
       activite: v ? v.activite || '' : '', produits: v ? v.produits || '' : '', commentaire: v ? v.commentaire || '' : '', prochaine: v ? String(v.prochaine || '').slice(0, 10) : '',
       rdvConfirme: !!(v && (v.rdvConfirme || (v.suite && /^RDV confirmé/i.test(v.suite)))),
-      etat: st ? 'valide' : '', garde: true, impose: false, rdv: '', dist: 0, retard: false };
+      etat: st ? 'valide' : '', garde: !!(estValide || im), impose: !!im, rdv: (im && im.rdv) || '', dist: 0, retard: false };
     if (va) a.valideA = va;
     return completerHeures(a);
   }
@@ -4244,7 +4257,10 @@
           hp.forEach(function (h) {
             S.horsPlan = S.horsPlan.filter(function (y) { return y !== h; });
             if (!vraiStatut(h.statut) && (retires[d] || supJ[h.code])) return;
-            var c = Object.assign({}, h); delete c.hors; delete c.horsTournee; c.garde = true;
+            var imH = imposePourArret(h.code, d);
+            var c = Object.assign({}, h); delete c.hors; delete c.horsTournee;
+            if (imH) { c.impose = true; if (imH.rdv && !c.rdv) c.rdv = imH.rdv; }
+            c.garde = !!(vraiStatut(c.statut) || c.impose || jourConfirme(d));
             var idx = -1;
             for (var i = 0; i < S.plan.length; i++) { if (S.plan[i].date === d && S.plan[i].code === h.code) { idx = i; break; } }
             if (idx < 0) S.plan.push(c);
@@ -4260,9 +4276,18 @@
       var confirme = src.some(function (x) { return x.prog ? x.prog === 'valide' : x.programme === 'Validé'; }) || l.some(function (x) { return x.statut; });
       l = l.map(function (x) {
         var h = (S.horsPlan || []).filter(function (y) { return y.date === d && y.code === x.code; })[0];
-        if (!h) return x;
+        if (!h) {
+          var imX = imposePourArret(x.code, d);
+          if (imX) { x.impose = true; if (imX.rdv && !x.rdv) x.rdv = imX.rdv; }
+          x.garde = !!(confirme || vraiStatut(x.statut) || x.impose);
+          return x;
+        }
         S.horsPlan = S.horsPlan.filter(function (y) { return y !== h; });
-        var c = Object.assign({}, h); delete c.hors; delete c.horsTournee; c.garde = true; return c;
+        var imH2 = imposePourArret(h.code, d);
+        var c = Object.assign({}, h); delete c.hors; delete c.horsTournee;
+        if (imH2) { c.impose = true; if (imH2.rdv && !c.rdv) c.rdv = imH2.rdv; }
+        c.garde = !!(confirme || vraiStatut(c.statut) || c.impose);
+        return c;
       });
       S.plan = S.plan.concat(l); S.jours[d] = { etat: confirme ? 'valide' : 'proposition', valideLe: '', modifieLe: '' }; n++;
     }
@@ -5944,7 +5969,10 @@
   // Ligne compacte de la tournée (Planifier) : garder, retirer, ouvrir la visite
   function rendreLignePlan(a) {
     var verrou = a.etat === 'valide', e = '';
-    if (a.impose) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (a.rdv ? 'RDV ' + esc(a.rdv) : 'Prioritaire')) + '</span>';
+    var imPrio = imposePourArret(a.code, a.date);
+    var estPrio = !!(a.impose || a.etape || a.rdv || imPrio);
+    var rdvAff = a.rdv || (imPrio && imPrio.rdv) || '';
+    if (estPrio) e += '<span class="etiquette p1">' + (a.etape ? esc(libelleRdv(a)) : (rdvAff ? 'RDV ' + esc(rdvAff) : 'Prioritaire')) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
     
     // Logique stricte : en orange (ambre) UNIQUEMENT ceux en dehors des zones ciblées par les filtres
@@ -5952,7 +5980,7 @@
     var ancien = estReprise(a);
     if (horsZone) {
       var libHors = a.statut ? 'Déjà renseignée, hors communes choisies'
-        : (a.etape || a.rdv ? 'RDV, hors communes choisies'
+        : (a.etape || rdvAff ? 'RDV, hors communes choisies'
           : ((a.originePasse || (a.date && a.date < aujourdhui())) ? 'Visite passée, hors communes choisies' : 'Hors communes choisies'));
       e += '<span class="etiquette ambre">' + libHors + '</span>';
     } else if (ancien && a.statut) {
@@ -5970,7 +5998,6 @@
 
     // Carte orange appliquée STRICTEMENT si hors des zones ciblées par les filtres ;
     // carte teintée violette pour les prioritaires / RDV (en plus du quota journalier)
-    var estPrio = !!(a.impose || a.etape || a.rdv);
     var classeOrange = horsZone ? ' ancien' : (estPrio ? ' prioritaire' : '');
     var cf = conflitArret(a);
     var estRdvReporte = !!(a.impose && a.etape && a.rdvDate && a.rdvDate !== a.date);
@@ -12971,7 +12998,8 @@
       var m = Math.max(1, +(typeof maxJ === 'function' ? maxJ(d) : maxJ) || 8);
       var duJ = parDate[d];
       var faits = duJ.filter(function (a) { return !!a.statut; });
-      var planifies = duJ.filter(function (a) { return !a.statut && !(a.impose || a.etape || a.rdv); });
+      var estPrioArret = function (a) { return !!(a.impose || a.etape || a.rdv || imposePourArret(a.code, d)); };
+      var planifies = duJ.filter(function (a) { return !a.statut && !estPrioArret(a); });
       var quotaPlan = Math.max(0, m - faits.length);
       if (planifies.length > quotaPlan) {
         var retenus = planifies.slice().sort(function (a, b) {
@@ -12986,7 +13014,7 @@
         var garder = {};
         retenus.forEach(function (a) { garder[a.uid || a.code] = true; });
         Array.prototype.push.apply(res, duJ.filter(function (a) {
-          return !!a.statut || !!(a.impose || a.etape || a.rdv) || !!garder[a.uid || a.code];
+          return !!a.statut || estPrioArret(a) || !!garder[a.uid || a.code];
         }));
       } else {
         Array.prototype.push.apply(res, duJ);
@@ -16813,6 +16841,14 @@
     if (f === 'recherche') {
       if (S.ui.tab === 'autour') S.ui.rechercheAutour = el.value; else S.ui.recherche = el.value;
       S.ui.limite = 40; S.ui._pratAffiches = 0; rendreAutourDuChampDiffere(el);
+    }
+    if (f === 'param' && (el.dataset.k === 'maxJour' || el.dataset.k === 'delai')) {
+      var vNum = parseInt(el.value, 10);
+      if (!isNaN(vNum)) {
+        if (el.dataset.k === 'maxJour') S.params.maxJour = Math.max(1, Math.min(30, vNum));
+        else S.params.delai = Math.max(0, Math.min(90, vNum));
+        sauverParamsEtCriteres();
+      }
     }
     if (f === 'rechercheImpose') {
       S.ui.feuille.q = el.value; pos = el.selectionStart; rendre();

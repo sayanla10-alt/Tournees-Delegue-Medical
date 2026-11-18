@@ -1,7 +1,7 @@
 {
-  "version": "3.31.155",
+  "version": "3.31.156",
   "date": "2026-11-18",
   "notes": [
-    "Moteur d'itinéraire remis à l'identique de v3.31.150 (aucune règle réécrite), tout en conservant les subdivisions 100 % dynamiques (onglet Quartiers), les prioritaires en surplus teintés, l'accès direct RDV / Prio et la résolution fiable du quartier de départ"
+    "Planifier : les prioritaires conservent toujours leur fond violet pâle et leur pastille Prioritaire/RDV même après rechargement ou synchronisation serveur ; une proposition non confirmée n'épingle plus ses visites d'office ; saisie directe du nombre max/jour prise en compte instantanément"
   ]
 }
