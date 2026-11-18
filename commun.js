@@ -2301,11 +2301,11 @@ function communeCorrespondante(c, dans, listeQuartiers) {
   var qua = c.quartier || '';
   var subNormTiret = function (v) { return String(v || '').trim().replace(/\s+-\s+/g, ' – '); };
   var extrairePref = function (v) {
-    var m = String(v || '').trim().match(/^(Abobo|Cocody|Yopougon)\s*[-–—]\s*(.+)$/i);
+    var m = String(v || '').trim().match(/^(.+?)\s*[-–—]\s*(.+)$/);
     if (!m) return null;
-    var p = m[1].toLowerCase();
-    var parNom = p === 'abobo' ? 'Abobo' : (p === 'cocody' ? 'Cocody' : 'Yopougon');
-    return { par: normaliser(parNom), sub: normaliser(m[2]), full: normaliser(parNom + ' ' + m[2]) };
+    var parNorm = normaliser(m[1]), subNorm = normaliser(m[2]);
+    if (!parNorm || !subNorm) return null;
+    return { par: parNorm, sub: subNorm, full: normaliser(m[1] + ' ' + m[2]) };
   };
   var dansKeys = Object.keys(dans);
   var dansNorm = {}, dansSubParCom = {};

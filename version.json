@@ -1,9 +1,7 @@
 {
-  "version": "3.31.151",
+  "version": "3.31.152",
   "date": "2026-11-18",
   "notes": [
-    "Planifier : subdivisions de Cocody (Angré, Deux Plateaux, Riviera, Cocody Centre), Abobo et Yopougon toujours reconnues (y compris anciens filtres préfixés) et équilibrées sur une journée",
-    "Planifier : les prioritaires et RDV s'ajoutent en plus du nombre maximal choisi (ex. 10 + 4 = 14) avec une teinte distincte ; purge automatique des prioritaires passés",
-    "Planifier : la puce « RDV / Prio » ouvre directement l'étape « RDV et prioritaires »"
+    "Quartiers dynamiques : suppression des derniers noms de communes en dur (toute commune subdivisée dans l'onglet Quartiers est reconnue automatiquement) et rafraîchissement immédiat des visites déjà planifiées dès qu'un quartier ou secteur change en BDD"
   ]
 }
