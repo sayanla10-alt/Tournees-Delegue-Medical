@@ -1,7 +1,9 @@
 {
-  "version": "3.31.160",
+  "version": "3.31.161",
   "date": "2026-11-18",
   "notes": [
-    "Planifier : nettoyage effectif des propositions épinglées (Gardé) à tort après relecture asynchrone d'IndexedDB (S.plan étant stocké dans IDB, le nettoyage précédent s'exécutait avant sa restauration)"
+    "Itinéraire (TSP) et rapidité : regroupement consécutif établissement -> secteur -> commune sans aller-retour et sans ralentissement",
+    "Commune entière (Cocody, Yopougon, Abobo) : rotation multi-secteurs sur la semaine et d'un recalcul à l'autre pour couvrir toutes les subdivisions",
+    "Couleurs distinctes des cartes : RDV des visites précédentes en violet, hors communes en jaune, épinglées en vert et visites du jour en blanc"
   ]
 }

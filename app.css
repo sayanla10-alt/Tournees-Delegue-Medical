@@ -3884,7 +3884,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 
 /* 3.29.3 : visite reprise hors des communes choisies : carte ambre, même compacité que les cartes blanches et vertes */
 .ligne-plan.ancien, .ligne-plan.ancien.gardee { background: var(--ambre-pale); opacity: 1; padding: 7px 8px; gap: 4px 6px; }
-.ligne-plan.prioritaire, .ligne-plan.prioritaire.gardee { background: var(--violet-pale); box-shadow: inset 4px 0 0 var(--violet); }
+.ligne-plan.prioritaire, .ligne-plan.prioritaire.gardee, .ligne-plan.prioritaire.ancien { background: var(--violet-pale); box-shadow: inset 4px 0 0 var(--violet); }
 .ligne-plan.ancien .lp-droite { gap: 1px; }
 .ligne-plan.ancien .lp-bas { margin-top: 1px; }
 .ligne-plan.ancien .lp-details-btn .bloc-texte { font-size: 12px; line-height: 1.25; }
