@@ -1,8 +1,7 @@
 {
-  "version": "3.31.153",
+  "version": "3.31.154",
   "date": "2026-11-18",
   "notes": [
-    "Itinéraire et regroupement stricts rétablis : les visites d'un même hôpital et d'un même secteur se suivent sans aller-retour (y compris sur la journée complète et avec prioritaires en surplus)",
-    "Subdivisions 100 % dynamiques : suppression des derniers noms de subdivisions et grandes communes en dur dans le moteur et le résolveur territorial (tout est lu depuis l'onglet Quartiers)"
+    "Départ des tournées depuis « Mon quartier » fiabilisé : résolution exacte avec commune, secteur et subdivision, ancrage du matin au plus proche du domicile, inversion Matin/Soir si la journée partait à l'opposé et placement l'après-midi des prioritaires éloignés sans heure imposée"
   ]
 }
