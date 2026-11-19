@@ -9,15 +9,15 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.173';
+  var APP_VERSION = '3.31.174';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
-    ['3.31.173', [
-      'Journée : synthèse encore plus serrée (visites, horaires, communes, barre de progression) et espace sous la frise réduit'
+    ['3.31.174', [
+      'Journée : horaires et communes collés à la barre de progression, frise des jours inchangée'
     ]],
     ['3.31.171', [
       'Clôture de la journée : 8 icônes animées et significatives (coucher de soleil, drapeau d\'arrivée, trophée, médaille, étoile, boussole, lune du soir, tasse de repos) qui varient selon votre avancement',
