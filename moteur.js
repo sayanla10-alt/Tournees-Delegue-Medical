@@ -583,16 +583,23 @@ var Moteur = (function () {
         }
         return out;
       }
-      // Si un secteur du Matin existe aussi le Soir, le placer en fin de Matin et en début de Soir (0 aller-retour)
-      var soirSecs = {}, matinSecs = {};
-      parCren.Soir.forEach(function (b) { soirSecs[b.sec] = true; });
-      parCren.Matin.forEach(function (b) { matinSecs[b.sec] = true; });
+      // Si un secteur (ou une commune) du Matin existe aussi le Soir, le placer en fin de Matin et en début de Soir (0 aller-retour)
+      var soirSecs = {}, matinSecs = {}, soirComs = {}, matinComs = {};
+      parCren.Soir.forEach(function (b) { soirSecs[b.sec] = true; if (b.com) soirComs[b.com] = true; });
+      parCren.Matin.forEach(function (b) { matinSecs[b.sec] = true; if (b.com) matinComs[b.com] = true; });
       var communs = Object.keys(matinSecs).filter(function (s) { return soirSecs[s]; });
+      var communsCom = Object.keys(matinComs).filter(function (c) { return soirComs[c]; });
       var mOrdre;
       if (communs.length && parCren.Matin.length > 1) {
-        var mSans = parCren.Matin.filter(function (b) { return b.sec !== communs[0]; });
+        var cBridge = parCren.Matin.filter(function (b) { return b.sec === communs[0]; })[0].com;
+        var mSans = cBridge ? parCren.Matin.filter(function (b) { return b.com !== cBridge; }) : parCren.Matin.filter(function (b) { return b.sec !== communs[0]; });
+        var mComRest = cBridge ? parCren.Matin.filter(function (b) { return b.com === cBridge && b.sec !== communs[0]; }) : [];
         var mAvec = parCren.Matin.filter(function (b) { return b.sec === communs[0]; });
-        mOrdre = chainerCren(mSans, '', '').concat(chainerCren(mAvec, communs[0], mAvec[0].com));
+        mOrdre = chainerCren(mSans, '', '').concat(chainerCren(mComRest, '', cBridge || '')).concat(chainerCren(mAvec, communs[0], cBridge || ''));
+      } else if (communsCom.length && parCren.Matin.length > 1) {
+        var mSansC = parCren.Matin.filter(function (b) { return b.com !== communsCom[0]; });
+        var mAvecC = parCren.Matin.filter(function (b) { return b.com === communsCom[0]; });
+        mOrdre = chainerCren(mSansC, '', '').concat(chainerCren(mAvecC, '', communsCom[0]));
       } else {
         mOrdre = chainerCren(parCren.Matin, '', '');
       }
@@ -635,6 +642,15 @@ var Moteur = (function () {
                 sansA.slice(0, runs[bR].deb - lenA).concat(segA, sansA.slice(runs[bR].deb - lenA)),
                 sansA.slice(0, runs[bR].fin - lenA).concat(segA, sansA.slice(runs[bR].fin - lenA))
               ];
+              // Option 3 : si d'autres secteurs/communes Matin et Soir s'intercalent entre aR et bR, placer Matin avant et Soir après
+              if (cm > 0 && runs[bR].deb > runs[aR].fin) {
+                var avantM = ordre.slice(0, runs[aR].deb), interM = [], interS = [], apresM = ordre.slice(runs[bR].fin);
+                for (var ik = runs[aR].fin; ik < runs[bR].deb; ik++) {
+                  (creneauDeItem(ordre[ik][0]) === 'Soir' ? interS : interM).push(ordre[ik]);
+                }
+                essaisM.push(avantM.concat(interM, segA, segB, interS, apresM));
+                if (avantM.length || apresM.length) essaisM.push(interM.concat(avantM, segA, segB, apresM, interS));
+              }
               for (var em = 0; em < essaisM.length; em++) {
                 var cM = evaluer(essaisM[em]);
                 if (cM < coutCur - 1e-6) { ordre = essaisM[em]; coutCur = cM; ameliore = true; break; }
@@ -1657,7 +1673,7 @@ var Moteur = (function () {
         p.dates.forEach(function (d) {
           (fixes[d] || []).forEach(function (fx) {
             if (fx.code === im.code) {
-              fx.impose = true; fx.garde = true;
+              fx.impose = true;
               if (im.rdv && !fx.rdv) fx.rdv = im.rdv;
               if (im.etape) { fx.etape = true; if (!fx.rdvDate) fx.rdvDate = im.dateRdv || im.apres || ''; if (!fx.rdvPrisLe) fx.rdvPrisLe = im.prisLe || ''; }
             }
@@ -1673,8 +1689,9 @@ var Moteur = (function () {
           if (c.jourIdx !== j || (im.cle && im.cle !== c.cle) || absentLe(c.prat, d)) return;
           var ok = dansCommunes(c, d);
           if (!ok) horsZone++;
-          // RDV repris de l'historique (étape) : jamais hors des communes du jour
-          if (ok || !im.etape) options.push({ d: d, c: c, hors: ok ? 0 : 1 });
+          // Tout RDV pris en amont (étape d'un CR précédent ou prioritaire) doit être proposé même hors zone ;
+          // le tri ci-dessous privilégie un jour dans la zone sur une semaine (x.hors - y.hors).
+          options.push({ d: d, c: c, hors: ok ? 0 : 1 });
         });
       });
       if (!options.length) {
@@ -1698,7 +1715,7 @@ var Moteur = (function () {
         return fx - fy || cx - cy || x.hors - y.hors || sx - sy || fixes[x.d].length - fixes[y.d].length || (x.d < y.d ? -1 : x.d > y.d ? 1 : 0) || x.c.debut - y.c.debut;
       });
       var o = options[0], a = arretDepuisCreneau(o.c, o.d);
-      a.impose = true; a.garde = true; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres || ''; a.rdvPrisLe = im.prisLe || ''; }
+      a.impose = true; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres || ''; a.rdvPrisLe = im.prisLe || ''; }
       if (rdv !== null) a.rdv = minutesVersHeure(rdv);
       fixes[o.d].push(a);
       imposesPlaces.push({ a: a, im: im, date: o.d });

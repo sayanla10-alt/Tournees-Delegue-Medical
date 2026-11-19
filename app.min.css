@@ -1,4 +1,4 @@
-/*! app.css 5c45f9c2e2aa : version compacte générée par scripts/minifier.js, ne pas modifier */
+/*! app.css 770747e41e7c : version compacte générée par scripts/minifier.js, ne pas modifier */
 /* Accessibilité universelle WCAG 2.1 AA : Annonceur vocal d'écran */
 .visuellement-cache {
   position: absolute;
@@ -60,6 +60,7 @@
   --rouge-trait: #F1D2CF;
   --violet: #6A3FA0;
   --violet-pale: #EFE7F8;
+  --violet-trait: #D2BEEF;
   --voile: rgba(8, 22, 30, .5);
   --ombre: 0 1px 3px rgba(14, 34, 48, .04), 0 4px 12px -2px rgba(14, 34, 48, .05);
   /* données (validées : contraste >= 3:1 sur la surface, chroma suffisant) */
@@ -82,7 +83,7 @@
     --trait: #22343E; --primaire: #3BB7B5; --primaire-2: #5CCBC8; --primaire-pale: #12343A; --sur-primaire: #04191C;
     --bleu: #8DBBF2; --bleu-pale: #172B44; --bleu-trait: #274870; --entete-1: #0B1E2C; --entete-2: #0D363B;
     --ambre: #F0B44C; --ambre-pale: #33270F; --ambre-trait: #5A4419; --vert: #66CF96; --vert-pale: #12301F; --vert-trait: #24563A;
-    --rouge: #F29389; --rouge-pale: #3A1A18; --rouge-trait: #5A2A26; --violet: #C7A8F0; --violet-pale: #2A1E3B; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
+    --rouge: #F29389; --rouge-pale: #3A1A18; --rouge-trait: #5A2A26; --violet: #C7A8F0; --violet-pale: #2A1E3B; --violet-trait: #5B3C88; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
     --d-serie: #1FA8A4; --d-objectif: #C98118; --d-piste: #22363F; --d-grille: #1B2C34; --carte-fond: #0D1A21; --carte-texte: #B8CAD1;
     color-scheme: dark;
   }
@@ -92,7 +93,7 @@
   --trait: #22343E; --primaire: #3BB7B5; --primaire-2: #5CCBC8; --primaire-pale: #12343A; --sur-primaire: #04191C;
   --bleu: #8DBBF2; --bleu-pale: #172B44; --bleu-trait: #274870; --entete-1: #0B1E2C; --entete-2: #0D363B;
   --ambre: #F0B44C; --ambre-pale: #33270F; --ambre-trait: #5A4419; --vert: #66CF96; --vert-pale: #12301F; --vert-trait: #24563A;
-  --rouge: #F29389; --rouge-pale: #3A1A18; --rouge-trait: #5A2A26; --violet: #C7A8F0; --violet-pale: #2A1E3B; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
+  --rouge: #F29389; --rouge-pale: #3A1A18; --rouge-trait: #5A2A26; --violet: #C7A8F0; --violet-pale: #2A1E3B; --violet-trait: #5B3C88; --voile: rgba(0, 0, 0, .6); --ombre: 0 1px 2px rgba(0, 0, 0, .3);
   --d-serie: #1FA8A4; --d-objectif: #C98118; --d-piste: #22363F; --d-grille: #1B2C34; --carte-fond: #0D1A21; --carte-texte: #B8CAD1;
   color-scheme: dark;
 }
@@ -342,7 +343,7 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
   display: inline-flex; align-items: center; min-height: 22px; padding: 2px 6px; border-radius: 11px;
   font-size: 11.5px; white-space: nowrap; line-height: 1.25; font-weight: 600; background: var(--papier-2); color: var(--gris); border: 1px solid var(--trait);
 }
-.etiquette.p1 { background: var(--ambre-pale); color: var(--ambre); border-color: var(--ambre-trait); }
+.etiquette.p1 { background: var(--violet-pale); color: var(--violet); border-color: var(--violet-trait); }
 .etiquette.ok { background: var(--vert-pale); color: var(--vert); border-color: var(--vert-trait); }
 .etiquette.ko, .etiquette.alerte { background: var(--rouge-pale); color: var(--rouge); border-color: transparent; }
 .etiquette.equipe, .etiquette.conv { background: var(--bleu-pale); color: var(--bleu); border-color: transparent; }
@@ -3883,9 +3884,10 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 /* 3.28.55 : frise de Planifier sans jour à venir planifié : 5 prochains jours en cartes blanches */
 .bj-jour.bj-vierge:not([aria-pressed="true"]) { background: var(--papier) !important; border-color: var(--trait) !important; color: var(--encre) !important; }
 
-/* 3.29.3 : visite reprise hors des communes choisies : carte ambre, même compacité que les cartes blanches et vertes */
+/* 3.29.3 / 3.31.164 : Option A : hors communes = jaune ; RDV dans la zone = violet ; RDV hors communes = jaune + liseré violet épais */
 .ligne-plan.ancien, .ligne-plan.ancien.gardee { background: var(--ambre-pale); opacity: 1; padding: 7px 8px; gap: 4px 6px; }
-.ligne-plan.prioritaire, .ligne-plan.prioritaire.gardee, .ligne-plan.prioritaire.ancien { background: var(--violet-pale); box-shadow: inset 4px 0 0 var(--violet); }
+.ligne-plan.prioritaire, .ligne-plan.prioritaire.gardee { background: var(--violet-pale); box-shadow: inset 4px 0 0 var(--violet); }
+.ligne-plan.prioritaire.ancien, .ligne-plan.prioritaire.ancien.gardee { background: var(--ambre-pale); box-shadow: inset 6px 0 0 var(--violet); }
 .ligne-plan.ancien .lp-droite { gap: 1px; }
 .ligne-plan.ancien .lp-bas { margin-top: 1px; }
 .ligne-plan.ancien .lp-details-btn .bloc-texte { font-size: 12px; line-height: 1.25; }

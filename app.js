@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.163';
+  var APP_VERSION = '3.31.164';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.164', [
+      'RDV des comptes rendus précédents hors communes : proposés d\'office en surplus du plafond du jour (ex. 10 + 3 = 13) avec fond jaune, liseré violet épais et étiquette violette RDV (Option A)',
+      'Épingle Gardé (vert) : seuls les arrêts épinglés ou ajoutés à la main reçoivent le badge vert Gardé ; les RDV ne sont plus pré-épinglés en vert au 1er tirage'
+    ]],
     ['3.31.163', [
       'Itinéraire strict sans aller-retour sur les tirages multi-secteurs et multi-communes : attribution préalable des demi-journées Matin/Soir par commune et subdivision (0 coupure de commune sur 330 tirages réels) et calcul d\'itinéraire 4x plus rapide'
     ]],
@@ -487,7 +491,9 @@
     LS.set('defauts220', true);
   }
   function nettoyerGardePropositions() {
-    if (LS.get('nettoyerGardeProp331160', false)) return;
+    var netProp = LS.get('nettoyerGardeProp331160', false);
+    var netRdv = LS.get('nettoyerGardeRdv331164', false);
+    if (netProp && netRdv) return;
     try {
       var parJNet = {};
       (S.plan || []).forEach(function (a) { if (a && a.date) (parJNet[a.date] = parJNet[a.date] || []).push(a); });
@@ -495,13 +501,24 @@
       Object.keys(parJNet).forEach(function (d) {
         if (S.jours && S.jours[d] && S.jours[d].etat === 'valide') return;
         var l = parJNet[d];
-        if (l.length > 1 && l.every(function (a) { return !!a.garde && !a.statut && a.etat !== 'valide' && !a.corrige && !a.impose && a.etat !== 'ajoute' && a.etat !== 'repris'; })) {
+        if (!netProp && l.length > 1 && l.every(function (a) { return !!a.garde && !a.statut && a.etat !== 'valide' && !a.corrige && !a.impose && a.etat !== 'ajoute' && a.etat !== 'repris'; })) {
           l.forEach(function (a) { a.garde = false; });
           modNet = true;
         }
+        if (!netRdv) {
+          l.forEach(function (a) {
+            if (a.garde && (a.impose || a.etape || a.rdv) && !a.statut && a.etat !== 'valide' && a.etat !== 'ajoute' && !a.corrige) {
+              a.garde = false;
+              modNet = true;
+            }
+          });
+        }
       });
       if (modNet) LS.set('plan', S.plan);
-      if (idbRelue || (S.plan && S.plan.length)) LS.set('nettoyerGardeProp331160', true);
+      if (idbRelue || (S.plan && S.plan.length)) {
+        LS.set('nettoyerGardeProp331160', true);
+        LS.set('nettoyerGardeRdv331164', true);
+      }
     } catch (eNet) {}
   }
   nettoyerGardePropositions();
@@ -4124,7 +4141,7 @@
       lieu: s.lieu || x2.lieu || '', reperes: (v && v.reperes) || x2.reperes || (c && c.reperes) || pr.reperes || '', lat: c && c.coord ? c.coord.lat : null, lon: c && c.coord ? c.coord.lon : null, statut: st,
       activite: v ? v.activite || '' : '', produits: v ? v.produits || '' : '', commentaire: v ? v.commentaire || '' : '', prochaine: v ? String(v.prochaine || '').slice(0, 10) : '',
       rdvConfirme: !!(v && (v.rdvConfirme || (v.suite && /^RDV confirmé/i.test(v.suite)))),
-      etat: st ? 'valide' : (estAjoute ? 'ajoute' : ''), garde: !!(estValide || estPrio || estAjoute), impose: estPrio, etape: estEtape, rdvDate: estEtape ? prox : '', rdvPrisLe: estEtape && rh ? (rh.prisLe || '') : '', rdv: (im && im.rdv) || x2.rdv || '', dist: 0, retard: false };
+      etat: st ? 'valide' : (estAjoute ? 'ajoute' : ''), garde: !!(estValide || estAjoute), impose: estPrio, etape: estEtape, rdvDate: estEtape ? prox : '', rdvPrisLe: estEtape && rh ? (rh.prisLe || '') : '', rdv: (im && im.rdv) || x2.rdv || '', dist: 0, retard: false };
     if (va) a.valideA = va;
     return completerHeures(a);
   }
@@ -4363,7 +4380,7 @@
             var imH = imposePourArret(h.code, d);
             var c = Object.assign({}, h); delete c.hors; delete c.horsTournee;
             if (imH) { c.impose = true; if (imH.rdv && !c.rdv) c.rdv = imH.rdv; }
-            c.garde = !!(vraiStatut(c.statut) || c.impose || jourConfirme(d));
+            c.garde = !!(vraiStatut(c.statut) || jourConfirme(d));
             var idx = -1;
             for (var i = 0; i < S.plan.length; i++) { if (S.plan[i].date === d && S.plan[i].code === h.code) { idx = i; break; } }
             if (idx < 0) S.plan.push(c);
@@ -4382,14 +4399,14 @@
         if (!h) {
           var imX = imposePourArret(x.code, d);
           if (imX) { x.impose = true; if (imX.rdv && !x.rdv) x.rdv = imX.rdv; }
-          x.garde = !!(confirme || vraiStatut(x.statut) || x.impose);
+          x.garde = !!(confirme || vraiStatut(x.statut));
           return x;
         }
         S.horsPlan = S.horsPlan.filter(function (y) { return y !== h; });
         var imH2 = imposePourArret(h.code, d);
         var c = Object.assign({}, h); delete c.hors; delete c.horsTournee;
         if (imH2) { c.impose = true; if (imH2.rdv && !c.rdv) c.rdv = imH2.rdv; }
-        c.garde = !!(confirme || vraiStatut(c.statut) || c.impose);
+        c.garde = !!(confirme || vraiStatut(c.statut));
         return c;
       });
       S.plan = S.plan.concat(l); S.jours[d] = { etat: confirme ? 'valide' : 'proposition', valideLe: '', modifieLe: '' }; n++;
@@ -6102,9 +6119,9 @@
       ? infosPharmaciePlan(a)
       : infosMedecinPlan(a);
 
-    // Carte teintée violette prioritaire pour tous les RDV pris en amont / prioritaires ;
-    // sinon jaune (ambre) si hors des communes choisies ; sinon vert si épinglée ou blanc si du jour
-    var classeOrange = estPrio ? ' prioritaire' : (horsZone ? ' ancien' : '');
+    // Option A : hors communes = jaune (même pour un RDV, avec liseré gauche violet épais + étiquette violette RDV) ;
+    // sinon violet si RDV/prioritaire dans la zone, vert si épinglée, blanc si visite normale du jour.
+    var classeOrange = (horsZone ? ' ancien' : '') + (estPrio ? ' prioritaire' : '');
     var cf = conflitArret(a);
     var estRdvReporte = !!(a.impose && a.etape && a.rdvDate && a.rdvDate !== a.date);
     var avecActionsBas = (horsZone && !verrou && !a.statut) || !!cf || (estRdvReporte && !verrou && !a.statut);
@@ -13159,7 +13176,7 @@
         var dejaPrevues = portee === 'nouveau'
           ? cible.reduce(function (l, d) { return l.concat(donneesJour(d)); }, [])
           : S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && (a.etat === 'valide' || a.corrige || a.garde); });
-        var hors = dejaPrevues.filter(function (a) { return !(a.etat === 'valide' || a.corrige || a.statut) && !dansCommunesDu(a, a.date); });
+        var hors = dejaPrevues.filter(function (a) { return !(a.etat === 'valide' || a.corrige || a.statut || estRdvPrisEnAmont(a, a.date)) && !dansCommunesDu(a, a.date); });
         if (hors.length) {
           var noms = hors.slice(0, 6).map(function (a) { return a.nom + ' (' + (a.commune || a.lieu || '?') + ', ' + dateCourte(a.date) + ')'; }).join(', ') + (hors.length > 6 ? ' et ' + (hors.length - 6) + ' autre' + (hors.length > 7 ? 's' : '') : '');
           confirmerPuis('Visites hors des communes choisies',
@@ -13200,7 +13217,7 @@
           }
         });
       }
-      var conserves = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && (a.etat === 'valide' || a.corrige || a.garde); });
+      var conserves = S.plan.filter(function (a) { return cible.indexOf(a.date) >= 0 && (a.etat === 'valide' || a.corrige || a.garde || a.impose || a.etape || a.rdv); });
       var heuresGardees = {};
       if (portee === 'nouveau') {
         // jours déjà planifiés : leurs visites restent (à leur heure), seuls les créneaux libres sont complétés
@@ -13543,7 +13560,7 @@
     var placees = 0;
     etapes.forEach(function (im) {
       var deja = S.plan.filter(function (x) { return x.code === im.code && x.date >= im.apres && !x.statut; })[0];
-      if (deja) { deja.impose = true; deja.garde = true; deja.etape = true; deja.rdvDate = im.dateRdv; deja.rdvPrisLe = im.prisLe; placees++; return; }
+      if (deja) { deja.impose = true; deja.etape = true; deja.rdvDate = im.dateRdv; deja.rdvPrisLe = im.prisLe; placees++; return; }
       if (placerImpose(im)) placees++;
     });
     if (placees) marquerModifie();
@@ -13592,7 +13609,7 @@
     var a = Moteur.arretDepuisCreneau(c, date);
     var imAj = imposePourArret(c.code, date), rhAj = rdvHistoriqueParCode()[c.code] || null, proxAj = prochaineEffective(praticien(c.code));
     var estEtapeAj = !!(proxAj && date && proxAj <= date && proxAj >= ajouterJours(aujourdhui(), -14));
-    a.etat = 'ajoute'; a.garde = true;
+    a.etat = 'ajoute'; a.garde = !(imAj || estEtapeAj);
     if (imAj || estEtapeAj) {
       a.impose = true;
       if (imAj && imAj.rdv) a.rdv = imAj.rdv;
@@ -13731,7 +13748,7 @@
         var nbNonFaites = S.plan.filter(function (a) { return a.date === d && !estFaiteArret(a); }).length;
         if (!im.force && nbNonFaites >= maxJ) return;
         var a = Moteur.arretDepuisCreneau(cr, d);
-        a.impose = true; a.garde = true; if (im.rdv) a.rdv = im.rdv; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres; a.rdvPrisLe = im.prisLe || ''; }
+        a.impose = true; if (im.rdv) a.rdv = im.rdv; if (im.etape) { a.etape = true; a.rdvDate = im.dateRdv || im.apres; a.rdvPrisLe = im.prisLe || ''; }
         // 3.29.0 : coût d'insertion dans l'ordre actuel du jour (rapide) ; la journée choisie est ensuite réordonnée en entier
         var jour = S.plan.filter(function (x) { return x.date === d; });
         var ev = Moteur.evaluerInsertion(jour, a, departCoord());
@@ -14530,6 +14547,8 @@
       var c = crDe(a);
       if (S.config.crExpress && !a.modeComplet && !c.faite) { c.statut = c.statut || 'Visite faite'; appliquerStatutExpress(c); }
       c.prochaine = el.dataset.v || '';
+      if (c.prochaine) { c.suite = c.faite === 'non' ? 'reprogrammer' : 'visite'; c.suiteType = 'rdv'; c.date = c.prochaine; }
+      else { c.suite = 'aucune'; delete c.suiteType; delete c.date; }
       syncCr(a);
       LS.set('plan', S.plan);
       rendre();
