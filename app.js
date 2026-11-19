@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.166';
+  var APP_VERSION = '3.31.167';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.167', [
+      'Clôture de la journée dès 18h30 : titre allégé sans « (après 18h30) », suppression du doublon avec la tuile Compte Rendu et 72 messages d\'encouragement variés selon votre taux de réalisation (sans jamais blâmer)',
+      'Sous-titres vivants sur tous les onglets : messages variés au changement d\'onglet ou d\'ouverture, calibrés pour ne jamais créer de ligne supplémentaire'
+    ]],
     ['3.31.166', [
       'Tirage exact (ex. 10 + RDV confirmés uniquement) : exclusion stricte des anciennes visites sans suite confirmée, des praticiens déjà revisités depuis, des pharmacies en tirage Médecins et des RDV retirés manuellement (×) sur la journée',
       'Nettoyage des anciennes propositions non renseignées lors d\'un nouveau tirage et comptage des ajouts manuels sans RDV dans le plafond du jour (vert, non violet)'
@@ -4583,6 +4587,262 @@
     jours.forEach(function (d) { if (comptes[d] === 0 && sets[d]) comptes[d] = Object.keys(sets[d]).length; });
     return comptes;
   }
+  // 3.31.167 : Messages vivants par onglet (calibrés <= longueur de référence : 0 saut de ligne supplémentaire)
+  // et 72 messages d'encouragement pour la clôture de journée selon le taux de réalisation (jamais culpabilisants)
+  var MESSAGES_SOUS_TITRES = {
+    jour: [
+      'Déroulez votre tournée dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus.',
+      'Suivez votre programme étape par étape : trajets GPS, fiches contacts et comptes rendus.',
+      'Avancez sereinement dans vos visites : guidage GPS, appels directs et comptes rendus.',
+      'Votre journée de terrain en un coup d\'œil : itinéraire, contacts directs et bilans rapides.',
+      'Enchaînez vos rendez-vous dans l\'ordre : trajets GPS, fiches praticiens et comptes rendus.',
+      'Tout votre terrain au fil de la journée : itinéraires, contacts utiles et comptes rendus.',
+      'Parcourez votre planning du jour : guidage GPS, coordonnées praticiens et comptes rendus.',
+      'Votre feuille de route du jour : trajets optimisés, contacts praticiens et bilans rapides.',
+      'Gardez le fil de votre tournée : itinéraires GPS, accès aux contacts et comptes rendus.',
+      'Conduisez vos visites dans l\'ordre prévu : trajets GPS, contacts directs et bilans terrain.',
+      'Avancez visite après visite : guidage GPS, fiches praticiens et saisie des comptes rendus.',
+      'Pilotez votre journée sur le terrain : trajets GPS, contacts rapides et comptes rendus.'
+    ],
+    semaine: [
+      'Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.',
+      'Construisez votre tournée librement : réglez vos secteurs cibles puis validez votre programme.',
+      'Organisez vos prochaines visites facilement : affinez vos critères par zone et validez votre tournée.',
+      'Planifiez vos journées sur mesure : choisissez vos secteurs prioritaires et confirmez votre planning.',
+      'Façonnez votre programme terrain : choisissez vos zones cibles, ajustez puis validez la tournée.',
+      'Préparez vos visites à venir : ajustez communes, cibles et priorités avant de valider votre planning.',
+      'Composez votre feuille de route : filtrez par secteur, épinglez vos priorités et validez la journée.',
+      'Anticipez votre tournée en quelques clics : réglez vos critères par secteur et confirmez le programme.',
+      'Structurez vos prochaines journées : ciblez vos secteurs clés, ajustez la liste puis validez le plan.',
+      'Bâtissez un planning efficace : affinez vos zones, gardez vos incontournables et validez la tournée.',
+      'Ajustez votre tournée à vos objectifs : choisissez vos secteurs clés puis confirmez le planning.',
+      'Ciblez vos priorités de visite : adaptez vos critères par secteur et confirmez votre programme.'
+    ],
+    semaineParams: [
+      'Une question à la fois ; touchez un critère pour l\'ajuster ou proposez directement votre tournée.',
+      'Étape par étape : modifiez un critère si besoin ou lancez tout de suite votre tournée.',
+      'Ajustez un réglage à la fois, ou générez directement la tournée avec vos choix actuels.',
+      'Un critère après l\'autre ; touchez une ligne pour l\'affiner ou proposez votre planning.',
+      'Personnalisez vos critères un à un, ou lancez directement le tirage de votre tournée.',
+      'Modifiez un réglage au toucher, ou proposez immédiatement votre tournée avec ces choix.',
+      'Affinez chaque critère à votre guise, ou déclenchez directement votre nouvelle tournée.',
+      'Touchez un critère pour le modifier, ou lancez sans attendre la proposition de tournée.',
+      'Avancez question par question, ou proposez directement la tournée sur ces réglages.',
+      'Réglez vos préférences pas à pas, ou générez tout de suite votre programme du jour.'
+    ],
+    praticiens: [
+      'Tous vos contacts : recherchez, filtrez, mettez à jour leurs fiches.',
+      'Votre carnet terrain : cherchez, filtrez et actualisez vos fiches.',
+      'Retrouvez chaque praticien : filtrez et enrichissez ses infos.',
+      'Votre base contacts : recherche rapide, filtres et mise à jour.',
+      'Médecins et pharmacies : cherchez, triez et complétez leurs fiches.',
+      'Tout votre réseau de soins : recherchez et actualisez chaque fiche.',
+      'Accédez à tous vos contacts : filtrez et tenez vos fiches à jour.',
+      'Votre répertoire terrain : ciblez vite et complétez les fiches.',
+      'Cherchez un praticien, filtrez votre zone et actualisez sa fiche.',
+      'Centralisez vos contacts : recherche directe, filtres et suivi.',
+      'Tout votre secteur en poche : trouvez et enrichissez vos fiches.',
+      'Explorez vos contacts : recherchez vite et actualisez les infos.'
+    ],
+    rechParams: [
+      'Une question à la fois ; les résultats s\'affichent à la fin.',
+      'Affinez pas à pas : vos résultats apparaissent en bas.',
+      'Choisissez un critère après l\'autre pour filtrer vite.',
+      'Étape par étape : affinez puis consultez vos résultats.',
+      'Filtrez critère par critère ; la liste suit à la fin.',
+      'Précisez vos filtres un à un avant d\'ouvrir la liste.'
+    ],
+    produits: [
+      'Votre aide-mémoire de visite : produits, arguments clés et échantillons.',
+      'L\'essentiel avant d\'entrer : fiches produits, messages et échantillons.',
+      'Préparez votre discours : gammes, arguments clés et suivi échantillons.',
+      'Vos repères en visite : produits, bénéfices clés et stock échantillons.',
+      'Tout votre portefeuille en main : produits, arguments et échantillons.',
+      'Appuyez vos entretiens : fiches produits, points forts et échantillons.',
+      'Votre mémo produit : indications, arguments clés et lots d\'échantillons.',
+      'Réussissez chaque présentation : produits, arguments et échantillons.',
+      'Vos fiches gammes à portée : messages clés, produits et échantillons.',
+      'Tout pour convaincre en visite : produits, arguments et échantillons.',
+      'Votre kit d\'entretien : produits clés, argumentaires et échantillons.',
+      'Gardez vos repères produits : bénéfices, arguments et échantillons.'
+    ],
+    suivi: [
+      'Pilotez votre activité : réalisations, tournées de l\'équipe et qualité des données.',
+      'Suivez vos résultats : bilan personnel, planning d\'équipe et fiabilité de la base.',
+      'Votre tableau de bord : avancée terrain, activité d\'équipe et qualité des fiches.',
+      'Gardez le cap sur vos chiffres : réalisations, équipe et propreté des données.',
+      'Mesurez votre impact : visites réalisées, tournées d\'équipe et suivi qualité.',
+      'Vue complète de votre terrain : résultats, collègues et qualité de la base.',
+      'Analysez votre progression : bilan terrain, équipe et fiabilité des données.',
+      'Tout votre pilotage ici : réalisations, activité d\'équipe et contrôle base.',
+      'Évaluez votre semaine : performances, programmes d\'équipe et qualité fiches.',
+      'Suivez la dynamique terrain : vos résultats, l\'équipe et l\'état de la base.',
+      'Contrôlez vos indicateurs : bilans, tournées de l\'équipe et qualité données.',
+      'Prenez de la hauteur : réalisations, vue d\'équipe et fiabilité du fichier.'
+    ],
+    autourLibre: [
+      'Médecin absent, trou dans la journée : trouvez qui est présent près de vous.',
+      'Un créneau se libère ? Repérez vite les praticiens présents autour de vous.',
+      'Imprévu sur votre parcours : identifiez qui consulte à proximité immédiate.',
+      'Optimisez votre temps libre : voyez quels praticiens reçoivent près d\'ici.',
+      'Un contretemps en route ? Trouvez un contact disponible juste à côté.',
+      'Profitez d\'un temps mort : découvrez les praticiens présents dans le coin.'
+    ],
+    autourMed: [
+      'Les médecins présents près de votre position, selon vos spécialités, à ajouter à votre tournée du jour.',
+      'Praticiens en consultation autour de vous, filtrés par spécialité, prêts à rejoindre votre tournée.',
+      'Médecins disponibles à proximité selon vos critères, à intégrer en un clic à votre journée.',
+      'Voici les médecins présents près d\'ici selon vos spécialités, prêts pour votre tournée du jour.',
+      'Repérez les médecins en exercice autour de votre position pour compléter votre tournée du jour.',
+      'Les praticiens ouverts près de vous, selon vos spécialités, à glisser dans votre parcours.'
+    ],
+    autourPhar: [
+      'Les pharmacies ouvertes près de votre position, à ajouter à votre tournée du jour.',
+      'Officines ouvertes autour de vous, prêtes à rejoindre votre parcours du jour.',
+      'Repérez les pharmacies accessibles près d\'ici pour compléter votre tournée.',
+      'Pharmacies ouvertes à proximité immédiate, à intégrer en un geste au planning.',
+      'Voici les officines ouvertes près de votre position, à ajouter à votre journée.',
+      'Trouvez une pharmacie ouverte dans le secteur pour enrichir votre tournée.'
+    ],
+    autourRef: [
+      'Trouvez un praticien présent à proximité pour remplacer la visite annulée ou compléter votre journée.',
+      'Repérez vite un contact disponible près d\'ici pour remplacer ce rendez-vous ou combler le créneau.',
+      'Choisissez un praticien présent dans les environs pour rattraper la visite ou enrichir la journée.',
+      'Identifiez un praticien ouvert à proximité pour pallier cette absence ou compléter votre tournée.',
+      'Un praticien disponible tout près pour remplacer cette visite ou optimiser la suite de la journée.',
+      'Sélectionnez un contact présent autour de vous pour rattraper ce passage ou compléter le parcours.'
+    ],
+    reglages: [
+      'Touchez un titre pour l\'ouvrir.',
+      'Ouvrez une section au toucher.',
+      'Touchez une rubrique à régler.',
+      'Sélectionnez un bloc à ouvrir.',
+      'Appuyez sur un titre à régler.',
+      'Touchez un bloc pour l\'ouvrir.'
+    ]
+  };
+  var MESSAGES_CLOTURE = {
+    zero: [
+      'Prenez quelques minutes pour enregistrer vos visites avant de clôturer.',
+      'N\'oubliez pas de saisir vos comptes rendus du jour si vous êtes passé sur le terrain.',
+      'Si vos visites ne sont pas encore notées, c\'est le bon moment pour les enregistrer.',
+      'Pensez à reporter vos visites du jour, même rapides, avant de fermer la journée.',
+      'Journée calme ou comptes rendus encore en attente : mettez votre suivi à jour sereinement.',
+      'Un petit point sur vos passages du jour et votre clôture sera prête en un clin d\'œil.',
+      'Rien de saisi pour l\'instant : enregistrez vos échanges du jour avant de déconnecter.',
+      'Prenez le temps de noter vos passages ou absences du jour pour garder un suivi fidèle.',
+      'Journée administrative ou terrain encore non saisi ? Complétez votre bilan à votre rythme.',
+      'Quelques clics suffisent pour enregistrer vos visites du jour et préparer demain.',
+      'Pensez à consigner vos passages du jour : demain sera déjà bien dégagé.',
+      'Si vous avez vu des praticiens aujourd\'hui, notez-les maintenant tant que tout est frais.'
+    ],
+    bas: [
+      'Journée exigeante sur le terrain : chaque passage compte, demain sera plus fluide.',
+      'Les aléas du terrain font partie du métier : vous avez gardé le cap, bravo pour l\'effort.',
+      'Même quand les praticiens sont peu disponibles, votre présence prépare les prochains succès.',
+      'Les journées compliquées arrivent à tous : reposez-vous bien pour repartir du bon pied demain.',
+      'Chaque tentative fait avancer votre secteur : les résultats suivront dès la prochaine tournée.',
+      'Merci pour votre persévérance aujourd\'hui : certains jours sèment, les suivants récoltent.',
+      'Pas facile quand les agendas coincent : votre suivi reste précieux pour reprogrammer vite.',
+      'Vous avez tenu bon malgré les imprévus : demain vous ouvre une nouvelle fenêtre.',
+      'Même un petit pas fait avancer la semaine : clôturez sereinement et soufflez un peu.',
+      'Le terrain a parfois ses imprévus : l\'essentiel est d\'avoir noté vos passages pour rebondir.',
+      'Gardez le moral : les contacts engagés aujourd\'hui faciliteront vos prochaines visites.',
+      'Belle ténacité malgré une journée délicate : demain sera l\'occasion de rattraper le rythme.'
+    ],
+    moyen: [
+      'Belle avancée malgré les imprévus : chaque échange réussi renforce votre terrain.',
+      'Vous avez assuré l\'essentiel aujourd\'hui : de bons appuis pour accélérer demain.',
+      'Un rythme régulier sur le terrain : vos échanges du jour font avancer le secteur.',
+      'Beau travail de proximité aujourd\'hui : demain vous permettra de prolonger l\'élan.',
+      'De vraies visites concrètes au compteur : clôturez tranquillement et préparez la suite.',
+      'Votre terrain avance bien : chaque praticien vu aujourd\'hui consolide votre semaine.',
+      'Bonne présence sur la zone : la qualité des entretiens compte autant que le nombre.',
+      'Solide engagement aujourd\'hui : les visites restantes se replaceront facilement demain.',
+      'Vous gardez un bon cap sur votre secteur : bravo pour les échanges concrétisés.',
+      'Une étape utile de franchie aujourd\'hui : continuez sur cette dynamique demain.',
+      'Merci pour votre constance sur le terrain : vos visites du jour portent déjà leurs fruits.',
+      'De bons contacts pris aujourd\'hui : finalisez votre compte rendu pour conclure en beauté.'
+    ],
+    bon: [
+      'Très belle journée sur le terrain : votre régularité paie vraiment !',
+      'Belle performance aujourd\'hui : votre secteur avance à un excellent rythme.',
+      'Bravo pour cette journée productive : de beaux échanges au service de vos objectifs.',
+      'Superbe cadence sur le terrain : vous pouvez clôturer votre journée avec fierté.',
+      'Excellente constance aujourd\'hui : vos efforts renforcent durablement votre couverture.',
+      'Très bon bilan du jour : encore un bel élan pour la suite de la semaine !',
+      'Chapeau pour votre efficacité aujourd\'hui : l\'essentiel de votre tournée est assuré.',
+      'Une journée rondement menée : vos visites clés sont bien dans la boîte.',
+      'Bravo pour votre dynamisme : le terrain répond bien à votre présence.',
+      'Très solide tournée aujourd\'hui : prenez plaisir à finaliser ce beau compte rendu.',
+      'Belle maîtrise de votre parcours : votre semaine prend une très bonne tournure.',
+      'Journée bien remplie et productive : félicitations pour votre engagement !'
+    ],
+    tresBon: [
+      'Presque un sans-faute aujourd\'hui : chapeau pour cette superbe tournée !',
+      'Résultat remarquable sur le terrain : votre organisation fait la différence.',
+      'Magnifique journée : vous frôlez le 100 % avec brio !',
+      'Excellente journée de terrain : votre constance et votre énergie impressionnent.',
+      'Quasi-objectif atteint : bravo pour ce rythme exemplaire aujourd\'hui !',
+      'Superbe maîtrise de votre tournée : un bilan dont vous pouvez être très fier.',
+      'Impressionnante efficacité aujourd\'hui : vos praticiens apprécient votre régularité.',
+      'Quel beau parcours sur la journée : il ne reste plus qu\'à valider ce joli bilan.',
+      'Presque tout coché aujourd\'hui : félicitations pour cette belle performance !',
+      'Une journée modèle sur votre secteur : reposez-vous bien ce soir, c\'est mérité.',
+      'Très haut niveau de réalisation : bravo pour votre engagement du matin au soir !',
+      'Superbe efficacité terrain : votre semaine avance à grands pas !'
+    ],
+    complet: [
+      'Objectif 100 % atteint : grand bravo pour cette journée exemplaire !',
+      'Sans-faute complet aujourd\'hui : chapeau bas pour votre énergie sur le terrain !',
+      'Toutes vos visites sont réalisées : une journée en or, félicitations !',
+      'Mission accomplie à 100 % : savourez ce superbe résultat ce soir !',
+      'Journée parfaite du début à la fin : bravo pour cette rigueur et ce dynamisme !',
+      'Carton plein aujourd\'hui : votre organisation et votre persévérance font merveille !',
+      '100 % de réalisation : vous avez assuré sur toute la ligne, félicitations !',
+      'Quel sans-faute remarquable : un bilan de journée au sommet !',
+      'Tournée bouclée intégralement : bravo pour cette performance impressionnante !',
+      'Tout est validé sur le terrain : vous méritez amplement votre soirée de repos !',
+      'Score parfait aujourd\'hui : continuez à inspirer par votre constance !',
+      'Bravo, objectif totalement rempli : finalisez votre bilan pour couronner la journée !'
+    ]
+  };
+  var _msgActifs = {}, _dernierTabMsg = '';
+  function msgVivant(cle, liste) {
+    if (!liste || !liste.length) return '';
+    if (liste.length === 1) return liste[0];
+    var tabCourant = (S.ui && S.ui.tab) || '';
+    if (tabCourant !== _dernierTabMsg) {
+      _dernierTabMsg = tabCourant;
+      _msgActifs = {};
+    }
+    if (_msgActifs[cle] !== undefined) return liste[_msgActifs[cle]];
+    var mem = LS.get('derniersMsg', {});
+    if (!mem || typeof mem !== 'object') mem = {};
+    var prec = mem[cle];
+    var idx = Math.floor(Math.random() * liste.length);
+    if (idx === prec) idx = (idx + 1 + Math.floor(Math.random() * (liste.length - 1))) % liste.length;
+    _msgActifs[cle] = idx;
+    mem[cle] = idx;
+    LS.set('derniersMsg', mem);
+    return liste[idx];
+  }
+  function sousTitreVivant(cle) {
+    return msgVivant('st_' + cle, MESSAGES_SOUS_TITRES[cle] || []);
+  }
+  function palierCloture(faites, total, renseignees) {
+    if (!total || (faites === 0 && !renseignees)) return 'zero';
+    var taux = Math.round(100 * faites / total);
+    if (faites === 0 || taux < 30) return 'bas';
+    if (taux < 60) return 'moyen';
+    if (taux < 85) return 'bon';
+    if (taux < 100) return 'tresBon';
+    return 'complet';
+  }
+  function messageClotureJournee(faites, total, renseignees) {
+    var pal = palierCloture(faites, total, renseignees);
+    return msgVivant('cloture_' + pal, MESSAGES_CLOTURE[pal]);
+  }
   function enteteJour(d) {
     var t = aujourdhui(), dates = datesPlan(), tour = dates.indexOf(d) >= 0, etat;
     if (tour) etat = jourConfirme(d) ? '<span class="etiquette ok">Confirmée</span>' :
@@ -4595,7 +4855,7 @@
     var comptesJ = comptesVisitesJours(jours);
     return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + etiquetteRelative(d) + '</h2>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
-      '<p class="sous-titre">Déroulez votre tournée dans l\'ordre : itinéraire GPS, contacts praticiens et comptes rendus.</p>' +
+      '<p class="sous-titre">' + esc(sousTitreVivant('jour')) + '</p>' +
       '<div class="bande-jours">' +
         '<div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
           var n = comptesJ[x] || 0;
@@ -4870,7 +5130,8 @@
         (liens.length ? '<a class="bouton petit" href="' + esc(liens[0]) + '" target="_blank" rel="noopener">' + icone('route') + 'Itinéraire</a>' : '') + '</div>' : '') +
       barreRealise(duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length, duJour.length, duJour.filter(function (a) { return a.statut; }).length) +
       '</section>';
-    if (!futurVerrouille(d) && duJour.length && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, duJour);
+    var clotureActive = d === t && minutesMaintenant() >= 18 * 60 + 30 && duJour.length > 0;
+    if (!futurVerrouille(d) && duJour.length && !clotureActive && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJourOrdonne, liens);
     var creneauDeVisite = function (a) {
       if (a.creneau === 'Matin' || a.creneau === 'Soir') return a.creneau;
@@ -5044,7 +5305,7 @@
     var now = minutesMaintenant(), sans = duJour.filter(function (a) { return !a.statut; });
     var aSaisir = sans.filter(function (a) { return heureVersMinutes(a.heure) !== null && heureVersMinutes(a.heure) < now; });
     var suivante = sans.filter(function (a) { return heureVersMinutes(a.heure) === null || heureVersMinutes(a.heure) >= now; })[0];
-    var R = rapportDe(aujourdhui()), crValide = !!(R && R.valideLe), finJournee = now >= 18 * 60 + 30;
+    var R = rapportDe(aujourdhui()), crValide = !!(R && R.valideLe && !R.edition), finJournee = now >= 18 * 60 + 30;
     var corps = '';
     suivrePosition();
     var proche = visiteProche(sans, suivante);
@@ -5061,35 +5322,41 @@
           '<button class="bouton bouton-plein" type="button" data-a="pharmaOui" data-v="' + esc(ph.c.cle) + '">Y aller</button></div></div>';
       }
     }
-    if (!sans.length) {
-      return corps ? '<section class="maintenant"><h3>Maintenant</h3>' + corps + '</section>' : '';
-    }
-    if (aSaisir.length) {
-      corps += '<div class="a-saisir"><b>' + icone('crayon') + aSaisir.length + ' compte' + (aSaisir.length > 1 ? 's' : '') + ' rendu' + (aSaisir.length > 1 ? 's' : '') + ' à saisir</b>' +
-        aSaisir.slice(0, 3).map(function (a) { return '<button type="button" class="bouton-texte" data-a="ouvrirVisite" data-uid="' + a.uid + '">' + esc(a.heure) + ' ' + esc(a.nom) + '</button>'; }).join('') + '</div>';
-    }
-    if (suivante) {
-      var pa = praticien(suivante.code) || {}, premiere = suivante === duJour[0] && !duJour.some(function (a) { return a.statut; });
-      var cS = coordPrecise(suivante) || coordArret(suivante), pos = S.ui.posGps && Date.now() - S.ui.posGps.t < 5 * 60000 ? S.ui.posGps : null, tr = '';
-      if (cS && pos) {
-        var dk = distanceVol(pos, cS);
-        tr = trajetMini(dk, minutesTrajet(dk * REGLAGES_MOTEUR.detourRoutier, communeGps(pos), suivante.commune, now));
-      } else if (suivante.dist > 0) tr = trajetMini(suivante.dist / REGLAGES_MOTEUR.detourRoutier, suivante.trajet !== undefined ? suivante.trajet : Math.round(suivante.dist * REGLAGES_MOTEUR.minutesParKm));
-      corps += '<div class="suivante">' + boutonFavori(suivante.code) + '<small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
-        (lieuQuartier(suivante) ? '<span class="discret bloc-texte">' + esc(lieuQuartier(suivante)) + '</span>' : '') + tr +
-        actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
-        '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte Rendu de cette visite</button></div>';
+    if (sans.length) {
+      if (aSaisir.length) {
+        corps += '<div class="a-saisir"><b>' + icone('crayon') + aSaisir.length + ' compte' + (aSaisir.length > 1 ? 's' : '') + ' rendu' + (aSaisir.length > 1 ? 's' : '') + ' à saisir</b>' +
+          aSaisir.slice(0, 3).map(function (a) { return '<button type="button" class="bouton-texte" data-a="ouvrirVisite" data-uid="' + a.uid + '">' + esc(a.heure) + ' ' + esc(a.nom) + '</button>'; }).join('') + '</div>';
+      }
+      if (suivante) {
+        var pa = praticien(suivante.code) || {}, premiere = suivante === duJour[0] && !duJour.some(function (a) { return a.statut; });
+        var cS = coordPrecise(suivante) || coordArret(suivante), pos = S.ui.posGps && Date.now() - S.ui.posGps.t < 5 * 60000 ? S.ui.posGps : null, tr = '';
+        if (cS && pos) {
+          var dk = distanceVol(pos, cS);
+          tr = trajetMini(dk, minutesTrajet(dk * REGLAGES_MOTEUR.detourRoutier, communeGps(pos), suivante.commune, now));
+        } else if (suivante.dist > 0) tr = trajetMini(suivante.dist / REGLAGES_MOTEUR.detourRoutier, suivante.trajet !== undefined ? suivante.trajet : Math.round(suivante.dist * REGLAGES_MOTEUR.minutesParKm));
+        corps += '<div class="suivante">' + boutonFavori(suivante.code) + '<small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
+          (lieuQuartier(suivante) ? '<span class="discret bloc-texte">' + esc(lieuQuartier(suivante)) + '</span>' : '') + tr +
+          actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
+          '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte Rendu de cette visite</button></div>';
+      }
     }
     var notifsOn = LS.get('notifs', false) && typeof Notification !== 'undefined' && Notification.permission === 'granted';
     if (finJournee && duJour.length > 0) {
-      var real = duJour.filter(function (a) { return a.statut; }).length;
+      var faites = duJour.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
+      var renseignees = duJour.filter(function (a) { return a.statut; }).length;
+      var total = duJour.length;
       var attSync = enAttente();
-      var msgSynthese = real + ' visite' + (real > 1 ? 's' : '') + ' sur ' + duJour.length + ' réalisée' + (real > 1 ? 's' : '') +
-        (attSync ? ', ' + attSync + ' compte' + (attSync > 1 ? 's' : '') + ' rendu' + (attSync > 1 ? 's' : '') + ' à synchroniser' : '') +
-        ' — Bravo pour votre journée !';
-      corps = '<div class="cloture-journee"><div class="cj-tete">' + icone('valider') + '<b>Clôture de la journée (après 18h30)</b></div>' +
-        '<p class="cj-texte">« ' + esc(msgSynthese) + ' »</p>' +
-        (!crValide ? '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div>' : '<span class="etiquette ok">Rapport du jour validé</span>') +
+      var enteteSynth = (faites === 0 && renseignees > 0)
+        ? '0 visite aboutie sur ' + total + ' (' + renseignees + ' passage' + (renseignees > 1 ? 's' : '') + ' noté' + (renseignees > 1 ? 's' : '') + ')'
+        : faites + ' visite' + (faites > 1 ? 's' : '') + ' sur ' + total + ' réalisée' + (faites > 1 ? 's' : '');
+      if (attSync) enteteSynth += ', ' + attSync + ' compte' + (attSync > 1 ? 's' : '') + ' rendu' + (attSync > 1 ? 's' : '') + ' à synchroniser';
+      var encouragement = messageClotureJournee(faites, total, renseignees);
+      corps = '<div class="cloture-journee"><div class="cj-tete">' + icone('valider') + '<b>Clôture de la journée</b>' +
+        (crValide ? '<span class="etiquette ok">CR validé</span>' : '') + '</div>' +
+        '<p class="cj-texte"><b>' + esc(enteteSynth) + '</b><span class="cj-encouragement">' + esc(encouragement) + '</span></p>' +
+        (!crValide
+          ? '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div>'
+          : '<div class="rangee-wa"><button class="bouton" type="button" data-a="ouvrirBilan">' + icone('valider') + 'Voir le bilan du jour</button></div>') +
         '</div>' + corps;
     } else if (finJournee && !crValide && !notifsOn) {
       corps += '<div class="rappel-cr-soir"><p>Rappel 18 h 30 : pensez à finaliser votre compte rendu de la journée.</p>' +
@@ -5382,7 +5649,7 @@
     if (!S.ui.voirParams) importerAgenda();
     if (S.ui.voirParams) {
       return '<div class="page-entree"><button type="button" class="retour" data-a="fermerParams">' + icone('chevron') + 'Planifier</button>' +
-        '<h2 class="titre-vue">Planification</h2><p class="sous-titre">Une question à la fois ; touchez un critère pour l\'ajuster ou proposez directement votre tournée.</p>' + rendreParams() + '</div>';
+        '<h2 class="titre-vue">Planification</h2><p class="sous-titre">' + esc(sousTitreVivant('semaineParams')) + '</p>' + rendreParams() + '</div>';
     }
     var tAuj = aujourdhui();
     // 3.31.2 & 3.31.32 : avant la barre des critères, pour qu'elle montre déjà la bonne période
@@ -5428,7 +5695,7 @@
     }
     var h = '<div class="tete-vue"><div style="display:flex;align-items:center;gap:8px"><h2 class="titre-vue" style="margin:0">Planifier</h2>' + etatHaut + '</div>' +
       '<button class="bouton petit bouton-plein" type="button" data-a="voirParams">' + icone('filtre') + 'Critères</button></div>' +
-      '<p class="sous-titre">Préparez votre tournée selon vos priorités : ajustez vos critères par secteur et validez votre planning.</p>' +
+      '<p class="sous-titre">' + esc(sousTitreVivant('semaine')) + '</p>' +
       barreCriteresPlanifier();
     var duJourActif = jourActif ? S.plan.filter(function (a) { return a.date === jourActif; }) : [];
     if ((jSup && jSup === jourActif) || (jVide && jVide === jourActif) || (jourActif && !duJourActif.length && datesF.length)) {
@@ -7518,7 +7785,7 @@
         (!q || normaliser([f.produit, f.dci, f.gamme, f.classe, f.indications, f.aire].join(' ')).indexOf(q) >= 0);
     });
     var barreAura = barreGammesProduitsHtml(gammeAura);
-    var h = '<h2 class="titre-vue">Produits</h2><p class="sous-titre">Votre aide-mémoire de visite : produits, arguments clés et échantillons.</p>' +
+    var h = '<h2 class="titre-vue">Produits</h2><p class="sous-titre">' + esc(sousTitreVivant('produits')) + '</p>' +
       '<div class="barre-recherche"><div class="recherche">' + icone('loupe') + '<input type="search" data-f="rechProduit" placeholder="Produit, molécule, indication…" value="' + esc(S.ui.rechProduit || '') + '" aria-label="Rechercher un produit"></div></div>' +
       '<div class="defile" role="group" aria-label="Aire thérapeutique"><button type="button" class="puce" data-a="aireProduit" data-v="" aria-pressed="' + !aire + '">Tous</button>' +
       aires.map(function (x) { return '<button type="button" class="puce" data-a="aireProduit" data-v="' + esc(x) + '" aria-pressed="' + (aire === x) + '">' + esc(AIRES_COURTES[x] || x) + '</button>'; }).join('') + '</div>';
@@ -7593,7 +7860,7 @@
   VUES.autour = function () {
     var A = S.ui.autour, h = '<button type="button" class="retour" data-a="nav" data-tab="jour">' + icone('chevron') + 'Journée</button>' +
       '<h2 class="titre-vue">' + (A.ref ? 'Rattraper une visite' : S.ui.pharmaciesProches ? (S.ui.pharmaciesProches === 'Médecin' ? 'Médecins' : 'Pharmacies') + ' à proximité' : 'Autour de moi') + '</h2>' +
-      '<p class="sous-titre">' + (A.ref ? 'Trouvez un praticien présent à proximité pour remplacer la visite annulée ou compléter votre journée.' : S.ui.pharmaciesProches === 'Médecin' ? 'Les médecins présents près de votre position, selon vos spécialités, à ajouter à votre tournée du jour.' : S.ui.pharmaciesProches ? 'Les pharmacies ouvertes près de votre position, à ajouter à votre tournée du jour.' : 'Médecin absent, trou dans la journée : trouvez qui est présent près de vous.') + '</p>';
+      '<p class="sous-titre">' + esc(sousTitreVivant(A.ref ? 'autourRef' : S.ui.pharmaciesProches === 'Médecin' ? 'autourMed' : S.ui.pharmaciesProches ? 'autourPhar' : 'autourLibre')) + '</p>';
     if (A.ref) {
       h += '<div class="bandeau"><p>Remplacement de <b>' + esc(A.ref.nom) + '</b> (' + esc(A.ref.heure) + ', ' + esc(A.ref.quartier) +
         '), marqué « Absent ». <button type="button" class="bouton-texte" data-a="finRef">Terminer</button></p></div>';
@@ -8910,12 +9177,12 @@
       var fActif = filtresCour();
       var nbRes = hop ? filtrerHopitaux(fActif, S.ui.rechHop).length : filtrerPraticiens(fActif, S.ui.recherche).length;
       return '<div class="page-entree"><button type="button" class="retour" data-a="rechFermer">' + icone('chevron') + 'Répertoire</button>' +
-        '<h2 class="titre-vue">Critères de recherche</h2><p class="sous-titre">Une question à la fois ; les résultats s\'affichent à la fin.</p>' +
+        '<h2 class="titre-vue">Critères de recherche</h2><p class="sous-titre">' + esc(sousTitreVivant('rechParams')) + '</p>' +
         '<section class="bloc">' + barreFiltres(fActif, rechercheCour(), true) + '</section>' +
         '<button class="bouton bouton-plein bouton-large" type="button" data-a="rechFermer">' + icone('loupe') + 'Voir ' + (nbRes ? 'les ' + nbRes + ' résultat' + (nbRes > 1 ? 's' : '') : 'les résultats') + '</button></div>';
     }
     var h = '<div class="tete-vue"><h2 class="titre-vue">Répertoire' + pastilleScans() + '</h2></div>' +
-      '<p class="sous-titre">Tous vos contacts : recherchez, filtrez, mettez à jour leurs fiches.</p>';
+      '<p class="sous-titre">' + esc(sousTitreVivant('praticiens')) + '</p>';
     if (hop) {
       if (!gpsFrais() && S.ui.triHop === 'proximite') relocaliserSiBesoin('repertoireHop');
       var contenuHop = vueHopitaux(S.ui.filtresHop);
@@ -9379,7 +9646,7 @@
   VUES.suivi = function () {
     var sousVue = S.ui.suiviVue || 'bilan';
     var tete = '<div class="tete-vue"><h2 class="titre-vue">Suivi & Contrôle</h2></div>' +
-      '<p class="sous-titre">Pilotez votre activité : réalisations, tournées de l\'équipe et qualité des données.</p>' +
+      '<p class="sous-titre">' + esc(sousTitreVivant('suivi')) + '</p>' +
       '<div class="segment-suivi" style="margin:4px 0 10px">' +
       segment('Sous-onglet Suivi', 'suiviVue', [['bilan', 'Bilan'], ['equipe', 'Équipe'], ['audit', 'Audit']], sousVue) +
       '</div>';
@@ -9778,7 +10045,7 @@
     function volet(id, titre, resume, corps) {
       return '<details class="bloc avance reg-volet" data-reg="' + id + '"' + (ouv[id] ? ' open' : '') + '><summary><b>' + titre + '</b><span class="discret">' + resume + '</span></summary>' + corps + '</details>';
     }
-    var h = '<h2 class="titre-vue">Réglages</h2><p class="sous-titre">Touchez un titre pour l\'ouvrir.</p>';
+    var h = '<h2 class="titre-vue">Réglages</h2><p class="sous-titre">' + esc(sousTitreVivant('reglages')) + '</p>';
     // 1. Mon profil
     h += volet('profil', 'Mon profil', esc(c.delegue || 'Votre nom, WhatsApp, quartier'),
       champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)') +
@@ -17829,5 +18096,5 @@
                         version: APP_VERSION, sauver: sauver, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre, distMoi: distMoi,
                         resoudreTerritoire: resoudreTerritoire, resoudreChoixQuartier: resoudreChoixQuartier, sectionsCommunes: sectionsCommunes, sectionsQuartiers: sectionsQuartiers,
                         secteursDeGrandeCommune: secteursDeGrandeCommune, estTerritoireInterieur: estTerritoireInterieur, villeCarte: villeCarte, filArianeTerritoire: filArianeTerritoire,
-                        preparerValidationScan: preparerValidationScan, LS: LS };
+                        preparerValidationScan: preparerValidationScan, LS: LS, MESSAGES_SOUS_TITRES: MESSAGES_SOUS_TITRES, MESSAGES_CLOTURE: MESSAGES_CLOTURE, messageClotureJournee: messageClotureJournee, palierCloture: palierCloture };
 })();

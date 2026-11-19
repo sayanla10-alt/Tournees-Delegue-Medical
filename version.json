@@ -1,8 +1,8 @@
 {
-  "version": "3.31.166",
+  "version": "3.31.167",
   "date": "2026-11-19",
   "notes": [
-    "Tirage exact (10 + vrais RDV confirmés uniquement) : exclusion des anciennes visites sans suite confirmée, des praticiens déjà revisités, des pharmacies en tirage Médecins et des RDV retirés par × sur la journée",
-    "Retirages (Recalculer) : priorité stricte de rotation et barre « Nouvelle sélection » à 3 boutons (Refuser / Sortir / Accepter) en format compact 34 px"
+    "Clôture de la journée dès 18h30 : titre allégé sans « (après 18h30) », suppression du doublon avec Compte Rendu et 72 messages d'encouragement variés selon votre taux de réalisation",
+    "Sous-titres vivants sur tous les onglets : variantes renouvelées au changement d'onglet ou d'ouverture, strictement calibrées sans aucune ligne supplémentaire"
   ]
 }
