@@ -5420,3 +5420,11 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 .rangee-actions-contact .bouton, .rangee-actions-contact .badge-deja-prevu { flex: 0 0 auto !important; white-space: nowrap; }
 .rangee-actions-contact .bouton-inopinee, .rangee-actions-contact .badge-deja-prevu { padding: 0 10px !important; }
 .rangee-actions-contact .bouton:not(.bouton-inopinee) { padding: 0 9px !important; }
+/* 3.31.172 : Journée : synthèse compacte (visites, horaires/communes, barre) et moins d'espace sous la frise */
+.bande-jours:not(.frise-plan) { margin-bottom: 6px; }
+.bande-jours:not(.frise-plan) .bj-jours { padding-bottom: 4px; }
+.synthese-jour { margin-bottom: 10px; }
+.synthese-jour .sj-compteurs { margin-bottom: 0; line-height: 1.25; }
+.synthese-jour .sj-ligne { margin-bottom: 3px; gap: 8px; }
+.synthese-jour .sj-ligne .bouton.petit { min-height: 30px; height: 30px; padding: 0 12px; }
+.synthese-jour .sj-taux small { line-height: 1.2; }
