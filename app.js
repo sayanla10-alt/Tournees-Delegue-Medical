@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.165';
+  var APP_VERSION = '3.31.166';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.166', [
+      'Tirage exact (ex. 10 + RDV confirmés uniquement) : exclusion stricte des anciennes visites sans suite confirmée, des praticiens déjà revisités depuis, des pharmacies en tirage Médecins et des RDV retirés manuellement (×) sur la journée',
+      'Nettoyage des anciennes propositions non renseignées lors d\'un nouveau tirage et comptage des ajouts manuels sans RDV dans le plafond du jour (vert, non violet)'
+    ]],
     ['3.31.165', [
       'Retirages (Recalculer) : priorité stricte aux praticiens pas encore ou moins souvent proposés (même si un confrère du même hôpital est épinglé) et conservation de l\'historique de rotation par journée et lors du passage Proposer ↔ Recalculer',
       'Barre « Nouvelle sélection » après tirage/recalcul : ajout du bouton neutre « Sortir » entre Refuser et Accepter, tous trois alignés au format compact (34 px) comme + Médecin / + Pharmacie'
@@ -13693,6 +13697,7 @@
       var estPh = p.type === 'Pharmacie';
       var datesOk = dates.filter(function (d) {
         if (d < apres) return false;
+        if (visitesSupprimeesJour(d)[p.code] || refusesActuels(d).codes[p.code]) return false;
         var tc = (paramsDuJour(d).typeCibles || 'medecins');
         if (tc === 'tous') return true;
         return tc === 'pharmacies' ? estPh : !estPh;

@@ -1,8 +1,8 @@
 {
-  "version": "3.31.165",
+  "version": "3.31.166",
   "date": "2026-11-19",
   "notes": [
-    "Retirages (Recalculer) : priorité stricte de rotation avant regroupement d'établissement et mémoire par journée",
-    "Barre « Nouvelle sélection » : ajout du bouton neutre Sortir entre Refuser et Accepter au format 34 px (+ Médecin / + Pharmacie)"
+    "Tirage exact (10 + vrais RDV confirmés uniquement) : exclusion des anciennes visites sans suite confirmée, des praticiens déjà revisités, des pharmacies en tirage Médecins et des RDV retirés par × sur la journée",
+    "Retirages (Recalculer) : priorité stricte de rotation et barre « Nouvelle sélection » à 3 boutons (Refuser / Sortir / Accepter) en format compact 34 px"
   ]
 }
