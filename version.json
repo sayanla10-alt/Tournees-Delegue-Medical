@@ -1,8 +1,8 @@
 {
-  "version": "3.31.167",
+  "version": "3.31.168",
   "date": "2026-11-19",
   "notes": [
-    "Clôture de la journée dès 18h30 : titre allégé sans « (après 18h30) », suppression du doublon avec Compte Rendu et 72 messages d'encouragement variés selon votre taux de réalisation",
-    "Sous-titres vivants sur tous les onglets : variantes renouvelées au changement d'onglet ou d'ouverture, strictement calibrées sans aucune ligne supplémentaire"
+    "Journée : libellés abrégés dans « Maintenant » et « Clôture de la journée » (« 3/12 visites réalisées, 2 CR à synchroniser », « Finaliser le CR », « CR de cette visite à faire »)",
+    "Clôture 18h30 sans doublon avec Compte Rendu, 72 messages d'encouragement selon le taux et sous-titres vivants calibrés sur tous les onglets"
   ]
 }

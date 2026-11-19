@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.167';
+  var APP_VERSION = '3.31.168';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.168', [
+      'Journée : libellés abrégés dans « Maintenant » et « Clôture de la journée » (« 3/12 visites réalisées, 2 CR à synchroniser », « Finaliser le CR », « CR de cette visite à faire »)'
+    ]],
     ['3.31.167', [
       'Clôture de la journée dès 18h30 : titre allégé sans « (après 18h30) », suppression du doublon avec la tuile Compte Rendu et 72 messages d\'encouragement variés selon votre taux de réalisation (sans jamais blâmer)',
       'Sous-titres vivants sur tous les onglets : messages variés au changement d\'onglet ou d\'ouverture, calibrés pour ne jamais créer de ligne supplémentaire'
@@ -5337,7 +5340,7 @@
         corps += '<div class="suivante">' + boutonFavori(suivante.code) + '<small>' + (premiere ? 'Première visite' : 'Visite suivante') + '</small><b>' + esc(suivante.heure) + ' · ' + pastilleType(suivante) + esc(suivante.nom) + '</b> ' + etoiles(suivante.note) +
           (lieuQuartier(suivante) ? '<span class="discret bloc-texte">' + esc(lieuQuartier(suivante)) + '</span>' : '') + tr +
           actionsRapides({ telephone: pa.telephone, lat: suivante.lat, lon: suivante.lon, lieu: suivante.lieu, quartier: suivante.quartier, commune: suivante.commune }) +
-          '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'Compte Rendu de cette visite</button></div>';
+          '<button class="bouton bouton-plein bouton-large" type="button" data-a="ouvrirVisite" data-uid="' + suivante.uid + '">' + icone('crayon') + 'CR de cette visite à faire</button></div>';
       }
     }
     var notifsOn = LS.get('notifs', false) && typeof Notification !== 'undefined' && Notification.permission === 'granted';
@@ -5347,20 +5350,20 @@
       var total = duJour.length;
       var attSync = enAttente();
       var enteteSynth = (faites === 0 && renseignees > 0)
-        ? '0 visite aboutie sur ' + total + ' (' + renseignees + ' passage' + (renseignees > 1 ? 's' : '') + ' noté' + (renseignees > 1 ? 's' : '') + ')'
-        : faites + ' visite' + (faites > 1 ? 's' : '') + ' sur ' + total + ' réalisée' + (faites > 1 ? 's' : '');
-      if (attSync) enteteSynth += ', ' + attSync + ' compte' + (attSync > 1 ? 's' : '') + ' rendu' + (attSync > 1 ? 's' : '') + ' à synchroniser';
+        ? '0/' + total + ' visite aboutie (' + renseignees + ' passage' + (renseignees > 1 ? 's' : '') + ')'
+        : faites + '/' + total + ' visite' + (faites > 1 ? 's' : '') + ' réalisée' + (faites > 1 ? 's' : '');
+      if (attSync) enteteSynth += ', ' + attSync + ' CR à synchroniser';
       var encouragement = messageClotureJournee(faites, total, renseignees);
       corps = '<div class="cloture-journee"><div class="cj-tete">' + icone('valider') + '<b>Clôture de la journée</b>' +
         (crValide ? '<span class="etiquette ok">CR validé</span>' : '') + '</div>' +
         '<p class="cj-texte"><b>' + esc(enteteSynth) + '</b><span class="cj-encouragement">' + esc(encouragement) + '</span></p>' +
         (!crValide
-          ? '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div>'
+          ? '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le CR</button></div>'
           : '<div class="rangee-wa"><button class="bouton" type="button" data-a="ouvrirBilan">' + icone('valider') + 'Voir le bilan du jour</button></div>') +
         '</div>' + corps;
     } else if (finJournee && !crValide && !notifsOn) {
       corps += '<div class="rappel-cr-soir"><p>Rappel 18 h 30 : pensez à finaliser votre compte rendu de la journée.</p>' +
-        '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le compte rendu</button></div></div>';
+        '<div class="rangee-wa"><button class="bouton bouton-plein" type="button" data-a="ouvrirRapport">' + icone('valider') + 'Finaliser le CR</button></div></div>';
     }
     return corps ? '<section class="maintenant"><h3>Maintenant</h3>' + corps + '</section>' : '';
   }
