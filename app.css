@@ -1664,6 +1664,10 @@ details.avance h3 { margin-top: 18px; }
 /* 3.13.0 : Aujourd'hui, écran de terrain */
 .tete-jour { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .tete-jour .titre-vue { margin-bottom: 2px; }
+.tete-jour-ligne { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 4px 0 3px; }
+.tete-jour-ligne .titre-vue { margin: 0; }
+.tete-jour-ligne .jour-du-jour { margin-left: 2px; top: 0; }
+.tete-jour-ligne .etiquette, .tete-jour-ligne .bouton-etiquette { margin-top: 0; flex: none; }
 .date-jour { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--gris); }
 .tete-jour > .etiquette, .tete-jour > .bouton-etiquette { margin-top: 8px; flex: none; }
 .bouton-etiquette { border: 0; cursor: pointer; font: inherit; font-size: 12.5px; }
@@ -3373,16 +3377,16 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   justify-content: center !important;
   gap: 6px !important;
   flex: 1 1 38% !important;
-  height: 44px !important;
-  min-height: 44px !important;
+  height: 36px !important;
+  min-height: 36px !important;
   font-weight: 650 !important;
-  font-size: 14px !important;
-  border-radius: 12px !important;
+  font-size: 13.5px !important;
+  border-radius: 999px !important;
   box-sizing: border-box !important;
 }
 .rc-chevron-gauche {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
 }
 .rc-btn-valider {
@@ -3391,16 +3395,16 @@ main, .carte, .arret, .feuille-corps, .cr-question, .lieu-bloc, .etape, .questio
   justify-content: center !important;
   gap: 6px !important;
   flex: 1.2 1 58% !important;
-  height: 44px !important;
-  min-height: 44px !important;
+  height: 36px !important;
+  min-height: 36px !important;
   font-weight: 700 !important;
-  font-size: 14.5px !important;
-  border-radius: 12px !important;
+  font-size: 13.5px !important;
+  border-radius: 999px !important;
   box-sizing: border-box !important;
 }
 .rc-btn-valider svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 
@@ -3672,8 +3676,17 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .sr-lieux b { font-size: 14px; }
 .sr-lieux small { display: block; font-size: 12px; color: var(--gris); line-height: 1.35; }
 
-/* 3.27.10 : Remplacer centré ; en-tête du jour de Planifier centré */
-.remplacer-ligne { display: flex; margin: 6px auto 0; justify-content: center; }
+/* 3.27.10 / 3.31.171 : Remplacer compact (carte fermée + CR visite indisponible) ; en-tête du jour de Planifier centré */
+.remplacer-ligne { display: flex; margin: 6px auto 0; justify-content: center; min-height: 30px !important; height: 30px !important; padding: 0 12px !important; font-size: 13px !important; gap: 5px; }
+.remplacer-ligne svg { width: 14px; height: 14px; }
+.cr-question[data-etape="remplacant"] .segment { padding: 2px; }
+.cr-question[data-etape="remplacant"] .segment button { min-height: 32px !important; height: 32px; padding: 0 8px !important; font-size: 13.5px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.cr-question[data-etape="remplacant"] .segment button svg { margin-right: 0; vertical-align: 0; }
+.actions-cr .bouton,
+.cr-express-actions .bouton { min-height: 34px !important; height: 34px !important; padding: 0 14px !important; font-size: 13.5px !important; white-space: nowrap; }
+.actions-cr .bouton svg,
+.cr-express-actions .bouton svg { width: 16px; height: 16px; }
+.cr-express-actions { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
 .bilan-jour { text-align: center; }
 .bilan-jour .bj-ligne1, .bilan-jour .details-plan { text-align: center; }
 
@@ -3759,6 +3772,57 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
   margin-bottom: 6px;
 }
 .cloture-journee .cj-tete .etiquette { margin-left: 4px; }
+.cloture-journee .cj-ico {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex: none;
+  background: rgba(10, 108, 116, 0.1);
+  color: var(--primaire);
+}
+.cloture-journee .cj-ico svg { width: 16px; height: 16px; }
+.cloture-journee .cj-ico-drapeau { background: rgba(10, 108, 116, 0.11); color: #0A6C74; }
+.cloture-journee .cj-ico-drapeau svg { animation: cj-flotter 2.8s ease-in-out infinite; }
+.cloture-journee .cj-ico-soleilSoir { background: rgba(217, 119, 6, 0.13); color: #D97706; }
+.cloture-journee .cj-ico-soleilSoir svg { animation: cj-respirer 3s ease-in-out infinite; }
+.cloture-journee .cj-ico-luneEtoile { background: rgba(91, 75, 158, 0.12); color: #5B4B9E; }
+.cloture-journee .cj-ico-luneEtoile svg { animation: cj-osciller 3.4s ease-in-out infinite; }
+.cloture-journee .cj-ico-trophee { background: rgba(217, 119, 6, 0.14); color: #B45309; }
+.cloture-journee .cj-ico-trophee svg { animation: cj-rebond 2.8s ease-in-out infinite; }
+.cloture-journee .cj-ico-medaille { background: rgba(5, 150, 105, 0.13); color: #059669; }
+.cloture-journee .cj-ico-medaille svg { animation: cj-osciller 3s ease-in-out infinite; }
+.cloture-journee .cj-ico-etoileVive { background: rgba(245, 158, 11, 0.14); color: #D97706; }
+.cloture-journee .cj-ico-etoileVive svg { animation: cj-scintiller 2.6s ease-in-out infinite; }
+.cloture-journee .cj-ico-boussole { background: rgba(14, 165, 233, 0.13); color: #0284C7; }
+.cloture-journee .cj-ico-boussole svg { animation: cj-osciller 3.2s ease-in-out infinite; }
+.cloture-journee .cj-ico-tasseSoir { background: rgba(180, 83, 9, 0.12); color: #B45309; }
+.cloture-journee .cj-ico-tasseSoir svg { animation: cj-flotter 3.2s ease-in-out infinite; }
+@keyframes cj-flotter {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(-6deg); }
+}
+@keyframes cj-respirer {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.13); }
+}
+@keyframes cj-osciller {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+@keyframes cj-rebond {
+  0%, 60%, 100% { transform: translateY(0) scale(1); }
+  20% { transform: translateY(-3px) scale(1.08); }
+  40% { transform: translateY(0) scale(0.97); }
+}
+@keyframes cj-scintiller {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.15) rotate(12deg); opacity: 0.85; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cloture-journee .cj-ico svg { animation: none !important; }
+}
 .cloture-journee .cj-texte {
   margin: 0 0 10px;
   font-size: 14px;

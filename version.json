@@ -1,8 +1,8 @@
 {
-  "version": "3.31.170",
+  "version": "3.31.171",
   "date": "2026-11-19",
   "notes": [
-    "Clôture de la journée : date du jour dans le titre (« Clôture de la journée · Jeu. 19 Nov. »), drapeau d'arrivée et synthèse centrée",
-    "Célébration éphémère animée (confettis, emblème et messages variés) dès que toutes les visites du jour sont remplies"
+    "Clôture de la journée : 8 icônes animées et significatives (coucher de soleil, drapeau, trophée, médaille, étoile, boussole, lune du soir, tasse de repos) variant selon votre réalisation",
+    "Célébration éphémère animée à 100 %, boutons compacts 34 px et sous-titres vivants calibrés sur tous les onglets"
   ]
 }

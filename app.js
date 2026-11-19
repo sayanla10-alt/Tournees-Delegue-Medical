@@ -9,13 +9,18 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.170';
+  var APP_VERSION = '3.31.171';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.171', [
+      'Clôture de la journée : 8 icônes animées et significatives (coucher de soleil, drapeau d\'arrivée, trophée, médaille, étoile, boussole, lune du soir, tasse de repos) qui varient selon votre avancement',
+      'Journée : pastilles « Aujourd\'hui » et « Confirmée / Brouillon » rapprochées côte à côte à gauche près du titre',
+      'CR visite (médecin indisponible) : boutons « Remplacer » affinés et plus compacts (30–34 px)'
+    ]],
     ['3.31.170', [
       'Clôture de la journée : date du jour dans le titre (« Clôture de la journée · Jeu. 19 Nov. »), icône drapeau d\'arrivée et synthèse centrée sous le titre',
       'Célébration éphémère animée (confettis, emblème et messages variés) dès que toutes les visites de la journée sont remplies'
@@ -4853,6 +4858,18 @@
     var pal = palierCloture(faites, total, renseignees);
     return msgVivant('cloture_' + pal, MESSAGES_CLOTURE[pal]);
   }
+  var ICONES_CLOTURE = {
+    zero: ['soleilSoir', 'boussole', 'luneEtoile', 'drapeau'],
+    bas: ['soleilSoir', 'boussole', 'tasseSoir', 'luneEtoile', 'drapeau'],
+    moyen: ['drapeau', 'boussole', 'soleilSoir', 'etoileVive', 'tasseSoir'],
+    bon: ['drapeau', 'medaille', 'etoileVive', 'soleilSoir', 'trophee'],
+    tresBon: ['trophee', 'medaille', 'drapeau', 'etoileVive', 'tasseSoir'],
+    complet: ['trophee', 'medaille', 'etoileVive', 'drapeau', 'tasseSoir']
+  };
+  function iconeClotureJournee(faites, total, renseignees) {
+    var pal = palierCloture(faites, total, renseignees);
+    return msgVivant('cloture_ico_' + pal, ICONES_CLOTURE[pal] || ['drapeau']);
+  }
   var MESSAGES_BRAVO_JOUR = {
     titres100: [
       'Carton plein !',
@@ -4973,8 +4990,8 @@
     // 3.31.105 : 3 semaines avant et après le jour choisi (au lieu de 6) : écran deux fois plus léger ; le calendrier va plus loin
     var jours = []; for (var k = -21; k <= 21; k++) jours.push(ajouterJours(d, k));   // 3.26.65 : tous les jours, samedi, dimanche et fériés grisés
     var comptesJ = comptesVisitesJours(jours);
-    return '<div class="tete-jour"><div><h2 class="titre-vue">Journée' + etiquetteRelative(d) + '</h2>' +
-        '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div>' + etat + '</div>' +
+    return '<div class="tete-jour"><div><div class="tete-jour-ligne"><h2 class="titre-vue">Journée</h2>' + etiquetteRelative(d) + etat + '</div>' +
+        '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div></div>' +
       '<p class="sous-titre">' + esc(sousTitreVivant('jour')) + '</p>' +
       '<div class="bande-jours">' +
         '<div class="bj-jours" role="group" aria-label="Jours">' + jours.map(function (x) {
@@ -5471,9 +5488,10 @@
         : faites + '/' + total + ' visite' + (faites > 1 ? 's' : '') + ' réalisée' + (faites > 1 ? 's' : '');
       if (attSync) enteteSynth += ', ' + attSync + ' CR à synchroniser';
       var encouragement = messageClotureJournee(faites, total, renseignees);
+      var icoClot = iconeClotureJournee(faites, total, renseignees);
       var tClot = aujourdhui(), mAb = MOIS_ABREGES[+tClot.slice(5, 7) - 1] || '';
       var dateCloture = majuscule(JOURS_COURTS[jourSemaineIndex(tClot)] || '') + ' ' + (+tClot.slice(8)) + ' ' + mAb + (mAb.length <= 3 && mAb !== 'Mai' ? '.' : '');
-      corps = '<div class="cloture-journee"><div class="cj-tete">' + icone('drapeau') + '<b>Clôture de la journée · ' + esc(dateCloture) + '</b>' +
+      corps = '<div class="cloture-journee"><div class="cj-tete"><span class="cj-ico cj-ico-' + icoClot + '">' + icone(icoClot) + '</span><b>Clôture de la journée · ' + esc(dateCloture) + '</b>' +
         (crValide ? '<span class="etiquette ok">CR validé</span>' : '') + '</div>' +
         '<p class="cj-texte"><b>' + esc(enteteSynth) + '</b><span class="cj-encouragement">' + esc(encouragement) + '</span></p>' +
         (!crValide
@@ -7260,9 +7278,9 @@
         statuts().filter(function (s) { return !s.visite; }).map(function (s) {
           return '<option' + (s.nom === statutAffiche ? ' selected' : '') + '>' + esc(s.nom) + '</option>';
         }).join('') + '</select></div>';
-      h += '<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
-        '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer la visite non réalisée</button>' +
-        (a.hors ? '' : '<button class="bouton bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' + icone('cible') + 'Enregistrer et remplacer dans la tournée</button>') +
+      h += '<div class="cr-express-actions">' +
+        '<button class="bouton bouton-plein bouton-large" type="button" data-a="validerUn" data-uid="' + a.uid + '">' + icone('valider') + 'Enregistrer (non réalisée)</button>' +
+        (a.hors ? '' : '<button class="bouton bouton-large" type="button" data-a="crRemplacer" data-uid="' + a.uid + '">' + icone('cible') + 'Enregistrer et remplacer</button>') +
         '</div>';
       return h + '</div>';
     }
@@ -17619,6 +17637,13 @@
       poubelle: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>',
       eclair: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
       drapeau: '<path d="M5 21V4"/><path d="M5 4h11l-2.5 4.5L16 13H5"/>',
+      soleilSoir: '<path d="M3 17h18"/><path d="M7 17a5 5 0 0 1 10 0"/><path d="M12 5v3M5.6 10.6l2.1 2.1M18.4 10.6l-2.1 2.1"/>',
+      luneEtoile: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z"/><path d="M17 4v3M15.5 5.5h3"/>',
+      trophee: '<path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/><path d="M12 13v5M8.5 21h7M10 18h4"/>',
+      medaille: '<circle cx="12" cy="14" r="5.5"/><path d="M8.5 3h7l-2 5.6h-3L8.5 3Z"/><circle cx="12" cy="14" r="1.8"/>',
+      etoileVive: '<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7L12 3Z"/>',
+      boussole: '<circle cx="12" cy="12" r="8.5"/><polygon points="15.5 8.5 13.5 13.5 8.5 15.5 10.5 10.5 15.5 8.5"/>',
+      tasseSoir: '<path d="M4 11h12v4a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5v-4Z"/><path d="M16 12h2a2.5 2.5 0 0 1 0 5h-2"/><path d="M7.5 7.5c0-1.5 1-2 1-3M11.5 7.5c0-1.5 1-2 1-3"/>',
       photo: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'
     }[n] || '';
     return '<svg viewBox="0 0 24 24" aria-hidden="true">' + d + '</svg>';
@@ -18222,5 +18247,5 @@
                         version: APP_VERSION, sauver: sauver, calculerStats: calculerStats, filtrerPraticiens: filtrerPraticiens, erreursEtape: erreursEtape, rendre: rendre, distMoi: distMoi,
                         resoudreTerritoire: resoudreTerritoire, resoudreChoixQuartier: resoudreChoixQuartier, sectionsCommunes: sectionsCommunes, sectionsQuartiers: sectionsQuartiers,
                         secteursDeGrandeCommune: secteursDeGrandeCommune, estTerritoireInterieur: estTerritoireInterieur, villeCarte: villeCarte, filArianeTerritoire: filArianeTerritoire,
-                        preparerValidationScan: preparerValidationScan, LS: LS, MESSAGES_SOUS_TITRES: MESSAGES_SOUS_TITRES, MESSAGES_CLOTURE: MESSAGES_CLOTURE, messageClotureJournee: messageClotureJournee, palierCloture: palierCloture, celebrerJourneeComplete: celebrerJourneeComplete };
+                        preparerValidationScan: preparerValidationScan, LS: LS, MESSAGES_SOUS_TITRES: MESSAGES_SOUS_TITRES, MESSAGES_CLOTURE: MESSAGES_CLOTURE, ICONES_CLOTURE: ICONES_CLOTURE, messageClotureJournee: messageClotureJournee, palierCloture: palierCloture, celebrerJourneeComplete: celebrerJourneeComplete };
 })();
