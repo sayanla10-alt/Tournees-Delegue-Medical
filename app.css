@@ -1804,6 +1804,16 @@ details.avance h3 { margin-top: 18px; }
 .wa-mini { margin-left: auto; color: #128C7E; border: 1.5px solid currentColor; border-radius: 50%; width: 36px; height: 36px; display: grid; place-items: center; background: var(--papier); }
 .wa-mini svg { width: 20px; height: 20px; }
 .bandeau-prog.accepter { border-color: var(--primaire); background: var(--primaire-pale); }
+.barre-plan-actions-flottante .bandeau-prog.accepter { flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 10px; margin: 0; }
+.barre-plan-actions-flottante .bandeau-prog.accepter > div:first-child { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.barre-plan-actions-flottante .bandeau-prog.accepter > div:first-child b { font-size: 14px; }
+.barre-plan-actions-flottante .bandeau-prog.accepter > div:first-child span { font-size: 12px; }
+.barre-plan-actions-flottante .bandeau-prog.accepter .rangee-tirage .bouton { color: var(--encre); }
+.barre-plan-actions-flottante .bandeau-prog.accepter .rangee-tirage .bouton span { font-size: inherit; color: inherit; }
+.barre-plan-actions-flottante .bandeau-prog.accepter .rangee-tirage .bouton-neutre { background: transparent; color: var(--gris); border-color: var(--trait); }
+.barre-plan-actions-flottante .bandeau-prog.accepter .rangee-tirage .bouton-plein,
+.barre-plan-actions-flottante .bandeau-prog.accepter .rangee-tirage .bouton-plein span { color: #fff !important; }
+main:has(> .barre-plan-actions-flottante .bandeau-prog.accepter) { padding-bottom: 92px; }
 .rangee-tirage { grid-template-columns: 1fr 1fr; width: 100%; margin-bottom: 8px; }
 .rangee-tirage .bouton { display: flex; align-items: center; }
 .bouton-accepter-plan { display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; width: 100%; max-width: 280px; height: 44px; min-height: 44px; font-weight: 700 !important; }

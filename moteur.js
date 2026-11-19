@@ -1215,7 +1215,7 @@ var Moteur = (function () {
       }
     }
 
-    var nbPrios = fixesGardes.filter(function (a) { return !a.statut && (a.impose || a.etape || a.rdv); }).length;
+    var nbPrios = fixesGardes.filter(function (a) { return !a.statut && (a.etape || a.rdv || a.rdvDate || (a.impose && !a.inopinee && a.etat !== 'ajoute')); }).length;
     var baseCible = Math.min(max, o.targetJour !== undefined && o.targetJour !== null ? o.targetJour : max);
     var cibleJour = Math.max(route.length, baseCible + nbPrios);
     var targetMatin = Math.ceil(cibleJour / 2), targetSoir = cibleJour - targetMatin;
@@ -1565,7 +1565,8 @@ var Moteur = (function () {
               else bonusZone += (densite[cd.a.code] || 0) + bonusSecteurNeuf(cd);
             }
             var penRarete = o.autreDispos ? -12 * (o.autreDispos[cd.a.code] || 0) : 0;
-            var penRotation = cd.nbVus > 0 ? -250 * cd.nbVus : 0;
+            // Rotation prioritaire sur le regroupement d'établissement (+600) / secteur (+450) lors d'un retirage
+            var penRotation = cd.nbVus > 0 ? -2500 * cd.nbVus : 0;
             var baseScore = cd.score + bonusEquilibre + bonusZone + penRarete + penRotation;
             var ki = cd.a.cleImmeuble || '';
             var dCache = ki ? (deltaImm[ki] || (deltaImm[ki] = [])) : null;
@@ -1684,7 +1685,7 @@ var Moteur = (function () {
       var rdv = heureVersMinutes(im.rdv), options = [], horsZone = 0;
       p.dates.forEach(function (d) {
         var j = jourSemaineIndex(d);
-        if (isNaN(j) || j < 0 || j > 4 || (im.date && im.date !== d) || (im.apres && d < im.apres) || (ctx.feries && ctx.feries[d])) return;
+        if (isNaN(j) || j < 0 || j > 4 || (im.date && im.date !== d) || (im.apres && d < im.apres) || (im.dates && im.dates.indexOf(d) < 0) || (ctx.feries && ctx.feries[d])) return;
         (ctx.parCode[im.code] || []).forEach(function (c) {
           if (c.jourIdx !== j || (im.cle && im.cle !== c.cle) || absentLe(c.prat, d)) return;
           var ok = dansCommunes(c, d);

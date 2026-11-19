@@ -1,7 +1,8 @@
 {
-  "version": "3.31.164",
+  "version": "3.31.165",
   "date": "2026-11-19",
   "notes": [
-    "RDV des comptes rendus précédents hors communes proposés en surplus (10+3=13) avec Option A (fond jaune + liseré violet épais + étiquette violette RDV) et sans pré-épingle Gardé verte au 1er tirage"
+    "Retirages (Recalculer) : priorité stricte de rotation avant regroupement d'établissement et mémoire par journée",
+    "Barre « Nouvelle sélection » : ajout du bouton neutre Sortir entre Refuser et Accepter au format 34 px (+ Médecin / + Pharmacie)"
   ]
 }
