@@ -1,8 +1,8 @@
 {
-  "version": "3.31.169",
+  "version": "3.31.170",
   "date": "2026-11-19",
   "notes": [
-    "Journée : boutons « Finaliser le CR » et « CR de cette visite à faire » réduits au format compact (34 px)",
-    "Libellés abrégés dans « Clôture de la journée » et « Maintenant », 72 messages par taux et sous-titres vivants calibrés sur tous les onglets"
+    "Clôture de la journée : date du jour dans le titre (« Clôture de la journée · Jeu. 19 Nov. »), drapeau d'arrivée et synthèse centrée",
+    "Célébration éphémère animée (confettis, emblème et messages variés) dès que toutes les visites du jour sont remplies"
   ]
 }
