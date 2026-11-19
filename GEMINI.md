@@ -40,3 +40,9 @@ Ce document consigne les directives fermes et les interdictions absolues établi
 ## 7. VOCABULAIRE & PHRASES D'INTRODUCTION
 * **Répertoire** : Utiliser impérativement la formule **« Tous vos contacts »** (et non « Tous vos médecins et pharmacies »).
 * **Phrases d'introduction des onglets** : Doivent rester concises, sobres et tenir sur 2 lignes maximum.
+
+---
+
+## 8. INTERDICTION ABSOLUE DE MODIFIER UN PARCOURS EXISTANT SANS ACCORD EXPLICITE
+* **Zéro changement non demandé** : Ne JAMAIS modifier un parcours fonctionnel, un écran, une règle de filtrage ou un comportement existant de l'application sans la demande et l'accord explicites de l'utilisateur (même lors d'un audit ou d'un refactoring).
+* **Remplacement d'une visite non faite (CR Journée › Remplacer)** : Toucher « Remplacer » sur une visite non faite (ou depuis le CR visite) doit **toujours** ouvrir directement la liste des praticiens remplaçants proposés avec la barre de recherche (`FEUILLES.remplacer` + `candidatsRemplacement`), sans jamais bloquer sur un écran « Garder ou retirer » ni vider la liste à cause de l'heure tardive ou d'un filtre de commune non demandé.

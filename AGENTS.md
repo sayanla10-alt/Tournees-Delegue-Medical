@@ -44,7 +44,11 @@ Ce document consigne les directives fermes et les interdictions absolues établi
 
 ---
 
-## 8. POINTS DE RETOUR (refontes à l'essai)
+## 8. INTERDICTION ABSOLUE DE MODIFIER UN PARCOURS EXISTANT SANS ACCORD EXPLICITE
+* **Zéro changement non demandé** : Ne JAMAIS modifier un parcours fonctionnel, un écran, une règle de filtrage ou un comportement existant de l'application sans la demande et l'accord explicites de l'utilisateur (même lors d'un audit ou d'un refactoring).
+* **Remplacement d'une visite non faite (CR Journée › Remplacer)** : Toucher « Remplacer » sur une visite non faite (ou depuis le CR visite) doit **toujours** ouvrir directement la liste des praticiens remplaçants proposés avec la barre de recherche (`FEUILLES.remplacer` + `candidatsRemplacement`), sans jamais bloquer sur un écran « Garder ou retirer » ni vider la liste à cause de l'heure tardive ou d'un filtre de commune non demandé.
+
+## 8bis. POINTS DE RETOUR (refontes à l'essai)
 Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'état d'avant avec le tag git correspondant (restaurer `app.js` et `app.css` depuis le tag, puis publier une nouvelle version).
 * `avant-fiche-v2` : fiche contact (Ajouter / Modifier) avant la refonte 3.27.1 (chercher avant de créer, semaine type, carte de visite).
 * `avant-fiche-repertoire-v2` : fiche dépliée du Répertoire avant la refonte 3.27.6 (prochaine présence, contact sur une ligne, une seule semaine en petits carrés).

@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.174';
+  var APP_VERSION = '3.31.175';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.175', [
+      'CR Journée (visite non faite › Remplacer) : retour à la liste directe des praticiens remplaçants avec barre de recherche (suppression de l\'écran « Garder ou retirer »)'
+    ]],
     ['3.31.174', [
       'Journée : horaires et communes collés à la barre de progression, frise des jours inchangée'
     ]],
@@ -6044,38 +6047,40 @@
   // Candidats pour remplacer une visite : présents ce jour-là, hors tournée, non prévus par un collègue, selon les critères de la tournée ;
   // ceux du même établissement d'abord (+ bonus), ceux qui s'insèrent sans retard, puis par priorité et proximité du lieu remplacé
   function candidatsRemplacement(a) {
-    var d = a.date, j = jourSemaineIndex(d), c = ctx(), pJ = paramsDuJour(d), ex = exclusCollegues([d]);
+    var d = a.date, j = jourSemaineIndex(d), c = ctx(), filtre = filtreCibles(d), pJ = paramsDuJour(d), ex = exclusCollegues([d]);
     Object.keys(refusesActuels(d).codes).forEach(function (cR) { ex[cR] = true; });   // 3.26.94 : retirés à la main : pas reproposés en remplacement
     var supVis = visitesSupprimeesJour(d);
-    var sp = {}, po = {};
-    (pJ.specialites || []).forEach(function (x) { sp[specialiteCanonique(x)] = true; });
-    (pJ.potentiels || []).forEach(function (x) { po[x] = true; });
-    var avecSpec = !!(pJ.specialites && pJ.specialites.length), avecPot = !!(pJ.potentiels && pJ.potentiels.length);
     var dansPlan = ensemble(S.plan.filter(function (x) { return x.date === d; }).map(function (x) { return x.code; }));
-    var origine = coordArret(a), vus = {}, l = [];
+    var origine = coordArret(a);
     var lieuA = a.lieu || '';
     var cibleEstPh = estPharmacie(a);
-    (c.parJour[j] || []).forEach(function (cr) {
-      var p = cr.prat;
-      var pEstPh = estPharmacie(p);
-      if (pEstPh !== cibleEstPh) return;   // Remplacement strict : médecins par médecins, pharmacies par pharmacies
-      if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || supVis[cr.code] || absentLe(p, d)) return;
-      if (!dansCommunesDu(cr, d)) return;
-      if (!cibleEstPh && avecSpec && !sp[p.specialite] && !sp[specialiteCanonique(p.specialite)]) return;
-      if (avecPot && !po[lettrePotentiel(p.note)]) return;
-      if (d === aujourdhui() && cr.fin <= minutesMaintenant()) return;   // aujourd'hui : seulement ceux encore présents
-      if (joursEcoules(p.derniere, d) < (+pJ.delai || 0)) return;
-      var dK = origine && cr.coord ? distanceKm(origine, cr.coord) : null;
-      var dist = dK !== null ? dK : 999;
-      var memeLieu = memeEtablissement(lieuA, cr.lieu);
-      var x = { cr: cr, dist: dist, score: Moteur.scoreDe(p, d) + (memeLieu ? 50 : 0), memeLieu: memeLieu };
-      var existant = vus[cr.code];
-      // 3.26.9 : priorité absolue au créneau du même établissement (CHU, même clinique) si le praticien y exerce aussi
-      if (!existant || (x.memeLieu && !existant.memeLieu) || (!existant.memeLieu && x.dist < existant.dist) || (x.memeLieu && existant.memeLieu && x.dist < existant.dist)) {
-        vus[cr.code] = x;
-      }
-    });
-    Object.keys(vus).forEach(function (k) { l.push(vus[k]); });
+    var maintenant = minutesMaintenant();
+    function collecter(ignorerHeure, ignorerFiltres) {
+      var vus = {}, res = [];
+      (c.parJour[j] || []).forEach(function (cr) {
+        var p = cr.prat;
+        var pEstPh = estPharmacie(p);
+        if (pEstPh !== cibleEstPh) return;   // Remplacement strict : médecins par médecins, pharmacies par pharmacies
+        if (dansPlan[cr.code] || cr.code === a.code || ex[cr.code] || supVis[cr.code] || absentLe(p, d)) return;
+        if (!ignorerFiltres && !cibleEstPh && filtre && !filtre(p)) return;
+        if (!ignorerHeure && d === aujourdhui() && cr.fin <= maintenant) return;   // aujourd'hui : d'abord ceux encore présents
+        if (!ignorerFiltres && joursEcoules(p.derniere, d) < (+pJ.delai || 0)) return;
+        var dK = origine && cr.coord ? distanceKm(origine, cr.coord) : null;
+        var dist = dK !== null ? dK : 99;
+        var memeLieu = memeEtablissement(lieuA, cr.lieu);
+        var x = { cr: cr, dist: dist, score: Moteur.scoreDe(p, d) + (memeLieu ? 50 : 0), memeLieu: memeLieu };
+        var existant = vus[cr.code];
+        // 3.26.9 : priorité absolue au créneau du même établissement (CHU, même clinique) si le praticien y exerce aussi
+        if (!existant || (x.memeLieu && !existant.memeLieu) || (!existant.memeLieu && x.dist < existant.dist) || (x.memeLieu && existant.memeLieu && x.dist < existant.dist)) {
+          vus[cr.code] = x;
+        }
+      });
+      Object.keys(vus).forEach(function (k) { res.push(vus[k]); });
+      return res;
+    }
+    var l = collecter(false, false);
+    if (!l.length) l = collecter(true, false);
+    if (!l.length) l = collecter(true, true);
     l.sort(function (x, y) {
       if (y.memeLieu !== x.memeLieu) return y.memeLieu ? 1 : -1;
       return (y.score - 20 * y.dist) - (x.score - 20 * x.dist);
@@ -10774,11 +10779,7 @@
     f.retourAction = null;
     var l = candidatsRemplacement(a);
     if (!l.length) return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer cette visite.</p>' +
-      '<p class="discret">Aucun' + (ph ? 'e autre pharmacie' : ' autre médecin') + ' disponible ce jour-là selon vos critères (communes, collègues). Vous pouvez garder ' + esc(a.nom) + ' ou le retirer.</p>' +
-      '<div class="rangee-actions" style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">' +
-        '<button type="button" class="bouton bouton-plein" data-a="fermerFeuille" style="flex:1;min-width:140px">' + icone('epingle') + 'Garder ' + esc(a.nom) + '</button>' +
-        '<button type="button" class="bouton danger-doux" data-a="retirerPlan" data-uid="' + a.uid + '" style="flex:1;min-width:140px">' + icone('fermer') + 'Retirer de la tournée</button>' +
-      '</div>';
+      '<p class="discret">Aucun' + (ph ? 'e autre pharmacie' : ' autre médecin') + ' disponible ce jour-là selon vos critères (communes, spécialités, collègues).</p>';
     var q = f.q || '';
     return '<p class="sous-titre" style="margin-top:0">Choisissez ' + libType + ' disponible pour rattraper et remplacer <b>' + esc(a.nom) + '</b> dans votre tournée du ' + dateFr(a.date) + ' :</p>' +
       champRechercheLibre('rechRemplacer', q) +
