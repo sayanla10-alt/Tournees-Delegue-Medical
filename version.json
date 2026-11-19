@@ -1,8 +1,8 @@
 {
-  "version": "3.31.168",
+  "version": "3.31.169",
   "date": "2026-11-19",
   "notes": [
-    "Journée : libellés abrégés dans « Maintenant » et « Clôture de la journée » (« 3/12 visites réalisées, 2 CR à synchroniser », « Finaliser le CR », « CR de cette visite à faire »)",
-    "Clôture 18h30 sans doublon avec Compte Rendu, 72 messages d'encouragement selon le taux et sous-titres vivants calibrés sur tous les onglets"
+    "Journée : boutons « Finaliser le CR » et « CR de cette visite à faire » réduits au format compact (34 px)",
+    "Libellés abrégés dans « Clôture de la journée » et « Maintenant », 72 messages par taux et sous-titres vivants calibrés sur tous les onglets"
   ]
 }

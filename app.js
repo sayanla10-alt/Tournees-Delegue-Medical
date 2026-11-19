@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.168';
+  var APP_VERSION = '3.31.169';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.169', [
+      'Journée : boutons « Finaliser le CR » et « CR de cette visite à faire » réduits au format compact (34 px)'
+    ]],
     ['3.31.168', [
       'Journée : libellés abrégés dans « Maintenant » et « Clôture de la journée » (« 3/12 visites réalisées, 2 CR à synchroniser », « Finaliser le CR », « CR de cette visite à faire »)'
     ]],

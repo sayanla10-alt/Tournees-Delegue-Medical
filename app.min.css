@@ -1,4 +1,4 @@
-/*! app.css 2371e0882347 : version compacte générée par scripts/minifier.js, ne pas modifier */
+/*! app.css 2d94041cfc75 : version compacte générée par scripts/minifier.js, ne pas modifier */
 /* Accessibilité universelle WCAG 2.1 AA : Annonceur vocal d'écran */
 .visuellement-cache {
   position: absolute;
@@ -3774,6 +3774,20 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
   font-weight: 500;
   color: var(--gris);
 }
+.cloture-journee .rangee-wa,
+.rappel-cr-soir .rangee-wa { margin: 0; }
+.cloture-journee .bouton,
+.rappel-cr-soir .bouton,
+.suivante .bouton-large {
+  min-height: 34px !important;
+  height: 34px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  padding: 0 16px;
+}
+.cloture-journee .bouton svg,
+.rappel-cr-soir .bouton svg,
+.suivante .bouton-large svg { width: 16px; height: 16px; }
 
 /* =============================================================================
    Unslop Design Craft (Damir Sokolovsky heydamir/unslop) :
