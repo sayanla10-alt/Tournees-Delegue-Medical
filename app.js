@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.179';
+  var APP_VERSION = '3.31.180';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.180', [
+      'Journée : cohérence stricte Matin / Soir (une visite 08:30-12:30 ne peut plus apparaître sous « Soir » et les horaires Soir d\'un praticien présent Matin + Soir sont bien conservés)'
+    ]],
     ['3.31.179', [
       'Journée : cartes CR visite élargies (heures alignées à gauche sur Maintenant avec écarts constants, et suppression de la marge droite inutile sous le cœur : +43 px utiles sur les lignes lieu et produits)'
     ]],
@@ -5155,7 +5158,8 @@
   // créneau de présence d'un praticien un jour donné (pour retrouver heure, début et fin d'une visite passée)
   function creneauDe(code, d, idPresence, creneau) {
     var l = (ctx().parCode[code] || []).filter(function (c) { return c.jourIdx === jourSemaineIndex(d); });
-    return l.filter(function (c) { return idPresence && String(c.idPresence) === String(idPresence); })[0] ||
+    return (idPresence && creneau && l.filter(function (c) { return String(c.idPresence) === String(idPresence) && c.creneau === creneau; })[0]) ||
+      l.filter(function (c) { return idPresence && String(c.idPresence) === String(idPresence); })[0] ||
       l.filter(function (c) { return creneau && c.creneau === creneau; })[0] || l[0] || null;
   }
   function completerHeures(a) {
@@ -5173,7 +5177,7 @@
   function arretHors(x, d) {
     var uid = 'H-' + d + '-' + x.code, a = S.horsPlan.filter(function (y) { return y.uid === uid; })[0];
     if (a) return completerHeures(a);
-    var pr = praticien(x.code) || {}, cr = x.idPresence && ctx().parCode[x.code] ? ctx().parCode[x.code].filter(function (c) { return String(c.idPresence) === String(x.idPresence); })[0] : null;
+    var pr = praticien(x.code) || {}, cr = creneauDe(x.code, d, x.idPresence, x.creneau);
     a = { uid: uid, hors: true, date: d, heure: x.heure || '', creneau: x.creneau || (cr ? cr.creneau : ''), debut: x.debut || (cr ? minutesVersHeure(cr.debut) : ''), fin: x.fin || (cr ? minutesVersHeure(cr.fin) : ''),
       idPresence: x.idPresence || '', code: x.code, nom: x.nom || pr.nom || x.code, type: pr.type || x.type || 'Médecin', specialite: x.specialite || pr.specialite || '',
       note: x.note || pr.note, conventionne: pr.conventionne, quartier: x.quartier || '', commune: x.commune || '', lieu: x.lieu || '', lat: cr && cr.coord ? cr.coord.lat : '', lon: cr && cr.coord ? cr.coord.lon : '', etat: 'propose' };
@@ -5312,9 +5316,13 @@
     if (!futurVerrouille(d) && duJour.length && !clotureActive && (rapportDe(d) || !passeVerrouille(d) || d < t)) h += tuileRapport(d, duJour);
     if (d === t) h += rendreRappels() + rendreMaintenant(duJourOrdonne, liens);
     var creneauDeVisite = function (a) {
+      var md = heureVersMinutes(a.debut), mf = heureVersMinutes(a.fin), mh = heureVersMinutes(a.heure);
+      if (mf !== null && mf <= 780) return 'Matin';
+      if (md !== null && md >= 750) return 'Soir';
+      if (mh !== null && mh >= 780) return 'Soir';
+      if (mh !== null && mh < 750) return 'Matin';
       if (a.creneau === 'Matin' || a.creneau === 'Soir') return a.creneau;
-      var m = heureVersMinutes(a.heure);
-      return m !== null && m >= 780 ? 'Soir' : 'Matin';
+      return mh !== null && mh >= 780 ? 'Soir' : 'Matin';
     };
     ['Matin', 'Soir'].forEach(function (cren) {
       var liste = aFaire.filter(function (a) { return creneauDeVisite(a) === cren; });
