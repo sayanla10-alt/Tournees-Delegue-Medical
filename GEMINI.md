@@ -46,3 +46,8 @@ Ce document consigne les directives fermes et les interdictions absolues établi
 ## 8. INTERDICTION ABSOLUE DE MODIFIER UN PARCOURS EXISTANT SANS ACCORD EXPLICITE
 * **Zéro changement non demandé** : Ne JAMAIS modifier un parcours fonctionnel, un écran, une règle de filtrage ou un comportement existant de l'application sans la demande et l'accord explicites de l'utilisateur (même lors d'un audit ou d'un refactoring).
 * **Remplacement d'une visite non faite (CR Journée › Remplacer)** : Toucher « Remplacer » sur une visite non faite (ou depuis le CR visite) doit **toujours** ouvrir directement la liste des praticiens remplaçants proposés avec la barre de recherche (`FEUILLES.remplacer` + `candidatsRemplacement`), sans jamais bloquer sur un écran « Garder ou retirer » ni vider la liste à cause de l'heure tardive ou d'un filtre de commune non demandé.
+
+---
+
+## 9. RATIONALISATION DE L'ESPACE (1 LIGNE SANS RÉDUIRE LES POLICES)
+* **Maximiser la largeur utile** : tant qu'une information (nom, lieu/quartier, statut/produits, pastilles) peut tenir sur **1 seule ligne** (y compris sur écran étroit `344 px` type Galaxy Z Fold 6 fermé), éliminer les marges/paddings inutiles (ex. ne réserver la place d'une icône en coin que sur sa ligne) **sans jamais réduire les tailles de police ni tronquer les noms**.

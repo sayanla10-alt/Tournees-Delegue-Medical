@@ -57,8 +57,9 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 
 ---
 
-## 9. PASTILLES (PUCES) : GAGNER DE LA PLACE
+## 9. PASTILLES (PUCES) & RATIONALISATION DE L'ESPACE : GAGNER DE LA PLACE
 * Partout dans l'application, disposer les petites pastilles de choix pour occuper le **moins de lignes possible** : regrouper les choix courts sur une même ligne (ex. « Aucune » et « Périmé »), placer les libellés longs ensemble, et serrer les étiquettes pour qu'elles tiennent sur une ligne tant que la largeur le permet.
+* **Maximiser la largeur utile des cartes (sans réduire la taille des polices)** : supprimer les marges ou paddings morts (ex. ne réserver l'espace d'une icône en coin comme le cœur `.btn-fav` que sur la 1re ligne concernée, jamais sur toute la hauteur de la carte) afin que chaque information (nom, lieu/quartier, statut/produits) tienne sur **1 seule ligne** dès que la largeur d'écran (y compris `344 px` sur Z Fold 6 fermé) le permet, sans jamais diminuer les tailles de police ni tronquer les noms.
 
 ## 10. TESTS : NE JAMAIS SALIR LA BASE RÉELLE
 - Tester l'application sur le serveur simulé (mock-gas) ou en mode Démo, jamais connecté à la vraie base avec un faux délégué (ex. « Diagnostic ») : l'application publie seule la tournée et les comptes rendus dans les onglets Plannings, Historique et Rapports du jour.
