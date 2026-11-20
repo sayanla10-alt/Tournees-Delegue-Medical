@@ -1,8 +1,8 @@
 {
-  "version": "3.31.184",
+  "version": "3.31.185",
   "date": "2026-11-20",
   "notes": [
-    "Journée : icône solaire selon l'heure (matin, midi, après-midi, soir) placée à droite de « Compte Rendu »",
-    "Barre de progression vivante, micro-interactions tactiles, compteurs animés, bloc Impact terrain et écrans vides illustrés"
+    "Répertoire : pastille GPS retirée sur les cartes fermées (médecins, pharmacies, hôpitaux) et affichée uniquement sur la carte ouverte",
+    "Journée : icône solaire évolutive à droite de Compte Rendu, barre vivante, micro-interactions et bloc Impact terrain"
   ]
 }
