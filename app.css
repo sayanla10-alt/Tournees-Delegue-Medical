@@ -4179,7 +4179,7 @@ details.bil-volet details.bil-visite > summary b::after { content: none; }
 .bj-jour.bj-vierge:not([aria-pressed="true"]) { background: var(--papier) !important; border-color: var(--trait) !important; color: var(--encre) !important; }
 
 /* 3.29.3 / 3.31.164 : Option A : hors communes = jaune ; RDV dans la zone = violet ; RDV hors communes = jaune + liseré violet épais */
-.ligne-plan.ancien, .ligne-plan.ancien.gardee { background: var(--ambre-pale); opacity: 1; padding: 7px 8px; gap: 4px 6px; }
+.ligne-plan.ancien, .ligne-plan.ancien.gardee { background: var(--ambre-pale); opacity: 1; padding: 7px 8px; gap: 4px 6px; margin-bottom: 0; }
 .ligne-plan.prioritaire, .ligne-plan.prioritaire.gardee { background: var(--violet-pale); box-shadow: inset 4px 0 0 var(--violet); }
 .ligne-plan.prioritaire.ancien, .ligne-plan.prioritaire.ancien.gardee { background: var(--ambre-pale); box-shadow: inset 6px 0 0 var(--violet); }
 .ligne-plan.ancien .lp-droite { gap: 1px; }

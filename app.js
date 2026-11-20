@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.180';
+  var APP_VERSION = '3.31.181';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.181', [
+      'Planifier : correction du plafonnement après tirage (plafonnerArretsMaxJour) qui coupait à 5 les nouveaux médecins quand 3 avaient été ajoutés manuellement hors zone — le tirage affiche désormais bien 3 ajoutés épinglés + 8 nouveaux = 11 visites',
+      'Planifier : suppression de la barre blanche de 10 px entre les cartes « Hors communes choisies » d\'une même commune (règle .ancien margin-bottom annulée sur .ligne-plan.ancien)'
+    ]],
     ['3.31.180', [
       'Journée : cohérence stricte Matin / Soir (une visite 08:30-12:30 ne peut plus apparaître sous « Soir » et les horaires Soir d\'un praticien présent Matin + Soir sont bien conservés)'
     ]],
@@ -13597,7 +13601,7 @@
       var m = Math.max(1, +(typeof maxJ === 'function' ? maxJ(d) : maxJ) || 8);
       var duJ = parDate[d];
       var faits = duJ.filter(function (a) { return !!a.statut; });
-      var estPrioArret = function (a) { return estRdvPrisEnAmont(a, d); };
+      var estPrioArret = function (a) { return estRdvPrisEnAmont(a, d) || a.etat === 'ajoute' || !dansCommunesDu(a, d); };
       var planifies = duJ.filter(function (a) { return !a.statut && !estPrioArret(a); });
       var quotaPlan = Math.max(0, m - faits.length);
       if (planifies.length > quotaPlan) {
@@ -13821,13 +13825,17 @@
       // 3.28.31 : un recalcul ne propose jamais moins de visites que demandé quand c'est possible :
       // si les nouveaux venus ne laissent pas la place, on refait le tirage en reprenant aussi
       // les médecins de la liste précédente (jamais ceux retirés par la croix)
-      var manque = function (res) { return cible.some(function (d) { return res.arrets.filter(function (a) { return a.date === d; }).length < maxPour(d); }); };
+      var estAdditifD = function (a, d) { return estRdvPrisEnAmont(a, d) || a.etat === 'ajoute' || !dansCommunesDu(a, d); };
+      var nbRegEtFaits = function (arr, d) {
+        return arr.filter(function (a) { return a.date === d && (!!a.statut || !estAdditifD(a, d)); }).length;
+      };
+      var manque = function (res) { return cible.some(function (d) { return nbRegEtFaits(res.arrets, d) < maxPour(d); }); };
       var estMeilleurSansDegrader = function (cand, cur) {
         var mieux = false;
         for (var i = 0; i < cible.length; i++) {
           var d = cible[i], m = maxPour(d);
-          var nc = Math.min(m, cand.arrets.filter(function (a) { return a.date === d; }).length);
-          var nr = Math.min(m, cur.arrets.filter(function (a) { return a.date === d; }).length);
+          var nc = Math.min(m, nbRegEtFaits(cand.arrets, d));
+          var nr = Math.min(m, nbRegEtFaits(cur.arrets, d));
           if (nc < nr) return false;
           if (nc > nr) mieux = true;
         }
@@ -13839,7 +13847,7 @@
         if (portee === 'jour' || portee === 'semaine') {
           var joursManquants = {};
           cible.forEach(function (d) {
-            if (r.arrets.filter(function (a) { return a.date === d; }).length < maxPour(d)) joursManquants[d] = true;
+            if (nbRegEtFaits(r.arrets, d) < maxPour(d)) joursManquants[d] = true;
           });
           var restes = S.plan.filter(function (a) {
             if (!joursManquants[a.date] || conserves.indexOf(a) >= 0) return false;
