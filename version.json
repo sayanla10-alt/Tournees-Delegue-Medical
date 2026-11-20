@@ -1,8 +1,8 @@
 {
-  "version": "3.31.189",
+  "version": "3.31.190",
   "date": "2026-11-20",
   "notes": [
-    "Planifier : les visites RDV (violettes) déjà faites conservent leur couleur violette et leur badge RDV, et les visites hors communes (jaunes) déjà faites conservent leur couleur jaune (opacité pleine)",
-    "+ Médecin › Tout le répertoire regroupé par hôpital et bouton Reprendre un ancien programme compact (34 px)"
+    "Planifier & Journée : pastille violette explicite « RDV » affichée sur toutes les visites RDV (avant et après validation du compte rendu)",
+    "Planifier : les visites RDV faites restent violettes et les visites hors communes faites restent jaunes (opacité pleine)"
   ]
 }

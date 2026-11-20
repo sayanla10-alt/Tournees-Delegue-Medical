@@ -5594,6 +5594,8 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
   gap: 6px; white-space: nowrap;
 }
 .bouton.bouton-anciens svg { width: 15px; height: 15px; }
+/* 3.31.190 : pastille RDV compacte sur carte fermée dans Journée */
+.etiquette.mini-rdv { min-height: 18px; padding: 0 6px; font-size: 11px; margin-right: 5px; vertical-align: 1px; }
 
 @media (prefers-reduced-motion: reduce) {
   .progression.active i::after,
