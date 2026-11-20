@@ -1,8 +1,8 @@
 {
-  "version": "3.31.185",
+  "version": "3.31.186",
   "date": "2026-11-20",
   "notes": [
-    "Répertoire : pastille GPS retirée sur les cartes fermées (médecins, pharmacies, hôpitaux) et affichée uniquement sur la carte ouverte",
-    "Journée : icône solaire évolutive à droite de Compte Rendu, barre vivante, micro-interactions et bloc Impact terrain"
+    "Suivi › Audit : anomalies et coordonnées GPS manquantes centrées sur les lieux physiques (Hôpitaux / Établissements et Pharmacies) avec édition directe",
+    "+ Médecin / + Phcie › Tout le répertoire : présents ce jour au top et déjà dans la tournée tout en bas"
   ]
 }
