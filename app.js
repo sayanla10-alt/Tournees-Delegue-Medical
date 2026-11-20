@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.188';
+  var APP_VERSION = '3.31.189';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.189', [
+      'Planifier : une visite RDV (violette) déjà faite conserve bien sa couleur violette et son badge RDV ; une visite hors communes (jaune) déjà faite conserve également bien sa couleur jaune (même opacité pleine, sans délavage)'
+    ]],
     ['3.31.188', [
       '+ Médecin › Tout le répertoire : les médecins d\'un même hôpital sont désormais regroupés les uns à la suite des autres (au sein de « Présents ce jour », puis autres jours, puis « Déjà dans la tournée » tout en bas)',
       'Planifier : bouton « Reprendre un ancien programme » ramené à une hauteur compacte (34 px sur 1 seule ligne)'
@@ -4282,13 +4285,42 @@
     }
     return null;
   }
+  // 3.31.189 : retrouve un RDV confirmé pris avant la date d et honoré à cette date (pour conserver le violet dans Planifier une fois la visite faite)
+  function rdvHonorePourDate(code, d) {
+    if (!code || !d) return null;
+    var hist = ((S.data && S.data.historique) || []).concat(S.queue || []), m = moi();
+    var lim = ajouterJours(d, -14), meilleur = null, dernAvant = '';
+    for (var i = 0; i < hist.length; i++) {
+      var v = hist[i];
+      if (!v || v.code !== code) continue;
+      if (v.delegue && m && !estMoi(v.delegue)) continue;
+      var vd = String(v.date || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(vd) || vd >= d) continue;
+      var st = vraiStatut(v.statut);
+      if (st && !estKo(st) && (!dernAvant || vd > dernAvant)) dernAvant = vd;
+      var pv = String(v.prochaine || '').slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(pv) || pv <= vd) continue;
+      var suite = String(v.suite || '');
+      if (/^Rappel/i.test(suite)) continue;
+      if (!(v.rdvConfirme || /^RDV confirmé/i.test(suite))) continue;
+      if (pv <= d && pv >= lim && (!meilleur || vd > meilleur.prisLe || (vd === meilleur.prisLe && pv > meilleur.prochaine))) {
+        meilleur = { prochaine: pv, prisLe: vd, rdvConfirme: true };
+      }
+    }
+    if (!meilleur) return null;
+    if (dernAvant && (dernAvant >= meilleur.prochaine || dernAvant > meilleur.prisLe)) return null;
+    return meilleur;
+  }
   function estRdvPrisEnAmont(a, d) {
     if (!a) return false;
     var dt = d || a.date || '';
-    if (a.rdv) return true;
+    if (a.rdv || a.etaitRdv) return true;
     if (imposePourArret(a.code, dt)) return true;
     var pr = praticien(a.code), prox = prochaineEffective(pr), lim = ajouterJours(aujourdhui(), -14);
     if (prox && dt && prox <= dt && prox >= lim) return true;
+    // 3.31.189 : un RDV de suivi (a.etape) ou honoré à cette date reste reconnu comme RDV une fois la visite faite
+    if (a.etape && (!a.rdvDate || !dt || a.rdvDate <= dt)) return true;
+    if ((a.statut || a.etat === 'valide') && dt && rdvHonorePourDate(a.code, dt)) return true;
     if (a.impose && !a.inopinee && a.etat !== 'ajoute' && !a.etape) return true;
     if (a.prochaine && a.rdvConfirme && /^\d{4}-\d{2}-\d{2}$/.test(String(a.prochaine).slice(0, 10)) && !a.statut && dt && a.prochaine <= dt && a.prochaine >= lim) return true;
     return false;
@@ -4301,8 +4333,11 @@
     var estAjoute = x2.etat === 'ajoute';
     var rh = rdvHistoriqueParCode()[s.code] || null;
     var prox = prochaineEffective(pr);
-    var estEtape = !!(prox && d && prox <= d && prox >= ajouterJours(aujourdhui(), -14));
-    var estPrio = !!(im || estEtape || (x2.impose && !x2.inopinee && !estAjoute && !x2.etape) || x2.rdv);
+    var rdvH = (!prox && st && d) ? rdvHonorePourDate(s.code, d) : null;
+    var estEtape = !!(rdvH || (prox && d && prox <= d && prox >= ajouterJours(aujourdhui(), -14)));
+    var rdvDateEff = rdvH ? rdvH.prochaine : (estEtape ? prox : '');
+    var rdvPrisEff = rdvH ? rdvH.prisLe : (estEtape && rh ? (rh.prisLe || '') : '');
+    var estPrio = !!(im || estEtape || (x2.impose && !x2.inopinee && !estAjoute && !x2.etape) || x2.rdv || x2.etaitRdv);
     var estValide = !!(st || (x2.prog ? x2.prog === 'valide' : x2.programme === 'Validé'));
     var a = { uid: (v && v.uid) || x2.uid || ('C-' + d + '-' + s.code), cle: (c && c.cle) || x2.cle || '', date: d, heure: x2.heure || (v && v.heure) || '', creneau: s.creneau || x2.creneau || (c ? c.creneau : ''),
       debut: x2.debut || '', fin: x2.fin || '', idPresence: s.idPresence || x2.idPresence || '', code: s.code, nom: s.nom || pr.nom || s.code, type: pr.type || s.type || 'Médecin',
@@ -4310,7 +4345,7 @@
       lieu: s.lieu || x2.lieu || '', reperes: (v && v.reperes) || x2.reperes || (c && c.reperes) || pr.reperes || '', lat: c && c.coord ? c.coord.lat : null, lon: c && c.coord ? c.coord.lon : null, statut: st,
       activite: v ? v.activite || '' : '', produits: v ? v.produits || '' : '', commentaire: v ? v.commentaire || '' : '', prochaine: v ? String(v.prochaine || '').slice(0, 10) : '',
       rdvConfirme: !!(v && (v.rdvConfirme || (v.suite && /^RDV confirmé/i.test(v.suite)))),
-      etat: st ? 'valide' : (estAjoute ? 'ajoute' : ''), garde: !!(estValide || estAjoute), impose: estPrio, etape: estEtape, rdvDate: estEtape ? prox : '', rdvPrisLe: estEtape && rh ? (rh.prisLe || '') : '', rdv: (im && im.rdv) || x2.rdv || '', dist: 0, retard: false };
+      etat: st ? 'valide' : (estAjoute ? 'ajoute' : ''), garde: !!(estValide || estAjoute), impose: estPrio, etaitRdv: estPrio || !!x2.etaitRdv, etape: estEtape, rdvDate: rdvDateEff, rdvPrisLe: rdvPrisEff, rdv: (im && im.rdv) || x2.rdv || '', dist: 0, retard: false };
     if (va) a.valideA = va;
     return completerHeures(a);
   }
@@ -6682,14 +6717,17 @@
     var imPrio = imposePourArret(a.code, a.date);
     var estPrio = estRdvPrisEnAmont(a, a.date);
     var proxEff = prochaineEffective(praticien(a.code));
-    var estEtapeAff = !!(a.etape || (proxEff && a.date && proxEff <= a.date && proxEff >= ajouterJours(aujourdhui(), -14)));
+    var rdvH = (!proxEff && (a.statut || verrou)) ? rdvHonorePourDate(a.code, a.date) : null;
+    var rdvDateAff = a.rdvDate || (rdvH && rdvH.prochaine) || proxEff || '';
+    var estEtapeAff = !!(a.etape || rdvH || (proxEff && a.date && proxEff <= a.date && proxEff >= ajouterJours(aujourdhui(), -14)));
     var rdvAff = a.rdv || (imPrio && imPrio.rdv) || '';
-    if (estPrio) e += '<span class="etiquette p1">' + (estEtapeAff ? esc(libelleRdv(a.etape ? a : { date: a.date, rdvDate: proxEff })) : (rdvAff ? 'RDV ' + esc(rdvAff) : (a.etat === 'ajoute' && !a.impose ? 'Planifié' : 'Prioritaire'))) + '</span>';
+    if (estPrio) e += '<span class="etiquette p1">' + (estEtapeAff ? esc(libelleRdv(a.etape ? a : { date: a.date, rdvDate: rdvDateAff })) : (rdvAff ? 'RDV ' + esc(rdvAff) : (a.etat === 'ajoute' && !a.impose ? 'Planifié' : 'Prioritaire'))) + '</span>';
     if (a.statut) e += '<span class="etiquette ' + (estKo(a.statut) ? 'ko' : 'ok') + '">' + esc(statutLibelle(a)) + '</span>';
     
     // Logique stricte : violet pour les RDV / prioritaires, jaune (ambre) pour hors communes choisies,
-    // vert si épinglée (gardée), blanc pour les visites normales du jour
-    var horsZone = !dansCommunesDu(a, a.date);
+    // vert si épinglée (gardée), blanc pour les visites normales du jour (conservé même une fois la visite faite)
+    var comJourExp = a.date && S.criteresJours && S.criteresJours[a.date] && S.criteresJours[a.date].communes;
+    var horsZone = !dansCommunesDu(a, a.date) || (!!a.horsCommune && (!comJourExp || !comJourExp.length));
     var ancien = estReprise(a);
     if (horsZone) {
       if (a.statut) {
@@ -14356,6 +14394,9 @@
         if (a.corrige && S.data.historique) S.data.historique.forEach(function (x, i) { if (x.uid === v.uid) S.data.historique[i] = Object.assign({}, x, v); });
       }
       if (estKo(a.statut)) ko++;
+      // 3.31.189 : mémoriser le statut RDV (violet) et hors communes (jaune) avant validation pour les préserver dans Planifier
+      if (estRdvPrisEnAmont(a, a.date)) a.etaitRdv = true;
+      if (!dansCommunesDu(a, a.date)) a.horsCommune = true;
       // 3.25.0 : heure de validation (première saisie le jour même) : elle fait foi pour l'ordre de la journée
       if (!a.valideA && a.date === t) a.valideA = minutesVersHeure(minutesMaintenant());
       a.etat = 'valide'; delete a.corrige; delete a.empreinte;

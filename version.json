@@ -1,8 +1,8 @@
 {
-  "version": "3.31.188",
+  "version": "3.31.189",
   "date": "2026-11-20",
   "notes": [
-    "+ Médecin › Tout le répertoire : regroupement contigu des médecins d'un même hôpital (en conservant Présents ce jour au top et Déjà dans la tournée tout en bas)",
-    "Planifier : bouton « Reprendre un ancien programme » ramené à une hauteur compacte de 34 px sur 1 ligne"
+    "Planifier : les visites RDV (violettes) déjà faites conservent leur couleur violette et leur badge RDV, et les visites hors communes (jaunes) déjà faites conservent leur couleur jaune (opacité pleine)",
+    "+ Médecin › Tout le répertoire regroupé par hôpital et bouton Reprendre un ancien programme compact (34 px)"
   ]
 }
