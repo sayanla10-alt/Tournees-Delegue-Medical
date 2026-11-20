@@ -1,8 +1,8 @@
 {
-  "version": "3.31.181",
-  "date": "2026-11-19",
+  "version": "3.31.182",
+  "date": "2026-11-20",
   "notes": [
-    "Clôture de la journée : 8 icônes animées et significatives (coucher de soleil, drapeau, trophée, médaille, étoile, boussole, lune du soir, tasse de repos) variant selon votre réalisation",
-    "Célébration éphémère animée à 100 %, boutons compacts 34 px et sous-titres vivants calibrés sur tous les onglets"
+    "Application plus vivante : barre de progression avec reflet et teinte émeraude dès 80 %, icône d'ambiance horaire sur Journée et micro-interactions tactiles (prochaine visite, validation CR, favori, épingle, tirage)",
+    "Suivi enrichi (compteurs animés et bloc positif Impact terrain), écrans vides illustrés et reflet furtif sur la pastille de synchro"
   ]
 }
