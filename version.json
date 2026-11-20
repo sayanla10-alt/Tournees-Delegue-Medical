@@ -1,8 +1,8 @@
 {
-  "version": "3.31.187",
+  "version": "3.31.188",
   "date": "2026-11-20",
   "notes": [
-    "Journée : tuile Compte Rendu optimisée pour garder « faits marquants, concurrence, besoins » sur 2 lignes sans réduire la police",
-    "Journée : barre de progression dégradée logiquement du moins foncé (gauche) au plus foncé (droite)"
+    "+ Médecin › Tout le répertoire : regroupement contigu des médecins d'un même hôpital (en conservant Présents ce jour au top et Déjà dans la tournée tout en bas)",
+    "Planifier : bouton « Reprendre un ancien programme » ramené à une hauteur compacte de 34 px sur 1 ligne"
   ]
 }

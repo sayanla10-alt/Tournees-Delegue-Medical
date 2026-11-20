@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.187';
+  var APP_VERSION = '3.31.188';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.188', [
+      '+ Médecin › Tout le répertoire : les médecins d\'un même hôpital sont désormais regroupés les uns à la suite des autres (au sein de « Présents ce jour », puis autres jours, puis « Déjà dans la tournée » tout en bas)',
+      'Planifier : bouton « Reprendre un ancien programme » ramené à une hauteur compacte (34 px sur 1 seule ligne)'
+    ]],
     ['3.31.187', [
       'Journée : tuile « Compte Rendu » optimisée (pastille d\'état alignée sur la ligne du titre pour libérer toute la largeur en dessous : « faits marquants, concurrence, besoins » tient sur 2 lignes sans réduire la police)',
       'Journée : dégradé de la barre de progression inversé dans le sens logique (du moins foncé à gauche vers le plus foncé à droite)'
@@ -6098,7 +6102,7 @@
 
   // ------------------------------------------------------------------ Reprendre un ancien programme
   function boutonAnciens(style) {
-    return '<button class="bouton bouton-large" type="button" data-a="ouvrirAnciens" style="' + style + '">' + icone('relancer') + 'Reprendre un ancien programme</button>';
+    return '<button class="bouton petit bouton-large bouton-anciens" type="button" data-a="ouvrirAnciens" style="' + style + '">' + icone('relancer') + 'Reprendre un ancien programme</button>';
   }
   // Sources : mes tournées publiées (feuille Plannings, 62 jours) et l'archive du téléphone, hors jours de la tournée en cours
   function anciensProgrammes() {
@@ -11398,9 +11402,11 @@
       return mots.every(function (m) { return txt.indexOf(m) >= 0; });
     });
 
-    // Distance par rapport à la position actuelle (GPS), disponibilité du jour et statut tournée
+    // Distance par rapport à la position actuelle (GPS), disponibilité du jour, hôpital de regroupement et statut tournée
+    var distHop = {};
     var avecDist = filtres.map(function (p) {
       var pres = cCtx.presencesParCode[p.code] || [];
+      var crJour = (cCtx.parCode[p.code] || []).filter(function (x) { return x.jourIdx === j; });
       var minD = null, approx = false;
       if (pos && pres.length) {
         pres.forEach(function (pr) {
@@ -11416,15 +11422,38 @@
         });
       }
       var dejaPlan = !!dans[p.code];
-      var presentJour = (cCtx.parCode[p.code] || []).some(function (x) { return x.jourIdx === j; });
+      var presentJour = crJour.length > 0;
       // 3.31.186 : Présents ce jour au top (0), autres non planifiés au milieu (1), Déjà dans la tournée tout en bas (2)
       var rang = dejaPlan ? 2 : (presentJour ? 0 : 1);
-      return { p: p, dist: minD, approx: approx, pert: scorePertinenceNom(p, qClean, mots), rang: rang, dejaPlan: dejaPlan, presentJour: presentJour };
+      // 3.31.188 : pour les médecins, regrouper les médecins d'un même hôpital les uns à la suite des autres
+      var cleHop = '', libHop = '';
+      if (p.type !== 'Pharmacie') {
+        var lieuRef = (crJour[0] && crJour[0].lieu) || (pres[0] && pres[0].lieu) || '';
+        cleHop = normaliser(lieuRef);
+        libHop = abregerHopital(lieuRef);
+        if (cleHop && minD !== null && (distHop[cleHop] === undefined || minD < distHop[cleHop])) distHop[cleHop] = minD;
+      }
+      return { p: p, dist: minD, approx: approx, pert: scorePertinenceNom(p, qClean, mots), rang: rang, dejaPlan: dejaPlan, presentJour: presentJour, cleHop: cleHop, libHop: libHop };
     });
 
     avecDist.sort(function (x, y) {
       if (x.rang !== y.rang) return x.rang - y.rang;
       if (mots.length && y.pert !== x.pert) return y.pert - x.pert;
+      if (x.p.type !== 'Pharmacie' && y.p.type !== 'Pharmacie') {
+        var hVide = (x.cleHop === '') - (y.cleHop === '');
+        if (hVide !== 0) return hVide;
+        if (x.cleHop !== y.cleHop) {
+          if (pos) {
+            var dx = distHop[x.cleHop] !== undefined ? distHop[x.cleHop] : null;
+            var dy = distHop[y.cleHop] !== undefined ? distHop[y.cleHop] : null;
+            var dH = (dx === null) - (dy === null) || (dx || 0) - (dy || 0);
+            if (dH !== 0) return dH;
+          }
+          var cmpH = x.libHop.localeCompare(y.libHop, 'fr') || x.cleHop.localeCompare(y.cleHop);
+          if (cmpH !== 0) return cmpH;
+        }
+        return nomSansTitre(x.p.nom).localeCompare(nomSansTitre(y.p.nom), 'fr');
+      }
       if (pos) {
         var dDiff = (x.dist === null) - (y.dist === null) || (x.dist || 0) - (y.dist || 0);
         if (dDiff !== 0) return dDiff;
@@ -11444,6 +11473,10 @@
         var pres = cCtx.presencesParCode[p.code] || [];
         var fusion = fusionnerLieux(pres);
         var lieuxNoms = fusion.map(function (x) { return abregerHopital(x.lieu || x.quartier || ''); }).filter(Boolean);
+        if (item.libHop && lieuxNoms.length > 1) {
+          var idxRef = lieuxNoms.indexOf(item.libHop);
+          if (idxRef > 0) { lieuxNoms.splice(idxRef, 1); lieuxNoms.unshift(item.libHop); }
+        }
         var comNoms = Array.from(new Set(fusion.map(function (x) { return x.commune; }).filter(Boolean)));
         var crJour = (cCtx.parCode[p.code] || []).filter(function (x) { return x.jourIdx === j; });
         var dejaPlan = !!dans[p.code];

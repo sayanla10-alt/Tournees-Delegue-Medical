@@ -5586,6 +5586,15 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
   50% { transform: translateY(-3px); }
 }
 
+/* 3.31.188 : Planifier : bouton « Reprendre un ancien programme » compact sur 1 ligne (34 px) */
+.bouton.bouton-anciens {
+  min-height: 34px; height: 34px;
+  padding: 0 14px !important;
+  font-size: 13.5px; line-height: 1.2;
+  gap: 6px; white-space: nowrap;
+}
+.bouton.bouton-anciens svg { width: 15px; height: 15px; }
+
 @media (prefers-reduced-motion: reduce) {
   .progression.active i::after,
   .cr-moment-ico svg,
