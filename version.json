@@ -1,8 +1,8 @@
 {
-  "version": "3.31.182",
+  "version": "3.31.183",
   "date": "2026-11-20",
   "notes": [
-    "Application plus vivante : barre de progression avec reflet et teinte émeraude dès 80 %, icône d'ambiance horaire sur Journée et micro-interactions tactiles (prochaine visite, validation CR, favori, épingle, tirage)",
-    "Suivi enrichi (compteurs animés et bloc positif Impact terrain), écrans vides illustrés et reflet furtif sur la pastille de synchro"
+    "Journée : retrait de l'icône d'ambiance horaire dans l'en-tête",
+    "Barre de progression vivante, micro-interactions tactiles, compteurs animés, bloc Impact terrain et écrans vides illustrés"
   ]
 }

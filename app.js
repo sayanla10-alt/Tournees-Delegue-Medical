@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.182';
+  var APP_VERSION = '3.31.183';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.183', [
+      'Journée : retrait de l\'icône d\'ambiance horaire à côté du titre'
+    ]],
     ['3.31.182', [
       'Application plus vivante : icône d\'ambiance selon le moment de la journée, barre de progression brillante, pouls sur la prochaine visite, micro-interactions tactiles (haptique, épingle, cœur, cascade Recalculer, flash Synchro), compteurs animés + impact terrain dans Suivi et écrans vides illustrés (retour arrière : tag avant-app-vivante)'
     ]],
@@ -5113,10 +5116,7 @@
     // 3.31.105 : 3 semaines avant et après le jour choisi (au lieu de 6) : écran deux fois plus léger ; le calendrier va plus loin
     var jours = []; for (var k = -21; k <= 21; k++) jours.push(ajouterJours(d, k));   // 3.26.65 : tous les jours, samedi, dimanche et fériés grisés
     var comptesJ = comptesVisitesJours(jours);
-    var hNow = new Date().getHours();
-    var icoMoment = hNow < 12 ? ['soleilMatin', 'matin', 'Bon matin'] : (hNow < 18 ? ['soleilMidi', 'midi', 'Bonne tournée'] : (hNow < 20 ? ['soleilSoir', 'soir', 'Fin de journée'] : ['luneEtoile', 'nuit', 'Bonsoir']));
-    var pastilleMoment = d === t ? '<span class="jour-moment-ico jm-' + icoMoment[1] + '" title="' + icoMoment[2] + '">' + icone(icoMoment[0]) + '</span>' : '';
-    return '<div class="tete-jour"><div><div class="tete-jour-ligne">' + pastilleMoment + '<h2 class="titre-vue">Journée</h2>' + etiquetteRelative(d) + etat + '</div>' +
+    return '<div class="tete-jour"><div><div class="tete-jour-ligne"><h2 class="titre-vue">Journée</h2>' + etiquetteRelative(d) + etat + '</div>' +
         '<p class="date-jour">' + majuscule(dateLongue(d)) + (d !== t ? ' · <button type="button" class="bouton-texte" data-a="jourAujourdhui">Revenir à aujourd\'hui</button>' : '') + '</p></div></div>' +
       '<p class="sous-titre">' + esc(sousTitreVivant('jour')) + '</p>' +
       '<div class="bande-jours">' +
@@ -17884,8 +17884,6 @@
       poubelle: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/>',
       eclair: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
       drapeau: '<path d="M5 21V4"/><path d="M5 4h11l-2.5 4.5L16 13H5"/>',
-      soleilMatin: '<path d="M3 18h18"/><path d="M7 18a5 5 0 0 1 10 0"/><path d="M12 4v5M9.5 6.5 12 4l2.5 2.5M5.2 12l2 2M18.8 12l-2 2"/>',
-      soleilMidi: '<circle cx="12" cy="12" r="4.2"/><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M18.4 5.6l-1.7 1.7M7.3 16.7l-1.7 1.7"/>',
       soleilSoir: '<path d="M3 17h18"/><path d="M7 17a5 5 0 0 1 10 0"/><path d="M12 5v3M5.6 10.6l2.1 2.1M18.4 10.6l-2.1 2.1"/>',
       luneEtoile: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5Z"/><path d="M17 4v3M15.5 5.5h3"/>',
       trophee: '<path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/><path d="M12 13v5M8.5 21h7M10 18h4"/>',
