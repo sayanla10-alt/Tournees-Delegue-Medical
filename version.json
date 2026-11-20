@@ -1,8 +1,8 @@
 {
-  "version": "3.31.190",
+  "version": "3.31.191",
   "date": "2026-11-20",
   "notes": [
-    "Planifier & Journée : pastille violette explicite « RDV » affichée sur toutes les visites RDV (avant et après validation du compte rendu)",
-    "Planifier : les visites RDV faites restent violettes et les visites hors communes faites restent jaunes (opacité pleine)"
+    "Planifier : toutes les visites d'un même secteur (RDV violet + visites vertes/blanches) regroupées dans un seul bloc sans doublon",
+    "Journée (Fixer GPS) : confirmation préalable obligatoire avant de mesurer le GPS ; Produits : mémorisation de la dernière gamme sélectionnée (Aura 1 / Aura 2 / Tous)"
   ]
 }
