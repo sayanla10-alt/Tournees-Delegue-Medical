@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.178';
+  var APP_VERSION = '3.31.179';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.179', [
+      'Journée : cartes CR visite élargies (heures alignées à gauche sur Maintenant avec écarts constants, et suppression de la marge droite inutile sous le cœur : +43 px utiles sur les lignes lieu et produits)'
+    ]],
     ['3.31.178', [
       'Planifier : tout praticien ajouté manuellement est épinglé d\'emblée, et les visites ajoutées à la main ou hors zone s\'ajoutent au quota demandé au tirage (ex. 3 ajoutés + 8 demandés = 11 visites)'
     ]],

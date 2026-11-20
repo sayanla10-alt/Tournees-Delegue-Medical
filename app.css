@@ -310,8 +310,8 @@ option { color: var(--encre); background: var(--papier); font-weight: 400; }
 }
 .arret.verrouille .arret-carte { background: var(--papier-2); }
 .arret.garde .arret-carte { border-color: var(--primaire); }
-.arret-carte .carte-bouton { padding-right: 34px; }
-.arret-nom { display: block; font-weight: 650; font-size: 16px; line-height: 1.25; }
+.arret-carte .carte-bouton { padding-right: 0; }
+.arret-nom { display: block; font-weight: 650; font-size: 16px; line-height: 1.25; padding-right: 28px; }
 .arret-lieu { display: block; color: var(--gris); font-size: 13.5px; margin-top: 2px; }
 .etiquettes { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 7px; }
 .etiquettes.centre { justify-content: center; }
@@ -1743,12 +1743,12 @@ details.avance h3 { margin-top: 18px; }
 .a-saisir .bouton-texte { min-height: 0; padding: 3px 0; font-size: 14.5px; }
 .txt-alerte { color: var(--ambre); }
 
-/* 3.13.4 & 3.26.10 : équilibre frise / heures / carte sans chevauchement */
-.arret, .troncon { grid-template-columns: 44px 18px 1fr; }
+/* 3.13.4 / 3.26.10 / 3.31.179 : heures alignées sur la bordure gauche de Maintenant (+9 px carte, écarts heure↔trait et trait↔carte constants) */
+.arret, .troncon { grid-template-columns: 35px 18px 1fr; }
 .arret-heure { padding: 12px 6px 0 0; }
 .arret-heure b { font-size: 14px; letter-spacing: -0.3px; }
 .arret-heure small { font-size: 10px; }
-.creneau-titre { margin-left: 62px; }
+.creneau-titre { margin-left: 53px; }
 .troncon span { padding-left: 8px; font-size: 12px; }
 .acces-rapport { width: 100%; display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 11px 12px; border: 1.5px solid var(--primaire); border-radius: 14px; background: var(--papier); color: var(--encre); text-align: left; }
 .acces-rapport > span { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
