@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.186';
+  var APP_VERSION = '3.31.187';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.187', [
+      'Journée : tuile « Compte Rendu » optimisée (pastille d\'état alignée sur la ligne du titre pour libérer toute la largeur en dessous : « faits marquants, concurrence, besoins » tient sur 2 lignes sans réduire la police)',
+      'Journée : dégradé de la barre de progression inversé dans le sens logique (du moins foncé à gauche vers le plus foncé à droite)'
+    ]],
     ['3.31.186', [
       'Suivi › Audit : l\'audit GPS et anomalies porte désormais sur les lieux physiques (Hôpitaux / Établissements et Pharmacies) plutôt que sur les médecins individuels, avec édition directe de l\'établissement ou de la pharmacie',
       '+ Médecin / + Phcie › Tout le répertoire : les praticiens et pharmacies « Présents ce jour » apparaissent désormais tout en haut et ceux « Déjà dans la tournée » tout en bas'
@@ -5464,16 +5468,20 @@
     // 3.28.47 : compte rendu validé, ou jour passé : l'encart devient « Bilan du Jour » (même place, même geste)
     if ((R && R.valideLe && !R.edition) || d < aujourdhui()) {
       var fa = liste.filter(function (a) { return a.statut && !estKo(a.statut); }).length;
-      return '<button type="button" class="acces-rapport acces-bilan" data-a="ouvrirBilan"><span>' + icone('valider') + '<b>Bilan du Jour</b><small>' + fa + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' faite' + (fa > 1 ? 's' : '') +
-        ' · RDV, faits marquants, détail des visites</small></span>' +
-        (R && R.valideLe ? '<span class="etiquette ok">CR validé</span>' : '<span class="etiquette p1">CR non fait</span>') + icone('chevron') + '</button>';
+      var etatBilan = R && R.valideLe ? '<span class="etiquette ok">CR validé</span>' : '<span class="etiquette p1">CR non fait</span>';
+      return '<button type="button" class="acces-rapport acces-bilan" data-a="ouvrirBilan"><span>' + icone('valider') +
+        '<span class="ar-ligne-tete"><b>Bilan du Jour</b>' + etatBilan + '</span>' +
+        '<small>' + fa + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' faite' + (fa > 1 ? 's' : '') +
+        ' · RDV, faits marquants, détail des visites</small></span>' + icone('chevron') + '</button>';
     }
     var pretFinaliser = n > 0 && r === n && !passeVerrouille(d) && !futurVerrouille(d);
     var etat = pretFinaliser ? '<span class="etiquette finaliser">Finaliser</span>'
       : (R && R.valideLe ? '<span class="etiquette ok">Validé</span>'
         : (R && Object.keys(R.ok || {}).length ? '<span class="etiquette p1">En cours</span>' : '<span class="etiquette">À faire</span>'));
-    return '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') + '<b>Compte Rendu' + pastilleSoleilMoment(d) + '</b><small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
-      ' · faits marquants, concurrence, besoins</small></span>' + etat + icone('chevron') + '</button>';
+    return '<button type="button" class="acces-rapport" data-a="ouvrirRapport"><span>' + icone('crayon') +
+      '<span class="ar-ligne-tete"><b>Compte Rendu' + pastilleSoleilMoment(d) + '</b>' + etat + '</span>' +
+      '<small>' + r + '/' + n + ' visite' + (n > 1 ? 's' : '') + ' renseignée' + (r > 1 ? 's' : '') +
+      ' · faits marquants, concurrence, besoins</small></span>' + icone('chevron') + '</button>';
   }
   VUES.rapport = function () {
     var d = jourAffiche(), t = aujourdhui();
