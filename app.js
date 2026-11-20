@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.177';
+  var APP_VERSION = '3.31.178';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.178', [
+      'Planifier : tout praticien ajouté manuellement est épinglé d\'emblée, et les visites ajoutées à la main ou hors zone s\'ajoutent au quota demandé au tirage (ex. 3 ajoutés + 8 demandés = 11 visites)'
+    ]],
     ['3.31.177', [
       'CR Journée (Fixer GPS) : seuls les relevés de terrain sont considérés précis ; dans tous les autres cas (Google Maps, centroïde, vide…), le bouton « Fixer GPS » reste proposé pour enregistrer la vraie position de l\'hôpital ou de la pharmacie'
     ]],
@@ -14106,7 +14109,7 @@
     var a = Moteur.arretDepuisCreneau(c, date);
     var imAj = imposePourArret(c.code, date), rhAj = rdvHistoriqueParCode()[c.code] || null, proxAj = prochaineEffective(praticien(c.code));
     var estEtapeAj = !!(proxAj && date && proxAj <= date && proxAj >= ajouterJours(aujourdhui(), -14));
-    a.etat = 'ajoute'; a.garde = !(imAj || estEtapeAj);
+    a.etat = 'ajoute'; a.garde = true;
     if (imAj || estEtapeAj) {
       a.impose = true;
       if (imAj && imAj.rdv) a.rdv = imAj.rdv;

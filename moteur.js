@@ -1141,8 +1141,8 @@ var Moteur = (function () {
 
   function filtrerFixesJour(rawFixes, maxFixes) {
     var faitsFixes = rawFixes.filter(function (a) { return !!a.statut; });
-    var priosFixes = rawFixes.filter(function (a) { return !a.statut && (a.impose || a.etape || a.rdv); });
-    var planFixes = rawFixes.filter(function (a) { return !a.statut && !(a.impose || a.etape || a.rdv); });
+    var priosFixes = rawFixes.filter(function (a) { return !a.statut && (a.impose || a.etape || a.rdv || a.etat === 'ajoute' || a.garde); });
+    var planFixes = rawFixes.filter(function (a) { return !a.statut && !(a.impose || a.etape || a.rdv || a.etat === 'ajoute' || a.garde); });
     if (planFixes.length > Math.max(0, maxFixes - faitsFixes.length)) {
       planFixes.sort(function (a, b) {
         var ga = a.garde ? 0 : 1;
@@ -1215,7 +1215,22 @@ var Moteur = (function () {
       }
     }
 
-    var nbPrios = fixesGardes.filter(function (a) { return !a.statut && (a.etape || a.rdv || a.rdvDate || (a.impose && !a.inopinee && a.etat !== 'ajoute')); }).length;
+    var setComsO = null;
+    if (o.communes && o.communes.length) {
+      setComsO = {};
+      o.communes.forEach(function (cm) { setComsO[cm] = true; });
+    }
+    function estFixeAdditif(a) {
+      if (!a || a.statut) return false;
+      if (a.etape || a.rdv || a.rdvDate || (a.impose && !a.inopinee && a.etat !== 'ajoute')) return true;
+      if (a.etat === 'ajoute') return true;
+      if (setComsO) {
+        var inZone = typeof communeCorrespondante === 'function' ? communeCorrespondante(a, setComsO, ctx.quartiers) : !!setComsO[a.commune];
+        if (!inZone) return true;
+      }
+      return false;
+    }
+    var nbPrios = fixesGardes.filter(estFixeAdditif).length;
     var baseCible = Math.min(max, o.targetJour !== undefined && o.targetJour !== null ? o.targetJour : max);
     var cibleJour = Math.max(route.length, baseCible + nbPrios);
     var targetMatin = Math.ceil(cibleJour / 2), targetSoir = cibleJour - targetMatin;
@@ -1267,7 +1282,7 @@ var Moteur = (function () {
     route.forEach(function (it) {
       var kP = clePartArret(it), kC = partComMap[kP] || cleNorm(typeof communeParente === 'function' ? communeParente(it.a.commune) : it.a.commune) || 'autre';
       partComMap[kP] = kC;
-      var estPrio = !it.a.statut && (it.a.impose || it.a.etape || it.a.rdv);
+      var estPrio = estFixeAdditif(it.a);
       if (estPrio) prioFixPart[kP] = (prioFixPart[kP] || 0) + 1;
       else {
         nonPrioFixPart[kP] = (nonPrioFixPart[kP] || 0) + 1;
