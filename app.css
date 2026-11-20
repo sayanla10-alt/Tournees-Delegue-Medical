@@ -1300,6 +1300,20 @@ body.avec-barre main { padding-bottom: 70px; }
 .lp-etiquettes-btn .etiquettes { margin-top: 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; justify-content: center; justify-content: safe center; gap: 3px; align-items: center; }
 .lp-etiquettes-btn.centre .etiquettes { justify-content: center; justify-content: safe center; }
 .lp-etiquettes-btn .etiquettes::-webkit-scrollbar { display: none; }
+.lp-etiquettes-btn .etq-piste { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 3px; flex: 0 0 auto; will-change: transform; }
+.lp-etiquettes-btn .etiquettes.defile { justify-content: flex-start !important; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8px, #000 calc(100% - 8px), transparent); mask-image: linear-gradient(90deg, transparent, #000 8px, #000 calc(100% - 8px), transparent); }
+.lp-etiquettes-btn .etiquettes.defile .etq-piste { animation: etq-defile var(--etq-dur, 7s) ease-in-out infinite; }
+.lp-etiquettes-btn:hover .etiquettes.defile .etq-piste,
+.lp-etiquettes-btn:active .etiquettes.defile .etq-piste { animation-play-state: paused; }
+@keyframes etq-defile {
+  0%, 16% { transform: translateX(0); }
+  46%, 66% { transform: translateX(var(--etq-decal, 0px)); }
+  92%, 100% { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-etiquettes-btn .etiquettes.defile .etq-piste { animation: none !important; }
+  .lp-etiquettes-btn .etiquettes.defile { overflow-x: auto; -webkit-mask-image: none; mask-image: none; }
+}
 .lp-etiquettes-btn .etiquette { flex: 0 0 auto; font-size: 10.5px; padding: 1px 5px; min-height: 18px; }
 
 .lp-actions { flex: none; display: flex; align-items: center; gap: 4px; }
@@ -3676,9 +3690,12 @@ body.feuille-ouverte .entete { position: fixed; top: 0; left: 0; right: 0; z-ind
 .sr-lieux b { font-size: 14px; }
 .sr-lieux small { display: block; font-size: 12px; color: var(--gris); line-height: 1.35; }
 
-/* 3.27.10 / 3.31.171 : Remplacer compact (carte fermée + CR visite indisponible) ; en-tête du jour de Planifier centré */
-.remplacer-ligne { display: flex; margin: 6px auto 0; justify-content: center; min-height: 30px !important; height: 30px !important; padding: 0 12px !important; font-size: 13px !important; gap: 5px; }
-.remplacer-ligne svg { width: 14px; height: 14px; }
+/* 3.27.10 / 3.31.171 / 3.31.176 : Remplacer + Supprimer compacts (carte fermée + CR visite indisponible) */
+.actions-ko-ligne { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 6px; }
+.remplacer-ligne,
+.supprimer-ligne { display: inline-flex; margin: 0; justify-content: center; min-height: 30px !important; height: 30px !important; padding: 0 12px !important; font-size: 13px !important; gap: 5px; }
+.remplacer-ligne svg,
+.supprimer-ligne svg { width: 14px; height: 14px; }
 .cr-question[data-etape="remplacant"] .segment { padding: 2px; }
 .cr-question[data-etape="remplacant"] .segment button { min-height: 32px !important; height: 32px; padding: 0 8px !important; font-size: 13.5px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
 .cr-question[data-etape="remplacant"] .segment button svg { margin-right: 0; vertical-align: 0; }

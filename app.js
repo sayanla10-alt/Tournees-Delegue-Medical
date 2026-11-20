@@ -9,13 +9,17 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.175';
+  var APP_VERSION = '3.31.176';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.176', [
+      'Planifier : défilement automatique doux des pastilles sur les cartes lorsqu\'elles débordent à l\'écran, et séparation en 2 pastilles (« Déjà renseignée » + « Hors communes choisies »)',
+      'Journée (visite non faite) : ajout du bouton « Supprimer » à côté de « Remplacer »'
+    ]],
     ['3.31.175', [
       'CR Journée (visite non faite › Remplacer) : retour à la liste directe des praticiens remplaçants avec barre de recherche (suppression de l\'écran « Garder ou retirer »)'
     ]],
@@ -3564,6 +3568,28 @@
     datesEnFrancais();
     initGlisseHorizontale();
     attacherInfiniteScroll();
+    animerPastillesPlanifier();
+  }
+  function animerPastillesPlanifier() {
+    if (S.ui.tab !== 'semaine') return;
+    requestAnimationFrame(function () {
+      var conts = document.querySelectorAll('#vue .lp-etiquettes-btn .etiquettes');
+      for (var i = 0; i < conts.length; i++) {
+        var c = conts[i], p = c.querySelector('.etq-piste');
+        if (!p) continue;
+        var diff = Math.ceil(p.scrollWidth - c.clientWidth);
+        if (diff > 4) {
+          var dur = Math.max(4.5, Math.min(13, 2.6 + diff / 24)).toFixed(1) + 's';
+          c.classList.add('defile');
+          p.style.setProperty('--etq-decal', '-' + (diff + 6) + 'px');
+          p.style.setProperty('--etq-dur', dur);
+        } else {
+          c.classList.remove('defile');
+          p.style.removeProperty('--etq-decal');
+          p.style.removeProperty('--etq-dur');
+        }
+      }
+    });
   }
 
   // 3.29.0 : rendu des résultats seuls autour d'un champ de recherche : le bloc du champ est gardé tel quel,
@@ -6531,10 +6557,13 @@
     var horsZone = !dansCommunesDu(a, a.date);
     var ancien = estReprise(a);
     if (horsZone) {
-      var libHors = a.statut ? 'Déjà renseignée, hors communes choisies'
-        : (estEtapeAff || rdvAff ? 'RDV, hors communes choisies'
-          : ((a.originePasse || (a.date && a.date < aujourdhui())) ? 'Visite passée, hors communes choisies' : 'Hors communes choisies'));
-      e += '<span class="etiquette ambre">' + libHors + '</span>';
+      if (a.statut) {
+        e += '<span class="etiquette ok">Déjà renseignée</span><span class="etiquette ambre">Hors communes choisies</span>';
+      } else {
+        var libHors = (estEtapeAff || rdvAff) ? 'RDV, hors communes choisies'
+          : ((a.originePasse || (a.date && a.date < aujourdhui())) ? 'Visite passée, hors communes choisies' : 'Hors communes choisies');
+        e += '<span class="etiquette ambre">' + libHors + '</span>';
+      }
     } else if (ancien && a.statut) {
       e += '<span class="etiquette ok">Déjà renseignée</span>';
     }
@@ -6575,7 +6604,7 @@
         '</div>' +
       '</div>' +
       boutonFavori(a.code) +
-      (e ? '<button type="button" class="lp-etiquettes-btn centre" data-a="voirVisite" data-uid="' + a.uid + '"><span class="etiquettes">' + e + '</span></button>' : '') +
+      (e ? '<button type="button" class="lp-etiquettes-btn centre" data-a="voirVisite" data-uid="' + a.uid + '"><span class="etiquettes"><span class="etq-piste">' + e + '</span></span></button>' : '') +
       // Un seul couple compact Remplacer / Supprimer collé juste sous les étiquettes centrées
       (avecActionsBas ? questionConflit(a) : '') +
       '</li>';
@@ -7610,7 +7639,12 @@
             '<span class="arret-lieu">' + esc([a.quartier, reperesDe(a), a.commune].filter(Boolean).join(', ')) + '</span>' +
             '<span class="etiquettes">' + e + '</span>' : (lieuQuartier(a) ? '<span class="arret-lieu">' + specGras(a, lieuQuartier(a)) + '</span>' : '') + ligneEtat(a, enCoursCr)) +
         '</button>' + boutonFavori(a.code) +
-        (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && !futurVerrouille(a.date) ? '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' : '');
+        (!ouvert && !a.hors && !passeVerrouille(a.date) && a.statut && estKo(a.statut) && !futurVerrouille(a.date)
+          ? '<div class="actions-ko-ligne">' +
+              '<button class="bouton petit remplacer-ligne" type="button" data-a="completerJour" data-uid="' + a.uid + '">' + icone('relancer') + 'Remplacer</button>' +
+              '<button class="bouton petit danger-doux supprimer-ligne" type="button" data-a="retirer" data-uid="' + a.uid + '">' + icone('fermer') + 'Supprimer</button>' +
+            '</div>'
+          : '');
     if (ouvert) {
       var pa = praticien(a.code) || {};
       h += '<div class="arret-detail">' +
