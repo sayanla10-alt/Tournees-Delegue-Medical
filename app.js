@@ -9,13 +9,16 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.191';
+  var APP_VERSION = '3.31.192';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.192', [
+      'Synchronisation temps réel accélérée : enchaînement immédiat si une synchro était déjà en cours, réactivité Realtime réduite à 200 ms, et propagation immédiate des repères d\'établissements (y compris suppression)'
+    ]],
     ['3.31.191', [
       'Planifier : toutes les visites d\'un même secteur (ex. Riviera : RDV violet + visites vertes/blanches) sont regroupées dans un seul bloc de secteur sans doublon',
       'Journée (CR visite › Fixer GPS) : demande désormais confirmation que vous êtes bien sur place avant de lancer la mesure GPS (plus aucun déclenchement accidentel)',
@@ -2962,7 +2965,7 @@
   }
   function synchroniser(silencieux, sansGps, force) {
     if (!connecte()) return Promise.resolve();
-    if (S.ui.enCours) return Promise.resolve();
+    if (S.ui.enCours) { S.ui._resyncDemande = true; return Promise.resolve(); }
     if (!navigator.onLine) { S.ui.sync = 'horsligne'; afficherEntete(); return Promise.resolve(); }
     var avantSync = { pret: pret(), att: enAttente(), pub: !!S.ui.aPublier, err: S.ui.sync === 'erreur' || S.ui.sync === 'horsligne' };
     S.ui.enCours = true; S.ui.sync = 'encours'; afficherEntete(); if (!pret()) rendreSiPossible();
@@ -3107,7 +3110,8 @@
         avantSync.err || S.ui.sync === 'erreur';
       if (utile && (!sansGps || aChange || !S.ui.feuille)) rendreSiPossible(); else { afficherEntete(); afficherBarre(); }
       // 3.27.47 : Second appel redondant localiser supprimé pour économiser la batterie
-      if (S.ui.aPublier && (!tentePub || (S.ui._verPub || 0) !== verPubAvant) && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
+      if (S.ui._resyncDemande && navigator.onLine) { S.ui._resyncDemande = false; setTimeout(function () { synchroniser(true, true); }, 100); }
+      else if (S.ui.aPublier && (!tentePub || (S.ui._verPub || 0) !== verPubAvant) && navigator.onLine) setTimeout(function () { synchroniser(true); }, 400);
     });
   }
 
@@ -4555,7 +4559,7 @@
       l.forEach(function (c) { if (!vus[c.idPresence]) { vus[c.idPresence] = true; pres.push(c); } });
       var c = (a.idPresence && pres.filter(function (x) { return String(x.idPresence) === String(a.idPresence); })[0]) || (pres.length === 1 ? pres[0] : null);
       var p = C.prat[a.code];
-      var n = c ? { lieu: c.lieu || '', quartier: c.quartier || '', commune: c.commune || '', lat: c.coord ? c.coord.lat : null, lon: c.coord ? c.coord.lon : null } : {};
+      var n = c ? { lieu: c.lieu || '', quartier: c.quartier || '', commune: c.commune || '', reperes: c.reperes || '', lat: c.coord ? c.coord.lat : null, lon: c.coord ? c.coord.lon : null } : {};
       if (p && p.nom) n.nom = p.nom;
       Object.keys(n).forEach(function (k) {
         var av = a[k] === undefined || a[k] === null ? '' : String(a[k]), ap = n[k] === undefined || n[k] === null ? '' : String(n[k]);
@@ -6646,9 +6650,10 @@
   }
   function reperesDe(a) {
     var pe = trouverPresenceEtEtabPlan_(a);
-    var r = (pe.et && pe.et.reperes) ? String(pe.et.reperes).trim() : '';
-    if (!r && pe.pr && pe.pr.reperes) r = String(pe.pr.reperes).trim();
-    if (!r && a.reperes) r = String(a.reperes).trim();
+    var r = '';
+    if (pe.et) r = String(pe.et.reperes || '').trim();
+    else if (pe.pr) r = String(pe.pr.reperes || '').trim();
+    else if (a.reperes) r = String(a.reperes).trim();
     var qAct = quartierDe(a);
     // anciennes visites : repères déjà écrits dans le quartier, pas de redite
     return r && normaliser(qAct).indexOf(normaliser(r)) < 0 ? r : '';
@@ -18310,9 +18315,9 @@
       var m; try { m = JSON.parse(e.data); } catch (x) { return; }
       if (m.event === 'phx_reply' && m.topic === 'realtime:mediplanner') { tempsReel.actif = !!(m.payload && m.payload.status === 'ok'); tempsReel.delai = 2000; return; }
       if (m.event === 'broadcast' && m.payload && m.payload.event === 'maj') {
-        // plusieurs signaux rapprochés (un enregistrement touche plusieurs tables) : une seule relecture
+        // plusieurs signaux rapprochés (un enregistrement touche plusieurs tables) : une seule relecture quasi immédiate
         clearTimeout(tempsReel.minuteur);
-        tempsReel.minuteur = setTimeout(function () { synchroniser(true, true); }, 600);
+        tempsReel.minuteur = setTimeout(function () { synchroniser(true, true); }, 200);
       }
     };
     ws.onclose = ws.onerror = function () {
@@ -18330,7 +18335,7 @@
   }
   document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') tempsReelOuvrir(); else tempsReelFermer(); });
   window.addEventListener('online', tempsReelOuvrir);
-  setTimeout(tempsReelOuvrir, 3000);
+  setTimeout(tempsReelOuvrir, 500);
 
   // ------------------------------------------------------------------ Thème
   function appliquerTheme(t) {

@@ -1,8 +1,8 @@
 {
-  "version": "3.31.191",
+  "version": "3.31.192",
   "date": "2026-11-20",
   "notes": [
-    "Planifier : toutes les visites d'un même secteur (RDV violet + visites vertes/blanches) regroupées dans un seul bloc sans doublon",
-    "Journée (Fixer GPS) : confirmation préalable obligatoire avant de mesurer le GPS ; Produits : mémorisation de la dernière gamme sélectionnée (Aura 1 / Aura 2 / Tous)"
+    "Synchronisation temps réel accélérée : enchaînement immédiat si une synchro est déjà en cours, délai Realtime réduit à 200 ms, et diffusion immédiate des repères d'établissements",
+    "Les suppressions de repères dans Google Sheets / Supabase se répercutent désormais immédiatement sur Planifier et Journée"
   ]
 }

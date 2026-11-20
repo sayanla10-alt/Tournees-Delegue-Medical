@@ -611,8 +611,11 @@ function jumSurEdition(e) {
         if (tablesLiees.length) jumPousserApresEcriture_(tablesLiees);
       } else if (table === 'etablissements') {
         try { alignerSecteurSurQuartier_(e); } catch (eAl) { console.warn('alignerSecteurSurQuartier_ : ' + eAl); }   // 3.31.58
+        // 3.31.192 : pousser et diffuser immédiatement la table etablissements (< 2 s dans l'app),
+        // puis propager vers presences / plannings en second temps
         SpreadsheetApp.flush();
-        var tablesEtab = ['etablissements'];
+        jumPousserApresEcriture_(['etablissements']);
+        var tablesEtab = [];
         try {
           var shEt = e.range.getSheet();
           if (shEt && shEt.getName() === FEUILLES.etablissements && typeof propagerEtablissementsVersPresences_ === 'function') {
@@ -623,8 +626,10 @@ function jumSurEdition(e) {
             if (bilanE && bilanE.plannings > 0) tablesEtab.push('plannings');
           }
         } catch (ePe) {}
-        SpreadsheetApp.flush();
-        jumPousserApresEcriture_(tablesEtab);
+        if (tablesEtab.length) {
+          SpreadsheetApp.flush();
+          jumPousserApresEcriture_(tablesEtab);
+        }
       } else if (table === 'presences' || table === 'pharmacies') {
         try { alignerSecteurSurQuartier_(e); } catch (eAl2) { console.warn('alignerSecteurSurQuartier_ : ' + eAl2); }   // 3.31.58
         SpreadsheetApp.flush();
