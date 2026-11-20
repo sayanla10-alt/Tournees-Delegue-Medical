@@ -1,8 +1,8 @@
 {
-  "version": "3.31.183",
+  "version": "3.31.184",
   "date": "2026-11-20",
   "notes": [
-    "Journée : retrait de l'icône d'ambiance horaire dans l'en-tête",
+    "Journée : icône solaire selon l'heure (matin, midi, après-midi, soir) placée à droite de « Compte Rendu »",
     "Barre de progression vivante, micro-interactions tactiles, compteurs animés, bloc Impact terrain et écrans vides illustrés"
   ]
 }

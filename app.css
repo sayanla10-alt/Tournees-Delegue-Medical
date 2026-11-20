@@ -5463,6 +5463,33 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
   100% { transform: translateX(130%); }
 }
 
+/* 2. Icône solaire selon l'heure à droite de « Compte Rendu » (matin, midi, après-midi, soir) */
+.acces-rapport b { display: inline-flex; align-items: center; gap: 6px; }
+.cr-titre-page { display: inline-flex; align-items: center; gap: 8px; }
+.cr-moment-ico {
+  display: inline-grid; place-items: center;
+  width: 22px; height: 22px; border-radius: 50%; flex: none;
+  background: var(--ambre-pale); color: var(--ambre);
+}
+.acces-rapport > span .cr-moment-ico svg,
+.cr-moment-ico svg { grid-row: auto; width: 14px; height: 14px; color: inherit; }
+.cr-moment-ico.crm-matin { background: var(--ambre-pale); color: #D97706; }
+.cr-moment-ico.crm-matin svg { animation: crm-flotte 3.6s ease-in-out infinite; }
+.cr-moment-ico.crm-midi { background: #FEF9C3; color: #CA8A04; }
+.cr-moment-ico.crm-midi svg { animation: crm-soleil 18s linear infinite; }
+.cr-moment-ico.crm-aprem { background: var(--ambre-pale); color: #D97706; }
+.cr-moment-ico.crm-aprem svg { animation: crm-flotte 4.2s ease-in-out infinite; }
+.cr-moment-ico.crm-soir { background: #FFEDD5; color: #C2590C; }
+.cr-moment-ico.crm-soir svg { animation: crm-flotte 4.4s ease-in-out infinite; }
+:root[data-theme="sombre"] .cr-moment-ico.crm-midi,
+:root[data-theme="sombre"] .cr-moment-ico.crm-soir { background: var(--ambre-pale); color: var(--ambre); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="clair"]) .cr-moment-ico.crm-midi,
+  :root:not([data-theme="clair"]) .cr-moment-ico.crm-soir { background: var(--ambre-pale); color: var(--ambre); }
+}
+@keyframes crm-flotte { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes crm-soleil { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
 /* 3. Micro-interactions tactiles : prochaine visite, validation CR, favori, épingle, tirage */
 .arret.prochaine .arret-noeud {
   border-color: var(--primaire);
@@ -5549,6 +5576,7 @@ button.bandeau.deja-planifie:active { filter: brightness(.97); }
 
 @media (prefers-reduced-motion: reduce) {
   .progression.active i::after,
+  .cr-moment-ico svg,
   .arret.prochaine .arret-noeud,
   .arret.vient-enregistrer .arret-noeud,
   .btn-fav.fav-eclat, .btn-fav.fav-eclat svg,
