@@ -55,7 +55,7 @@ Refontes livrées à l'essai : si l'utilisateur ne les valide pas, revenir à l'
 * `avant-repertoire-annuaires` : Répertoire avant la 3.27.30 (sélecteur Médecins / Pharmacies / Hôpitaux et annuaire des hôpitaux).
 * `avant-verifier-fiche-v2` : écran « Vérifier la fiche » (fiche photographiée) avant la refonte 3.31.80 (une ligne par contact, une question, contacts inchangés ignorés).
 * `avant-app-vivante` : état exact `v3.31.181` avant les animations et enrichissements « app vivante » (`v3.31.182`).
-* `avant-reglages-v2` : onglet Réglages avant la refonte 3.31.195 (carte profil auto-enregistrée, habitudes à plat, Mes données, assistance technique).
+* `avant-reglages-v2` (branche, le proxy refuse les tags ; = commit `ed019de`, v3.31.194) : onglet Réglages avant la refonte 3.31.195 (carte profil auto-enregistrée, habitudes à plat, Mes données, assistance technique).
 
 ---
 
