@@ -1,8 +1,8 @@
 {
-  "version": "3.31.192",
-  "date": "2026-11-20",
+  "version": "3.31.193",
+  "date": "2026-11-22",
   "notes": [
-    "Synchronisation temps réel accélérée : enchaînement immédiat si une synchro est déjà en cours, délai Realtime réduit à 200 ms, et diffusion immédiate des repères d'établissements",
-    "Les suppressions de repères dans Google Sheets / Supabase se répercutent désormais immédiatement sur Planifier et Journée"
+    "Journée (CR visite ouvert) : boutons Sortir et Modifier compacts (34 px) et bande inférieure assortie à la couleur de la carte (blanc, vert, orange ou rouge)",
+    "Frise des jours sans halo vert qui bave, et Suivi › Impact terrain enrichi d'un 4e indicateur (communes ce mois) aligné en grille 2×2"
   ]
 }
