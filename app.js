@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.194';
+  var APP_VERSION = '3.31.195';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.195', ['Réglages repensés : votre profil en carte (enregistré dès que vous quittez un champ), vos habitudes sur une ligne chacune, Partager et installer à portée de main, Mes données (état, synchronisation, sauvegarde, effacement) et l\'assistance technique repliée en bas']],
     ['3.31.194', ['Planifier : les médecins d\'un même secteur restent regroupés dans la tournée même quand un rendez-vous à heure fixe se trouve au milieu (plus d\'aller-retour inutile dans le même quartier)']],
     ['3.31.193', [
       'Journée (carte CR ouverte) : boutons « Sortir » et « Modifier » ramenés à une hauteur compacte (34 px) sur fond assorti à la carte (blanc, vert, orange ou rouge), sans bande blanche en dessous',
@@ -2050,14 +2051,14 @@
     return sections;
   }
   // Nom du délégué : choisi dans la liste de la feuille Listes (évite les fautes de frappe entre collègues)
-  function champNom(id, valeur, libelle) {
-    var l = (S.data && S.data.delegues) || [];
-    if (!l.length) return '<label class="champ"><span>' + libelle + '</span><input type="text" id="' + id + '" autocomplete="name" placeholder="Ex. Koffi Yao" value="' + esc(valeur) + '"></label>';
+  function champNom(id, valeur, libelle, apres) {   // apres(v) : appelé après un choix (3.31.195 : profil enregistré de lui-même)
+    var l = (S.data && S.data.delegues) || [], fAttr = apres ? ' data-f="profil"' : '';
+    if (!l.length) return '<label class="champ"><span>' + libelle + '</span><input type="text" id="' + id + '"' + fAttr + ' autocomplete="name" placeholder="Ex. Koffi Yao" value="' + esc(valeur) + '"></label>';
     var autre = valeur && l.indexOf(valeur) < 0;
     return '<div class="champ"><span>' + libelle + '</span>' + selecteurListe(id, { titre: 'Votre nom', dom: true, valeur: autre ? '__autre' : valeur, vide: 'Choisir mon nom…',
         options: [['__autre', '+ Mon nom n\'est pas dans la liste : l\'ajouter']].concat(l.slice().sort(function (x, y) { return x.localeCompare(y, 'fr'); }).map(function (n) { return [n, n]; })),
-        appliquer: function (v) { var b = $(id + 'Bloc'); if (b) b.hidden = v !== '__autre'; } }) + '</div>' +
-      '<label class="champ" id="' + id + 'Bloc"' + (autre ? '' : ' hidden') + '><span>Nom complet</span><input type="text" id="' + id + 'Autre" autocomplete="name" value="' + esc(autre ? valeur : '') + '">' +
+        appliquer: function (v) { var b = $(id + 'Bloc'); if (b) b.hidden = v !== '__autre'; if (apres) apres(v); } }) + '</div>' +
+      '<label class="champ" id="' + id + 'Bloc"' + (autre ? '' : ' hidden') + '><span>Nom complet</span><input type="text" id="' + id + 'Autre"' + fAttr + ' autocomplete="name" value="' + esc(autre ? valeur : '') + '">' +
       '<span class="aide-champ">Votre prénom et nom seront ajoutés à la liste des délégués.</span></label>' +
       (autre ? '' : '<button type="button" class="bouton-texte" data-a="nomAutre" data-v="' + id + '" style="margin:-4px 0 8px">+ Mon nom n\'est pas dans la liste</button>');
   }
@@ -10581,98 +10582,115 @@
   };
 
   // ------------------------------------------------------------------ Vue : réglages
+  // 3.31.195 : Réglages repensés par usage : carte profil (enregistrée d'elle-même), habitudes à plat, partager et installer,
+  // données du téléphone, puis assistance technique repliée (connexion, base, version). Point de retour : tag avant-reglages-v2.
   VUES.reglages = function () {
-    // 3.28.39 : quatre volets repliables, seul « Mon profil » ouvert par défaut ; ce que l'on ouvre reste ouvert pendant la session
-    var c = S.config, ouv = S.ui.regOuverts || (S.ui.regOuverts = { profil: true, avance: (!c.url && !c.demo) || !!S.ui.erreur || rejetsEnAttente() > 0 });
-    function volet(id, titre, resume, corps) {
-      return '<details class="bloc avance reg-volet" data-reg="' + id + '"' + (ouv[id] ? ' open' : '') + '><summary><b>' + titre + '</b><span class="discret">' + resume + '</span></summary>' + corps + '</details>';
+    var c = S.config, attente = S.queue.length + S.fiches.length + rejetsEnAttente();
+    var ouv = S.ui.regOuverts || (S.ui.regOuverts = { profil: !c.delegue, donnees: rejetsEnAttente() > 0, avance: (!c.url && !c.demo) || !!S.ui.erreur });
+    function volet(id, titre, resume, corps, classe) {
+      return '<details class="bloc avance reg-volet' + (classe ? ' ' + classe : '') + '" data-reg="' + id + '"' + (ouv[id] ? ' open' : '') + '><summary><b>' + titre + '</b><span class="discret">' + resume + '</span></summary>' + corps + '</details>';
+    }
+    function bascule(f, titre, aide, coche, extra) {
+      return '<label class="interrupteur reg-ligne"><span>' + titre + '<small class="discret bloc-texte">' + aide + '</small></span>' +
+        '<input type="checkbox" data-f="' + f + '"' + (coche ? ' checked' : '') + (extra || '') + '></label>';
     }
     var h = '<h2 class="titre-vue">Réglages</h2><p class="sous-titre">' + esc(sousTitreVivant('reglages')) + '</p>';
-    // 1. Mon profil
-    h += volet('profil', 'Mon profil', esc(c.delegue || 'Votre nom, WhatsApp, quartier'),
-      champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)') +
-      '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
-      '<div class="champ"><span>Mon quartier (départ des tournées)</span>' + selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: c.depart ? valeurSelecteurQuartier(c.depart, c.departCommune) : '', commune: c.departCommune, vide: 'Choisir un quartier…', sections: sectionsQuartiers() }) + '</div>' +
-      '<label class="champ"><span>WhatsApp de mon superviseur</span><input type="tel" id="cfgWaResp" inputmode="tel" placeholder="Facultatif" value="' + esc(c.waResp || '') + '"></label>' +
-      '<button class="bouton bouton-plein bouton-large" type="button" data-a="enregistrerMoi">Enregistrer</button>');
-    // 2. Préférences : s'appliquent tout de suite
+    // 1. Carte profil : nom, quartier et état en un coup d'œil ; toucher pour modifier ; chaque champ s'enregistre en le quittant
+    var nomAff = c.delegue || 'Votre nom', init = (c.delegue || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(function (m) { return m[0]; }).join('').toUpperCase();
+    var etat = c.demo ? 'Mode démonstration' : (S.data && S.data.syncedAt ? 'Synchronisé le ' + new Date(S.data.syncedAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'Pas encore synchronisé');
+    h += '<details class="bloc avance reg-volet reg-profil" data-reg="profil"' + (ouv.profil ? ' open' : '') + '><summary>' +
+      '<span class="reg-avatar" aria-hidden="true">' + esc(init) + '</span><span class="reg-ident"><b>' + esc(nomAff) + '</b>' +
+      '<span class="discret">' + esc([c.depart, c.whatsapp ? '+' + c.whatsapp : ''].filter(Boolean).join(' · ') || 'Quartier, WhatsApp : à compléter') + '</span>' +
+      '<span class="discret">' + esc(etat) + ' · v' + APP_VERSION + '</span></span></summary>' +
+      champNom('cfgNom', c.delegue || '', 'Votre nom (visible par vos collègues)', enregistrerProfilBientot) +
+      '<label class="champ"><span>Votre numéro WhatsApp</span><input type="tel" id="cfgWhatsapp" data-f="profil" inputmode="tel" placeholder="Ex. 07 07 07 07 07" value="' + esc(c.whatsapp || '') + '"></label>' +
+      '<div class="champ"><span>Mon quartier (départ des tournées)</span>' + selecteurListe('cfgDepart', { titre: 'Mon quartier', dom: true, valeur: c.depart ? valeurSelecteurQuartier(c.depart, c.departCommune) : '', commune: c.departCommune, vide: 'Choisir un quartier…', sections: sectionsQuartiers(), appliquer: enregistrerProfilBientot }) + '</div>' +
+      '<label class="champ"><span>WhatsApp de mon superviseur</span><input type="tel" id="cfgWaResp" data-f="profil" inputmode="tel" placeholder="Facultatif" value="' + esc(c.waResp || '') + '"></label>' +
+      '<p class="discret" style="margin:0">Chaque modification est enregistrée dès que vous quittez le champ.</p></details>';
+    // 2. Mes habitudes : une ligne par réglage, appliqué tout de suite
     var nOk = typeof Notification !== 'undefined', nPerm = nOk ? Notification.permission : 'denied', nAct = LS.get('notifs', false) && nPerm === 'granted';
-    var hNotif = '<h3>Notifications</h3>' +
-      '<p class="discret" style="margin:0 0 8px">Pharmacie ou médecin du jour à moins de 500 m, médecin aussi prévu par un collègue. Affichées quand l\'application est ouverte ou vient d\'être mise en arrière-plan.</p>' +
-      (!nOk ? '<p class="discret">Ce navigateur ne gère pas les notifications. Installez l\'application depuis Chrome.</p>' :
-        nPerm === 'denied' ? '<p class="discret">Notifications bloquées : autorisez-les dans les réglages du navigateur (cadenas › Autorisations › Notifications).</p>' :
-        '<button class="bouton bouton-large' + (nAct ? '' : ' bouton-plein') + '" type="button" data-a="notifBascule">' + (nAct ? 'Désactiver les notifications' : 'Activer les notifications') + '</button>' +
-        (nAct ? '<button class="bouton-texte" type="button" data-a="notifTest" style="display:block;margin:8px auto 0">Envoyer une notification d\'essai</button>' : '')) +
-      '';
     var th = LS.get('theme', 'clair');
-    var hTheme = '<h3 style="margin-top:4px">Apparence</h3><div class="segment" role="group" aria-label="Thème" style="margin:0">' +
+    h += '<div class="bloc reg-groupe"><h3>Mes habitudes</h3>' +
+      bascule('crExpress', 'Compte rendu express', 'Visites de routine saisies sur un seul écran.', c.crExpress) +
+      bascule('saisieAvancee', 'Saisie avancée', 'Comptes rendus des jours passés et à venir.', c.modifPasse && c.saisieFutur) +
+      bascule('waWeb', 'Toujours ouvrir WhatsApp Web', 'Pour envoyer depuis un ordinateur.', c.waWeb, ' id="cfgWaWeb"') +
+      bascule('notifs', 'Notifications', !nOk ? 'Non gérées par ce navigateur : installez l\'application depuis Chrome.' :
+        nPerm === 'denied' ? 'Bloquées : autorisez-les dans le navigateur (cadenas › Autorisations).' : 'Contact du jour à moins de 500 m, médecin aussi prévu par un collègue.',
+        nAct, (!nOk || nPerm === 'denied') ? ' disabled' : '') +
+      (nAct ? '<button class="bouton-texte reg-essai" type="button" data-a="notifTest">Envoyer une notification d\'essai</button>' : '') +
+      '<div class="reg-ligne reg-theme"><span>Thème<small class="discret bloc-texte">Auto suit le téléphone.</small></span><div class="segment" role="group" aria-label="Thème">' +
       [['auto', 'Auto'], ['clair', 'Clair'], ['sombre', 'Sombre']].map(function (x) {
         return '<button type="button" data-a="theme" data-v="' + x[0] + '" aria-pressed="' + (th === x[0]) + '">' + x[1] + '</button>';
-      }).join('') + '</div><p class="discret" style="margin:8px 0 0">Auto suit le réglage du téléphone.</p>';
-    h += volet('pref', 'Préférences', 'Apparence, comptes rendus, WhatsApp, notifications',
-      hTheme +
-      '<h3>Comptes rendus</h3><label class="interrupteur" style="margin-top:0"><span>Compte rendu express<small class="discret bloc-texte">Saisie rapide des visites de routine sur un seul écran (statut, types, produits et prochain RDV). Le formulaire complet reste accessible d\'un clic.</small></span>' +
-        '<input type="checkbox" data-f="crExpress"' + (c.crExpress ? ' checked' : '') + '></label>' +
-      '<label class="interrupteur"><span>Saisie avancée<small class="discret bloc-texte">Comptes rendus des jours passés et à venir. Désactivée : seul le jour même se saisit ; la planification des jours à venir reste possible.</small></span>' +
-        '<input type="checkbox" data-f="saisieAvancee"' + (c.modifPasse && c.saisieFutur ? ' checked' : '') + '></label>' +
-      '<h3>WhatsApp</h3><label class="interrupteur" style="margin-top:0"><span>Toujours ouvrir WhatsApp Web<small class="discret bloc-texte">Pour envoyer depuis un ordinateur.</small></span><input type="checkbox" id="cfgWaWeb" data-f="waWeb"' + (c.waWeb ? ' checked' : '') + '></label>' +
-      hNotif);
-    // 3. Application
+      }).join('') + '</div></div></div>';
+    // 3. Partager & installer
     var hInst = estInstallee() ?
-      '<button class="bouton bouton-large" type="button" disabled aria-disabled="true">' + icone('valider') + 'Application installée</button>' :
-      '<button class="bouton bouton-plein bouton-large" type="button" data-a="installer">' + icone('telecharger') + 'Installer l\'application</button>';
-    h += volet('appli', 'Application', 'Version ' + APP_VERSION + ', mises à jour, installation, partage',
-      '<h3 style="margin-top:4px">Version ' + APP_VERSION + '</h3><p class="discret" style="margin-top:0">Les mises à jour sont signalées par un bandeau en haut de l\'écran ; vos données restent sur le téléphone.</p>' +
-      '<div class="rangee"><button class="bouton" type="button" data-a="verifierMaj">Recherche MàJ</button>' +
-      '<button class="bouton" type="button" data-a="ouvrirLancement">Écran d\'accueil</button></div>' +
-      '<h3>Installer sur le téléphone</h3>' + hInst +
-      (connecte() ? '<h3>Partager avec un collègue</h3>' +
-        '<button class="bouton bouton-plein bouton-large" type="button" data-a="partager" style="margin-bottom:6px">Partager l\'application</button>' +
-        '<p class="discret" style="margin:0">Le lien installe et règle l\'application chez votre collègue ; il donne accès à la base : envoyez-le uniquement à vos collègues.</p>' : ''));
-    // 4. Avancé : données du téléphone, base, connexion, effacement
-    // 3.28.12 : Supabase base principale, Google Sheets en appoint, synchronisés dans les deux sens
-    var bddSrc = (S.config && S.config.bddSource) || 'supabase';
-    var hBdd = '<h3>Base de données</h3>' +
-      '<p class="discret" style="margin:0 0 10px">Supabase est la base principale. Chaque enregistrement est écrit dans Supabase et dans Google Sheets à la même seconde ; une modification faite à la main dans le Google Sheet apparaît sur les téléphones en quelques secondes, une modification faite directement dans Supabase est reportée dans le Sheet en 5 minutes au plus.</p>' +
-      '<div class="segment" role="group" aria-label="Base de données" style="margin:0 0 10px">' +
-      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets (appoint)</button>' +
-      '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (Défaut)</button>' +
-      '</div>' +
-      '<div style="font-size:12.5px;color:var(--gris);margin-bottom:10px">' +
-      (bddSrc === 'sheets' ?
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3B82F6;margin-right:6px"></span><b>Google Sheets actif :</b> lecture de secours (la base est identique).' :
-        '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:6px"></span><b>Supabase actif :</b> base principale, chargement rapide.') +
-      '</div>' +
-      etatJumelageHtml() +
-      '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Vérifier la synchronisation</button>';
-    h += volet('avance', 'Avancé', 'Synchronisation, sauvegarde, base de données, connexion, effacement',
-      '<h3 style="margin-top:4px">Synchronisation</h3><p class="discret" style="margin-top:0">' +
-      (S.config.demo ? 'Mode démonstration : les données restent sur ce téléphone.' :
-        (S.data && S.data.syncedAt ? 'Dernière synchronisation : ' + new Date(S.data.syncedAt).toLocaleString('fr-FR') + '.' : 'Pas encore synchronisé.')) +
-      (pret() ? ' ' + S.data.praticiens.length + ' praticiens, ' + S.data.presences.length + ' lieux de présence.' : '') +
-      (S.queue.length ? ' ' + S.queue.length + ' compte(s) rendu(s) en attente.' : '') +
-      (S.fiches.length ? ' ' + S.fiches.length + ' fiche(s) praticien en attente' + (S.ui.serveurAncien ? ' : le serveur Apps Script doit être mis à jour pour les recevoir.' : '.') : '') + '</p>' +
+      '<button class="bouton" type="button" disabled aria-disabled="true">' + icone('valider') + 'Installée</button>' :
+      '<button class="bouton' + (connecte() ? '' : ' bouton-plein') + '" type="button" data-a="installer">' + icone('telecharger') + 'Installer</button>';
+    h += '<div class="bloc reg-groupe"><h3>Partager & installer</h3><div class="rangee">' +
+      (connecte() ? '<button class="bouton bouton-plein" type="button" data-a="partager">' + icone('partager') + 'Partager</button>' : '') + hInst + '</div>' +
+      (connecte() ? '<p class="discret" style="margin:8px 0 0">Le lien règle l\'application et donne accès à la base : à vos collègues uniquement.</p>' : '') + '</div>';
+    // 4. Mes données : état en pastilles, synchronisation, sauvegarde, effacement
+    var dSauv = S.data && S.data.sauvegarde ? new Date(S.data.sauvegarde).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : '';
+    var pastilles = [
+      pret() ? S.data.praticiens.length + ' praticiens' : '',
+      pret() ? S.data.presences.length + ' lieux' : '',
+      S.queue.length ? S.queue.length + ' compte(s) rendu(s) en attente' : '',
+      S.fiches.length ? S.fiches.length + ' fiche(s) en attente' : '',
+      dSauv ? 'Copie de la base du ' + dSauv : '',
+      Object.keys(LS.get('secours', {})).length + ' copie(s) sur ce téléphone'
+    ].filter(Boolean);
+    h += volet('donnees', 'Mes données', esc(attente ? attente + ' envoi(s) en attente' : (pret() ? S.data.praticiens.length + ' praticiens, sauvegarde, effacement' : 'Synchronisation, sauvegarde, effacement')),
+      '<div class="reg-pastilles">' + pastilles.map(function (p) { return '<span>' + esc(p) + '</span>'; }).join('') + '</div>' +
+      (S.fiches.length && S.ui.serveurAncien ? '<p class="discret">Le serveur Apps Script doit être mis à jour pour recevoir les fiches en attente.</p>' : '') +
+      (S.data && S.data.praticiens && !S.data.serveurRecent && connecte() ? '<p class="discret" style="color:var(--rouge)">Ce téléphone est relié à une ancienne version du serveur : touchez « Synchroniser » pour basculer sur le serveur à jour.</p>' : '') +
       envoisRefusesHtml() +
-      (connecte() ? '<button class="bouton bouton-large" type="button" data-a="sync" style="margin-bottom:10px">Synchroniser maintenant</button>' +
-        '<button class="bouton bouton-large" type="button" data-a="rechargerBase" style="margin-bottom:10px">Recharger toute la base</button>' : '') +
-      '<button class="bouton bouton-large" type="button" data-a="demo" style="margin-bottom:10px">Charger les données de démonstration</button>' +
-      '<h3>Sauvegarde</h3><p class="discret" style="margin-top:0">' +
-        (S.data && S.data.sauvegarde ? 'Base : dernière copie le ' + new Date(S.data.sauvegarde).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' (7 copies dans Drive).' : 'Base : sauvegarde quotidienne à installer dans la BDD (menu MediPlanner › Sauvegardes).') +
-        ' Téléphone : ' + Object.keys(LS.get('secours', {})).length + ' copie(s) sur 7 jours.</p>' +
-      '<div class="rangee" style="margin-bottom:10px"><button class="bouton" type="button" data-a="exporterSecours">' + icone('telecharger') + 'Exporter</button>' +
+      (connecte() ? '<div class="rangee" style="margin-bottom:8px"><button class="bouton" type="button" data-a="sync">' + icone('relancer') + 'Synchroniser</button>' +
+        '<button class="bouton" type="button" data-a="rechargerBase">Recharger</button></div>' : '') +
+      '<div class="rangee"><button class="bouton" type="button" data-a="exporterSecours">' + icone('telecharger') + 'Exporter</button>' +
         '<label class="bouton" style="position:relative;overflow:hidden">' + icone('relancer') + 'Importer<input type="file" accept="application/json,.json" data-f="importSecours" style="position:absolute;inset:0;opacity:0"></label></div>' +
-      hBdd +
-      '<h3>Connexion au serveur</h3>' +
+      '<div class="reg-separe"><button class="bouton bouton-large" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button></div>');
+    // 5. Assistance technique : connexion, base de données, version (repliée)
+    var bddSrc = (S.config && S.config.bddSource) || 'supabase';
+    h += volet('avance', 'Assistance technique', 'Connexion, base de données, version ' + APP_VERSION,
+      '<h3 style="margin-top:4px">Connexion au serveur</h3>' +
       '<label class="champ"><span>URL de l\'application Web</span><input type="url" id="cfgUrl" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec" value="' + esc(c.url) + '"></label>' +
       '<label class="champ"><span>Jeton d\'accès</span><input type="text" id="cfgToken" autocomplete="off" autocapitalize="off" spellcheck="false" value="' + esc(c.token) + '"></label>' +
       '<div class="rangee"><button class="bouton" type="button" data-a="tester">Tester</button>' +
       '<button class="bouton bouton-plein" type="button" data-a="enregistrerConnexion">Enregistrer</button></div>' +
       (S.ui.erreur ? '<p class="discret" style="color:var(--rouge);margin-bottom:0">' + esc(S.ui.erreur) + '</p>' : '') +
-      (S.data && S.data.praticiens && !S.data.serveurRecent && connecte() ? '<p class="discret" style="color:var(--rouge)">Ce téléphone est relié à une ancienne version du serveur : touchez « Synchroniser maintenant » pour basculer automatiquement sur le serveur à jour.</p>' : '') +
-      (connecte() ? '<p class="discret" style="margin:4px 0 0">Serveur : …' + esc(String(S.config.url).replace(/\/exec.*$/, '').slice(-6)) + '</p>' : '') +
-      '<h3>Effacer</h3><button class="bouton bouton-large bouton-plein" type="button" data-a="reinitialiser">Effacer les données de ce téléphone</button>');
+      (connecte() ? '<p class="discret" style="margin:6px 0 0">Serveur : …' + esc(String(S.config.url).replace(/\/exec.*$/, '').slice(-6)) + '</p>' : '') +
+      '<h3>Base de données</h3>' +
+      '<p class="discret" style="margin:0 0 8px">Supabase est la base principale, Google Sheets sa copie de secours ; les deux restent identiques.</p>' +
+      '<div class="segment" role="group" aria-label="Base de données" style="margin:0 0 10px">' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="sheets" aria-pressed="' + (bddSrc === 'sheets') + '">Google Sheets</button>' +
+      '<button type="button" data-a="basculerSourceBdd" data-v="supabase" aria-pressed="' + (bddSrc === 'supabase') + '">Supabase (défaut)</button></div>' +
+      etatJumelageHtml() +
+      '<button class="bouton bouton-large" type="button" data-a="testerSupabase">Vérifier la synchronisation</button>' +
+      '<h3>Application</h3><p class="discret" style="margin-top:0">Version ' + APP_VERSION + '. Les mises à jour sont signalées par un bandeau ; vos données restent sur le téléphone.</p>' +
+      '<div class="rangee" style="margin-bottom:8px"><button class="bouton" type="button" data-a="verifierMaj">Recherche MàJ</button>' +
+      '<button class="bouton" type="button" data-a="ouvrirLancement">Écran d\'accueil</button></div>' +
+      '<button class="bouton bouton-large" type="button" data-a="demo">Données de démonstration</button>');
     return h;
   };
+  // 3.31.195 : profil enregistré de lui-même (champ quitté, quartier ou nom choisi dans la liste)
+  function enregistrerProfilBientot(v) { if (v === '__autre') return; setTimeout(function () { enregistrerProfil(true); }, 0); }
+  function enregistrerProfil(auto) {
+    if (!$('cfgWhatsapp')) return;
+    var n = lireNom('cfgNom') || (auto ? S.config.delegue || '' : ''), w = ($('cfgWhatsapp').value || '').trim();
+    if (w && !normaliserNumero(w)) { toast('Numéro WhatsApp non reconnu. Exemple : 07 07 07 07 07.'); return; }
+    var wr = (($('cfgWaResp') || {}).value || '').trim();
+    if (wr && !normaliserNumero(wr)) { toast('Numéro du superviseur non reconnu. Exemple : 07 07 07 07 07.'); return; }
+    var depVal = ($('cfgDepart') || {}).value || '';
+    var resDep = depVal ? resoudreChoixQuartier(depVal) : null;
+    var depQ = (resDep && resDep.quartier) ? resDep.quartier : depVal;
+    var ancien = moi(), avant = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', S.config.depart || '', S.config.departCommune || '', S.config.waResp || '']);
+    S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); S.config.depart = depQ; S.config.departCommune = (resDep && resDep.commune) ? resDep.commune : ''; S.config.waResp = normaliserNumero(wr);
+    var apres = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', S.config.depart || '', S.config.departCommune || '', S.config.waResp || '']);
+    if (avant === apres) { if (!auto) toast('Aucune modification : votre profil est inchangé.'); return; }
+    LS.set('config', S.config); rendre(); toast('Profil enregistré.');
+    inscrireDelegue(n);
+    if (n && n !== ancien) publierPlan();
+  }
   // 3.29.0 : envois refusés par le serveur : visibles, détaillés, renvoyables ; jamais effacés en silence
   function envoisRefusesHtml() {
     var d = S.deadLetter || {}, l = (d.visites || []).map(function (v) { return { t: 'Compte rendu', nom: v.nom, date: v.date, err: v.derniereErreur }; })
@@ -16423,21 +16441,7 @@
       // 3.28.36 : pas encore installée : on la propose tout de suite (un bouton sur Android, le geste sur iPhone)
       if (!estInstallee()) setTimeout(function () { if (!S.ui.feuille) { S.ui.feuille = { type: 'installer', titre: 'Installer l\'application', bienvenue: true }; rendre(); } }, 600);
     },
-    enregistrerMoi: function () {
-      var n = lireNom('cfgNom'), w = ($('cfgWhatsapp').value || '').trim();
-      if (w && !normaliserNumero(w)) { toast('Numéro WhatsApp non reconnu. Exemple : 07 07 07 07 07.'); return; }
-      var wr = (($('cfgWaResp') || {}).value || '').trim();
-      if (wr && !normaliserNumero(wr)) { toast('Numéro du responsable non reconnu. Exemple : 07 07 07 07 07.'); return; }
-      var depVal = $('cfgDepart').value;
-      var resDep = depVal ? resoudreChoixQuartier(depVal) : null;
-      var depQ = (resDep && resDep.quartier) ? resDep.quartier : depVal;
-      var ancien = moi(), avant = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '', S.config.waResp || '']);
-      S.config.delegue = n; S.config.whatsapp = normaliserNumero(w); if ($('cfgWaWeb')) S.config.waWeb = $('cfgWaWeb').checked; S.config.depart = depQ; S.config.departCommune = (resDep && resDep.commune) ? resDep.commune : ''; S.config.waResp = normaliserNumero(wr);
-      var apres = JSON.stringify([S.config.delegue || '', S.config.whatsapp || '', !!S.config.waWeb, S.config.depart || '', S.config.waResp || '']);
-      LS.set('config', S.config); rendre(); toast(avant === apres ? 'Aucune modification : vos réglages sont inchangés.' : 'Réglages enregistrés.');
-      inscrireDelegue(n);
-      if (n && n !== ancien) publierPlan();
-    },
+    enregistrerMoi: function () { enregistrerProfil(false); },
     basculerSourceBdd: function (el) {
       var source = el.dataset.v || 'supabase';
       S.config.bddSource = source;
@@ -18024,6 +18028,8 @@
     }
     // 3.29.8 : champ retiré de l'écran (redessiné après un choix dans une liste) : son ancienne valeur ne doit rien écraser
     if (f === 'fiche' && el.isConnected && !S.ui.ignorerChangeLieu) majChampFiche(el, true);
+    if (f === 'profil') enregistrerProfil(true);   // 3.31.195 : Réglages, profil enregistré en quittant le champ
+    if (f === 'notifs') ACTIONS.notifBascule();
     if (f === 'importSecours' && el.files && el.files[0]) { importerSecours(el.files[0]); el.value = ''; }
     if (f === 'saisieAvancee') { S.config.modifPasse = S.config.saisieFutur = el.checked; LS.set('config', S.config); toast(el.checked ? 'Saisie avancée activée : jours passés et à venir modifiables.' : 'Saisie avancée désactivée : seul le jour même se saisit.'); rendre(); }
     if (f === 'waWeb') { S.config.waWeb = el.checked; LS.set('config', S.config); toast(el.checked ? 'WhatsApp Web sera toujours ouvert.' : 'WhatsApp s\'ouvrira dans l\'application du téléphone.'); }

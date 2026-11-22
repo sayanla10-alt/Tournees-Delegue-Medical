@@ -142,6 +142,18 @@ const ok = (nom, v, detail) => { if (!v) echecs++; console.log((v ? 'OK    ' : '
     ok('état « À jour »', await T(() => /jour/i.test(document.getElementById('pastilleSync').textContent)), await T(() => document.getElementById('pastilleSync').textContent));
   });
 
+  await etape('Réglages', async () => {
+    await T(() => { const x = document.createElement('button'); x.dataset.a = 'nav'; x.dataset.tab = 'reglages'; document.body.appendChild(x); x.click(); x.remove(); }); await attendre(700);
+    const r = await T(() => ({ profil: !!document.querySelector('#vue details.reg-profil .reg-avatar'), habitudes: document.querySelectorAll('#vue .reg-groupe .interrupteur').length,
+      volets: [...document.querySelectorAll('#vue details.reg-volet')].map(d => d.dataset.reg).join(','), boutonsPliés: [...document.querySelectorAll('#vue .reg-groupe .rangee .bouton')].every(b => b.getBoundingClientRect().height < 50) }));
+    ok('Réglages : carte profil, 4 habitudes à plat, volets données et assistance', r.profil && r.habitudes === 4 && r.volets === 'profil,donnees,avance', r);
+    ok('Réglages : boutons Partager / Installer sur une ligne', r.boutonsPliés);
+    const avant = await T(() => window.__tournees.S.config.waResp || '');
+    await T(() => { document.querySelector('#vue details.reg-profil').open = true; const i = document.getElementById('cfgWaResp'); i.value = '0505050505'; i.dispatchEvent(new Event('change', { bubbles: true })); }); await attendre(400);
+    ok('Réglages : profil enregistré en quittant le champ, sans bouton', await T(() => window.__tournees.S.config.waResp === '2250505050505' && !document.querySelector('#vue [data-a="enregistrerMoi"]')));
+    await T((v) => { const S = window.__tournees.S; S.config.waResp = v; localStorage.setItem('tournees.config', JSON.stringify(S.config)); }, avant);
+  });
+
   await etape('File d\'envoi', async () => {
     const lireServeur = async () => { const r = await fetch(API + '/exec?action=data&token=' + jeton); return (await r.json()).historique || []; };
     const creer = (uid, com) => T((a) => { const S = window.__tournees.S, p = S.data.praticiens.find(x => x.type !== 'Pharmacie'), pr = S.data.presences.find(x => x.code === p.code) || {};
