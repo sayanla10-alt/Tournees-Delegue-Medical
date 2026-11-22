@@ -17,6 +17,8 @@ node tests/serveur.js > tests/.serveur.log 2>&1 & P1=$!
 python3 -m http.server "$PORT_WEB" > /dev/null 2>&1 & P2=$!
 trap 'kill $P1 $P2 2>/dev/null' EXIT
 for i in $(seq 1 40); do grep -q "^ok" tests/.serveur.log 2>/dev/null && break; sleep 0.5; done
+echo "== Moteur de planification"
+node tests/moteur.js || exit 1
 echo "== Parcours de l'application"
 node tests/e2e.js 2>&1 | grep -v "agent-proxy\|^- \|Allowed\|For details"
 exit ${PIPESTATUS[0]}

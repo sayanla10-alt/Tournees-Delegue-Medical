@@ -1,8 +1,7 @@
 {
-  "version": "3.31.193",
+  "version": "3.31.194",
   "date": "2026-11-22",
   "notes": [
-    "Journée (CR visite ouvert) : boutons Sortir et Modifier compacts (34 px) et bande inférieure assortie à la couleur de la carte (blanc, vert, orange ou rouge)",
-    "Frise des jours sans halo vert qui bave, et Suivi › Impact terrain enrichi d'un 4e indicateur (communes ce mois) aligné en grille 2×2"
+    "Planifier : les médecins d'un même secteur restent groupés dans la tournée, même avec un rendez-vous à heure fixe au milieu"
   ]
 }

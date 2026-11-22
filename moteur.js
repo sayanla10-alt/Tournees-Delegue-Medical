@@ -920,11 +920,14 @@ var Moteur = (function () {
       r.forEach(function (it) { var k = cle(it); if (!par[k]) { par[k] = []; ordre.push(k); } par[k].push(it); });
       return ordre.reduce(function (l, k) { return l.concat(par[k]); }, []);
     }
-    // 1. d'un coup, si possible (même spécialité dans un même établissement sans détour ni retard)
-    var r0 = grouperPar(route, cleLieuSpec), r1 = grouperPar(r0, cleEtablissement);
-    var r = acceptable(r1) ? r1 : (acceptable(r0) ? r0 : route.slice());
-    // 2. sinon, visite par visite : rapprochée de la dernière visite du même hôpital si cela ne rallonge pas la tournée
-    [cleLieuSpec, cleEtablissement].forEach(function (cle) {
+    // 1. d'un coup, si possible (même spécialité dans un même établissement, puis même secteur/quartier, sans détour ni retard)
+    // 3.31.191 : le regroupement par secteur manquait ici ; un établissement d'un autre quartier intercalé entre deux
+    // médecins du même secteur (ex. un RDV à heure fixe) pouvait rester coincé au milieu, obligeant à sortir du secteur
+    // puis à y revenir, alors qu'aucune contrainte horaire ne l'imposait.
+    var r0 = grouperPar(route, cleLieuSpec), r1 = grouperPar(r0, cleEtablissement), r2 = grouperPar(r1, cleZoneSecteur);
+    var r = acceptable(r2) ? r2 : (acceptable(r1) ? r1 : (acceptable(r0) ? r0 : route.slice()));
+    // 2. sinon, visite par visite : rapprochée de la dernière visite du même hôpital, puis du même secteur, si cela ne rallonge pas la tournée
+    [cleLieuSpec, cleEtablissement, cleZoneSecteur].forEach(function (cle) {
       for (var passe = 0; passe < 2; passe++) {
         for (var i = 1; i < r.length; i++) {
           var k = cle(r[i]);
@@ -1945,7 +1948,8 @@ var Moteur = (function () {
     autourDe: autourDe, quartierLePlusProche: quartierLePlusProche, couverture: couverture, cleSecteur: cleSecteur,
     cleQuartier: cleQuartier, cleSecteurTournee: cleSecteurTournee, nomSecteurTournee: nomSecteurTournee,
     estVisite: estVisite, appliquerVisite: appliquerVisite, item: item, uid: uid, evaluerInsertion: evaluerInsertion,
-    cleZoneSecteur: cleZoneSecteur, definirQuartiersMoteur: definirQuartiersMoteur, definirFavoris: definirFavoris
+    cleZoneSecteur: cleZoneSecteur, definirQuartiersMoteur: definirQuartiersMoteur, definirFavoris: definirFavoris,
+    regrouper: regrouper   // exposé pour tests/moteur.js
   };
 })();
 

@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.193';
+  var APP_VERSION = '3.31.194';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.194', ['Planifier : les médecins d\'un même secteur restent regroupés dans la tournée même quand un rendez-vous à heure fixe se trouve au milieu (plus d\'aller-retour inutile dans le même quartier)']],
     ['3.31.193', [
       'Journée (carte CR ouverte) : boutons « Sortir » et « Modifier » ramenés à une hauteur compacte (34 px) sur fond assorti à la carte (blanc, vert, orange ou rouge), sans bande blanche en dessous',
       'Frise des jours : suppression du halo vert qui bavait autour du bouton du jour sélectionné',
