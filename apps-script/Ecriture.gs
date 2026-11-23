@@ -664,7 +664,7 @@ function enregistrerFiche(b, dejaVerrouille) {
         });
       }
     }
-    var champsR = champsEcrAvecTerritoire_(CHAMPS_PRESENCES);
+    var champsR = CHAMPS_PRESENCES.slice();   // 3.31.196 : pas de Secteur dans Presences
     var entR = shR.getRange(1, 1, 1, shR.getLastColumn()).getValues()[0].map(normaliser);
     var cRefEtabR = entR.indexOf(normaliser('Ref_CodeEtab'));
     var cSpecR = entR.indexOf(normaliser('Spécialité')), cStatR = entR.indexOf(normaliser('Statut_Praticien')), cTelR = entR.indexOf(normaliser('Téléphone'));

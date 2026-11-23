@@ -437,7 +437,8 @@ function ecrireQuartiers(ss) {
 function assurerColonnesTerritoire_(ss) {
   var extra = [['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur']];
   // 3.31.60 : Pharmacies et Etablissements n'ont plus ces colonnes (déduites de l'onglet Quartiers) : jamais recréées
-  [FEUILLES.presences].forEach(function (nom) {
+  // 3.31.196 : Presences non plus (secteur tiré du quartier de l'établissement) : plus aucune feuille complétée
+  [].forEach(function (nom) {
     var sh = ss.getSheetByName(nom);
     if (sh) completerEntetes(sh, extra);
   });

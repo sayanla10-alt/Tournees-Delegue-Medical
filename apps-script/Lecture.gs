@@ -63,7 +63,8 @@ function lireTout(sig, hdepuis) {
     return p.code !== '' && p.nom !== '';
   });
   praticiens.forEach(function (p) { p.nbVisites = +p.nbVisites || 0; p.note = lireNote(p.note); });
-  var presences = lireObjets(ss.getSheetByName(FEUILLES.presences), champsAvecTerritoire_(CHAMPS_PRESENCES), tz).filter(function (p) {
+  var presences = lireObjets(ss.getSheetByName(FEUILLES.presences), CHAMPS_PRESENCES, tz)   // 3.31.196 : pas de Secteur dans Presences
+   .filter(function (p) {
     return p.code !== '';
   });
   var idsLus = {};   // 3.26.50 : identifiant vide ou en double -> identifiant de ligne unique (évite les lieux qui s'échangent sur le téléphone)

@@ -47,7 +47,8 @@ var CHAMPS_PRATICIENS = [
 var CHAMPS_PRESENCES = [
   ['id', 'IdPresence'], ['code', 'CodeContact'], ['nom', 'Nom'], ['lieu', 'Lieu/Etablissement'],
   ['quartier', 'Quartier'], ['commune', 'Commune'], ['zone', 'Zone'],
-  ['territoire', 'Territoire'], ['subdivision', 'Subdivision'], ['secteur', 'Secteur'],
+  // 3.31.196 : plus de Territoire, Subdivision ni Secteur dans Presences : le secteur vient du quartier de l'établissement
+  // (onglet Etablissements) puis de l'onglet Quartiers
   ['lundi', 'Lundi'], ['mardi', 'Mardi'], ['mercredi', 'Mercredi'], ['jeudi', 'Jeudi'], ['vendredi', 'Vendredi'],
   ['horaireMatin', 'HoraireMatin'], ['horaireSoir', 'HoraireSoir'], ['lat', 'Latitude'], ['lon', 'Longitude'], ['reperes', 'Repères'], ['origineGps', 'OrigineGPS'],
   ['refEtab', 'Ref_CodeEtab']   // 3.31.62 : clé du lieu (Etablissements CodeEtab, ou Pharmacies CodeContact)
