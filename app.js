@@ -9,13 +9,14 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '3.31.195';
+  var APP_VERSION = '3.31.196';
   // Nouveautés par version : l'écran d'accueil affiche, une seule fois, celles des versions
   // publiées depuis la dernière ouverture du téléphone
   // 3.31.123 : seules les dernières versions restent ici ; les plus anciennes sont dans journal.js, chargé uniquement
   // quand un téléphone a sauté plus de versions que celles-ci (app.js plus léger de 140 Ko à chaque démarrage).
   // À chaque publication : ajouter la ligne en tête ; au-delà d'une quinzaine de lignes, déplacer les plus anciennes dans journal.js.
   var JOURNAL = [
+    ['3.31.196', ['Base allégée : l\'onglet Presences n\'a plus de colonne Secteur, le secteur d\'un médecin vient du quartier de son établissement (onglet Etablissements) ; aucun changement visible']],
     ['3.31.195', ['Réglages repensés : votre profil en carte (enregistré dès que vous quittez un champ), vos habitudes sur une ligne chacune, Partager et installer à portée de main, Mes données (état, synchronisation, sauvegarde, effacement) et l\'assistance technique repliée en bas']],
     ['3.31.194', ['Planifier : les médecins d\'un même secteur restent regroupés dans la tournée même quand un rendez-vous à heure fixe se trouve au milieu (plus d\'aller-retour inutile dans le même quartier)']],
     ['3.31.193', [
